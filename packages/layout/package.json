@@ -1,0 +1,24 @@
+{
+  "name": "@chadash/layout",
+  "version": "0.0.0",
+  "description": "Framework-agnostic layout engine for Cha Dash boards: sections, sized widgets, dense Z-order reflow, derived breakpoints, history and serialization.",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "fast-check": "^4.10.2",
+    "typescript": "^7.0.2"
+  }
+}

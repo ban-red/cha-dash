@@ -51,9 +51,9 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 
 | # | Task | Output |
 |---|---|---|
-| 2.1 | **`packages/layout`** (pure TypeScript, framework-agnostic): <ul><li>model: sections; items with `supportedSizes`</li><li>operations: place, move, resize-to-size, remove, smart insert</li><li>dense Z-reflow; derived breakpoints (12 → 8 → 4 columns)</li><li>immutable history (undo/redo); serialization</li></ul> | package + API doc |
-| 2.2 | **Property tests** (fast-check): <ul><li>no overlaps; all items in bounds</li><li>derivation is deterministic</li><li>undo restores exactly</li><li>resizing only ever lands on supported sizes</li></ul> | green test suite |
-| 2.3 | **Vue 3.6 renderer**: pointer drag with momentum projection, Motion for Vue springs, a corner resize handle that snaps, keyboard move and resize, edit mode | `web/` demo route |
+| 2.1 | ✅ **`packages/layout`** (pure TypeScript, framework-agnostic): <ul><li>model: sections; items with `supportedSizes`</li><li>operations: place, move, resize-to-size, remove, smart insert</li><li>dense Z-reflow; derived breakpoints (12 → 8 → 4 columns)</li><li>immutable history (undo/redo); serialization</li></ul> | package + API doc |
+| 2.2 | ✅ **Property tests** (fast-check, 9,400 runs per `bun test`): <ul><li>no overlaps; all items in bounds</li><li>derivation is deterministic</li><li>undo restores exactly</li><li>resizing only ever lands on supported sizes</li></ul> | green test suite |
+| 2.3 | **Vue 3.6 renderer** (note: the workspace resolved TypeScript 7, the native compiler; check `vue-tsc` works with it or pin 5.x/6.x in `web/`): pointer drag with momentum projection, Motion for Vue springs, a corner resize handle that snaps, keyboard move and resize, edit mode | `web/` demo route |
 | 2.4 | **One-day gridstack 14 comparison** on the same scenarios | ADR-0013 |
 | 2.5 | Feel check on a real phone: 60 fps drag | ▶ you run the dev server |
 
