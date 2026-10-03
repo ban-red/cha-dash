@@ -1,0 +1,297 @@
+// Package auth handles first-run setup, local accounts and cookie sessions.
+//
+// First run: while no user exists, the hub holds a one-time setup token in
+// memory and logs it once at startup. POST /api/setup with that token creates
+// the owner and signs them in. The token never touches disk; a restart before
+// setup simply logs a new one.
+//
+// Sessions: a random 256-bit token in an HttpOnly, SameSite=Lax cookie. Only
+// its SHA-256 is stored, so a database leak doesn't leak live sessions.
+//
+// Passkeys (v0.1) plug in beside password login: verifying a credential is
+// separate from StartSession, which every sign-in method ends with.
+package auth
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"database/sql"
+	"errors"
+	"fmt"
+	"log/slog"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+	"unicode/utf8"
+
+	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/store"
+)
+
+const (
+	CookieName = "chadash_session"
+	// SessionTTL is absolute: sessions don't slide. Re-signing in monthly is
+	// cheap once passkeys land.
+	SessionTTL = 30 * 24 * time.Hour
+	// lastSeenEvery throttles session last_seen writes on the request path.
+	lastSeenEvery = 5 * time.Minute
+
+	MinPasswordLen = 12  // characters
+	MaxPasswordLen = 512 // bytes; bounds hashing input
+)
+
+// Sign-in methods recorded on sessions; step-up checks will key off these.
+const (
+	MethodPassword = "password"
+)
+
+// Roles. Only the owner exists in v0; the rest arrive with RBAC in v0.2.
+const (
+	RoleOwner = "owner"
+)
+
+var (
+	ErrSetupComplete  = errors.New("auth: setup already completed")
+	ErrBadSetupToken  = errors.New("auth: invalid setup token")
+	ErrBadCredentials = errors.New("auth: invalid username or password")
+	ErrNoSession      = errors.New("auth: no valid session")
+)
+
+// ValidationError is a user-fixable input problem.
+type ValidationError struct{ Msg string }
+
+func (e *ValidationError) Error() string { return e.Msg }
+
+var usernameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$`)
+
+// User is an account as the API exposes it.
+type User struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+}
+
+// Session is a signed-in browser or client.
+type Session struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"-"`
+	Method    string    `json:"method"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	lastSeen  time.Time
+}
+
+// Service is the auth subsystem.
+type Service struct {
+	st      *store.Store
+	log     *slog.Logger
+	proxies httpx.Proxies
+	limiter *limiter
+	now     func() time.Time
+	params  argonParams
+
+	mu         sync.Mutex
+	setupToken string // empty once an owner exists
+}
+
+// New starts the auth service. With no users it mints and logs a setup token.
+func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.Proxies) (*Service, error) {
+	s := &Service{
+		st:      st,
+		log:     log,
+		proxies: proxies,
+		limiter: newLimiter(10, 6*time.Second), // 10 attempts, then one per 6 s, per client IP
+		now:     time.Now,
+		params:  defaultParams,
+	}
+	if _, err := st.Writer().ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= ?`, s.now().UnixMilli()); err != nil {
+		return nil, fmt.Errorf("auth: prune sessions: %w", err)
+	}
+	var users int
+	if err := st.Reader().QueryRowContext(ctx, `SELECT count(*) FROM users`).Scan(&users); err != nil {
+		return nil, fmt.Errorf("auth: %w", err)
+	}
+	// Compute the timing-equaliser hash now, not during the first failed login.
+	go dummyHash()
+	if users == 0 {
+		s.setupToken = "cds_" + strings.ToLower(rand.Text())
+		// Logged once, at warn so it survives a quiet log level. Whoever can read
+		// the logs (the host owner) can claim the instance; nobody else can.
+		log.Warn("first run: no owner account yet; open Cha Dash and enter this setup token to create one",
+			"setup_token", s.setupToken)
+	}
+	return s, nil
+}
+
+// SetupRequired reports whether the owner account still needs creating.
+func (s *Service) SetupRequired() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.setupToken != ""
+}
+
+// Setup consumes the setup token and creates the owner account. A wrong token
+// or invalid input leaves the token valid; success spends it.
+func (s *Service) Setup(ctx context.Context, token, username, password string) (User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.setupToken == "" {
+		return User{}, ErrSetupComplete
+	}
+	if subtle.ConstantTimeCompare([]byte(token), []byte(s.setupToken)) != 1 {
+		return User{}, ErrBadSetupToken
+	}
+	if err := validateCredentials(username, password); err != nil {
+		return User{}, err
+	}
+	u := User{ID: "u_" + strings.ToLower(rand.Text()), Username: username, Role: RoleOwner}
+	hash := hashPassword(password, s.params)
+	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM users`).Scan(&n); err != nil {
+			return err
+		}
+		if n > 0 {
+			return ErrSetupComplete
+		}
+		now := s.now().UnixMilli()
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO users (id, username, password_hash, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+			u.ID, u.Username, hash, u.Role, now, now)
+		return err
+	})
+	if err != nil {
+		if errors.Is(err, ErrSetupComplete) {
+			s.setupToken = ""
+		}
+		return User{}, err
+	}
+	s.setupToken = ""
+	s.log.Info("owner account created; setup token spent", "user", u.Username)
+	return u, nil
+}
+
+func validateCredentials(username, password string) error {
+	if !usernameRE.MatchString(username) {
+		return &ValidationError{"username must be 1–64 letters, digits or . _ @ -, starting with a letter or digit"}
+	}
+	if utf8.RuneCountInString(password) < MinPasswordLen {
+		return &ValidationError{fmt.Sprintf("password must be at least %d characters", MinPasswordLen)}
+	}
+	if len(password) > MaxPasswordLen {
+		return &ValidationError{fmt.Sprintf("password must be at most %d bytes", MaxPasswordLen)}
+	}
+	return nil
+}
+
+// dummyHash is verified against when a username doesn't exist, so response
+// timing doesn't reveal which usernames are real.
+var dummyHash = sync.OnceValue(func() string { return hashPassword("not a real password", defaultParams) })
+
+// Login checks a username and password.
+func (s *Service) Login(ctx context.Context, username, password string) (User, error) {
+	if len(password) > MaxPasswordLen {
+		return User{}, ErrBadCredentials
+	}
+	var u User
+	var hash sql.NullString
+	var disabled sql.NullInt64
+	err := s.st.Reader().QueryRowContext(ctx,
+		`SELECT id, username, role, password_hash, disabled_at FROM users WHERE username = ?`, username).
+		Scan(&u.ID, &u.Username, &u.Role, &hash, &disabled)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && !hash.Valid) {
+		_, _ = verifyPassword(password, dummyHash())
+		return User{}, ErrBadCredentials
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("auth: %w", err)
+	}
+	ok, err := verifyPassword(password, hash.String)
+	if err != nil {
+		return User{}, fmt.Errorf("auth: user %s: %w", u.ID, err)
+	}
+	if !ok || disabled.Valid {
+		return User{}, ErrBadCredentials
+	}
+	return u, nil
+}
+
+// createSession stores a new session and returns its cookie token.
+func (s *Service) createSession(ctx context.Context, userID, method, ip, userAgent string) (string, Session, error) {
+	token := rand.Text() + rand.Text() // two 128-bit draws: 256 bits
+	now := s.now()
+	sess := Session{
+		ID:        "s_" + strings.ToLower(rand.Text()),
+		UserID:    userID,
+		Method:    method,
+		CreatedAt: now,
+		ExpiresAt: now.Add(SessionTTL),
+	}
+	if len(userAgent) > 256 {
+		userAgent = userAgent[:256]
+	}
+	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= ?`, now.UnixMilli()); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO sessions (id, token_hash, user_id, method, created_at, expires_at, last_seen_at, ip, user_agent)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			sess.ID, tokenHash(token), userID, method, now.UnixMilli(), sess.ExpiresAt.UnixMilli(), now.UnixMilli(), ip, userAgent)
+		return err
+	})
+	if err != nil {
+		return "", Session{}, fmt.Errorf("auth: create session: %w", err)
+	}
+	return token, sess, nil
+}
+
+// lookupSession resolves a cookie token to its session and user.
+func (s *Service) lookupSession(ctx context.Context, token string) (Session, User, error) {
+	if token == "" || len(token) > 128 {
+		return Session{}, User{}, ErrNoSession
+	}
+	var sess Session
+	var u User
+	var created, expires, seen int64
+	err := s.st.Reader().QueryRowContext(ctx, `
+		SELECT s.id, s.method, s.created_at, s.expires_at, s.last_seen_at, u.id, u.username, u.role
+		FROM sessions s JOIN users u ON u.id = s.user_id
+		WHERE s.token_hash = ? AND s.expires_at > ? AND u.disabled_at IS NULL`,
+		tokenHash(token), s.now().UnixMilli()).
+		Scan(&sess.ID, &sess.Method, &created, &expires, &seen, &u.ID, &u.Username, &u.Role)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Session{}, User{}, ErrNoSession
+	}
+	if err != nil {
+		return Session{}, User{}, fmt.Errorf("auth: %w", err)
+	}
+	sess.UserID = u.ID
+	sess.CreatedAt = time.UnixMilli(created)
+	sess.ExpiresAt = time.UnixMilli(expires)
+	sess.lastSeen = time.UnixMilli(seen)
+	return sess, u, nil
+}
+
+func (s *Service) touchSession(ctx context.Context, sess Session) {
+	now := s.now()
+	if now.Sub(sess.lastSeen) < lastSeenEvery {
+		return
+	}
+	if _, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, now.UnixMilli(), sess.ID); err != nil {
+		s.log.Warn("could not update session last_seen", "session", sess.ID, "err", err)
+	}
+}
+
+func (s *Service) deleteSession(ctx context.Context, token string) error {
+	_, err := s.st.Writer().ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, tokenHash(token))
+	return err
+}
+
+func tokenHash(token string) []byte {
+	sum := sha256.Sum256([]byte(token))
+	return sum[:]
+}

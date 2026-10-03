@@ -62,11 +62,11 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 | # | Task | Output |
 |---|---|---|
 | 3.1 | Toolchain: Go **1.27.1** via `go.mod` (the local 1.25.1 switches toolchains automatically). JavaScript tooling is **Bun** (package manager, workspaces, test runner) instead of pnpm; Bun 1.4 is already installed | — |
-| 3.2 | **`go.mod`: `module dash.cha.sh`**. **`cmd/chadash`**: `serve`, `healthcheck`, `version`; config from env and flags; structured logs | binary |
-| 3.3 | **Storage**: SQLite plus goose migrations, schema v0 (settings, users, sessions, integration instances, vault, boards, layouts, audit stub) | migrations |
-| 3.4 | **First run**: setup token printed to logs → owner account → session cookie. Passkeys follow in v0.1 | auth flow |
-| 3.5 | **Vault**: XChaCha20-Poly1305 envelope encryption; key auto-generated on first boot or loaded from `CHADASH_SECRET_KEY_FILE` | `internal/vault` |
-| 3.6 | **Home Graph v0 + realtime**: an in-memory graph, and the WebSocket protocol (`hello` / `sub` / `snap` / `diff` / `ping`) from the architecture doc | `internal/graph`, `internal/realtime` |
+| 3.2 | ✅ **`go.mod`: `module dash.cha.sh`**. **`cmd/chadash`**: `serve`, `healthcheck`, `version`; config from env and flags; structured logs | binary |
+| 3.3 | ✅ **Storage**: SQLite plus goose migrations, schema v0 (settings, users, sessions, integration instances, vault, boards, layouts, audit stub) | migrations |
+| 3.4 | ✅ **First run**: setup token printed to logs → owner account → session cookie. Passkeys follow in v0.1 | auth flow |
+| 3.5 | ✅ **Vault**: XChaCha20-Poly1305 envelope encryption; key auto-generated on first boot or loaded from `CHADASH_SECRET_KEY_FILE` | `internal/vault` |
+| 3.6 | ✅ **Home Graph v0 + realtime**: an in-memory graph, and the WebSocket protocol (`hello` / `sub` / `snap` / `diff` / `ping`) from the architecture doc | `internal/graph`, `internal/realtime` |
 | 3.7 | **Demo Home simulator v0** (`sim/`): the dogfood topology (5 PVE endpoints, Unraid with PBS, pvedocker, OPNsense, HA, Frigate) plus scripted incidents (PBS filling up, failed backup, memory pressure, Plex token revoked, Karakeep API change, OOM-killed qBittorrent). It also exports JSON snapshots so later prototypes use the same data | `sim/` |
 | 3.8 | **`web/` scaffold**: Vue 3.6 + Vite SPA embedded with `go:embed`; one live page subscribed to the simulator over the WebSocket | SPA |
 | 3.9 | **Ship shape**: multi-stage Dockerfile (scratch, non-root, `/data`), `deploy/compose.yaml` with the socket-proxy preset | ▶ you run `docker compose up -d` |

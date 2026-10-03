@@ -389,10 +389,14 @@ Community specs install from the UI pinned to a hash. A spec can be **promoted t
 → {"op":"hello","v":1,"resume":4810}                       // cookie auth; Origin checked
 → {"op":"sub","id":1,"topics":["graph:lens/home","metric:host/jupiter/cpu@1m"]}
 ← {"op":"snap","id":1,"seq":4812,"data":{...}}              // full snapshot for the subscription
-← {"op":"diff","seq":4813,"patch":[...]}                    // coalesced JSON patches, ≤ 4/s per topic
+← {"op":"diff","id":1,"seq":4813,"patch":[...]}             // coalesced RFC 6902 patches, ≤ 4/s per subscription
+← {"op":"snap","id":1,"seq":4920,"resync":true,"data":{...}} // client fell behind: diffs dropped, fresh snapshot
 ← {"op":"task","task":"t_9f2","state":"running","progress":0.4,"msg":"Pulling image…"}
 ← {"op":"ping"}                                             // 30s; client reconnects w/ resume seq
+→ {"op":"unsub","id":1}                                     // also: client ping → pong; error frames carry a code
 ```
+
+**As built in M0** (`internal/realtime`): `diff` frames carry the subscription `id` so one socket can multiplex; `unsub`, `error` and client `ping`/`pong` exist; a client that falls behind gets a `resync` snapshot instead of a backlog. `resume` is accepted but ignored for now, since every `sub` already starts with a snapshot. Topics so far: `graph` and `graph:kind/<kind>`.
 
 - **Inline snapshot.** `index.html` embeds the last-known graph snapshot for the current board. The page renders **instantly with real values** and then goes live. No spinners.
 - **Service worker** caches the shell and the last snapshot. If the hub is unreachable, you see last-known values under a clear banner.
@@ -524,7 +528,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
   - argon2id password hashing
   - **passkeys (WebAuthn)**
   - TOTP
-  - HttpOnly, SameSite=Lax cookie sessions with CSRF tokens
+  - HttpOnly, SameSite=Lax cookie sessions. Cross-site requests are blocked by SameSite plus Go's `CrossOriginProtection` on unsafe methods, and the API only accepts JSON bodies. Per-request CSRF tokens stay an option if a form-post surface ever appears
 - **OIDC** with PKCE (Authelia, Authentik, Pocket ID, Keycloak, Kanidm). Group claims map to roles.
 - **Forward-auth headers** are opt-in, and trusted only from the `CHADASH_TRUSTED_PROXIES` CIDRs.
 - **Roles:** Owner, Admin, Operator, Viewer, Household. **Scopes** can be qualified per resource. **Kiosk tokens** are bound to one board.
