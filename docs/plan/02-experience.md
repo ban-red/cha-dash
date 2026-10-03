@@ -44,6 +44,46 @@ A well-made instrument is calm while it works, precise when you read it, honest 
 
 The plan was to build A and B as static prototypes on the same demo data, then pick one or blend them (likely A's grammar with B's light theme). C stays as a reference only.
 
+**✅ Decision 12 (2026-10-03): Direction A, built to be very themeable.**
+- **A's structure is the product.** That covers the unit grid, sections, widget anatomy, status vocabulary, interaction grammar and motion physics.
+- **Everything visual is a theme token.**
+- **B lives on as a built-in "Paper" theme**, with ruled surfaces, the newsprint palette and serif headlines, plus an optional `headline` style for the Briefing.
+
+---
+
+## Theming
+
+The structure stays fixed and the look is fully swappable. **A theme is a versioned token document** (YAML/JSON) that the hub validates and compiles to CSS custom properties.
+- Components only ever use *semantic* tokens, never raw values.
+- Switching themes is instant, with no reload.
+
+| Layer | What it controls | Options |
+|---|---|---|
+| **Color** | 12-step OKLCH scales for light and dark | Generated from **base · accent · contrast** (the Linear model), or overridden token by token |
+| **Status** | Attention, down, progress, maintenance | Overridable, but **must pass the palette validator** (colorblind and normal-vision separation, plus contrast). Failing themes are refused with a specific reason, e.g. "attention and down are too similar for colorblind users" |
+| **Typography** | UI face · numeral face · clock face · headline face | Bundled open-source fonts: Instrument Sans, Inter, IBM Plex Sans, Schibsted Grotesk; Geist Mono, JetBrains Mono, Commit Mono; Doto; Newsreader. Self-hosted user fonts come later |
+| **Surface** | How tiles separate | `card` (A) · `ruled` (column rules, as in B) · `flat` |
+| **Shape** | Radius scale, hairline weight | Tokens |
+| **Density** | Unit size, padding | `comfortable` · `compact` |
+| **Briefing** | Status line style | `sentence` (A) · `headline` (B's serif headline plus deck) |
+| **Material** | Chrome translucency | Frosted ↔ solid slider; reduced transparency forces solid |
+| **Motion** | Animation | `full` · `reduced` · `none` (follows the OS by default) |
+| **Backdrop** | Behind the board | Solid, or a subtle texture (paper grain). **Never content over a wallpaper photo** |
+
+**Built-in themes:**
+- **Instrument Dark** (default)
+- Instrument Light
+- OLED
+- Night (monochrome red)
+- High Contrast
+- **Paper** (Direction B)
+
+**Theme selection is per board and per device.** For example, a wall tablet can switch to Night on a schedule.
+
+**Sharing:** themes export and import as files. A community gallery comes later, following the same pattern as integration specs, and every imported theme is validated before it can be applied.
+
+**Custom CSS** is an admin-only escape hatch that isn't a supported API, so it may break between versions. CSP still blocks loads from other origins, so custom CSS can restyle the page but can't send data anywhere.
+
 ---
 
 ## Visual system

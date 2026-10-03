@@ -1,0 +1,15 @@
+name: hello
+services:
+  web:
+    image: nginx:1.28-alpine
+    ports: ["8080:80"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+  whoami:
+    image: traefik/whoami:v1.11.0
+    ports: ["8081:80"]
+    restart: unless-stopped

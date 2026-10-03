@@ -360,13 +360,14 @@ Community specs install from the UI pinned to a hash. A spec can be **promoted t
 - **Secrets** stay as `${secret:name}` references in files. The node resolves them **in memory at deploy time** from the hub's vault. They are never written to the repo.
 - Compose runs **inside the node** through the Go Compose SDK (`docker/compose/v5/pkg/compose`). There's no docker CLI dependency.
 
-**Deploy pipeline.** This runs as an action (tier T2), with a plan and an audit record:
+**Deploy pipeline.** This runs as an action (tier T2), with a plan and an audit record. Steps 2–7 were validated in [spike 4.6](../../spikes/node-compose/README.md#findings):
 1. **Validate** with compose-spec (compose-go loader) and resolve references.
-2. **Plan:** diff the rendered config against what's running, using compose config-hash labels. Show which services will be recreated, pulled or removed, and the blast radius.
-3. **Pull**, streaming progress.
-4. **Up**, streaming progress.
-5. **Health gate:** container healthchecks plus HTTP checks on exposed services.
-6. **Commit**, or on failure **roll back** by checking out the previous commit, running `up` again, and reporting what failed.
+2. **Plan:** diff the rendered config against what's running, using compose config-hash labels (`compose.ServiceHash` matches the CLI exactly). Show which services will be recreated, pulled or removed, and the blast radius.
+3. **Preflight:** a dry run through the SDK's reconciler. It also resolves every image against its registry, so a bad tag is **blocked before anything stops**.
+4. **Commit** the attempt, then **pull** and **up**, streaming progress.
+5. **Health gate:** `up --wait` (running, and healthy where a healthcheck exists), then a **soak** that fails on any restart, exit or unhealthy state. `--wait` alone passes crash loops. HTTP checks on exposed services come with the integration.
+6. **Keep** the deploy, or on failure **roll back**: restore the previous version as a new commit, pinned to the image digests it last ran, and put it through the same gate. Failed attempts stay in the history.
+7. If the rollback fails too, the stack is **stuck**: an Inbox item at high severity.
 
 **Import and adopt:**
 - **Detect** running compose projects from labels (`com.docker.compose.project`, `.working_dir`, `.config_files`).
@@ -473,7 +474,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
   - host metrics
   - SMART, sensors, NUT (later)
   - relay
-- **Footprint target:** binary ≤ 15 MB, RSS ≤ 20 MB idle.
+- **Footprint target:** binary ≤ 40 MB, revised after spike 4.6 measured 31 MB with the Compose SDK linked ([ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md)). The idle-RSS target is set once a long-running node is measured; one-shot commands peaked at ~35 MB.
 - **On Unraid** (optional, v0.3+): the node runs as a Community Apps container *alongside* the Unraid API. It adds what the API lacks: host metrics, per-container stats as numbers, logs, opt-in exec, SMART detail and registry update checks. Lifecycle for Unraid-managed containers still goes through the Unraid API, so Unraid stays the source of truth.
 
 ---
@@ -587,7 +588,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | API client | `openapi-typescript` + `openapi-fetch`, generated from the hub's OpenAPI | One typed source of truth | — |
 | PWA | `vite-plugin-pwa` (Workbox), CSP-compatible | Offline shell, last-known snapshot, Web Push | — |
 | i18n | `vue-i18n` (ICU-style messages); Weblate for community translations | Big translation communities exist | Crowdin |
-| Frontend tests | Vitest + Vue Test Utils; Playwright (e2e and visual regression against the simulator); axe | — | — |
+| Frontend tests | `bun test` + fast-check for plain TypeScript packages; Vitest + Vue Test Utils for components, launched through Bun ([ADR-0019](../adr/0019-bun-for-javascript-tooling.md)); Playwright (e2e and visual regression against the simulator); axe | — | — |
 | Auth libs | go-webauthn, coreos/go-oidc, argon2id | Standard and maintained | — |
 | Build and ship | goreleaser + buildx; scratch or distroless; non-root; `/data`; healthcheck subcommand; cosign; SBOM; **compose files in `deploy/`** | Catalog requirements | — |
 
@@ -599,7 +600,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 |---|---|
 | Hub image | ≤ 40 MB compressed |
 | Hub idle RSS | ≤ 60 MB with no integrations · ≤ 120 MB with the full dogfood home (~25 integration instances, ~300 resources) |
-| Node | ≤ 15 MB binary · ≤ 20 MB RSS idle |
+| Node | ≤ 40 MB binary · idle RSS set after measuring a long-running node (one-shot commands: ~35 MB peak) |
 | First meaningful paint on LAN | ≤ 300 ms, with real last-known values |
 | JS bundle (initial) | ≤ 150 KB gzipped |
 | Interaction | 60 fps drag and resize on a mid-range phone; input-to-feedback ≤ 50 ms |

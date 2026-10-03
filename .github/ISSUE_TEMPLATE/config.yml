@@ -1,0 +1,9 @@
+# Blank issues stay enabled so feedback on the plan and ADRs still has a home.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/ban-red/cha-dash/security/advisories/new
+    about: Please report security problems privately through GitHub's private vulnerability reporting, never in a public issue.
+  - name: Security policy
+    url: https://github.com/ban-red/cha-dash/blob/main/SECURITY.md
+    about: What to include in a report, and how we handle it.

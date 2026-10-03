@@ -1,0 +1,52 @@
+# Issue and pull request labels for Cha Dash.
+# This file is the source of truth for a later label sync; nothing applies it yet.
+# Issue forms in .github/ISSUE_TEMPLATE/ apply some of these, so sync before relying on them.
+# Colors are hex without "#". Descriptions stay under GitHub's 100-character limit.
+
+# Area: which part of Cha Dash
+- name: "area:hub"
+  color: "bfd4f2"
+  description: "The chadash hub: server, API, auth, storage, realtime"
+- name: "area:node"
+  color: "c2e0c6"
+  description: "chadash-node: Docker control, owned stacks, local policy"
+- name: "area:web"
+  color: "d4c5f9"
+  description: "The Vue SPA and PWA: layout engine, widgets, offline"
+- name: "area:design"
+  color: "f9d0c4"
+  description: "Visual and interaction design: tokens, themes, motion, prototypes"
+- name: "area:integrations"
+  color: "fef2c0"
+  description: "Built-in integrations and declarative specs"
+- name: "area:docs"
+  color: "c5def5"
+  description: "Plan, ADRs, install and contributor docs"
+
+# Type: what kind of issue
+- name: "type:bug"
+  color: "d73a4a"
+  description: "Something doesn't work the way it should"
+- name: "type:feature"
+  color: "a2eeef"
+  description: "A new capability or an improvement"
+- name: "type:integration-request"
+  color: "1d76db"
+  description: "A service Cha Dash should read from or control"
+- name: "type:design-feedback"
+  color: "e99695"
+  description: "Something looks or feels off"
+
+# Process
+- name: "good first issue"
+  color: "7057ff"
+  description: "Small, well-scoped and a good place to start"
+- name: "help wanted"
+  color: "008672"
+  description: "Extra hands or knowledge welcome"
+- name: "needs-triage"
+  color: "fbca04"
+  description: "New; not yet reviewed by a maintainer"
+- name: "security"
+  color: "b60205"
+  description: "Security hardening. Report vulnerabilities privately, see SECURITY.md"

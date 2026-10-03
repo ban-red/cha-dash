@@ -1,0 +1,109 @@
+name: Bug report
+description: Something in Cha Dash doesn't work the way it should.
+labels: ["type:bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Before you start:
+        - **Found a security problem?** Please don't file it here. Report it privately, as described in [SECURITY.md](https://github.com/ban-red/cha-dash/blob/main/SECURITY.md).
+        - **Search open issues first.** Someone may already have reported it.
+        - **This issue is public.** Remove secrets, tokens, passwords, domains and public IP addresses from anything you paste.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag or commit. `chadash version` prints it.
+      placeholder: v0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - Docker Compose
+        - docker run
+        - Unraid Community Apps
+        - Binary with systemd
+        - Built from source
+        - Other (say below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: host-platform
+    attributes:
+      label: Host platform
+      description: Where the affected part runs. Pick all that apply.
+      multiple: true
+      options:
+        - Linux on bare metal
+        - Linux VM
+        - Proxmox LXC
+        - Unraid
+        - TrueNAS
+        - Raspberry Pi or another arm64 board
+        - Docker Desktop (macOS or Windows)
+        - Other (say below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of Cha Dash?
+      multiple: true
+      options:
+        - Hub (server, API, sign-in)
+        - Node (chadash-node, stacks)
+        - Web UI (layout, widgets, PWA)
+        - An integration
+        - Install or upgrade
+        - Docs
+        - Not sure
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+      placeholder: |
+        1. Opened the Fleet card
+        2. ...
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+
+  - type: input
+    id: integration
+    attributes:
+      label: Integration and service version
+      description: If an integration is involved, which service and which version of it?
+      placeholder: Sonarr 4.0
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant lines from `docker compose logs chadash` (or from the node). They're formatted as code automatically.
+        **Redact secrets and tokens before you paste:** API keys, passwords, session cookies, setup and join tokens, plus domains and public IP addresses.
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, browser and device, or what you've already tried. Blur hostnames and addresses you'd rather keep private.
+
+  - type: checkboxes
+    id: redacted
+    attributes:
+      label: Privacy check
+      options:
+        - label: I've removed secrets, tokens, passwords, domains and public IP addresses from everything above.
+          required: true

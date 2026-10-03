@@ -1,0 +1,11 @@
+name: hello
+services:
+  web:
+    image: nginx:1.27-alpine
+    ports: ["8080:80"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3

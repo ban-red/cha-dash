@@ -18,20 +18,23 @@
 | 5 | **How much "home" in v0.1** | Infrastructure first, plus the home integrations the owner actually uses: **Home Assistant, Frigate, media calendar, clock/weather**. The Family board ships in v0.2; feeds in v1.0 | — |
 | 6 | **Stacks** | **Cha Dash owns them.** Files live on disk on their host, in a git-versioned stacks root. Adopt and import are first-class. A **thin node** runs on each Docker server | The node is the only component that ever writes to Docker. The hub stays unprivileged |
 | 7 | **Self-hosting** | **Docker Compose is the main install method.** Plain `docker compose up -d` with zero required env vars; nodes are added with a compose snippet too | Unraid CA, binaries, TrueNAS and Helm are secondary channels |
-| 8 | **Repo and images** | **[github.com/ban-red/Cha-Dash](https://github.com/ban-red/Cha-Dash)** (public). Images: `ghcr.io/ban-red/chadash` and `ghcr.io/ban-red/chadash-node` | Unraid CA blacklists repos that get renamed or transferred. **Any move to an org has to happen before the first CA submission**, or not at all |
+| 8 | **Repo and images** | **[github.com/ban-red/cha-dash](https://github.com/ban-red/cha-dash)** (public; renamed to lowercase on 2026-10-03). Images: `ghcr.io/ban-red/chadash` and `ghcr.io/ban-red/chadash-node` | The rename happened **before** any Unraid CA submission, so there's no blacklist risk, and GitHub redirects the old URL. **No more renames or transfers once it's submitted to CA** |
 | 9 | **Default port** | **3696** (hub HTTP and the node WebSocket endpoint `/node`) | Avoids the ports other self-hosted dashboards commonly default to (3000, 7575, 8080) |
 | 10 | **Unraid** | **Unraid stays Unraid.** Containers stay Unraid-managed and are controlled through the Unraid API; nothing is converted to compose. An **optional thin node on Unraid** (v0.3+) adds metrics, logs, SMART and update checks alongside the API | Owned stacks target compose hosts such as pvedocker |
 | 11 | **Mobile** | **The PWA is the mobile client.** It's served by the compose-hosted hub; no native app for now | Home Screen install, Web Push and passkey approvals cover the phone |
+| 12 | **Visual direction** | **A · Instrument, built to be very themeable.** A's structure is fixed; every visual is a theme token. B lives on as the built-in **Paper** theme plus an optional `headline` Briefing style | See [02 · Experience → Theming](02-experience.md#theming). Prototype v2 demos the theme engine |
+| 18 | **Go module path** | **Custom import path `dash.cha.sh`** (`module dash.cha.sh`) | `dash.cha.sh` must serve a `go-import` meta tag. See [docs/infra/vanity-import.md](../infra/vanity-import.md). Local builds work before that's live |
+| 19 | **JavaScript tooling** | **Bun** for packages, workspaces and scripts; `bun test` for plain TypeScript packages | Vite stays the dev server and bundler; Vue component tests use Vitest launched through Bun. [ADR-0019](../adr/0019-bun-for-javascript-tooling.md) |
+| 20 | **Node deploys** | **Compose SDK + go-git in the node:** hash plan, dry-run preflight, `up --wait` plus a restart-aware soak, rollback as a new commit | Validated by spike 4.6. [ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md) |
 
 ### Still open
 
 | # | Decision | Options | Recommendation | When |
 |---|---|---|---|---|
-| 12 | **Visual direction** | A Instrument · B Paper · blend | Prototype both; expect A's structure with B's warmth for the light theme | M0 design spike |
 | 13 | **Grid engine** | Build our own · gridstack 14 · dnd-kit/dom | **Build** (TS package + Vue/Motion renderer), after a one-day comparison spike | M0 |
 | 14 | **Node transport and identity** | mTLS · Noise | mTLS with a pinned self-signed CA, unless the spike shows Noise is better | Before v0.2 (the local node) |
 | 15 | **SQLite driver** | modernc · ncruces (encryption at rest) | Spike both; prefer ncruces if encryption is cheap | M0 |
-| 16 | **Hardware floor** | arm64 · armv7 | Fully support amd64 and arm64; armv7 best-effort | M0 |
+| 16 | **Hardware floor** | arm64 · armv7 | Fully support amd64 and arm64; armv7 best-effort. | M0 |
 | 17 | **AI/MCP stance** | Embrace post-1.0, with approvals · avoid | Embrace, but only through the action engine with human approval. Design the "propose" API now | Before v0.2 |
 
 ---
@@ -52,7 +55,7 @@
 
 ## M0: Foundations
 
-**Decisions:** settle 12–16 in the table above, each written up as an ADR in `docs/adr/`.
+**Decisions:** settle 13–17 in the table above, each written up as an ADR in [`docs/adr/`](../adr/README.md).
 
 **Design spike**
 - Build static prototypes of **Direction A (Instrument)** and **Direction B (Paper)**, both rendering the **dogfood home's real shape** with sample values.
@@ -321,7 +324,7 @@ Compare it for one day against a gridstack 14 prototype.
 
 ## Open questions
 
-None right now. The remaining open items are the M0 decisions (12–17) above.
+None right now. The remaining open items are the M0 decisions (13–17) above.
 
 *Answered:*
 - **Homepage config** is now the [importer fixture](../../testdata/importers/homepage/dogfood/README.md).
@@ -336,8 +339,8 @@ None right now. The remaining open items are the M0 decisions (12–17) above.
 
 > The detailed, sequenced plan for finishing M0 is in [06 · Next steps](06-next-steps.md).
 
-1. ~~**Repo bootstrap**~~ ✅ done 2026-10-03: `LICENSE` (AGPL-3.0), `SECURITY.md`, `CONTRIBUTING.md`, docs and fixture pushed to [ban-red/Cha-Dash](https://github.com/ban-red/Cha-Dash). OSI-limited CLA added. Still to do: enable private vulnerability reporting in repo settings.
-2. **Design exploration:** prototype v1 is built at [`design/prototypes/m0-directions.html`](../../design/prototypes/README.md), with both directions on the dogfood home. **Next: pick a direction (decision 12).**
+1. ~~**Repo bootstrap**~~ ✅ done 2026-10-03, private vulnerability reporting enabled: `LICENSE` (AGPL-3.0), `SECURITY.md`, `CONTRIBUTING.md`, docs and fixture pushed to [ban-red/cha-dash](https://github.com/ban-red/cha-dash). OSI-limited CLA added.
+2. **Design exploration:** prototype v1 is built at [`design/prototypes/m0-directions.html`](../../design/prototypes/README.md), with both directions on the dogfood home. **Direction A chosen (decision 12); next is prototype v2 with the theme engine.**
 3. **Layout engine spike** (TS + Vue 3.6 + Motion for Vue), plus a one-day gridstack comparison.
 4. **Hub skeleton:**
    - `chadash serve`, setup token, SQLite, WebSocket snapshot/diff
@@ -348,5 +351,5 @@ None right now. The remaining open items are the M0 decisions (12–17) above.
    - Unraid consent flow and subscriptions
    - Traefik routers
    - Docker reads through the socket proxy
-   - Compose SDK + go-git deploy and rollback
-6. Write ADR-0001 to ADR-0011 for the decided items, and ADR-0012 onward as the open ones are settled.
+   - ~~Compose SDK + go-git deploy and rollback~~ ✅ spike 4.6, [ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md)
+6. ~~**ADRs**~~ ✅ 0001–0012 and 0018–0020 are written ([index](../adr/README.md)). 13–17 get theirs as they're settled.

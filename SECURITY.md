@@ -6,7 +6,7 @@ Cha Dash is built to hold credentials for, and eventually control, the machines 
 
 **Please don't open a public issue for security problems.**
 
-Report them privately through GitHub's **[private vulnerability reporting](https://github.com/ban-red/Cha-Dash/security/advisories/new)** (Security tab → "Report a vulnerability"). Please include:
+Report them privately through GitHub's **[private vulnerability reporting](https://github.com/ban-red/cha-dash/security/advisories/new)** (Security tab → "Report a vulnerability"). Please include:
 
 - what's affected (hub, node, a specific integration) and which version or commit
 - steps to reproduce, or a proof of concept

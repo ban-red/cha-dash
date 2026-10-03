@@ -1,0 +1,84 @@
+name: Integration request
+description: Ask for a service Cha Dash should read from, or control.
+labels: ["type:integration-request", "area:integrations", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Integrations are how Cha Dash learns about your home. The more concrete this is, the easier it is to build.
+        It may already be planned: check the [integration priorities](https://github.com/ban-red/cha-dash/blob/main/docs/plan/04-roadmap.md#integration-priority-by-milestone) and open issues first.
+
+  - type: input
+    id: service
+    attributes:
+      label: Service
+      description: Its name, and the version you run if you know it.
+      placeholder: Paperless-ngx 2.x
+    validations:
+      required: true
+
+  - type: input
+    id: api-docs
+    attributes:
+      label: Link to its API docs
+      description: The official API reference, an OpenAPI file, or the best source you know of.
+      placeholder: https://
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auth-method
+    attributes:
+      label: How does its API authenticate?
+      multiple: true
+      options:
+        - API key or token
+        - Username and password
+        - OAuth or OIDC
+        - Session cookie
+        - No authentication
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-to-see
+    attributes:
+      label: What do you want to see?
+      description: The numbers and states that matter on your front page. What would make you look twice?
+      placeholder: |
+        - documents waiting to be processed
+        - when it last processed something, and a warning if it's stuck
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-to-control
+    attributes:
+      label: What do you want to control?
+      description: Actions you'd take from Cha Dash, if any. Control is always opt-in, and riskier actions get more confirmation.
+      placeholder: |
+        - re-run processing for one document
+        - pause processing
+
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: How do you run it?
+      options:
+        - Docker or compose
+        - Unraid app
+        - Proxmox VM or LXC
+        - Bare metal
+        - A hosted service
+        - Other
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Can you help?
+      description: All optional.
+      options:
+        - label: I run this service and can test against it.
+        - label: I can help record sanitized API responses as fixtures (no real secrets, domains or IP addresses).
+        - label: I'd like to work on the integration myself.

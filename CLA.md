@@ -20,7 +20,7 @@ Thank you for contributing to Cha Dash. This Agreement clarifies the rights you 
 
 **"We" (or "Us")** means the maintainer and copyright holder of the Cha Dash project, currently the owner of the GitHub account `ban-red`, and any successor steward of the Project.
 
-**"Project"** means the Cha Dash software, documentation and related materials, as maintained at <https://github.com/ban-red/Cha-Dash>, and any successor location.
+**"Project"** means the Cha Dash software, documentation and related materials, as maintained at <https://github.com/ban-red/cha-dash>, and any successor location.
 
 **"Contribution"** means any original work of authorship that You intentionally submit to Us for inclusion in the Project, including modifications or additions to existing work. "Submit" means any form of electronic, verbal or written communication sent to Us or Our representatives, including pull requests, patches, issue comments containing code, and messages on mailing lists or chat, that is meant to discuss or improve the Project. It does not include communication You clearly mark, in writing, as "Not a Contribution."
 

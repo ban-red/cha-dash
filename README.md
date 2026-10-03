@@ -3,7 +3,7 @@
 **The front page of your home.**
 One calm, beautiful page that tells you everything's fine — and lets you fix it, safely, when it isn't.
 
-> Status: **planning** (October 2026). No code yet — the research and product plan are below. Repo: [github.com/ban-red/Cha-Dash](https://github.com/ban-red/Cha-Dash)
+> Status: **planning** (October 2026). No code yet — the research and product plan are below. Repo: [github.com/ban-red/cha-dash](https://github.com/ban-red/cha-dash)
 
 Cha Dash is an open-source, self-hosted dashboard for homelabs. Unraid, Docker and Proxmox are supported first-class. It starts as one customizable page of live widgets, and grows into safe control of your containers, stacks, VMs and LXCs, snapshots, updates and backups, across every host you run.
 
@@ -20,6 +20,9 @@ docker compose up -d   # the primary way to self-host Cha Dash (coming soon) —
 - [04 · Roadmap, decisions & risks](docs/plan/04-roadmap.md) — milestones, decisions made and still open, risks
 - [05 · Dogfood home](docs/plan/05-dogfood-home.md) — the real homelab Cha Dash has to win over first
 - [06 · Next steps](docs/plan/06-next-steps.md) — the sequenced plan for finishing M0
+
+**Decisions**
+- [Architecture decision records](docs/adr/README.md) — one file per decision, with the open ones listed
 
 **Design**
 - [M0 prototypes](design/prototypes/README.md) — two visual directions rendering the dogfood home

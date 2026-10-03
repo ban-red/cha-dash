@@ -25,3 +25,19 @@ coverage/
 
 # Private research notes (kept locally, not published)
 docs/research/
+
+# Personal Claude Code settings (never committed)
+.claude/settings.local.json
+
+# Spike build output and run logs
+spikes/*/bin/
+
+# JavaScript (Bun workspaces)
+node_modules/
+coverage/
+
+# Local hub data (SQLite, vault key) when running from the repo
+/data/
+*.db
+*.db-shm
+*.db-wal

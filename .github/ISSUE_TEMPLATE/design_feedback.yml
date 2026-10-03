@@ -1,0 +1,83 @@
+name: Design feedback
+description: Something in Cha Dash looks or feels off.
+labels: ["type:design-feedback", "area:design", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Design is a core part of Cha Dash, so this kind of feedback is very welcome, including on the [prototypes](https://github.com/ban-red/cha-dash/blob/main/design/prototypes/README.md).
+        Before you attach a screenshot, blur hostnames, addresses and anything else you'd rather keep private.
+
+  - type: input
+    id: screen
+    attributes:
+      label: Screen or widget
+      description: Include the widget size if it matters.
+      placeholder: Fleet card (Large), status sentence, ⌘K, Inbox
+    validations:
+      required: true
+
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Theme
+      options:
+        - Instrument Dark
+        - Instrument Light
+        - OLED
+        - Night
+        - High Contrast
+        - Paper
+        - A custom or imported theme
+        - A design prototype
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      multiple: true
+      options:
+        - Desktop or laptop
+        - Tablet
+        - Phone, in the browser
+        - Phone, installed as an app (PWA)
+        - Wall display or kiosk
+        - TV
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Safari on iOS, Firefox on Linux
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot or recording
+      description: Drag images or a short video in here.
+
+  - type: textarea
+    id: what-felt-off
+    attributes:
+      label: What felt off?
+      description: Layout, spacing, color, type, motion, wording... Say what you noticed, and what you were trying to do at the time.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-would-feel-right
+    attributes:
+      label: What would feel right?
+      description: Optional. An idea, a sketch or an example.
+
+  - type: checkboxes
+    id: accessibility
+    attributes:
+      label: Accessibility
+      options:
+        - label: This affects accessibility (contrast, color vision, motion, keyboard or screen reader use).

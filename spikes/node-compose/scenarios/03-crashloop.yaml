@@ -1,0 +1,7 @@
+name: hello
+services:
+  web:
+    image: nginx:1.28-alpine
+    command: ["sh", "-c", "sleep 3; echo 'upstream not found' >&2; exit 1"]
+    ports: ["8080:80"]
+    restart: unless-stopped
