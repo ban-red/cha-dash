@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "design/tokens"
   ],
   "scripts": {
     "test": "bun run --filter '*' test",

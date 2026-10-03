@@ -40,7 +40,16 @@ A well-made instrument is calm while it works, precise when you read it, honest 
 | **B · Paper** | Light, editorial, typographic: **literally a newspaper front page**. Masthead, a serif headline as the status sentence, grotesk figures, column rules instead of cards, photo captions on cameras, the fleet laid out like a market table | Lower density; harder to make dark mode feel intentional |
 | **C · Glass** | Depth, materials, vibrant backdrops | Looks like an iOS clone, has legibility problems, and is the anti-lesson of 2025 |
 
-**Prototype v1 is built:** [`design/prototypes/m0-directions.html`](../../design/prototypes/m0-directions.html) ([notes](../../design/prototypes/README.md)). It renders both directions on the dogfood home with today's real incidents, in light, dark and night themes, at desktop and phone sizes, plus a widget sheet showing sizes and states.
+**Prototype v2 is built:** [`design/prototypes/m0-v2.html`](../../design/prototypes/m0-v2.html) ([notes](../../design/prototypes/README.md)). It shows Direction A on the dogfood home, driven by [tokens v0](../../design/tokens/README.md), with:
+- all six themes and a live base/accent/contrast editor that re-runs the checks;
+- surface, density and Briefing toggles;
+- first-run, all-quiet and hub-offline moments;
+- the Inbox repairs flow;
+- a motion study;
+- the phone frame;
+- the simplified wall level.
+
+Prototype v1 ([`m0-directions.html`](../../design/prototypes/m0-directions.html)) keeps both directions side by side for reference.
 
 The plan was to build A and B as static prototypes on the same demo data, then pick one or blend them (likely A's grammar with B's light theme). C stays as a reference only.
 
@@ -120,11 +129,15 @@ The structure stays fixed and the look is fully swappable. **A theme is a versio
 | Theme | Attention (Ember) | Down | Colorblind ΔE | Normal-vision ΔE |
 |---|---|---|---|---|
 | A dark | `oklch(.74 .15 75)` | `oklch(.64 .21 15)` | 12.2 | 21.2 |
-| A light | `oklch(.66 .15 70)` | `oklch(.55 .21 15)` | 12.6 | 20.3 |
+| A light | `oklch(.64 .139 70)` | `oklch(.55 .21 15)` | 10.5 | 19.3 |
 | B light | `oklch(.64 .14 72)` | `oklch(.53 .2 18)` | 11.7 | 19.4 |
 | B dark | `oklch(.74 .14 78)` | `oklch(.64 .2 18)` | 11.4 | 20.3 |
 
 The dark-theme pairs sit above the validator's *categorical* lightness band. That's deliberate: these are status colors, which always come with a glyph and a word, not chart series.
+
+A light's attention was snapped from L .66 to .64 by the token generator, so the mark clears contrast on Instrument Light's surfaces. Every built-in theme's numbers are in [tokens v0](../../design/tokens/README.md). Two rules the generator enforces on top of the validator:
+- **The accent never reads as status.** A theme is refused if its accent sits within ΔE 15 of either status color, because progress would read as attention.
+- **Night is dim by design.** It's monochrome red, so state is carried by glyph and word only. Its text reaches Lc 38 / 30 / 24, because red on black can't physically reach Lc 60.
 
 **Modes**
 - Light, Dark, **OLED black** (for kiosks), and **Night** (monochrome red, StandBy-style).

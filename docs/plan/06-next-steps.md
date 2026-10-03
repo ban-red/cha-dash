@@ -5,7 +5,18 @@
 > - The repo is public under AGPL-3.0 with an OSI-limited CLA.
 > - The importer fixture exists.
 > - Design prototype v1 shows both directions. **Direction A was chosen, built to be very themeable.**
-> - No application code yet.
+> - **Wave 1 done:**
+>   - ADRs 0001–0012 and 0018–0020, plus issue templates;
+>   - tokens v0 and prototype v2;
+>   - the layout engine package;
+>   - the hub skeleton;
+>   - the Demo Home simulator;
+>   - the node spike (4.6).
+> - **Wave 2 next:**
+>   - the `web/` scaffold with the Vue renderer (2.3, 3.8);
+>   - the Dockerfile and compose file (3.9);
+>   - CI (3.10);
+>   - wiring the simulator into the Home Graph.
 >
 > M0 is done when a live front page runs on Demo Home data in the chosen direction, the layout engine feels right, and decisions 12–17 have ADRs ([04 · Roadmap](04-roadmap.md#m0-foundations)).
 
@@ -43,9 +54,9 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 | # | Task | Output | Done when |
 |---|---|---|---|
 | 1.1 | ✅ **Direction A, very themeable** (decision 12). B becomes the built-in Paper theme | — | done |
-| 1.2 | **Prototype v2** in Direction A, **with the theme engine**: <ul><li>theme switcher: Instrument Dark/Light, OLED, Night, High Contrast, Paper</li><li>live base/accent/contrast editor that shows status-pair validation as you change it</li><li>surface (card/ruled), density and Briefing (sentence/headline) toggles</li><li>first-run and empty states</li><li>Inbox repairs flow</li><li>motion study (expand in place, reflow springs, hold ring, lens fade)</li><li>night and phone polish</li><li>the "simplified" wall detail level for 3 widgets</li></ul> | `design/prototypes/m0-v2.html` | You'd ship the look |
-| 1.3 | **Tokens v0 + theme schema**: the token document format (YAML/JSON) and a generator from base/accent/contrast. OKLCH 12-step scales per theme, type scale, spacing, radii and motion tokens, exported as CSS variables. Status pairs re-validated with the palette validator, and APCA checks on text | `design/tokens/` → `web/src/design/tokens.css` | Validator and contrast checks pass |
-| 1.4 | Seed the **Workbench** list: every v0.1 widget × size × state it must support | `docs/design/workbench.md` | Agreed list |
+| 1.2 | ✅ **Prototype v2** in Direction A, **with the theme engine**: <ul><li>theme switcher: Instrument Dark/Light, OLED, Night, High Contrast, Paper</li><li>live base/accent/contrast editor that shows status-pair validation as you change it</li><li>surface (card/ruled), density and Briefing (sentence/headline) toggles</li><li>first-run and empty states</li><li>Inbox repairs flow</li><li>motion study (expand in place, reflow springs, hold ring, lens fade)</li><li>night and phone polish</li><li>the "simplified" wall detail level for 3 widgets</li></ul> | `design/prototypes/m0-v2.html` | You'd ship the look |
+| 1.3 | ✅ **Tokens v0 + theme schema**: the token document format (YAML/JSON) and a generator from base/accent/contrast. OKLCH 12-step scales per theme, type scale, spacing, radii and motion tokens, exported as CSS variables. Status pairs re-validated with the palette validator, and APCA checks on text | `design/tokens/` → `web/src/design/tokens.css` | Validator and contrast checks pass |
+| 1.4 | ✅ Seed the **Workbench** list (19 widgets, 80 size cells; **waiting on your agreement**): every v0.1 widget × size × state it must support | `docs/design/workbench.md` | Agreed list |
 
 ## Track 2: Layout engine spike (independent; can start now)
 
@@ -61,7 +72,7 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 
 | # | Task | Output |
 |---|---|---|
-| 3.1 | Toolchain: Go **1.27.1** via `go.mod` (the local 1.25.1 switches toolchains automatically). JavaScript tooling is **Bun** (package manager, workspaces, test runner) instead of pnpm; Bun 1.4 is already installed | — |
+| 3.1 | ✅ Toolchain: Go **1.27.1** via `go.mod` (the local 1.25.1 switches toolchains automatically). JavaScript tooling is **Bun** (package manager, workspaces, test runner) instead of pnpm; Bun 1.4 is already installed | — |
 | 3.2 | ✅ **`go.mod`: `module dash.cha.sh`**. **`cmd/chadash`**: `serve`, `healthcheck`, `version`; config from env and flags; structured logs | binary |
 | 3.3 | ✅ **Storage**: SQLite plus goose migrations, schema v0 (settings, users, sessions, integration instances, vault, boards, layouts, audit stub) | migrations |
 | 3.4 | ✅ **First run**: setup token printed to logs → owner account → session cookie. Passkeys follow in v0.1 | auth flow |

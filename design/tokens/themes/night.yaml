@@ -1,0 +1,28 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+# StandBy-style monochrome red for walls at night. Red light keeps dark
+# adaptation; the price is low luminance, so Night uses the `dim` contrast
+# profile and carries state by glyph shape and word alone (monochrome).
+$schema: ../schema/theme.schema.json
+format: 1
+id: night
+name: Night
+description: Monochrome red on black for walls after dark. State is shape and word.
+scheme: dark
+profile: dim
+monochrome: true
+color:
+  base: oklch(0 0 0)
+  accent: oklch(0.56 0.19 29)
+  contrast: 50
+  ink: { hue: 29, chroma: 0.2 }
+  status:
+    attention: { hue: 29, chroma: 0.21, l: 0.64 }
+    down: { hue: 29, chroma: 0.21, l: 0.64 }
+    maintenance: { hue: 29, chroma: 0.17, l: 0.5 }
+typography: { ui: Instrument Sans, numeral: Geist Mono, clock: Doto, headline: Instrument Sans }
+surface: card
+shape: { radius: 4, hairline: 1 }
+density: comfortable
+briefing: sentence
+material: { frosted: 1 }
+backdrop: solid

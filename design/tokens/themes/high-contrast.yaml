@@ -1,0 +1,23 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+$schema: ../schema/theme.schema.json
+format: 1
+id: high-contrast
+name: High Contrast
+description: Near-black, near-white text, strong rules, solid chrome.
+scheme: dark
+color:
+  base: oklch(0.13 0.003 70)
+  accent: oklch(0.84 0.1 215)
+  contrast: 100
+  ink: { hue: 80, chroma: 0.006 }
+  status:
+    attention: { hue: 80, chroma: 0.16, l: 0.84 }
+    down: { hue: 18, chroma: 0.2, l: 0.68 }
+    maintenance: { hue: 250, chroma: 0.08, l: 0.8 }
+typography: { ui: Instrument Sans, numeral: Geist Mono, clock: Doto, headline: Instrument Sans }
+surface: card
+shape: { radius: 4, hairline: 1 }
+density: comfortable
+briefing: sentence
+material: { frosted: 1 }
+backdrop: solid

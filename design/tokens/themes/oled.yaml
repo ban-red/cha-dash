@@ -1,0 +1,24 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+# For kiosks and OLED walls: true black, near-black cards, no lit blocks.
+$schema: ../schema/theme.schema.json
+format: 1
+id: oled
+name: OLED
+description: True black for OLED panels and kiosks. Cards are hairlines on black.
+scheme: dark
+color:
+  base: oklch(0 0 0)
+  accent: oklch(0.78 0.07 210)
+  contrast: 50
+  ink: { hue: 80, chroma: 0.012 }
+  status:
+    attention: { hue: 75, chroma: 0.15 }
+    down: { hue: 15, chroma: 0.21 }
+    maintenance: { hue: 250, chroma: 0.06 }
+typography: { ui: Instrument Sans, numeral: Geist Mono, clock: Doto, headline: Instrument Sans }
+surface: card
+shape: { radius: 4, hairline: 1 }
+density: comfortable
+briefing: sentence
+material: { frosted: 1 }
+backdrop: solid

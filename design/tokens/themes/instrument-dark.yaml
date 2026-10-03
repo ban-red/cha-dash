@@ -1,0 +1,29 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+# The default theme: Direction A, "Instrument".
+$schema: ../schema/theme.schema.json
+format: 1
+id: instrument-dark
+name: Instrument Dark
+description: Warm graphite, hairlines, one signal colour. The default.
+scheme: dark
+color:
+  # The three generator inputs (the Linear model). The base is the app
+  # background; its hue and chroma tint every neutral ("warm graphite").
+  base: oklch(0.175 0.006 70)
+  accent: oklch(0.78 0.07 210)
+  contrast: 50
+  # Optional: hue and chroma of the text end of the neutral scale.
+  ink: { hue: 80, chroma: 0.012 }
+  # Status hues. Lightness comes from the scheme (the M0 validated pairs)
+  # unless `l` is given. Every theme must pass the palette validator.
+  status:
+    attention: { hue: 75, chroma: 0.15 }   # Ember: amber, not orange
+    down: { hue: 15, chroma: 0.21 }        # crimson
+    maintenance: { hue: 250, chroma: 0.06 }
+typography: { ui: Instrument Sans, numeral: Geist Mono, clock: Doto, headline: Instrument Sans }
+surface: card
+shape: { radius: 4, hairline: 1 }
+density: comfortable
+briefing: sentence
+material: { frosted: 0.78 }
+backdrop: solid

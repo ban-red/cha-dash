@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dash.cha.sh/schema/theme/1.json",
+  "title": "Cha Dash theme document",
+  "description": "A theme is a versioned token document. The generator compiles it to CSS custom properties; the hub validates it and refuses themes that fail the status-pair or contrast checks. Format 1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "id", "name", "color", "typography", "surface", "shape", "density", "briefing", "material", "backdrop"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": 1, "description": "Token document format version." },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,39}$", "description": "Stable identifier; used as the data-theme attribute value." },
+    "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "description": { "type": "string", "maxLength": 240 },
+    "scheme": { "enum": ["light", "dark"], "description": "Optional. Derived from the base lightness (< 0.5 is dark); if given it must agree." },
+    "profile": { "enum": ["standard", "dim"], "default": "standard", "description": "Contrast profile. `standard` gates text at APCA Lc 90/75/60 plus WCAG AA. `dim` is for low-luminance ambient modes (Night); its results are reported, not gated." },
+    "monochrome": { "type": "boolean", "default": false, "description": "Status is carried by glyph shape and word only; the attention/down colour-separation checks are skipped." },
+    "figures": { "enum": ["tabular", "proportional"], "default": "tabular", "description": "Figures for large standalone numbers. Lists and tables are always tabular." },
+    "color": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "accent", "contrast", "status"],
+      "properties": {
+        "base": { "$ref": "#/$defs/color", "description": "The app background. Its hue and chroma tint every neutral step; its lightness picks the scheme." },
+        "accent": { "$ref": "#/$defs/color", "description": "Step 9 of the accent scale: progress, selection, links." },
+        "contrast": { "type": "number", "minimum": 0, "maximum": 100, "description": "50 = baseline. Below 50 softens surfaces and hairlines only (text never drops below its floor); above 50 raises text targets and hairlines." },
+        "ink": { "$ref": "#/$defs/hue", "description": "Hue and chroma at the text end of the neutral scale. Defaults to the base hue at 1.6x its chroma." },
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attention", "down", "maintenance"],
+          "properties": {
+            "attention": { "$ref": "#/$defs/statusHue" },
+            "down": { "$ref": "#/$defs/statusHue" },
+            "maintenance": { "$ref": "#/$defs/statusHue" }
+          }
+        },
+        "overrides": {
+          "type": "object",
+          "description": "Token-by-token overrides of semantic colours. Still validated.",
+          "propertyNames": { "enum": ["bg", "surface", "surface-2", "line", "line-2", "text", "text-2", "text-3", "accent", "attention", "down", "maint", "progress", "focus", "spark", "band", "hatch"] },
+          "additionalProperties": { "$ref": "#/$defs/colorWithAlpha" }
+        }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ui", "numeral", "clock", "headline"],
+      "properties": {
+        "ui": { "$ref": "#/$defs/font" },
+        "numeral": { "$ref": "#/$defs/font" },
+        "clock": { "$ref": "#/$defs/font" },
+        "headline": { "$ref": "#/$defs/font" }
+      }
+    },
+    "surface": { "enum": ["card", "ruled", "flat"], "description": "How tiles separate: card (A), ruled (column rules, as in B) or flat." },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["radius", "hairline"],
+      "properties": {
+        "radius": { "type": "number", "minimum": 0, "maximum": 12, "description": "Base radius in px; the scale is 0.5x, 1x, 1.5x (tiles), 2.5x, 4x (sheets)." },
+        "hairline": { "type": "number", "minimum": 0.5, "maximum": 2, "description": "Hairline weight in px." }
+      }
+    },
+    "density": { "enum": ["comfortable", "compact"] },
+    "briefing": { "enum": ["sentence", "headline"], "description": "Default Briefing style: A's one-line sentence or B's serif headline with a deck." },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frosted"],
+      "properties": {
+        "frosted": { "type": "number", "minimum": 0, "maximum": 1, "description": "Chrome opacity: 1 is solid. Reduced transparency always forces solid." }
+      }
+    },
+    "backdrop": { "enum": ["solid", "grain"], "description": "Behind the board. Never content over a wallpaper photo." }
+  },
+  "$defs": {
+    "color": {
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{6}|oklch\\(\\s*[0-9.]+%?\\s+[0-9.]+\\s+[0-9.]+(deg)?\\s*\\))$",
+      "description": "\"#rrggbb\" or \"oklch(L C H)\"."
+    },
+    "colorWithAlpha": {
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{6}|oklch\\(\\s*[0-9.]+%?\\s+[0-9.]+\\s+[0-9.]+(deg)?\\s*(/\\s*[0-9.]+%?\\s*)?\\))$"
+    },
+    "hue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hue", "chroma"],
+      "properties": {
+        "hue": { "type": "number", "minimum": 0, "maximum": 360 },
+        "chroma": { "type": "number", "minimum": 0, "maximum": 0.4 }
+      }
+    },
+    "statusHue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hue", "chroma"],
+      "properties": {
+        "hue": { "type": "number", "minimum": 0, "maximum": 360 },
+        "chroma": { "type": "number", "minimum": 0, "maximum": 0.4 },
+        "l": { "type": "number", "minimum": 0, "maximum": 1, "description": "Optional lightness. Defaults per scheme to the M0 validated values." }
+      }
+    },
+    "font": {
+      "enum": ["Instrument Sans", "Inter", "IBM Plex Sans", "Schibsted Grotesk", "Geist Mono", "JetBrains Mono", "Commit Mono", "Doto", "Newsreader"],
+      "description": "Bundled open-source fonts only. Self-hosted user fonts come later."
+    }
+  }
+}

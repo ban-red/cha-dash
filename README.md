@@ -25,7 +25,9 @@ docker compose up -d   # the primary way to self-host Cha Dash (coming soon) —
 - [Architecture decision records](docs/adr/README.md) — one file per decision, with the open ones listed
 
 **Design**
-- [M0 prototypes](design/prototypes/README.md) — two visual directions rendering the dogfood home
+- [M0 prototypes](design/prototypes/README.md) — v2 in Direction A with the live theme engine; v1 with both directions
+- [Design tokens v0](design/tokens/README.md) — theme documents, the OKLCH generator, validated status and contrast checks
+- [Workbench list](docs/design/workbench.md) — every v0.1 widget × size × state
 
 ## The Pact (draft)
 

@@ -1,0 +1,25 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+# Direction B lives on as a theme: newsprint, column rules, serif headlines.
+$schema: ../schema/theme.schema.json
+format: 1
+id: paper
+name: Paper
+description: Newsprint, column rules and a serif headline. Direction B as a theme.
+scheme: light
+color:
+  base: oklch(0.972 0.011 88)
+  accent: oklch(0.5 0.08 230)
+  contrast: 55
+  ink: { hue: 60, chroma: 0.015 }
+  status:
+    attention: { hue: 72, chroma: 0.14, l: 0.64 }
+    down: { hue: 18, chroma: 0.2, l: 0.53 }
+    maintenance: { hue: 250, chroma: 0.07, l: 0.5 }
+typography: { ui: Schibsted Grotesk, numeral: Schibsted Grotesk, clock: Newsreader, headline: Newsreader }
+figures: proportional
+surface: ruled
+shape: { radius: 0, hairline: 1 }
+density: comfortable
+briefing: headline
+material: { frosted: 0.92 }
+backdrop: grain

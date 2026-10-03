@@ -1,0 +1,23 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+$schema: ../schema/theme.schema.json
+format: 1
+id: instrument-light
+name: Instrument Light
+description: Warm paper-white page, white cards, graphite ink.
+scheme: light
+color:
+  base: oklch(0.955 0.007 85)
+  accent: oklch(0.52 0.08 220)
+  contrast: 50
+  ink: { hue: 70, chroma: 0.012 }
+  status:
+    attention: { hue: 70, chroma: 0.15 }
+    down: { hue: 15, chroma: 0.21 }
+    maintenance: { hue: 250, chroma: 0.07 }
+typography: { ui: Instrument Sans, numeral: Geist Mono, clock: Doto, headline: Instrument Sans }
+surface: card
+shape: { radius: 4, hairline: 1 }
+density: comfortable
+briefing: sentence
+material: { frosted: 0.8 }
+backdrop: solid

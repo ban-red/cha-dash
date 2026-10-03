@@ -1,0 +1,27 @@
+{
+  "name": "@chadash/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cha Dash design tokens v0: theme documents, the OKLCH generator, and the CSS/JSON exports.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/core.js",
+    "./tokens.css": "./dist/tokens.css",
+    "./tokens.json": "./dist/tokens.json",
+    "./schema": "./schema/theme.schema.json"
+  },
+  "scripts": {
+    "generate": "bun scripts/generate.ts",
+    "inject": "bun scripts/inject.ts",
+    "report": "bun scripts/report.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "ajv": "8.20.0",
+    "apca-w3": "0.1.9",
+    "typescript": "7.0.2"
+  }
+}
