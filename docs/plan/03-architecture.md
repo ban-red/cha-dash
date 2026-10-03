@@ -159,14 +159,15 @@ Every integration contributes **facts** to one graph. Widgets, ⌘K, the Atlas, 
 type Resource struct {
     ID        RID               // stable, namespaced: "docker:jupiter/c/4f2a…", "pve:mars/lxc/101"
     Kind      Kind              // host, vm, lxc, engine, stack, container, service, disk, pool, share,
-                                // backup_job, backup_target, net_device, router, camera, ups, app, …
+                                // backup_job, backup_target, net_device, router, camera, ups, app,
+                                // integration (an instance is a resource, so it can need repair), …
     Name      string
     Source    InstanceID        // which integration instance asserted this
     Labels    map[string]string // incl. discovered homepage.* / chadash.* labels
     Attrs     map[string]any    // typed per Kind via JSON Schema
     State     State             // actual: running, stopped, degraded, …
     Desired   *State            // desired: autostart/restart policy/user intent → drives "problem"
-    Health    Health            // ok, attention, down, unknown, maintenance (+ reason, since)
+    Health    Health            // ok, attention, down, unknown, maintenance, repair (+ reason, since)
     Links     []Link            // open URL, native-UI deep link
     Caps      []Capability      // what it can do/report: "power", "snapshot", "logs", "metrics.cpu", …
     SeenAt    time.Time         // freshness
@@ -174,7 +175,7 @@ type Resource struct {
 
 type Relation struct {
     From, To RID
-    Type     RelType // runs_on, part_of, exposes, routes_to, depends_on, stores_on, backed_up_by, provides_network_for, …
+    Type     RelType // runs_on, part_of, exposes, routes_to, depends_on, stores_on, backed_up_by, provides_network_for, monitors, …
     Source   InstanceID
 }
 ```
