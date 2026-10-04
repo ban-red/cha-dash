@@ -49,7 +49,11 @@ export default defineConfig({
   // One Vue, whichever workspace package imports it (@chadash/layout-vue too).
   resolve: { dedupe: ['vue'] },
   server: {
-    // `bun run dev` (repo root) starts the hub on 127.0.0.1:3696 and this server.
+    // `bun run dev` (repo root) starts the hub on 127.0.0.1:3696 and this server
+    // right beside it on 3697. strictPort: a silent move to another port would
+    // break the passkey origin and the dev script's health checks.
+    port: 3697,
+    strictPort: true,
     // 127.0.0.1, not localhost: Node may resolve localhost to ::1, where the hub isn't listening.
     // changeOrigin stays false: the hub's cross-origin checks compare Origin
     // with Host, and both are the dev server's.

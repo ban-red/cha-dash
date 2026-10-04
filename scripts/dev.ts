@@ -34,7 +34,8 @@ const LISTEN = process.env.CHADASH_LISTEN ?? '127.0.0.1:3696';
 const HUB = `http://${LISTEN.startsWith(':') ? '127.0.0.1' + LISTEN : LISTEN}`;
 const DATA = process.env.CHADASH_DATA_DIR ?? join(ROOT, 'data');
 const BIN = join(ROOT, 'bin', 'chadash-dev');
-const WEB_URL = 'http://localhost:5173';
+const WEB_PORT = 3697; // matches web/vite.config.ts
+const WEB_URL = `http://localhost:${WEB_PORT}`;
 
 const tty = process.stdout.isTTY;
 const paint = (code: string) => (s: string) => (tty ? `\x1b[${code}m${s}\x1b[0m` : s);
@@ -75,11 +76,11 @@ const reuseHub = await healthy();
 if (!reuseHub && !(await portFree(Number(LISTEN.split(':').pop())))) {
   fail(`Something that isn't a Cha Dash hub is using ${LISTEN}. Stop it, or set CHADASH_LISTEN.`);
 }
-if (!(await portFree(5173))) fail('Port 5173 is in use (another Vite dev server?). Stop it first.');
+if (!(await portFree(WEB_PORT))) fail(`Port ${WEB_PORT} is in use (another Vite dev server?). Stop it first.`);
 
 if (args.has('--check')) {
   say(`Go ${dim(Bun.spawnSync(['go', 'env', 'GOVERSION'], { cwd: ROOT }).stdout.toString().trim())} · Bun ${dim(Bun.version)} · dependencies installed`);
-  say(reuseHub ? `A hub is already running at ${HUB}; it would be reused` : `${LISTEN} and :5173 are free`);
+  say(reuseHub ? `A hub is already running at ${HUB}; it would be reused` : `${LISTEN} and :${WEB_PORT} are free`);
   say(`Data directory: ${relative(ROOT, DATA) || DATA}${existsSync(DATA) ? '' : dim(' (created on first run)')}`);
   process.exit(0);
 }

@@ -28,7 +28,7 @@ The dev server proxies `/api` and `/ws` (`ws: true`) to `127.0.0.1:3696`. `chang
 
 Demo mode shows absolute times in UTC, because the Demo Home keeps UTC as its clock and its incident copy quotes UTC times. Outside demo mode times are local.
 
-Passkeys work at `http://localhost:5173` (the dev server's URL) with no configuration; browsers refuse them on `127.0.0.1` and on any plain-http LAN address, and the page says so where the passkey button would be. The service worker only registers in a production build.
+Passkeys work at `http://localhost:3697` (the dev server's URL) with no configuration; browsers refuse them on `127.0.0.1` and on any plain-http LAN address, and the page says so where the passkey button would be. The service worker only registers in a production build.
 
 ## Structure
 

@@ -46,10 +46,10 @@ After editing a theme in `design/tokens/themes/`, run `bun run generate` in `des
 **Running locally.** One command. The hub runs on the Demo Home simulator, so you need no homelab:
 
 ```sh
-bun run dev          # hub on 127.0.0.1:3696 (data in ./data) + the SPA with hot reload on :5173
+bun run dev          # hub on 127.0.0.1:3696 (data in ./data) + the SPA with hot reload on :3697
 ```
 
-It builds the hub, waits until it's healthy, and starts the Vite dev server (which proxies `/api` and `/ws` to the hub). Open http://localhost:5173 and press **Login as Local Dev**: no setup token, no password. Ctrl-C stops both.
+It builds the hub, waits until it's healthy, and starts the Vite dev server (which proxies `/api` and `/ws` to the hub). Open http://localhost:3697 and press **Login as Local Dev**: no setup token, no password. Ctrl-C stops both.
 
 - **What the button does.** It signs in as the owner. On first run there is no owner, so it creates a passwordless one named `dev`. To try the real first-run flow, use the setup token the script prints.
 - **Where it exists.** Only `bun run dev` builds the hub with `-tags devlogin`, and only the Vite dev server shows the button (`web/src/dev/`).
