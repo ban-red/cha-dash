@@ -1,0 +1,19 @@
+{
+  "arguments": {
+    "torrents": [
+      {"error": 0, "status": 6},
+      {"error": 0, "status": 6},
+      {"error": 0, "status": 6},
+      {"error": 1, "status": 6},
+      {"error": 0, "status": 6},
+      {"error": 0, "status": 6},
+      {"error": 0, "status": 4},
+      {"error": 2, "status": 4},
+      {"error": 0, "status": 3},
+      {"error": 0, "status": 5},
+      {"error": 0, "status": 0},
+      {"error": 0, "status": 0}
+    ]
+  },
+  "result": "success"
+}

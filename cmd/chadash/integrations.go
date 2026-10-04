@@ -21,6 +21,7 @@ import (
 	_ "dash.cha.sh/integrations/radarr"        // Radarr: queue, wanted, calendar
 	_ "dash.cha.sh/integrations/sonarr"        // Sonarr: queue, wanted, calendar
 	_ "dash.cha.sh/integrations/traefik"       // Traefik routers, services and backends
+	_ "dash.cha.sh/integrations/transmission"  // Transmission: speeds, torrents
 	_ "dash.cha.sh/integrations/unraid"        // Unraid API (GraphQL)
 	_ "dash.cha.sh/integrations/uptimekuma"    // Uptime Kuma: a status page's monitors
 	_ "dash.cha.sh/integrations/weather"       // weather from Open-Meteo (keyless)
