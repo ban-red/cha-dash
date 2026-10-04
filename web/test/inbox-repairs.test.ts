@@ -166,19 +166,19 @@ describe('the Inbox holds still while you read it', () => {
     await flushPromises();
     await nextTick();
     const groups = () => [...document.body.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
-    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Hints · 3']);
+    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Security hints · 3']);
     h.ui.act(h.live.inbox.value!.incidents['backup-failed']!);
     await flushPromises();
     h.ws.push({ op: 'diff', id: h.ws.subId('inbox'), seq: 4000, patch: [{ op: 'replace', path: toPointer('inbox', 'incidents', 'backup-failed', 'phase'), value: 'retrying' }] });
     await nextTick();
     // Still under Open while you read: the list holds still.
-    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Hints · 3']);
+    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Security hints · 3']);
     h.ui.closeInbox();
     await nextTick();
     h.ui.openInbox();
     await flushPromises();
     await nextTick();
-    expect(groups()).toEqual(['Open · 9', 'Being fixed · 2', 'Hints · 3']);
+    expect(groups()).toEqual(['Open · 9', 'Being fixed · 2', 'Security hints · 3']);
   });
 });
 

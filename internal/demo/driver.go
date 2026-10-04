@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/sim"
 )
@@ -45,6 +46,10 @@ type Options struct {
 	SampleInterval time.Duration
 	Clock          func() time.Time // the real clock; nil means time.Now
 	Log            *slog.Logger
+	// Posture is the security posture the Demo Home's hints are published
+	// under, as real instances' are (see SetPosture). Empty publishes the
+	// simulator's own severities.
+	Posture security.Posture
 }
 
 // Driver owns the simulator and keeps the topics in step with it.
@@ -65,7 +70,7 @@ type Driver struct {
 // New builds the simulator at its starting moment and loads it into t. It
 // replaces whatever the graph holds: in demo mode the simulator owns it.
 func New(t *topics.Set, opts Options) (*Driver, error) {
-	d := &Driver{t: t, opts: opts, clock: opts.Clock, log: opts.Log, mirror: &mirror{t: t}}
+	d := &Driver{t: t, opts: opts, clock: opts.Clock, log: opts.Log, mirror: &mirror{t: t, posture: opts.Posture}}
 	if d.clock == nil {
 		d.clock = time.Now
 	}
@@ -109,6 +114,16 @@ func (d *Driver) reset(at time.Time) error {
 	}
 	d.sim, d.day = s, start
 	return nil
+}
+
+// SetPosture changes the security posture and re-publishes the Demo Home's
+// security findings under it before returning.
+func (d *Driver) SetPosture(p security.Posture) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if err := d.mirror.setPosture(p); err != nil {
+		d.log.Error("demo: re-publishing the security findings failed", "err", err)
+	}
 }
 
 // Seed is the simulator's seed.

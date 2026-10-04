@@ -25,7 +25,7 @@ const PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'integrations', label: 'Integrations', note: 'what Cha Dash reads' },
   { id: 'import', label: 'Import', note: 'from Homepage' },
   { id: 'backup', label: 'Backup', note: 'export and restore' },
-  { id: 'security', label: 'Security', note: 'passkeys' },
+  { id: 'security', label: 'Security', note: 'level, passkeys' },
 ];
 const pane = computed<SettingsPane>(() => (view.value.name === 'settings' ? view.value.pane : 'integrations'));
 const TITLES: Record<SettingsPane, string> = { integrations: 'Integrations', import: 'Import from Homepage', backup: 'Backup', security: 'Security' };

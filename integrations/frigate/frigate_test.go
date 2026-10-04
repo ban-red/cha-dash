@@ -367,7 +367,7 @@ func TestInternalPort(t *testing.T) {
 
 	// The anonymous admin raises the quiet hint.
 	hint, ok := h.Incident(hintID)
-	if !ok || hint.Class != "problem" || hint.Severity != "info" || hint.Status != "open" || hint.Target != "frigate:i_test/app" ||
+	if !ok || hint.Class != "problem" || hint.Severity != "info" || hint.Category != integration.CategorySecurity || hint.Status != "open" || hint.Target != "frigate:i_test/app" ||
 		!strings.Contains(hint.Summary, "delete recordings") || hint.Suggested.Label != "Use the authenticated port" {
 		t.Fatalf("hint = %+v %v", hint, ok)
 	}

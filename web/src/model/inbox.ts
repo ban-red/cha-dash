@@ -9,6 +9,10 @@
  *   or **hints**: standing advice to tighten something (a socket proxy that's
  *   too broad, Frigate's anonymous admin). Hints have their own Inbox group;
  *   they never feed Needs attention, the Briefing or the Incidents tile.
+ * - Security findings (`category: security`) arrive at the severity the
+ *   hub's security level gives them: at Relaxed (the default) every one is
+ *   info, so a hint. An info security finding stays in Hints whatever its
+ *   phase, so it never reaches the Incidents tile as "settling".
  */
 import type { GraphDoc, Incident, InboxDoc, Resource } from './types';
 import { label } from './graph';
@@ -73,9 +77,19 @@ export function isBeingFixed(i: Incident, fixState?: string): boolean {
   return fixState === 'sending' || fixState === 'accepted' || FIXING_PHASES.has(i.phase ?? '');
 }
 
-/** A hint: an open info problem nothing is working on, i.e. standing advice. */
+export const isSecurity = (i: Incident) => i.category === 'security';
+
+/** An open info security finding: a hint, whatever its phase. */
+const isSecurityHint = (i: Incident) => i.class === 'problem' && i.status === 'open' && i.severity === 'info' && isSecurity(i);
+
+/** A hint: an open info problem nothing is working on, i.e. standing advice, or an info security finding. */
 export function isHint(i: Incident): boolean {
-  return i.class === 'problem' && i.status === 'open' && i.severity === 'info' && !FIXING_PHASES.has(i.phase ?? '');
+  return isSecurityHint(i) || (i.class === 'problem' && i.status === 'open' && i.severity === 'info' && !FIXING_PHASES.has(i.phase ?? ''));
+}
+
+/** The Hints group's heading: "Security hints · 3" when every hint is a security finding. */
+export function hintsHeading(hints: readonly Incident[]): string {
+  return `${hints.length && hints.every(isSecurity) ? 'Security hints' : 'Hints'} · ${hints.length}`;
 }
 
 export interface InboxGroups {
@@ -104,6 +118,7 @@ export function groupInbox(inbox: InboxDoc | undefined, fixes: Readonly<Record<s
   for (const i of incidents(inbox)) {
     if (i.status !== 'open') continue;
     if (isSuggestion(i)) suggestions.push(i);
+    else if (isSecurityHint(i)) hints.push(i);
     else if (isBeingFixed(i, fixes[i.id]?.state)) fixing.push(i);
     else if (isHint(i)) hints.push(i);
     else open.push(i);

@@ -356,7 +356,7 @@ func TestNumJSON(t *testing.T) {
 func TestIncidentShape(t *testing.T) {
 	at := time.Date(2026, 10, 3, 13, 27, 0, 0, time.UTC)
 	in := Incident{
-		ID: "in_x.repair", Scenario: "auth-rejected", Class: ClassRepair, Severity: SeverityAttention, Status: StatusOpen,
+		ID: "in_x.repair", Scenario: "auth-rejected", Class: ClassRepair, Severity: SeverityAttention, Category: CategorySecurity, Status: StatusOpen,
 		Phase: "rejected", Title: "Plex rejected its credential", Summary: "…", Target: "integration:in_x",
 		OpenedAt: at, UpdatedAt: at, ResolvedAt: at.Add(time.Hour), Facts: map[string]any{"code": "auth"},
 		Causes:      []Cause{{Text: "401", Resource: "integration:in_x", At: at}},
@@ -378,7 +378,7 @@ func TestIncidentShape(t *testing.T) {
 		t.Fatalf("shapes differ:\nours   %s\ntheirs %s", ours, back)
 	}
 	// The other way: every field the simulator writes is one we have.
-	full, _ := json.Marshal(sim.Incident{Facts: map[string]any{"a": 1}, Alternatives: []sim.Action{{}}, ResolvedBy: "x", Resolution: "y", ResolvedAt: at})
+	full, _ := json.Marshal(sim.Incident{Category: sim.CategorySecurity, Facts: map[string]any{"a": 1}, Alternatives: []sim.Action{{}}, ResolvedBy: "x", Resolution: "y", ResolvedAt: at})
 	dec = json.NewDecoder(strings.NewReader(string(full)))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&Incident{}); err != nil {

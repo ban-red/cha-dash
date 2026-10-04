@@ -208,6 +208,10 @@ onBeforeUnmount(() => {
               <template v-else>Nothing is connected yet, and that’s fine: Settings → Integrations has all of this whenever you want it.</template>
             </p>
             <ConnectedList />
+            <p class="ob-quiet ob-posture">
+              The security level starts at <b>Relaxed</b>, for a home network nobody reaches from outside: security findings wait in the Inbox as hints.
+              Change it in Settings → Security.
+            </p>
           </template>
         </div>
 

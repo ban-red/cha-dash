@@ -37,7 +37,7 @@ describe('Inbox sheet', () => {
     expect(panel).not.toBeNull();
     const groups = [...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
     // qBittorrent is restarting by itself; the hints are standing advice, in their own group.
-    expect(groups).toEqual(['Open · 10', 'Being fixed · 1', 'Hints · 3']);
+    expect(groups).toEqual(['Open · 10', 'Being fixed · 1', 'Security hints · 3']);
     const titles = [...panel.querySelectorAll('.ib-title')].map((t) => t.textContent);
     // problems first (by severity, then age), then repairs
     expect(titles.slice(0, 10)).toEqual([
@@ -103,13 +103,13 @@ describe('Inbox sheet', () => {
     vi.advanceTimersByTime(3000);
     await nextTick();
     const groups = [...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
-    expect(groups).toEqual(['Open · 9', 'Being fixed · 1', 'Hints · 3', 'Resolved · 1']);
+    expect(groups).toEqual(['Open · 9', 'Being fixed · 1', 'Security hints · 3', 'Resolved · 1']);
   });
 
   it('is empty when nothing needs you', async () => {
     // The quiet home still has its standing hints: nothing open, only those.
     const { panel } = await openOn('', docs(healthy));
-    expect([...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim())).toEqual(['Hints · 3']);
+    expect([...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim())).toEqual(['Security hints · 3']);
     document.body.innerHTML = '';
     const none = docs(healthy);
     none.inbox.incidents = {};

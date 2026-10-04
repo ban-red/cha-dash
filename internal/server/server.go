@@ -22,6 +22,8 @@
 //	POST /api/export           the same with an encrypted secrets bundle (owner)
 //	POST /api/import/chadash   import a Home file; ?dry_run=1 plans only (owner)
 //	GET|PUT /api/onboarding, POST /api/onboarding/discover   first-run wizard (owner; see onboarding)
+//	GET  /api/settings/security    security posture and its levels  (session)
+//	PUT  /api/settings/security    {posture}; 422 for an unknown level (owner)
 //	GET  /api/demo             demo clock and seed; demo mode only (owner)
 //	POST /api/demo/incidents/{id}/fix   press the suggested action (owner)
 //	GET  /ws                   realtime WebSocket                  (session)
@@ -57,6 +59,7 @@ import (
 	"dash.cha.sh/internal/importer/homepage"
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
+	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
 	"dash.cha.sh/internal/webui"
@@ -90,6 +93,9 @@ type Deps struct {
 	// FirstPaint builds the snapshot index.html carries for a signed-in
 	// owner (see firstPaint). Nil serves the generic page to everyone.
 	FirstPaint *firstpaint.Builder
+	// Security is the security posture. Nil leaves /api/settings/security
+	// unmounted.
+	Security *security.Service
 }
 
 // New builds the root handler.
@@ -135,6 +141,9 @@ func New(d Deps) (http.Handler, error) {
 	}
 	if d.Onboarding != nil {
 		d.Onboarding.Register(mux, owner)
+	}
+	if d.Security != nil {
+		d.Security.Register(mux, d.Auth.Require, owner)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")

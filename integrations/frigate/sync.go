@@ -142,10 +142,11 @@ func (in *instance) hint() error {
 	}
 	return in.d.Emit.Raise(integration.Incident{
 		ID: hintID, Scenario: "frigate-unauthenticated-admin", Class: integration.ClassProblem, Severity: integration.SeverityInfo,
-		Title:   in.name + " grants admin without a sign-in",
-		Summary: fmt.Sprintf("Cha Dash reads %s through %s (%s), which answers without a sign-in and makes anyone who can reach it an admin: they can change the config, restart Frigate and delete recordings.", in.name, where, port(in.base)),
-		Target:  in.appID,
-		Facts:   map[string]any{"port": port(in.base), "username": "anonymous", "role": "admin"},
+		Category: integration.CategorySecurity,
+		Title:    in.name + " grants admin without a sign-in",
+		Summary:  fmt.Sprintf("Cha Dash reads %s through %s (%s), which answers without a sign-in and makes anyone who can reach it an admin: they can change the config, restart Frigate and delete recordings.", in.name, where, port(in.base)),
+		Target:   in.appID,
+		Facts:    map[string]any{"port": port(in.base), "username": "anonymous", "role": "admin"},
 		Suggested: integration.Action{
 			ID: "integration.settings", Label: "Use the authenticated port", Tier: "T0", Target: self,
 			Detail: "Create a Frigate user with the viewer role, then point this instance at Frigate's authenticated port (8971) with that user.",

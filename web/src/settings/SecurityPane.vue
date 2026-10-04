@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * Settings → Security: the owner's passkeys. Add one (on this device), rename
+ * Settings → Security: the security level (SecurityLevel.vue: how much
+ * security findings interrupt you), then the owner's passkeys. Add one (on this device), rename
  * them so you can tell them apart, delete the ones you no longer have.
  *
  * Passkeys need a secure context (HTTPS, or localhost). On a plain LAN
@@ -9,6 +10,7 @@
  */
 import { nextTick, onMounted, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
+import SecurityLevel from './SecurityLevel.vue';
 import { ago, absolute } from '../lib/format';
 import { INSECURE_MESSAGE, passkeySupport, UNSUPPORTED_MESSAGE } from '../lib/webauthn';
 import type { Passkey } from '../lib/passkeys';
@@ -109,6 +111,7 @@ onMounted(load);
 </script>
 
 <template>
+  <SecurityLevel />
   <section class="st-section" aria-labelledby="pk-h">
     <header>
       <h3 id="pk-h">Passkeys</h3>

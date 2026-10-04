@@ -6,6 +6,7 @@ import (
 
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/livedoc"
+	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/sim"
 )
@@ -25,6 +26,43 @@ type mirror struct {
 	series map[string]*sim.Series // by topics.SeriesKey
 	axis   time.Time              // time of the newest history point
 	step   time.Duration          // history spacing
+
+	// posture is the hub's security posture: security findings reach the
+	// inbox at the severity it gives them. findings are those incidents as
+	// the simulator wrote them (declared severity), by ID, so a posture
+	// change re-publishes them at once.
+	posture  security.Posture
+	findings map[string]sim.Incident
+}
+
+// publish is an incident as the inbox shows it, remembering a security
+// finding's declared severity.
+func (m *mirror) publish(in sim.Incident) sim.Incident {
+	if in.Category == "" {
+		return in
+	}
+	if m.findings == nil {
+		m.findings = map[string]sim.Incident{}
+	}
+	m.findings[in.ID] = in
+	in.Severity = sim.Severity(m.posture.Severity(in.Category, string(in.Severity)))
+	return in
+}
+
+// setPosture changes the posture and re-publishes every security finding
+// under it.
+func (m *mirror) setPosture(p security.Posture) error {
+	m.posture = p
+	if len(m.findings) == 0 {
+		return nil
+	}
+	_, err := m.t.Inbox.Update(func(tx *livedoc.Tx) error {
+		for _, in := range m.findings {
+			tx.Put(topics.Incidents, in.ID, m.publish(in))
+		}
+		return nil
+	})
+	return err
 }
 
 // load replaces every topic's contents with st.
@@ -50,8 +88,9 @@ func (m *mirror) load(st sim.State) error {
 	}
 	_, err := m.t.Inbox.Update(func(tx *livedoc.Tx) error {
 		tx.Clear(topics.Incidents)
+		clear(m.findings)
 		for _, in := range st.Incidents {
-			tx.Put(topics.Incidents, in.ID, in)
+			tx.Put(topics.Incidents, in.ID, m.publish(in))
 		}
 		topics.SetNow(tx, st.Now)
 		return nil
@@ -100,7 +139,7 @@ func (m *mirror) apply(events []sim.Event, now time.Time) error {
 	}
 	_, err := m.t.Inbox.Update(func(tx *livedoc.Tx) error {
 		for _, in := range incidents { // later events for an incident win
-			tx.Put(topics.Incidents, in.ID, in)
+			tx.Put(topics.Incidents, in.ID, m.publish(*in))
 		}
 		topics.SetNow(tx, now)
 		return nil

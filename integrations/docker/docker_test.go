@@ -217,12 +217,12 @@ func TestSyncThroughTecnativa(t *testing.T) {
 
 	// Hints: the coarse proxy (reads only, so info), and the secrets in labels.
 	hint, ok := h.Incident(hintEndpoint)
-	if !ok || hint.Class != "problem" || hint.Severity != "info" || hint.Target != "docker:i_test/engine" ||
+	if !ok || hint.Class != "problem" || hint.Severity != "info" || hint.Category != integration.CategorySecurity || hint.Target != "docker:i_test/engine" ||
 		!strings.Contains(hint.Summary, "every container's environment, logs and files") {
 		t.Fatalf("endpoint hint = %+v", hint)
 	}
 	ls, ok := h.Incident(hintLabelSecrets)
-	if !ok || !strings.HasPrefix(ls.Summary, "immich_server, mealie and proxmox-backup-server carry") {
+	if !ok || ls.Severity != "attention" || ls.Category != integration.CategorySecurity || !strings.HasPrefix(ls.Summary, "immich_server, mealie and proxmox-backup-server carry") {
 		t.Fatalf("label secrets hint = %+v", ls)
 	}
 

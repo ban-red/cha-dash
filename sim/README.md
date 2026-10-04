@@ -177,6 +177,7 @@ The original six keep the simulator's own actions, which show the safety ladder 
 | `class` | `problem` (Needs attention, status sentence, unless it's `info`) or `repair` (Inbox only; an integration issue, not an outage) |
 | `scenario` | What kind of incident it is, as the hub names it (`backup-target-unreachable`, `auth-rejected`, `credential-hygiene`, …). For the original six it's the script scenario |
 | `severity`, `phase`, `status` | `info` / `attention` / `down`; the current phase (`open`, `rising`, `high`, `pruning`, `restarting`, `recovered`, …, and `resolved` once resolved); `open` / `resolved` |
+| `category` | `security` on the standing hints (left out otherwise). The severity here is the declared one; the hub publishes a security finding at the severity its security posture gives it (`internal/security`) |
 | `title`, `summary` | Copy in the 02-experience voice: symptom first, specific times, calm |
 | `target` | The primary resource |
 | `facts` | Numbers and keys the copy quotes (`used_pct: 92`, `full_in_days: 21`, `status: 401`, `endpoint: 10.0.11.120:8007`, …) |

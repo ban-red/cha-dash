@@ -17,7 +17,7 @@ import IncidentItem from './IncidentItem.vue';
 import SuggestionItem from './SuggestionItem.vue';
 import { hhmm } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
-import { groupInbox, incidents, isSuggestion, type InboxGroups } from '../model/inbox';
+import { groupInbox, hintsHeading, incidents, isSuggestion, type InboxGroups } from '../model/inbox';
 import { useDiscovery } from '../stores/discovery';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
@@ -220,7 +220,7 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
           </template>
 
           <template v-if="hints.length">
-            <h3 class="ib-grp">Hints · {{ hints.length }}</h3>
+            <h3 class="ib-grp">{{ hintsHeading(hints) }}</h3>
             <IncidentItem v-for="i in hints" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 

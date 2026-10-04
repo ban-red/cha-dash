@@ -27,6 +27,7 @@ import (
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
+	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/server"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -144,13 +145,20 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
+	// The security posture decides the severity security findings reach the
+	// inbox at, for real instances and the Demo Home alike.
+	sec, err := security.New(ctx, st, log)
+	if err != nil {
+		return nil, err
+	}
+
 	g := graph.New()
 	tp := topics.New(g, time.Now())
 	var drv *demo.Driver
 	if cfg.Demo {
 		// The Demo Home owns the graph; its app:chadash (self: true) stands
 		// for the hub.
-		drv, err = demo.New(tp, demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, At: cfg.DemoAt, Log: log})
+		drv, err = demo.New(tp, demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, At: cfg.DemoAt, Log: log, Posture: sec.Posture()})
 		if err != nil {
 			return nil, err
 		}
@@ -174,9 +182,13 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if cfg.Demo {
 		itp = topics.New(graph.New(), time.Now())
 	}
-	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log})
+	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log, Posture: sec.Posture()})
 	if err != nil {
 		return nil, err
+	}
+	sec.OnChange(mgr.SetPosture)
+	if drv != nil {
+		sec.OnChange(drv.SetPosture)
 	}
 	corr := correlate.New(correlate.Options{Topics: itp, Store: st, Log: log})
 
@@ -210,6 +222,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Correlator:     corr,
 		Onboarding:     ob,
 		FirstPaint:     firstPaint,
+		Security:       sec,
 	})
 	if err != nil {
 		return nil, err

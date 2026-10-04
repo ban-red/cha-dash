@@ -453,8 +453,10 @@ func (unraidAPI) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v float
 
 // ── hints ────────────────────────────────────────────────────────────────
 
-// hint is a quiet inbox item: a problem at severity info, about how the lab
-// is set up rather than something that broke. Hints stand from when the
+// hint is a quiet inbox item: a security problem (category security)
+// declared at severity info, about how the lab is set up rather than
+// something that broke. The hub's security posture may publish it at
+// another severity (internal/demo). Hints stand from when the
 // instance first read the source (the default script opens them before
 // the day starts) until the setup changes; a fix is that change.
 type hint struct {
@@ -514,6 +516,7 @@ func (h hint) incident(s *Sim, in *instance, t time.Time) *Incident {
 		return nil
 	}
 	inc := s.newIncident(in, ClassProblem, SeverityInfo, h.target)
+	inc.Category = CategorySecurity
 	inc.Scenario, inc.Phase = Scenario(h.scenario), "open"
 	inc.Title, inc.Summary = h.title, h.summary
 	inc.Facts = maps.Clone(h.facts)

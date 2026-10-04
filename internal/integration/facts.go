@@ -154,6 +154,12 @@ const (
 
 	StatusOpen     = "open"
 	StatusResolved = "resolved"
+
+	// CategorySecurity marks a security finding: an exposure or a
+	// credential-hygiene hint. The integration still declares its severity
+	// (attention for a real exposure, info for advice); the hub's security
+	// posture decides the severity the inbox publishes (internal/security).
+	CategorySecurity = "security"
 )
 
 // Incident is an inbox item, in exactly the shape of the simulator's
@@ -163,6 +169,7 @@ type Incident struct {
 	Scenario     string         `json:"scenario"` // what kind of incident: auth-rejected, check-failed, …
 	Class        string         `json:"class"`
 	Severity     string         `json:"severity"`
+	Category     string         `json:"category,omitempty"` // CategorySecurity, or empty
 	Status       string         `json:"status"`
 	Phase        string         `json:"phase"`
 	Title        string         `json:"title"`

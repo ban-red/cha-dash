@@ -226,7 +226,7 @@ func (in *instance) hints(m *model) error {
 	want := map[string]integration.Incident{}
 	base := func(id, severity, title, summary, resolves string) integration.Incident {
 		return integration.Incident{ID: id, Scenario: "credential-hygiene", Class: integration.ClassProblem,
-			Severity: severity, Title: title, Summary: summary, Target: in.rid("app"), ResolvesWhen: resolves,
+			Severity: severity, Category: integration.CategorySecurity, Title: title, Summary: summary, Target: in.rid("app"), ResolvesWhen: resolves,
 			Facts: map[string]any{"url": in.base}}
 	}
 	if in.u.Scheme == "http" && in.user != "" {

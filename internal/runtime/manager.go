@@ -17,10 +17,12 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/internal/vault"
@@ -41,6 +43,9 @@ type Options struct {
 	UserAgent string           // default UserAgent()
 	RootCAs   *x509.CertPool   // roots for tls mode verify; nil: the system's
 	Now       func() time.Time // nil: time.Now
+	// Posture is the security posture instances' security findings are
+	// published under (see SetPosture). Empty publishes declared severities.
+	Posture security.Posture
 }
 
 // Manager owns every instance: it loads them at boot, runs a coordinator
@@ -58,6 +63,8 @@ type Manager struct {
 	bg     sync.WaitGroup
 
 	auth authState // sign-in flows (authorize.go)
+
+	posture atomic.Value // security.Posture
 }
 
 // managed is one instance.
@@ -120,7 +127,24 @@ func New(o Options) (*Manager, error) {
 	if o.Now == nil {
 		o.Now = time.Now
 	}
-	return &Manager{o: o, reg: o.Registry, log: o.Log, insts: map[string]*managed{}}, nil
+	m := &Manager{o: o, reg: o.Registry, log: o.Log, insts: map[string]*managed{}}
+	m.posture.Store(o.Posture)
+	return m, nil
+}
+
+// Posture is the security posture the instances publish under.
+func (m *Manager) Posture() security.Posture { return m.posture.Load().(security.Posture) }
+
+// SetPosture changes the security posture and re-publishes every
+// instance's security findings under it before returning.
+func (m *Manager) SetPosture(p security.Posture) {
+	m.posture.Store(p)
+	m.mu.Lock()
+	insts := m.all()
+	m.mu.Unlock()
+	for _, mi := range insts {
+		mi.emit.Reapply()
+	}
 }
 
 // Start loads the stored instances and starts the enabled ones. Instances
@@ -265,6 +289,7 @@ func (m *Manager) add(r row) *managed {
 	}
 	mi.emit = NewEmitter(m.o.Topics, r.ID, m.o.Now)
 	mi.emit.report = mi.st.report
+	mi.emit.posture = m.Posture
 	m.mu.Lock()
 	m.insts[r.ID] = mi
 	m.mu.Unlock()

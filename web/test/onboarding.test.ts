@@ -272,6 +272,8 @@ describe('Connect your home', () => {
     const h = await wizard('done', graph);
     await h.board.load();
     expect(heading()).toBe('Your page is filling in.');
+    // The last step says where the security level is, and that it starts at Relaxed.
+    expect(document.querySelector('.ob-posture')!.textContent).toMatch(/starts at Relaxed.*Settings → Security/s);
     button('Open the front page')!.click();
     await flushPromises();
     const put = f.last('PUT', '/api/boards/b1/layout')!.body as { revision: number; layout: { sections: { items: { id: string }[] }[] } };

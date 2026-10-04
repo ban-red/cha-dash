@@ -116,6 +116,8 @@ export interface Incident {
   scenario?: string;
   class: IncidentClass;
   severity: Severity;
+  /** `security` for a security finding, whose severity the hub's security level decides. */
+  category?: 'security' | (string & {});
   status: 'open' | 'resolved';
   phase?: string;
   title: string;

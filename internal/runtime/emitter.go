@@ -13,6 +13,7 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/livedoc"
+	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/topics"
 )
 
@@ -39,11 +40,16 @@ type Emitter struct {
 	self   string // "integration:<id>"
 	now    func() time.Time
 	report func(version string, warnings []integration.Warning, setVersion, setWarnings bool)
+	// posture is the hub's security posture, read under mu each time an
+	// incident is published. Nil publishes declared severities.
+	posture func() security.Posture
 
-	mu        sync.Mutex
-	scopes    map[string]*owned
-	marks     map[string]healthMark // resource ID → current health status and since
-	series    map[string]*seriesDoc // series key → document
+	mu     sync.Mutex
+	scopes map[string]*owned
+	marks  map[string]healthMark // resource ID → current health status and since
+	series map[string]*seriesDoc // series key → document
+	// incidents are as the instance raised them, with the declared
+	// severity; the inbox gets published(in).
 	incidents map[string]integration.Incident
 }
 
@@ -418,6 +424,54 @@ func (e *Emitter) Clear() {
 
 func (e *Emitter) incidentID(local string) string { return e.id + "." + local }
 
+// SetPosture makes the emitter publish incidents at the severity the
+// security posture gives them (security.Posture.Severity), reading posture
+// each time. The Manager sets it on every instance; without it the inbox
+// gets the declared severity.
+func (e *Emitter) SetPosture(posture func() security.Posture) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.posture = posture
+}
+
+// published is an incident as the inbox shows it: a security finding's
+// declared severity replaced by the posture's. The caller holds e.mu.
+func (e *Emitter) published(in integration.Incident) integration.Incident {
+	if e.posture != nil {
+		in.Severity = e.posture().Severity(in.Category, in.Severity)
+	}
+	return in
+}
+
+// Reapply re-publishes the instance's security findings, open and resolved,
+// at the severity the posture gives them now: the Manager calls it when the
+// posture changes, so every finding moves at once rather than at the next
+// sync. Each changes in place in the inbox, keeping what other writers
+// added (the correlator's causes), and nothing else about it changes.
+func (e *Emitter) Reapply() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, _ = e.t.Inbox.Update(func(tx *livedoc.Tx) error {
+		for id, in := range e.incidents {
+			if in.Category != integration.CategorySecurity {
+				continue
+			}
+			want := e.published(in).Severity
+			raw := tx.Item(topics.Incidents, id)
+			if raw == nil {
+				continue
+			}
+			var cur integration.Incident
+			if err := json.Unmarshal(raw, &cur); err != nil || cur.Severity == want {
+				continue
+			}
+			cur.Severity = want
+			tx.Put(topics.Incidents, id, cur)
+		}
+		return nil
+	})
+}
+
 // Raise implements integration.Emitter.
 func (e *Emitter) Raise(in integration.Incident) error {
 	switch {
@@ -427,6 +481,8 @@ func (e *Emitter) Raise(in integration.Incident) error {
 		return fmt.Errorf("runtime: incident %s: class %q isn't problem or repair", in.ID, in.Class)
 	case in.Severity != integration.SeverityInfo && in.Severity != integration.SeverityAttention && in.Severity != integration.SeverityDown:
 		return fmt.Errorf("runtime: incident %s: severity %q isn't info, attention or down", in.ID, in.Severity)
+	case in.Category != "" && in.Category != integration.CategorySecurity:
+		return fmt.Errorf("runtime: incident %s: category %q isn't security", in.ID, in.Category)
 	case in.Title == "":
 		return fmt.Errorf("runtime: incident %s needs a title", in.ID)
 	}
@@ -474,7 +530,7 @@ func (e *Emitter) Raise(in integration.Incident) error {
 	}
 	e.incidents[id] = in
 	_, err := e.t.Inbox.Update(func(tx *livedoc.Tx) error {
-		tx.Put(topics.Incidents, id, in)
+		tx.Put(topics.Incidents, id, e.published(in))
 		return nil
 	})
 	return err
@@ -496,7 +552,7 @@ func (e *Emitter) Resolve(local, resolution string) error {
 	in.Resolution = resolution
 	e.incidents[id] = in
 	_, err := e.t.Inbox.Update(func(tx *livedoc.Tx) error {
-		tx.Put(topics.Incidents, id, in)
+		tx.Put(topics.Incidents, id, e.published(in))
 		return nil
 	})
 	return err
@@ -530,7 +586,7 @@ func (e *Emitter) setPhase(local, phase string) {
 	in.Phase, in.UpdatedAt = phase, e.clock()
 	e.incidents[id] = in
 	_, _ = e.t.Inbox.Update(func(tx *livedoc.Tx) error {
-		tx.Put(topics.Incidents, id, in)
+		tx.Put(topics.Incidents, id, e.published(in))
 		return nil
 	})
 }

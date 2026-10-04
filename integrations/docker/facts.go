@@ -547,7 +547,7 @@ func (in *instance) hints(eng string, secretHolders []string) error {
 	want := map[string]integration.Incident{}
 	base := func(id, title, summary, resolves string) integration.Incident {
 		return integration.Incident{ID: id, Scenario: "credential-hygiene", Class: integration.ClassProblem,
-			Severity: integration.SeverityAttention, Title: title, Summary: summary, Target: eng, ResolvesWhen: resolves,
+			Severity: integration.SeverityAttention, Category: integration.CategorySecurity, Title: title, Summary: summary, Target: eng, ResolvesWhen: resolves,
 			Facts: map[string]any{"endpoint": in.ep.raw, "access": in.acc.tier()}}
 	}
 	switch {

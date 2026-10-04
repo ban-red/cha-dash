@@ -224,6 +224,11 @@ const (
 	StatusResolved = "resolved"
 )
 
+// CategorySecurity marks a security finding, as the hub's integrations do.
+// The simulator writes each finding's declared severity; the hub's security
+// posture decides what the inbox shows (internal/demo applies it).
+const CategorySecurity = "security"
+
 // Cause is a root-cause hint: a recent change on a related resource.
 type Cause struct {
 	Text     string    `json:"text"`
@@ -255,6 +260,7 @@ type Incident struct {
 	Scenario     Scenario       `json:"scenario"`
 	Class        Class          `json:"class"`
 	Severity     Severity       `json:"severity"`
+	Category     string         `json:"category,omitempty"` // CategorySecurity, or empty
 	Status       string         `json:"status"`
 	Phase        string         `json:"phase"`
 	Title        string         `json:"title"`

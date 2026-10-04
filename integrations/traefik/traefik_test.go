@@ -305,11 +305,11 @@ func TestSync(t *testing.T) {
 	// Hints: credentials over plain http, and dashboards without auth (the
 	// API itself asked for credentials).
 	ph, ok := h.Incident(hintPlainHTTP)
-	if !ok || ph.Severity != "attention" || ph.Target != "traefik:i_test/app" || ph.Summary != "Test sends its credentials over plain http:// to 127.0.0.1. Use https:// if it supports it." {
+	if !ok || ph.Severity != "attention" || ph.Category != integration.CategorySecurity || ph.Target != "traefik:i_test/app" || ph.Summary != "Test sends its credentials over plain http:// to 127.0.0.1. Use https:// if it supports it." {
 		t.Fatalf("plain http hint = %+v", ph)
 	}
 	dh, ok := h.Incident(hintAPI)
-	if !ok || dh.Severity != "info" || !strings.Contains(dh.Summary, "on traefik.home1.lan, traefik.lab.example.") {
+	if !ok || dh.Severity != "info" || dh.Category != integration.CategorySecurity || !strings.Contains(dh.Summary, "on traefik.home1.lan, traefik.lab.example.") {
 		t.Fatalf("dashboard hint = %+v", dh)
 	}
 	inbox, _ := json.Marshal([]any{ph, dh})
@@ -329,7 +329,7 @@ func TestSync(t *testing.T) {
 	f.update(func() { f.auth = false })
 	h.Advance(10 * time.Minute)
 	syncOK(t, inst)
-	if dh, _ := h.Incident(hintAPI); dh.Severity != "attention" || !strings.Contains(dh.Summary, "answers without credentials") {
+	if dh, _ := h.Incident(hintAPI); dh.Severity != "attention" || dh.Category != integration.CategorySecurity || !strings.Contains(dh.Summary, "answers without credentials") {
 		t.Fatalf("open API hint = %+v", dh)
 	}
 }
