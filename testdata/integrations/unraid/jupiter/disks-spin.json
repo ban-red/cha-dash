@@ -1,0 +1,374 @@
+{
+  "rerun": {
+    "after": {
+      "data": {
+        "array": {
+          "boot": {
+            "isSpinning": true,
+            "name": "flash",
+            "temp": null
+          },
+          "caches": [
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme",
+              "temp": 47
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme2",
+              "temp": 45
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array",
+              "temp": 42
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array2",
+              "temp": 38
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_disks",
+              "temp": 29
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_mx_beta",
+              "temp": 32
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_nvme_beta",
+              "temp": 44
+            }
+          ],
+          "disks": [
+            {
+              "isSpinning": true,
+              "name": "disk1",
+              "temp": 40
+            },
+            {
+              "isSpinning": true,
+              "name": "disk2",
+              "temp": 46
+            },
+            {
+              "isSpinning": true,
+              "name": "disk3",
+              "temp": 34
+            },
+            {
+              "isSpinning": true,
+              "name": "disk4",
+              "temp": 33
+            },
+            {
+              "isSpinning": true,
+              "name": "disk5",
+              "temp": 35
+            },
+            {
+              "isSpinning": true,
+              "name": "disk6",
+              "temp": 37
+            },
+            {
+              "isSpinning": true,
+              "name": "disk7",
+              "temp": 35
+            }
+          ],
+          "parities": [
+            {
+              "isSpinning": true,
+              "name": "parity",
+              "temp": 33
+            }
+          ]
+        }
+      }
+    },
+    "before": {
+      "data": {
+        "array": {
+          "boot": {
+            "isSpinning": true,
+            "name": "flash",
+            "temp": null
+          },
+          "caches": [
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme",
+              "temp": 47
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme2",
+              "temp": 45
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array",
+              "temp": 42
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array2",
+              "temp": 38
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_disks",
+              "temp": 29
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_mx_beta",
+              "temp": 32
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_nvme_beta",
+              "temp": 44
+            }
+          ],
+          "disks": [
+            {
+              "isSpinning": true,
+              "name": "disk1",
+              "temp": 40
+            },
+            {
+              "isSpinning": true,
+              "name": "disk2",
+              "temp": 46
+            },
+            {
+              "isSpinning": true,
+              "name": "disk3",
+              "temp": 34
+            },
+            {
+              "isSpinning": true,
+              "name": "disk4",
+              "temp": 33
+            },
+            {
+              "isSpinning": true,
+              "name": "disk5",
+              "temp": 35
+            },
+            {
+              "isSpinning": true,
+              "name": "disk6",
+              "temp": 37
+            },
+            {
+              "isSpinning": true,
+              "name": "disk7",
+              "temp": 35
+            }
+          ],
+          "parities": [
+            {
+              "isSpinning": true,
+              "name": "parity",
+              "temp": 33
+            }
+          ]
+        }
+      }
+    }
+  },
+  "timed_out_read": {
+    "after": {
+      "data": {
+        "array": {
+          "boot": {
+            "isSpinning": true,
+            "name": "flash",
+            "temp": null
+          },
+          "caches": [
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme",
+              "temp": 47
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme2",
+              "temp": 47
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array",
+              "temp": 42
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array2",
+              "temp": 37
+            },
+            {
+              "isSpinning": false,
+              "name": "cache_disks",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "cache_mx_beta",
+              "temp": null
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_nvme_beta",
+              "temp": 44
+            }
+          ],
+          "disks": [
+            {
+              "isSpinning": false,
+              "name": "disk1",
+              "temp": null
+            },
+            {
+              "isSpinning": true,
+              "name": "disk2",
+              "temp": 46
+            },
+            {
+              "isSpinning": false,
+              "name": "disk3",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk4",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk5",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk6",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk7",
+              "temp": null
+            }
+          ],
+          "parities": [
+            {
+              "isSpinning": true,
+              "name": "parity",
+              "temp": 32
+            }
+          ]
+        }
+      }
+    },
+    "before": {
+      "data": {
+        "array": {
+          "boot": {
+            "isSpinning": true,
+            "name": "flash",
+            "temp": null
+          },
+          "caches": [
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme",
+              "temp": 47
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_appnvme2",
+              "temp": 47
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array",
+              "temp": 42
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_array2",
+              "temp": 37
+            },
+            {
+              "isSpinning": false,
+              "name": "cache_disks",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "cache_mx_beta",
+              "temp": null
+            },
+            {
+              "isSpinning": true,
+              "name": "cache_nvme_beta",
+              "temp": 44
+            }
+          ],
+          "disks": [
+            {
+              "isSpinning": false,
+              "name": "disk1",
+              "temp": null
+            },
+            {
+              "isSpinning": true,
+              "name": "disk2",
+              "temp": 46
+            },
+            {
+              "isSpinning": false,
+              "name": "disk3",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk4",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk5",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk6",
+              "temp": null
+            },
+            {
+              "isSpinning": false,
+              "name": "disk7",
+              "temp": null
+            }
+          ],
+          "parities": [
+            {
+              "isSpinning": false,
+              "name": "parity",
+              "temp": null
+            }
+          ]
+        }
+      }
+    }
+  }
+}

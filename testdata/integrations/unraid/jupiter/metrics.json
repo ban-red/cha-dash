@@ -1,0 +1,21 @@
+{
+  "data": {
+    "metrics": {
+      "cpu": {
+        "percentTotal": 10.544723917249591
+      },
+      "memory": {
+        "active": 42713800704,
+        "available": 24488271872,
+        "buffcache": 26258157568,
+        "free": 9054322688,
+        "percentSwapTotal": 0,
+        "percentTotal": 63.560243109606795,
+        "swapTotal": 0,
+        "swapUsed": 0,
+        "total": 67202072576,
+        "used": 58147749888
+      }
+    }
+  }
+}

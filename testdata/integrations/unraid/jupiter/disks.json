@@ -1,0 +1,312 @@
+{
+  "data": {
+    "disks": [
+      {
+        "device": "/dev/sda",
+        "firmwareRevision": "85.00A85",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:9XG8KLHJ",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "WDC WD160EDGZ-11B2DA0",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sda1",
+            "size": 16000900611584
+          }
+        ],
+        "serialNum": "9XG8KLHJ",
+        "size": 16000900661248,
+        "smartStatus": "OK",
+        "temperature": 46,
+        "type": "HD",
+        "vendor": "Western Digital"
+      },
+      {
+        "device": "/dev/sdb",
+        "firmwareRevision": "83.00A83",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:5KBNMTCF",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "WDC WD181KFGX-68AFPN0",
+        "partitions": [],
+        "serialNum": "5KBNMTCF",
+        "size": 18000207937536,
+        "smartStatus": "OK",
+        "temperature": 33,
+        "type": "HD",
+        "vendor": "Western Digital"
+      },
+      {
+        "device": "/dev/sdc",
+        "firmwareRevision": "85.00A85",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:CNC24JRB",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "WDC WD80EFBX-68AZZN0",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sdc1",
+            "size": 8001563172352
+          }
+        ],
+        "serialNum": "CNC24JRB",
+        "size": 8001563222016,
+        "smartStatus": "OK",
+        "temperature": 35,
+        "type": "HD",
+        "vendor": "Western Digital"
+      },
+      {
+        "device": "/dev/sdd",
+        "firmwareRevision": "0603",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:1618S708JGCK",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "TOSHIBA HDWG180",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sdd1",
+            "size": 8001563172352
+          }
+        ],
+        "serialNum": "1618S708JGCK",
+        "size": 8001563222016,
+        "smartStatus": "OK",
+        "temperature": 34,
+        "type": "HD",
+        "vendor": "Toshiba"
+      },
+      {
+        "device": "/dev/sde",
+        "firmwareRevision": "85.00A85",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:L0O6V0CX",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "WDC WD180EDGZ-11CMXA0",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sde1",
+            "size": 18000207887872
+          }
+        ],
+        "serialNum": "L0O6V0CX",
+        "size": 18000207937536,
+        "smartStatus": "OK",
+        "temperature": 33,
+        "type": "HD",
+        "vendor": "Western Digital"
+      },
+      {
+        "device": "/dev/sdf",
+        "firmwareRevision": "85.00A85",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:QDC1RNEK",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "WDC WD80EFBX-68AZZN0",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sdf1",
+            "size": 8001563172352
+          }
+        ],
+        "serialNum": "QDC1RNEK",
+        "size": 8001563222016,
+        "smartStatus": "OK",
+        "temperature": 37,
+        "type": "HD",
+        "vendor": "Western Digital"
+      },
+      {
+        "device": "/dev/sdg",
+        "firmwareRevision": "85.00A85",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:3EMCY8MG",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "WDC WD160EDGZ-11B2DA0",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sdg1",
+            "size": 16000900611584
+          }
+        ],
+        "serialNum": "3EMCY8MG",
+        "size": 16000900661248,
+        "smartStatus": "OK",
+        "temperature": 40,
+        "type": "HD",
+        "vendor": "Western Digital"
+      },
+      {
+        "device": "/dev/sdh",
+        "firmwareRevision": "83.00A83",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:7DUZMGFX",
+        "interfaceType": "SAS",
+        "isSpinning": false,
+        "name": "WDC WD181KFGX-68AFPN0",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sdh1",
+            "size": 18000207887872
+          }
+        ],
+        "serialNum": "7DUZMGFX",
+        "size": 18000207937536,
+        "smartStatus": "OK",
+        "temperature": 35,
+        "type": "HD",
+        "vendor": "Western Digital"
+      },
+      {
+        "device": "/dev/sdi",
+        "firmwareRevision": "HP3618C8",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:VMUZ2932354277304781",
+        "interfaceType": "SATA",
+        "isSpinning": false,
+        "name": "TEAM T2532TB",
+        "partitions": [],
+        "serialNum": "VMUZ2932354277304781",
+        "size": 2048408248320,
+        "smartStatus": "OK",
+        "temperature": 42,
+        "type": "SSD",
+        "vendor": "ATA"
+      },
+      {
+        "device": "/dev/sdj",
+        "firmwareRevision": "HP3618C8",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:MRNU7088729162815564",
+        "interfaceType": "SATA",
+        "isSpinning": false,
+        "name": "TEAM T2532TB",
+        "partitions": [],
+        "serialNum": "MRNU7088729162815564",
+        "size": 2048408248320,
+        "smartStatus": "OK",
+        "temperature": 38,
+        "type": "SSD",
+        "vendor": "ATA"
+      },
+      {
+        "device": "/dev/sdk",
+        "firmwareRevision": "M3CR046",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:3821K9027ON1",
+        "interfaceType": "SATA",
+        "isSpinning": false,
+        "name": "CT1000MX500SSD1",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sdk1",
+            "size": 1000203837440
+          }
+        ],
+        "serialNum": "3821K9027ON1",
+        "size": 1000204886016,
+        "smartStatus": "OK",
+        "temperature": 29,
+        "type": "SSD",
+        "vendor": "ATA"
+      },
+      {
+        "device": "/dev/sdl",
+        "firmwareRevision": "M0CR070",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:9639409MAF76",
+        "interfaceType": "SATA",
+        "isSpinning": false,
+        "name": "Crucial_CT525MX300SSD1",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "sdl1",
+            "size": 525111664640
+          }
+        ],
+        "serialNum": "9639409MAF76",
+        "size": 525112713216,
+        "smartStatus": "OK",
+        "temperature": 32,
+        "type": "SSD",
+        "vendor": "Crucial"
+      },
+      {
+        "device": "/dev/sdm",
+        "firmwareRevision": "1100",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:8231230990224417",
+        "interfaceType": "USB",
+        "isSpinning": false,
+        "name": "Flash Drive",
+        "partitions": [
+          {
+            "fsType": "VFAT",
+            "name": "sdm1",
+            "size": 32079085568
+          }
+        ],
+        "serialNum": "8231230990224417",
+        "size": 32080200192,
+        "smartStatus": "UNKNOWN",
+        "temperature": null,
+        "type": "HD",
+        "vendor": "Samsung"
+      },
+      {
+        "device": "/dev/nvme2n1",
+        "firmwareRevision": "EIFM31.4",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:51150250570336283848",
+        "interfaceType": "PCIE",
+        "isSpinning": false,
+        "name": "Corsair MP600 PRO LPX",
+        "partitions": [],
+        "serialNum": "51150250570336283848",
+        "size": 2000398934016,
+        "smartStatus": "OK",
+        "temperature": 47,
+        "type": "NVMe",
+        "vendor": "Corsair Components"
+      },
+      {
+        "device": "/dev/nvme1n1",
+        "firmwareRevision": "S0118C",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:1N2408721109",
+        "interfaceType": "PCIE",
+        "isSpinning": false,
+        "name": "XPG GAMMIX S11 Pro",
+        "partitions": [
+          {
+            "fsType": "XFS",
+            "name": "nvme1n1p1",
+            "size": 512109142016
+          }
+        ],
+        "serialNum": "1N2408721109",
+        "size": 512110190592,
+        "smartStatus": "OK",
+        "temperature": 44,
+        "type": "NVMe",
+        "vendor": ""
+      },
+      {
+        "device": "/dev/nvme0n1",
+        "firmwareRevision": "P9CR40A",
+        "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:5291S317486A",
+        "interfaceType": "PCIE",
+        "isSpinning": false,
+        "name": "CT2000P3PSSD8",
+        "partitions": [],
+        "serialNum": "5291S317486A",
+        "size": 2000398934016,
+        "smartStatus": "OK",
+        "temperature": 45,
+        "type": "NVMe",
+        "vendor": ""
+      }
+    ]
+  }
+}

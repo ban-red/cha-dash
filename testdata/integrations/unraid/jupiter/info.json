@@ -1,0 +1,37 @@
+{
+  "data": {
+    "info": {
+      "cpu": {
+        "brand": "Gen Intel® Core™ i5-13600K",
+        "cores": 14,
+        "manufacturer": "Intel",
+        "threads": 20
+      },
+      "machineId": "8ea53c1e0292134168603e596b919b50",
+      "os": {
+        "arch": "x64",
+        "distro": "Unraid OS",
+        "hostname": "Jupiter",
+        "kernel": "6.18.38-Unraid",
+        "platform": "linux",
+        "release": "7.3 x86_64",
+        "uefi": true,
+        "uptime": "2026-09-05T22:06:33.077Z"
+      },
+      "system": {
+        "manufacturer": "ASUS",
+        "model": "System Product Name",
+        "uuid": "aa3a3389-7511-6494-9f08-053405264212",
+        "virtual": false
+      },
+      "time": "2026-10-04T03:08:58.763Z",
+      "versions": {
+        "core": {
+          "api": "4.37.2+a00c99a5",
+          "kernel": "6.18.38-Unraid",
+          "unraid": "7.3.2"
+        }
+      }
+    }
+  }
+}

@@ -243,6 +243,8 @@ Everything lives in the `/data` volume (`chadash_data`):
 
 **The database and the key belong together.** The key is the only way to open the stored credentials: lose it and they are gone for good. Back up both, and restore both.
 
+**Files are private to the hub's user.** The hub runs with umask 077, so everything it writes in `/data` is mode 0600 (owner 65532). A backup tool running as another user needs to run as 65532 or as root, or copy the volume from the host.
+
 Stop the hub for a consistent copy, then archive the volume:
 
 ```sh

@@ -1,0 +1,25 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "extensions": {
+        "code": "FORBIDDEN",
+        "originalError": {
+          "error": "Forbidden",
+          "message": "Forbidden resource",
+          "statusCode": 403
+        }
+      },
+      "locations": [
+        {
+          "column": 27,
+          "line": 1
+        }
+      ],
+      "message": "Forbidden resource",
+      "path": [
+        "apiKeys"
+      ]
+    }
+  ]
+}

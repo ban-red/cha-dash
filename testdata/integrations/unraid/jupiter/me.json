@@ -1,0 +1,60 @@
+{
+  "data": {
+    "me": {
+      "description": "Cha Dash (spike) read-only plumbing test 4.2. Reads system info, array and disks, Docker containers, VMs, shares and notifications. No write access. Revoke it any time under Settings, Management Access, API Keys.",
+      "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:3e355909-2758-2634-f605-0a129544b8d3",
+      "name": "Cha Dash spike",
+      "permissions": [
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "INFO"
+        },
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "ARRAY"
+        },
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "DISK"
+        },
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "DOCKER"
+        },
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "VMS"
+        },
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "SHARE"
+        },
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "NOTIFICATIONS"
+        },
+        {
+          "actions": [
+            "READ_ANY"
+          ],
+          "resource": "ME"
+        }
+      ],
+      "roles": []
+    }
+  }
+}

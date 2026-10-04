@@ -1,0 +1,19 @@
+{
+  "data": {
+    "vms": {
+      "domains": [
+        {
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:85d7761b-c3d9-9180-6755-741350d64937",
+          "name": "jupiter_ubuntu",
+          "state": "RUNNING"
+        },
+        {
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:0d255241-7175-d003-6916-caff9055e309",
+          "name": "Windows 10",
+          "state": "SHUTOFF"
+        }
+      ],
+      "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:vms"
+    }
+  }
+}

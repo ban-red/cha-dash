@@ -66,7 +66,7 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 | 2.1 | ✅ **`packages/layout`** (pure TypeScript, framework-agnostic): <ul><li>model: sections; items with `supportedSizes`</li><li>operations: place, move, resize-to-size, remove, smart insert</li><li>dense Z-reflow; derived breakpoints (12 → 8 → 4 columns)</li><li>immutable history (undo/redo); serialization</li></ul> | package + API doc |
 | 2.2 | ✅ **Property tests** (fast-check, 9,400 runs per `bun test`): <ul><li>no overlaps; all items in bounds</li><li>derivation is deterministic</li><li>undo restores exactly</li><li>resizing only ever lands on supported sizes</li></ul> | green test suite |
 | 2.3 | ✅ **Vue 3.6 renderer** ([`packages/layout-vue`](../../packages/layout-vue/README.md); vue-tsc needs TypeScript 6, pinned per package): pointer drag with momentum projection, Motion for Vue springs, a corner resize handle that snaps, keyboard move and resize, edit mode | `web/` demo route |
-| 2.4 | ✅ **One-day gridstack 14 comparison** on the same scenarios ([results](../../spikes/grid-compare/README.md)) | ADR-0013 (proposed) |
+| 2.4 | ✅ **One-day gridstack 14 comparison** on the same scenarios ([results](../../spikes/grid-compare/README.md)) | ADR-0013 (accepted) |
 | 2.5 | Feel check on a real phone: 60 fps drag | ▶ you run the dev server |
 
 ## Track 3: Hub skeleton and the Demo Home simulator
@@ -91,13 +91,13 @@ All **read-only**, time-boxed, throwaway code. Each produces notes plus **saniti
 | # | Spike | Against | Also settles |
 |---|---|---|---|
 | 4.1 | ✅ ([findings](../../spikes/pve/README.md), [fixtures](../../testdata/integrations/proxmox/README.md)) PVE multi-instance + cluster: `/cluster/resources`, tasks, check that privilege separation is in effect | your 5 PVE endpoints | — |
-| 4.2 | Unraid: GraphQL introspection, subscriptions, `ApiKeyAuthorize` consent flow | jupiter | — |
+| 4.2 | ✅ ([findings](../../spikes/unraid/README.md): API 4.37.2 predates Unraid's authorization fix; autostart joins Docker 74/74) Unraid: GraphQL introspection, subscriptions, `ApiKeyAuthorize` consent flow | jupiter | — |
 | 4.3 | ✅ ([findings](../../spikes/traefik/README.md)) Traefik routers, including path-based ones (`/sonarr`) → service URL correlation | pvedocker Traefik | — |
 | 4.4 | ✅ ([findings](../../spikes/docker-proxy/README.md)) Docker through the socket proxy: list, inspect (with env redaction), events, and a proxy-vs-raw probe | both proxies | — |
 | 4.5 | ✅ OPNsense SSE traffic stream; Frigate events and snapshots ([OPNsense](../../spikes/opnsense/README.md), [Frigate](../../spikes/frigate/README.md): SSE confirmed; the Homepage key is already least-privilege) | router, minig5 | — |
 | 4.6 | ✅ **Node prototype**: Compose SDK + go-git deploy → diff → health gate → rollback. All 8 checks pass; verdict: build the node on the SDK. [Findings](../../spikes/node-compose/README.md#findings) | sandbox LXC on mars-2 via [`spikes/node-sandbox/sandbox.sh`](../../spikes/node-sandbox/README.md) | node size + memory → ADR-0016 |
-| 4.7 | ✅ Node transport: mTLS vs Noise (ergonomics, rotation, code size) ([findings](../../spikes/node-transport/README.md)) | local | ADR-0014 (proposed) |
-| 4.8 | ✅ SQLite driver: modernc vs ncruces (encryption cost, performance) ([findings](../../spikes/sqlite-driver/README.md)) | local | ADR-0015 (proposed) |
+| 4.7 | ✅ Node transport: mTLS vs Noise (ergonomics, rotation, code size) ([findings](../../spikes/node-transport/README.md)) | local | ADR-0014 (accepted) |
+| 4.8 | ✅ SQLite driver: modernc vs ncruces (encryption cost, performance) ([findings](../../spikes/sqlite-driver/README.md)) | local | ADR-0015 (accepted) |
 
 Credentials for the spikes:
 - ✅ **Proxmox:** the existing read-only Homepage tokens (PVEAuditor, privilege-separated) are in the git-ignored `.env.local`. The format is in `.env.example`.

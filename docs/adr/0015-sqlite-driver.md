@@ -20,6 +20,8 @@ The vault already seals credentials, so database encryption would protect everyt
 
 ## Consequences
 
+- **As implemented** (2026-10-03): the hub's driver file is `internal/store/driver_ncruces.go`. modernc stays in `go.mod` only as an indirect dependency of goose's own tests; no modernc package is linked into the binary (17 → 11 modules). One fix over the spike's `hubswap/driver.go`: `url.Values.Encode` writes spaces as `+`, which SQLite doesn't decode in `modeof`, so the hub writes `%20` (tested with spaces, `#`, `%` and `+` in the data path).
+
 - **Speed is level or better.**
   - Session lookups take 13.3 µs against modernc's 16.2 µs (4.0 against 6.3 across four goroutines), and audit appends 19.6 against 24.3 µs.
   - 1 MiB layout saves and loads are level.

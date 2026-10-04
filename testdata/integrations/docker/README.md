@@ -35,8 +35,9 @@ Applied by `spikes/docker-proxy sanitize`, with the same domain and address map 
 | LAN addresses | `10.0.11.x` (jupiter `10.0.11.120`). Docker bridge `172.(16+n).c.d` → `10.(100+n).c.d` |
 | A personal GitHub handle in one image name | `homelab-user` |
 | Command-line flags that look like secrets (`--token=…`) and secret query parameters | `REDACTED` (none were present in this capture) |
+| A personal-looking share name in mount paths (`/mnt/user/<share>/…`, `/mnt/user0/<share>/…`) | `archive_a`, the same neutral name the [Unraid fixture](../unraid/README.md) uses. This was applied after the sanitizer run (spike 4.2 follow-up), so a re-run of `spikes/docker-proxy sanitize` needs the same mapping in its private state's words |
 
-Mount paths are unchanged: `/mnt/user/…` share names contain no personal names. Public project URLs in image labels (GitHub, linuxserver.io, project docs) are kept.
+Other mount paths are unchanged: the remaining share names (`appdata`, `media`, `backup`, …) and the folders under them are generic. Public project URLs in image labels (GitHub, linuxserver.io, project docs) are kept.
 
 **Leak check:** `spikes/docker-proxy` has `TestFixturesLookSanitized`, which always runs: address ranges, MACs, every env value `REDACTED`, every healthcheck output `REDACTED`. It also has `TestFixturesHaveNoRealValues`, which scans for every real value seen during capture (2,921 of them, including the real env secrets and IDs) and runs with `LEAKCHECK_VALUES=<path>`. Both passed when the fixture was committed.
 

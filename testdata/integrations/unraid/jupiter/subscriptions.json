@@ -1,0 +1,345 @@
+{
+  "ack_after": "1ms",
+  "acked": true,
+  "handshake_status": 101,
+  "open_for": "57.004s",
+  "subprotocol": "graphql-transport-ws",
+  "subs": [
+    {
+      "complete": false,
+      "errors": 0,
+      "events": [
+        {
+          "at_ms": 1028,
+          "payload": {
+            "data": {
+              "systemMetricsCpu": {
+                "percentTotal": 11.198485510412116
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 2016,
+          "payload": {
+            "data": {
+              "systemMetricsCpu": {
+                "percentTotal": 8.25214899713467
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 3023,
+          "payload": {
+            "data": {
+              "systemMetricsCpu": {
+                "percentTotal": 5.484051482932289
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 4029,
+          "payload": {
+            "data": {
+              "systemMetricsCpu": {
+                "percentTotal": 4.667764964305326
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 5023,
+          "payload": {
+            "data": {
+              "systemMetricsCpu": {
+                "percentTotal": 6.850117096018736
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 6016,
+          "payload": {
+            "data": {
+              "systemMetricsCpu": {
+                "percentTotal": 6.997742663656885
+              }
+            }
+          },
+          "type": "next"
+        }
+      ],
+      "events_kept": 6,
+      "first_after": "1.029s",
+      "mean_gap": "1.09s",
+      "name": "SubCpu",
+      "next": 52
+    },
+    {
+      "complete": false,
+      "errors": 0,
+      "events": [
+        {
+          "at_ms": 2008,
+          "payload": {
+            "data": {
+              "systemMetricsMemory": {
+                "percentTotal": 63.71609963602799,
+                "total": 67202072576,
+                "used": 57959849984
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 4008,
+          "payload": {
+            "data": {
+              "systemMetricsMemory": {
+                "percentTotal": 63.67080731864361,
+                "total": 67202072576,
+                "used": 57938956288
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 6008,
+          "payload": {
+            "data": {
+              "systemMetricsMemory": {
+                "percentTotal": 63.891192140603536,
+                "total": 67202072576,
+                "used": 58089209856
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 8009,
+          "payload": {
+            "data": {
+              "systemMetricsMemory": {
+                "percentTotal": 63.88787033829235,
+                "total": 67202072576,
+                "used": 58089320448
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 10007,
+          "payload": {
+            "data": {
+              "systemMetricsMemory": {
+                "percentTotal": 63.83432532305594,
+                "total": 67202072576,
+                "used": 58050322432
+              }
+            }
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 12007,
+          "payload": {
+            "data": {
+              "systemMetricsMemory": {
+                "percentTotal": 63.91163493868014,
+                "total": 67202072576,
+                "used": 58104410112
+              }
+            }
+          },
+          "type": "next"
+        }
+      ],
+      "events_kept": 6,
+      "first_after": "2.008s",
+      "mean_gap": "2.235s",
+      "name": "SubMemory",
+      "next": 25
+    },
+    {
+      "codes": [
+        "NO_CODE"
+      ],
+      "complete": false,
+      "errors": 6,
+      "events": [
+        {
+          "at_ms": 1171,
+          "payload": {
+            "data": null,
+            "errors": [
+              {
+                "locations": [
+                  {
+                    "column": 25,
+                    "line": 1
+                  }
+                ],
+                "message": "Cannot return null for non-nullable field Subscription.arraySubscription.",
+                "path": [
+                  "arraySubscription"
+                ]
+              }
+            ]
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 11175,
+          "payload": {
+            "data": null,
+            "errors": [
+              {
+                "locations": [
+                  {
+                    "column": 25,
+                    "line": 1
+                  }
+                ],
+                "message": "Cannot return null for non-nullable field Subscription.arraySubscription.",
+                "path": [
+                  "arraySubscription"
+                ]
+              }
+            ]
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 21169,
+          "payload": {
+            "data": null,
+            "errors": [
+              {
+                "locations": [
+                  {
+                    "column": 25,
+                    "line": 1
+                  }
+                ],
+                "message": "Cannot return null for non-nullable field Subscription.arraySubscription.",
+                "path": [
+                  "arraySubscription"
+                ]
+              }
+            ]
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 32669,
+          "payload": {
+            "data": null,
+            "errors": [
+              {
+                "locations": [
+                  {
+                    "column": 25,
+                    "line": 1
+                  }
+                ],
+                "message": "Cannot return null for non-nullable field Subscription.arraySubscription.",
+                "path": [
+                  "arraySubscription"
+                ]
+              }
+            ]
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 41179,
+          "payload": {
+            "data": null,
+            "errors": [
+              {
+                "locations": [
+                  {
+                    "column": 25,
+                    "line": 1
+                  }
+                ],
+                "message": "Cannot return null for non-nullable field Subscription.arraySubscription.",
+                "path": [
+                  "arraySubscription"
+                ]
+              }
+            ]
+          },
+          "type": "next"
+        },
+        {
+          "at_ms": 51174,
+          "payload": {
+            "data": null,
+            "errors": [
+              {
+                "locations": [
+                  {
+                    "column": 25,
+                    "line": 1
+                  }
+                ],
+                "message": "Cannot return null for non-nullable field Subscription.arraySubscription.",
+                "path": [
+                  "arraySubscription"
+                ]
+              }
+            ]
+          },
+          "type": "next"
+        }
+      ],
+      "first_after": "1.171s",
+      "mean_gap": "10.001s",
+      "name": "SubArray",
+      "next": 6
+    },
+    {
+      "complete": false,
+      "errors": 0,
+      "name": "SubParity",
+      "next": 0
+    },
+    {
+      "complete": false,
+      "errors": 0,
+      "name": "SubDockerStats",
+      "next": 0
+    },
+    {
+      "complete": false,
+      "errors": 0,
+      "name": "SubNotificationsOverview",
+      "next": 0
+    },
+    {
+      "complete": false,
+      "errors": 0,
+      "name": "SubNotificationAdded",
+      "next": 0
+    },
+    {
+      "complete": false,
+      "errors": 0,
+      "name": "SubUpsOutOfScope",
+      "next": 0
+    }
+  ],
+  "window": "1m0s"
+}

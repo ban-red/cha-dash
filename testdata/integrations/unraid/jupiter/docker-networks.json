@@ -1,0 +1,56 @@
+{
+  "data": {
+    "docker": {
+      "networks": [
+        {
+          "driver": "null",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:20c914d6ad01788d1816fc4709e17b4a93d1a34f70555574e7e7dee84897e848",
+          "name": "none",
+          "scope": "local"
+        },
+        {
+          "driver": "ipvlan",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:4dbec7823f8f3763bc93068789d3669a636cbf9be1267ae461f179e16feafe5d",
+          "name": "br0",
+          "scope": "local"
+        },
+        {
+          "driver": "bridge",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:0449ca58377411b9a6c79abe7fe024aa3e3dcd70a095808489280864aa0e782b",
+          "name": "ai_default",
+          "scope": "local"
+        },
+        {
+          "driver": "bridge",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:8f93425d84e4049b9de7c101fb20d1df8ce2ddf0681557e406a654a8415ea733",
+          "name": "bridge",
+          "scope": "local"
+        },
+        {
+          "driver": "bridge",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:32fd6501b676a29543e220e13b7b93cf44cc4464a89c18c764ae432f4ee0c3f4",
+          "name": "misc_default",
+          "scope": "local"
+        },
+        {
+          "driver": "bridge",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:318040df7e96a3135fa0dc567a3d293ec782e4bd68b4de744d7b7ef586d76897",
+          "name": "mealie_default",
+          "scope": "local"
+        },
+        {
+          "driver": "host",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:6dcbb868cb3325ed19ee611cecc7b4a49912a48217e10a18437d568c9ee4345b",
+          "name": "host",
+          "scope": "local"
+        },
+        {
+          "driver": "bridge",
+          "id": "d7d4935f60aa13d7cf136dfc57d9e07c2ff1359da5bc1f93dc7bbc18511b76b8:b37128933021d6c9dad4ba8da4bdcbf94b29f8f5bbfc54a3a2be50d6161b7187",
+          "name": "immich_default",
+          "scope": "local"
+        }
+      ]
+    }
+  }
+}

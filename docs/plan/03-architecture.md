@@ -398,7 +398,7 @@ Community specs install from the UI pinned to a hash. A spec can be **promoted t
 → {"op":"unsub","id":1}                                     // also: client ping → pong; error frames carry a code
 ```
 
-**As built in M0** (`internal/realtime`): `diff` frames carry the subscription `id` so one socket can multiplex; `unsub`, `error` and client `ping`/`pong` exist; a client that falls behind gets a `resync` snapshot instead of a backlog. `resume` is accepted but ignored for now, since every `sub` already starts with a snapshot. Topics so far: `graph` and `graph:kind/<kind>`.
+**As built in M0** (`internal/realtime`): `diff` frames carry the subscription `id` so one socket can multiplex; `unsub`, `error` and client `ping`/`pong` exist; a client that falls behind gets a `resync` snapshot instead of a backlog. `resume` is accepted but ignored for now, since every `sub` already starts with a snapshot. Topics: `graph` (and `graph:kind/<kind>`), `metrics` and `inbox`. Diffs go one level into a changed member (`/series/<key>/value`, `/incidents/<id>/status`), and optional fields arrive as `add`/`remove`, so a tab receives about 47 kB a minute for the whole demo home instead of 128 kB.
 
 - **Inline snapshot.** `index.html` embeds the last-known graph snapshot for the current board. The page renders **instantly with real values** and then goes live. No spinners.
 - **Service worker** caches the shell and the last snapshot. If the hub is unreachable, you see last-known values under a clear banner.

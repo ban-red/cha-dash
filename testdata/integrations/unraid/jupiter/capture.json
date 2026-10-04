@@ -1,0 +1,295 @@
+{
+  "granted": [
+    "array:read_any",
+    "cloud:read_any",
+    "disk:create_any",
+    "docker:read_any",
+    "info:read_any",
+    "logs:read_any",
+    "me:read_any",
+    "network:read_any",
+    "notifications:read_any",
+    "online:read_any",
+    "os:read_any",
+    "servers:read_any",
+    "services:read_any",
+    "share:read_any",
+    "vms:read_any",
+    "welcome:read_any"
+  ],
+  "granted_extra": [
+    "cloud:read_any",
+    "disk:create_any",
+    "logs:read_any",
+    "network:read_any",
+    "online:read_any",
+    "os:read_any",
+    "servers:read_any",
+    "services:read_any",
+    "welcome:read_any"
+  ],
+  "granted_missing": [
+    "disk:read_any"
+  ],
+  "introspection": {
+    "ok": false
+  },
+  "out_of_scope_unexpected_success": [
+    "OutOfScopeServers",
+    "OutOfScopeLogs"
+  ],
+  "queries": {
+    "Array": {
+      "bytes": 8165,
+      "data": true,
+      "ms": 14,
+      "status": 200
+    },
+    "Disks": {
+      "bytes": 231,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 8,
+      "status": 200
+    },
+    "Docker": {
+      "bytes": 173964,
+      "data": true,
+      "ms": 175,
+      "status": 200
+    },
+    "DockerNetworks": {
+      "bytes": 1562,
+      "data": true,
+      "ms": 215,
+      "status": 200
+    },
+    "Info": {
+      "bytes": 588,
+      "data": true,
+      "ms": 307,
+      "status": 200
+    },
+    "IntrospectionQuery": {
+      "bytes": 158,
+      "codes": [
+        "INTROSPECTION_DISABLED"
+      ],
+      "data": false,
+      "ms": 12,
+      "status": 400
+    },
+    "Me": {
+      "bytes": 907,
+      "data": true,
+      "ms": 3,
+      "status": 200
+    },
+    "Metrics": {
+      "bytes": 284,
+      "data": true,
+      "ms": 24,
+      "status": 200
+    },
+    "Network": {
+      "bytes": 13101,
+      "data": true,
+      "ms": 2584,
+      "status": 200
+    },
+    "Notifications": {
+      "bytes": 8296,
+      "data": true,
+      "ms": 290,
+      "status": 200
+    },
+    "OutOfScopeApiKeys": {
+      "bytes": 234,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 6,
+      "status": 200
+    },
+    "OutOfScopeFlash": {
+      "bytes": 232,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 4,
+      "status": 200
+    },
+    "OutOfScopeLogs": {
+      "bytes": 1067,
+      "data": true,
+      "ms": 11,
+      "status": 200
+    },
+    "OutOfScopeServers": {
+      "bytes": 100,
+      "data": true,
+      "ms": 3,
+      "status": 200
+    },
+    "OutOfScopeUps": {
+      "bytes": 204,
+      "codes": [
+        "INTERNAL_SERVER_ERROR"
+      ],
+      "data": false,
+      "ms": 19,
+      "status": 200
+    },
+    "OutOfScopeVars": {
+      "bytes": 231,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 5589,
+      "status": 200
+    },
+    "ParityHistory": {
+      "bytes": 10877,
+      "data": true,
+      "ms": 9,
+      "status": 200
+    },
+    "RootMutationFields": {
+      "bytes": 1340,
+      "data": true,
+      "ms": 2,
+      "status": 200
+    },
+    "RootQueryFields": {
+      "bytes": 1413,
+      "data": true,
+      "ms": 2,
+      "status": 200
+    },
+    "RootSubscriptionFields": {
+      "bytes": 585,
+      "data": true,
+      "ms": 2,
+      "status": 200
+    },
+    "Shares": {
+      "bytes": 6132,
+      "data": true,
+      "ms": 4,
+      "status": 200
+    },
+    "Vms": {
+      "bytes": 409,
+      "data": true,
+      "ms": 12,
+      "status": 200
+    }
+  },
+  "root_field_counts": {
+    "Mutation": 45,
+    "Query": 58,
+    "Subscription": 17
+  },
+  "scheme": "http",
+  "started": "2026-10-04T03:08:54Z",
+  "subscriptions": {
+    "acked": true,
+    "close_code": 0,
+    "handshake": 101,
+    "open_for": "57.004s",
+    "subs": [
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "1.029s",
+        "mean_gap": "1.09s",
+        "name": "SubCpu",
+        "next": 52,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "2.008s",
+        "mean_gap": "2.235s",
+        "name": "SubMemory",
+        "next": 25,
+        "refused": ""
+      },
+      {
+        "codes": [
+          "NO_CODE"
+        ],
+        "complete": false,
+        "errors": 6,
+        "first_after": "1.171s",
+        "mean_gap": "10.001s",
+        "name": "SubArray",
+        "next": 6,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubParity",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubDockerStats",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubNotificationsOverview",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubNotificationAdded",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubUpsOutOfScope",
+        "next": 0,
+        "refused": ""
+      }
+    ]
+  },
+  "versions": {
+    "api": "4.37.2+a00c99a5",
+    "kernel": "6.18.38-Unraid",
+    "unraid": "7.3.2"
+  }
+}

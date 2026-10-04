@@ -1,0 +1,10 @@
+{
+  "errors": [
+    {
+      "extensions": {
+        "code": "INTROSPECTION_DISABLED"
+      },
+      "message": "GraphQL introspection is not allowed, but the current request is for introspection."
+    }
+  ]
+}

@@ -1,0 +1,354 @@
+{
+  "granted": [
+    "array:read_any",
+    "disk:read_any",
+    "docker:read_any",
+    "info:read_any",
+    "me:read_any",
+    "notifications:read_any",
+    "share:read_any",
+    "vms:read_any"
+  ],
+  "granted_extra": null,
+  "granted_missing": null,
+  "introspection": {
+    "ok": false
+  },
+  "key_label_as_requested": {
+    "description": true,
+    "name": true
+  },
+  "out_of_scope_unexpected_success": [],
+  "queries": {
+    "Array": {
+      "bytes": 8171,
+      "data": true,
+      "ms": 7,
+      "status": 200
+    },
+    "Disks": {
+      "bytes": 0,
+      "data": false,
+      "error": "POST /graphql: Post \"\u003cunraid-url\u003e/graphql\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+      "ms": 0,
+      "status": 0
+    },
+    "Docker": {
+      "bytes": 173964,
+      "data": true,
+      "ms": 196,
+      "status": 200
+    },
+    "DockerNetworks": {
+      "bytes": 1562,
+      "data": true,
+      "ms": 9,
+      "status": 200
+    },
+    "Info": {
+      "bytes": 588,
+      "data": true,
+      "ms": 318,
+      "status": 200
+    },
+    "IntrospectionQuery": {
+      "bytes": 158,
+      "codes": [
+        "INTROSPECTION_DISABLED"
+      ],
+      "data": false,
+      "ms": 18,
+      "status": 400
+    },
+    "Me": {
+      "bytes": 761,
+      "data": true,
+      "ms": 5,
+      "status": 200
+    },
+    "Metrics": {
+      "bytes": 282,
+      "data": true,
+      "ms": 14,
+      "status": 200
+    },
+    "Network": {
+      "bytes": 13101,
+      "data": true,
+      "ms": 1521,
+      "status": 200
+    },
+    "Notifications": {
+      "bytes": 8345,
+      "data": true,
+      "ms": 289,
+      "status": 200
+    },
+    "OutOfScopeApiKeys": {
+      "bytes": 234,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 6,
+      "status": 200
+    },
+    "OutOfScopeCloud": {
+      "bytes": 232,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 7,
+      "status": 200
+    },
+    "OutOfScopeFlash": {
+      "bytes": 232,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 5,
+      "status": 200
+    },
+    "OutOfScopeLogs": {
+      "bytes": 235,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 2,
+      "status": 200
+    },
+    "OutOfScopeNetwork": {
+      "bytes": 234,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 9,
+      "status": 200
+    },
+    "OutOfScopeOnline": {
+      "bytes": 233,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 4,
+      "status": 200
+    },
+    "OutOfScopeServers": {
+      "bytes": 244,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 2,
+      "status": 200
+    },
+    "OutOfScopeServices": {
+      "bytes": 235,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 6,
+      "status": 200
+    },
+    "OutOfScopeUps": {
+      "bytes": 204,
+      "codes": [
+        "INTERNAL_SERVER_ERROR"
+      ],
+      "data": false,
+      "ms": 20,
+      "status": 200
+    },
+    "OutOfScopeVars": {
+      "bytes": 231,
+      "codes": [
+        "FORBIDDEN"
+      ],
+      "data": false,
+      "ms": 6,
+      "status": 200
+    },
+    "ParityHistory": {
+      "bytes": 10877,
+      "data": true,
+      "ms": 7,
+      "status": 200
+    },
+    "RootMutationFields": {
+      "bytes": 1340,
+      "data": true,
+      "ms": 3,
+      "status": 200
+    },
+    "RootQueryFields": {
+      "bytes": 1413,
+      "data": true,
+      "ms": 2,
+      "status": 200
+    },
+    "RootSubscriptionFields": {
+      "bytes": 585,
+      "data": true,
+      "ms": 1,
+      "status": 200
+    },
+    "Shares": {
+      "bytes": 6132,
+      "data": true,
+      "ms": 7,
+      "status": 200
+    },
+    "SpinAfterDisks": {
+      "bytes": 863,
+      "data": true,
+      "ms": 4,
+      "status": 200
+    },
+    "SpinBeforeDisks": {
+      "bytes": 866,
+      "data": true,
+      "ms": 7,
+      "status": 200
+    },
+    "Vms": {
+      "bytes": 409,
+      "data": true,
+      "ms": 7,
+      "status": 200
+    }
+  },
+  "reruns": [
+    {
+      "queries": {
+        "Disks": {
+          "bytes": 6041,
+          "data": true,
+          "ms": 1422,
+          "status": 200
+        },
+        "SpinAfterDisks": {
+          "bytes": 839,
+          "data": true,
+          "ms": 5,
+          "status": 200
+        },
+        "SpinBeforeDisks": {
+          "bytes": 839,
+          "data": true,
+          "ms": 7,
+          "status": 200
+        }
+      },
+      "started": "2026-10-04T03:48:49Z",
+      "timeout_ms": 150000
+    }
+  ],
+  "root_field_counts": {
+    "Mutation": 45,
+    "Query": 58,
+    "Subscription": 17
+  },
+  "scheme": "http",
+  "started": "2026-10-04T03:45:33Z",
+  "subscriptions": {
+    "acked": true,
+    "close_code": 0,
+    "handshake": 101,
+    "open_for": "57.374s",
+    "subs": [
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "1.036s",
+        "mean_gap": "1.112s",
+        "name": "SubCpu",
+        "next": 49,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "2.033s",
+        "mean_gap": "2.233s",
+        "name": "SubMemory",
+        "next": 24,
+        "refused": ""
+      },
+      {
+        "codes": [
+          "NO_CODE"
+        ],
+        "complete": false,
+        "errors": 5,
+        "first_after": "4.866s",
+        "mean_gap": "10.509s",
+        "name": "SubArray",
+        "next": 5,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubParity",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubDockerStats",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubNotificationsOverview",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubNotificationAdded",
+        "next": 0,
+        "refused": ""
+      },
+      {
+        "codes": null,
+        "complete": false,
+        "errors": 0,
+        "first_after": "",
+        "mean_gap": "",
+        "name": "SubUpsOutOfScope",
+        "next": 0,
+        "refused": ""
+      }
+    ]
+  },
+  "versions": {
+    "api": "4.37.2+a00c99a5",
+    "kernel": "6.18.38-Unraid",
+    "unraid": "7.3.2"
+  }
+}

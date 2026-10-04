@@ -1,0 +1,60 @@
+{
+  "data": {
+    "__type": {
+      "fields": [
+        {
+          "name": "displaySubscription"
+        },
+        {
+          "name": "notificationAdded"
+        },
+        {
+          "name": "notificationsOverview"
+        },
+        {
+          "name": "notificationsWarningsAndAlerts"
+        },
+        {
+          "name": "ownerSubscription"
+        },
+        {
+          "name": "serversSubscription"
+        },
+        {
+          "name": "parityHistorySubscription"
+        },
+        {
+          "name": "arraySubscription"
+        },
+        {
+          "name": "dockerContainerStats"
+        },
+        {
+          "name": "logFile"
+        },
+        {
+          "name": "systemMetricsCpu"
+        },
+        {
+          "name": "systemMetricsCpuTelemetry"
+        },
+        {
+          "name": "systemMetricsMemory"
+        },
+        {
+          "name": "systemMetricsNetwork"
+        },
+        {
+          "name": "systemMetricsTemperature"
+        },
+        {
+          "name": "upsUpdates"
+        },
+        {
+          "name": "pluginInstallUpdates"
+        }
+      ],
+      "name": "Subscription"
+    }
+  }
+}

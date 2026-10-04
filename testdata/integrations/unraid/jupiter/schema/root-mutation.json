@@ -1,0 +1,144 @@
+{
+  "data": {
+    "__type": {
+      "fields": [
+        {
+          "name": "createNotification"
+        },
+        {
+          "name": "deleteNotification"
+        },
+        {
+          "name": "deleteArchivedNotifications"
+        },
+        {
+          "name": "archiveNotification"
+        },
+        {
+          "name": "archiveNotifications"
+        },
+        {
+          "name": "notifyIfUnique"
+        },
+        {
+          "name": "archiveAll"
+        },
+        {
+          "name": "unreadNotification"
+        },
+        {
+          "name": "unarchiveNotifications"
+        },
+        {
+          "name": "unarchiveAll"
+        },
+        {
+          "name": "recalculateOverview"
+        },
+        {
+          "name": "array"
+        },
+        {
+          "name": "docker"
+        },
+        {
+          "name": "vm"
+        },
+        {
+          "name": "parityCheck"
+        },
+        {
+          "name": "apiKey"
+        },
+        {
+          "name": "customization"
+        },
+        {
+          "name": "rclone"
+        },
+        {
+          "name": "onboarding"
+        },
+        {
+          "name": "unraidPlugins"
+        },
+        {
+          "name": "updateServerIdentity"
+        },
+        {
+          "name": "updateSshSettings"
+        },
+        {
+          "name": "createDockerFolder"
+        },
+        {
+          "name": "setDockerFolderChildren"
+        },
+        {
+          "name": "deleteDockerEntries"
+        },
+        {
+          "name": "moveDockerEntriesToFolder"
+        },
+        {
+          "name": "moveDockerItemsToPosition"
+        },
+        {
+          "name": "renameDockerFolder"
+        },
+        {
+          "name": "createDockerFolderWithItems"
+        },
+        {
+          "name": "updateDockerViewPreferences"
+        },
+        {
+          "name": "syncDockerTemplatePaths"
+        },
+        {
+          "name": "resetDockerTemplateMappings"
+        },
+        {
+          "name": "refreshDockerDigests"
+        },
+        {
+          "name": "initiateFlashBackup"
+        },
+        {
+          "name": "updateSettings"
+        },
+        {
+          "name": "updateTemperatureConfig"
+        },
+        {
+          "name": "updateSystemTime"
+        },
+        {
+          "name": "configureUps"
+        },
+        {
+          "name": "addPlugin"
+        },
+        {
+          "name": "removePlugin"
+        },
+        {
+          "name": "updateApiSettings"
+        },
+        {
+          "name": "connectSignIn"
+        },
+        {
+          "name": "connectSignOut"
+        },
+        {
+          "name": "setupRemoteAccess"
+        },
+        {
+          "name": "enableDynamicRemoteAccess"
+        }
+      ],
+      "name": "Mutation"
+    }
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "data": {
+    "__type": {
+      "fields": [
+        {
+          "name": "apiKeys"
+        },
+        {
+          "name": "apiKey"
+        },
+        {
+          "name": "apiKeyPossibleRoles"
+        },
+        {
+          "name": "apiKeyPossiblePermissions"
+        },
+        {
+          "name": "getPermissionsForRoles"
+        },
+        {
+          "name": "previewEffectivePermissions"
+        },
+        {
+          "name": "getAvailableAuthActions"
+        },
+        {
+          "name": "getApiKeyCreationFormSchema"
+        },
+        {
+          "name": "config"
+        },
+        {
+          "name": "display"
+        },
+        {
+          "name": "flash"
+        },
+        {
+          "name": "me"
+        },
+        {
+          "name": "notifications"
+        },
+        {
+          "name": "online"
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "internalBootContext"
+        },
+        {
+          "name": "registration"
+        },
+        {
+          "name": "server"
+        },
+        {
+          "name": "servers"
+        },
+        {
+          "name": "services"
+        },
+        {
+          "name": "shares"
+        },
+        {
+          "name": "vars"
+        },
+        {
+          "name": "vms"
+        },
+        {
+          "name": "parityHistory"
+        },
+        {
+          "name": "array"
+        },
+        {
+          "name": "customization"
+        },
+        {
+          "name": "isFreshInstall"
+        },
+        {
+          "name": "publicTheme"
+        },
+        {
+          "name": "info"
+        },
+        {
+          "name": "networkInterfaces"
+        },
+        {
+          "name": "docker"
+        },
+        {
+          "name": "disks"
+        },
+        {
+          "name": "assignableDisks"
+        },
+        {
+          "name": "disk"
+        },
+        {
+          "name": "rclone"
+        },
+        {
+          "name": "logFiles"
+        },
+        {
+          "name": "logFile"
+        },
+        {
+          "name": "settings"
+        },
+        {
+          "name": "isSSOEnabled"
+        },
+        {
+          "name": "publicOidcProviders"
+        },
+        {
+          "name": "oidcProviders"
+        },
+        {
+          "name": "oidcProvider"
+        },
+        {
+          "name": "oidcConfiguration"
+        },
+        {
+          "name": "validateOidcSession"
+        },
+        {
+          "name": "metrics"
+        },
+        {
+          "name": "systemTime"
+        },
+        {
+          "name": "timeZoneOptions"
+        },
+        {
+          "name": "upsDevices"
+        },
+        {
+          "name": "upsDeviceById"
+        },
+        {
+          "name": "upsConfiguration"
+        },
+        {
+          "name": "pluginInstallOperation"
+        },
+        {
+          "name": "pluginInstallOperations"
+        },
+        {
+          "name": "installedUnraidPlugins"
+        },
+        {
+          "name": "plugins"
+        },
+        {
+          "name": "remoteAccess"
+        },
+        {
+          "name": "connect"
+        },
+        {
+          "name": "network"
+        },
+        {
+          "name": "cloud"
+        }
+      ],
+      "name": "Query"
+    }
+  }
+}

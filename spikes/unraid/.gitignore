@@ -1,0 +1,12 @@
+# Raw captures from a live server hold real addresses, serials, MACs and names, and the
+# sanitizer state, words file and leak list hold real values too. Keep them outside the repo;
+# these patterns are a backstop. Only sanitized fixtures belong in testdata/integrations/unraid/.
+raw/
+*.raw.json
+*.raw.txt
+state*.json
+leak-values*
+words*.tsv
+# Build output
+bin/
+unraid-spike
