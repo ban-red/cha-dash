@@ -33,7 +33,6 @@ package integration
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -89,27 +88,6 @@ type Intervaler interface {
 type ConfigValidator interface {
 	ValidateConfig(cfg Config) []FieldError
 }
-
-// Actor runs actions (v0.2). Nothing calls it in v0.1; the types are a
-// placeholder so instances can be written against the final interface.
-type Actor interface {
-	Do(ctx context.Context, req ActionRequest) (Task, error)
-}
-
-// ActionRequest is a placeholder for the v0.2 action engine.
-type ActionRequest struct {
-	Action string
-	Target string
-	Params map[string]any
-}
-
-// Task is a placeholder for the v0.2 action engine.
-type Task struct {
-	ID string
-}
-
-// ErrNoActions is what an Actor returns until the action engine exists.
-var ErrNoActions = errors.New("integration: actions arrive in v0.2")
 
 // Tier is the quality tier shown in the UI (03 · Architecture, quality tiers).
 type Tier string

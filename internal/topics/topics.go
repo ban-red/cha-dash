@@ -6,6 +6,8 @@
 //	inbox     {"now": RFC 3339, "incidents": {id: incident}}
 //
 // graph also answers graph:kind/<kind>[,<kind>…] (see realtime.GraphSource).
+// The action engine adds tasks ({"tasks": {id: task}}, filtered per viewer)
+// through SourceWith.
 // Series and incidents use the Demo Home simulator's JSON shapes (see
 // sim/README.md). Demo mode fills metrics and inbox from the simulator;
 // outside it they start empty, and real integrations will write the same
@@ -60,6 +62,16 @@ func (s *Set) Source() realtime.Source {
 		Metrics: realtime.DocSource{Doc: s.Metrics, Topic: Metrics},
 		Inbox:   realtime.DocSource{Doc: s.Inbox, Topic: Inbox},
 	}
+}
+
+// SourceWith routes every topic in the set plus extra, topics other
+// packages own (the action engine's tasks).
+func (s *Set) SourceWith(extra realtime.Mux) realtime.Source {
+	m := s.Source().(realtime.Mux)
+	for name, src := range extra {
+		m[name] = src
+	}
+	return m
 }
 
 // SeriesKey is a metric series' key in the metrics document.

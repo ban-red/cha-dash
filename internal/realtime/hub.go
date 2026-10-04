@@ -335,7 +335,7 @@ func (c *conn) subscribe(m clientMsg) {
 			continue
 		}
 		seen[t] = true
-		f, err := c.h.src.Open(t, s.notify)
+		f, err := OpenWith(c.ctx, c.h.src, t, s.notify)
 		if err != nil {
 			s.close()
 			code := codeBadRequest

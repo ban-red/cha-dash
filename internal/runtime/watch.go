@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"sync"
@@ -102,7 +103,12 @@ type watchedSource struct {
 }
 
 func (s watchedSource) Open(topic string, notify chan<- struct{}) (realtime.Feed, error) {
-	f, err := s.src.Open(topic, notify)
+	return s.OpenContext(context.Background(), topic, notify)
+}
+
+// OpenContext passes the viewer on (realtime.ContextSource).
+func (s watchedSource) OpenContext(ctx context.Context, topic string, notify chan<- struct{}) (realtime.Feed, error) {
+	f, err := realtime.OpenWith(ctx, s.src, topic, notify)
 	if err != nil {
 		return nil, err
 	}

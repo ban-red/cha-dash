@@ -28,7 +28,10 @@
 //	GET  /api/settings/security    security posture, step-up rule and their options (viewer)
 //	PUT  /api/settings/security    {posture?, step_up?}; step_up needs a step-up (owner)
 //	GET  /api/demo             demo clock and seed; demo mode only (session)
-//	POST /api/demo/incidents/{id}/fix   press the suggested action (operator)
+//	POST /api/demo/incidents/{id}/fix   press the suggested action (operator; deprecated)
+//	POST /api/actions/plan, POST /api/plans/{id}/approve, GET /api/tasks/{id}
+//	                           the action engine (session; the policy decides, see action.Engine.Register)
+//	GET  /api/audit, /api/audit/export, /api/audit/verify   the audit log (admin; audit.read)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
 //	                           with the first-paint snapshot for a signed-in owner)
@@ -54,6 +57,7 @@ import (
 	"strings"
 	"time"
 
+	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/boards"
@@ -104,6 +108,9 @@ type Deps struct {
 	// Security is the security posture. Nil leaves /api/settings/security
 	// unmounted.
 	Security *security.Service
+	// Actions is the action engine; it also serves the audit log. Nil
+	// leaves /api/actions, /api/plans, /api/tasks and /api/audit unmounted.
+	Actions *action.Engine
 }
 
 // New builds the root handler.
@@ -157,6 +164,9 @@ func New(d Deps) (http.Handler, error) {
 	if d.Security != nil {
 		d.Security.Register(mux, session, session)
 		d.Auth.SetStepUpMode(d.Security.StepUp)
+	}
+	if d.Actions != nil {
+		d.Actions.Register(mux, d.Auth.Require, d.Log)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")
