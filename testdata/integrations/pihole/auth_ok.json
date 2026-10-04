@@ -1,0 +1,11 @@
+{
+  "session": {
+    "valid": true,
+    "totp": false,
+    "sid": "c3ludGhldGljLXNpZC0wMDE=",
+    "csrf": "c3ludGhldGljLWNzcmYtMDE=",
+    "validity": 1800,
+    "message": "correct password"
+  },
+  "took": 0.0412
+}

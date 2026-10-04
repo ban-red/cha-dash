@@ -2,17 +2,21 @@
 /**
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
- * /settings/integrations, /settings/import, /settings/security. The board,
- * the socket and the Inbox stay live underneath; Esc or the scrim goes back.
+ * /settings/integrations, /settings/import, /settings/backup,
+ * /settings/security. The board, the socket and the Inbox stay live
+ * underneath; Esc or the scrim goes back.
  *
  * Its own chunk, loaded the first time Settings opens. Data sits on a solid
  * surface; glass stays on the page's chrome.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import IntegrationsPane from './IntegrationsPane.vue';
 import ImportPane from './ImportPane.vue';
 import SecurityPane from './SecurityPane.vue';
 import { back, navigate, settingsPath, view, type SettingsPane } from '../lib/router';
+
+// Backup is rarely opened: its own chunk, loaded with the pane.
+const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
 
 const panel = ref<HTMLElement | null>(null);
 let lastFocus: Element | null = null;
@@ -20,10 +24,12 @@ let lastFocus: Element | null = null;
 const PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'integrations', label: 'Integrations', note: 'what Cha Dash reads' },
   { id: 'import', label: 'Import', note: 'from Homepage' },
+  { id: 'backup', label: 'Backup', note: 'export and restore' },
   { id: 'security', label: 'Security', note: 'passkeys' },
 ];
 const pane = computed<SettingsPane>(() => (view.value.name === 'settings' ? view.value.pane : 'integrations'));
-const title = computed(() => (pane.value === 'import' ? 'Import from Homepage' : pane.value === 'security' ? 'Security' : 'Integrations'));
+const TITLES: Record<SettingsPane, string> = { integrations: 'Integrations', import: 'Import from Homepage', backup: 'Backup', security: 'Security' };
+const title = computed(() => TITLES[pane.value]);
 
 function close(): void {
   back('/');
@@ -79,6 +85,7 @@ onBeforeUnmount(() => {
           <div class="st-pane">
             <IntegrationsPane v-if="pane === 'integrations'" />
             <ImportPane v-else-if="pane === 'import'" />
+            <BackupPane v-else-if="pane === 'backup'" />
             <SecurityPane v-else />
           </div>
         </div>

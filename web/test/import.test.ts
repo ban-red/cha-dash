@@ -3,13 +3,9 @@ import { flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import goldenRaw from '../../testdata/importers/homepage/dogfood/expected-plan.json?raw';
 import ImportPane from '../src/settings/ImportPane.vue';
-import ServiceWidget from '../src/widgets/ServiceWidget.vue';
 import { route, syncRoute } from '../src/lib/router';
 import { previewOf } from '../src/model/importPlan';
-import { serviceStatus } from '../src/model/service';
-import type { GraphDoc } from '../src/model/types';
 import { resetIntegrations } from '../src/stores/integrations';
-import { resetTileMeta, tileMetaFromRecord, tiles } from '../src/stores/tiles';
 import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
 
@@ -20,7 +16,6 @@ beforeEach(() => {
   history.replaceState(null, '', '/settings/import');
   syncRoute();
   resetIntegrations();
-  resetTileMeta();
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -79,7 +74,11 @@ describe('Settings → Import from Homepage', () => {
       'POST /api/import/homepage?dry_run=1': { status: 200, body: golden },
       'POST /api/import/homepage': { status: 200, body: { board_id: 'b_ajrtwtlddnb3sgor', instance_ids: ['i1'], changes: [] } },
       'GET /api/integrations/instances': { status: 200, body: [] },
-      'GET /api/import/homepage': { status: 200, body: { record: { board_id: 'b_ajrtwtlddnb3sgor', tiles: golden.plan['tiles'] } } },
+      'GET /api/boards': { status: 200, body: { boards: [{ id: 'b_ajrtwtlddnb3sgor', name: 'Alpaca Homepage' }] } },
+      'GET /api/boards/b_ajrtwtlddnb3sgor/layout': {
+        status: 200,
+        body: { revision: 2, format_version: 1, layout: (golden.plan['board'] as Record<string, unknown>)['layout'], tiles: { plex: { name: 'Plex' } } },
+      },
       ...over,
     });
     const h = harness();
@@ -127,8 +126,21 @@ describe('Settings → Import from Homepage', () => {
     expect(route.value.path).toBe('/boards/b_ajrtwtlddnb3sgor');
     expect(ui.state.toasts[0]!.text).toContain('22 tiles and 21 connections');
     expect(ui.state.toasts[0]!.text).toContain('18 secrets are in the vault');
-    // the new board's tiles get their names from the import record
-    expect(f.last('GET', '/api/import/homepage')).toBeDefined();
+    // landing on another board loads it (the front page follows the route); nothing reads the import record
+    expect(f.calls.some((c) => c.path === '/api/import/homepage' && c.method === 'GET')).toBe(false);
+  });
+
+  it('reloads the board on screen, with its tiles, after re-importing it', async () => {
+    const { w, f, board } = mountPane();
+    board.state.boardId = 'b_ajrtwtlddnb3sgor';
+    await w.find('#yaml-services_yaml').setValue(SERVICES);
+    await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
+    await flushPromises();
+    await w.find('.import-preview').findAll('button').find((b) => b.text().startsWith('Import'))!.trigger('click');
+    await flushPromises();
+    expect(f.last('GET', '/api/boards/b_ajrtwtlddnb3sgor/layout')).toBeDefined();
+    expect(board.state.revision).toBe(2);
+    expect(board.tiles.value).toEqual({ plex: { name: 'Plex' } });
   });
 
   it('shows the hub’s YAML error, which names the file and line', async () => {
@@ -170,65 +182,5 @@ describe('Settings → Import from Homepage', () => {
     await w.find('#yaml-services_yaml').setValue(SERVICES + '#\n');
     await nextTick();
     expect(w.find('.import-preview').exists()).toBe(false);
-  });
-});
-
-describe('the service tile', () => {
-  const record = { record: { board_id: 'b1', tiles: golden.plan['tiles'] } };
-
-  it('reads tile metadata from the import record through one adapter', () => {
-    const meta = tileMetaFromRecord(record);
-    expect(meta['service@homepage:servers/proxmoxpluto']).toEqual({
-      itemId: 'service@homepage:servers/proxmoxpluto',
-      section: 'servers',
-      widget: 'service',
-      name: 'Pluto PVE (main opnsense)',
-      icon: 'https://api.iconify.design/simple-icons:proxmox.svg?color=%23888888',
-      href: 'https://pluto.lan:8006',
-      instance: 'i_o2asa67xbuwy4huh',
-      origin: 'Servers → ProxmoxPluto',
-    });
-    expect(tileMetaFromRecord({ record: { tiles: [{ item_id: 'x', href: 'javascript:alert(1)' }] } })['x']!.href).toBeUndefined();
-  });
-
-  it('takes its status from a check, else the integration, else says it has no reading', () => {
-    const g: GraphDoc = {
-      resources: {
-        'check:Plex': { id: 'check:Plex', kind: 'check', name: 'Plex', health: 'down', attrs: { 'health.reason': 'HTTP 502' } },
-        'integration:i1': { id: 'integration:i1', kind: 'integration', health: 'repair' },
-      },
-      relations: {},
-    };
-    expect(serviceStatus(g, { check: 'Plex', instance: 'i1' })).toEqual({ status: 'down', word: 'HTTP 502', via: 'check' });
-    expect(serviceStatus(g, { instance: 'i1' })).toEqual({ status: 'repair', word: 'needs repair', via: 'integration' });
-    expect(serviceStatus(g, { instance: 'i2' })).toEqual({ status: 'unknown', word: 'no reading yet', via: 'none' });
-    expect(serviceStatus(g, {})).toBeUndefined();
-  });
-
-  it('shows name, link and description from the record', async () => {
-    const f = fakeFetch({ 'GET /api/import/homepage': { status: 200, body: record } });
-    const h = harness({ graph: { resources: { 'integration:i_o2asa67xbuwy4huh': { id: 'integration:i_o2asa67xbuwy4huh', kind: 'integration', health: 'ok' } }, relations: {} } });
-    const a = h.mountIn(ServiceWidget, { size: 'wide', target: 'homepage:servers/proxmoxpluto' });
-    h.mountIn(ServiceWidget, { size: 'small', target: 'homepage:servers/proxmoxminig5' });
-    await flushPromises();
-    expect(f.calls.filter((c) => c.path === '/api/import/homepage')).toHaveLength(1); // one fetch for every tile
-    expect(tiles.status).toBe('ready');
-    expect(a.find('.tn').text()).toBe('Pluto PVE (main opnsense)');
-    expect(a.find('.tc').text()).toBe('pluto.lan:8006');
-    expect(a.find('.svc-link').attributes('href')).toBe('https://pluto.lan:8006');
-    expect(a.find('.svc-link').attributes('rel')).toBe('noopener noreferrer');
-    expect(a.find('.tg').text()).toContain('reading');
-    // icons from other origins are never hot-linked (the CSP forbids it): a monogram instead
-    expect(a.find('img').exists()).toBe(false);
-  });
-
-  it('falls back to its id before anything has been imported', async () => {
-    fakeFetch({ 'GET /api/import/homepage': { status: 404, body: { error: { code: 'not_found', message: 'nothing imported' } } } });
-    const h = harness({ graph: { resources: {}, relations: {} } });
-    const w = h.mountIn(ServiceWidget, { size: 'small', target: 'homepage:media/jellyfin' });
-    await flushPromises();
-    expect(tiles.status).toBe('none');
-    expect(w.find('.tn').text()).toBe('jellyfin');
-    expect(w.text()).toContain('Imported from Homepage.');
   });
 });

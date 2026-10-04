@@ -84,6 +84,25 @@ func TestShapeAndVersion(t *testing.T) {
 	}
 }
 
+// Tx.Item reads what the batch would leave: staged values first.
+func TestTxItem(t *testing.T) {
+	d := New("incidents")
+	update(t, d, func(tx *Tx) { tx.Put("incidents", "a", 1); tx.Put("incidents", "b", 2) })
+	update(t, d, func(tx *Tx) {
+		if string(tx.Item("incidents", "a")) != "1" || tx.Item("incidents", "nope") != nil || tx.Item("nope", "a") != nil {
+			t.Errorf("before staging: a=%s", tx.Item("incidents", "a"))
+		}
+		tx.Put("incidents", "a", 3)
+		tx.Delete("incidents", "b")
+		if string(tx.Item("incidents", "a")) != "3" || tx.Item("incidents", "b") != nil {
+			t.Errorf("after staging: a=%s b=%s", tx.Item("incidents", "a"), tx.Item("incidents", "b"))
+		}
+	})
+	if string(d.Item("incidents", "a")) != "3" || d.Item("incidents", "b") != nil {
+		t.Fatal("the batch wasn't applied")
+	}
+}
+
 func TestErrorsApplyNothing(t *testing.T) {
 	d := New("series")
 	for name, fn := range map[string]func(tx *Tx){

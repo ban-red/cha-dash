@@ -2,7 +2,8 @@
 /**
  * A bar with threshold ticks (bars beat gauges). Single hue until a value
  * crosses `warn` (attention) or `crit` (down). Unknown is a dashed track,
- * never an empty bar.
+ * never an empty bar, and an image named "…: unknown" rather than a meter
+ * (a meter must have a value).
  */
 import { computed } from 'vue';
 
@@ -49,12 +50,12 @@ const valueText = computed(() =>
 <template>
   <div
     :class="['meter', `sev-${sev}`, { thin, thick, unknown: !known }]"
-    role="meter"
-    :aria-label="label"
-    :aria-valuemin="min"
-    :aria-valuemax="max"
+    :role="known ? 'meter' : 'img'"
+    :aria-label="known ? label : `${label}: unknown`"
+    :aria-valuemin="known ? min : undefined"
+    :aria-valuemax="known ? max : undefined"
     :aria-valuenow="known ? (value as number) : undefined"
-    :aria-valuetext="valueText"
+    :aria-valuetext="known ? valueText : undefined"
   >
     <span v-if="known" class="m-fill" :style="{ width: fill + '%' }"></span>
     <span v-if="tickAt !== undefined" class="m-tick" :style="{ left: tickAt + '%' }"></span>

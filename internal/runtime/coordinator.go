@@ -346,6 +346,14 @@ func (c *coordinator) raiseRepair(code, msg, field string, status int, at time.T
 		in.Summary = fmt.Sprintf("Since %s, %s has presented a certificate Cha Dash can't verify.", since, c.name)
 		in.Suggested = integration.Action{ID: "integration.tls", Label: "Review the certificate", Tier: "T0", Target: self,
 			Detail: "Trust it on first use, or pin its fingerprint."}
+	case codeSecretMissing:
+		what := fieldTitle(c.man, field)
+		in.Scenario = "secret-missing"
+		in.Title = c.name + " needs its " + what
+		in.Summary = fmt.Sprintf("Cha Dash has no %s for %s, so it can't read it yet.", what, c.name)
+		in.Suggested = integration.Action{ID: "integration.reconnect", Label: "Enter the " + what, Tier: "T0", Target: self,
+			Detail: "Enter it in the integration's settings. It goes into the vault."}
+		in.ResolvesWhen = fmt.Sprintf("Resolves when Cha Dash can read %s.", c.name)
 	case integration.CodeAPIChanged, integration.CodeUnsupportedVersion:
 		in.Scenario = "api-changed"
 		in.Title = c.name + "'s API changed"

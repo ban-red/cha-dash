@@ -113,7 +113,7 @@ func TestLayoutLifecycle(t *testing.T) {
 
 	// Never saved: the SPA creates the first layout.
 	r := call(t, srv, "GET", path, "")
-	if r.status != 200 || r.raw != `{"revision":0,"format_version":0,"layout":null}`+"\n" {
+	if r.status != 200 || r.raw != `{"revision":0,"format_version":0,"layout":null,"tiles":{}}`+"\n" {
 		t.Fatalf("empty layout: %d %s", r.status, r.raw)
 	}
 
@@ -210,7 +210,7 @@ func TestConcurrentSavesOneWins(t *testing.T) {
 	wins, conflicts := 0, 0
 	for range 10 {
 		wg.Go(func() {
-			_, err := s.SaveLayout(t.Context(), id, 0, 1, json.RawMessage(`{}`), "")
+			_, err := s.SaveLayout(t.Context(), id, 0, 1, json.RawMessage(`{}`), nil, "")
 			var c *ConflictError
 			mu.Lock()
 			defer mu.Unlock()
@@ -235,7 +235,7 @@ func TestHistoryIsPruned(t *testing.T) {
 	boards, _ := s.List(t.Context())
 	id := boards[0].ID
 	for rev := range int64(KeepRevisions + 5) {
-		if _, err := s.SaveLayout(t.Context(), id, rev, 1, json.RawMessage(`{"n":1}`), ""); err != nil {
+		if _, err := s.SaveLayout(t.Context(), id, rev, 1, json.RawMessage(`{"n":1}`), nil, ""); err != nil {
 			t.Fatal(err)
 		}
 	}

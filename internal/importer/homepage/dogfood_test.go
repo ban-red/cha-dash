@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/importer"
 )
 
@@ -456,10 +457,10 @@ func TestDogfoodImport(t *testing.T) {
 	if c := strings.Count(dump.String(), "${secret:instance/"); c != 18 {
 		t.Errorf("%d secret refs in config, want 18", c)
 	}
-	var title, doc string
+	var title, doc, tilesDoc string
 	var rev, fv int
-	if err := h.st.Reader().QueryRowContext(ctx, `SELECT b.title, l.revision, l.format_version, l.document FROM boards b JOIN layouts l ON l.board_id = b.id WHERE b.id = ?`, applied.BoardID).
-		Scan(&title, &rev, &fv, &doc); err != nil {
+	if err := h.st.Reader().QueryRowContext(ctx, `SELECT b.title, l.revision, l.format_version, l.document, l.tiles FROM boards b JOIN layouts l ON l.board_id = b.id WHERE b.id = ?`, applied.BoardID).
+		Scan(&title, &rev, &fv, &doc, &tilesDoc); err != nil {
 		t.Fatal(err)
 	}
 	if title != "Alpaca Homepage" || rev != 1 || fv != 1 {
@@ -470,14 +471,45 @@ func TestDogfoodImport(t *testing.T) {
 		t.Fatalf("stored layout: %v", err)
 	}
 
-	// The record keeps tiles, links and discovery; GET serves it.
+	// The tiles live with the layout, one per item, in the boards API's shape.
+	assertNoLeak(t, "the board's tiles", tilesDoc, leaks)
+	tiles, err := boards.ParseTiles(json.RawMessage(tilesDoc))
+	if err != nil || len(tiles) != 22 {
+		t.Fatalf("stored tiles (%d): %v", len(tiles), err)
+	}
+	for _, s := range stored.Sections {
+		for _, it := range s.Items {
+			if _, ok := tiles[it.ID]; !ok {
+				t.Errorf("no tile config for %s", it.ID)
+			}
+		}
+	}
+	byName := instancesByName(plan.Plan)
+	pluto := tiles["service@homepage:servers/proxmoxpluto"]
+	if pluto.Name != "Pluto PVE (main opnsense)" || pluto.Href != "https://pluto.lan:8006" || pluto.Bind == nil ||
+		pluto.Bind.Instance != byName["Pluto PVE (main opnsense)"].ID || pluto.Origin == nil ||
+		*pluto.Origin != (boards.Origin{Source: "homepage", File: "services.yaml", Group: "Servers", Entry: "ProxmoxPluto"}) {
+		t.Errorf("Pluto's tile = %+v", pluto)
+	}
+	if cal := tiles["calendar"]; !cal.Chromeless || cal.Name != "" || cal.Bind == nil || len(cal.Bind.Sources) != 2 || cal.Bind.Instance != "" {
+		t.Errorf("calendar tile = %+v", cal)
+	}
+	if ld := tiles["service@homepage:archive-backup/linkding"]; ld.Bind == nil || ld.Bind.Check != "Linkding" || ld.Description != "Shared bookmarks" {
+		t.Errorf("Linkding tile = %+v", ld)
+	}
+
+	// The record keeps links and discovery (tiles moved to the board); GET serves it.
 	status, rec := h.get(t)
 	if status != 200 {
 		t.Fatalf("GET record: %d %s", status, rec)
 	}
 	assertNoLeak(t, "the import record", string(rec), leaks)
-	var r struct{ Record importer.Record }
-	if err := json.Unmarshal(rec, &r); err != nil || len(r.Record.Tiles) != 22 || len(r.Record.Links) != 9 || len(r.Record.Instances) != 21 {
+	var r struct{ Record map[string]json.RawMessage }
+	if err := json.Unmarshal(rec, &r); err != nil || r.Record["tiles"] != nil {
+		t.Fatalf("record: %v %s", err, rec)
+	}
+	var typed struct{ Record importer.Record }
+	if err := json.Unmarshal(rec, &typed); err != nil || len(typed.Record.Links) != 9 || len(typed.Record.Instances) != 21 || typed.Record.BoardID != applied.BoardID {
 		t.Fatalf("record: %v %s", err, rec)
 	}
 
@@ -515,6 +547,66 @@ func TestDogfoodImport(t *testing.T) {
 	}
 }
 
+// TestDogfoodLegacyRecordMigrates: a hub imported before tiles had a home
+// kept them in the import record. Migration 00004 moves them into the board
+// in exactly the shape the importer now writes, so re-importing the same
+// files afterwards still changes nothing.
+func TestDogfoodLegacyRecordMigrates(t *testing.T) {
+	h := newHub(t)
+	ctx := t.Context()
+	body, err := json.Marshal(dogfood(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status, out := h.post(t, "", body); status != 200 {
+		t.Fatalf("apply: %d %s", status, out)
+	}
+
+	// Rewind to what the wave 4 importer left: the tiles in the record, and
+	// a schema without layouts.tiles.
+	res, _ := build(t, dogfood(t))
+	var raw string
+	if err := h.st.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = 'import/homepage'`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var rec map[string]any
+	if err := json.Unmarshal([]byte(raw), &rec); err != nil {
+		t.Fatal(err)
+	}
+	rec["tiles"] = res.Plan.Tiles
+	legacy, _ := json.Marshal(rec)
+	if _, err := h.st.Writer().ExecContext(ctx, `UPDATE settings SET value = ? WHERE key = 'import/homepage'`, string(legacy)); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.st.MigrateTo(ctx, 3); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	status, dry := h.post(t, "?dry_run=1", body)
+	if status != 200 {
+		t.Fatal(status)
+	}
+	var plan struct{ Plan importer.Plan }
+	if err := json.Unmarshal(dry, &plan); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range plan.Plan.Changes {
+		if c.Action != importer.ActionUnchanged {
+			t.Errorf("after the migration: %+v", c)
+		}
+	}
+	before := dumpTables(t, h)
+	if status, out := h.post(t, "", body); status != 200 || strings.Contains(string(out), `"action":"update"`) {
+		t.Fatalf("re-import after the migration: %d %s", status, out)
+	}
+	if after := dumpTables(t, h); after != before {
+		t.Error("re-import after the migration touched rows")
+	}
+}
+
 func golden(t *testing.T, got []byte) {
 	t.Helper()
 	var pretty bytes.Buffer
@@ -542,7 +634,7 @@ func dumpTables(t *testing.T, h *hub) string {
 	var b strings.Builder
 	for _, q := range []string{
 		`SELECT id || slug || title || position || updated_at FROM boards`,
-		`SELECT board_id || revision || document || created_at FROM layouts ORDER BY revision`,
+		`SELECT board_id || revision || document || tiles || created_at FROM layouts ORDER BY revision`,
 		`SELECT id || integration || name || config || enabled || updated_at FROM integration_instances ORDER BY id`,
 		`SELECT name || hex(data_key) || hex(ciphertext) || updated_at FROM vault_secrets ORDER BY name`,
 		`SELECT key || value || updated_at FROM settings ORDER BY key`,

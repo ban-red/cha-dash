@@ -16,6 +16,8 @@ import { navigate, route, settingsPath, view } from '../lib/router';
 import { rank } from '../lib/fuzzy';
 import { STATUS_WORDS, statusGlyph } from '../model/integrations';
 import { catalogEntry, integrations, loadCatalog, loadInstances } from '../stores/integrations';
+import { accessOf } from './recipe';
+import { openWizard } from '../onboarding/state';
 
 const v = computed(() => (view.value.name === 'settings' ? view.value : undefined));
 const query = ref('');
@@ -23,6 +25,12 @@ const query = ref('');
 const catalogShown = computed(() => rank(query.value, integrations.catalog.map((c) => ({ ...c, label: c.name, keywords: `${c.id} ${(c.capabilities ?? []).join(' ')}` }))));
 const now = computed(() => Date.now());
 const warnCount = (n: number) => `${n} warning${n === 1 ? '' : 's'}`;
+
+/** The first-run wizard, again: over the front page. */
+function openGuide(): void {
+  openWizard();
+  navigate('/', { replace: true });
+}
 
 onMounted(() => {
   void loadCatalog();
@@ -57,7 +65,7 @@ onMounted(() => {
         <a class="cat-card" :href="`/settings/integrations/new/${encodeURIComponent(c.id)}`" @click.prevent="navigate(`/settings/integrations/new/${encodeURIComponent(c.id)}`)">
           <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
           <span class="t">{{ c.name }}</span>
-          <span class="m">{{ [c.tier !== undefined ? `tier ${c.tier}` : '', c.version ? `v${c.version}` : ''].filter(Boolean).join(' · ') }}</span>
+          <span class="m">{{ [accessOf(c.recipe)?.label ?? '', c.tier !== undefined ? `tier ${c.tier}` : '', c.version ? `v${c.version}` : ''].filter(Boolean).join(' · ') }}</span>
         </a>
       </li>
       <li v-if="!catalogShown.length" class="cat-none">Nothing matches “{{ query }}”.</li>
@@ -69,6 +77,7 @@ onMounted(() => {
     <section class="st-section" aria-labelledby="inst-h">
       <header>
         <h3 id="inst-h">Connected</h3>
+        <button type="button" class="btn sm ghost" @click="openGuide">Setup guide</button>
         <a class="btn sm" :href="'/settings/integrations/new'" @click.prevent="navigate('/settings/integrations/new')">Add integration</a>
       </header>
       <div v-if="integrations.instancesStatus === 'loading' && !integrations.instances.length" class="st-skel" aria-busy="true">

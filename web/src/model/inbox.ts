@@ -73,6 +73,8 @@ export function isBeingFixed(i: Incident, fixState?: string): boolean {
 export interface InboxGroups {
   /** Needs you: problems (down first), then repairs. */
   open: Incident[];
+  /** The correlator's questions: are these two things one? Oldest first. */
+  suggestions: Incident[];
   /** In hand, not resolved yet. */
   fixing: Incident[];
   /** Newest first. */
@@ -81,23 +83,27 @@ export interface InboxGroups {
 
 const CLASS_RANK: Record<string, number> = { problem: 0, repair: 1 };
 
-/** The Inbox by status: open, being fixed, resolved. */
+export const isSuggestion = (i: Incident) => i.class === 'suggestion';
+
+/** The Inbox by status: open, suggestions, being fixed, resolved. */
 export function groupInbox(inbox: InboxDoc | undefined, fixes: Readonly<Record<string, { state: string } | undefined>> = {}): InboxGroups {
   const open: Incident[] = [];
+  const suggestions: Incident[] = [];
   const fixing: Incident[] = [];
   for (const i of incidents(inbox)) {
     if (i.status !== 'open') continue;
-    (isBeingFixed(i, fixes[i.id]?.state) ? fixing : open).push(i);
+    if (isSuggestion(i)) suggestions.push(i);
+    else (isBeingFixed(i, fixes[i.id]?.state) ? fixing : open).push(i);
   }
   const order = (a: Incident, b: Incident) =>
     (SEV_RANK[a.severity] ?? 3) - (SEV_RANK[b.severity] ?? 3) || (CLASS_RANK[a.class] ?? 2) - (CLASS_RANK[b.class] ?? 2) || byPriority(a, b);
-  return { open: open.sort(order), fixing: fixing.sort(order), resolved: resolved(inbox) };
+  return { open: open.sort(order), suggestions: suggestions.sort(byPriority), fixing: fixing.sort(order), resolved: resolved(inbox) };
 }
 
-/** Open incidents whose target (or blast radius) touches a resource. */
+/** Open incidents whose target (or blast radius) touches a resource. Suggestions are questions, not incidents. */
 export function incidentsFor(inbox: InboxDoc | undefined, resourceIds: readonly string[]): Incident[] {
   const set = new Set(resourceIds);
-  return incidents(inbox).filter((i) => isOpen(i) && set.has(i.target));
+  return incidents(inbox).filter((i) => isOpen(i) && !isSuggestion(i) && set.has(i.target));
 }
 
 const KIND_WORDS: Record<string, string> = {

@@ -13,8 +13,9 @@ import (
 // themselves to Default from init (the Telegraf pattern); cmd/chadash
 // imports them for the side effect.
 type Registry struct {
-	mu sync.RWMutex
-	m  map[string]entry
+	mu      sync.RWMutex
+	m       map[string]entry
+	recipes map[string]Recipe // least-privilege recipes, by integration ID (recipe.go)
 }
 
 // entry keeps the manifest checked at registration: Check compiles the
@@ -36,7 +37,7 @@ func Register(i Integration) {
 }
 
 // NewRegistry returns an empty registry.
-func NewRegistry() *Registry { return &Registry{m: map[string]entry{}} }
+func NewRegistry() *Registry { return &Registry{m: map[string]entry{}, recipes: map[string]Recipe{}} }
 
 // ErrDuplicate is returned by Register for an ID that's already registered.
 var ErrDuplicate = errors.New("integration: already registered")

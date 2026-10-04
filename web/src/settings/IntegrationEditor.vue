@@ -12,15 +12,20 @@
  * - Delete: confirmed in place.
  * - A Repair's Reconnect lands here with `?field=…` (or `reason=auth`), which
  *   focuses the field that failed.
+ * - The integration's least-privilege recipe sits beside the form
+ *   (RecipePanel), open while adding; what discovery found pre-fills a new
+ *   one (onboarding/draft.ts).
  */
 import { computed, nextTick, onMounted, provide, reactive, ref, shallowRef } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
+import RecipePanel from './RecipePanel.vue';
 import SchemaField from './SchemaField.vue';
 import TestResultView from './TestResultView.vue';
 import { FORM } from './form';
 import { ApiError } from '../lib/api';
 import { ago } from '../lib/format';
 import { navigate, settingsPath } from '../lib/router';
+import { takeDraft } from '../onboarding/draft';
 import { clean, fieldId, fieldLabel, fieldPaths, initialValue, typedSecrets, validate, type Errors, type JsonSchema } from '../lib/schema';
 import {
   findInstance,
@@ -64,6 +69,11 @@ const entry = computed(() => catalogEntry(detail.value?.integration ?? integrati
 const EMPTY: JsonSchema = { type: 'object', properties: {} };
 const schema = computed<JsonSchema>(() => entry.value?.config_schema ?? EMPTY);
 const kindName = computed(() => entry.value?.name ?? detail.value?.integration ?? integrationId ?? 'integration');
+const recipe = computed(() => entry.value?.recipe);
+const fieldLabels = computed(() => {
+  const props = schema.value.properties ?? {};
+  return Object.fromEntries(Object.keys(recipe.value?.fills ?? {}).map((k) => [k, fieldLabel(k, props[k] ?? {})]));
+});
 
 const name = ref('');
 const values = reactive<Record<string, unknown>>({});
@@ -103,14 +113,23 @@ const test = ref<TestState>({ state: 'idle' });
 
 function reset(d: InstanceDetail | undefined): void {
   detail.value = d;
-  name.value = d?.name ?? entry.value?.name ?? '';
+  const draft = d ? undefined : takeDraft(entry.value?.id ?? integrationId ?? '');
+  name.value = d?.name ?? draft?.name ?? entry.value?.name ?? '';
   for (const k of Object.keys(values)) delete values[k];
-  Object.assign(values, initialValue(schema.value, d?.config) as Record<string, unknown>);
+  Object.assign(values, initialValue(schema.value, d?.config ?? draft?.config) as Record<string, unknown>);
   for (const k of Object.keys(secrets)) delete secrets[k];
   held.value = setOf(d);
   touched.clear();
   showAll.value = false;
   initial = JSON.stringify({ n: name.value.trim(), c: config.value });
+}
+
+/** The recipe's generator filled in fields (Proxmox's token ID): as if typed. */
+function onFill(patch: Record<string, string>): void {
+  for (const [k, v] of Object.entries(patch)) {
+    values[k] = v;
+    touched.add(k);
+  }
 }
 
 async function focusField_(path: string | undefined): Promise<void> {
@@ -271,7 +290,7 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
 </script>
 
 <template>
-  <div class="st-section editor">
+  <div :class="['st-section', 'editor', { 'with-recipe': recipe && status === 'ready' }]">
     <a class="st-crumb" :href="settingsPath('integrations')" @click.prevent="navigate(settingsPath('integrations'), { replace: true })">‹ Integrations</a>
 
     <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
@@ -324,57 +343,72 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
         </li>
       </ul>
 
-      <form class="st-form" novalidate :aria-label="isNew ? `Add ${kindName}` : `Edit ${detail?.name}`" @submit.prevent="save">
-        <div :class="['field', { 'st-focus': focusPath === 'name' }]">
-          <div class="label-row"><label for="f-name">Name</label></div>
-          <input
-            id="f-name"
-            v-model="name"
-            autocomplete="off"
-            spellcheck="false"
-            :aria-invalid="nameError ? 'true' : undefined"
-            :aria-describedby="nameError ? 'f-name-err' : 'f-name-help'"
-            :disabled="saving || deleting"
-            @blur="touched.add('name')"
+      <div :class="['ed-grid', { 'has-recipe': recipe }]">
+        <div class="ed-main">
+          <form class="st-form" novalidate :aria-label="isNew ? `Add ${kindName}` : `Edit ${detail?.name}`" @submit.prevent="save">
+            <div :class="['field', { 'st-focus': focusPath === 'name' }]">
+              <div class="label-row"><label for="f-name">Name</label></div>
+              <input
+                id="f-name"
+                v-model="name"
+                autocomplete="off"
+                spellcheck="false"
+                :aria-invalid="nameError ? 'true' : undefined"
+                :aria-describedby="nameError ? 'f-name-err' : 'f-name-help'"
+                :disabled="saving || deleting"
+                @blur="touched.add('name')"
+              />
+              <span v-if="nameError" id="f-name-err" class="help bad">{{ nameError }}</span>
+              <span v-else id="f-name-help" class="help">How it’s called on your page and in the Inbox.</span>
+            </div>
+
+            <SchemaField
+              v-for="(sub, key) in schema.properties"
+              :key="key"
+              :schema="sub"
+              :container="values"
+              :k="key"
+              :path="String(key)"
+              :required="(schema.required ?? []).includes(String(key))"
+            />
+
+            <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
+
+            <div class="st-acts ed-acts">
+              <button type="button" class="btn" :disabled="test.state === 'running' || saving" :aria-busy="test.state === 'running'" @click="runTest">
+                {{ test.state === 'running' ? 'Testing…' : 'Test connection' }}
+              </button>
+              <button type="submit" class="btn primary" :disabled="saving || (!isNew && !dirty)" :aria-busy="saving">
+                {{ saving ? 'Saving…' : isNew ? 'Save' : 'Save changes' }}
+              </button>
+              <button v-if="!isNew && !confirmDelete" type="button" class="btn ghost ed-del" :disabled="saving" @click="confirmDelete = true">Delete…</button>
+            </div>
+
+            <div v-if="confirmDelete" class="st-confirm" role="alertdialog" aria-labelledby="del-q">
+              <span id="del-q">Delete <b>{{ detail?.name }}</b>? Its tiles stop updating, and its stored secrets are erased from the vault.</span>
+              <button type="button" class="btn danger solid" :disabled="deleting" :aria-busy="deleting" @click="remove">
+                {{ deleting ? 'Deleting…' : 'Delete' }}<span class="tier">T1</span>
+              </button>
+              <button type="button" class="btn" :disabled="deleting" @click="confirmDelete = false">Cancel</button>
+            </div>
+          </form>
+
+          <div class="ed-test" aria-live="polite">
+            <TestResultView v-if="test.state === 'done'" :result="test.result" :read-only="readOnly" />
+            <div v-else-if="test.state === 'error'" class="st-note bad" role="alert"><Glyph kind="down" /><span>{{ test.message }}</span></div>
+          </div>
+        </div>
+        <div v-if="recipe" class="ed-aside">
+          <RecipePanel
+            :recipe="recipe"
+            :form="config"
+            :name="name"
+            :labels="fieldLabels"
+            :test="test.state === 'done' ? test.result : undefined"
+            :open="isNew"
+            @fill="onFill"
           />
-          <span v-if="nameError" id="f-name-err" class="help bad">{{ nameError }}</span>
-          <span v-else id="f-name-help" class="help">How it’s called on your page and in the Inbox.</span>
         </div>
-
-        <SchemaField
-          v-for="(sub, key) in schema.properties"
-          :key="key"
-          :schema="sub"
-          :container="values"
-          :k="key"
-          :path="String(key)"
-          :required="(schema.required ?? []).includes(String(key))"
-        />
-
-        <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
-
-        <div class="st-acts ed-acts">
-          <button type="button" class="btn" :disabled="test.state === 'running' || saving" :aria-busy="test.state === 'running'" @click="runTest">
-            {{ test.state === 'running' ? 'Testing…' : 'Test connection' }}
-          </button>
-          <button type="submit" class="btn primary" :disabled="saving || (!isNew && !dirty)" :aria-busy="saving">
-            {{ saving ? 'Saving…' : isNew ? 'Save' : 'Save changes' }}
-          </button>
-          <button v-if="!isNew && !confirmDelete" type="button" class="btn ghost ed-del" :disabled="saving" @click="confirmDelete = true">Delete…</button>
-        </div>
-
-        <div v-if="confirmDelete" class="st-confirm" role="alertdialog" aria-labelledby="del-q">
-          <span id="del-q">Delete <b>{{ detail?.name }}</b>? Its tiles stop updating, and its stored secrets are erased from the vault.</span>
-          <button type="button" class="btn danger solid" :disabled="deleting" :aria-busy="deleting" @click="remove">
-            {{ deleting ? 'Deleting…' : 'Delete' }}<span class="tier">T1</span>
-          </button>
-          <button type="button" class="btn" :disabled="deleting" @click="confirmDelete = false">Cancel</button>
-        </div>
-      </form>
-
-      <div class="ed-test" aria-live="polite">
-        <TestResultView v-if="test.state === 'done'" :result="test.result" :read-only="readOnly" />
-        <div v-else-if="test.state === 'error'" class="st-note bad" role="alert"><Glyph kind="down" /><span>{{ test.message }}</span></div>
       </div>
     </template>
   </div>
@@ -402,5 +436,33 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
 }
 .ed-test:empty {
   display: none;
+}
+.ed-grid,
+.ed-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.ed-main .st-form {
+  max-width: none;
+}
+/* Wide enough for the recipe beside the form: the sheet widens to make room. */
+@media (min-width: 1180px) {
+  .settings:has(.ed-grid.has-recipe) {
+    width: min(1320px, 100%);
+  }
+  .editor.with-recipe {
+    max-width: 1120px;
+  }
+  .ed-grid.has-recipe {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+  }
+  .ed-aside {
+    position: sticky;
+    top: 0;
+  }
 }
 </style>

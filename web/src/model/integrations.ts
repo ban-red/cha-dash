@@ -1,7 +1,7 @@
 /**
  * Integrations as the hub describes them (07 · v0.1 → Shared contracts):
  *
- *   GET  /api/integrations/catalog    → [{id, name, icon, version, tier, capabilities, config_schema}]
+ *   GET  /api/integrations/catalog    → [{id, name, icon, version, tier, capabilities, config_schema, recipe?}]
  *   GET  /api/integrations/instances  → [{id, integration, name, status, version, last_ok, last_error, warnings}]
  *   GET  /api/integrations/instances/{id} → the same plus {config, secrets: {field: {set: true}}}
  *   POST /api/integrations/test, /instances/{id}/test → {ok, version, latency_ms, grants, warnings, error}
@@ -12,6 +12,7 @@
  */
 import type { JsonSchema } from '../lib/schema';
 import { secretPaths } from '../lib/schema';
+import type { Recipe } from '../settings/recipe';
 import type { Incident } from './types';
 
 export type InstanceStatus = 'ok' | 'degraded' | 'repair' | 'error' | 'disabled';
@@ -30,6 +31,8 @@ export interface CatalogEntry {
   tier?: string | number;
   capabilities?: string[];
   config_schema: JsonSchema;
+  /** How to make a credential with exactly the access it needs (settings/recipe.ts). */
+  recipe?: Recipe;
 }
 
 export interface Instance {

@@ -7,8 +7,8 @@
 // The snapshot is the first board plus the three realtime topics, in the
 // shapes a tab receives them, trimmed to what the front page shows:
 //
-//	board    the first board's id, name, revision, format version and layout
-//	         (null until it's saved), and the board list
+//	board    the first board's id, name, revision, format version, layout
+//	         (null until it's saved) and tiles, and the board list
 //	graph    whole: the Briefing, Needs attention and the widgets all read it
 //	         (every board is the whole home until lenses arrive)
 //	metrics  the series of resources in the graph, plus the shared history
@@ -71,6 +71,7 @@ type Board struct {
 	Revision      int64           `json:"revision"`
 	FormatVersion int64           `json:"format_version"`
 	Layout        json.RawMessage `json:"layout"` // null until saved
+	Tiles         json.RawMessage `json:"tiles"`  // each item's configuration; {} until set
 }
 
 // Snapshot is the document in the data block.
@@ -126,11 +127,14 @@ func (b *Builder) Snapshot(ctx context.Context, u User) (Snapshot, error) {
 		if err != nil {
 			return Snapshot{}, fmt.Errorf("firstpaint: layout: %w", err)
 		}
-		doc := l.Document
+		doc, tiles := l.Document, l.Tiles
 		if doc == nil {
 			doc = json.RawMessage("null")
 		}
-		s.Board = &Board{ID: list[0].ID, Name: list[0].Name, Revision: l.Revision, FormatVersion: l.FormatVersion, Layout: doc}
+		if tiles == nil {
+			tiles = json.RawMessage(boards.EmptyTiles)
+		}
+		s.Board = &Board{ID: list[0].ID, Name: list[0].Name, Revision: l.Revision, FormatVersion: l.FormatVersion, Layout: doc, Tiles: tiles}
 	}
 
 	_, s.Graph = b.Topics.Graph.Snapshot(nil)

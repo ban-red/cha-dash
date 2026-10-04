@@ -288,8 +288,10 @@ func TestTestThroughTecnativa(t *testing.T) {
 		names[g.Name] = g
 	}
 	for _, n := range []string{"containers", "inspect", "events", "stats", "logs and files"} {
-		if _, ok := names[n]; !ok {
+		if g, ok := names[n]; !ok {
 			t.Errorf("missing grant %s: %+v", n, res.Grants)
+		} else if g.Access != integration.AccessRead || g.Write {
+			t.Errorf("grant %s = %q (write %v), want read", n, g.Access, g.Write) // the web shows the access level
 		}
 	}
 	for _, n := range []string{"info", "images", "engine", "writes"} {

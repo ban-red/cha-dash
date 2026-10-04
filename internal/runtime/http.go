@@ -15,7 +15,7 @@ import (
 // hub's owner-session check). Bodies are JSON; errors use the hub's
 // envelope, and a 422 adds "fields": [{"path", "message"}].
 //
-//	GET    /api/integrations/catalog                    [{id, name, icon, version, tier, capabilities, config_schema}]
+//	GET    /api/integrations/catalog                    [{id, name, icon, version, tier, capabilities, config_schema, recipe?}]
 //	GET    /api/integrations/instances                  [instance]
 //	POST   /api/integrations/instances                  {integration, name, config, secrets, enabled?} → 201 {id}
 //	GET    /api/integrations/instances/{id}             instance
@@ -26,6 +26,9 @@ import (
 //	GET    /api/integrations/instances/{id}/diagnostics diagnostics, secrets redacted
 //	POST   /api/integrations/authorize/{integration}      start a sign-in → {id, code, url, expires_at, interval_s}
 //	GET    /api/integrations/authorize/{integration}/{id} {status: pending|done|expired|failed, expires_at?, secrets?, error?}
+//
+// recipe is the integration's least-privilege recipe (integration.Recipe),
+// left out when it has none.
 //
 // An instance is {id, integration, name, enabled, status, version, last_ok,
 // last_error, warnings, config, secrets, created_at, updated_at}; secrets

@@ -1,24 +1,40 @@
 <script setup lang="ts">
 /**
  * The board in edit mode: <LayoutBoard> from @chadash/layout-vue with drag,
- * snapping resize and keyboard moves, plus undo/redo. Loaded on demand from
- * BoardSurface, so motion and the gesture code never ride with a read-only
- * front page.
+ * snapping resize and keyboard moves, plus adding, editing and removing
+ * tiles, and undo/redo over all of it. Loaded on demand from BoardSurface,
+ * so motion and the gesture code never ride with a read-only front page;
+ * the widget picker and the tile editor are chunks of their own again,
+ * loaded on first use.
  *
- * Every committed gesture is shown and saved through the board store; on a
- * 409 the store loads the other writer's layout, which starts a fresh
- * history because it isn't the present board.
+ * - **Add:** the toolbar's "Add widget", or a section's "Add", opens the
+ *   picker (WidgetPicker.vue); the widget lands in the first gap that fits.
+ * - **Edit / Remove:** for the selected tile (the one last focused or
+ *   grabbed), from the toolbar; Delete or Backspace removes it too. Removing
+ *   never asks: Undo puts it back, config and all.
+ * - **History:** one step per gesture, add, edit or remove, over the board
+ *   and its tiles together (useBoardHistory). Every step is shown and saved
+ *   through the board store; on a 409 the store loads the other writer's
+ *   board, which starts a fresh history because it isn't the present one.
  */
-import type { Board, Breakpoint, Item } from '@chadash/layout';
-import { LayoutBoard, useLayoutHistory } from '@chadash/layout-vue';
+import { computed, defineAsyncComponent, nextTick, ref } from 'vue';
+import { LayoutError, type Board, type Breakpoint, type Item } from '@chadash/layout';
+import { LayoutBoard } from '@chadash/layout-vue';
 import { onKeyStroke } from '@vueuse/core';
 import SectionHeader from './SectionHeader.vue';
+import { useBoardHistory } from './useBoardHistory';
 import WidgetHost from '../widgets/WidgetHost.vue';
 import { label } from '../model/graph';
-import { parseItemId, WIDGETS } from '../model/widgets';
+import { addWidget, editTile, removeTile, sectionOf, targetOf, type AddRequest, type BoardState } from '../model/edit';
+import { WIDGETS } from '../model/widgets';
 import { useBoard } from '../stores/board';
+import { useDiscoveryIfAny } from '../stores/discovery';
 import { useLive } from '../stores/live';
+import type { TileConfig } from '../stores/tiles';
 import { useUi } from '../stores/ui';
+
+const WidgetPicker = defineAsyncComponent(() => import('./WidgetPicker.vue'));
+const TileEditor = defineAsyncComponent(() => import('./TileEditor.vue'));
 
 const { board, breakpoint } = defineProps<{ board: Board; breakpoint?: Breakpoint | undefined }>();
 const emit = defineEmits<{ done: [] }>();
@@ -26,10 +42,25 @@ const emit = defineEmits<{ done: [] }>();
 const store = useBoard();
 const live = useLive();
 const ui = useUi();
-const history = useLayoutHistory(() => board);
+const discovery = useDiscoveryIfAny();
+const history = useBoardHistory(() => ({ board, tiles: store.tiles.value }));
+const present = history.present;
 
-function persist(next: Board): void {
-  store.save(next).then(
+/** The tile the toolbar's Edit and Remove act on. */
+const selected = ref('');
+/** The picker, open on a section. */
+const picking = ref<{ sectionId: string } | null>(null);
+/** The tile being edited. */
+const editingId = ref('');
+
+const items = computed(() => new Map(present.value.board.sections.flatMap((s) => s.items.map((i) => [i.id, i] as const))));
+const selectedItem = computed(() => items.value.get(selected.value));
+const editingItem = computed(() => items.value.get(editingId.value));
+
+function persist(next: BoardState): void {
+  // Tiles go along only when they changed: a drag leaves the hub's as they are.
+  const saving = next.tiles !== store.tiles.value ? store.save(next.board, next.tiles) : store.save(next.board);
+  saving.then(
     (saved) => {
       if (!saved) ui.toast('This board changed somewhere else. Showing the latest layout.', 'error');
     },
@@ -37,9 +68,13 @@ function persist(next: Board): void {
   );
 }
 
-function onCommit(next: Board): void {
+function apply(next: BoardState): void {
   history.commit(next);
   persist(next);
+}
+
+function onCommit(next: Board): void {
+  apply({ board: next, tiles: present.value.tiles });
 }
 
 function step(direction: 'undo' | 'redo'): void {
@@ -48,16 +83,84 @@ function step(direction: 'undo' | 'redo'): void {
   persist(direction === 'undo' ? history.undo() : history.redo());
 }
 
-/** "Host: jupiter", "Cameras": the name in labels and announcements. */
-function itemLabel(item: Item): string {
-  const { type, target } = parseItemId(item.id);
-  const name = WIDGETS[type]?.name ?? type;
+/** "Queue: Sonarr", "Cameras": the name in labels, announcements and toasts. */
+function itemLabel(item: Pick<Item, 'id' | 'type'>): string {
+  const name = WIDGETS[item.type]?.name ?? item.type;
+  const own = present.value.tiles[item.id]?.name;
+  if (own) return own === name ? name : `${name}: ${own}`;
+  const target = targetOf(item.id, present.value.tiles);
   const r = target ? live.graph.value?.resources[target] : undefined;
   return r ? `${name}: ${label(r)}` : name;
 }
 
+function openPicker(sectionId?: string): void {
+  const fallback = (selected.value && sectionOf(present.value.board, selected.value)) || present.value.board.sections[0]?.id || '';
+  picking.value = { sectionId: sectionId ?? fallback };
+}
+
+async function focusItem(id: string): Promise<void> {
+  await nextTick();
+  const el = [...document.querySelectorAll<HTMLElement>('[data-item-id]')].find((e) => e.dataset['itemId'] === id);
+  el?.focus();
+}
+
+function onAdd(req: AddRequest): void {
+  try {
+    const next = addWidget(present.value, req);
+    picking.value = null;
+    apply({ board: next.board, tiles: next.tiles });
+    selected.value = next.id;
+    const section = next.board.sections.find((s) => s.id === req.sectionId);
+    ui.toast(`Added ${itemLabel({ id: next.id, type: req.spec.type })} to ${section?.title ?? 'the board'}.`);
+    void focusItem(next.id);
+  } catch (err) {
+    ui.toast(err instanceof LayoutError ? `${req.spec.name} doesn’t fit there. Pick a smaller size or another section.` : (err as Error).message, 'error');
+  }
+}
+
+function onEdit(config: TileConfig | undefined): void {
+  const id = editingId.value;
+  editingId.value = '';
+  if (!items.value.has(id)) return;
+  apply(editTile(present.value, id, config));
+  void focusItem(id);
+}
+
+/** Where focus goes when a tile is removed: its neighbour in the section, else the first tile left. */
+function neighbourOf(id: string): string | undefined {
+  const section = present.value.board.sections.find((s) => s.items.some((i) => i.id === id));
+  const at = section?.items.findIndex((i) => i.id === id) ?? -1;
+  const near = section?.items[at + 1] ?? section?.items[at - 1];
+  return near?.id ?? [...items.value.keys()].find((k) => k !== id);
+}
+
+function removeItem(id: string): void {
+  const item = items.value.get(id);
+  if (!item) return;
+  const name = itemLabel(item);
+  const config = present.value.tiles[id];
+  const next = neighbourOf(id);
+  apply(removeTile(present.value, id));
+  if (selected.value === id) selected.value = '';
+  if (next) void focusItem(next);
+  ui.toast(`Removed ${name}. Undo puts it back.`);
+  // A tile label discovery suggested and you removed isn't suggested again.
+  const found = config?.origin?.source === 'labels' ? config.bind?.resource : undefined;
+  if (found && discovery) discovery.remember([found]).catch(() => undefined);
+}
+
+/** Delete or Backspace on a focused tile removes it (not while it's picked up). */
+function onKeydown(e: KeyboardEvent): void {
+  if ((e.key !== 'Delete' && e.key !== 'Backspace') || e.metaKey || e.ctrlKey || e.altKey) return;
+  const el = e.target instanceof HTMLElement ? e.target : null;
+  const id = el?.dataset['itemId'];
+  if (!id || el?.getAttribute('aria-pressed') === 'true') return;
+  e.preventDefault();
+  removeItem(id);
+}
+
 onKeyStroke('z', (e) => {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || picking.value || editingId.value) return;
   e.preventDefault();
   step(e.shiftKey ? 'redo' : 'undo');
 });
@@ -65,26 +168,40 @@ onKeyStroke('z', (e) => {
 
 <template>
   <div class="edit-bar" role="toolbar" aria-label="Edit layout">
-    <span class="edit-hint">Drag a tile, or resize it from its corner. With the keyboard, Enter picks a tile up and the arrows move it.</span>
+    <span v-if="selectedItem" class="edit-sel">
+      <span class="edit-sel-name">{{ itemLabel(selectedItem) }}</span>
+      <button type="button" class="btn sm" @click="editingId = selectedItem.id">Edit</button>
+      <button type="button" class="btn sm" @click="removeItem(selectedItem.id)">Remove</button>
+    </span>
+    <span v-else class="edit-hint">Drag a tile, or resize it from its corner. Select one to edit or remove it. With the keyboard, Enter picks a tile up and the arrows move it.</span>
     <span v-if="store.state.unsaved" class="edit-unsaved" role="status">Not saved</span>
+    <button type="button" class="btn sm" @click="openPicker()">Add widget</button>
     <button type="button" class="btn ghost sm" :disabled="!history.canUndo.value" @click="step('undo')">Undo</button>
     <button type="button" class="btn ghost sm" :disabled="!history.canRedo.value" @click="step('redo')">Redo</button>
     <button type="button" class="btn primary sm" @click="emit('done')">Done</button>
   </div>
-  <LayoutBoard
-    :board="history.board.value"
-    v-bind="breakpoint ? { breakpoint } : {}"
-    :editing="true"
-    :item-label="itemLabel"
-    @commit="onCommit"
-  >
-    <template #section="{ section }">
-      <SectionHeader :section="section" />
-    </template>
-    <template #item="{ item, size }">
-      <WidgetHost :item="item" :size="size" />
-    </template>
-  </LayoutBoard>
+  <div class="edit-surface" @keydown="onKeydown">
+    <LayoutBoard
+      :board="present.board"
+      v-bind="breakpoint ? { breakpoint } : {}"
+      :editing="true"
+      :item-label="itemLabel"
+      @commit="onCommit"
+      @select="selected = $event"
+    >
+      <template #section="{ section }">
+        <div class="sh-edit">
+          <SectionHeader :section="section" />
+          <button type="button" class="btn ghost sm sh-add" :aria-label="`Add a widget to ${section.title ?? section.id}`" @click="openPicker(section.id)">Add</button>
+        </div>
+      </template>
+      <template #item="{ item, size }">
+        <WidgetHost :item="item" :size="size" />
+      </template>
+    </LayoutBoard>
+  </div>
+  <WidgetPicker v-if="picking" :board="present.board" :tiles="present.tiles" :section-id="picking.sectionId" @add="onAdd" @close="picking = null" />
+  <TileEditor v-if="editingItem" :item="editingItem" :config="present.tiles[editingItem.id]" @save="onEdit" @close="editingId = ''" />
 </template>
 
 <style>
@@ -107,8 +224,115 @@ onKeyStroke('z', (e) => {
   font-size: var(--type-caption);
   color: var(--text-2);
 }
+.edit-sel {
+  flex: 1 1 18rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.edit-sel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--weight-medium) var(--type-small) / 1.2 var(--font-ui);
+}
 .edit-unsaved {
   font-size: var(--type-caption);
   color: var(--attention-text);
+}
+.sh-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+.sh-edit > .sh {
+  flex: 1;
+  min-width: 0;
+}
+.sh-add {
+  flex: none;
+}
+
+/* The picker's and the tile editor's native modal dialog. */
+.edit-dlg {
+  width: min(720px, calc(100% - 32px));
+  max-height: calc(100dvh - 64px);
+  margin: auto;
+  padding: 0;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-overlay);
+  overflow: auto;
+}
+.edit-dlg.editor {
+  width: min(460px, calc(100% - 32px));
+}
+.edit-dlg::backdrop {
+  background: var(--scrim);
+}
+.edit-dlg-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+.edit-dlg-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.edit-dlg-head h2 {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--weight-semibold) var(--type-title) / 1.25 var(--font-ui);
+}
+.edit-dlg-kind {
+  font-size: var(--type-small);
+  color: var(--text-3);
+}
+.edit-dlg-head .x {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: var(--target-min);
+  height: var(--target-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-2);
+}
+.edit-dlg-head .x svg {
+  width: 12px;
+  height: 12px;
+}
+.edit-dlg select,
+.edit-dlg .field input {
+  width: 100%;
+  min-height: var(--target-min);
+  padding: 8px 10px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+}
+.edit-dlg .pk-to select {
+  width: auto;
+  min-height: 0;
+  padding: 4px 8px;
+}
+.edit-dlg-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 </style>

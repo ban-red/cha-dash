@@ -16,8 +16,8 @@ export function tileStatus(h: Health, r?: Resource): TileStatus {
     case 'unknown':
       return 'unknown';
     default:
-      // Intentionally off is quiet, not a problem.
-      return r && (r.state === 'stopped' || r.state === 'off') ? 'off' : 'ok';
+      // Intentionally off is quiet, not a problem; so is paused by you (SABnzbd's `paused`).
+      return r && (r.state === 'stopped' || r.state === 'off' || r.state === 'paused') ? 'off' : 'ok';
   }
 }
 

@@ -19,10 +19,12 @@ import (
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/config"
+	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/server"
@@ -88,14 +90,21 @@ type app struct {
 	// instances never reach the Demo Home; otherwise that's topics.
 	integrations      *runtime.Manager
 	integrationTopics *topics.Set
+	// correlator merges what several instances report as one thing, over
+	// integrationTopics: the Demo Home has nothing to merge.
+	correlator *correlate.Correlator
 
 	stop context.CancelFunc // ends the background work below
-	bg   sync.WaitGroup     // the demo driver or the inbox clock
+	bg   sync.WaitGroup     // the demo driver or the inbox clock, and the correlator
 }
 
 // inboxClock is how often the inbox clock ticks outside demo mode, matching
 // the demo's sample interval.
 const inboxClock = 30 * time.Second
+
+// sidecarEndpoint is the compose sidecar's socket proxy the onboarding
+// wizard looks for; tests point it at a fake.
+var sidecarEndpoint = onboarding.SidecarEndpoint
 
 func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, err error) {
 	log.Info("starting "+buildinfo.String(), "data_dir", cfg.DataDir, "web_app", webui.Embedded)
@@ -169,6 +178,12 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if err != nil {
 		return nil, err
 	}
+	corr := correlate.New(correlate.Options{Topics: itp, Store: st, Log: log})
+
+	ob, err := onboarding.New(onboarding.Options{Store: st, Integrations: mgr, Demo: cfg.Demo, Sidecar: sidecarEndpoint, Log: log})
+	if err != nil {
+		return nil, err
+	}
 
 	// index.html carries the first board's snapshot for a signed-in owner,
 	// when the web app is built in (the placeholder page has no use for it).
@@ -192,13 +207,15 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Demo:           drv,
 		Vault:          v,
 		Integrations:   mgr,
+		Correlator:     corr,
+		Onboarding:     ob,
 		FirstPaint:     firstPaint,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp}
+	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr}
 	bg, stop := context.WithCancel(ctx)
 	a.stop = stop
 	if err := mgr.Start(bg); err != nil {
@@ -213,6 +230,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	} else {
 		a.bg.Go(func() { tp.RunClock(bg, inboxClock, time.Now) })
 	}
+	a.bg.Go(func() { corr.Run(bg) })
 	return a, nil
 }
 

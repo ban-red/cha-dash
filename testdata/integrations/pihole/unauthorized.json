@@ -1,0 +1,8 @@
+{
+  "error": {
+    "key": "unauthorized",
+    "message": "Unauthorized",
+    "hint": null
+  },
+  "took": 0.0001
+}

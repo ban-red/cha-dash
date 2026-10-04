@@ -5,25 +5,26 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Tile from '../components/Tile.vue';
 import { fmtInt } from '../lib/format';
 import { attr, placeOf, resolve, series } from '../model/graph';
-import { glyphFor, tileStatus } from '../model/status';
-import { normalizeHealth, resourceLinks } from '../model/types';
+import { resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
+import Frame from './parts/Frame.vue';
+import StateNote from './parts/StateNote.vue';
+import { useSubject } from './use';
 
-const { size } = defineProps<{ size: SizeId; target?: string | undefined }>();
+const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
 const WANT = 'app:uptimekuma';
 
-const app = computed(() => resolve(live.graph.value, WANT));
+/** An instance by its layout item (`uptimekuma@uptimekuma:<instance id>/app`), else the first. */
+const app = computed(() => resolve(live.graph.value, target || WANT));
 const ID = computed(() => app.value?.id ?? WANT);
 const up = computed(() => series(live.metrics.value, ID.value, 'monitors.up'));
 const down = computed(() => series(live.metrics.value, ID.value, 'monitors.down'));
 const total = computed(() => attr<number>(app.value, 'monitors') ?? ((up.value?.value ?? 0) + (down.value?.value ?? 0) || null));
-const health = computed(() => normalizeHealth(app.value));
+const s = useSubject(() => app.value?.id);
 const downNow = computed(() => down.value?.value ?? 0);
-const status = computed(() => tileStatus(health.value, app.value));
 const cells = computed(() => {
   const h = down.value?.history ?? [];
   const n = size === 'wide' ? 48 : 24;
@@ -45,22 +46,22 @@ const upPct = computed(() => {
   return known.length ? Math.round((known.filter((v) => v === 0).length / known.length) * 1000) / 10 : null;
 });
 const place = computed(() => placeOf(live.graph.value, ID.value));
-const tag = computed(() => (downNow.value > 0 ? `${downNow.value} monitor${downNow.value === 1 ? '' : 's'} down` : status.value === 'ok' ? '' : health.value.reason));
+const tag = computed(() => `${downNow.value} monitor${downNow.value === 1 ? '' : 's'} down`);
 </script>
 
 <template>
-  <Tile
+  <Frame
     :size="size"
     name="Uptime Kuma"
     mono="UK"
     :context="place ?? ''"
     :href="resourceLinks(app)[0]?.url"
-    :status="app ? status : 'unknown'"
+    :subject="s"
+    :status="app ? (s.status === 'ok' && downNow > 0 ? 'attention' : undefined) : 'unknown'"
     :stale="Boolean(up?.stale)"
     :as-of="up?.as_of"
-    :tag="tag"
-    :tag-glyph="downNow > 0 ? 'attn' : status === 'ok' ? undefined : glyphFor(status)"
-    :loading="live.loading.value"
+    :tag="downNow > 0 ? tag : undefined"
+    :tag-glyph="downNow > 0 ? 'attn' : undefined"
   >
     <template v-if="!app">
       <div class="v sm word">Not connected</div>
@@ -71,9 +72,10 @@ const tag = computed(() => (downNow.value > 0 ? `${downNow.value} monitor${downN
       <div class="ub" role="img" :aria-label="downNow > 0 ? `${downNow} down now; last 24 hours shown as cells` : 'Last 24 hours: all up'">
         <i v-for="(c, i) in cells" :key="i" :class="c === 'ok' ? '' : c"></i>
       </div>
+      <StateNote v-if="s.status !== 'ok' && s.status !== 'attention'" :subject="s" :last-known="up?.value != null" />
       <div class="tf">
         <span><span class="n">{{ upPct ?? '—' }}%</span> all up · 24 h</span>
       </div>
     </template>
-  </Tile>
+  </Frame>
 </template>

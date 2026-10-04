@@ -12,6 +12,7 @@ import { INLINE_SNAPSHOT_ID, takeInlineSnapshot, type InlineSnapshot } from '../
 import { setDisplayTimeZone } from '../src/lib/format';
 import { navigate } from '../src/lib/router';
 import { defaultBoard } from '../src/model/defaultLayout';
+import { createBoardStore } from '../src/stores/board';
 import { createSession } from '../src/stores/session';
 import { fakeFetch } from './fake-fetch';
 import { FakeSocket } from './fake-socket';
@@ -39,8 +40,10 @@ function inlineIntoPage(s: unknown, attrs = 'type="application/json"'): void {
   document.body.insertAdjacentHTML('beforeend', `<script ${attrs} id="${INLINE_SNAPSHOT_ID}">${json}</script>`);
 }
 
+/** Wait for lazy chunks (the front page is one) and Vue; a cold transform can take a while. */
 async function until(cond: () => boolean, what: string): Promise<void> {
-  for (let i = 0; i < 200 && !cond(); i++) {
+  for (let i = 0; i < 1000 && !cond(); i++) {
+    await vi.dynamicImportSettled();
     await flushPromises();
     await new Promise((r) => setTimeout(r, 5));
   }
@@ -103,6 +106,22 @@ describe('reading the data block', () => {
   });
 });
 
+describe('seeding the board', () => {
+  it('takes the layout and the tiles, with no request', () => {
+    const f = fakeFetch({});
+    const s = snapshot();
+    const board = createBoardStore({ waitForGraph: async () => s.graph });
+    const tiles = { 'service@homepage:servers/proxmox': { name: 'Proxmox', href: 'https://pve.example.com:8006' } };
+    expect(board.seed(s.boards, { ...s.board!, tiles })).toBe(true);
+    expect(board.board.value?.sections.length).toBeGreaterThan(0);
+    expect(board.tiles.value['service@homepage:servers/proxmox']?.name).toBe('Proxmox');
+    expect([board.state.status, board.state.boardId, board.state.revision, board.state.lastKnown]).toEqual(['ready', 'b1', 3, false]);
+    expect(board.snapshot()?.layout).toEqual(s.board!.layout);
+    expect(board.seed(s.boards, { ...s.board!, layout: { version: 99 } })).toBe(false); // a layout this version can't read
+    expect(f.calls).toEqual([]);
+  });
+});
+
 describe('the first paint', () => {
   it('renders the front page from the snapshot, then the socket supersedes it with no change on screen', async () => {
     const f = fakeFetch({ 'GET /api/demo': { status: 200, body: { enabled: true, now: withIncidents.now, seed: 1 } } });
@@ -119,7 +138,8 @@ describe('the first paint', () => {
     expect(document.querySelectorAll('.tile').length).toBe(15);
     expect(page().textContent).toContain('Plex');
     // Signed in and on the board without a request: no /api/setup, session, boards or layout.
-    expect(f.calls.map((c) => c.path).filter((p) => p !== '/api/demo')).toEqual([]);
+    const asked = f.calls.map((c) => c.path);
+    expect(asked.filter((p) => /^\/api\/(setup|auth\/session|boards|boards\/[^/]+\/layout)$/.test(p))).toEqual([]);
     // Demo times are UTC from the first paint.
     expect(page().textContent).toMatch(/\d\d:\d\d/);
 

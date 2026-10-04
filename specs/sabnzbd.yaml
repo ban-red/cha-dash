@@ -1,0 +1,89 @@
+# SABnzbd: the Usenet download queue, its speed, and whether it's paused.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test: sabnzbd_test.go, against
+# testdata/sabnzbd/ (synthetic). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: sabnzbd
+  name: SABnzbd
+  icon: sabnzbd
+  version: 0.1.0
+  tier: bronze
+  capabilities: [downloads.queue]
+
+config:
+  api_key: { type: secret, title: API key, required: true, description: "Config → General → Security → API Key (not the NZB key)" }
+
+source:
+  timeout: 10s
+
+every: 30s
+
+# SABnzbd's API takes the key as the apikey query parameter. The engine
+# allows secrets there, and errors and logs never show it.
+requests:
+  # mode=version needs no key; optional, so a proxy that hides it doesn't
+  # stop the queue from reading.
+  version:
+    path: /api
+    query: { mode: version, output: json }
+    optional: true
+    extract:
+      version: version
+  # limit=1: only the totals are read, not the jobs.
+  queue:
+    path: /api
+    query: { mode: queue, output: json, limit: "1", apikey: "{{ secret.api_key }}" }
+    extract:
+      ok: status # false, beside error, when SABnzbd reports an error inside a 200
+      error: error
+      status: queue.status # Downloading, Paused, Idle
+      paused: queue.paused
+      kbpersec: queue.kbpersec # KiB/s, a string
+      slots: queue.noofslots_total
+      mbleft: queue.mbleft # MiB, a string
+      timeleft: queue.timeleft
+      speedlimit: queue.speedlimit # percent of the line speed, a string; "" without a limit
+      disk_free: queue.diskspace1 # GiB free on the download folder, a string
+      version: queue.version
+
+version: 'version.version ?? queue.version'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: 'queue.paused == true ? "paused" : "running"'
+    attrs:
+      type: '"sabnzbd"'
+      version: 'version.version ?? queue.version'
+      status: queue.status
+      paused: queue.paused
+      timeleft: queue.timeleft
+      speedlimit_pct: 'queue.speedlimit == nil || string(queue.speedlimit) == "" ? nil : float(string(queue.speedlimit))'
+      disk_free_gib: 'queue.disk_free == nil ? nil : float(queue.disk_free)'
+    caps: [downloads.queue]
+    links:
+      - { title: SABnzbd, url: config.url }
+
+metrics:
+  # KiB/s → Mb/s, to 0.1: × 1024 × 8 / 10⁶.
+  - { resource: app, key: dl.mbps, value: 'queue.kbpersec == nil ? nil : round(float(queue.kbpersec) * 0.08192) / 10', unit: Mb/s, max: 1000, band: [0, 60] }
+  - { resource: app, key: queue, value: 'queue.slots == nil ? nil : float(queue.slots)', unit: count, max: 1000, band: [0, 15] }
+  # MiB → GiB, to 0.1.
+  - { resource: app, key: left.gib, value: 'queue.mbleft == nil ? nil : round(float(queue.mbleft) / 102.4) / 10', unit: GiB, max: 10000, band: [0, 50] }
+
+repairs:
+  # Recent SABnzbd answers a wrong key with a 403 (an auth Repair before any
+  # of this runs); older ones say so inside a 200.
+  - when: 'queue.ok == false && string(queue.error ?? "") contains "API Key"'
+    code: auth
+    message: '"SABnzbd rejected the API key: use the API Key from Config → General, not the NZB key."'
+  - when: 'queue.ok == false'
+    code: api_changed
+    message: '"SABnzbd answered mode=queue with an error: " + string(queue.error ?? "no message")'
+  - when: '(version.version ?? queue.version) != nil && (version.version ?? queue.version) matches "^[0-2]\\."'
+    code: unsupported_version
+    message: '"SABnzbd " + (version.version ?? queue.version) + " is older than this spec supports (3.0 or later)."'

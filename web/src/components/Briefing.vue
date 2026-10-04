@@ -13,6 +13,7 @@ import { fmtPct, hhmm, longDate, numberWord, plural, shortDate } from '../lib/fo
 import { currentTheme, THEMES } from '../lib/theme';
 import { inSentence, joinAnd, peoplePhrase, summarize } from '../model/briefing';
 import { groupInbox, nbHyphen } from '../model/inbox';
+import { useDiscoveryIfAny } from '../stores/discovery';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 
@@ -26,11 +27,15 @@ interface Part {
 const emit = defineEmits<{ signOut: [] }>();
 const live = useLive();
 const ui = useUi();
+const discovery = useDiscoveryIfAny();
 
 const s = computed(() => summarize(live.graph.value, live.metrics.value, live.inbox.value, live.now.value));
 const headline = computed(() => THEMES.find((t) => t.id === currentTheme.value)?.briefing === 'headline');
-/** What the Inbox lists as open: needs you, not already being fixed. */
-const inboxCount = computed(() => groupInbox(live.inbox.value, live.fixes).open.length);
+/** What the Inbox lists as open: needs you, not already being fixed, plus a discovery and suggestions waiting for an answer. */
+const inboxCount = computed(() => {
+  const g = groupInbox(live.inbox.value, live.fixes);
+  return g.open.length + g.suggestions.length + (discovery?.suggestions.value.length ? 1 : 0);
+});
 const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const clock = computed(() => hhmm(live.now.value));
 const eyebrow = computed(() => {

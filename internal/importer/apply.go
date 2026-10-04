@@ -16,8 +16,10 @@ import (
 )
 
 // RecordKey is the settings row where an import keeps what the board and
-// instances don't: tile metadata, explicit links, discovery hints, and the
-// instance ids it created (so a re-import can report stale ones).
+// instances don't: explicit links, discovery hints, board settings, and the
+// instance ids it created (so a re-import can report stale ones). Tile
+// configuration lives with the board's layout (internal/boards); records
+// written before migration 00004 kept it here, under "tiles".
 func RecordKey(source string) string { return "import/" + source }
 
 // Record is the stored import record (the settings row's JSON value).
@@ -25,7 +27,6 @@ type Record struct {
 	Source    string         `json:"source"`
 	BoardID   string         `json:"board_id"`
 	Instances []string       `json:"instances"`
-	Tiles     []Tile         `json:"tiles"`
 	Links     []Link         `json:"links"`
 	Discovery []Discovery    `json:"discovery"`
 	Settings  map[string]any `json:"settings,omitempty"`
@@ -75,8 +76,10 @@ type work struct {
 		position int64
 	}
 	layout struct {
-		action string
+		action string // the document's
+		tiles  string // the tiles document's
 		doc    []byte
+		tdoc   []byte
 		next   int64
 	}
 	instances []instanceWork
@@ -111,9 +114,9 @@ func (s *Service) Diff(ctx context.Context, res *Result, secrets Secrets) error 
 	return nil
 }
 
-// Apply applies the plan in one write transaction: the board and its layout,
-// the instances, the secrets (sealed inside the same transaction) and the
-// import record. Anything already equal is left alone, so applying the same
+// Apply applies the plan in one write transaction: the board with its layout
+// and tiles (one new revision when either differs), the instances, the
+// secrets (sealed inside the same transaction) and the import record. Anything already equal is left alone, so applying the same
 // plan twice changes nothing the second time. userID may be empty.
 func (s *Service) Apply(ctx context.Context, res *Result, secrets Secrets, userID string) (Applied, error) {
 	var w *work
@@ -182,30 +185,40 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 	p.Board.Slug = w.board.slug
 	add("board", p.Board.ID, p.Board.Name, w.board.action)
 
-	// Layout: compared as JSON values, so key order and whitespace don't count.
+	// Layout and tiles: compared as JSON values, so key order and whitespace
+	// don't count. They share a revision, so either one changing writes both.
 	doc, err := json.Marshal(p.Board.Layout)
 	if err != nil {
 		return nil, err
 	}
-	w.layout.doc = doc
+	tdoc, err := json.Marshal(TileConfigs(p))
+	if err != nil {
+		return nil, err
+	}
+	w.layout.doc, w.layout.tdoc = doc, tdoc
 	var rev sql.NullInt64
-	var cur sql.NullString
+	var cur, curTiles sql.NullString
 	if w.board.action != ActionCreate {
-		err := q.QueryRowContext(ctx, `SELECT revision, document FROM layouts WHERE board_id = ? ORDER BY revision DESC LIMIT 1`, p.Board.ID).Scan(&rev, &cur)
+		err := q.QueryRowContext(ctx, `SELECT revision, document, tiles FROM layouts WHERE board_id = ? ORDER BY revision DESC LIMIT 1`, p.Board.ID).Scan(&rev, &cur, &curTiles)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, err
 		}
 	}
-	switch {
-	case !cur.Valid:
-		w.layout.action = ActionCreate
-	case sameJSON([]byte(cur.String), doc):
-		w.layout.action = ActionUnchanged
-	default:
-		w.layout.action = ActionUpdate
+	compareDoc := func(stored sql.NullString, planned []byte) string {
+		switch {
+		case !stored.Valid:
+			return ActionCreate
+		case sameJSON([]byte(stored.String), planned):
+			return ActionUnchanged
+		default:
+			return ActionUpdate
+		}
 	}
+	w.layout.action = compareDoc(cur, doc)
+	w.layout.tiles = compareDoc(curTiles, tdoc)
 	w.layout.next = rev.Int64 + 1
 	add("layout", p.Board.ID, p.Board.Name, w.layout.action)
+	add("tiles", p.Board.ID, p.Board.Name, w.layout.tiles)
 
 	// Instances.
 	planned := make(map[string]bool, len(p.Instances))
@@ -267,7 +280,7 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 	// The import record, and instances a previous import made that the
 	// source no longer has.
 	rec := Record{
-		Source: p.Source, BoardID: p.Board.ID, Tiles: p.Tiles, Links: p.Links,
+		Source: p.Source, BoardID: p.Board.ID, Links: p.Links,
 		Discovery: p.Discovery, Settings: p.Board.Settings,
 		Instances: make([]string, 0, len(p.Instances)),
 	}
@@ -323,10 +336,10 @@ func (s *Service) write(ctx context.Context, tx *sql.Tx, p *Plan, w *work, secre
 		}
 	}
 
-	if w.layout.action != ActionUnchanged {
+	if w.layout.action != ActionUnchanged || w.layout.tiles != ActionUnchanged {
 		createdBy := sql.NullString{String: userID, Valid: userID != ""}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO layouts (board_id, revision, format_version, document, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
-			p.Board.ID, w.layout.next, p.Board.FormatVersion, string(w.layout.doc), now, createdBy); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO layouts (board_id, revision, format_version, document, tiles, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			p.Board.ID, w.layout.next, p.Board.FormatVersion, string(w.layout.doc), string(w.layout.tdoc), now, createdBy); err != nil {
 			return fmt.Errorf("importer: layout: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE boards SET updated_at = ? WHERE id = ?`, now, p.Board.ID); err != nil {

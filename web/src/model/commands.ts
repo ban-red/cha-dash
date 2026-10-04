@@ -6,9 +6,10 @@
  */
 import { rank, type Searchable } from '../lib/fuzzy';
 import { THEMES, type ThemeId } from '../lib/theme';
-import { label, placeOf, resources } from './graph';
+import { distinct, label, placeOf } from './graph';
 import type { GraphDoc, InboxDoc } from './types';
 import type { Instance } from './integrations';
+import type { SettingsPane } from '../lib/router';
 
 export type CommandGroup = 'Actions' | 'Inbox' | 'Boards' | 'Resources' | 'Integrations' | 'Settings' | 'Theme' | 'Account';
 
@@ -61,7 +62,7 @@ export interface CommandContext {
     toggleEdit: () => void;
     openBoard: (id: string) => void;
     reveal: (resourceId: string) => void;
-    openSettings: (pane: 'integrations' | 'import' | 'security', id?: string) => void;
+    openSettings: (pane: SettingsPane, id?: string) => void;
     addIntegration: () => void;
     setTheme: (id: ThemeId) => void;
     signOut: () => void;
@@ -121,6 +122,7 @@ export function buildCommands(ctx: CommandContext): Command[] {
   out.push(
     { id: 'settings:integrations', group: 'Settings', label: 'Settings: Integrations', keywords: 'connections tokens keys', run: () => d.openSettings('integrations') },
     { id: 'settings:import', group: 'Settings', label: 'Import from Homepage', keywords: 'settings services.yaml docker.yaml migrate', run: () => d.openSettings('import') },
+    { id: 'settings:backup', group: 'Settings', label: 'Settings: Backup', keywords: 'export import restore yaml home file secrets', run: () => d.openSettings('backup') },
     { id: 'settings:security', group: 'Settings', label: 'Settings: Security', keywords: 'passkeys webauthn touch id face id', run: () => d.openSettings('security') },
   );
 
@@ -131,7 +133,7 @@ export function buildCommands(ctx: CommandContext): Command[] {
   out.push({ id: 'signout', group: 'Account', label: 'Sign out', keywords: `log out ${ctx.username ?? ''}`, hint: ctx.username, run: d.signOut });
 
   const g = ctx.graph;
-  for (const r of resources(g)) {
+  for (const r of distinct(g)) {
     const kind = KIND_WORDS[r.kind] ?? r.kind;
     const place = placeOf(g, r.id);
     out.push({

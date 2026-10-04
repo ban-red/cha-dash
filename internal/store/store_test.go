@@ -3,9 +3,11 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -47,12 +49,12 @@ func TestMigrateUp(t *testing.T) {
 	s, path := openTemp(t)
 	ctx := t.Context()
 
-	want := []string{"audit", "boards", "goose_db_version", "integration_instances", "integration_state", "layouts", "passkey_users", "passkeys", "sessions", "settings", "users", "vault_secrets"}
+	want := []string{"audit", "board_dismissals", "boards", "correlation_decisions", "goose_db_version", "integration_instances", "integration_state", "layouts", "passkey_users", "passkeys", "sessions", "settings", "users", "vault_secrets"}
 	if got := tables(t, s.Reader()); !slices.Equal(got, want) {
 		t.Fatalf("tables = %v, want %v", got, want)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 3 {
+	if err != nil || v != 5 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 
@@ -91,6 +93,97 @@ func TestMigrateDownThenUp(t *testing.T) {
 	if _, err := s.Migrate(ctx); err != nil {
 		t.Fatalf("up again: %v", err)
 	}
+}
+
+// Migration 00004 moves the Homepage import record's tile metadata into the
+// imported board's layout revisions, in the shape the importer now writes,
+// and leaves everything else alone.
+func TestMigrateMovesImportTilesIntoTheBoard(t *testing.T) {
+	s, _ := openTemp(t)
+	ctx := t.Context()
+	if err := s.MigrateTo(ctx, 3); err != nil {
+		t.Fatal(err)
+	}
+	w := s.Writer()
+	record := `{"source":"homepage","board_id":"b_1","instances":["i_1"],"tiles":[
+		{"item_id":"service@homepage:s/alpha","section":"s","widget":"service","size":"small","name":"Alpha","icon":"alpha.png",
+		 "href":"https://alpha.lab.example","description":"First","instance":"i_1","check":"Alpha",
+		 "origin":{"file":"services.yaml","group":"S","entry":"Alpha"}},
+		{"item_id":"calendar","section":"d","widget":"calendar","size":"wide","name":"","chromeless":true,
+		 "sources":[{"instance":"i_1","capability":"media.calendar","options":{"unmonitored":true}}],
+		 "options":{"view":"agenda","odd":{"kept":null}},"origin":{"file":"services.yaml","group":"D","entry":""}},
+		{"item_id":"service@homepage:s/beta","section":"s","widget":"service","size":"small","name":"Beta","href":"javascript:alert(1)",
+		 "origin":{"file":"services.yaml","group":"S","entry":"Beta"}}
+	],"links":[],"discovery":[{"kind":"label_section","section":"apps","message":"m"}],"settings":{"locale":{"first_day_of_week":"sunday"}}}`
+	for _, q := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO boards (id, slug, title, created_at, updated_at) VALUES ('b_1', 'imported', 'Imported', 0, 0), ('b_2', 'home', 'Home', 0, 0)`, nil},
+		{`INSERT INTO layouts (board_id, revision, format_version, document, created_at) VALUES ('b_1', 1, 1, '{"v":1}', 0), ('b_1', 2, 1, '{"v":2}', 0), ('b_2', 1, 1, '{}', 0)`, nil},
+		{`INSERT INTO settings (key, value, updated_at) VALUES ('import/homepage', ?, 0), ('other', '{"tiles":[1]}', 0)`, []any{record}},
+	} {
+		if _, err := w.ExecContext(ctx, q.sql, q.args...); err != nil {
+			t.Fatalf("%s: %v", q.sql, err)
+		}
+	}
+	if _, err := s.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `{
+		"service@homepage:s/alpha":{"name":"Alpha","icon":"alpha.png","href":"https://alpha.lab.example","description":"First",
+			"bind":{"instance":"i_1","check":"Alpha"},"origin":{"source":"homepage","file":"services.yaml","group":"S","entry":"Alpha"}},
+		"calendar":{"chromeless":true,"bind":{"sources":[{"instance":"i_1","capability":"media.calendar","options":{"unmonitored":true}}]},
+			"options":{"view":"agenda","odd":{"kept":null}},"origin":{"source":"homepage","file":"services.yaml","group":"D"}},
+		"service@homepage:s/beta":{"name":"Beta","origin":{"source":"homepage","file":"services.yaml","group":"S","entry":"Beta"}}
+	}`
+	rows, err := s.Reader().QueryContext(ctx, `SELECT board_id, revision, tiles FROM layouts ORDER BY board_id, revision`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var board, tiles string
+		var rev int
+		if err := rows.Scan(&board, &rev, &tiles); err != nil {
+			t.Fatal(err)
+		}
+		n++
+		exp := want
+		if board == "b_2" {
+			exp = `{}`
+		}
+		if !sameJSON(t, tiles, exp) {
+			t.Errorf("%s revision %d tiles =\n%s\nwant\n%s", board, rev, tiles, exp)
+		}
+	}
+	if n != 3 {
+		t.Fatalf("%d layout rows", n)
+	}
+	var rec, other string
+	if err := s.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = 'import/homepage'`).Scan(&rec); err != nil {
+		t.Fatal(err)
+	}
+	if !sameJSON(t, rec, `{"source":"homepage","board_id":"b_1","instances":["i_1"],"links":[],"discovery":[{"kind":"label_section","section":"apps","message":"m"}],"settings":{"locale":{"first_day_of_week":"sunday"}}}`) {
+		t.Errorf("record = %s", rec)
+	}
+	if err := s.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = 'other'`).Scan(&other); err != nil || other != `{"tiles":[1]}` {
+		t.Errorf("another setting changed: %s %v", other, err)
+	}
+}
+
+func sameJSON(t *testing.T, a, b string) bool {
+	t.Helper()
+	var va, vb any
+	if err := json.Unmarshal([]byte(a), &va); err != nil {
+		t.Fatalf("%v: %s", err, a)
+	}
+	if err := json.Unmarshal([]byte(b), &vb); err != nil {
+		t.Fatalf("%v: %s", err, b)
+	}
+	return reflect.DeepEqual(va, vb)
 }
 
 func TestReaderIsQueryOnly(t *testing.T) {
@@ -138,10 +231,20 @@ func TestSchemaConstraints(t *testing.T) {
 	mustExec(`INSERT INTO integration_instances (id, integration, name, created_at, updated_at) VALUES ('i_1', 'opnsense', 'Router', 0, 0)`)
 	mustExec(`INSERT INTO integration_state (instance_id, key, value, updated_at) VALUES ('i_1', 'k', '{}', 0)`)
 	mustFail("one value per key", `INSERT INTO integration_state (instance_id, key, value, updated_at) VALUES ('i_1', 'k', '[]', 0)`)
+	mustExec(`INSERT INTO integration_instances (id, integration, name, created_at, updated_at) VALUES ('i_2', 'unraid', 'NAS', 0, 0)`)
+	mustExec(`INSERT INTO correlation_decisions (id, from_id, rel, to_id, verdict, from_instance, to_instance, created_by, created_at)
+		VALUES ('cd_1', 'docker:i_1/container/a', 'same_as', 'unraid:i_2/container/a', 'confirm', 'i_1', 'i_2', 'u_1', 0)`)
+	mustExec(`INSERT INTO correlation_decisions (id, from_id, rel, to_id, verdict, created_at) VALUES ('cd_2', 'app:x', 'runs_on', 'chadash:hub', 'reject', 0)`)
+	mustFail("one decision per pair", `INSERT INTO correlation_decisions (id, from_id, rel, to_id, verdict, created_at) VALUES ('cd_3', 'app:x', 'runs_on', 'chadash:hub', 'confirm', 0)`)
+	mustFail("verdict check", `INSERT INTO correlation_decisions (id, from_id, rel, to_id, verdict, created_at) VALUES ('cd_4', 'a', 'same_as', 'b', 'maybe', 0)`)
+	mustFail("decisions need their instance", `INSERT INTO correlation_decisions (id, from_id, rel, to_id, verdict, from_instance, created_at) VALUES ('cd_5', 'a', 'same_as', 'b', 'confirm', 'i_missing', 0)`)
 	mustExec(`DELETE FROM integration_instances WHERE id = 'i_1'`)
 	var n int
 	if err := s.Reader().QueryRowContext(ctx, `SELECT count(*) FROM integration_state`).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("state rows after deleting the instance = %d, %v", n, err)
+	}
+	if err := s.Reader().QueryRowContext(ctx, `SELECT count(*) FROM correlation_decisions`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("decisions after deleting an instance = %d, %v; want only the one without instances", n, err)
 	}
 }
 

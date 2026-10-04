@@ -152,6 +152,29 @@ func (s *Store) Migrate(ctx context.Context) ([]Migration, error) {
 	return applied, nil
 }
 
+// MigrateTo migrates up or down to exactly version. It's for tests that
+// check a migration against data written at an older version.
+func (s *Store) MigrateTo(ctx context.Context, version int64) error {
+	p, err := s.provider()
+	if err != nil {
+		return fmt.Errorf("store: migrations: %w", err)
+	}
+	cur, err := p.GetDBVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("store: migrate: %w", err)
+	}
+	switch {
+	case version > cur:
+		_, err = p.UpTo(ctx, version)
+	case version < cur:
+		_, err = p.DownTo(ctx, version)
+	}
+	if err != nil {
+		return fmt.Errorf("store: migrate to %d: %w", version, err)
+	}
+	return nil
+}
+
 // SchemaVersion returns the highest applied migration version.
 func (s *Store) SchemaVersion(ctx context.Context) (int64, error) {
 	p, err := s.provider()

@@ -1,7 +1,8 @@
 /**
  * The first-paint snapshot the hub inlines into index.html for a signed-in
- * owner (internal/firstpaint): the first board and the graph, metrics and
- * inbox as the socket would send them, trimmed to what the front page shows.
+ * owner (internal/firstpaint): the first board (layout and tiles) and the
+ * graph, metrics and inbox as the socket would send them, trimmed to what
+ * the front page shows.
  *
  *   <script type="application/json" id="chadash-snapshot">{…}</script>
  *
@@ -25,6 +26,8 @@ export interface InlineBoard {
   format_version: number;
   /** null until the board's first save. */
   layout: unknown;
+  /** Each item's configuration (stores/tiles.ts); {} until set. */
+  tiles?: unknown;
 }
 
 export interface InlineSnapshot {

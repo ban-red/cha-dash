@@ -241,10 +241,10 @@ func (f *flagArgs) UnmarshalJSON(b []byte) error {
 
 // grants is what Test reports the endpoint allows.
 func (a access) grants(ep endpoint, w writes) []integration.Grant {
-	g := []integration.Grant{{Name: "containers", Detail: "list containers, their state and labels"}}
+	g := []integration.Grant{{Name: "containers", Access: integration.AccessRead, Detail: "list containers, their state and labels"}}
 	add := func(on bool, name, detail string) {
 		if on {
-			g = append(g, integration.Grant{Name: name, Detail: detail})
+			g = append(g, integration.Grant{Name: name, Access: integration.AccessRead, Detail: detail})
 		}
 	}
 	add(a.inspect, "inspect", "each container's full config, its environment included (Cha Dash drops the environment)")

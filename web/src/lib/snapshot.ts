@@ -22,6 +22,8 @@ export interface SnapshotBoard {
   name: string;
   revision: number;
   layout: unknown;
+  /** The board's tile configuration (stores/tiles.ts). */
+  tiles?: unknown;
 }
 
 export interface Snapshot {

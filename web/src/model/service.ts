@@ -1,9 +1,10 @@
 /**
- * The generic service tile's status: from the check that watches it (is the
- * service up?), else from the integration instance it shows (can Cha Dash
- * read it?). Both arrive in the Home Graph; a tile with neither has no status
- * at all, and one whose watcher hasn't reported yet says so instead of
- * guessing.
+ * The generic service tile's status, from its tile binding: the check that
+ * watches it (is the service up?), else the integration instance it shows
+ * (can Cha Dash read it?), else the resource it's bound to (a container found
+ * by its labels: is it running?). All arrive in the Home Graph; a tile bound
+ * to nothing has no status at all, and one whose watcher hasn't reported yet
+ * says so instead of guessing.
  *
  * Lookups are deliberately forgiving about ids until the framework's
  * resource ids settle: a check is a `check` resource named after the target
@@ -17,7 +18,7 @@ export interface ServiceStatus {
   status: TileStatus;
   word: string;
   /** Where it came from. */
-  via: 'check' | 'integration' | 'none';
+  via: 'check' | 'integration' | 'resource' | 'none';
 }
 
 const WORDS: Record<TileStatus, string> = {
@@ -37,19 +38,28 @@ export function findCheck(g: GraphDoc | undefined, check: string): Resource | un
   return Object.values(g.resources).find((r) => r.kind === 'check' && (r.name === check || r.id.endsWith(`/${check}`)));
 }
 
-export function serviceStatus(g: GraphDoc | undefined, meta: { instance?: string; check?: string } | undefined): ServiceStatus | undefined {
-  if (!meta?.check && !meta?.instance) return undefined;
-  const check = meta.check ? findCheck(g, meta.check) : undefined;
+export function serviceStatus(
+  g: GraphDoc | undefined,
+  bind: { instance?: string; check?: string; resource?: string } | undefined,
+): ServiceStatus | undefined {
+  if (!bind?.check && !bind?.instance && !bind?.resource) return undefined;
+  const check = bind.check ? findCheck(g, bind.check) : undefined;
   if (check) {
     const h = normalizeHealth(check);
     const s = tileStatus(h, check);
     return { status: s, word: s === 'ok' ? 'up' : (h.reason ?? WORDS[s]), via: 'check' };
   }
-  const inst = meta.instance ? g?.resources[`integration:${meta.instance}`] : undefined;
+  const inst = bind.instance ? g?.resources[`integration:${bind.instance}`] : undefined;
   if (inst) {
     const h = normalizeHealth(inst);
     const s = tileStatus(h, inst);
     return { status: s, word: s === 'ok' ? 'reading' : (h.reason ?? WORDS[s]), via: 'integration' };
+  }
+  const r = bind.resource ? g?.resources[bind.resource] : undefined;
+  if (r) {
+    const h = normalizeHealth(r);
+    const s = tileStatus(h, r);
+    return { status: s, word: s === 'ok' ? (r.state ?? 'up') : (h.reason ?? WORDS[s]), via: 'resource' };
   }
   return { status: 'unknown', word: 'no reading yet', via: 'none' };
 }

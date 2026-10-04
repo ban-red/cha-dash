@@ -9,7 +9,9 @@
  *   its board render from it at once, and the socket supersedes it;
  * - the last-known snapshot: written while live, and the page opens on it
  *   when the hub was unreachable at start-up (session.state.offline);
- * - demo mode (GET /api/demo), which lets incidents' actions run.
+ * - demo mode (GET /api/demo), which lets incidents' actions run;
+ * - label discovery for the board on screen (stores/discovery.ts);
+ * - the first-run wizard (onboarding/), when the hub says to show it.
  *
  * The Inbox, the confirm dialog, the command bar and Settings load on first
  * use, keeping the first paint small.
@@ -25,15 +27,18 @@ import { setDisplayTimeZone } from '../lib/format';
 import { view } from '../lib/router';
 import type { GraphDoc } from '../model/types';
 import { createBoardStore, provideBoard } from '../stores/board';
+import { createDiscovery, provideDiscovery } from '../stores/discovery';
 import { createLive, provideLive } from '../stores/live';
 import { persistSnapshots } from '../stores/persist';
 import { useSession } from '../stores/session';
+import { loadOnboarding, onboarding } from '../onboarding/state';
 import { createUi, provideUi } from '../stores/ui';
 
 const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.vue'));
 const ConfirmDialog = defineAsyncComponent(() => import('../components/ConfirmDialog.vue'));
 const CommandPalette = defineAsyncComponent(() => import('../components/CommandPalette.vue'));
 const SettingsSheet = defineAsyncComponent(() => import('../settings/SettingsSheet.vue'));
+const OnboardingWizard = defineAsyncComponent(() => import('../onboarding/OnboardingWizard.vue'));
 
 const session = useSession();
 const live = createLive({ checkSession: session.check });
@@ -60,6 +65,7 @@ function waitForGraph(): Promise<GraphDoc | undefined> {
 }
 const board = createBoardStore({ waitForGraph, now: () => live.now.value });
 provideBoard(board);
+provideDiscovery(createDiscovery(live, board));
 
 // Signed in with the hub's first-paint snapshot: render from it now; the socket supersedes it.
 const inline = session.takeInline();
@@ -152,6 +158,7 @@ let stopPersist: (() => void) | undefined;
 onMounted(() => {
   live.start();
   if (!restored) void demo();
+  if (!restored) void loadOnboarding();
   const want = view.value.name === 'front' ? view.value.board : undefined;
   if (!seeded || (want !== undefined && want !== board.state.boardId)) void board.load(want);
   document.addEventListener('keydown', onKey);
@@ -175,7 +182,7 @@ watch(
 <template>
   <div class="screen">
     <div class="frame">
-      <main class="page" aria-label="Front page" :inert="view.name === 'settings' || undefined">
+      <main class="page" aria-label="Front page" :inert="view.name === 'settings' || onboarding.open || undefined">
         <Briefing @sign-out="signOut" />
         <HubBanner />
         <NeedsAttention />
@@ -189,6 +196,7 @@ watch(
   </div>
   <InboxSheet v-if="inboxLoaded" />
   <ConfirmDialog v-if="confirmLoaded" />
+  <OnboardingWizard v-if="onboarding.open" />
   <SettingsSheet v-if="view.name === 'settings'" />
   <CommandPalette v-if="ui.state.paletteOpen" />
   <Toasts />

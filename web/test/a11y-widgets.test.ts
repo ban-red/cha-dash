@@ -4,11 +4,12 @@
  * with today's incidents (attention, down, repair), stale, and with the
  * hub's graph shape. Contrast is checked on the tokens (see test/axe.ts).
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { enableAutoUnmount, flushPromises } from '@vue/test-utils';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 import { defineComponent, h, nextTick } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import WidgetHost from '../src/widgets/WidgetHost.vue';
+import { preloadWidgets } from '../src/widgets/registry';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { itemId, WIDGETS } from '../src/model/widgets';
 import { axeViolations } from './axe';
@@ -16,11 +17,13 @@ import { fakeFetch } from './fake-fetch';
 import { docs, healthy, withIncidents } from './fixtures';
 import { harness } from './harness';
 
-/** A resource for each widget that shows one (`type@resource`). */
+/** A Demo Home target for each widget that shows one (`type@target`), as in widgets.test.ts. */
 const TARGETS: Record<string, string> = {
   host: 'unraid:jupiter',
   arr: 'app:sonarr',
   service: 'homepage:servers/proxmox',
+  metric: 'pve:jupiter-nas#mem.pct',
+  storage: 'pve:io/storage/local-lvm',
 };
 
 /** A tile in its page: always inside the front page's <main>. */
@@ -41,7 +44,8 @@ const STATES: State[] = [
   { name: 'hub graph shape', data: docs(withIncidents, 'hub') },
 ];
 
-enableAutoUnmount(afterEach);
+// The on-demand widgets, fetched once, so each mounts with its content rather than a skeleton.
+beforeAll(() => preloadWidgets());
 
 beforeEach(() => {
   setDisplayTimeZone('UTC');
@@ -71,6 +75,7 @@ it('sees what it checks: a planted violation in a mounted tile is caught', async
   expect(await axeViolations(root)).toEqual([]);
   root.querySelector('.tile')!.insertAdjacentHTML('beforeend', '<button type="button"></button>');
   expect((await axeViolations(root)).join('\n')).toContain('button-name');
+  w.unmount();
   h.live.stop();
 });
 

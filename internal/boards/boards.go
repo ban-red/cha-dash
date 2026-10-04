@@ -1,10 +1,15 @@
-// Package boards stores boards and their layouts.
+// Package boards stores boards, their layouts and their tile configuration.
 //
 // A layout is the @chadash/layout document (packages/layout), opaque to the
 // hub: it's stored as JSON next to the document format version the SPA
-// declares. Each save appends a revision, and a save must name the revision
+// declares. Each revision also carries the board's tiles (tiles.go): the
+// per-item configuration the document can't hold, in a shape the hub owns and
+// validates. Each save appends a revision, and a save must name the revision
 // it was based on, so two tabs editing the same board can't overwrite each
 // other silently: the second gets a conflict and the current revision.
+//
+// The package also remembers which discovery suggestions were dismissed on a
+// board (dismissals.go).
 package boards
 
 import (
@@ -49,13 +54,18 @@ type Board struct {
 	Name string `json:"name"`
 }
 
-// Layout is a board's latest saved layout. A board that was never saved has
-// revision 0, format version 0 and a nil document.
+// Layout is a board's latest saved layout and tiles. A board that was never
+// saved has revision 0, format version 0, a nil document and empty tiles.
 type Layout struct {
 	Revision      int64
 	FormatVersion int64
 	Document      json.RawMessage
+	// Tiles is the revision's tiles document, never nil ({} when empty).
+	Tiles json.RawMessage
 }
+
+// EmptyTiles is the tiles document of a board with no tile configuration.
+const EmptyTiles = "{}"
 
 // Service reads and writes boards.
 type Service struct {
@@ -109,42 +119,58 @@ func list(ctx context.Context, q querier) ([]Board, error) {
 	return boards, rows.Err()
 }
 
-// Layout returns a board's latest layout.
+// Layout returns a board's latest layout and tiles.
 func (s *Service) Layout(ctx context.Context, boardID string) (Layout, error) {
 	var (
-		rev, fv sql.NullInt64
-		doc     sql.NullString
+		rev, fv    sql.NullInt64
+		doc, tiles sql.NullString
 	)
-	err := s.st.Reader().QueryRowContext(ctx, `SELECT l.revision, l.format_version, l.document
+	err := s.st.Reader().QueryRowContext(ctx, `SELECT l.revision, l.format_version, l.document, l.tiles
 		FROM boards b LEFT JOIN layouts l ON l.board_id = b.id
 			AND l.revision = (SELECT MAX(revision) FROM layouts WHERE board_id = b.id)
-		WHERE b.id = ?`, boardID).Scan(&rev, &fv, &doc)
+		WHERE b.id = ?`, boardID).Scan(&rev, &fv, &doc, &tiles)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Layout{}, ErrNotFound
 	}
 	if err != nil {
 		return Layout{}, err
 	}
-	l := Layout{Revision: rev.Int64, FormatVersion: fv.Int64}
+	l := Layout{Revision: rev.Int64, FormatVersion: fv.Int64, Tiles: json.RawMessage(EmptyTiles)}
 	if doc.Valid {
 		l.Document = json.RawMessage(doc.String)
+	}
+	if tiles.Valid {
+		l.Tiles = json.RawMessage(tiles.String)
 	}
 	return l, nil
 }
 
-// SaveLayout stores doc as the board's next revision if base is still the
-// latest one, and returns the new revision. A stale base gets a
+// SaveLayout stores doc and tiles as the board's next revision if base is
+// still the latest one, and returns the new revision. With nil tiles the
+// latest revision's tiles carry over; otherwise they must pass ParseTiles
+// (the error wraps ErrInvalidTiles if they don't). A stale base gets a
 // *ConflictError carrying the current revision. userID may be empty.
-func (s *Service) SaveLayout(ctx context.Context, boardID string, base, formatVersion int64, doc json.RawMessage, userID string) (int64, error) {
-	var compact bytes.Buffer
+func (s *Service) SaveLayout(ctx context.Context, boardID string, base, formatVersion int64, doc, tiles json.RawMessage, userID string) (int64, error) {
+	var compact, compactTiles bytes.Buffer
 	if err := json.Compact(&compact, doc); err != nil {
 		return 0, fmt.Errorf("boards: layout is not JSON: %w", err)
+	}
+	if tiles != nil {
+		if _, err := ParseTiles(tiles); err != nil {
+			return 0, fmt.Errorf("boards: %w", err)
+		}
+		if err := json.Compact(&compactTiles, tiles); err != nil {
+			return 0, fmt.Errorf("boards: %w: %v", ErrInvalidTiles, err)
+		}
 	}
 	var next int64
 	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
 		var cur sql.NullInt64
-		err := tx.QueryRowContext(ctx, `SELECT (SELECT MAX(revision) FROM layouts WHERE board_id = b.id)
-			FROM boards b WHERE b.id = ?`, boardID).Scan(&cur)
+		var curTiles sql.NullString
+		err := tx.QueryRowContext(ctx, `SELECT l.revision, l.tiles
+			FROM boards b LEFT JOIN layouts l ON l.board_id = b.id
+				AND l.revision = (SELECT MAX(revision) FROM layouts WHERE board_id = b.id)
+			WHERE b.id = ?`, boardID).Scan(&cur, &curTiles)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrNotFound
 		}
@@ -154,11 +180,18 @@ func (s *Service) SaveLayout(ctx context.Context, boardID string, base, formatVe
 		if cur.Int64 != base {
 			return &ConflictError{Current: cur.Int64}
 		}
+		saved := compactTiles.String()
+		if tiles == nil {
+			saved = EmptyTiles
+			if curTiles.Valid {
+				saved = curTiles.String
+			}
+		}
 		next = base + 1
 		now := s.now()
 		createdBy := sql.NullString{String: userID, Valid: userID != ""}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO layouts (board_id, revision, format_version, document, created_at, created_by)
-			VALUES (?, ?, ?, ?, ?, ?)`, boardID, next, formatVersion, compact.String(), now, createdBy); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO layouts (board_id, revision, format_version, document, tiles, created_at, created_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, boardID, next, formatVersion, compact.String(), saved, now, createdBy); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE boards SET updated_at = ? WHERE id = ?`, now, boardID); err != nil {

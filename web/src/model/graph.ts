@@ -7,10 +7,61 @@ import { normalizeHealth, seriesKey, type GraphDoc, type Health, type MetricsDoc
 
 export const resources = (g: GraphDoc | undefined): Resource[] => (g ? Object.values(g.resources) : []);
 
-export const byKind = (g: GraphDoc | undefined, kind: string): Resource[] =>
-  resources(g)
-    .filter((r) => r.kind === kind)
+/**
+ * One thing seen by several sources (Docker and Unraid both report a
+ * container) stays one resource per source in the graph; the hub's
+ * correlator picks a primary and publishes `<other> same_as <primary>`
+ * (internal/correlate). Aliases are the resources with an outgoing
+ * `same_as`: lists skip them, so they show one of each thing.
+ */
+export function aliases(g: GraphDoc | undefined): Set<string> {
+  const out = new Set<string>();
+  if (g) for (const rel of Object.values(g.relations)) if (rel.type === 'same_as') out.add(rel.from);
+  return out;
+}
+
+/** The resources, one per thing: no aliases. */
+export const distinct = (g: GraphDoc | undefined): Resource[] => {
+  const alias = aliases(g);
+  return resources(g).filter((r) => !alias.has(r.id));
+};
+
+/** The primary and every alias of `id`'s thing, primary first: what each source says about it. */
+export function members(g: GraphDoc | undefined, id: string): Resource[] {
+  if (!g) return [];
+  const primary = outgoing(g, id, 'same_as')[0] ?? g.resources[id];
+  if (!primary) return [];
+  return [primary, ...incoming(g, primary.id, 'same_as').sort((a, b) => a.id.localeCompare(b.id))];
+}
+
+/** The integration instances reporting a thing, by name ("Docker", "Unraid"). */
+export function sourcesOf(g: GraphDoc | undefined, id: string): string[] {
+  const names: string[] = [];
+  for (const m of members(g, id)) {
+    const n = m.source ? label(g?.resources[m.source]) || m.source : '';
+    if (n && !names.includes(n)) names.push(n);
+  }
+  return names;
+}
+
+const HEALTH_RANK: Record<string, number> = { down: 0, attention: 1, repair: 2, maintenance: 3, unknown: 4, ok: 5 };
+
+/** A thing's health across its sources: the worst one, with its reason. */
+export function mergedHealth(g: GraphDoc | undefined, id: string): Health {
+  let best: Health | undefined;
+  for (const m of members(g, id)) {
+    const h = normalizeHealth(m);
+    if (!best || (HEALTH_RANK[h.status] ?? 9) < (HEALTH_RANK[best.status] ?? 9)) best = h;
+  }
+  return best ?? { status: 'unknown' };
+}
+
+export const byKind = (g: GraphDoc | undefined, kind: string): Resource[] => {
+  const alias = aliases(g);
+  return resources(g)
+    .filter((r) => r.kind === kind && !alias.has(r.id))
     .sort((a, b) => label(a).localeCompare(label(b)));
+};
 
 export const label = (r: Resource | undefined): string => r?.name || r?.id || '';
 
@@ -151,31 +202,40 @@ export function hostRows(g: GraphDoc | undefined, m: MetricsDoc | undefined): Ho
   });
 }
 
+/** One container, whichever sources report it: Docker's view first, the worst health of all. */
+export interface ContainerRow {
+  id: string;
+  name: string;
+  state: string | undefined;
+  health: Health;
+  /** The integration instances that report it ("Jupiter Docker", "Jupiter"). */
+  sources: string[];
+}
+
 export interface EngineSummary {
   id: string;
   name: string;
   health: Health;
   running: number;
   total: number;
-  unhealthy: Resource[];
-  containers: Resource[];
+  unhealthy: ContainerRow[];
+  containers: ContainerRow[];
 }
 
 export function engines(g: GraphDoc | undefined): EngineSummary[] {
+  const alias = aliases(g);
   return byKind(g, 'engine').map((e) => {
-    const cs = incoming(g, e.id, 'runs_on')
-      .filter((r) => r.kind === 'container')
-      .sort((a, b) => label(a).localeCompare(label(b)));
+    const cs: ContainerRow[] = incoming(g, e.id, 'runs_on')
+      .filter((r) => r.kind === 'container' && !alias.has(r.id))
+      .sort((a, b) => label(a).localeCompare(label(b)))
+      .map((c) => ({ id: c.id, name: label(c), state: c.state, health: mergedHealth(g, c.id), sources: sourcesOf(g, c.id) }));
     return {
       id: e.id,
       name: label(e),
       health: normalizeHealth(e),
       running: cs.filter((c) => c.state === 'running').length,
       total: cs.length,
-      unhealthy: cs.filter((c) => {
-        const s = normalizeHealth(c).status;
-        return s === 'attention' || s === 'down';
-      }),
+      unhealthy: cs.filter((c) => c.health.status === 'attention' || c.health.status === 'down'),
       containers: cs,
     };
   });

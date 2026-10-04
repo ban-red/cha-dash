@@ -12,14 +12,15 @@
 import { computed, reactive, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import { api } from '../lib/api';
-import { navigate } from '../lib/router';
+import { navigate, settingsPath } from '../lib/router';
 import { previewOf, type ApplyResult, type ImportFiles, type ImportPreview } from '../model/importPlan';
 import { ApiError } from '../lib/api';
+import { useBoard } from '../stores/board';
 import { errorWords, loadInstances } from '../stores/integrations';
-import { ensureTileMeta } from '../stores/tiles';
 import { useUi } from '../stores/ui';
 
 const ui = useUi();
+const board = useBoard();
 
 type Slot = keyof ImportFiles;
 const SLOTS: { key: Slot; file: string; what: string; required: boolean }[] = [
@@ -117,8 +118,9 @@ async function apply(): Promise<void> {
     );
     for (const k of Object.keys(files) as Slot[]) files[k] = '';
     void loadInstances(true);
-    void ensureTileMeta(true);
     navigate(res?.board_id ? `/boards/${encodeURIComponent(res.board_id)}` : '/');
+    // Landing on another board loads it with its tiles; a re-import of the board on screen reloads it.
+    if (res?.board_id && res.board_id === board.state.boardId) void board.load(res.board_id);
   } catch (err) {
     step.value = 'preview';
     error.value = importError(err, 'The import didn’t apply. Nothing changed.');
@@ -137,6 +139,7 @@ const sevGlyph = (s: string) => (s === 'error' ? 'down' : s === 'info' ? 'ok' : 
       <button type="button" aria-pressed="false" disabled title="Arrives in v0.2">Plain YAML<span class="n">v0.2</span></button>
     </div>
     <p class="st-lede">Each importer is named after what it reads, and every one previews the plan before anything changes. Homepage’s secrets move into Cha Dash’s encrypted vault; their values are never shown again.</p>
+    <p class="st-meta">Restoring a Cha Dash export? That’s in <a :href="settingsPath('backup')" @click.prevent="navigate(settingsPath('backup'), { replace: true })">Backup</a>.</p>
   </section>
 
   <section class="st-section" aria-labelledby="files-h">

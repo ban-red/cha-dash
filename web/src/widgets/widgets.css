@@ -1,0 +1,446 @@
+/*
+ * Widget parts that ride with the widgets (imported by registry.ts, so they
+ * load with the front page, not in the first paint). The widgets that load on
+ * demand (check, unraid, bookmarks, clock, weather) carry their own styles in
+ * their chunks. Token-only: every colour, space and face is a token; state is
+ * never colour alone.
+ */
+
+/* ───────────── Glyph (1×1): name, then one value ───────────── */
+.s-glyph .th .tc {
+  display: none;
+}
+.s-glyph .th {
+  gap: 6px;
+}
+.s-glyph .tn {
+  font-size: var(--type-caption);
+  color: var(--text-2);
+}
+.s-glyph .mono {
+  width: 17px;
+  height: 17px;
+  font-size: 7.5px;
+}
+.gv {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  min-width: 0;
+  white-space: nowrap;
+  font: var(--weight-medium) 19px/1 var(--font-num);
+  letter-spacing: -0.03em;
+  font-variant-numeric: var(--figures-display);
+  color: var(--text);
+}
+.gv .u {
+  font-size: 0.55em;
+  letter-spacing: 0;
+  color: var(--text-3);
+}
+.gv.unknown {
+  color: var(--text-3);
+}
+.gv .g {
+  width: 16px;
+  height: 16px;
+}
+a.gv {
+  text-decoration: none;
+}
+.gl {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+/* ───────────── Strip (4×1): identity · a bar or sparkline · a value ───────────── */
+.tile.s-strip,
+.tile.s-strip-long {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+}
+.tile.s-strip > .th,
+.tile.s-strip-long > .th {
+  display: contents;
+}
+.tile.s-strip > .th > .tc,
+.tile.s-strip-long > .th > .tc {
+  display: none;
+}
+.tile.s-strip > .th > .tn,
+.tile.s-strip-long > .th > .tn {
+  flex: 0 1 auto;
+  max-width: 34%;
+}
+.tile.s-strip > .th > .tg,
+.tile.s-strip-long > .th > .tg {
+  order: 9;
+  margin-left: 0;
+}
+.s-strip .tg .tgt {
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile.s-strip > .spark,
+.tile.s-strip > .meter,
+.tile.s-strip > .bars,
+.tile.s-strip-long > .spark,
+.tile.s-strip-long > .meter,
+.tile.s-strip-long > .bars {
+  flex: 1 1 0;
+  min-width: 2.5em;
+}
+.tile.s-strip > .skel {
+  flex: 1;
+}
+.sv {
+  flex: none;
+  font: var(--weight-medium) var(--type-title-2) / 1 var(--font-num);
+  letter-spacing: -0.02em;
+  font-variant-numeric: var(--figures-display);
+  color: var(--text);
+}
+.sv small {
+  margin-left: 2px;
+  font-size: 0.55em;
+  letter-spacing: 0;
+  color: var(--text-3);
+}
+.sv.unknown {
+  color: var(--text-3);
+}
+.sx {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--type-small);
+  color: var(--text-3);
+}
+.sx .n,
+.sx b {
+  color: var(--text-2);
+  font-weight: var(--weight-medium);
+}
+.strip-next {
+  flex: 1 1 auto;
+}
+.sm-meter {
+  flex: 1 1 0;
+}
+
+/* ───────────── State notes and rows ───────────── */
+.w-note > span {
+  min-width: 0;
+}
+.w-note.n-attn {
+  color: var(--text);
+}
+.w-note.n-down {
+  color: var(--text);
+}
+.w-note.n-off,
+.w-note.n-ok {
+  color: var(--text-3);
+}
+.dim {
+  opacity: 0.62;
+}
+.locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-3);
+}
+.locked .g {
+  width: 9px;
+  height: 9px;
+}
+.li.g4 {
+  grid-template-columns: auto minmax(0, 1fr) 3em 3em;
+}
+.li .g-prog,
+.sr .g-prog {
+  color: var(--progress);
+}
+
+/* ───────────── Small tables (guests, containers) ───────────── */
+.stbl {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+}
+.sr {
+  display: grid;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 5px 0;
+  border-top: var(--hairline) solid var(--line);
+  font-size: var(--type-small);
+  min-width: 0;
+}
+.sr.head {
+  border-top: 0;
+  padding: 2px 0 5px;
+  font: var(--weight-medium) 9.5px/1 var(--font-num);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.gtbl .sr {
+  grid-template-columns: minmax(0, 1.6fr) 2.8em minmax(0, 1fr) 3.6em 4.2em;
+}
+.ctbl .sr {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr) 3.6em 2.8em 4.6em;
+}
+.sr .h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-num);
+  color: var(--text);
+}
+.sr .h small {
+  margin-left: 4px;
+  font: var(--weight-regular) var(--type-caption) / 1 var(--font-ui);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sr .g {
+  width: 7px;
+  height: 7px;
+  flex: none;
+}
+.sr .r {
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.sr .tagc {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: var(--weight-regular) var(--type-caption) / 1 var(--font-num);
+  color: var(--text-3);
+}
+@container (max-width: 360px) {
+  .gtbl .sr {
+    grid-template-columns: minmax(0, 1.6fr) 2.8em minmax(0, 1fr) 4.2em;
+  }
+  .gtbl .sr > :nth-child(4),
+  .ctbl .sr > :nth-child(3) {
+    display: none;
+  }
+  .ctbl .sr {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr) 2.8em 4.6em;
+  }
+}
+
+/* ───────────── Host and fleet ───────────── */
+.host-split {
+  align-items: start;
+}
+.host-sparks {
+  gap: var(--space-2);
+}
+.host-disks,
+.disks {
+  display: grid;
+  gap: 5px;
+}
+.disk {
+  display: grid;
+  grid-template-columns: 5em minmax(0, 1fr) 2.6em 2.6em;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--type-caption);
+  color: var(--text-3);
+}
+.host-disks .disk {
+  grid-template-columns: 7em minmax(0, 1fr) 2.6em;
+}
+.disk .dn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-num);
+  color: var(--text-2);
+}
+.disk .n {
+  text-align: right;
+  color: var(--text-2);
+}
+.disk .g {
+  width: 7px;
+  height: 7px;
+}
+.fleet-tall {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fleet-tall li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px var(--space-2);
+  align-items: center;
+  font: var(--weight-medium) var(--type-small) / 1.2 var(--font-num);
+  color: var(--text);
+}
+.fleet-tall .meter {
+  grid-column: 1 / -1;
+}
+.fleet-tall .h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fleet-tall .n {
+  color: var(--text-2);
+}
+.fleet-tall .g {
+  width: 7px;
+  height: 7px;
+}
+.fr.dim .h,
+.fr.stale,
+.fleet-tall .stale {
+  color: var(--text-3);
+}
+
+/* ───────────── Backups ───────────── */
+.nights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-3);
+  font: var(--weight-regular) var(--type-caption) / 1.2 var(--font-num);
+  color: var(--text-3);
+}
+.night {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.night .g {
+  width: 8px;
+  height: 8px;
+}
+.night.bad {
+  color: var(--text);
+}
+
+/* ───────────── Cameras: one, two ───────────── */
+.cams.one {
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+}
+.cams.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+}
+.cams.one .cam.big,
+.cams.two .cam.big {
+  grid-column: auto;
+}
+.cam.frozen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(135deg, var(--hatch) 0 1.5px, transparent 1.5px 7px);
+}
+.cam-cap .g {
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+}
+.cam-events {
+  flex: none;
+}
+.cam-events .li {
+  align-items: center;
+}
+.cam-thumb {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 22px;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--neutral-2);
+}
+.cam-thumb svg.scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ───────────── Calendar week ───────────── */
+.week {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  overflow: hidden;
+}
+.wk-day {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 2px;
+  border-top: var(--hairline) solid var(--line);
+}
+.wk-item {
+  font-size: var(--type-caption);
+  line-height: 1.3;
+  color: var(--text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.wk-item .n {
+  color: var(--text-3);
+}
+.wk-item.more {
+  color: var(--text-3);
+}
+@container (max-width: 420px) {
+  .week {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

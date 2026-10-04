@@ -182,7 +182,7 @@ func (f *fakeDocker) docker(w http.ResponseWriter, r *http.Request, path string)
 		v["ApiVersion"] = f.api
 		writeJSON(w, 200, v)
 	case path == "/info":
-		writeJSON(w, 200, map[string]any{"Name": "jupiter", "OperatingSystem": "Unraid OS 7.3", "NCPU": 12, "MemTotal": 64 << 30})
+		writeJSON(w, 200, map[string]any{"Name": "jupiter", "OperatingSystem": "Unraid OS 7.3", "NCPU": 12, "MemTotal": int64(64 << 30)})
 	case path == "/containers/json":
 		f.mu.Lock()
 		defer f.mu.Unlock()

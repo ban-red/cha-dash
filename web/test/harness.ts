@@ -6,6 +6,7 @@ import { defineComponent, h, type Component } from 'vue';
 import { mount } from '@vue/test-utils';
 import { vi } from 'vitest';
 import { createBoardStore, provideBoard } from '../src/stores/board';
+import { createDiscovery, provideDiscovery } from '../src/stores/discovery';
 import { createLive, provideLive } from '../src/stores/live';
 import { createSession, provideSession } from '../src/stores/session';
 import { createUi, provideUi } from '../src/stores/ui';
@@ -22,6 +23,7 @@ export function harness(data?: Record<string, unknown>, opts: { demo?: boolean }
   const signOut = vi.fn(async () => undefined);
   const ui = createUi(live, { signOut });
   const board = createBoardStore({ waitForGraph: async () => live.graph.value });
+  const discovery = createDiscovery(live, board);
   live.start();
   const ws = FakeSocket.last;
   if (data) ws.handshake(data);
@@ -32,6 +34,7 @@ export function harness(data?: Record<string, unknown>, opts: { demo?: boolean }
       provideUi(ui);
       provideSession(session);
       provideBoard(board);
+      provideDiscovery(discovery);
       return () => slots['default']?.();
     },
   });
@@ -40,5 +43,5 @@ export function harness(data?: Record<string, unknown>, opts: { demo?: boolean }
     return mount(Root, { slots: { default: () => h(component, props) }, attachTo: document.body });
   }
 
-  return { live, ui, session, board, ws, mountIn, signOut };
+  return { live, ui, session, board, discovery, ws, mountIn, signOut };
 }

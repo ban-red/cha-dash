@@ -1,59 +1,180 @@
 <script setup lang="ts">
 /**
- * A service: the generic tile every imported Homepage entry without a
- * catalog widget becomes (`service@homepage:<section>/<entry>`). Its name,
- * link and description come from the import record (stores/tiles.ts); its
- * status from the check or integration instance that watches it, when it has
- * one. Small: name, a line of description, the link. Wide: the whole
- * description and where it came from.
+ * The service tile: any service, with a live stat from its integration
+ * (serviceStats.ts, by `attrs.type`) and context from the Home Graph that
+ * needs no configuration ("on jupiter · update available").
+ *
+ * What it shows, first match wins:
+ * - its target, when the graph has it: an app by ID (`sonarr:<instance id>/app`)
+ *   or type (`app:sonarr`), or a check (`check:<instance id>/<slug>`, an
+ *   Uptime Kuma monitor), which is a plain URL: HTTP status, latency, uptime.
+ *   `bind.resource` in the tile config is the target (WidgetHost);
+ * - the app its tile config's `bind.instance` publishes, else its
+ *   `bind.check`;
+ * - otherwise the tile config alone (an imported Homepage entry, a link added
+ *   by hand, a container found by its labels): name, description and link,
+ *   with the status of what it binds (model/service.ts).
+ *
+ * Glyph: name and the stat (a link glyph for a plain URL). Small: the stat
+ * with its unit, one fact, and the graph context. Wide: the stat with a
+ * sparkline and its normal band, and two facts. Name and link come from the
+ * tile config when it has them (Tile.vue applies them).
  *
  * Icons are monograms for now: the CSP forbids hot-linking a logo from
  * another origin, and the hub doesn't cache icons yet.
  */
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Tile from '../components/Tile.vue';
+import Glyph from '../components/marks/Glyph.vue';
+import Sparkline from '../components/marks/Sparkline.vue';
+import Frame from './parts/Frame.vue';
+import StateNote from './parts/StateNote.vue';
 import { glyphFor } from '../model/status';
-import { hostOf, serviceStatus } from '../model/service';
-import { ensureTileMeta, tiles } from '../stores/tiles';
+import { attr, label, outgoing, placeOf, resolve } from '../model/graph';
+import { findCheck, hostOf, serviceStatus } from '../model/service';
+import { resourceLinks } from '../model/types';
+import { useBoard } from '../stores/board';
 import { useLive } from '../stores/live';
+import { originLabel, useTile } from '../stores/tiles';
+import { checkFor, checkWords } from './read';
+import { readService, TYPE_NAMES } from './serviceStats';
+import { isWithheld } from './subject';
+import { useSubject } from './use';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
+const board = useBoard();
+const tile = useTile();
 
-const itemId = computed(() => `service@${target ?? ''}`);
-const meta = computed(() => tiles.byItem[itemId.value]);
-/** Without a record: the entry's slug ("homepage:servers/proxmoxpluto" → "proxmoxpluto"). */
+const meta = computed(() => tile.config.value);
+/** The resource with the stat: the target, else what the config binds. */
+const subjectId = computed(() => {
+  const g = live.graph.value;
+  const t = target ? resolve(g, target) : undefined;
+  if (t) return t.id;
+  const bind = meta.value?.bind;
+  if (bind?.instance) {
+    const watched = outgoing(g, `integration:${bind.instance}`, 'monitors');
+    const app = watched.find((r) => r.kind === 'app') ?? watched[0];
+    if (app) return app.id;
+  }
+  return bind?.check ? findCheck(g, bind.check)?.id : undefined;
+});
+const s = useSubject(() => subjectId.value);
+const r = computed(() => s.value.resource);
+/** Apps and checks have a stat; anything else (a container, a VM) shows its config and status. */
+const hasStat = computed(() => r.value?.kind === 'app' || r.value?.kind === 'check');
+const reading = computed(() => (r.value && hasStat.value ? readService(live.graph.value, live.metrics.value, r.value, live.now.value) : undefined));
+const isCheck = computed(() => r.value?.kind === 'check');
+const check = computed(() => checkFor(live.graph.value, live.metrics.value, r.value));
+
+/** Without a config: the entry's slug ("homepage:servers/proxmoxpluto" → "proxmoxpluto"). */
 const fallback = computed(() => (target ?? '').split('/').pop()?.replace(/^[a-z]+:/, '') || 'Service');
-const name = computed(() => meta.value?.name ?? fallback.value);
-const host = computed(() => hostOf(meta.value?.href));
-const status = computed(() => serviceStatus(live.graph.value, meta.value));
-const loading = computed(() => tiles.status === 'idle' || (tiles.status === 'loading' && !meta.value));
+const name = computed(() => meta.value?.name ?? (r.value ? label(r.value) : fallback.value));
+const href = computed(() => meta.value?.href ?? resourceLinks(r.value)[0]?.url);
+const type = computed(() => attr<string>(r.value, 'type'));
+const context = computed(() => {
+  if (!hasStat.value) return size === 'wide' ? hostOf(meta.value?.href) : '';
+  if (isCheck.value) return hostOf(attr<string>(r.value, 'target') ?? href.value) || 'check';
+  const t = type.value ? TYPE_NAMES[type.value] : undefined;
+  return t && t !== name.value ? t : '';
+});
 
-onMounted(() => void ensureTileMeta());
+const limited = computed(() => Boolean(reading.value && isWithheld(r.value, reading.value.key)));
+const value = computed(() => (limited.value ? null : (reading.value?.value ?? null)));
+const stale = computed(() => Boolean(reading.value?.series?.stale));
+const graphContext = computed(() => {
+  const parts: string[] = [];
+  const place = r.value ? placeOf(live.graph.value, r.value.id) : undefined;
+  if (place) parts.push(`on ${place}`);
+  const latest = attr<string>(r.value, 'latest_version');
+  if (attr(r.value, 'update_available') === true || (latest && latest !== attr(r.value, 'version'))) parts.push('update available');
+  return parts.join(' · ');
+});
+/** While the integration needs repair, the footer keeps what the HTTP check says. */
+const footer = computed(() => (s.value.needsRepair || limited.value ? checkWords(check.value) || graphContext.value : graphContext.value));
+const tone = computed(() => (s.value.status === 'attention' ? 'attn' : s.value.status === 'down' ? 'down' : 'neutral'));
+/** The config-only tile's status: what it binds, or the resource it shows. */
+const legacy = computed(() => (hasStat.value ? undefined : serviceStatus(live.graph.value, meta.value?.bind ?? (r.value ? { resource: r.value.id } : undefined))));
+const loading = computed(() => board.state.status === 'loading' && !meta.value);
+const facts = computed(() => (limited.value ? [] : (reading.value?.facts ?? [])));
+const origin = computed(() => originLabel(meta.value));
 </script>
 
 <template>
-  <Tile
+  <!-- Nothing with a stat: the tile config, and the status of what it binds. -->
+  <Frame
+    v-if="!hasStat"
     :size="size"
     :name="name"
-    :context="size === 'wide' ? host : ''"
-    :href="meta?.href"
-    :status="status?.status ?? 'ok'"
-    :tag="status?.word"
-    :tag-glyph="status ? (status.via === 'none' ? 'repair' : glyphFor(status.status)) : undefined"
+    :context="context"
+    :href="href"
+    :status="legacy?.status ?? 'ok'"
+    :tag="legacy?.word"
+    :tag-glyph="legacy ? (legacy.via === 'none' ? 'repair' : glyphFor(legacy.status)) : undefined"
     :loading="loading"
+    :incident="r ? (s.problem ?? s.repair) : undefined"
   >
-    <p v-if="meta?.description" :class="['lab', 'svc-desc', { full: size === 'wide' }]">{{ meta.description }}</p>
-    <p v-else-if="!meta && tiles.status !== 'loading'" class="lab">Imported from Homepage.</p>
-    <div class="tf">
-      <a v-if="meta?.href" class="svc-link" :href="meta.href" target="_blank" rel="noopener noreferrer">
-        <span>{{ host || 'Open' }}</span><span aria-hidden="true"> ↗</span>
-      </a>
-      <span v-else>No link</span>
-      <span v-if="size === 'wide' && meta?.origin" class="svc-origin">{{ meta.origin }}</span>
-    </div>
-  </Tile>
+    <template v-if="size === 'glyph'">
+      <div class="gv"><Glyph kind="link" /></div>
+      <div class="gl">{{ hostOf(href) || 'no link' }}</div>
+    </template>
+    <template v-else>
+      <p v-if="meta?.description" :class="['lab', 'svc-desc', { full: size === 'wide' }]">{{ meta.description }}</p>
+      <p v-else-if="!meta && !r" class="lab">Not set up yet. Edit the layout to name it and give it a link.</p>
+      <div class="tf">
+        <a v-if="href" class="svc-link" :href="href" target="_blank" rel="noopener noreferrer" @click.stop>
+          <span>{{ hostOf(href) || 'Open' }}</span><span aria-hidden="true"> ↗</span>
+        </a>
+        <span v-else>No link</span>
+        <span v-if="size === 'wide' && origin" class="svc-origin">{{ origin }}</span>
+      </div>
+    </template>
+  </Frame>
+
+  <Frame v-else :size="size" :name="name" :context="context" :href="href" :subject="s" :stale="stale" :as-of="reading?.series?.as_of" :loading="loading">
+    <template v-if="size === 'glyph'">
+      <div v-if="isCheck" class="gv"><Glyph kind="link" /></div>
+      <div v-else :class="['gv', { unknown: value === null }]">{{ limited ? '—' : reading?.text }}</div>
+      <div class="gl">{{ isCheck ? checkWords(check) || reading?.unit : (reading?.empty ?? reading?.unit) }}</div>
+    </template>
+
+    <template v-else>
+      <div :class="size === 'wide' ? 'split' : 'col svc-main'">
+        <div class="col">
+          <template v-if="reading?.empty && !limited">
+            <div class="v sm word">{{ reading.empty }}</div>
+            <div class="lab">{{ reading.context ?? (facts[0] ? `${facts[0].value} ${facts[0].label}` : '') }}</div>
+          </template>
+          <template v-else>
+            <div :class="['v', { unknown: value === null, sm: size !== 'wide' && (reading?.text.length ?? 0) > 5 }]">
+              {{ limited ? '—' : reading?.text }}<span class="u">{{ reading?.unit }}</span>
+            </div>
+            <div v-if="size === 'small' && facts[0] && !limited" class="lab">
+              <span class="n">{{ facts[0].value }}</span> {{ facts[0].label }}
+            </div>
+            <div v-if="size === 'wide' && facts.length" class="sub">
+              <template v-for="(f, i) in facts.slice(0, 2)" :key="f.label">{{ i ? ' · ' : '' }}<b class="n">{{ f.value }}</b> {{ f.label }}</template>
+            </div>
+          </template>
+          <StateNote :subject="s" :limited="limited" :last-known="value !== null" />
+          <div v-if="s.status === 'ok' && !limited && reading?.context && !reading.empty" class="lab svc-ctx">{{ reading.context }}</div>
+        </div>
+        <Sparkline
+          v-if="size === 'wide'"
+          :values="limited ? [] : reading?.series?.history"
+          :band="reading?.series?.band"
+          :tone="tone"
+          :height="48"
+          :stale="stale || s.needsRepair"
+          :label="`${name}, ${reading?.unit ?? 'value'}, 24 hours`"
+        />
+      </div>
+      <div class="tf">
+        <span>{{ footer || (href ? hostOf(href) : '') }}</span>
+      </div>
+    </template>
+  </Frame>
 </template>
 
 <style>
@@ -82,5 +203,13 @@ onMounted(() => void ensureTileMeta());
 .svc-origin {
   flex: none;
   color: var(--text-3);
+}
+.svc-main {
+  gap: var(--space-1);
+}
+.svc-ctx {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

@@ -1451,6 +1451,12 @@
         "action": "create"
       },
       {
+        "kind": "tiles",
+        "id": "b_ajrtwtlddnb3sgor",
+        "name": "Alpaca Homepage",
+        "action": "create"
+      },
+      {
         "kind": "instance",
         "id": "i_zsqwalwibofrelao",
         "name": "HomeAssistant",

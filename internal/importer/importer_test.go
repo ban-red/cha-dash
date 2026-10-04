@@ -348,6 +348,59 @@ func TestApplyRollsBackEverything(t *testing.T) {
 	}
 }
 
+// The board's tiles are written with its layout: a tile-only change is a
+// new revision with the same document, and an edit made in the web app is
+// put back by a re-import, as the layout is.
+func TestApplyWritesTilesWithTheLayout(t *testing.T) {
+	svc, st, _ := newService(t)
+	ctx := t.Context()
+	res, secrets := samplePlan("FAKE-token-1")
+	res.Plan.Tiles[0].Href = "javascript:alert(1)" // never stored
+	if _, err := svc.Apply(ctx, res, secrets, ""); err != nil {
+		t.Fatal(err)
+	}
+	tilesAt := func(rev int) string {
+		t.Helper()
+		var s string
+		if err := st.Reader().QueryRowContext(ctx, `SELECT tiles FROM layouts WHERE board_id = 'b_test' AND revision = ?`, rev).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	want := `{"service@x":{"name":"One","bind":{"instance":"i_one"},"origin":{"source":"test"}}}`
+	if got := tilesAt(1); got != want {
+		t.Fatalf("tiles = %s, want %s", got, want)
+	}
+
+	res, secrets = samplePlan("FAKE-token-1")
+	res.Plan.Tiles[0].Name, res.Plan.Tiles[0].Href = "Renamed", "https://one.example"
+	out, err := svc.Apply(ctx, res, secrets, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a := actions(out.Changes); a["layout:b_test"] != ActionUnchanged || a["tiles:b_test"] != ActionUpdate {
+		t.Fatalf("changes = %v", a)
+	}
+	if got := tilesAt(2); !strings.Contains(got, `"name":"Renamed","href":"https://one.example"`) {
+		t.Fatalf("revision 2 tiles = %s", got)
+	}
+
+	// The owner renames the tile in the web app (boards API); re-importing
+	// restores the import's tiles as a new revision.
+	if _, err := st.Writer().ExecContext(ctx, `INSERT INTO layouts (board_id, revision, format_version, document, tiles, created_at)
+		SELECT board_id, 3, format_version, document, '{"service@x":{"name":"Mine"}}', 1 FROM layouts WHERE board_id = 'b_test' AND revision = 2`); err != nil {
+		t.Fatal(err)
+	}
+	res, secrets = samplePlan("FAKE-token-1")
+	res.Plan.Tiles[0].Name, res.Plan.Tiles[0].Href = "Renamed", "https://one.example"
+	if err := svc.Diff(ctx, res, secrets); err != nil {
+		t.Fatal(err)
+	}
+	if a := actions(res.Plan.Changes); a["tiles:b_test"] != ActionUpdate || a["layout:b_test"] != ActionUnchanged {
+		t.Fatalf("diff after a web edit = %v", a)
+	}
+}
+
 func TestApplyLayoutRevisionsAndSlug(t *testing.T) {
 	svc, st, _ := newService(t)
 	ctx := t.Context()

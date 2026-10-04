@@ -4,7 +4,7 @@ Each `<id>.yaml` here is a Tier 1 integration: a YAML spec the engine in [`inter
 
 Every spec publishes one resource, `<id>:<instance id>/app`, kind `app`, named after the instance, state `running`, with `attrs.type` = the spec's ID, a link to the configured URL, and `integration:<instance id> monitors` it. Its metrics are series on that resource. All fixtures under `testdata/<id>/` are **synthetic**, written from the upstream's API docs or source; each folder's README says which.
 
-The engine adds the shared behaviour: a 401 or 403 is an auth Repair on the secret, a 404 or 410 is an `api_changed` Repair naming the detected version, unless one of the spec's repairs already holds on what was read before the 404 (that's how an old release without an endpoint gets `unsupported_version`). Secrets in query strings (Tautulli) are allowed, and never appear in errors or logs.
+The engine adds the shared behaviour: a 401 or 403 is an auth Repair on the secret, a 404 or 410 is an `api_changed` Repair naming the detected version, unless one of the spec's repairs already holds on what was read before the 404 (that's how an old release without an endpoint gets `unsupported_version`). Secrets in query strings (Tautulli, SABnzbd) are allowed, and never appear in errors or logs.
 
 | Spec | Config (secret) | Auth | Requests | Version | Metrics | Attrs | Repairs |
 |---|---|---|---|---|---|---|---|
@@ -14,6 +14,7 @@ The engine adds the shared behaviour: a 401 or 403 is an auth Repair on the secr
 | [`mealie`](mealie.yaml) | `url` (`token`) | `Authorization: Bearer` | `/api/app/about` (public), `/api/households/statistics` | `about.version`, without a `v` | `recipes` | `version`, `recipes`, `categories`, `tags`, `tools` | 1.x (and 0.x): unsupported |
 | [`linkding`](linkding.yaml) | `url` (`token`) | `Authorization: Token` | `/health` (public), `/api/bookmarks/`, `/api/bookmarks/archived/`, `/api/tags/` (each `limit=1`) | `/health`'s `version` | `bookmarks` | `version`, `archived`, `tags` | none of its own |
 | [`karakeep`](karakeep.yaml) | `url` (`api_key`) | `Authorization: Bearer` | `/api/version` (public, optional), `/api/v1/users/me/stats` | `/api/version`, unless `unknown` | `bookmarks` | `version`, `favorites`, `archived`, `tags`, `lists`, `highlights` | before 0.23: unsupported |
+| [`sabnzbd`](sabnzbd.yaml) | `url` (`api_key`) | `apikey` query parameter | `/api?mode=version` (public, optional), `/api?mode=queue&limit=1` | `mode=version`, else the queue's `version` | `dl.mbps`, `queue`, `left.gib` | `version`, `status`, `paused`, `timeleft`, `speedlimit_pct`, `disk_free_gib` | an error inside a 200 (`auth` when it's the key, else `api_changed`); before 3.0: unsupported |
 
 The config shapes are the Homepage importer's ([07 · v0.1](../docs/plan/07-v0.1.md#instance-config-keys)): `url`, `tls` and one secret.
 
@@ -28,6 +29,14 @@ The config shapes are the Homepage importer's ([07 · v0.1](../docs/plan/07-v0.1
 **Linkding.** Counts the token's user's bookmarks: `bookmarks` is unarchived plus archived (Karakeep's count includes archived ones too), with `archived` and `tags` as attrs. Lists are paginated, so each request asks for one result and reads `count`. The Demo Home has no Linkding series (it's only checked there); `bookmarks` is Karakeep's key. Polls every 5 minutes.
 
 **Karakeep.** `bookmarks` is the key's user's `numBookmarks` (the Demo Home's key and scale). `/api/version` is optional because older releases don't have it; without it the version is unknown and the unsupported-version repair can't fire, so a pre-0.23 server shows `api_changed` instead. Polls every 5 minutes.
+
+**SABnzbd.** The Usenet side of the Download queue tile, beside qBittorrent; capability `downloads.queue`. Polls every 30 s, like qBittorrent. `url` includes SABnzbd's URL base (`/sabnzbd` by default; SABnzbd 3+ also answers at the root). `limit=1` reads the queue's totals without its jobs: job names can be personal, and the tile shows totals.
+- `dl.mbps` is `kbpersec` (KiB/s, a string) in Mb/s to 0.1, qBittorrent's key and scale (0–1000, band 0–60).
+- `queue` is `noofslots_total`, the jobs in the queue (the *arr tiles' key).
+- `left.gib` is `mbleft` (MiB) in GiB to 0.1 (not in the Demo Home).
+- **Paused:** the state is `paused` (else `running`) and `attrs.paused` is `true`; health stays `ok`, because a pause is usually the owner's. The Workbench draws that as "off, expected".
+- `attrs.speedlimit_pct` is the speed limit as a percentage of the line speed, left out without one; `attrs.disk_free_gib` is the free space on the download folder (`diskspace1`).
+- A wrong key is a 403 on recent releases (an auth Repair from the engine) and an error inside a 200 on older ones (the spec's own `auth` repair). Use the API key, not the NZB key: the NZB key can only add jobs.
 
 ## Limits
 

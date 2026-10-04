@@ -8,27 +8,31 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 
 | Package | Job |
 |---|---|
-| `cmd/chadash` | Entry point: `serve`, `healthcheck`, `version`. Wires everything together in `newApp` |
+| `cmd/chadash` | Entry point: `serve`, `healthcheck`, `version`, `export`, `import`. Wires everything together in `newApp` |
 | `internal/server` | HTTP routes, the middleware chain, graceful `Serve` |
-| `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, attempt limiting |
-| `internal/boards` | Boards and their layouts: optimistic revisions, history, the boards API |
+| `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, attempt limiting. `Identify` reads a session without renewing it |
+| `internal/boards` | Boards, their layouts and tile config (one revision carries both): optimistic revisions, history, label-discovery dismissals, the boards API |
+| `internal/correlate` | Identity across sources: `same_as` links to a primary, cross-source relations, causes across instances, merge suggestions and decisions. Design in its [README](correlate/README.md) |
+| `internal/export` | YAML export and import of a hub with a field-level diff; secrets as placeholders or a passphrase-sealed bundle. Format in its [README](export/README.md) |
+| `internal/onboarding` | The first-run wizard's state and discovery (the compose sidecar, and only hosts the owner names) |
 | `internal/importer` | The shared importer pipeline: the plan shape, layout documents, and a transactional, idempotent apply |
 | `internal/importer/homepage` | The Homepage importer: parses `services.yaml`, `docker.yaml` and `settings.yaml` into a plan; the import API. Mapping table in its [README](importer/homepage/README.md) |
-| `internal/integration` | The contract every integration implements: `Integration`, `Instance`, `Manifest` (config JSON Schema), `TestResult`, the facts and inbox shapes, error classes, the registry |
+| `internal/integration` | The contract every integration implements: `Integration`, `Instance`, `Manifest` (config JSON Schema), `TestResult`, the facts and inbox shapes, error classes, the registry, recipes, the optional `Authorizer` |
 | `internal/integration/integrationtest` | A harness for contract tests: an integration on the runtime's real HTTP clients and emitter, publishing into a private graph |
 | `internal/runtime` | Runs instances: a coordinator each, the per-instance HTTP client (TLS policy, session cache), secrets from the vault, the fact emitter, the integrations API |
 | `internal/spec` | The Tier 1 spec engine: YAML specs with gjson extraction and expr-lang expressions |
-| `integrations/<id>` | Tier 0 integrations, one folder each; `checks` is the first. Linked in by `cmd/chadash/integrations.go` |
+| `integrations/<id>` | Tier 0 integrations, one folder each, with a `recipe.md` for the least-privilege credential. Linked in by `cmd/chadash/integrations.go` |
 | `specs` | The bundled Tier 1 specs (`<id>.yaml`), embedded and registered at init |
 | `internal/demo` | Demo mode: runs the Demo Home simulator (`sim/`) and maps it onto the topics |
 | `internal/topics` | The topic set (`graph`, `metrics`, `inbox`), their document shapes and routing |
 | `internal/realtime` | WebSocket gateway, protocol v1 (`hello` / `sub` / `snap` / `diff` / `ping`); `GraphSource`, `DocSource`, `Mux` |
 | `internal/graph` | Home Graph v0: resources, relations, version, watchers |
-| `internal/livedoc` | Live JSON documents for topics that aren't the graph: values, keyed collections, watchers |
+| `internal/livedoc` | Live JSON documents for topics that aren't the graph: values, keyed collections, watchers; `Tx.Item` reads an item inside an update, so read-modify-write is atomic |
 | `internal/jsonpatch` | The RFC 6902 subset used on the wire, plus `Compact` for coalescing |
-| `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise |
+| `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise. `WithInline` attaches a per-request first-paint snapshot, embedded only in `index.html` |
+| `internal/firstpaint` | Builds the snapshot inlined into the first paint: user, board (layout and tiles), graph, metrics for its resources, open incidents. HTML-escaped, capped at 512 KiB |
 | `internal/vault` | Envelope-encrypted secrets |
-| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations |
+| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions |
 | `internal/httpx` | Client IP and scheme behind trusted proxies, JSON I/O, shared middleware |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
@@ -97,13 +101,19 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `DELETE /api/auth/passkeys/{id}` | owner | `204`. `404`; `409 last_sign_in_method` if it's the only way left to sign in |
 | `GET /api/version` | session | `{"version","commit"}` |
 | `GET /api/boards` | owner | `{"boards":[{"id","name"}]}`. The first call creates a `Home` board |
-| `GET /api/boards/{id}/layout` | owner | `{"revision","format_version","layout"}`. A board never saved gives `{"revision":0,"format_version":0,"layout":null}`; the SPA then creates the first layout. `404` unknown board |
-| `PUT /api/boards/{id}/layout` | owner | `{"revision","format_version","layout"}`, where `revision` is the one the edit started from → `200 {"revision": n+1}`. Stale → `409 {"error":{"code":"conflict",…},"revision": current}`. `422` if `revision` < 0, `format_version` < 1 or `layout` isn't an object. Up to 1 MiB |
+| `GET /api/boards/{id}/layout` | owner | `{"revision","format_version","layout","tiles"}`. A board never saved gives `{"revision":0,"format_version":0,"layout":null,"tiles":{}}`; the SPA then creates the first layout. `tiles` is per layout item id: `name`, `icon`, `href` (http(s) only), `description`, `chromeless`, `bind {instance, check, resource, sources}`, `options`, `origin` (`internal/boards/tiles.go`). `404` unknown board |
+| `PUT /api/boards/{id}/layout` | owner | `{"revision","format_version","layout","tiles"?}`, where `revision` is the one the edit started from → `200 {"revision": n+1}`. Missing or `null` `tiles` carry the latest over; `{}` clears them. Stale → `409 {"error":{"code":"conflict",…},"revision": current}`. `422` if `revision` < 0, `format_version` < 1, `layout` isn't an object, or a tile is invalid. Up to 1 MiB |
+| `GET /api/boards/{id}/discovery` | owner | `{"dismissed":[resource id]}`: label-discovered services the owner said no to |
+| `POST /api/boards/{id}/discovery/dismiss` | owner | `{"resources":[…]}` (1–200) → `{"dismissed":[…]}`. Idempotent; each board keeps its newest 1000 |
 | `POST /api/import/homepage?dry_run=1` | owner | `{"services_yaml","docker_yaml","settings_yaml"}` (only `services_yaml` is required) → `200 {"plan","hints","unmapped"}`; the plan's `changes` say what applying would create, update or leave alone. Writes nothing. `422` for invalid YAML (the message names the file and line, never the text). Up to 1 MiB |
 | `POST /api/import/homepage` | owner | The same body → `200 {"board_id","instance_ids","changes"}`, applied in one transaction. Re-importing the same files changes nothing |
-| `GET /api/import/homepage` | owner | `{"record"}`: the last import's tiles, links, discovery entries and instance ids. `404` before the first import |
-| `GET /api/integrations/catalog` | owner | `[{"id","name","icon","version","tier","capabilities","config_schema"}]`, by id. `config_schema` is JSON Schema; secret fields are top-level strings with `"writeOnly": true` |
-| `GET /api/integrations/instances` | owner | `[instance]`, by integration and name. An instance is `{"id","integration","name","enabled","status","version","last_ok","last_error","last_error_code","last_error_at","warnings","config","secrets","created_at","updated_at"}`: `status` is `ok`, `degraded`, `repair`, `error` or `disabled`; `last_error` is the last failure's message (or `null`), with its stable code and time beside it; `warnings` are `[{"code","severity","message"}]`; `config` never holds a secret or a `${secret:…}` reference; `secrets` is `{"<field>":{"set":bool}}` for every write-only field |
+| `GET /api/import/homepage` | owner | `{"record"}`: the last import's links, discovery entries and instance ids (its tiles live in the board). `404` before the first import |
+| `GET /api/export` | owner | The hub as YAML (`kind: Home`), as an attachment: boards with layouts and tiles, instances (secrets as `!secret` placeholders), `import/*` settings. `409 secret_in_plain_text` if a stored secret appears in a plain value |
+| `POST /api/export` | owner | `{"passphrase"}` (12+ characters) → the same with a sealed `secrets_bundle` (scrypt + XChaCha20-Poly1305). `422 weak_passphrase` |
+| `POST /api/import/chadash?dry_run=1` | owner | `{"yaml","passphrase"?}` → `{"plan"}`: per object create/update/unchanged/stale with field-level changes, `secrets_needed`, the bundle's state. Never a secret value. `422 invalid_export`, `wrong_passphrase`, `bad_bundle`; `413` over 6 MiB |
+| `POST /api/import/chadash` | owner | The same body → `{"plan","changed","board_ids","instance_ids"}`, in one transaction. Nothing is deleted; re-importing an export of the same hub changes nothing |
+| `GET /api/integrations/catalog` | owner | `[{"id","name","icon","version","tier","capabilities","config_schema","recipe"?}]`, by id. `config_schema` is JSON Schema; secret fields are top-level strings with `"writeOnly": true`, and `"x-chadash-authorize": true` marks one a sign-in flow can fill. `recipe` is the least-privilege credential: `{title, summary, access: read-only\|scoped\|full\|none, params, steps, notes, fills, grants}`; parameters have anchored patterns, so a generated command can't carry a shell metacharacter |
+| `GET /api/integrations/instances` | owner | `[instance]`, by integration and name. An instance is `{"id","integration","name","enabled","status","version","last_ok","last_error","last_error_code","last_error_at","warnings","config","secrets","created_at","updated_at"}`: `status` is `ok`, `degraded`, `repair`, `error` or `disabled` (an instance missing only a secret is `repair`, with a Repair naming the field); `last_error` is the last failure's message (or `null`), with its stable code and time beside it; `warnings` are `[{"code","severity","message"}]`; `config` never holds a secret or a `${secret:…}` reference; `secrets` is `{"<field>":{"set":bool}}` for every write-only field |
 | `POST /api/integrations/instances` | owner | `{"integration","name","config","secrets","enabled"?}` → `201 {"id"}`. `422 invalid` with `"fields":[{"path","message"}]` (JSON Pointers into the config), `422 unknown_integration`, `409 conflict` for a name the integration already has |
 | `GET /api/integrations/instances/{id}` | owner | One instance. `404` |
 | `PUT /api/integrations/instances/{id}` | owner | `{"name"?,"config"?,"secrets"?,"enabled"?}` → `200` the instance. `config` replaces the whole non-secret config (send `tls.pin` back to keep a TOFU pin); in `secrets` a string sets a field, `null` or `""` clears it, and fields left out keep their value. Restarts the instance |
@@ -113,11 +123,17 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `POST /api/integrations/authorize/{integration}` | owner | Start a sign-in flow for an integration with an `Authorizer` (Plex's PIN) → `200 {"id","code","url","expires_at","interval_s"}`; 422 `no_sign_in` without one. Flows live in memory (at most 32, 30 minutes each) and always verify TLS |
 | `GET /api/integrations/authorize/{integration}/{id}` | owner | `{"status":"pending"\|"expired"\|"failed"\|"done"}`; `done` carries `secrets` (write-only fields only) exactly once, then the flow is forgotten |
 | `GET /api/integrations/instances/{id}/diagnostics` | owner | A bundle for bug reports, as an attachment: hub and manifest versions, the instance (secrets as `{"set"}`), schedule, TLS mode and pin, fact counts and the last 20 attempts. No secret values |
+| `GET /api/correlate/links` | owner | Every published cross-source link with its rule, confidence (`exact`, `strong`, `confirmed`) and evidence |
+| `GET /api/correlate/suggestions` | owner | Weak matches awaiting the owner; they're also `class: "suggestion"` incidents on the `inbox` topic |
+| `POST /api/correlate/suggestions/{id}/confirm`, `…/reject` | owner | Answer one; the decision persists and the incident resolves |
+| `GET`, `POST /api/correlate/decisions`, `DELETE …/{id}` | owner | List, make (merge or split any pair) or undo decisions. They go when either instance is deleted |
+| `GET`, `PUT /api/onboarding` | owner | The wizard's state; the hub computes `show` (a new hub with no instances, never in demo mode) |
+| `POST /api/onboarding/discover` | owner | `{"sidecar"?,"docker"?,"hosts"?}`: probes the compose sidecar, Docker endpoints the owner ticked, and named hosts (at most 8 each, a 20 s budget, GET only, no ranges) |
 | `GET /api/demo` | owner | Demo mode only: `{"enabled":true,"now":RFC 3339,"seed":n}`. `now` is the simulated time |
 | `POST /api/demo/incidents/{id}/fix` | owner | Demo mode only: presses the incident's suggested action → `202 {"id"}`. `404` unknown incident, `409` not open yet, already fixing or resolved. Progress arrives on the `inbox` topic |
 | `GET /ws` | session | WebSocket; see [`realtime/protocol.go`](realtime/protocol.go) and the topics below |
 | `/api/*` (other) | — | JSON `404`; so are the demo routes outside demo mode |
-| `GET /…` | none | The web app. Unknown paths get `index.html` (history-mode routing) |
+| `GET /…` | none | The web app. Unknown paths get `index.html` (history-mode routing). For an owner session, `index.html` carries the first-paint snapshot as `<script type="application/json" id="chadash-snapshot">` (non-executable, so the CSP holds), served `no-store` with `Vary: Cookie`; everyone else gets the generic shell (`no-cache`, ETag) |
 
 Errors are `{"error":{"code","message"}}`. Attempts are limited per client IP:
 10, then one every 6 s, answered with `429` and `Retry-After`. Password
@@ -146,7 +162,7 @@ paths start with `/<topic>/`.
 | `graph` | `{"resources":{id: resource},"relations":{key: relation}}` | Whole resources and relations; see `internal/graph` |
 | `graph:kind/<kind>[,<kind>…]` | The same, filtered to those kinds | As above |
 | `metrics` | `{"series":{"<resource id>#<metric key>": series}}` | Each sample tick, the fields of each series that changed: `/series/<key>/value`, `/as_of`, and `/stale` when it flips. Every 30 minutes, when the history gains a point, `/history` whole (or the whole series, when that's smaller). Whole series when one appears or disappears |
-| `inbox` | `{"now": RFC 3339, "incidents":{id: incident}}` | The fields of an incident that changed, or the whole incident when it appears or disappears; `/now` each tick |
+| `inbox` | `{"now": RFC 3339, "incidents":{id: incident}}`; an incident's `class` is `problem`, `repair` or `suggestion` (the correlator's "merge?") | The fields of an incident that changed, or the whole incident when it appears or disappears; `/now` each tick |
 
 A series is exactly a `series` entry of the simulator's snapshots (`unit`,
 `min`, `max`, `band`, `warn`, `crit`, `value`, `as_of`, `stale`, `history`), and
@@ -393,7 +409,8 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - Revoking live WebSockets when a session is logged out or expires. A socket stays open until it reconnects.
 - Writing to `audit`; nothing records auth events yet.
 - Vault key rotation and a keyed-hash fingerprint for spotting reused secrets. The importer finds reuse within one import with its own per-import HMAC key; reuse against secrets already in the vault needs the vault's fingerprint.
-- Importer follow-ups: a `service` widget in the web catalog for the generic tiles, a tile-config home for the record's tile metadata, turning `runs_on` links and discovery entries into graph relations and Docker label discovery (wave 5), and the Inbox items for hints.
-- Graph persistence (the last-known cache) and identity resolution (the correlator).
-- Replaying diffs on resume; the inline snapshot embedded in `index.html`.
+- Importer follow-ups: turning the record's `runs_on` links into confirmed correlation decisions; mapping `homepage.widget.type` of a label-discovered container to a catalog widget.
+- Graph persistence (the last-known cache). Correlator follow-ups are in its [README](correlate/README.md): DNS ↔ IP matching, the nginx-proxy hop, MACs, cross-source `backed_up_by`.
+- Export follow-ups: correlation decisions (left out of v0.1 files), scheduled exports.
+- Replaying diffs on resume. Response compression (the personalised `index.html` is ~145 kB uncompressed on the Demo Home).
 - An SSE fallback for realtime.

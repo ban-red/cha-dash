@@ -1,6 +1,8 @@
 // Command chadash is the Cha Dash hub.
 //
 //	chadash serve         run the hub
+//	chadash export        write the hub's configuration as a Home file (secrets as placeholders, or encrypted)
+//	chadash import        apply a Home file, or preview it with --dry-run
 //	chadash healthcheck   exit 0 if the local hub answers /healthz (for Docker HEALTHCHECK)
 //	chadash version       print the build version
 package main
@@ -27,6 +29,10 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 	switch args[0] {
 	case "serve":
 		return serve(ctx, args[1:], getenv, stderr)
+	case "export":
+		return exportCmd(ctx, args[1:], getenv, stdout, stderr)
+	case "import":
+		return importCmd(ctx, args[1:], getenv, stdout, stderr)
 	case "healthcheck":
 		return healthcheck(ctx, args[1:], getenv, stderr)
 	case "version", "--version", "-version":
@@ -47,6 +53,9 @@ func usage(w io.Writer) {
 
 Commands:
   serve         run the hub
+  export        write boards, instances and settings as a Home file (YAML);
+                secrets as placeholders, or encrypted with --with-secrets
+  import        apply a Home file; --dry-run shows the changes first
   healthcheck   check the local hub's /healthz; exit 0 if healthy, 1 if not
   version       print the build version
 

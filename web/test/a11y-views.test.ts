@@ -102,7 +102,7 @@ async function settle(): Promise<void> {
 }
 
 async function until(cond: () => boolean, what: string): Promise<void> {
-  for (let i = 0; i < 200 && !cond(); i++) {
+  for (let i = 0; i < 1000 && !cond(); i++) {
     await settle();
     await new Promise((r) => setTimeout(r, 5));
   }
@@ -286,6 +286,7 @@ describe('Settings', () => {
     '/settings/integrations/i1?reason=auth',
     '/settings/import',
     '/settings/security',
+    '/settings/backup',
   ]) {
     it(path, async () => {
       hubApi();

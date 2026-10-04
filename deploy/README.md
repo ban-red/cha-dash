@@ -144,6 +144,63 @@ services:
     profiles: [docker]   # only starts with `docker compose --profile docker up -d`
 ```
 
+### Docker on another host
+
+Run the same read-only proxy there, published on a port and limited to the hub's address. Settings → Integrations → Docker generates this with your names filled in; replace `192.0.2.10` with the address the Docker host sees Cha Dash connect from.
+
+```yaml
+# compose.yaml on the other Docker host
+services:
+  socket-proxy:
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    restart: unless-stopped
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "2375:2375"
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=192.0.2.10
+      - -allowHEAD=/(v1\.[0-9]+/)?_ping
+      - -allowGET=/(v1\.[0-9]+/)?(_ping|version|info|events)
+      - -allowGET=/(v1\.[0-9]+/)?containers/json
+      - -allowGET=/(v1\.[0-9]+/)?containers/[a-zA-Z0-9][a-zA-Z0-9_.-]*/(json|stats)
+      - -allowGET=/(v1\.[0-9]+/)?images/json
+      - -allowGET=/(v1\.[0-9]+/)?images/[a-zA-Z0-9][a-zA-Z0-9_.:/@-]*/json
+      - -watchdoginterval=3600
+      - -stoponwatchdog
+      - -shutdowngracetime=5
+```
+
+Then add Docker with the endpoint `tcp://<that host>:2375`. Test connection says which kind of endpoint it found, with GET requests only: a filtered proxy like this one, a broad proxy that also hands out containers' environment, logs and files, or the raw Docker API (root on that host).
+
+## Least-privilege credentials
+
+Cha Dash only reads in v0.1, so every credential it holds should only read. Each integration's form (Settings → Integrations, or the first-run wizard) shows a **recipe** beside the fields: the steps to make a credential with exactly the access Cha Dash needs, with commands to copy, filled in with the names you choose. **Test connection** then reads back what the credential can actually do, where the service can tell, and flags anything beyond reading.
+
+| Integration | The recipe's credential | Can it change anything? |
+|---|---|---|
+| Proxmox VE | A user, a role with `Datastore.Audit`, `Sys.Audit` and `VM.Audit` (plus `VM.GuestAgent.Audit` on 9.x), and a privilege-separated token, one per instance | No |
+| Proxmox Backup Server | A user and its token, both with the Audit role | No |
+| Docker | The socket proxy above | No: GET only |
+| Unraid | An API key with read access to `info`, `array`, `docker`, `share` and `me` (Unraid API 4.37.4 or later) | No |
+| OPNsense | The API key of a user with only *Reporting: Traffic* | No |
+| Frigate | A viewer account, on the authenticated port 8971 | No |
+| Traefik | Its own basic-auth user on the API, which is read-only anyway | No |
+| Immich | An API key with `server.about`, `server.statistics`, `asset.statistics` and `user.read` | No |
+| Uptime Kuma | None (a public status page), or a key that only opens `/metrics` | No |
+| Built-in checks, Weather | None (Weather's Open-Meteo is keyless) | — |
+| Home Assistant, Mealie | A token of a user who isn't an administrator | Yes: the narrowest there is can still control devices (Home Assistant) or edit recipes (Mealie) |
+| Plex, Jellyfin, Sonarr, Radarr, Prowlarr, qBittorrent, SABnzbd, Tautulli, Bazarr, Seerr, Pi-hole, AdGuard Home, Linkding, Karakeep | The only kind of key the service has, or a user of its own where that helps revoke it | Yes: none of them offers a read-only credential. Cha Dash still only reads |
+
+**Discovery stays on what you name.** The wizard's Discover step asks the socket proxy this `compose.yaml` runs (`tcp://socket-proxy:2375`) as soon as it opens. Anything else it checks only when you list it: machines by name or address, and Docker addresses you tick. It sends GET requests, without credentials, to the usual ports of the services Cha Dash knows, and never scans a network.
+
 ## Behind a reverse proxy
 
 A reverse proxy gives Cha Dash a name and HTTPS. **HTTPS matters:** browsers only allow installing the app (PWA), Web Push and passkeys on a secure origin. Everything else works over plain HTTP on your LAN.

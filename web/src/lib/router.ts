@@ -12,6 +12,7 @@
  *   /settings/integrations/new/{type}  the add form for one integration
  *   /settings/integrations/{id}        edit an instance (?field=… focuses a field)
  *   /settings/import                   import from Homepage
+ *   /settings/backup                   export this hub, import a Home file
  *   /settings/security                 passkeys
  *
  * Settings is a layer over the front page, not a separate app, so the board,
@@ -24,7 +25,7 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'import' | 'security';
+export type SettingsPane = 'integrations' | 'import' | 'backup' | 'security';
 
 export type View =
   | { name: 'front'; board?: string }
@@ -49,7 +50,7 @@ export function resolve(r: Route): View {
   }
   if (parts[0] === 'boards' && parts[1]) return { name: 'front', board: parts[1] };
   if (parts[0] !== 'settings') return { name: 'front' };
-  const pane: SettingsPane = parts[1] === 'import' || parts[1] === 'security' ? parts[1] : 'integrations';
+  const pane: SettingsPane = parts[1] === 'import' || parts[1] === 'backup' || parts[1] === 'security' ? parts[1] : 'integrations';
   if (pane !== 'integrations') return { name: 'settings', pane };
   if (parts[2] === 'new') return parts[3] ? { name: 'settings', pane, add: parts[3] } : { name: 'settings', pane, add: '' };
   return parts[2] ? { name: 'settings', pane, id: parts[2] } : { name: 'settings', pane };

@@ -15,8 +15,13 @@
 //	GET  /api/boards/{id}/layout   latest layout and revision      (owner)
 //	PUT  /api/boards/{id}/layout   save at the next revision       (owner)
 //	/api/integrations/…        catalog, instances, tests, diagnostics (owner; see runtime.Manager.Register)
+//	/api/correlate/…           identity suggestions and decisions  (owner; see correlate.Correlator.Register)
 //	POST /api/import/homepage  Homepage import; ?dry_run=1 plans only (owner)
 //	GET  /api/import/homepage  the last Homepage import's record   (owner)
+//	GET  /api/export           the hub as a Home file, secrets as placeholders (owner)
+//	POST /api/export           the same with an encrypted secrets bundle (owner)
+//	POST /api/import/chadash   import a Home file; ?dry_run=1 plans only (owner)
+//	GET|PUT /api/onboarding, POST /api/onboarding/discover   first-run wizard (owner; see onboarding)
 //	GET  /api/demo             demo clock and seed; demo mode only (owner)
 //	POST /api/demo/incidents/{id}/fix   press the suggested action (owner)
 //	GET  /ws                   realtime WebSocket                  (session)
@@ -40,11 +45,14 @@ import (
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
+	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
+	"dash.cha.sh/internal/export"
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/importer"
 	"dash.cha.sh/internal/importer/homepage"
+	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
@@ -70,6 +78,12 @@ type Deps struct {
 	// Integrations runs integration instances and serves their API. Nil
 	// leaves /api/integrations unmounted.
 	Integrations *runtime.Manager
+	// Correlator merges what several sources report as one thing and
+	// serves its suggestions. Nil leaves /api/correlate unmounted.
+	Correlator *correlate.Correlator
+	// Onboarding is the first-run wizard's state and discovery. Nil leaves
+	// /api/onboarding unmounted.
+	Onboarding *onboarding.Service
 	// FirstPaint builds the snapshot index.html carries for a signed-in
 	// owner (see firstPaint). Nil serves the generic page to everyone.
 	FirstPaint *firstpaint.Builder
@@ -100,6 +114,9 @@ func New(d Deps) (http.Handler, error) {
 	if d.Integrations != nil {
 		d.Integrations.Register(mux, owner)
 	}
+	if d.Correlator != nil {
+		d.Correlator.Register(mux, owner, d.Log)
+	}
 	if d.Vault != nil {
 		wrap := owner
 		if d.Integrations != nil {
@@ -108,9 +125,13 @@ func New(d Deps) (http.Handler, error) {
 			wrap = func(h http.Handler) http.Handler { return owner(reloadAfter(h, d.Integrations, d.Log)) }
 		}
 		homepage.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log)
+		export.Register(mux, wrap, export.New(d.Store, d.Vault, export.Options{HubVersion: buildinfo.Version}), d.Log)
 	}
 	if d.Demo != nil {
 		d.Demo.Register(mux, owner)
+	}
+	if d.Onboarding != nil {
+		d.Onboarding.Register(mux, owner)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")

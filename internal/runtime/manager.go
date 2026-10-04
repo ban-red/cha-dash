@@ -315,7 +315,12 @@ func (m *Manager) restartLocked(mi *managed) {
 		err = validateFull(mi.integ, mi.man, r.ID, full, newRedactor(secrets))
 	}
 	if err != nil {
-		mi.st.failure(m.o.Now().UTC().Truncate(time.Second), 0, integration.CodeInvalidConfig, integration.Permanent, err.Error())
+		at := m.o.Now().UTC().Truncate(time.Second)
+		if field := missingSecret(mi.man, err); field != "" {
+			m.needSecret(mi, r, field, at, log)
+			return
+		}
+		mi.st.failure(at, 0, integration.CodeInvalidConfig, integration.Permanent, err.Error())
 		log.Warn("instance can't start", "err", err)
 		return
 	}
@@ -342,7 +347,7 @@ func (m *Manager) resolve(ctx context.Context, man integration.Manifest, stored 
 	for field, name := range refsOf(stored, man) {
 		v, err := m.o.Vault.Get(ctx, name)
 		if errors.Is(err, vault.ErrNotFound) {
-			return nil, nil, fmt.Errorf("the secret for %s is missing from the vault; enter it again", field)
+			return nil, nil, &missingSecretError{field: field}
 		}
 		if err != nil {
 			return nil, nil, fmt.Errorf("reading the secret for %s: %w", field, err)
@@ -351,6 +356,72 @@ func (m *Manager) resolve(ctx context.Context, man integration.Manifest, stored 
 		values = append(values, string(v))
 	}
 	return full, values, nil
+}
+
+// codeSecretMissing is the status code of an instance that can't start
+// because a secret was never entered or its vault entry is gone.
+const codeSecretMissing = "secret_missing"
+
+// missingSecretError is a secret reference whose vault entry is gone.
+type missingSecretError struct{ field string }
+
+func (e *missingSecretError) Error() string {
+	return fmt.Sprintf("the secret for %s is missing from the vault; enter it again", e.field)
+}
+
+// missingSecret returns the secret field an instance is missing, when that
+// is the only thing stopping it: a reference whose vault entry is gone, or
+// required secret fields that were never set (a Home file or Homepage
+// import that named a secret it couldn't carry). Anything else wrong with
+// the config gives "".
+func missingSecret(man integration.Manifest, err error) string {
+	var ms *missingSecretError
+	if errors.As(err, &ms) {
+		return ms.field
+	}
+	var ve *ValidationError
+	if !errors.As(err, &ve) || len(ve.Fields) == 0 {
+		return ""
+	}
+	first := ""
+	for _, f := range ve.Fields {
+		name := strings.TrimPrefix(f.Path, "/")
+		if f.Message != "is required" || !man.IsSecret(name) {
+			return ""
+		}
+		if first == "" {
+			first = name
+		}
+	}
+	return first
+}
+
+// needSecret marks an instance that lacks a secret as needing repair and
+// raises the Repair, pointing at the field, so the Inbox's Reconnect opens
+// the form on it. Entering the secret restarts the instance, and its first
+// good sync resolves the Repair.
+func (m *Manager) needSecret(mi *managed, r row, field string, at time.Time, log *slog.Logger) {
+	msg := fmt.Sprintf("%s has no %s yet.", r.Name, fieldTitle(mi.man, field))
+	mi.st.failure(at, 0, codeSecretMissing, integration.NeedsRepair, msg)
+	c := &coordinator{name: r.Name, integ: mi.integ, man: mi.man, cfg: integration.Config{InstanceID: r.ID, Name: r.Name},
+		emit: mi.emit, st: mi.st, watch: m.o.Watch, log: log}
+	if err := c.raiseRepair(codeSecretMissing, msg, field, 0, at); err != nil {
+		log.Error("raising a repair failed", "err", err)
+	}
+	c.publishSelf()
+	log.Warn("instance needs a secret before it can start", "field", field)
+}
+
+// fieldTitle is a config field's title from the schema, else its name.
+func fieldTitle(man integration.Manifest, field string) string {
+	if man.ConfigSchema != nil {
+		for _, p := range man.ConfigSchema.Properties {
+			if p.Name == field && p.Schema != nil && p.Schema.Title != "" {
+				return p.Schema.Title
+			}
+		}
+	}
+	return field
 }
 
 // buildDeps assembles an instance's Deps. mi is nil for an unsaved config
@@ -939,8 +1010,25 @@ func (m *Manager) Get(id string) (InstanceView, error) {
 	return m.view(mi), nil
 }
 
-// Catalog lists the integrations this hub can run.
-func (m *Manager) Catalog() []integration.Manifest { return m.reg.Manifests() }
+// CatalogEntry is one integration as the catalog serves it: the manifest's
+// public fields, plus its least-privilege recipe when it has one.
+type CatalogEntry struct {
+	integration.Manifest
+	Recipe *integration.Recipe `json:"recipe,omitempty"`
+}
+
+// Catalog lists the integrations this hub can run, by ID.
+func (m *Manager) Catalog() []CatalogEntry {
+	ms := m.reg.Manifests()
+	out := make([]CatalogEntry, len(ms))
+	for i, man := range ms {
+		out[i].Manifest = man
+		if r, ok := m.reg.Recipe(man.ID); ok {
+			out[i].Recipe = &r
+		}
+	}
+	return out
+}
 
 // testTimeout bounds a connection test.
 const testTimeout = 30 * time.Second

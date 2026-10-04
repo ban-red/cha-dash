@@ -664,11 +664,39 @@ func TestReload(t *testing.T) {
 	if !v.Secrets["api_key"].Set || v.Config["api_key"] != nil {
 		t.Fatalf("imported = %+v", v)
 	}
-	// A row that doesn't validate doesn't start, and says why.
+	// A row missing only its secret doesn't start: it needs repair, and the
+	// Repair points at the field so Reconnect opens the form on it.
 	nokey, _ := e.m.Get("i_nokey")
-	if nokey.Status != StatusError || nokey.LastError == nil || *nokey.LastErrorCode != integration.CodeInvalidConfig ||
-		!strings.Contains(*nokey.LastError, "/api_key: is required") {
-		t.Fatalf("invalid imported row = %+v", nokey)
+	if nokey.Status != StatusRepair || nokey.LastError == nil || *nokey.LastErrorCode != codeSecretMissing ||
+		*nokey.LastError != "No key has no API key yet." {
+		t.Fatalf("imported row without its key = %+v", nokey)
+	}
+	in := incident(t, e.set, "i_nokey.repair")
+	if in.Scenario != "secret-missing" || in.Status != "open" || in.Facts["field"] != "api_key" || in.Facts["instance"] != "i_nokey" ||
+		in.Title != "No key needs its API key" || in.Target != "integration:i_nokey" {
+		t.Fatalf("repair = %+v", in)
+	}
+	if r, ok := e.set.Graph.Get(graph.RID("integration:i_nokey")); !ok || r.Health != integration.HealthRepair {
+		t.Fatalf("instance resource = %+v %v", r, ok)
+	}
+	// A row that doesn't validate for another reason is an error, and says why.
+	bad, _ := json.Marshal(map[string]any{"url": "not a url"}) // and no key
+	if _, err := e.st.Writer().Exec(`INSERT INTO integration_instances (id, integration, name, config, enabled, created_at, updated_at) VALUES ('i_bad', 'echo', 'Bad', ?, 1, ?, ?)`, string(bad), now, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.m.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := e.m.Get("i_bad"); v.Status != StatusError || v.LastErrorCode == nil || *v.LastErrorCode != integration.CodeInvalidConfig {
+		t.Fatalf("invalid row = %+v", v)
+	}
+	// Entering the key starts it and resolves the Repair.
+	if err := e.m.Update(t.Context(), "i_nokey", UpdateRequest{Config: map[string]any{"url": up.URL}, Secrets: map[string]any{"api_key": secret}}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the repaired instance to run", func() bool { return e.status("i_nokey") == StatusOK })
+	if in := incident(t, e.set, "i_nokey.repair"); in.Status != "resolved" {
+		t.Fatalf("repair after entering the key = %+v", in)
 	}
 	// An integration this build doesn't have yet is listed, as an error.
 	later, _ := e.m.Get("i_later")

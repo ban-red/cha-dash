@@ -42,7 +42,7 @@ The vault already seals credentials, so database encryption would protect everyt
   4. Keep SQL strings single-quoted (`DQS=0`). Don't import ncruces's deprecated `embed` package. FTS5 is an opt-in `ext/` package.
 - **For encryption**, `driver_ncruces.go` exposes `openDB(path, readOnly, key)` in place of `driverName` and `dsn`. It uses `driver.Open` with a connection hook that sets `PRAGMA hexkey` before the other pragmas, which keeps the key out of the DSN. `store.Open` takes the key, and `cmd/chadash` loads the KEK *before* the store, the reverse of today.
 - **Key management.**
-  - **Losing the key loses the whole database**, not just the credentials. Backups must carry the key, or use `chadash export`.
+  - **Losing the key loses the whole database**, not just the credentials. Backups must carry the key, or use `chadash export --with-secrets` (config plus a passphrase-sealed secrets bundle).
   - **The hub generates a key only when there is no database yet.** An encrypted database without its key refuses to start.
   - **A wrong key fails at open** with "file is not a database", leaving the file untouched. The plaintext header tells it apart from an unencrypted file.
   - **There is no rekey in place.** Turning encryption on or off, or rotating the KEK, means `VACUUM INTO` a new file and a rename, at startup.

@@ -3,6 +3,10 @@
  * A word-sized sparkline (Tufte): a gray band for the normal range, a dot on
  * the last point, no frame and no grid. Gaps (null) break the line rather
  * than pretending to be 0. A text summary goes to assistive tech.
+ *
+ * Optional: a `threshold`, drawn as a dashed line (and kept in range), and
+ * `stale`, which hatches the gap after the last known sample instead of
+ * leaving it blank.
  */
 import { computed } from 'vue';
 
@@ -13,6 +17,8 @@ const {
   height = 34,
   label,
   format = (v: number) => String(Math.round(v * 10) / 10),
+  threshold,
+  stale = false,
 } = defineProps<{
   values: readonly (number | null)[] | undefined;
   band?: readonly [number, number] | undefined;
@@ -20,6 +26,8 @@ const {
   height?: number;
   label: string;
   format?: (v: number) => string;
+  threshold?: number | undefined;
+  stale?: boolean | undefined;
 }>();
 
 const nums = computed(() => (values ?? []).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)));
@@ -28,8 +36,9 @@ const geom = computed(() => {
   const vs = values ?? [];
   const n = vs.length;
   if (n < 2 || nums.value.length === 0) return undefined;
-  let lo = Math.min(...nums.value, band ? band[0] : Infinity);
-  let hi = Math.max(...nums.value, band ? band[1] : -Infinity);
+  const thr = typeof threshold === 'number' && Number.isFinite(threshold) ? threshold : undefined;
+  let lo = Math.min(...nums.value, band ? band[0] : Infinity, thr ?? Infinity);
+  let hi = Math.max(...nums.value, band ? band[1] : -Infinity, thr ?? -Infinity);
   const pad = (hi - lo) * 0.14 || 1;
   lo -= pad;
   hi += pad;
@@ -59,7 +68,10 @@ const geom = computed(() => {
     }
   }
   const bandRect = band ? { y: y(band[1]), h: y(band[0]) - y(band[1]) } : undefined;
-  return { line: line.trim(), area: area.trim(), last, bandRect };
+  const thrY = thr !== undefined ? y(thr) : undefined;
+  // Stale: the line stops at the last sample, and the gap after it is hatched.
+  const gap = stale && last && last[0] < 99.5 ? last[0] : undefined;
+  return { line: line.trim(), area: area.trim(), last, bandRect, thrY, gap };
 });
 
 const summary = computed(() => {
@@ -69,7 +81,8 @@ const summary = computed(() => {
   const first = v[0]!;
   const trend = now > first * 1.08 ? 'rising' : now < first * 0.92 ? 'falling' : 'steady';
   const normal = band ? `, normal ${format(band[0])} to ${format(band[1])}` : '';
-  return `${label}: now ${format(now)}${normal}, ${trend}`;
+  const limit = typeof threshold === 'number' ? `, threshold ${format(threshold)}` : '';
+  return `${label}: ${stale ? 'last known' : 'now'} ${format(now)}${normal}${limit}, ${trend}`;
 });
 </script>
 
@@ -79,7 +92,25 @@ const summary = computed(() => {
       <rect v-if="geom.bandRect" class="sp-band" x="0" :y="geom.bandRect.y" width="100" :height="Math.max(0, geom.bandRect.h)" />
       <path v-if="geom.area" class="sp-area" :d="geom.area" />
       <path class="sp-line" :d="geom.line" vector-effect="non-scaling-stroke" />
+      <line v-if="geom.thrY !== undefined" class="sp-thr" x1="0" x2="100" :y1="geom.thrY" :y2="geom.thrY" vector-effect="non-scaling-stroke" />
     </svg>
+    <span v-if="geom?.gap !== undefined" class="sp-gap" :style="{ left: geom.gap + '%' }"></span>
     <span v-if="geom?.last" class="sp-dot" :style="{ left: geom.last[0] + '%', top: geom.last[1] + '%' }"></span>
   </div>
 </template>
+
+<style>
+.sp-thr {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.sp-gap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-left: var(--hairline) dashed var(--line-2);
+  background: repeating-linear-gradient(135deg, var(--hatch) 0 1.5px, transparent 1.5px 6px);
+}
+</style>

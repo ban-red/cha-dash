@@ -4,7 +4,7 @@ Imports a [Homepage](https://gethomepage.dev) configuration. `services.yaml`, `d
 
 - **`Build(Input)`** parses and maps. It's pure: no database, no network. It returns the plan and, separately, the secret values the plan moves.
 - **`importer.Service`** ([`../`](../)) compares the plan with the hub (`Diff`, for the dry run) and applies it in one transaction (`Apply`).
-- **`Register`** mounts `POST /api/import/homepage` (and `GET` for the last import's record).
+- **`Register`** mounts `POST /api/import/homepage` (and `GET` for the last import's record: the board, the instances it created, links, discovery entries and board settings; tiles live on the board).
 
 The acceptance test is [`testdata/importers/homepage/dogfood`](../../../testdata/importers/homepage/dogfood/README.md); its dry-run plan is pinned in [`expected-plan.json`](../../../testdata/importers/homepage/dogfood/expected-plan.json) (`go test ./internal/importer/homepage -run TestDogfoodImport -update` rewrites it).
 
@@ -71,11 +71,22 @@ The layout document follows `packages/layout` version 1 exactly (`version`, `col
 | `layout.<group>.style: row` + `columns: N` | `span: N` (clamped to 1–12). `columns` is the section's internal column count, as the fixture README specifies. |
 | No layout entry, or `style: column` | `span: 4`. |
 | `header: false` | No `title` (an untitled section). |
-| A group only in `settings.layout` | An empty section plus a `label_section` discovery entry: Homepage fills it from `homepage.*` container labels (Apps on the dogfood home). |
+| A group only in `settings.layout` | An empty section plus a `label_section` discovery entry: Homepage fills it from `homepage.*` container labels (Apps on the dogfood home). In Cha Dash the web app offers those containers as service tiles for it, through an Inbox discovery item (see `web/README.md`, "Label discovery"). |
 
 Tile widget types come from `web/src/model/widgets.ts`. A catalog widget that shows one app is a singleton (`plex`, `cameras`, …) or bound to its instance's app (`arr@sonarr:<instance id>/app`, so each Sonarr gets its own queue tile); a second singleton of a kind falls back to the generic tile. Everything without a catalog widget is a **generic service tile**, `service@homepage:<section id>/<entry slug>`, sizes `small` (default) and `wide`. The web catalog doesn't have `service` yet. Each tile's default size shrinks to the closest supported size that fits its section (same height first, as `closestFit` does); if none fits, the section widens to the narrowest supported size and the summary says so.
 
-Tile metadata the layout document can't carry (name, icon, href, description, options, the instance or check it shows, calendar sources) is in the plan's `tiles` and in the stored import record.
+Tile metadata the layout document can't carry (name, icon, href, description, options, the instance or check it shows, calendar sources) is in the plan's `tiles`. Apply stores it as the board's **tiles document**, on the same layout revision as the layout ([`internal/boards`](../../boards/tiles.go), served by `GET /api/boards/{id}/layout`), keyed by item id:
+
+| Plan tile | Board tile |
+|---|---|
+| `item_id` | the key |
+| `section`, `widget`, `size` | not stored: the layout already says |
+| `name`, `icon`, `description`, `chromeless`, `options` | the same (empty ones left out) |
+| `href` | the same when it's `http(s)://`; anything else is dropped, as the boards API refuses it |
+| `instance`, `check`, `sources` | `bind: {instance, check, sources}` |
+| `origin` | `origin: {source: "homepage", file, group, entry}` |
+
+The layout and the tiles are compared separately (changes `layout` and `tiles`); either one differing writes one new revision with both. A re-import puts both back, so tile edits made on the board since are replaced, like layout edits. Imports from before migration `00004` kept the tiles in the import record; the migration moved them into the board in exactly this shape, so re-importing afterwards still changes nothing.
 
 ### docker.yaml
 
@@ -140,7 +151,7 @@ Read-only PVE tokens, the Docker proxy tier, and Plex or Karakeep repairs are fo
     "ignored":   [ { "file", "key", "entries", "reason" } ],
     "summary":   { "sections", "tiles", "instances", "integrations", "checks", "links", "secrets_moved",
                    "hints", "inbox_hints", "unmapped", "discovery", "ignored", "notes" },
-    "changes":   [ { "kind": "board" | "layout" | "instance" | "secret" | "record", "id", "name",
+    "changes":   [ { "kind": "board" | "layout" | "tiles" | "instance" | "secret" | "record", "id", "name",
                      "action": "create" | "update" | "unchanged" | "stale" } ]
   },
   "hints":    [ { "code", "severity": "info" | "attention", "inbox", "message", "subjects": [ { "instance", "field", "origin" } ] } ],

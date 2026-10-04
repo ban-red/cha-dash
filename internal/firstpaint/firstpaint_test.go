@@ -82,15 +82,15 @@ func TestBoard(t *testing.T) {
 		t.Fatalf("header %+v", s)
 	}
 	// The first call creates Home, as GET /api/boards does; its layout is null until saved.
-	if len(s.Boards) != 1 || s.Board == nil || s.Board.ID != s.Boards[0].ID || s.Board.Name != "Home" || string(s.Board.Layout) != "null" || s.Board.Revision != 0 {
+	if len(s.Boards) != 1 || s.Board == nil || s.Board.ID != s.Boards[0].ID || s.Board.Name != "Home" || string(s.Board.Layout) != "null" || s.Board.Revision != 0 || string(s.Board.Tiles) != "{}" {
 		t.Fatalf("new board: %+v %+v", s.Boards, s.Board)
 	}
 	layout := json.RawMessage(`{"v":1,"sections":[]}`)
-	if _, err := b.Boards.SaveLayout(t.Context(), s.Board.ID, 0, 1, layout, ""); err != nil {
+	if _, err := b.Boards.SaveLayout(t.Context(), s.Board.ID, 0, 1, layout, nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	s = decode(t, must(b.Build(t.Context(), owner)))
-	if s.Board.Revision != 1 || s.Board.FormatVersion != 1 || string(s.Board.Layout) != string(layout) {
+	if s.Board.Revision != 1 || s.Board.FormatVersion != 1 || string(s.Board.Layout) != string(layout) || string(s.Board.Tiles) != "{}" {
 		t.Fatalf("saved board: %+v", s.Board)
 	}
 }

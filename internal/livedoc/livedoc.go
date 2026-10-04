@@ -207,6 +207,17 @@ func (tx *Tx) Put(coll, key string, v any) {
 	tx.items[itemKey{coll, key}] = b
 }
 
+// Item returns a collection item as this batch sees it: what an earlier call
+// in the batch staged, else the document's value; nil when there's none. It
+// lets one writer change another's item without losing a concurrent write:
+// the read and the write happen under the same lock.
+func (tx *Tx) Item(coll, key string) json.RawMessage {
+	if v, staged := tx.items[itemKey{coll, key}]; staged {
+		return v
+	}
+	return tx.d.colls[coll][key]
+}
+
 // Delete removes a collection item if present.
 func (tx *Tx) Delete(coll, key string) {
 	if _, ok := tx.d.colls[coll]; !ok {

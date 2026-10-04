@@ -9,8 +9,11 @@
  * - Anything else waits for the action engine, and says so.
  * - A Repair's "Reconnect" opens the integration's settings with the field
  *   that failed focused.
+ * - A suggestion's answer (Merge or Keep separate) goes to the hub's
+ *   correlator, which remembers it.
  */
 import { inject, provide, reactive, type InjectionKey } from 'vue';
+import { ApiError, api } from '../lib/api';
 import { navigate, settingsPath, type SettingsPane } from '../lib/router';
 import { prefersReducedMotion } from '../lib/motion';
 import { repairTarget } from '../model/integrations';
@@ -158,6 +161,23 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
   }
 
   /**
+   * Answer one of the correlator's suggestions: merge (or link) the two
+   * things, or keep them separate. The hub remembers the answer, and the
+   * item resolves live on the `inbox` topic. Resolves true on success.
+   */
+  async function answer(incident: Incident, verdict: 'confirm' | 'reject'): Promise<boolean> {
+    try {
+      await api(`/api/correlate/suggestions/${encodeURIComponent(incident.id)}/${verdict}`, { method: 'POST' });
+      if (verdict === 'reject') toast('Kept separate. Cha Dash won’t suggest this again.');
+      else toast(incident.scenario === 'merge-suggestion' ? 'Merged. Cha Dash shows them as one.' : 'Linked.');
+      return true;
+    } catch (err) {
+      toast(err instanceof ApiError && err.status === 404 ? 'That was already answered, or no longer applies.' : 'Couldn’t save your answer. Try again.', 'error');
+      return false;
+    }
+  }
+
+  /**
    * Show a resource (the command bar's "open"): its open incident in the
    * Inbox, else its tile on the board, else its link.
    */
@@ -202,6 +222,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     act,
     confirmed,
     cancelConfirm,
+    answer,
     reveal,
     signOut,
   };

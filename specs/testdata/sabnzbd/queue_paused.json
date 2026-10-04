@@ -1,0 +1,27 @@
+{
+  "queue": {
+    "version": "4.5.3",
+    "paused": true,
+    "pause_int": "0",
+    "paused_all": false,
+    "diskspace1": "1288.42",
+    "diskspacetotal1": "3725.29",
+    "speedlimit": "",
+    "speedlimit_abs": "",
+    "have_warnings": "0",
+    "kbpersec": "0.00",
+    "speed": "0 ",
+    "mbleft": "6655.28",
+    "mb": "9841.05",
+    "sizeleft": "6.5 GB",
+    "size": "9.6 GB",
+    "noofslots_total": 3,
+    "noofslots": 3,
+    "start": 0,
+    "limit": 1,
+    "finish": 0,
+    "status": "Paused",
+    "timeleft": "0:00:00",
+    "slots": []
+  }
+}

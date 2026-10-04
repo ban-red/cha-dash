@@ -1,0 +1,8 @@
+{
+  "error": {
+    "key": "api_seats_exceeded",
+    "message": "API seats exceeded",
+    "hint": "increase webserver.api.max_sessions"
+  },
+  "took": 0.0001
+}

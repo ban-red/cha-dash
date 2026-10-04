@@ -199,6 +199,8 @@ The **correlator** merges these reports using keys in priority order:
 
 Merged resources keep **per-source provenance**, so you can always see which source reported what.
 
+**As built in v0.1** ([`internal/correlate`](../../internal/correlate/README.md)): nothing a source published is rewritten. One resource of each identity is the **primary** (Docker for a container, the built-in checks for a check, then Proxmox and Unraid), and the others point at it with `same_as`. "One of each thing" is every resource without an outgoing `same_as`; provenance is the primary plus its members, each keeping its own `source`. Exact and strong matches are published; weak ones (a shared name) become Inbox suggestions, and the owner's answer is kept.
+
 ### Example: a slice of the dogfood home
 
 ```
@@ -400,7 +402,7 @@ Community specs install from the UI pinned to a hash. A spec can be **promoted t
 
 **As built in M0** (`internal/realtime`): `diff` frames carry the subscription `id` so one socket can multiplex; `unsub`, `error` and client `ping`/`pong` exist; a client that falls behind gets a `resync` snapshot instead of a backlog. `resume` is accepted but ignored for now, since every `sub` already starts with a snapshot. Topics: `graph` (and `graph:kind/<kind>`), `metrics` and `inbox`. Diffs go one level into a changed member (`/series/<key>/value`, `/incidents/<id>/status`), and optional fields arrive as `add`/`remove`, so a tab receives about 47 kB a minute for the whole demo home instead of 128 kB.
 
-- **Inline snapshot.** `index.html` embeds the last-known graph snapshot for the current board. The page renders **instantly with real values** and then goes live. No spinners.
+- **Inline snapshot.** `index.html` embeds the last-known graph snapshot for the current board. The page renders **instantly with real values** and then goes live. No spinners. **As built** (`internal/firstpaint`): a non-executable JSON block for owner sessions only, `no-store` with `Vary: Cookie`, at most 512 KiB (the Demo Home peaks at ~145 kB). The socket's snapshots then replace it without a visible change.
 - **Service worker** caches the shell and the last snapshot. If the hub is unreachable, you see last-known values under a clear banner.
 - **Server-side coalescing** keeps upstream noise to a few diffs per second.
 - **Reverse-proxy snippets** for Traefik (first, since the dogfood home runs it), nginx, Caddy and Cloudflare Tunnel.
@@ -499,7 +501,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Metrics | Tiered rollups: raw 2h → 1m for 48h → 15m for 14d → 1h for 90d → 1d for 2y. Writes are batched | Per tier |
 
 - **No embedded TSDB.** Cha Dash exposes `/metrics` and can read Prometheus or VictoriaMetrics as a source.
-- **Self-backup:** `chadash export` writes one encrypted archive (config, vault, layouts, audit). It can run on a schedule.
+- **Self-backup:** `chadash export` writes the hub as YAML (boards with layouts and tiles, integration instances, import records), with secrets as placeholders; `--with-secrets` adds a passphrase-sealed bundle (scrypt + XChaCha20-Poly1305), so a backup restores without the vault key. Accounts, passkeys, sessions and audit never leave. `chadash import` shows a field-level diff first and never deletes. Scheduled exports come later. Format: [`internal/export`](../../internal/export/README.md).
 - **Stack files are not in this database.** They live in git on each host (see Stacks).
 
 ---
@@ -619,6 +621,10 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Node | ≤ 40 MB binary · ≤ 40 MB RSS idle ([ADR-0016](../adr/0016-hardware-floor.md)) |
 | First meaningful paint on LAN | ≤ 300 ms, with real last-known values |
 | JS bundle (initial) | ≤ 150 KB gzipped |
+| `GET /` with the inline snapshot, hub side | median ≤ 10 ms, p95 ≤ 50 ms (`internal/server/budget_test.go`) |
+| Inline snapshot | ≤ 200 kB on the Demo Home |
+| Realtime diffs | ≤ 55 kB per tab per simulated minute on the Demo Home (`internal/demo/budget_test.go`; ~47 kB today) |
+| Accessibility | WCAG 2.2 AA: axe over every view and widget state in CI, and every token text pair ≥ 4.5:1 in all six themes |
 | Interaction | 60 fps drag and resize on a mid-range phone; input-to-feedback ≤ 50 ms |
 | Upstream politeness | Poll only watched resources; per-integration rate budgets; one session per upstream |
 

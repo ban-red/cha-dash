@@ -1,25 +1,32 @@
 <script setup lang="ts">
 /**
  * The Inbox, grouped by status: open (problems that need you, down first,
- * then integration repairs), being fixed (a fix is running, or it's
- * recovering by itself), and resolved. Real and demo hubs fill it the same
- * way, from the `inbox` topic. A glass panel on desktop; a bottom sheet on a
+ * then integration repairs), discovered (services found by their labels,
+ * offered as tiles: stores/discovery.ts), suggestions (the hub's correlator
+ * asking whether two things are one), being fixed (a fix is running, or
+ * it's recovering by itself), and resolved. Real and demo hubs fill it the
+ * same way, from the `inbox` topic. A glass panel on desktop; a bottom sheet on a
  * phone that a flick dismisses. An item that resolves while you watch shows
  * its done row in place for a moment, then moves to Resolved.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
 import Glyph from './marks/Glyph.vue';
+import DiscoveryItem from './DiscoveryItem.vue';
 import IncidentItem from './IncidentItem.vue';
+import SuggestionItem from './SuggestionItem.vue';
 import { hhmm } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
-import { groupInbox, incidents, type InboxGroups } from '../model/inbox';
+import { groupInbox, incidents, isSuggestion, type InboxGroups } from '../model/inbox';
+import { useDiscovery } from '../stores/discovery';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 import type { Incident } from '../model/types';
 
 const live = useLive();
 const ui = useUi();
+const discovery = useDiscovery();
+const discovered = computed(() => discovery.suggestions.value.length > 0);
 const reduced = useReducedMotion();
 const panel = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 const expanded = reactive(new Set<string>());
@@ -55,7 +62,9 @@ const open = computed(() => inGroup('open'));
 const fixing = computed(() => inGroup('fixing'));
 const openNow = (list: Incident[]) => list.filter((i) => i.status === 'open').length;
 const done = computed(() => groups.value.resolved.filter((i) => !isLingering(i.id)));
-const openCount = computed(() => openNow(open.value));
+const suggestions = computed(() => groups.value.suggestions);
+/** Open items plus the discovery question and the suggestions, which need an answer too. */
+const openCount = computed(() => openNow(open.value) + (discovered.value ? 1 : 0) + suggestions.value.length);
 
 // Keep a just-resolved item in place briefly, expanded on its done row.
 watch(
@@ -64,7 +73,8 @@ watch(
     if (!before) return;
     const was = new Map(before.split('|').map((s) => s.split(':') as [string, string]));
     for (const i of all.value) {
-      if (i.status === 'resolved' && was.get(i.id) === 'open') {
+      // An answered suggestion says so in a toast and moves to Resolved.
+      if (i.status === 'resolved' && was.get(i.id) === 'open' && !isSuggestion(i)) {
         lingering.set(i.id, Date.now());
         if (!placed.has(i.id)) placed.set(i.id, 'open');
         expanded.add(i.id);
@@ -193,12 +203,22 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
             <IncidentItem v-for="i in open" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
+          <template v-if="discovered">
+            <h3 class="ib-grp">Discovered</h3>
+            <DiscoveryItem />
+          </template>
+
+          <template v-if="suggestions.length">
+            <h3 class="ib-grp">Suggestions · {{ suggestions.length }}</h3>
+            <SuggestionItem v-for="i in suggestions" :key="i.id" :incident="i" />
+          </template>
+
           <template v-if="fixing.length">
             <h3 class="ib-grp">Being fixed · {{ openNow(fixing) }}</h3>
             <IncidentItem v-for="i in fixing" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
-          <div v-if="!open.length && !fixing.length" class="ib-empty">
+          <div v-if="!open.length && !fixing.length && !discovered && !suggestions.length" class="ib-empty">
             <Glyph kind="check" />
             <div class="t">Nothing needs you</div>
             <div class="m">Every integration is reading normally.{{ done[0] ? ` The last fix was “${done[0].title}”, at ${hhmm(done[0].resolved_at)}.` : '' }}</div>

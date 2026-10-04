@@ -28,7 +28,8 @@ type Plan struct {
 	Source string `json:"source"`
 	Board  Board  `json:"board"`
 	// Tiles describe the board's items: what each one shows and where it
-	// came from. The layout document only carries ids, types and sizes.
+	// came from. The layout document only carries ids, types and sizes;
+	// Apply stores the rest as the board's tiles (TileConfigs).
 	Tiles     []Tile     `json:"tiles"`
 	Instances []Instance `json:"instances"`
 	// Secrets lists where each moved secret goes; never its value.
@@ -210,7 +211,7 @@ type Summary struct {
 
 // Change is one row of the diff between a plan and the hub's state.
 type Change struct {
-	Kind   string `json:"kind"` // board, layout, instance, secret, record
+	Kind   string `json:"kind"` // board, layout, tiles, instance, secret, record
 	ID     string `json:"id"`
 	Name   string `json:"name,omitempty"`
 	Action string `json:"action"` // create, update, unchanged, stale

@@ -58,7 +58,7 @@ describe('resolving widgets to real instances', () => {
     const { mountIn, ws } = harness(data);
     const w = mountIn(PlexWidget, { size: 'small' });
     expect(w.text()).toContain('2playing');
-    expect(w.text()).not.toContain('Token rejected');
+    expect(w.text()).not.toContain('rejected');
 
     data.inbox.incidents['i_p.repair'] = {
       id: 'i_p.repair',
@@ -72,7 +72,8 @@ describe('resolving widgets to real instances', () => {
     };
     ws.handshake(data);
     await w.vm.$nextTick();
-    expect(w.text()).toContain('Token rejected');
+    expect(w.text()).toContain('Plex rejected the token.');
+    expect(w.find('.note button').text()).toBe('Reconnect');
   });
 
   it('shows a real Sonarr queue from its layout item', () => {
