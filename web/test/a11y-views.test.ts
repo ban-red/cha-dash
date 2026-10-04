@@ -16,7 +16,10 @@ import ConfirmDialog from '../src/components/ConfirmDialog.vue';
 import HubBanner from '../src/components/HubBanner.vue';
 import InboxSheet from '../src/components/InboxSheet.vue';
 import NeedsAttention from '../src/components/NeedsAttention.vue';
+import StepUpDialog from '../src/components/StepUpDialog.vue';
+import TaskPresence from '../src/components/TaskPresence.vue';
 import Toasts from '../src/components/Toasts.vue';
+import TypeConfirmDialog from '../src/components/TypeConfirmDialog.vue';
 import SettingsSheet from '../src/settings/SettingsSheet.vue';
 import ImportPane from '../src/settings/ImportPane.vue';
 import LoginView from '../src/views/LoginView.vue';
@@ -30,6 +33,7 @@ import { provideBoard, createBoardStore } from '../src/stores/board';
 import { resetIntegrations } from '../src/stores/integrations';
 import goldenRaw from '../../testdata/importers/homepage/dogfood/expected-plan.json?raw';
 import { axeViolations } from './axe';
+import { engine, planFor, taskFor } from './fake-engine';
 import { fakeFetch } from './fake-fetch';
 import { FakeSocket } from './fake-socket';
 import { docs, healthy, withIncidents } from './fixtures';
@@ -89,6 +93,27 @@ function hubApi(over: Record<string, unknown> = {}) {
         { id: 'pk2', name: 'YubiKey', created_at: '2026-10-02T10:00:00Z', last_used_at: '2026-10-03T09:00:00Z', rp_id: 'dash.example.com', backed_up: false, clone_warning: true },
       ],
     },
+    'GET /api/users': {
+      status: 200,
+      body: [
+        { id: 'u1', username: 'owner', role: 'owner', disabled: false, has_passkey: true, last_seen_at: '2026-10-03T14:00:00Z' },
+        { id: 'u2', username: 'sam', role: 'operator', disabled: false, has_passkey: false, last_seen_at: null },
+        { id: 'u3', username: 'kid', role: 'household', disabled: true, has_passkey: false, last_seen_at: '2026-09-20T08:00:00Z' },
+      ],
+    },
+    'GET /api/audit/verify': { status: 200, body: { ok: true, checked: 4812 } },
+    'GET /api/audit*': {
+      status: 200,
+      body: {
+        events: [
+          { id: 'a2', seq: 4812, at: '2026-10-03T14:01:00Z', actor: { kind: 'user', name: 'owner', via: 'web' }, action: 'pve.guest.restart', target: 'pve:jupiter-nas/lxc/100', tier: 'T2', result: 'ok', duration_ms: 8123, hash: 'sha256:bb', prev_hash: 'sha256:aa' },
+          { id: 'a1', seq: 4811, at: '2026-10-03T13:59:00Z', actor: { kind: 'user', name: 'sam', via: 'web' }, action: 'pbs.datastore.prune', target: 'pbs:main', tier: 'T2', result: 'refused', error: { code: 'forbidden', message: 'Operators can’t prune datastores.' }, hash: 'sha256:aa', prev_hash: 'sha256:99' },
+        ],
+        next: 'c1',
+      },
+    },
+    'GET /api/settings/security': { status: 200, body: { posture: 'relaxed', step_up: 'passkey_or_password', levels: [{ id: 'relaxed', label: 'Relaxed · LAN-only home network', description: 'Every finding a hint.', default: true }] } },
+    ...engine().routes,
     'POST /api/import/homepage?dry_run=1': { status: 200, body: golden },
     'GET /api/import/homepage': { status: 200, body: { record: { board_id: 'b1', tiles: golden.plan['tiles'] } } },
     ...over,
@@ -262,10 +287,43 @@ describe('layers', () => {
   });
 
   it('the hold-to-confirm dialog', async () => {
+    hubApi();
     const hs = page(ConfirmDialog);
     hs.ui.act(hs.live.inbox.value!.incidents['host-memory-pressure']!);
     await settle();
     expect(document.querySelector('.confirm')).not.toBeNull();
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it('the typed confirmation, with a mismatch said at the field', async () => {
+    const hs = page(TypeConfirmDialog);
+    const plan = planFor('pve.snapshot.delete', 'pve:jupiter-nas/qemu/101', { tier: 'T3', confirm_text: 'scratch', label: 'Delete snapshot pre-upgrade', impact: [{ resource: 'pve:jupiter-nas/qemu/101', via: 'snapshot_of', depth: 1 }] });
+    hs.ui.state.confirm = { kind: 'type', req: { action: plan.action, target: plan.target, label: plan.label }, plan, action: { id: plan.action, label: plan.label, tier: 'T3', target: plan.target }, error: 'That doesn’t match. Type it exactly as shown.' };
+    await settle();
+    expect(document.querySelector('dialog.act-dlg')).not.toBeNull();
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  for (const [name, begin] of [
+    ['a passkey', { status: 200, body: { publicKey: { challenge: 'AAAA', rpId: 'localhost' } } }],
+    ['the password fallback', { status: 200, body: { method: 'password' } }],
+    ['passkey only, without a passkey', { status: 409, body: { error: { code: 'passkey_required', message: 'This hub asks for a passkey. Add one in Settings → Security.' } } }],
+  ] as const) {
+    it(`step-up: ${name}`, async () => {
+      fakeFetch({ 'POST /api/auth/step-up/begin': begin });
+      const hs = page(StepUpDialog);
+      hs.ui.state.stepUp = { reason: 'Delete snapshot pre-upgrade', fresh: false, resolve: () => undefined };
+      await settle();
+      await until(() => !document.querySelector('dialog.stepup [aria-busy="true"]'), 'the step-up method');
+      expect(await axeViolations()).toEqual([]);
+    });
+  }
+
+  it('the running-task presence', async () => {
+    const hs = page(TaskPresence, { ...docs(withIncidents), tasks: { tasks: { t1: taskFor(planFor('pve.guest.restart', 'pve:jupiter-nas/lxc/100'), { id: 't1', progress: 0.5 }) } } });
+    await settle();
+    expect(document.querySelector('.tp')?.textContent).toContain('Restart debian-nas');
+    expect(hs.ui.running.value).toHaveLength(1);
     expect(await axeViolations()).toEqual([]);
   });
 
@@ -287,6 +345,8 @@ describe('Settings', () => {
     '/settings/import',
     '/settings/security',
     '/settings/backup',
+    '/settings/users',
+    '/settings/audit',
   ]) {
     it(path, async () => {
       hubApi();

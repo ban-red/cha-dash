@@ -6,11 +6,13 @@
  * - A Repair (an integration Cha Dash can't read) offers Reconnect: the
  *   integration's settings, with the field that failed focused. In demo mode
  *   its suggested action can also run, so the Demo Home can still settle it.
- * - A problem offers its suggested action through the safety ladder. That
- *   runs through the demo Fix endpoint in demo mode only; elsewhere the flow
- *   shows what Cha Dash would do, and `link.open` actions open their link.
+ * - A problem offers its suggested action and the alternatives through the
+ *   safety ladder (stores/actions.ts): the hub's engine plans each one, and
+ *   says why when one can't run here. Buttons the viewer's role can't use
+ *   aren't shown. `link.open` actions open their link.
  *
- * Progress and the resolution arrive live from the `inbox` topic.
+ * Progress comes from the task working on it (the `tasks` topic): its current
+ * step and progress. The resolution arrives live from the `inbox` topic.
  */
 import { computed } from 'vue';
 import Glyph from './marks/Glyph.vue';
@@ -30,7 +32,25 @@ const ui = useUi();
 const isResolved = computed(() => incident.status === 'resolved');
 const isRepair = computed(() => incident.class === 'repair');
 const fix = computed(() => live.fixes[incident.id]);
-const working = computed(() => !isResolved.value && fix.value?.state === 'accepted');
+const task = computed(() => ui.taskFor(incident));
+const taskRunning = computed(() => !!task.value && !['succeeded', 'failed', 'cancelled'].includes(task.value.state));
+const working = computed(() => !isResolved.value && (fix.value?.state === 'accepted' || taskRunning.value) && fix.value?.state !== 'failed');
+const pct = computed(() => (typeof task.value?.progress === 'number' ? Math.round(Math.min(1, Math.max(0, task.value.progress)) * 100) : undefined));
+/** The progress ring: the task's progress when it has one, else a quarter (started) or half (the phase moved on). */
+const ringOffset = computed(() => {
+  if (pct.value !== undefined) return 31.4 * (1 - pct.value / 100);
+  return incident.phase === fix.value?.phase ? 23 : 12;
+});
+const workingWords = computed(() => {
+  const t = task.value;
+  if (t && taskRunning.value) {
+    const step = t.state === 'queued' ? 'waiting its turn' : t.state === 'verifying' ? 'checking it worked' : t.step || 'working';
+    return `${t.label}: ${step}${pct.value !== undefined ? ` · ${pct.value}%` : ''}. This updates by itself.`;
+  }
+  return `${action.value?.label ?? t?.label ?? 'Fix'}: working${incident.phase ? ` · ${incident.phase}` : ''}. This updates by itself.`;
+});
+/** The instance whose recipe would make the action available. */
+const recipe = computed(() => fix.value?.recipe ?? (action.value?.unavailable ? action.value.recipe : undefined));
 const glyph = computed(() => (isResolved.value ? 'check' : isRepair.value ? 'repair' : glyphFor(incident.severity)));
 const glyphLabel = computed(() => (isResolved.value ? 'resolved' : isRepair.value ? 'repair' : incident.severity === 'down' ? 'down' : 'needs attention'));
 const facts = computed(() => Object.entries(incident.facts ?? {}).slice(0, 6));
@@ -61,9 +81,9 @@ const id = computed(() => `ib-${incident.id}`);
       <div v-if="working" class="working" role="status">
         <svg class="prog" viewBox="0 0 12 12" aria-hidden="true">
           <circle class="track" cx="6" cy="6" r="5" />
-          <circle class="arc" cx="6" cy="6" r="5" stroke-dasharray="31.4" :stroke-dashoffset="incident.phase === fix?.phase ? 23 : 12" />
+          <circle class="arc" cx="6" cy="6" r="5" stroke-dasharray="31.4" :stroke-dashoffset="ringOffset" />
         </svg>
-        <span>{{ action?.label }}: working · {{ incident.phase }}. This updates by itself.</span>
+        <span>{{ workingWords }}</span>
       </div>
 
       <div v-else-if="isRepair" class="col">
@@ -98,23 +118,19 @@ const id = computed(() => `ib-${incident.id}`);
         <h4>Suggested · {{ action.tier }}</h4>
         <p v-if="action.detail" class="action-detail">{{ action.detail }}</p>
         <div class="acts">
-          <button type="button" class="btn primary" :disabled="!primary.ok" :title="primary.why" @click="ui.act(incident)">
+          <button v-if="!primary.hidden" type="button" class="btn primary" :disabled="!primary.ok" :title="primary.why" @click="ui.act(incident)">
             {{ action.label }}<span class="tier">{{ action.tier }}</span>
           </button>
-          <button
-            v-for="alt in incident.alternatives ?? []"
-            :key="alt.id + alt.label"
-            type="button"
-            class="btn"
-            :disabled="!runnable(alt).ok"
-            :title="runnable(alt).why"
-            @click="ui.act(incident, alt)"
-          >
-            {{ alt.label }}<span class="tier">{{ alt.tier }}</span>
-          </button>
+          <template v-for="alt in incident.alternatives ?? []" :key="alt.id + alt.label">
+            <button v-if="!runnable(alt).hidden" type="button" class="btn" :disabled="!runnable(alt).ok" :title="runnable(alt).why" @click="ui.act(incident, alt)">
+              {{ alt.label }}<span class="tier">{{ alt.tier }}</span>
+            </button>
+          </template>
         </div>
-        <p v-if="!live.demo.value && !primary.ok && primary.why && !live.stale.value" class="sub">{{ primary.why }}</p>
+        <p v-if="primary.hidden" class="sub">Your role can see this but not run “{{ action.label }}”. Ask an admin or the owner.</p>
+        <p v-else-if="!primary.ok && primary.why && !live.stale.value && fix?.state !== 'failed'" class="sub">{{ primary.why }}</p>
         <p v-if="fix?.state === 'failed'" class="err" role="alert">{{ fix.error }}</p>
+        <button v-if="recipe && ui.can.value.settings" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe)">Open its settings</button>
       </div>
 
       <div v-if="facts.length">

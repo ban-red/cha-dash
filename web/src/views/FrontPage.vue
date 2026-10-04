@@ -9,17 +9,19 @@
  *   its board render from it at once, and the socket supersedes it;
  * - the last-known snapshot: written while live, and the page opens on it
  *   when the hub was unreachable at start-up (session.state.offline);
- * - demo mode (GET /api/demo), which lets incidents' actions run;
+ * - demo mode (GET /api/demo): UTC times, and the demo Fix fallback;
+ * - the viewer's role: what the page hides (model/roles.ts; the hub enforces);
  * - label discovery for the board on screen (stores/discovery.ts);
  * - the first-run wizard (onboarding/), when the hub says to show it.
  *
- * The Inbox, the confirm dialog, the command bar and Settings load on first
- * use, keeping the first paint small.
+ * The Inbox, the confirm dialogs (hold, typed), step-up, the command bar and
+ * Settings load on first use, keeping the first paint small.
  */
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Briefing from '../components/Briefing.vue';
 import HubBanner from '../components/HubBanner.vue';
 import NeedsAttention from '../components/NeedsAttention.vue';
+import TaskPresence from '../components/TaskPresence.vue';
 import Toasts from '../components/Toasts.vue';
 import BoardSurface from '../board/BoardSurface.vue';
 import { api } from '../lib/api';
@@ -36,13 +38,15 @@ import { createUi, provideUi } from '../stores/ui';
 
 const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.vue'));
 const ConfirmDialog = defineAsyncComponent(() => import('../components/ConfirmDialog.vue'));
+const TypeConfirmDialog = defineAsyncComponent(() => import('../components/TypeConfirmDialog.vue'));
+const StepUpDialog = defineAsyncComponent(() => import('../components/StepUpDialog.vue'));
 const CommandPalette = defineAsyncComponent(() => import('../components/CommandPalette.vue'));
 const SettingsSheet = defineAsyncComponent(() => import('../settings/SettingsSheet.vue'));
 const OnboardingWizard = defineAsyncComponent(() => import('../onboarding/OnboardingWizard.vue'));
 
 const session = useSession();
 const live = createLive({ checkSession: session.check });
-const ui = createUi(live, { signOut });
+const ui = createUi(live, { signOut, role: () => session.state.user?.role });
 provideLive(live);
 provideUi(ui);
 
@@ -94,7 +98,14 @@ watch(
 );
 watch(
   () => ui.state.confirm,
-  (v) => v && (confirmLoaded.value = true),
+  (v) => v && v.kind !== 'type' && (confirmLoaded.value = true),
+);
+/** Each step-up request mounts a fresh dialog (it asks the hub anew). */
+let stepUps = 0;
+const stepUpKey = ref(0);
+watch(
+  () => ui.state.stepUp,
+  (v) => v && (stepUpKey.value = ++stepUps),
 );
 
 // The board follows the route: /boards/{id}, or the first board at /.
@@ -182,7 +193,7 @@ watch(
 <template>
   <div class="screen">
     <div class="frame">
-      <main class="page" aria-label="Front page" :inert="view.name === 'settings' || onboarding.open || undefined">
+      <main class="page" aria-label="Front page" :inert="(view.name === 'settings' && ui.can.value.settings) || onboarding.open || undefined">
         <Briefing @sign-out="signOut" />
         <HubBanner />
         <NeedsAttention />
@@ -194,10 +205,13 @@ watch(
       </main>
     </div>
   </div>
-  <InboxSheet v-if="inboxLoaded" />
+  <InboxSheet v-if="inboxLoaded && ui.can.value.inbox" />
   <ConfirmDialog v-if="confirmLoaded" />
+  <TypeConfirmDialog v-if="ui.state.confirm?.kind === 'type'" :key="ui.state.confirm.plan?.id ?? 0" />
   <OnboardingWizard v-if="onboarding.open" />
-  <SettingsSheet v-if="view.name === 'settings'" />
+  <SettingsSheet v-if="view.name === 'settings' && ui.can.value.settings" />
   <CommandPalette v-if="ui.state.paletteOpen" />
+  <StepUpDialog v-if="ui.state.stepUp" :key="stepUpKey" />
+  <TaskPresence />
   <Toasts />
 </template>

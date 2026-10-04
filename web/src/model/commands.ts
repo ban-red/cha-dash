@@ -10,6 +10,7 @@ import { distinct, label, placeOf } from './graph';
 import type { GraphDoc, InboxDoc } from './types';
 import type { Instance } from './integrations';
 import type { SettingsPane } from '../lib/router';
+import type { Permissions } from './roles';
 
 export type CommandGroup = 'Actions' | 'Inbox' | 'Boards' | 'Resources' | 'Integrations' | 'Settings' | 'Theme' | 'Account';
 
@@ -57,6 +58,8 @@ export interface CommandContext {
   editing?: boolean;
   theme?: ThemeId;
   username?: string;
+  /** What the viewer's role may use (model/roles.ts); everything when absent. */
+  can?: Pick<Permissions, 'inbox' | 'settings' | 'editBoards' | 'panes'>;
   do: {
     openInbox: (incident?: string) => void;
     toggleEdit: () => void;
@@ -123,7 +126,9 @@ export function buildCommands(ctx: CommandContext): Command[] {
     { id: 'settings:integrations', group: 'Settings', label: 'Settings: Integrations', keywords: 'connections tokens keys', run: () => d.openSettings('integrations') },
     { id: 'settings:import', group: 'Settings', label: 'Import from Homepage', keywords: 'settings services.yaml docker.yaml migrate', run: () => d.openSettings('import') },
     { id: 'settings:backup', group: 'Settings', label: 'Settings: Backup', keywords: 'export import restore yaml home file secrets', run: () => d.openSettings('backup') },
-    { id: 'settings:security', group: 'Settings', label: 'Settings: Security', keywords: 'passkeys webauthn touch id face id', run: () => d.openSettings('security') },
+    { id: 'settings:users', group: 'Settings', label: 'Settings: Users', keywords: 'people roles accounts household owner admin', run: () => d.openSettings('users') },
+    { id: 'settings:audit', group: 'Settings', label: 'Settings: Audit', keywords: 'log history who did what actions', run: () => d.openSettings('audit') },
+    { id: 'settings:security', group: 'Settings', label: 'Settings: Security', keywords: 'passkeys webauthn touch id face id step-up', run: () => d.openSettings('security') },
   );
 
   for (const t of THEMES) {
@@ -145,7 +150,20 @@ export function buildCommands(ctx: CommandContext): Command[] {
       run: () => d.reveal(r.id),
     });
   }
-  return out.map(cmd);
+  return out.filter((c) => allowed(c, ctx.can)).map(cmd);
+}
+
+/** Hide what the viewer's role can't use: the Inbox, Settings and its panes, edit mode. */
+function allowed(c: CommandInput, can: CommandContext['can']): boolean {
+  if (!can) return true;
+  if (c.group === 'Inbox' || c.id === 'inbox') return can.inbox;
+  if (c.id === 'edit') return can.editBoards;
+  if (c.group === 'Integrations') return can.settings;
+  if (c.group === 'Settings') {
+    const pane = c.id === 'settings:import' ? 'import' : c.id.replace(/^settings:/, '');
+    return can.settings && (can.panes as readonly string[]).includes(pane);
+  }
+  return true;
 }
 
 export interface CommandSection {

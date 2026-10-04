@@ -11,6 +11,8 @@ import { setDisplayTimeZone } from '../src/lib/format';
 import { applyTheme } from '../src/lib/theme';
 import { toPointer } from '../src/lib/jsonpatch';
 import { docs, healthy, resolvedIncident, withIncidents } from './fixtures';
+import { engine } from './fake-engine';
+import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
 
 beforeEach(() => {
@@ -84,22 +86,24 @@ describe('front page with today’s incidents', () => {
     expect(strip("Backups on pluto couldn't reach pbs-jupiter").findAll('.acts button')[1]!.text()).toBe('Open the backup jobs in Proxmox T0');
   });
 
-  it('runs T1 straight away and asks to hold for T2', async () => {
+  it('runs T1 straight away and asks to hold for T2, both through the engine', async () => {
     const { mountIn, ui, live } = harness(docs(withIncidents), { demo: true });
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'backup-failed' }), { status: 202 }));
-    vi.stubGlobal('fetch', fetchMock);
+    const e = engine();
+    fakeFetch(e.routes);
     const w = mountIn(NeedsAttention);
     await w.find('.attn-more').trigger('click');
     const strip = (title: string) => w.findAll('.strip').find((s) => s.text().includes(title))!;
     await strip('PBS datastore is filling up').findAll('.acts button')[1]!.trigger('click');
+    await flushPromises();
     expect(ui.state.confirm?.action.id).toBe('pbs.datastore.prune');
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(e.approvals).toHaveLength(0);
+    ui.cancelConfirm();
     await strip('Backup of homeassistant failed').findAll('.acts button')[1]!.trigger('click');
     await flushPromises();
-    expect(fetchMock.mock.calls[0]![0]).toBe('/api/demo/incidents/backup-failed/fix');
+    expect(e.approvals).toHaveLength(1);
     expect(live.fixes['backup-failed']?.state).toBe('accepted');
     expect(ui.state.toasts[0]?.text).toBe('Started: Back up homeassistant now.');
-    expect(strip('Backup of homeassistant failed').find('.working').text()).toContain('Working · failed');
+    expect(strip('Backup of homeassistant failed').find('.working').text()).toContain('Working · Ask the hub to back up homeassistant now · 10%');
   });
 
   it('renders the board with live state on the tiles', () => {

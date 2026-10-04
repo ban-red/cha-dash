@@ -1,46 +1,58 @@
 /**
  * Page-level UI state: the Inbox sheet, the command bar, edit mode, the
- * hold-to-confirm dialog and toasts. Also the one place that runs an
- * incident's actions through the safety ladder:
+ * confirm and step-up dialogs and toasts. Also the one place that runs an
+ * incident's actions through the safety ladder (stores/actions.ts):
  *
- * - In demo mode (GET /api/demo), a suggested action runs through the demo
- *   Fix endpoint: T0 and T1 straight away, T2 behind the hold-to-confirm ring.
+ * - Every action is planned by the hub's action engine, and the plan's
+ *   `confirm` picks the rung: run, run with Undo, hold, or type the name.
+ *   Step-up runs first when the plan asks for it. Demo mode goes the same
+ *   way; the demo Fix endpoint is only a fallback for a hub from before the
+ *   engine.
+ * - Availability comes from the hub: an action's `unavailable` sentence (or
+ *   `plan_ready: false`) disables it, and planning refuses with a sentence.
+ *   The page only hides what the viewer's role can't use (model/roles.ts).
  * - Everywhere, `link.open` (T0) opens the target's link.
- * - Anything else waits for the action engine, and says so.
  * - A Repair's "Reconnect" opens the integration's settings with the field
  *   that failed focused.
  * - A suggestion's answer (Merge or Keep separate) goes to the hub's
  *   correlator, which remembers it.
  */
-import { inject, provide, reactive, type InjectionKey } from 'vue';
+import { computed, inject, provide, reactive, type InjectionKey } from 'vue';
 import { ApiError, api } from '../lib/api';
 import { navigate, settingsPath, type SettingsPane } from '../lib/router';
 import { prefersReducedMotion } from '../lib/motion';
 import { repairTarget } from '../model/integrations';
 import { label } from '../model/graph';
+import { permissions } from '../model/roles';
 import { resourceLinks, type Action, type Incident } from '../model/types';
+import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type ToastAction } from './actions';
 import type { Live } from './live';
+
+export type { ConfirmRequest } from './actions';
 
 export interface Toast {
   id: number;
   text: string;
   tone?: 'ok' | 'error';
-}
-
-export interface ConfirmRequest {
-  incident: Incident;
-  action: Action;
+  /** A button in the toast: Undo, or "Open its settings". */
+  action?: ToastAction;
 }
 
 export interface UiHooks {
   /** Stop the socket and sign out (set by the signed-in shell). */
   signOut?: () => Promise<void> | void;
+  /** The signed-in viewer's role (session.state.user.role). */
+  role?: () => string | undefined;
+  /** Poll interval for tasks on a hub without the `tasks` topic (tests shorten it). */
+  pollMs?: number;
 }
 
 export interface Runnable {
   ok: boolean;
   /** Why not, for the button's title. */
   why?: string;
+  /** The viewer's role can't run it: don't show the button at all. */
+  hidden?: boolean;
 }
 
 const safeUrl = (u: string | undefined) => (u && /^https?:\/\//i.test(u) ? u : undefined);
@@ -54,12 +66,16 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     /** The board is in edit mode (EditableBoard). */
     editing: false,
     confirm: undefined as ConfirmRequest | undefined,
+    stepUp: undefined as StepUpRequest | undefined,
     toasts: [] as Toast[],
   });
   let nextToast = 1;
+  /** What the viewer's role may see and do. The hub enforces it; this only hides. */
+  const can = computed(() => permissions(hooks.role?.()));
 
-  function toast(text: string, tone: Toast['tone'] = 'ok', ms = 5000): void {
+  function toast(text: string, tone: Toast['tone'] = 'ok', ms = 5000, action?: ToastAction): void {
     const t: Toast = { id: nextToast++, text, tone };
+    if (action) t.action = action;
     state.toasts.push(t);
     if (state.toasts.length > 3) state.toasts.shift();
     setTimeout(() => dismiss(t.id), ms);
@@ -71,6 +87,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
   }
 
   function openInbox(focus = ''): void {
+    if (!can.value.inbox) return;
     state.paletteOpen = false;
     state.inboxFocus = focus;
     state.inboxOpen = true;
@@ -90,6 +107,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
 
   /** Open a settings pane over the front page (closing the Inbox and the command bar). */
   function openSettings(pane: SettingsPane = 'integrations', id?: string, query?: Record<string, string | undefined>): void {
+    if (!can.value.settings) return;
     state.inboxOpen = false;
     state.paletteOpen = false;
     navigate(settingsPath(pane, id, query));
@@ -107,19 +125,27 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     return safeUrl(resourceLinks(r)[0]?.url);
   }
 
+  const actions = createActions({
+    live,
+    state,
+    toast,
+    openRecipe: (instance) => openSettings('integrations', instance),
+    ...(hooks.pollMs !== undefined ? { pollMs: hooks.pollMs } : {}),
+  });
+
   /** Can this incident's action run here, now? */
   function canRun(incident: Incident, action: Action | undefined = incident.suggested): Runnable {
     if (!action) return { ok: false };
+    if (!can.value.act(action.tier, action.household)) return { ok: false, hidden: true, why: `Your role can’t run ${action.tier} actions.` };
     if (live.stale.value) return { ok: false, why: 'Actions come back when the hub does.' };
     if (action.id === 'link.open') return linkOf(action.target) ? { ok: true } : { ok: false, why: 'No link known for this yet.' };
-    if (action.tier === 'T3' || action.tier === 'T4') return { ok: false, why: 'Type-to-confirm arrives with the action engine.' };
-    if (!live.demo.value) return { ok: false, why: 'Cha Dash v0.1 shows what it would do; running actions arrives with the action engine.' };
-    if (action !== incident.suggested) return { ok: false, why: 'Only the suggested action runs in this version.' };
+    if (action.unavailable) return { ok: false, why: action.unavailable };
+    if (action.plan_ready === false) return { ok: false, why: 'Cha Dash can’t run this here yet.' };
     if (live.fixes[incident.id]?.state === 'sending') return { ok: false };
     return { ok: true };
   }
 
-  /** Run an action through the safety ladder. */
+  /** Run an incident's action through the safety ladder. */
   function act(incident: Incident, action: Action | undefined = incident.suggested): void {
     if (!action) return;
     if (action.id === 'link.open') {
@@ -127,37 +153,26 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }
-    if (!live.demo.value) {
-      toast('Running actions arrives with the action engine. Until then, this is what Cha Dash would do.', 'error');
+    const r = canRun(incident, action);
+    if (!r.ok) {
+      if (r.why) toast(r.why, 'error');
       return;
     }
-    if (action !== incident.suggested) return; // the demo endpoint runs the suggested action only
-    if (action.tier === 'T0' || action.tier === 'T1') {
-      void run(incident, action);
-    } else if (action.tier === 'T2') {
-      state.confirm = { incident, action };
-    } else {
-      toast(`${action.label} needs type-to-confirm, which arrives with the action engine.`, 'error');
-    }
+    const req: ActionRequest = { action: action.id, target: action.target, label: action.label, tier: action.tier, incident, suggested: action === incident.suggested };
+    if (action.params) req.params = action.params;
+    if (action.detail) req.detail = action.detail;
+    const impact = action.impact ?? incident.blast_radius;
+    if (impact) req.impact = impact;
+    void actions.run(req);
   }
 
-  async function run(incident: Incident, action: Action): Promise<void> {
-    try {
-      await live.fix(incident.id);
-      toast(`Started: ${action.label}.`);
-    } catch {
-      toast(live.fixes[incident.id]?.error ?? 'That didn’t start. Try again.', 'error');
-    }
-  }
-
-  function confirmed(): void {
-    const c = state.confirm;
-    state.confirm = undefined;
-    if (c) void run(c.incident, c.action);
+  /** The confirm dialog's answer: the ring filled, the name was typed, or Run. */
+  function confirmed(typed?: string): void {
+    void actions.confirmed(typed);
   }
 
   function cancelConfirm(): void {
-    state.confirm = undefined;
+    actions.cancel();
   }
 
   /**
@@ -182,7 +197,9 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
    * Inbox, else its tile on the board, else its link.
    */
   function reveal(resourceId: string): void {
-    const incident = Object.values(live.inbox.value?.incidents ?? {}).find((i) => i.status === 'open' && i.target === resourceId);
+    const incident = can.value.inbox
+      ? Object.values(live.inbox.value?.incidents ?? {}).find((i) => i.status === 'open' && i.target === resourceId)
+      : undefined;
     if (incident) return openInbox(incident.id);
     const cell = typeof document !== 'undefined' ? [...document.querySelectorAll<HTMLElement>('[data-item]')].find((el) => el.dataset['item']?.split('@')[1] === resourceId) : undefined;
     if (cell) {
@@ -210,6 +227,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
 
   return {
     state,
+    can,
     toast,
     dismiss,
     openInbox,
@@ -222,6 +240,15 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     act,
     confirmed,
     cancelConfirm,
+    /** Plan and run any action (not tied to an incident). */
+    runAction: actions.run,
+    /** Tasks from the `tasks` topic, plus the ones this tab started. */
+    tasks: actions.tasks,
+    running: actions.running,
+    taskFor: actions.taskFor,
+    stepUp: actions.stepUp,
+    stepUpDone: actions.stepUpDone,
+    withStepUp: actions.withStepUp,
     answer,
     reveal,
     signOut,

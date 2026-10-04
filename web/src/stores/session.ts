@@ -39,6 +39,17 @@ export interface SessionState {
   offerPasskey: boolean;
   /** Showing a last-known snapshot because the hub can't be reached; the session isn't confirmed yet. */
   offline: boolean;
+  /**
+   * How this account can step up (`GET /api/auth/session` → `step_up_methods`,
+   * e.g. ["passkey", "password"]); undefined until a hub that has step-up says.
+   */
+  stepUpMethods: string[] | undefined;
+}
+
+interface SessionDoc {
+  user: User;
+  step_up_until?: string | null;
+  step_up_methods?: string[];
 }
 
 /** Mirrors internal/auth: 1–64 of letters, digits, . _ @ -, starting with a letter or digit. */
@@ -75,7 +86,7 @@ export interface SessionOptions {
 }
 
 export function createSession(opts: SessionOptions = {}) {
-  const state = reactive<SessionState>({ phase: 'loading', user: undefined, error: '', devLogin: false, offerPasskey: false, offline: false });
+  const state = reactive<SessionState>({ phase: 'loading', user: undefined, error: '', devLogin: false, offerPasskey: false, offline: false, stepUpMethods: undefined });
   /** The snapshot the offline front page opens on; taken once by the shell. Not reactive. */
   let restored: Snapshot | undefined;
   /** The hub's first-paint snapshot; taken once by the shell. Not reactive. */
@@ -104,6 +115,10 @@ export function createSession(opts: SessionOptions = {}) {
     }
   }
 
+  function noteStepUp(s: SessionDoc | undefined): void {
+    if (Array.isArray(s?.step_up_methods)) state.stepUpMethods = s.step_up_methods.filter((m) => typeof m === 'string');
+  }
+
   async function refresh(): Promise<void> {
     if (vouched) {
       vouched = false;
@@ -117,8 +132,9 @@ export function createSession(opts: SessionOptions = {}) {
         state.phase = 'setup';
         return;
       }
-      const s = await api<{ user: User }>('/api/auth/session');
+      const s = await api<SessionDoc>('/api/auth/session');
       state.user = s.user;
+      noteStepUp(s);
       state.phase = 'ready';
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -184,8 +200,9 @@ export function createSession(opts: SessionOptions = {}) {
   async function confirm(): Promise<void> {
     if (!state.offline) return;
     try {
-      const s = await api<{ user: User }>('/api/auth/session');
+      const s = await api<SessionDoc>('/api/auth/session');
       state.user = s.user;
+      noteStepUp(s);
       state.offline = false;
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {

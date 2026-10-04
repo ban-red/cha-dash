@@ -148,7 +148,7 @@ function key(e: KeyboardEvent, id: string) {
       <div class="mast-meta">
         <span>{{ longDate(live.now.value) }}</span>
         <span class="n">{{ clock }}</span>
-        <button type="button" class="pill" aria-haspopup="dialog" @click="ui.openInbox()">
+        <button v-if="ui.can.value.inbox" type="button" class="pill" aria-haspopup="dialog" @click="ui.openInbox()">
           Inbox <span :class="['badge', { zero: !inboxCount }]">{{ inboxCount }}</span>
         </button>
         <button type="button" class="tool search-tool" aria-haspopup="dialog" :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'" aria-label="Search and commands" :title="`Search and commands (${mac ? '⌘K' : 'Ctrl K'})`" @click="ui.openPalette()">
@@ -166,7 +166,7 @@ function key(e: KeyboardEvent, id: string) {
       <h1 class="sentence">
         <Glyph :kind="glyph" :label="glyphLabel" />
         <template v-for="(p, k) in headline ? headlineParts : line1" :key="k">
-          <span v-if="p.open !== undefined" role="button" tabindex="0" class="phrase" @click="open(p.open)" @keydown="key($event, p.open)">{{ p.text }}</span>
+          <span v-if="p.open !== undefined && ui.can.value.inbox" role="button" tabindex="0" class="phrase" @click="open(p.open)" @keydown="key($event, p.open)">{{ p.text }}</span>
           <b v-else-if="p.bold">{{ p.text }}</b>
           <template v-else>{{ p.text }}</template>
         </template>
@@ -175,7 +175,7 @@ function key(e: KeyboardEvent, id: string) {
       <p v-else class="sentence-2">
         <Glyph v-if="s.ready && s.problems.length" kind="ok" />
         <template v-for="(p, k) in line2" :key="k">
-          <span v-if="p.open !== undefined" role="button" tabindex="0" class="phrase" @click="open(p.open)" @keydown="key($event, p.open)">{{ p.text }}</span>
+          <span v-if="p.open !== undefined && ui.can.value.inbox" role="button" tabindex="0" class="phrase" @click="open(p.open)" @keydown="key($event, p.open)">{{ p.text }}</span>
           <template v-else>{{ p.text }}</template>
         </template>
       </p>
@@ -185,7 +185,7 @@ function key(e: KeyboardEvent, id: string) {
       <span class="sr">Time at home:</span>
       <div class="clock">{{ clock }}</div>
       <div class="brief-tools">
-        <button type="button" class="pill" aria-haspopup="dialog" :aria-label="`Inbox: ${inboxCount} need you`" @click="ui.openInbox()">
+        <button v-if="ui.can.value.inbox" type="button" class="pill" aria-haspopup="dialog" :aria-label="`Inbox: ${inboxCount} need you`" @click="ui.openInbox()">
           Inbox <span :class="['badge', { zero: !inboxCount }]">{{ inboxCount }}</span>
         </button>
         <button type="button" class="tool search-tool" aria-haspopup="dialog" :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'" aria-label="Search and commands" :title="`Search and commands (${mac ? '⌘K' : 'Ctrl K'})`" @click="ui.openPalette()">

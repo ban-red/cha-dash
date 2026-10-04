@@ -83,11 +83,20 @@ function onLeave(el: Element, done: () => void) {
   animateHeight(node, node.scrollHeight, 0, done, () => undefined);
 }
 const fixState = (id: string) => live.fixes[id]?.state;
+/** What the task working on it is doing now, else the incident's phase. */
+function workingWords(i: Incident): string {
+  const t = ui.taskFor(i);
+  if (t && !['succeeded', 'failed', 'cancelled'].includes(t.state)) {
+    const p = typeof t.progress === 'number' ? ` · ${Math.round(t.progress * 100)}%` : '';
+    return `${t.state === 'verifying' ? 'checking it worked' : t.step || 'working'}${p}`;
+  }
+  return i.phase ?? 'working';
+}
 </script>
 
 <template>
   <Transition :css="false" @enter="onEnter" @leave="onLeave">
-    <section v-if="all.length" class="attn-sec collapse" aria-label="Needs attention">
+    <section v-if="all.length && ui.can.value.inbox" class="attn-sec collapse" aria-label="Needs attention">
       <header class="sh">
         <span>Needs attention · {{ all.length }}</span>
         <span class="sh-rule" aria-hidden="true"></span>
@@ -128,7 +137,7 @@ const fixState = (id: string) => live.fixes[id]?.state;
           <div class="acts">
             <button type="button" class="btn" @click="ui.openInbox(i.id)">Details</button>
             <button
-              v-if="i.suggested && fixState(i.id) !== 'accepted'"
+              v-if="i.suggested && fixState(i.id) !== 'accepted' && !ui.canRun(i).hidden"
               type="button"
               class="btn"
               :disabled="!ui.canRun(i).ok"
@@ -137,7 +146,7 @@ const fixState = (id: string) => live.fixes[id]?.state;
             >
               {{ i.suggested.label }} <span class="tier">{{ i.suggested.tier }}</span>
             </button>
-            <span v-else-if="fixState(i.id) === 'accepted'" class="working"><Glyph kind="prog" label="in progress" />Working · {{ i.phase }}</span>
+            <span v-else-if="fixState(i.id) === 'accepted'" class="working"><Glyph kind="prog" label="in progress" />Working · {{ workingWords(i) }}</span>
           </div>
         </article>
       </TransitionGroup>

@@ -21,7 +21,7 @@ export function harness(data?: Record<string, unknown>, opts: { demo?: boolean }
   session.state.phase = 'ready';
   session.state.user = { id: 'u1', username: 'owner', role: 'owner' };
   const signOut = vi.fn(async () => undefined);
-  const ui = createUi(live, { signOut });
+  const ui = createUi(live, { signOut, role: () => session.state.user?.role, pollMs: 10 });
   const board = createBoardStore({ waitForGraph: async () => live.graph.value });
   const discovery = createDiscovery(live, board);
   live.start();

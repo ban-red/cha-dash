@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
  * Settings → Security: the security level (SecurityLevel.vue: how much
- * security findings interrupt you), then the owner's passkeys. Add one (on this device), rename
- * them so you can tell them apart, delete the ones you no longer have.
+ * security findings interrupt you) and how destructive actions are confirmed
+ * (StepUpSetting.vue), both the owner's; then your passkeys. Add one (on this
+ * device), rename them so you can tell them apart, delete the ones you no
+ * longer have. Admins see only their passkeys here.
  *
  * Passkeys need a secure context (HTTPS, or localhost). On a plain LAN
  * address the page explains that instead of offering a button that can't
@@ -11,6 +13,7 @@
 import { nextTick, onMounted, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import SecurityLevel from './SecurityLevel.vue';
+import StepUpSetting from './StepUpSetting.vue';
 import { ago, absolute } from '../lib/format';
 import { INSECURE_MESSAGE, passkeySupport, UNSUPPORTED_MESSAGE } from '../lib/webauthn';
 import type { Passkey } from '../lib/passkeys';
@@ -111,7 +114,10 @@ onMounted(load);
 </script>
 
 <template>
-  <SecurityLevel />
+  <template v-if="ui.can.value.securitySettings">
+    <SecurityLevel />
+    <StepUpSetting :has-passkey="status === 'ready' ? keys.length > 0 : undefined" />
+  </template>
   <section class="st-section" aria-labelledby="pk-h">
     <header>
       <h3 id="pk-h">Passkeys</h3>

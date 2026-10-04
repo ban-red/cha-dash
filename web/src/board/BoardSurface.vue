@@ -20,9 +20,9 @@ const ui = useUi();
 </script>
 
 <template>
-  <EditableBoard v-if="ui.state.editing" :board="board" :breakpoint="breakpoint" @done="ui.state.editing = false" />
+  <EditableBoard v-if="ui.state.editing && ui.can.value.editBoards" :board="board" :breakpoint="breakpoint" @done="ui.state.editing = false" />
   <template v-else>
-    <div class="board-tools">
+    <div v-if="ui.can.value.editBoards" class="board-tools">
       <button type="button" class="btn ghost sm" @click="ui.state.editing = true">Edit layout</button>
     </div>
     <StaticBoard :board="board" :breakpoint="breakpoint">

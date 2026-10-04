@@ -63,13 +63,17 @@ export class FakeSocket implements WebSocketLike {
     return last['id'] as number;
   }
 
-  /** Answer the handshake and every subscription with a snapshot. */
+  /**
+   * Answer the handshake and every subscription with a snapshot. A v0.2 hub
+   * always serves `tasks`, so it answers with no tasks unless `data` has some.
+   */
   handshake(data: Record<string, unknown>, ping = 30): void {
+    const all: Record<string, unknown> = { tasks: { tasks: {} }, ...data };
     this.open();
     this.push({ op: 'hello', v: 1, epoch: 'e1', server: 'test', ping });
     for (const sub of this.ops('sub')) {
       const topic = (sub['topics'] as string[])[0]!;
-      if (topic in data) this.push({ op: 'snap', id: sub['id'], seq: 1, data: { [topic]: data[topic] } });
+      if (topic in all) this.push({ op: 'snap', id: sub['id'], seq: 1, data: { [topic]: all[topic] } });
     }
   }
 }

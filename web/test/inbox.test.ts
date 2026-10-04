@@ -7,6 +7,8 @@ import ConfirmDialog from '../src/components/ConfirmDialog.vue';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { toPointer } from '../src/lib/jsonpatch';
 import { docs, healthy, resolvedIncident, withIncidents } from './fixtures';
+import { engine } from './fake-engine';
+import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
 
 afterEach(() => {
@@ -67,32 +69,39 @@ describe('Inbox sheet', () => {
     expect(open.textContent).toContain('win-gaming · VM');
     const primary = open.querySelector<HTMLButtonElement>('.btn.primary')!;
     expect(primary.textContent).toBe('Prune per policyT2');
-    // alternatives are listed; only the suggested action and links run
+    // alternatives run too: the engine plans each one
     const alts = [...open.querySelectorAll<HTMLButtonElement>('.acts .btn:not(.primary)')];
     expect(alts.map((b) => [b.textContent, b.disabled])).toEqual([
-      ['Re-enable the daily prune jobT1', true],
+      ['Re-enable the daily prune jobT1', false],
       ['Open PBST0', false],
     ]);
   });
 
   it('asks to hold for T2, and runs T1 then shows the resolution in place', async () => {
+    const e = engine();
+    const hub = fakeFetch(e.routes);
     const { panel, ui, ws, live } = await openOn('pbs-datastore-filling');
     panel.querySelector<HTMLButtonElement>('.ib.open .btn.primary')!.click();
+    await flushPromises();
     expect(ui.state.confirm?.action.tier).toBe('T2');
+    expect(ui.state.confirm?.plan?.action).toBe('pbs.datastore.prune');
     ui.cancelConfirm();
+    expect(e.approvals).toHaveLength(0);
 
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'backup-failed' }), { status: 202 }));
-    vi.stubGlobal('fetch', fetchMock);
     const titles = [...panel.querySelectorAll<HTMLButtonElement>('.ib-title')];
     titles.find((t) => t.textContent === 'Backup of homeassistant failed')!.click();
     await nextTick();
     const item = titles.find((t) => t.textContent === 'Backup of homeassistant failed')!.closest('.ib')!;
     item.querySelector<HTMLButtonElement>('.btn.primary')!.click();
     await flushPromises();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Planned, then approved straight away (T1); never the demo endpoint.
+    expect(e.plans.at(-1)).toEqual({ action: 'pve.guest.backup', target: 'pve:minig5/qemu/100' });
+    expect(e.approvals).toEqual([{ plan: 'p_pve_guest_backup_pve_minig5_qemu_100', hash: 'sha256:pve.guest.backup:pve:minig5/qemu/100' }]);
+    expect(hub.calls.some((c) => c.path.includes('/api/demo/'))).toBe(false);
     expect(live.fixes['backup-failed']?.state).toBe('accepted');
     await nextTick();
-    expect(item.querySelector('.working')?.textContent).toContain('working · failed');
+    // The task's current step shows where the fix is.
+    expect(item.querySelector('.working')?.textContent).toContain('Back up homeassistant now: Ask the hub to back up homeassistant now · 10%');
 
     ws.push({ op: 'diff', id: ws.subId('inbox'), seq: 4000, patch: [{ op: 'replace', path: toPointer('inbox', 'incidents', 'backup-failed'), value: resolvedIncident('backup-failed') }] });
     await nextTick();
@@ -155,14 +164,17 @@ describe('hold to confirm', () => {
   it('lights the blast radius while you hold and runs the action when confirmed', async () => {
     vi.setSystemTime(new Date('2026-10-03T14:05:10Z'));
     const h = harness(docs(withIncidents), { demo: true });
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'host-memory-pressure' }), { status: 202 }));
-    vi.stubGlobal('fetch', fetchMock);
+    const e = engine();
+    fakeFetch(e.routes);
     h.mountIn(ConfirmDialog);
     const inc = h.live.inbox.value!.incidents['host-memory-pressure']!;
     h.ui.act(inc);
     await flushPromises();
+    await nextTick();
     const dialog = document.body.querySelector<HTMLElement>('.confirm')!;
-    expect(dialog.querySelector('h3')!.textContent).toBe('Restart debian-nas');
+    expect(dialog.querySelector('h3')!.textContent).toBe('Restart debian-nas T2');
+    // The plan's steps say what will happen.
+    expect([...dialog.querySelectorAll('.confirm-steps li')].map((li) => li.textContent)).toEqual(['Ask the hub to restart debian-nas', 'Check it worked']);
     const items = [...dialog.querySelectorAll('.blast li')];
     expect(items.length).toBeGreaterThan(1);
     expect(items.filter((li) => li.classList.contains('on'))).toHaveLength(0);
@@ -173,7 +185,7 @@ describe('hold to confirm', () => {
     expect(dialog.querySelectorAll('.blast li.on').length).toBe(items.length);
     vi.advanceTimersByTime(500);
     await flushPromises();
-    expect(fetchMock.mock.calls[0]![0]).toBe('/api/demo/incidents/host-memory-pressure/fix');
+    expect(e.approvals.map((a) => a.plan)).toEqual(['p_pve_guest_restart_pve_jupiter_nas_lxc_100']);
     expect(h.ui.state.confirm).toBeUndefined();
   });
 });

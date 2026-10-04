@@ -38,6 +38,7 @@ const commands = computed(() =>
     editing: ui.state.editing,
     theme: currentTheme.value,
     ...(session.state.user ? { username: session.state.user.username } : {}),
+    can: ui.can.value,
     do: {
       openInbox: (id) => ui.openInbox(id ?? ''),
       toggleEdit: () => (ui.state.editing = !ui.state.editing),

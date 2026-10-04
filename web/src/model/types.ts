@@ -99,6 +99,16 @@ export interface Action {
   detail?: string;
   /** T2 and up: what the action affects, for the hold-to-confirm list. */
   impact?: Impact[];
+  /** Params for the plan (`POST /api/actions/plan`). */
+  params?: Record<string, unknown>;
+  /** The engine can plan this now (the hub decides availability; v0.2). */
+  plan_ready?: boolean;
+  /** Why it can't run, as a sentence ("Add a control token to let Cha Dash reboot guests on io"). */
+  unavailable?: string;
+  /** With `unavailable`: the instance whose recipe grants it. */
+  recipe?: string;
+  /** Household members may run it too (pausing Pi-hole). */
+  household?: boolean;
 }
 
 export interface Cause {
@@ -141,11 +151,48 @@ export interface InboxDoc {
   incidents: Record<string, Incident>;
 }
 
+/** What an action's undo runs: an action ID plus params, on the same target. */
+export interface UndoSpec {
+  action: string;
+  params?: Record<string, unknown>;
+  label: string;
+}
+
+export type TaskState = 'queued' | 'running' | 'verifying' | 'succeeded' | 'failed' | 'cancelled';
+
+/** A running or finished action (08 · v0.2 → API shapes → Task). */
+export interface Task {
+  id: string;
+  plan?: string;
+  action: string;
+  label: string;
+  target: string;
+  actor?: { kind: string; name?: string };
+  state: TaskState;
+  /** The current step, and progress 0–1; both optional. */
+  step?: string | null;
+  progress?: number | null;
+  /** The last lines of its log. */
+  log?: string[];
+  started_at?: string | null;
+  finished_at?: string | null;
+  error?: { code: string; message: string } | null;
+  undo?: UndoSpec | null;
+  audit?: string;
+}
+
+/** The `tasks` topic: `{"tasks": {id: Task}}`, running plus the last 24 hours, at most 50. */
+export interface TasksDoc {
+  tasks: Record<string, Task>;
+}
+
 /** The subscription documents, one member per topic. */
 export interface LiveDoc {
   graph?: GraphDoc;
   metrics?: MetricsDoc;
   inbox?: InboxDoc;
+  /** The `tasks` topic: running tasks plus the last 24 hours. */
+  tasks?: TasksDoc;
   [topic: string]: unknown;
 }
 

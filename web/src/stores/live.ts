@@ -1,10 +1,11 @@
 /**
  * Live state: the realtime client feeding one reactive document with the
- * `graph`, `metrics` and `inbox` topics, plus connection status, the hub's
- * clock, and the demo actions (Fix).
+ * `graph`, `metrics`, `inbox` and `tasks` topics, plus connection status, the
+ * hub's clock, and the demo Fix endpoint (a fallback for hubs from before the
+ * action engine; stores/actions.ts).
  *
  * Demo and real hubs fill the same topics; the only difference the page sees
- * is `demo` (from GET /api/demo), which allows the demo Fix endpoint.
+ * is `demo` (from GET /api/demo): times in UTC, and the demo Fix fallback.
  * `restore()` fills the document from a last-known snapshot when the page
  * opens while the hub is unreachable; the first live snapshot replaces it.
  * `hydrate()` fills it from the snapshot the hub inlined into index.html,
@@ -21,7 +22,7 @@ import type { BackoffOptions } from '../realtime/backoff';
 import type { GraphDoc, InboxDoc, LiveDoc, MetricsDoc } from '../model/types';
 import { openProblems, openRepairs } from '../model/inbox';
 
-export const TOPICS = ['graph', 'metrics', 'inbox'] as const;
+export const TOPICS = ['graph', 'metrics', 'inbox', 'tasks'] as const;
 
 export type FixState = 'sending' | 'accepted' | 'failed';
 
@@ -30,6 +31,10 @@ export interface FixStatus {
   error?: string;
   /** The incident phase when the fix was accepted, to show progress. */
   phase?: string;
+  /** The engine's task working on it (stores/actions.ts). */
+  task?: string;
+  /** Refused as unavailable: the instance whose recipe grants the action. */
+  recipe?: string;
 }
 
 export interface LiveOptions {
@@ -182,8 +187,10 @@ export function createLive(opts: LiveOptions = {}) {
   const loading = computed(() => !doc.graph && conn.status !== 'live');
 
   /**
-   * Press an open incident's suggested action (demo mode). 202 means accepted;
-   * the resolution arrives as inbox diffs.
+   * Press an open incident's suggested action through the demo Fix endpoint.
+   * Only a fallback now: stores/actions.ts uses it when planning a demo
+   * incident's action answers 404 (a hub from before the engine).
+   * TODO(v0.2, wave 8): remove with the endpoint.
    */
   async function fix(id: string): Promise<void> {
     fixes[id] = { state: 'sending' };

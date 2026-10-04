@@ -10,6 +10,8 @@ import { groupInbox, isBeingFixed, isHint } from '../src/model/inbox';
 import { findInstance, focusField, repairTarget } from '../src/model/integrations';
 import type { Incident } from '../src/model/types';
 import { docs, inboxDoc, withIncidents } from './fixtures';
+import { engine, refuse } from './fake-engine';
+import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
 
 beforeEach(() => {
@@ -129,20 +131,30 @@ describe('repairs', () => {
 });
 
 describe('problems outside demo mode', () => {
-  it('show the fix flow but never call the demo endpoint', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
+  it('run through the engine, and never call the demo endpoint', async () => {
+    const e = engine();
+    const hub = fakeFetch(e.routes);
     const h = harness(docs(withIncidents)); // demo off
     const w = h.mountIn(NeedsAttention);
     const backup = w.findAll('.strip').find((s) => s.text().includes('Backup of homeassistant failed'))!;
     const act = backup.findAll('.acts button')[1]!;
     expect(act.text()).toBe('Back up homeassistant now T1');
-    expect(act.attributes('disabled')).toBeDefined();
-    expect(act.attributes('title')).toContain('action engine');
+    expect(act.attributes('disabled')).toBeUndefined();
+    await act.trigger('click');
+    await flushPromises();
+    expect(e.plans).toEqual([{ action: 'pve.guest.backup', target: 'pve:minig5/qemu/100' }]);
+    expect(e.approvals).toHaveLength(1);
+    expect(hub.calls.some((c) => c.path.includes('/api/demo/'))).toBe(false);
+  });
+
+  it('a 404 from planning is said as is, with no demo fallback outside demo mode', async () => {
+    const e = engine({ plan: () => refuse(404, 'not_found', 'Cha Dash doesn’t know how to back up guests on minig5.') });
+    const hub = fakeFetch(e.routes);
+    const h = harness(docs(withIncidents));
     h.ui.act(h.live.inbox.value!.incidents['backup-failed']!);
     await flushPromises();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(h.ui.state.toasts[0]?.text).toContain('action engine');
+    expect(h.ui.state.toasts[0]).toMatchObject({ text: 'Cha Dash doesn’t know how to back up guests on minig5.', tone: 'error' });
+    expect(hub.calls.some((c) => c.path.includes('/api/demo/'))).toBe(false);
   });
 
   it('open links (T0) anywhere', async () => {
@@ -159,7 +171,7 @@ describe('problems outside demo mode', () => {
 
 describe('the Inbox holds still while you read it', () => {
   it('keeps an item in its group when a fix starts, then re-sorts on the next open', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 202 })));
+    fakeFetch(engine().routes);
     const h = harness(docs(withIncidents), { demo: true });
     h.mountIn(InboxSheet);
     h.ui.openInbox('backup-failed');

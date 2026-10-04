@@ -3,8 +3,11 @@
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
  * /settings/integrations, /settings/import, /settings/backup,
- * /settings/security. The board, the socket and the Inbox stay live
- * underneath; Esc or the scrim goes back.
+ * /settings/users, /settings/audit, /settings/security. The board, the
+ * socket and the Inbox stay live underneath; Esc or the scrim goes back.
+ *
+ * Only owners and admins open Settings; the panes listed are the ones the
+ * viewer's role can use (model/roles.ts). The hub enforces it either way.
  *
  * Its own chunk, loaded the first time Settings opens. Data sits on a solid
  * surface; glass stays on the page's chrome.
@@ -14,21 +17,35 @@ import IntegrationsPane from './IntegrationsPane.vue';
 import ImportPane from './ImportPane.vue';
 import SecurityPane from './SecurityPane.vue';
 import { back, navigate, settingsPath, view, type SettingsPane } from '../lib/router';
+import { useUi } from '../stores/ui';
 
-// Backup is rarely opened: its own chunk, loaded with the pane.
+// Rarely opened: each its own chunk, loaded with the pane.
 const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
+const UsersPane = defineAsyncComponent(() => import('./UsersPane.vue'));
+const AuditPane = defineAsyncComponent(() => import('./AuditPane.vue'));
+
+const ui = useUi();
 
 const panel = ref<HTMLElement | null>(null);
 let lastFocus: Element | null = null;
 
-const PANES: { id: SettingsPane; label: string; note: string }[] = [
+const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'integrations', label: 'Integrations', note: 'what Cha Dash reads' },
   { id: 'import', label: 'Import', note: 'from Homepage' },
   { id: 'backup', label: 'Backup', note: 'export and restore' },
-  { id: 'security', label: 'Security', note: 'level, passkeys' },
+  { id: 'users', label: 'Users', note: 'people and roles' },
+  { id: 'audit', label: 'Audit', note: 'who did what' },
+  { id: 'security', label: 'Security', note: 'level, step-up, passkeys' },
 ];
-const pane = computed<SettingsPane>(() => (view.value.name === 'settings' ? view.value.pane : 'integrations'));
-const TITLES: Record<SettingsPane, string> = { integrations: 'Integrations', import: 'Import from Homepage', backup: 'Backup', security: 'Security' };
+const PANES = computed(() =>
+  ALL_PANES.filter((p) => ui.can.value.panes.includes(p.id)).map((p) => (p.id === 'security' && !ui.can.value.securitySettings ? { ...p, note: 'passkeys' } : p)),
+);
+/** The route's pane, or the first one this role has. */
+const pane = computed<SettingsPane>(() => {
+  const want = view.value.name === 'settings' ? view.value.pane : 'integrations';
+  return ui.can.value.panes.includes(want) ? want : (ui.can.value.panes[0] ?? 'integrations');
+});
+const TITLES: Record<SettingsPane, string> = { integrations: 'Integrations', import: 'Import from Homepage', backup: 'Backup', users: 'Users', audit: 'Audit', security: 'Security' };
 const title = computed(() => TITLES[pane.value]);
 
 function close(): void {
@@ -86,6 +103,8 @@ onBeforeUnmount(() => {
             <IntegrationsPane v-if="pane === 'integrations'" />
             <ImportPane v-else-if="pane === 'import'" />
             <BackupPane v-else-if="pane === 'backup'" />
+            <UsersPane v-else-if="pane === 'users'" />
+            <AuditPane v-else-if="pane === 'audit'" />
             <SecurityPane v-else />
           </div>
         </div>
