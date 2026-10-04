@@ -98,7 +98,7 @@ docker compose up -d
 
 [Back up](../deploy/README.md#backing-up) first: a new version may migrate the database, and there's no going back without the backup. Each beta moves the `beta` tag; to stay on one, pin it in `compose.override.yaml`, for example `image: ghcr.io/ban-red/chadash:0.1.0-beta.1`.
 
-**Checking the image** is optional. Every release is signed by its GitHub workflow, and [cosign](https://docs.sigstore.dev/) can confirm it:
+**Checking the image** is optional. Every release is signed by its GitHub workflow, and [cosign](https://docs.sigstore.dev/) v3 or later can confirm it:
 
 ```sh
 cosign verify ghcr.io/ban-red/chadash:beta \

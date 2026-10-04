@@ -104,7 +104,7 @@ The maintainer cuts releases by pushing a version tag. [`.github/workflows/relea
 **Cutting a beta:**
 
 1. **Start from `main` with CI green** on the commit you're going to tag.
-2. **Check `COSIGN_VERSION`** at the top of `release.yml`. It should be the current cosign release.
+2. **Check `COSIGN_VERSION`** at the top of `release.yml`. It should be the current cosign release. A new major version changes the module path in the install step too (`github.com/sigstore/cosign/v3/...`).
 3. **Write the changelog.** Move what's under `## [Unreleased]` in `CHANGELOG.md` into a new `## [0.1.0-beta.2] - YYYY-MM-DD` section, written for people who run Cha Dash. It becomes the release text, so links must be full URLs. Update the comparison links at the bottom. Preview it with `scripts/release-notes.sh 0.1.0-beta.2`.
 4. **Merge that to `main`** the usual way.
 5. **Tag the merge commit and push the tag:**
