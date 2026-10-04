@@ -95,7 +95,7 @@ const status = computed<TileStatus>(() => (broken.value.some((x) => x.status ===
 const brokenNote = computed(() =>
   broken.value.map((x) => {
     const n = label(x.resource);
-    const what = typeOf(x.resource) === 'radarr' ? 'movies' : 'episodes';
+    const what = ({ radarr: 'movies', lidarr: 'albums' } as Record<string, string>)[typeOf(x.resource) ?? ''] ?? 'episodes';
     return x.status === 'down' ? `${n} down: ${what} missing from this list` : `${n} needs repair: its rows are last-known`;
   }),
 );

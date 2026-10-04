@@ -7,7 +7,7 @@
  *
  * | Type | Primary | Facts |
  * |---|---|---|
- * | sonarr, radarr | `queue` (Radarr in the Demo Home: `queued`) | `wanted`; next release from `attrs.calendar` |
+ * | sonarr, radarr, lidarr | `queue` (Radarr in the Demo Home: `queued`) | `wanted`; next release from `attrs.calendar` |
  * | prowlarr | `grabs` | `queries.24h`, `failures.24h` |
  * | bazarr | `wanted` (else `missing.episodes` + `missing.movies`) | episodes, movies; the trend |
  * | traefik | `attrs.routers` | `attrs.services`, `attrs.middlewares` |
@@ -17,13 +17,17 @@
  * | linkding, karakeep | `bookmarks` | `attrs.archived`/`attrs.favorites`, `attrs.tags` |
  * | tautulli | `streams` | `streams.transcode`, `bandwidth.mbps` |
  * | plex, jellyfin | `streams` | `attrs.movies`, `attrs.shows` |
- * | qbittorrent | `dl.mbps` | `leeching`, `seeding` |
- * | sabnzbd | `dl.mbps` | `queue`, `left.gib` |
+ * | qbittorrent, transmission | `dl.mbps` | `leeching`, `seeding` |
+ * | sabnzbd, nzbget | `dl.mbps` | `queue`, `left.gib` |
  * | pihole, adguard | `blocked.pct` | `blocklist` (the context line), `queries.24h` |
  * | homeassistant | `people_home` of `attrs.people_total` | `lights_on`, `power.kw` |
  * | frigate | `attrs.cameras` | `inference.ms` |
  * | pbs | `tasks.failed_24h` | datastores |
- * | seerr | `requests.pending` | `requests.processing`, `requests.available` |
+ * | seerr (also Overseerr, Jellyseerr) | `requests.pending` | `requests.processing`, `requests.available` |
+ * | nextcloud | `users.active` | `users`, `files`, `free.gib` |
+ * | audiobookshelf | `streams` | `books`, `podcasts` |
+ * | paperlessngx | `documents` | `inbox` |
+ * | speedtesttracker | `dl.mbps` | `ul.mbps`, `ping.ms` |
  * | a plain URL (`check`) | `attrs.status_code` (else latency) | latency, uptime 24 h |
  * | anything else | its first series that isn't a latency | the check's latency |
  */
@@ -176,9 +180,23 @@ function dnsFilter(c: Ctx): Reading {
 const bookmarks = (archived: string) => (c: Ctx) =>
   metric(c, ['bookmarks'], 'bookmarks', { facts: [...af(c, archived, archived), ...af(c, 'tags', 'tags')] }, 'No bookmarks yet');
 
+function usenet(c: Ctx): Reading {
+  const r = metric(c, ['dl.mbps'], 'Mb/s ↓', { facts: [...mf(c, 'queue', 'in the queue', fmtInt), ...mf(c, 'left.gib', 'GiB left')] });
+  if (series(c.m, c.r.id, 'queue')?.value === 0) r.empty = 'Queue clear';
+  return r;
+}
+
+function torrents(c: Ctx): Reading {
+  const r = metric(c, ['dl.mbps'], 'Mb/s ↓', { facts: [...mf(c, 'leeching', 'leeching', fmtInt), ...mf(c, 'seeding', 'seeding', fmtInt)] });
+  const leech = series(c.m, c.r.id, 'leeching')?.value;
+  if (leech === 0 && (r.value ?? 0) < 0.1) r.empty = 'Idle';
+  return r;
+}
+
 const READERS: Record<string, (c: Ctx) => Reading> = {
   sonarr: arr,
   radarr: arr,
+  lidarr: arr,
   prowlarr: (c) => metric(c, ['grabs'], 'grabs', { facts: [...mf(c, 'queries.24h', 'queries · 24 h'), ...mf(c, 'failures.24h', 'failures · 24 h', fmtInt)] }),
   bazarr,
   traefik: (c) => attrStat(c, 'routers', 'routers', { facts: [...af(c, 'services', 'services'), ...af(c, 'middlewares', 'middlewares')] }),
@@ -195,19 +213,12 @@ const READERS: Record<string, (c: Ctx) => Reading> = {
     metric(c, ['streams'], 'playing', { facts: [...mf(c, 'streams.transcode', 'transcoding', fmtInt), ...mf(c, 'bandwidth.mbps', 'Mb/s')] }, 'Nothing playing'),
   plex: media,
   jellyfin: media,
-  sabnzbd: (c) => {
-    const r = metric(c, ['dl.mbps'], 'Mb/s ↓', { facts: [...mf(c, 'queue', 'in the queue', fmtInt), ...mf(c, 'left.gib', 'GiB left')] });
-    if (series(c.m, c.r.id, 'queue')?.value === 0) r.empty = 'Queue clear';
-    return r;
-  },
+  sabnzbd: usenet,
+  nzbget: usenet,
   pihole: dnsFilter,
   adguard: dnsFilter,
-  qbittorrent: (c) => {
-    const r = metric(c, ['dl.mbps'], 'Mb/s ↓', { facts: [...mf(c, 'leeching', 'leeching', fmtInt), ...mf(c, 'seeding', 'seeding', fmtInt)] });
-    const leech = series(c.m, c.r.id, 'leeching')?.value;
-    if (leech === 0 && (r.value ?? 0) < 0.1) r.empty = 'Idle';
-    return r;
-  },
+  qbittorrent: torrents,
+  transmission: torrents,
   homeassistant: (c) =>
     metric(c, ['people_home'], `/${fmtInt(attr<number>(c.r, 'people_total'))} home`, { facts: [...mf(c, 'lights_on', 'lights on', fmtInt), ...mf(c, 'power.kw', 'kW')] }),
   frigate: (c) => attrStat(c, 'cameras', 'cameras', { facts: mf(c, 'inference.ms', 'ms inference') }),
@@ -217,6 +228,11 @@ const READERS: Record<string, (c: Ctx) => Reading> = {
   },
   seerr: (c) =>
     metric(c, ['requests.pending'], 'pending', { facts: [...mf(c, 'requests.processing', 'processing', fmtInt), ...mf(c, 'requests.available', 'available', fmtInt)] }, 'No pending requests'),
+  nextcloud: (c) =>
+    metric(c, ['users.active'], 'active', { facts: [...mf(c, 'users', 'users', fmtInt), ...mf(c, 'files', 'files', fmtInt), ...mf(c, 'free.gib', 'GiB free')] }),
+  audiobookshelf: (c) => metric(c, ['streams'], 'listening', { facts: [...mf(c, 'books', 'books', fmtInt), ...mf(c, 'podcasts', 'podcasts', fmtInt)] }, 'Nobody listening'),
+  paperlessngx: (c) => metric(c, ['documents'], 'documents', { facts: mf(c, 'inbox', 'in the inbox', fmtInt) }, 'No documents yet'),
+  speedtesttracker: (c) => metric(c, ['dl.mbps'], 'Mb/s ↓', { facts: [...mf(c, 'ul.mbps', 'Mb/s ↑'), ...mf(c, 'ping.ms', 'ms ping')] }),
 };
 
 /** A plain URL's built-in check (or an Uptime Kuma monitor): status code, latency, uptime. */
@@ -284,5 +300,12 @@ export const TYPE_NAMES: Record<string, string> = {
   frigate: 'Frigate',
   pbs: 'PBS',
   seerr: 'Seerr',
+  lidarr: 'Lidarr',
+  transmission: 'Transmission',
+  nzbget: 'NZBGet',
+  nextcloud: 'Nextcloud',
+  audiobookshelf: 'Audiobookshelf',
+  paperlessngx: 'Paperless-ngx',
+  speedtesttracker: 'Speedtest Tracker',
 };
 

@@ -14,10 +14,10 @@ import { integrations } from '../stores/integrations';
 import type { CatalogEntry } from '../model/integrations';
 
 const GROUPS: readonly { title: string; ids: readonly string[] }[] = [
-  { title: 'Servers and network', ids: ['proxmox', 'pbs', 'unraid', 'docker', 'opnsense', 'pihole', 'adguard', 'traefik', 'uptimekuma', 'checks'] },
+  { title: 'Servers and network', ids: ['proxmox', 'pbs', 'unraid', 'docker', 'opnsense', 'pihole', 'adguard', 'traefik', 'uptimekuma', 'speedtesttracker', 'checks'] },
   { title: 'Home', ids: ['homeassistant', 'frigate', 'weather'] },
-  { title: 'Media and downloads', ids: ['plex', 'jellyfin', 'sonarr', 'radarr', 'prowlarr', 'qbittorrent', 'sabnzbd', 'tautulli', 'bazarr', 'seerr'] },
-  { title: 'Apps', ids: ['immich', 'mealie', 'linkding', 'karakeep'] },
+  { title: 'Media and downloads', ids: ['plex', 'jellyfin', 'sonarr', 'radarr', 'lidarr', 'prowlarr', 'qbittorrent', 'transmission', 'sabnzbd', 'nzbget', 'tautulli', 'bazarr', 'seerr', 'audiobookshelf'] },
+  { title: 'Apps', ids: ['immich', 'nextcloud', 'paperlessngx', 'mealie', 'linkding', 'karakeep'] },
 ];
 
 const groups = computed(() => {

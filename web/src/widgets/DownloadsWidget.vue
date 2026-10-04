@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * Download queue: qBittorrent (`dl.mbps`, `ul.mbps`, `leeching`, `seeding`,
- * `queued`, `attrs.connection_status`), SABnzbd (`dl.mbps`, `queue`,
- * `left.gib`; state `paused` is "paused (by you)", not a problem) and the
- * *arr queues (`queue`, the Demo Home's Radarr `queued`). Target: a client
- * instance, else the first qBittorrent, else SABnzbd; the other client gets
- * a row.
+ * Download queue: qBittorrent and Transmission (`dl.mbps`, `ul.mbps`,
+ * `leeching`, `seeding`, `queued`, `attrs.connection_status`), SABnzbd and
+ * NZBGet (`dl.mbps`, `queue`, `left.gib`; state `paused` is "paused (by
+ * you)", not a problem) and the *arr queues (`queue`, the Demo Home's Radarr
+ * `queued`). Target: a client instance, else the first qBittorrent, else the
+ * first of the others in DOWNLOAD_CLIENTS' order; the other clients get a
+ * row.
  *
  * Glyph: active downloads. Small: leeching and seeding, the speed. Wide: the
  * speed over 24 hours and each queue as a row. Tall: up to eight rows.
@@ -21,6 +22,7 @@ import Sparkline from '../components/marks/Sparkline.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtInt, fmtNum, since } from '../lib/format';
 import { appsOfType, incoming, label, placeOf, resolve, series } from '../model/graph';
+import { DOWNLOAD_CLIENTS, USENET_CLIENTS } from '../model/widgets';
 import { glyphFor } from '../model/status';
 import { resourceLinks, type Resource } from '../model/types';
 import { useLive } from '../stores/live';
@@ -35,12 +37,15 @@ const { size, target } = defineProps<{ size: SizeId; target?: string | undefined
 const live = useLive();
 
 const app = computed(
-  () => (target ? resolve(live.graph.value, target) : undefined) ?? resolve(live.graph.value, 'app:qbittorrent') ?? appsOfType(live.graph.value, 'sabnzbd')[0],
+  () =>
+    (target ? resolve(live.graph.value, target) : undefined) ??
+    resolve(live.graph.value, 'app:qbittorrent') ??
+    DOWNLOAD_CLIENTS.map((t) => appsOfType(live.graph.value, t)[0]).find(Boolean),
 );
 const s = useSubject(() => app.value?.id);
 const ID = computed(() => app.value?.id ?? '');
 const type = computed(() => typeOf(app.value) ?? 'qbittorrent');
-const usenet = computed(() => type.value === 'sabnzbd');
+const usenet = computed(() => USENET_CLIENTS.includes(type.value));
 const m = (k: string) => series(live.metrics.value, ID.value, k);
 const dl = computed(() => m('dl.mbps'));
 const ul = computed(() => m('ul.mbps'));
@@ -56,13 +61,13 @@ interface QueueRow {
   status: TileStatus;
 }
 const arrs = computed<QueueRow[]>(() =>
-  ['sonarr', 'radarr']
+  ['sonarr', 'radarr', 'lidarr']
     .flatMap((t) => appsOfType(live.graph.value, t))
     .map((r) => ({ r, n: (series(live.metrics.value, r.id, 'queue') ?? series(live.metrics.value, r.id, 'queued'))?.value ?? null, status: statusOf(r) })),
 );
-/** The other download clients beside the main one (SABnzbd next to qBittorrent). */
+/** The other download clients beside the main one (SABnzbd next to qBittorrent, Transmission, NZBGet). */
 const others = computed(() =>
-  ['qbittorrent', 'sabnzbd'].flatMap((t) => appsOfType(live.graph.value, t)).filter((r) => r.id !== ID.value),
+  DOWNLOAD_CLIENTS.flatMap((t) => appsOfType(live.graph.value, t)).filter((r) => r.id !== ID.value),
 );
 const active = computed(() => (usenet.value ? queuedT.value?.value : leeching.value?.value) ?? null);
 const idle = computed(() => (active.value ?? 0) === 0 && (dl.value?.value ?? 0) < 0.1 && arrs.value.every((a) => !a.n));
@@ -85,7 +90,7 @@ const rate = (v: number) => `${fmtNum(v)} Mb/s`;
 function clientWords(r: Resource, st: TileStatus): string {
   if (st === 'off') return offWords(r);
   const v = (k: string) => series(live.metrics.value, r.id, k)?.value;
-  if (typeOf(r) === 'sabnzbd') return `${fmtInt(v('queue'))} in the queue · ${fmtNum(v('left.gib'))} GiB left`;
+  if (USENET_CLIENTS.includes(typeOf(r) ?? '')) return `${fmtInt(v('queue'))} in the queue · ${fmtNum(v('left.gib'))} GiB left`;
   return `${fmtInt(v('leeching'))} leeching · ${fmtInt(v('queued'))} queued`;
 }
 const rows = computed(() => [
@@ -94,13 +99,14 @@ const rows = computed(() => [
   ...arrs.value.map((a) => ({ id: a.r.id, name: label(a.r), words: a.n === null ? '—' : a.n === 0 ? 'queue clear' : `${fmtInt(a.n)} queued`, status: a.status })),
 ]);
 const client = computed(() => TYPE_NAMES[type.value] ?? 'qBittorrent');
+const MONO: Record<string, string> = { qbittorrent: 'QB', transmission: 'TR', sabnzbd: 'SB', nzbget: 'NZ' };
 </script>
 
 <template>
   <Frame
     :size="size"
     name="Downloads"
-    :mono="usenet ? 'SB' : 'QB'"
+    :mono="MONO[type] ?? (usenet ? 'SB' : 'QB')"
     :context="size === 'glyph' ? '' : place ? `${client} · ${place}` : client"
     :href="resourceLinks(app)[0]?.url"
     :subject="s"
@@ -112,7 +118,7 @@ const client = computed(() => TYPE_NAMES[type.value] ?? 'qBittorrent');
   >
     <template v-if="!app">
       <div :class="size === 'glyph' ? 'gv unknown' : 'v sm word'">{{ size === 'glyph' ? '—' : 'Not connected' }}</div>
-      <p v-if="size !== 'glyph'" class="lab">Connect qBittorrent or SABnzbd to see downloads.</p>
+      <p v-if="size !== 'glyph'" class="lab">Connect qBittorrent, Transmission, SABnzbd or NZBGet to see downloads.</p>
     </template>
 
     <template v-else-if="size === 'glyph'">

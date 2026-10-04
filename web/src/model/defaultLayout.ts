@@ -20,7 +20,7 @@
  * widgets, so the first paint is never empty.
  */
 import { createBoard, type Board, type ItemInput, type SectionInput, type SizeId } from '@chadash/layout';
-import { WIDGETS, itemId } from './widgets';
+import { DOWNLOAD_CLIENTS, WIDGETS, itemId } from './widgets';
 import { appsOfType, byKind, calendar, resolve, resources } from './graph';
 import type { GraphDoc } from './types';
 
@@ -55,8 +55,8 @@ export function defaultBoard(g: GraphDoc | undefined, nowMs = Date.now()): Board
 
   const media: ItemInput[] = [];
   if (any || has('app:plex')) media.push(item('plex'));
-  for (const type of ['sonarr', 'radarr']) for (const app of appsOfType(g, type)) media.push(item('arr', app.id));
-  if (any || has('app:qbittorrent')) media.push(item('downloads'));
+  for (const type of ['sonarr', 'radarr', 'lidarr']) for (const app of appsOfType(g, type)) media.push(item('arr', app.id));
+  if (any || has('app:qbittorrent') || DOWNLOAD_CLIENTS.some((t) => appsOfType(g, t).length > 0)) media.push(item('downloads'));
   if (any || calendar(g, nowMs - 7 * 86_400_000).length > 0) media.push(item('calendar'));
   if (media.length) sections.push({ id: 'media', title: 'Media', span: 8, items: media });
 

@@ -30,6 +30,11 @@ export interface WidgetSpec {
 
 const spec = (type: string, name: string, size: SizeId, sizes: SizeId[], more: Partial<WidgetSpec> = {}): WidgetSpec => ({ type, name, size, sizes, ...more });
 
+/** Usenet clients publish SABnzbd's keys, torrent clients qBittorrent's (integrations/<id>/README.md). */
+export const USENET_CLIENTS: readonly string[] = ['sabnzbd', 'nzbget'];
+/** Every download client the Downloads tile reads, in the order it picks one. */
+export const DOWNLOAD_CLIENTS: readonly string[] = ['qbittorrent', 'transmission', 'sabnzbd', 'nzbget'];
+
 export const WIDGETS: Record<string, WidgetSpec> = {
   fleet: spec('fleet', 'Fleet', 'large', ['wide', 'tall', 'large', 'hero']),
   host: spec('host', 'Host', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { bound: true, accepts: { kinds: ['host'] } }),
@@ -49,9 +54,9 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   uptimekuma: spec('uptimekuma', 'Uptime Kuma', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['uptimekuma'] } }),
   traefik: spec('traefik', 'Traefik', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['traefik'] } }),
   plex: spec('plex', 'Now playing', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['app'], types: ['plex', 'jellyfin', 'tautulli'] } }),
-  arr: spec('arr', 'Queue', 'small', ['small', 'wide'], { bound: true, accepts: { kinds: ['app'], types: ['sonarr', 'radarr'] } }),
-  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'tall'], { accepts: { kinds: ['app'], types: ['qbittorrent', 'sabnzbd'] } }),
-  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'tall', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr'] } }),
+  arr: spec('arr', 'Queue', 'small', ['small', 'wide'], { bound: true, accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] } }),
+  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'tall'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] } }),
+  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'tall', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] } }),
   incidents: spec('incidents', 'Incidents', 'large', ['wide', 'tall', 'large']),
   /**
    * Any service: an imported Homepage entry (`service@homepage:<section>/<entry>`),

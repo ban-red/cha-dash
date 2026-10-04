@@ -17,7 +17,7 @@
  * Any other type, including ones added to the catalog later, is fed by
  * resources of its own kind, or by apps whose `attrs.type` is its name.
  */
-import type { WidgetSpec } from './widgets';
+import { DOWNLOAD_CLIENTS, type WidgetSpec } from './widgets';
 import { appsOfType, byKind, calendar, label, placeOf, resolve, resources } from './graph';
 import { resourceLinks, type GraphDoc, type Resource } from './types';
 
@@ -90,13 +90,13 @@ const RULES: Record<string, Rule> = {
   // Bookmarks lists the services the graph discovered (their links); Linkding and Karakeep are its sources.
   bookmarks: { available: anyOf(app('linkding'), app('karakeep'), (g) => resources(g).some((r) => r.kind === 'app' && resourceLinks(r).length > 0)) },
   plex: { available: anyOf(app('plex'), app('jellyfin'), app('tautulli')) },
-  downloads: { available: anyOf(app('qbittorrent'), app('sabnzbd')) },
+  downloads: { available: anyOf(...DOWNLOAD_CLIENTS.map((t) => app(t))) },
   homeassistant: { available: app('homeassistant') },
   clock: { available: () => true },
   weather: { available: kind('weather') },
-  calendar: { available: (g, now) => calendar(g, now - 7 * 86_400_000).length > 0 || appsOfType(g, 'sonarr').length + appsOfType(g, 'radarr').length > 0 },
+  calendar: { available: (g, now) => calendar(g, now - 7 * 86_400_000).length > 0 || ['sonarr', 'radarr', 'lidarr'].some((t) => appsOfType(g, t).length > 0) },
   incidents: { available: () => true },
-  arr: { candidates: (g) => [...appsOfType(g, 'sonarr'), ...appsOfType(g, 'radarr')] },
+  arr: { candidates: (g) => [...appsOfType(g, 'sonarr'), ...appsOfType(g, 'radarr'), ...appsOfType(g, 'lidarr')] },
   service: { available: () => true },
 };
 
