@@ -163,13 +163,13 @@ describe('Settings → Users', () => {
     await form.trigger('submit');
     expect(form.findAll('.help.bad')).toHaveLength(2);
     expect(f.last('POST', '/api/users')).toBeUndefined();
-    await form.find('input[type="text"]').setValue('alex');
+    await form.find('input[type="text"]').setValue('sam');
     await form.find('input[type="password"]').setValue('a long enough password');
     await form.find('select').setValue('household');
     await form.trigger('submit');
     await settle();
-    expect(f.last('POST', '/api/users')?.body).toEqual({ username: 'alex', password: 'a long enough password', role: 'household' });
-    expect(w.findAll('.us-row').map((r) => r.find('.t').text().trim())).toContain('alex');
+    expect(f.last('POST', '/api/users')?.body).toEqual({ username: 'sam', password: 'a long enough password', role: 'household' });
+    expect(w.findAll('.us-row').map((r) => r.find('.t').text().trim())).toContain('sam');
   });
 
   it('hands ownership over only after the name is typed, with step-up when the hub asks', async () => {
