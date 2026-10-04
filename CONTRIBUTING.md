@@ -43,17 +43,21 @@ go test ./...        # needs no SPA build
 
 After editing a theme in `design/tokens/themes/`, run `bun run generate` in `design/tokens`. CI fails when `dist/` is stale.
 
-**Running locally.** Two terminals. The hub runs on the Demo Home simulator, so you need no homelab:
+**Running locally.** One command. The hub runs on the Demo Home simulator, so you need no homelab:
 
 ```sh
-# 1. the hub on :3696, with its database and vault key in ./data (git-ignored)
-CHADASH_DATA_DIR=./data go run ./cmd/chadash serve --demo
-
-# 2. the SPA with hot reload; its dev server proxies the API and WebSocket to :3696
-cd web && bun run dev
+bun run dev          # hub on 127.0.0.1:3696 (data in ./data) + the SPA with hot reload on :5173
 ```
 
-Open the address the dev server prints. On first run the hub logs a **setup token**; enter it in the browser to create the owner account. Delete `./data` to start over.
+It builds the hub, waits until it's healthy, starts the Vite dev server (which proxies `/api` and `/ws` to the hub), and on first run prints the **setup token** to enter at http://localhost:5173. Ctrl-C stops both.
+
+| Command | What it does |
+|---|---|
+| `bun run dev:fresh` | Wipes `./data` first: a brand-new instance and setup token |
+| `bun run dev --now` | Runs the demo on the wall clock instead of from 14:05 |
+| `bun run dev --check` | Checks prerequisites and ports, starts nothing |
+
+`CHADASH_*` variables pass through to the hub (e.g. `CHADASH_DEMO_SEED=2 bun run dev`). The manual way still works: `CHADASH_DATA_DIR=./data go run ./cmd/chadash serve --demo` in one terminal and `cd web && bun run dev` in another.
 
 **Building**
 

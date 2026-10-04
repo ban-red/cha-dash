@@ -10,19 +10,21 @@ Run these in `web/` (or from the root, where `bun run build`, `bun run test` and
 
 | Script | What it does |
 |---|---|
-| `bun run dev` | Vite dev server, proxying `/api` and `/ws` to a hub on `localhost:3696` |
+| `bun run dev` | Vite dev server, proxying `/api` and `/ws` to a hub on `127.0.0.1:3696` (the root `bun run dev` starts both) |
 | `bun run build` | `vite build` into `../internal/webui/dist` (emptied first) |
 | `bun run test` | Vitest with happy-dom |
 | `bun run typecheck` | `vue-tsc --noEmit`, strict, templates included |
 
 ## Running against a local hub
 
+From the repo root, `bun run dev` starts both: the hub on the Demo Home (127.0.0.1:3696) and this dev server, and prints the setup token on first run. To run them separately:
+
 ```sh
-chadash serve --demo     # the hub with the Demo Home, on :3696
-bun run dev              # in web/, then open the URL Vite prints
+CHADASH_DATA_DIR=./data go run ./cmd/chadash serve --demo   # repo root: the hub on :3696
+bun run dev                                                 # in web/, then open the URL Vite prints
 ```
 
-The dev server proxies `/api` and `/ws` (`ws: true`) to `localhost:3696`. `changeOrigin` stays off: the hub's cross-origin checks compare `Origin` with `Host`, and through the proxy both are the dev server's. The first visit asks for the setup token from the hub's log.
+The dev server proxies `/api` and `/ws` (`ws: true`) to `127.0.0.1:3696`. `changeOrigin` stays off: the hub's cross-origin checks compare `Origin` with `Host`, and through the proxy both are the dev server's. The first visit asks for the setup token from the hub's log.
 
 Demo mode shows absolute times in UTC, because the Demo Home keeps UTC as its clock and its incident copy quotes UTC times. Outside demo mode times are local.
 

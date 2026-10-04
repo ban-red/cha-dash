@@ -1,0 +1,67 @@
+# Seerr (Overseerr, Jellyseerr): media requests waiting for approval.
+#
+# The sample Tier 1 spec. Format: chadash/v1alpha1, internal and unstable
+# until v1.0; see internal/README.md, "Tier 1 specs".
+# The fixture test is specs_test.go, against testdata/seerr/.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: seerr
+  name: Seerr
+  icon: seerr
+  version: 0.1.0
+  tier: bronze
+  capabilities: [media.requests]
+
+# url and tls are added to every spec.
+config:
+  api_key: { type: secret, title: API key, required: true, description: "Settings → General → API Key" }
+  pending_warn: { type: integer, title: Pending requests before attention, default: 20, min: 1, max: 1000 }
+
+source:
+  headers:
+    X-Api-Key: "{{ secret.api_key }}"
+  timeout: 10s
+
+every: 60s
+
+requests:
+  status:
+    path: /api/v1/status
+    extract:
+      version: version
+      update_available: updateAvailable
+  counts:
+    path: /api/v1/request/count
+    extract:
+      pending: pending
+      approved: approved
+      processing: processing
+      available: available
+      total: total
+
+version: status.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? "attention" : "ok"'
+    reason: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? string(counts.pending) + " requests are waiting for approval" : ""'
+    attrs:
+      version: status.version
+      update_available: status.update_available
+    caps: [media.requests]
+    links:
+      - { title: Seerr, url: config.url }
+
+metrics:
+  - { resource: app, key: requests.pending, value: counts.pending, unit: count, max: 100, band: [0, 5] }
+  - { resource: app, key: requests.processing, value: counts.processing, unit: count, max: 100, band: [0, 10] }
+  - { resource: app, key: requests.available, value: counts.available, unit: count, max: 10000, band: [0, 10000] }
+
+repairs:
+  - when: 'status.version != nil && status.version startsWith "0."'
+    code: unsupported_version
+    message: '"Seerr " + status.version + " is older than this spec supports (1.0 or later)."'

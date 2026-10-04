@@ -8,6 +8,8 @@
     "web"
   ],
   "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "dev:fresh": "bun scripts/dev.ts --fresh",
     "build": "bun run --filter @chadash/web build",
     "test": "bun run --filter '*' test",
     "typecheck": "bun run --filter '*' typecheck"

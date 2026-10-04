@@ -19,7 +19,8 @@ docker compose up -d   # the primary way to self-host Cha Dash (coming soon) —
 - [03 · Architecture](docs/plan/03-architecture.md) — the Home Graph, integrations, owned stacks, the node, compose deployment, security, stack
 - [04 · Roadmap, decisions & risks](docs/plan/04-roadmap.md) — milestones, decisions made and still open, risks
 - [05 · Dogfood home](docs/plan/05-dogfood-home.md) — the real homelab Cha Dash has to win over first
-- [06 · Next steps](docs/plan/06-next-steps.md) — the sequenced plan for finishing M0
+- [06 · Next steps](docs/plan/06-next-steps.md) — the sequenced plan for finishing M0 (done)
+- [07 · v0.1](docs/plan/07-v0.1.md) — waves 4–6 toward the Front Page release, and their shared contracts
 
 **Decisions**
 - [Architecture decision records](docs/adr/README.md) — one file per decision, with the open ones listed
