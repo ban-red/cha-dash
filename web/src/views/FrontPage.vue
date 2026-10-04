@@ -1,8 +1,16 @@
 <script setup lang="ts">
 /**
  * The signed-in app: the front page plus its layers. Creates the live, board
- * and UI stores for everything below it. The Inbox and the confirm dialog are
- * loaded on first use (they carry motion-v), keeping the first paint small.
+ * and UI stores for everything below it, and owns what spans them:
+ *
+ * - the route (which board; Settings as a layer over the page);
+ * - ⌘K / Ctrl K and / for the command bar;
+ * - the last-known snapshot: written while live, and the page opens on it
+ *   when the hub was unreachable at start-up (session.state.offline);
+ * - demo mode (GET /api/demo), which lets incidents' actions run.
+ *
+ * The Inbox, the confirm dialog, the command bar and Settings load on first
+ * use, keeping the first paint small.
  */
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Briefing from '../components/Briefing.vue';
@@ -12,18 +20,22 @@ import Toasts from '../components/Toasts.vue';
 import BoardSurface from '../board/BoardSurface.vue';
 import { api } from '../lib/api';
 import { setDisplayTimeZone } from '../lib/format';
+import { view } from '../lib/router';
 import type { GraphDoc } from '../model/types';
 import { createBoardStore, provideBoard } from '../stores/board';
 import { createLive, provideLive } from '../stores/live';
+import { persistSnapshots } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { createUi, provideUi } from '../stores/ui';
 
 const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.vue'));
 const ConfirmDialog = defineAsyncComponent(() => import('../components/ConfirmDialog.vue'));
+const CommandPalette = defineAsyncComponent(() => import('../components/CommandPalette.vue'));
+const SettingsSheet = defineAsyncComponent(() => import('../settings/SettingsSheet.vue'));
 
 const session = useSession();
 const live = createLive({ checkSession: session.check });
-const ui = createUi(live);
+const ui = createUi(live, { signOut });
 provideLive(live);
 provideUi(ui);
 
@@ -47,6 +59,15 @@ function waitForGraph(): Promise<GraphDoc | undefined> {
 const board = createBoardStore({ waitForGraph, now: () => live.now.value });
 provideBoard(board);
 
+// Opened while the hub was unreachable: show the last-known page.
+const restored = session.takeRestored();
+if (restored) {
+  if (restored.timeZone) setDisplayTimeZone(restored.timeZone);
+  live.demo.value = restored.demo === true;
+  live.restore(restored);
+  board.restore(restored.board);
+}
+
 const inboxLoaded = ref(false);
 const confirmLoaded = ref(false);
 watch(
@@ -58,16 +79,38 @@ watch(
   (v) => v && (confirmLoaded.value = true),
 );
 
+// The board follows the route: /boards/{id}, or the first board at /.
+watch(
+  () => (view.value.name === 'front' ? (view.value.board ?? '') : undefined),
+  (want) => {
+    if (want === undefined || board.state.status === 'loading' || board.state.status === 'idle') return;
+    const first = board.state.boards[0]?.id ?? '';
+    if ((want || first) !== board.state.boardId) void board.load(want || undefined);
+  },
+);
+
+// Back from an offline start: confirm the session with the hub.
+watch(
+  () => live.conn.status,
+  (s) => {
+    if (s === 'live' && session.state.offline) {
+      void session.confirm();
+      if (board.state.lastKnown) void board.load(board.state.boardId || undefined);
+    }
+  },
+);
+
 async function demo(): Promise<void> {
   try {
     const d = await api<{ enabled: boolean; now: string; seed: number }>('/api/demo');
+    live.demo.value = d?.enabled === true;
     if (d?.enabled) {
       // The Demo Home keeps UTC as its clock, and its copy quotes UTC times.
       setDisplayTimeZone('UTC');
       live.setHubTime(d.now);
     }
   } catch {
-    /* 404 outside demo mode: local time */
+    /* 404 outside demo mode: local time, and actions wait for the action engine */
   }
 }
 
@@ -76,18 +119,50 @@ async function signOut(): Promise<void> {
   await session.logout();
 }
 
+const isTyping = (t: EventTarget | null) =>
+  t instanceof HTMLElement && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
+
+function onKey(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if (ui.state.paletteOpen) ui.closePalette();
+    else ui.openPalette();
+    return;
+  }
+  if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !isTyping(e.target) && !ui.state.confirm && !ui.state.paletteOpen) {
+    e.preventDefault();
+    ui.openPalette();
+  }
+}
+
+let stopPersist: (() => void) | undefined;
+
 onMounted(() => {
   live.start();
-  void demo();
-  void board.load();
+  if (!restored) void demo();
+  void board.load(view.value.name === 'front' ? view.value.board : undefined);
+  document.addEventListener('keydown', onKey);
+  stopPersist = persistSnapshots(live, board, session);
 });
-onBeforeUnmount(() => live.stop());
+onBeforeUnmount(() => {
+  live.stop();
+  stopPersist?.();
+  document.removeEventListener('keydown', onKey);
+});
+
+// The demo flag comes from the hub once it's reachable again.
+watch(
+  () => session.state.offline,
+  (offline, was) => {
+    if (was && !offline) void demo();
+  },
+);
 </script>
 
 <template>
   <div class="screen">
     <div class="frame">
-      <main class="page" aria-label="Front page">
+      <main class="page" aria-label="Front page" :inert="view.name === 'settings' || undefined">
         <Briefing @sign-out="signOut" />
         <HubBanner />
         <NeedsAttention />
@@ -101,5 +176,7 @@ onBeforeUnmount(() => live.stop());
   </div>
   <InboxSheet v-if="inboxLoaded" />
   <ConfirmDialog v-if="confirmLoaded" />
+  <SettingsSheet v-if="view.name === 'settings'" />
+  <CommandPalette v-if="ui.state.paletteOpen" />
   <Toasts />
 </template>

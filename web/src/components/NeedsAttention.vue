@@ -123,7 +123,8 @@ const fixState = (id: string) => live.fixes[id]?.state;
               v-if="i.suggested && fixState(i.id) !== 'accepted'"
               type="button"
               class="btn"
-              :disabled="live.stale.value || fixState(i.id) === 'sending' || i.suggested.tier === 'T3' || i.suggested.tier === 'T4'"
+              :disabled="!ui.canRun(i).ok"
+              :title="ui.canRun(i).why"
               @click="ui.act(i)"
             >
               {{ i.suggested.label }} <span class="tier">{{ i.suggested.tier }}</span>

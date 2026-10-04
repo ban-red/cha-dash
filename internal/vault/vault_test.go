@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -114,6 +115,41 @@ func TestValidation(t *testing.T) {
 	}
 	if err := v.Put(ctx, "big", make([]byte, MaxValueSize+1)); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("oversized Put = %v", err)
+	}
+}
+
+func TestPutTxFollowsTheTransaction(t *testing.T) {
+	v, st, _ := newVault(t)
+	ctx := t.Context()
+
+	// Rolled back with the transaction: nothing stored.
+	boom := errors.New("boom")
+	err := st.WriteTx(ctx, func(tx *sql.Tx) error {
+		if err := v.PutTx(ctx, tx, "rolled/back", []byte("fake")); err != nil {
+			return err
+		}
+		return boom
+	})
+	if !errors.Is(err, boom) {
+		t.Fatalf("WriteTx = %v", err)
+	}
+	if _, err := v.Get(ctx, "rolled/back"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("after rollback Get = %v, want ErrNotFound", err)
+	}
+
+	// Committed: readable, and a second PutTx replaces it.
+	for _, val := range []string{"first", "second"} {
+		if err := st.WriteTx(ctx, func(tx *sql.Tx) error { return v.PutTx(ctx, tx, "committed", []byte(val)) }); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := v.Get(ctx, "committed"); err != nil || string(got) != val {
+			t.Fatalf("Get = %q, %v; want %q", got, err, val)
+		}
+	}
+
+	err = st.WriteTx(ctx, func(tx *sql.Tx) error { return v.PutTx(ctx, tx, "bad name", []byte("x")) })
+	if !errors.Is(err, ErrInvalidName) {
+		t.Fatalf("PutTx with a bad name = %v", err)
 	}
 }
 

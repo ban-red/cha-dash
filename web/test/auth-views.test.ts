@@ -92,3 +92,53 @@ describe('sign-in', () => {
     expect(session.state.phase).toBe('login');
   });
 });
+
+describe('dev login', () => {
+  const settle = async () => {
+    await vi.dynamicImportSettled();
+    await flushPromises();
+  };
+
+  it('stays hidden unless the hub offers it', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    const { mountIn, session } = harness();
+    session.state.phase = 'login';
+    const w = mountIn(LoginView);
+    await settle();
+    expect(w.text()).not.toContain('Login as Local Dev');
+  });
+
+  it.each([
+    ['setup', SetupView],
+    ['login', LoginView],
+  ] as const)('gets straight in from the %s door', async (phase, view) => {
+    const fetchMock = vi.fn().mockResolvedValue(json(200, { user: { id: 'u1', username: 'dev', role: 'owner' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { mountIn, session } = harness();
+    session.state.phase = phase;
+    session.state.devLogin = true;
+    const w = mountIn(view);
+    await settle();
+    const button = w.findAll('button').find((b) => b.text() === 'Login as Local Dev');
+    expect(button).toBeDefined();
+    await button!.trigger('click');
+    await flushPromises();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/auth/dev-login');
+    expect(fetchMock.mock.calls[0]![1].method).toBe('POST');
+    expect(session.state.phase).toBe('ready');
+    expect(session.state.user?.username).toBe('dev');
+  });
+
+  it('explains a hub built without it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(404, { error: { code: 'not_found', message: 'no such endpoint' } })));
+    const { mountIn, session } = harness();
+    session.state.phase = 'login';
+    session.state.devLogin = true;
+    const w = mountIn(LoginView);
+    await settle();
+    await w.findAll('button').find((b) => b.text() === 'Login as Local Dev')!.trigger('click');
+    await flushPromises();
+    expect(w.find('.dev-login .form-error').text()).toBe('This hub wasn’t built with dev login. Start it with bun run dev.');
+    expect(session.state.phase).toBe('login');
+  });
+});

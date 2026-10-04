@@ -6,6 +6,7 @@ import './styles/board.css';
 import './styles/tiles.css';
 import './styles/chrome.css';
 import App from './App.vue';
+import { registerServiceWorker } from './lib/pwa';
 import { applyTheme, readStoredTheme } from './lib/theme';
 
 // public/boot.js already set the attributes before first paint; this syncs
@@ -13,3 +14,4 @@ import { applyTheme, readStoredTheme } from './lib/theme';
 applyTheme(readStoredTheme());
 
 createApp(App).mount('#app');
+registerServiceWorker();

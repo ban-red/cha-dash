@@ -19,7 +19,7 @@ The fixture contains no real secret, domain or public IP.
 ## Expected import result
 
 ### Layout
-- **Sections**, in the original order, with their column hints. Homepage `columns: N` means N service cards per row; it maps to the section's internal column count.
+- **Sections**, in the order Homepage renders them, with their column hints. That's `settings.layout`'s order, then any group it doesn't name, in file order. Homepage `columns: N` means N service cards per row; it maps to the section's internal column count.
 
   | Section | Columns | Notes |
   |---|---|---|
@@ -28,9 +28,9 @@ The fixture contains no real secret, domain or public IP.
   | Services | 5 | |
   | Media | 5 | |
   | Data | 2 | `header: false` → untitled section |
+  | Apps | 4 | Only in `settings.layout`. Its services come from container labels, so it's created empty and fills in through discovery |
   | Archive/Backup | 4 | |
   | Downloads | 4 | |
-  | Apps | 4 | Only in `settings.layout`. Its services come from container labels, so it's created empty and fills in through discovery |
 
 - **`"Data" → ""` (a service with no name)** becomes a chrome-less **media calendar widget**.
   - It binds to the `media.calendar` capability of the imported Sonarr and Radarr instances, so it doesn't duplicate their config.

@@ -246,7 +246,7 @@ func (c *coordinator) fail(start time.Time, d time.Duration, err error) integrat
 	c.st.failure(start.UTC().Truncate(time.Second), d, code, class, msg)
 	c.emit.MarkStale()
 	if class == integration.NeedsRepair {
-		if rerr := c.raiseRepair(code, msg, start); rerr != nil {
+		if rerr := c.raiseRepair(code, msg, c.fieldOf(code, err), httpStatus(err), start); rerr != nil {
 			c.log.Error("raising a repair failed", "err", rerr)
 		}
 	}
@@ -276,18 +276,52 @@ func (c *coordinator) succeed(start time.Time, d time.Duration) {
 
 func hhmm(t time.Time) string { return t.Local().Format("15:04") }
 
+// httpStatus is the status of an HTTP error, or 0.
+func httpStatus(err error) int {
+	var se *integration.StatusError
+	if errors.As(err, &se) {
+		return se.Code
+	}
+	return 0
+}
+
+// fieldOf is the config or secret field a repair points at: what the
+// integration said, else the TLS settings for a certificate refusal, else
+// the first secret for a rejected credential.
+func (c *coordinator) fieldOf(code string, err error) string {
+	if f := integration.FieldOf(err); f != "" {
+		return f
+	}
+	switch code {
+	case integration.CodeTLSUntrusted, integration.CodeTLSPinMismatch:
+		return "tls"
+	case integration.CodeAuth:
+		if fs := c.man.SecretFields(); len(fs) > 0 {
+			return fs[0]
+		}
+	}
+	return ""
+}
+
 // raiseRepair opens (or updates) the instance's Repair for a repair-class
 // error, in the inbox's voice: symptom first, a specific time, calm.
-func (c *coordinator) raiseRepair(code, msg string, at time.Time) error {
+func (c *coordinator) raiseRepair(code, msg, field string, status int, at time.Time) error {
 	self := c.emit.Self()
 	opened := at
 	if t, ok := c.emit.openedAt(repairID); ok {
 		opened = t
 	}
 	since := hhmm(opened)
+	facts := map[string]any{"code": code, "instance": c.cfg.InstanceID}
+	if field != "" {
+		facts["field"] = field
+	}
+	if status != 0 {
+		facts["status"] = status
+	}
 	in := integration.Incident{
 		ID: repairID, Class: integration.ClassRepair, Severity: integration.SeverityAttention,
-		Target: self, Facts: map[string]any{"code": code},
+		Phase: PhaseOpen, Target: self, Facts: facts,
 		Causes: []integration.Cause{{Text: msg, Resource: self, At: opened.UTC().Truncate(time.Second)}},
 		Suggested: integration.Action{
 			ID: "integration.reconnect", Label: "Reconnect " + c.name, Tier: "T0", Target: self,
@@ -297,28 +331,28 @@ func (c *coordinator) raiseRepair(code, msg string, at time.Time) error {
 	}
 	switch code {
 	case integration.CodeAuth:
-		in.Scenario, in.Phase = "auth-rejected", "rejected"
+		in.Scenario = "auth-rejected"
 		in.Title = c.name + " rejected its credential"
 		in.Summary = fmt.Sprintf("%s has rejected Cha Dash's credential since %s. Its tiles show values as of then.", c.name, since)
 	case integration.CodeTLSPinMismatch:
-		in.Scenario, in.Phase = "tls-pin-mismatch", "refused"
+		in.Scenario = "tls-pin-mismatch"
 		in.Title = c.name + " presented a different certificate"
 		in.Summary = fmt.Sprintf("Since %s, %s has presented a certificate that isn't the one Cha Dash pinned, so Cha Dash stopped talking to it.", since, c.name)
 		in.Suggested = integration.Action{ID: "integration.tls", Label: "Review the certificate", Tier: "T0", Target: self,
 			Detail: "Compare the new fingerprint with the one the server shows, then pin it."}
 	case integration.CodeTLSUntrusted:
-		in.Scenario, in.Phase = "tls-untrusted", "refused"
+		in.Scenario = "tls-untrusted"
 		in.Title = c.name + "'s certificate isn't trusted"
 		in.Summary = fmt.Sprintf("Since %s, %s has presented a certificate Cha Dash can't verify.", since, c.name)
 		in.Suggested = integration.Action{ID: "integration.tls", Label: "Review the certificate", Tier: "T0", Target: self,
 			Detail: "Trust it on first use, or pin its fingerprint."}
 	case integration.CodeAPIChanged, integration.CodeUnsupportedVersion:
-		in.Scenario, in.Phase = "api-changed", "unsupported"
+		in.Scenario = "api-changed"
 		in.Title = c.name + "'s API changed"
 		in.Summary = fmt.Sprintf("Since %s, %s has answered in a way this integration doesn't support. Its tiles show values as of then.", since, c.name)
 		in.Suggested = integration.Action{ID: "integration.settings", Label: "Open the integration", Tier: "T0", Target: self}
 	default:
-		in.Scenario, in.Phase = "needs-repair", "blocked"
+		in.Scenario = "needs-repair"
 		in.Title = "Cha Dash can't read " + c.name
 		in.Summary = fmt.Sprintf("Since %s, Cha Dash hasn't been able to read %s.", since, c.name)
 	}

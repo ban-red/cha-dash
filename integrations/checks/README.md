@@ -22,7 +22,7 @@ One instance holds a list of targets. The Homepage importer creates one instance
 
 | Key | Kind | Default | Meaning |
 |---|---|---|---|
-| `name` | both | required | Display name. Its slug is the resource ID, so it must be unique within the instance |
+| `name` | both | required | Display name, unique within the instance. Its slug (lowercase letters and digits, other runs become `-`) ends the resource ID; when two names slug the same, the later one gets `-2`, `-3`, … |
 | `kind` | both | required | `http` or `tcp` |
 | `url` | http | required | The page to `GET`, `http://` or `https://` |
 | `host`, `port` | tcp | required | Where to open a TCP connection |
@@ -36,7 +36,7 @@ One instance holds a list of targets. The Homepage importer creates one instance
 ## What it publishes
 
 Per target:
-- **A resource** `check:<instance id>/<slug>`, kind `app`, with `attrs.check` (`http`/`tcp`), `attrs.target` (the URL or `host:port`), `attrs.status_code` for HTTP, a link to the URL, and `caps: ["checks.uptime"]`. `integration:<instance id> monitors` it.
+- **A resource** `check:<instance id>/<slug>`, kind `check`, named after the target (the web app finds a tile's check by kind and name), with `attrs.check` (`http`/`tcp`), `attrs.target` (the URL or `host:port`), `attrs.status_code` for HTTP, a link to the URL, and `caps: ["checks.uptime"]`. `integration:<instance id> monitors` it.
 - **Health:** `ok` (state `online`) while it answers; `attention` after a failure, with the reason, until `fail_after` failures in a row; then `down` (state `error`), with `health.since` at the first failure. `unknown` until the first check.
 - **A latency series**, `http.ms` (time to the response headers) or `tcp.ms` (time to connect), in ms on a 1–5000 scale, warn 800 / crit 2000 for HTTP and 200 / 1000 for TCP. A failed check's value is unknown (`null`), never 0.
 - **A problem** in the inbox once the target is down: `<instance>.check.<slug>`, class `problem`, severity `down`, with the error, the status code and an "Open" action. It resolves itself when the target answers again.

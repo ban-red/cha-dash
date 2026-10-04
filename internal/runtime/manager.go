@@ -308,6 +308,10 @@ func (m *Manager) restartLocked(mi *managed) {
 	}
 	log := m.log.With("instance", r.ID, "integration", r.Integration, "name", r.Name)
 	full, secrets, err := m.resolve(ctx, mi.man, r.Config)
+	if err == nil {
+		// Rows written outside the API (the importer) haven't been validated.
+		err = validateFull(mi.integ, mi.man, r.ID, full, newRedactor(secrets))
+	}
 	if err != nil {
 		mi.st.failure(m.o.Now().UTC().Truncate(time.Second), 0, integration.CodeInvalidConfig, integration.Permanent, err.Error())
 		log.Warn("instance can't start", "err", err)
@@ -566,26 +570,12 @@ func (m *Manager) prepare(ctx context.Context, id string, man integration.Manife
 			p.values = append(p.values, string(v))
 		}
 	}
-	if len(fields) == 0 {
-		fields = man.ConfigSchema.Validate(p.full)
-	}
-	if len(fields) == 0 {
-		if _, err := integration.ParseTLS(p.full["tls"]); err != nil {
-			fields = append(fields, integration.FieldError{Path: "/tls", Message: err.Error()})
-		}
-	}
-	if len(fields) == 0 {
-		if v, ok := integ.(integration.ConfigValidator); ok {
-			fields = v.ValidateConfig(integration.Config{InstanceID: id, Values: cloneMap(p.full)})
-		}
-	}
 	if len(fields) > 0 {
-		red := newRedactor(p.values)
-		for i := range fields {
-			fields[i].Message = red.scrub(fields[i].Message)
-		}
 		sortFields(fields)
 		return prepared{}, &ValidationError{Fields: fields}
+	}
+	if err := validateFull(integ, man, id, p.full, newRedactor(p.values)); err != nil {
+		return prepared{}, err
 	}
 	for f, name := range prevRefs {
 		if ref, _ := p.stored[f].(string); ref != integration.SecretRef(name) {
@@ -593,6 +583,30 @@ func (m *Manager) prepare(ctx context.Context, id string, man integration.Manife
 		}
 	}
 	return p, nil
+}
+
+// validateFull checks a config with its secrets resolved: the schema, the
+// tls policy, then the integration's own rules. Messages are scrubbed.
+func validateFull(integ integration.Integration, man integration.Manifest, id string, full map[string]any, red redactor) error {
+	fields := man.ConfigSchema.Validate(full)
+	if len(fields) == 0 {
+		if _, err := integration.ParseTLS(full["tls"]); err != nil {
+			fields = append(fields, integration.FieldError{Path: "/tls", Message: err.Error()})
+		}
+	}
+	if len(fields) == 0 {
+		if v, ok := integ.(integration.ConfigValidator); ok {
+			fields = v.ValidateConfig(integration.Config{InstanceID: id, Values: cloneMap(full)})
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	for i := range fields {
+		fields[i].Message = red.scrub(fields[i].Message)
+	}
+	sortFields(fields)
+	return &ValidationError{Fields: fields}
 }
 
 func sortFields(fs []integration.FieldError) {
@@ -789,6 +803,11 @@ func (m *Manager) Update(ctx context.Context, id string, req UpdateRequest) erro
 		return err
 	}
 	m.deleteSecrets(ctx, p.orphan, "")
+	if req.Config != nil || req.Secrets != nil || req.Enabled != nil {
+		// The user acted on the instance: an open repair is being fixed until
+		// the next try says otherwise.
+		mi.emit.setPhase(repairID, PhaseFixing)
+	}
 	m.log.Info("integration instance updated", "instance", id, "integration", next.Integration, "name", next.Name, "enabled", next.Enabled)
 	m.restartLocked(mi)
 	return nil
@@ -837,19 +856,24 @@ type SecretState struct {
 // InstanceView is an instance as the API returns it. Secrets appear only as
 // {"set": bool}.
 type InstanceView struct {
-	ID          string                 `json:"id"`
-	Integration string                 `json:"integration"`
-	Name        string                 `json:"name"`
-	Enabled     bool                   `json:"enabled"`
-	Status      string                 `json:"status"`
-	Version     string                 `json:"version"`
-	LastOK      *time.Time             `json:"last_ok"`
-	LastError   *ErrorInfo             `json:"last_error"`
-	Warnings    []integration.Warning  `json:"warnings"`
-	Config      map[string]any         `json:"config"`
-	Secrets     map[string]SecretState `json:"secrets"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID          string     `json:"id"`
+	Integration string     `json:"integration"`
+	Name        string     `json:"name"`
+	Enabled     bool       `json:"enabled"`
+	Status      string     `json:"status"`
+	Version     string     `json:"version"`
+	LastOK      *time.Time `json:"last_ok"`
+	// LastError is the last failure's message (secrets scrubbed), with its
+	// stable code and time beside it; all null when the last sync worked
+	// and nothing failed before it.
+	LastError     *string                `json:"last_error"`
+	LastErrorCode *string                `json:"last_error_code"`
+	LastErrorAt   *time.Time             `json:"last_error_at"`
+	Warnings      []integration.Warning  `json:"warnings"`
+	Config        map[string]any         `json:"config"`
+	Secrets       map[string]SecretState `json:"secrets"`
+	CreatedAt     time.Time              `json:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at"`
 }
 
 func (m *Manager) view(mi *managed) InstanceView {
@@ -857,13 +881,16 @@ func (m *Manager) view(mi *managed) InstanceView {
 	snap := mi.st.snapshot()
 	v := InstanceView{
 		ID: r.ID, Integration: r.Integration, Name: r.Name, Enabled: r.Enabled,
-		Status: snap.Status, Version: snap.Version, LastError: snap.LastErr, Warnings: snap.Warnings,
+		Status: snap.Status, Version: snap.Version, Warnings: snap.Warnings,
 		Config: nonSecret(r.Config, mi.man), Secrets: map[string]SecretState{},
 		CreatedAt: time.UnixMilli(r.CreatedAt).UTC(), UpdatedAt: time.UnixMilli(r.UpdatedAt).UTC(),
 	}
 	if !snap.LastOK.IsZero() {
 		t := snap.LastOK
 		v.LastOK = &t
+	}
+	if e := snap.LastErr; e != nil {
+		v.LastError, v.LastErrorCode, v.LastErrorAt = &e.Message, &e.Code, &e.At
 	}
 	refs := refsOf(r.Config, mi.man)
 	for _, f := range mi.man.SecretFields() {
@@ -908,21 +935,52 @@ func (m *Manager) Catalog() []integration.Manifest { return m.reg.Manifests() }
 // testTimeout bounds a connection test.
 const testTimeout = 30 * time.Second
 
+// TestRequest is the body of POST /api/integrations/test: an unsaved
+// config, or unsaved edits of a saved instance (InstanceID set), where
+// secrets not retyped come from the vault and a nil Config means the saved
+// one.
+type TestRequest struct {
+	Integration string         `json:"integration"`
+	InstanceID  string         `json:"instance_id"`
+	Config      map[string]any `json:"config"`
+	Secrets     map[string]any `json:"secrets"`
+}
+
 // Test runs "Test connection" on an unsaved config. Nothing is stored: a
 // TOFU certificate is reported in the result, not pinned.
-func (m *Manager) Test(ctx context.Context, integrationID string, config, secrets map[string]any) (integration.TestResult, error) {
-	integ, man, ok := m.reg.Get(integrationID)
-	if !ok {
-		return integration.TestResult{}, ErrUnknownIntegration
+func (m *Manager) Test(ctx context.Context, req TestRequest) (integration.TestResult, error) {
+	var (
+		integ integration.Integration
+		man   integration.Manifest
+		prev  map[string]any
+		id    = "test"
+		name  = "Test"
+	)
+	config := req.Config
+	if req.InstanceID != "" {
+		mi := m.get(req.InstanceID)
+		if mi == nil {
+			return integration.TestResult{}, ErrNotFound
+		}
+		if mi.integ == nil || (req.Integration != "" && req.Integration != mi.man.ID) {
+			return integration.TestResult{}, ErrUnknownIntegration
+		}
+		r, _ := mi.snapshotRow()
+		integ, man, prev, id, name = mi.integ, mi.man, r.Config, r.ID, r.Name
+	} else {
+		var ok bool
+		if integ, man, ok = m.reg.Get(req.Integration); !ok {
+			return integration.TestResult{}, ErrUnknownIntegration
+		}
+		if config == nil {
+			config = map[string]any{}
+		}
 	}
-	if config == nil {
-		config = map[string]any{}
-	}
-	p, err := m.prepare(ctx, "test", man, integ, nil, config, secrets)
+	p, err := m.prepare(ctx, id, man, integ, prev, config, req.Secrets)
 	if err != nil {
 		return integration.TestResult{}, err
 	}
-	cfg := integration.Config{Name: "Test", Values: p.full}
+	cfg := integration.Config{InstanceID: req.InstanceID, Name: name, Values: p.full}
 	return m.runTest(ctx, nil, 0, integ, man, cfg, newRedactor(p.values)), nil
 }
 

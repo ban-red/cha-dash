@@ -3,6 +3,11 @@
  * `graph`, `metrics` and `inbox` topics, plus connection status, the hub's
  * clock, and the demo actions (Fix).
  *
+ * Demo and real hubs fill the same topics; the only difference the page sees
+ * is `demo` (from GET /api/demo), which allows the demo Fix endpoint.
+ * `restore()` fills the document from a last-known snapshot when the page
+ * opens while the hub is unreachable; the first live snapshot replaces it.
+ *
  * Plain Vue reactivity. Patches mutate `doc` in place, so a metrics diff only
  * re-renders the widgets that read the series it touched.
  */
@@ -57,10 +62,16 @@ export function createLive(opts: LiveOptions = {}) {
   const wall = computed(() => tickNow.value);
   /** When the hub went quiet, on the hub's clock (connection times are browser time). */
   const offlineAt = computed(() => {
+    // Opened on a snapshot and nothing has arrived since: that snapshot is the last word.
+    if (!conn.lastFrameAt && restoredAt.value !== undefined) return restoredAt.value + offset.value;
     const t = conn.offlineSince ?? (conn.lastFrameAt || undefined);
     return t === undefined ? undefined : t + offset.value;
   });
   const fixes = reactive<Record<string, FixStatus>>({});
+  /** GET /api/demo said demo mode: incidents' suggested actions run through the demo Fix endpoint. */
+  const demo = ref(false);
+  /** When the snapshot on screen was taken, if the page opened on one (browser clock). */
+  const restoredAt = ref<number | undefined>(undefined);
   let lastInboxNow = '';
   let checking = false;
 
@@ -128,6 +139,19 @@ export function createLive(opts: LiveOptions = {}) {
     if (typeof window !== 'undefined') window.removeEventListener('online', onOnline);
   }
 
+  /** Fill empty topics from a last-known snapshot. Live snapshots replace these as they arrive. */
+  function restore(snap: { savedAt: number; clockOffset?: number; graph?: GraphDoc; metrics?: MetricsDoc; inbox?: InboxDoc }): void {
+    if (!doc.graph && snap.graph) doc.graph = snap.graph;
+    if (!doc.metrics && snap.metrics) doc.metrics = snap.metrics;
+    if (!doc.inbox && snap.inbox) {
+      doc.inbox = snap.inbox;
+      // The stored inbox's `now` is old; the hub's clock skew at save time is what still holds.
+      lastInboxNow = snap.inbox.now;
+    }
+    offset.value = snap.clockOffset ?? 0;
+    restoredAt.value = snap.savedAt;
+  }
+
   const graph = computed<GraphDoc | undefined>(() => doc.graph);
   const metrics = computed<MetricsDoc | undefined>(() => doc.metrics);
   const inbox = computed<InboxDoc | undefined>(() => doc.inbox);
@@ -137,6 +161,8 @@ export function createLive(opts: LiveOptions = {}) {
   /** Values on screen are last-known (hub unreachable or silent). */
   const stale = computed(() => {
     void conn.lastFrameAt;
+    // A stored snapshot is last-known until the hub says otherwise.
+    if (restoredAt.value !== undefined && !conn.lastFrameAt) return true;
     return conn.status !== 'connecting' && client.isStale(tickNow.value);
   });
   /** Nothing has ever arrived: show skeletons, not zeros. */
@@ -174,6 +200,11 @@ export function createLive(opts: LiveOptions = {}) {
     wall,
     offlineAt,
     fixes,
+    demo,
+    restoredAt,
+    restore,
+    /** Hub clock minus browser clock, for the snapshot. */
+    clockOffset: () => offset.value,
     graph,
     metrics,
     inbox,

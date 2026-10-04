@@ -4,6 +4,7 @@
  * inside its own `data-theme`, so it shows that theme's real tokens.
  */
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { navigate } from '../lib/router';
 import { currentTheme, setTheme, THEMES, type ThemeId } from '../lib/theme';
 import { useSession } from '../stores/session';
 
@@ -79,7 +80,10 @@ function onArrow(e: KeyboardEvent, i: number) {
       </div>
       <div class="theme-foot">
         <span>Signed in as {{ session.state.user?.username ?? '—' }}</span>
-        <button type="button" class="btn sm ghost" @click="emit('signOut')">Sign out</button>
+        <span class="theme-acts">
+          <a class="btn sm ghost" href="/settings/integrations" @click.prevent="(open = false), navigate('/settings/integrations')">Settings</a>
+          <button type="button" class="btn sm ghost" @click="emit('signOut')">Sign out</button>
+        </span>
       </div>
     </div>
   </div>

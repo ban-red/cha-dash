@@ -442,7 +442,7 @@ func (e *Emitter) Raise(in integration.Incident) error {
 		in.Scenario = in.Class
 	}
 	if in.Phase == "" {
-		in.Phase = "open"
+		in.Phase = PhaseOpen
 	}
 	if in.Target == "" {
 		in.Target = e.self
@@ -490,7 +490,7 @@ func (e *Emitter) Resolve(local, resolution string) error {
 		return nil
 	}
 	now := e.clock()
-	in.Status = integration.StatusResolved
+	in.Status, in.Phase = integration.StatusResolved, PhaseResolved
 	in.ResolvedAt, in.UpdatedAt = now, now
 	in.ResolvedBy = "auto"
 	in.Resolution = resolution
@@ -508,6 +508,31 @@ func (e *Emitter) open(local string) bool {
 	defer e.mu.Unlock()
 	in, ok := e.incidents[e.incidentID(local)]
 	return ok && in.Status == integration.StatusOpen
+}
+
+// Incident phases the framework uses. The web app groups the inbox by them:
+// open, being fixed, resolved. Scenario says what kind of incident it is.
+const (
+	PhaseOpen     = "open"
+	PhaseFixing   = "fixing"   // the user changed the instance; waiting for the next try
+	PhaseResolved = "resolved" // set by Resolve
+)
+
+// setPhase changes an open incident's phase.
+func (e *Emitter) setPhase(local, phase string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	id := e.incidentID(local)
+	in, ok := e.incidents[id]
+	if !ok || in.Status != integration.StatusOpen || in.Phase == phase {
+		return
+	}
+	in.Phase, in.UpdatedAt = phase, e.clock()
+	e.incidents[id] = in
+	_, _ = e.t.Inbox.Update(func(tx *livedoc.Tx) error {
+		tx.Put(topics.Incidents, id, in)
+		return nil
+	})
 }
 
 // openedAt returns when the instance's open incident opened.

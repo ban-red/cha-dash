@@ -45,6 +45,55 @@ export function resolved(inbox: InboxDoc | undefined): Incident[] {
     .sort((a, b) => Date.parse(b.resolved_at ?? b.updated_at ?? b.opened_at) - Date.parse(a.resolved_at ?? a.updated_at ?? a.opened_at));
 }
 
+/**
+ * Phases in which something is already working on the incident: a fix that
+ * was accepted, a retry, a restart, or the hub applying an update. The Demo
+ * Home and real instances use the same words.
+ */
+export const FIXING_PHASES: ReadonlySet<string> = new Set([
+  'retrying',
+  'pruning',
+  'collecting',
+  'restarting',
+  'recovering',
+  'recovered',
+  'applying',
+  'updating',
+  'reconnecting',
+  'fixing',
+  'in_progress',
+]);
+
+/** Open, but in hand: a fix is running, it's recovering by itself, or there's nothing to do (info). */
+export function isBeingFixed(i: Incident, fixState?: string): boolean {
+  if (i.status !== 'open') return false;
+  return fixState === 'sending' || fixState === 'accepted' || FIXING_PHASES.has(i.phase ?? '') || i.severity === 'info';
+}
+
+export interface InboxGroups {
+  /** Needs you: problems (down first), then repairs. */
+  open: Incident[];
+  /** In hand, not resolved yet. */
+  fixing: Incident[];
+  /** Newest first. */
+  resolved: Incident[];
+}
+
+const CLASS_RANK: Record<string, number> = { problem: 0, repair: 1 };
+
+/** The Inbox by status: open, being fixed, resolved. */
+export function groupInbox(inbox: InboxDoc | undefined, fixes: Readonly<Record<string, { state: string } | undefined>> = {}): InboxGroups {
+  const open: Incident[] = [];
+  const fixing: Incident[] = [];
+  for (const i of incidents(inbox)) {
+    if (i.status !== 'open') continue;
+    (isBeingFixed(i, fixes[i.id]?.state) ? fixing : open).push(i);
+  }
+  const order = (a: Incident, b: Incident) =>
+    (SEV_RANK[a.severity] ?? 3) - (SEV_RANK[b.severity] ?? 3) || (CLASS_RANK[a.class] ?? 2) - (CLASS_RANK[b.class] ?? 2) || byPriority(a, b);
+  return { open: open.sort(order), fixing: fixing.sort(order), resolved: resolved(inbox) };
+}
+
 /** Open incidents whose target (or blast radius) touches a resource. */
 export function incidentsFor(inbox: InboxDoc | undefined, resourceIds: readonly string[]): Incident[] {
   const set = new Set(resourceIds);

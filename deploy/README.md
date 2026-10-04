@@ -64,6 +64,7 @@ services:
 
 | Variable | Default | What it does |
 |---|---|---|
+| `CHADASH_PUBLIC_URL` | none | The address you open Cha Dash at, as `https://host[:port]` (flag `--public-url`). Passkeys need it, over HTTPS; everything else works without it. It's also trusted like an allowed origin |
 | `CHADASH_TRUSTED_PROXIES` | none | Comma-separated IPs or CIDRs of reverse proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed. Needed behind a proxy; see [below](#behind-a-reverse-proxy) |
 | `CHADASH_ALLOWED_ORIGINS` | none | Extra `scheme://host[:port]` origins allowed for sign-in, changes and WebSockets. Only for proxies that rewrite the `Host` header. Same-origin always works |
 | `CHADASH_SECRET_KEY_FILE` | `/data/secret.key`, generated on first boot | Where the vault key lives. See [Keeping the key outside `/data`](#keeping-the-key-outside-data) |
@@ -152,6 +153,7 @@ A reverse proxy gives Cha Dash a name and HTTPS. **HTTPS matters:** browsers onl
     `docker network inspect proxy --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'`
   - Proxy on the host, pointing at `127.0.0.1:3696`: the gateway of the `chadash_default` network:
     `docker network inspect chadash_default --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}'`
+- **Set `CHADASH_PUBLIC_URL`** to the address you open Cha Dash at, e.g. `https://dash.lab.example`. Passkeys are tied to that name, so changing it later means enrolling them again.
 - **WebSockets** (`/ws`) pass through Traefik and Caddy with no extra settings.
 - **`CHADASH_ALLOWED_ORIGINS`** is only needed if your proxy rewrites the `Host` header. Neither example below does.
 
@@ -167,6 +169,7 @@ services:
     networks: [proxy]
     environment:
       CHADASH_TRUSTED_PROXIES: 172.30.0.0/16   # the proxy network's subnet
+      CHADASH_PUBLIC_URL: https://dash.lab.example
     labels:
       traefik.enable: "true"
       traefik.docker.network: proxy
@@ -199,6 +202,7 @@ services:
     networks: [proxy]
     environment:
       CHADASH_TRUSTED_PROXIES: 172.30.0.0/16
+      CHADASH_PUBLIC_URL: https://dash.lab.example
 
 networks:
   proxy:

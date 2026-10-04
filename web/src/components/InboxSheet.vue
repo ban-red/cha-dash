@@ -1,9 +1,11 @@
 <script setup lang="ts">
 /**
- * The Inbox: problems that need you, integration repairs, and what resolved
- * today. A glass panel on desktop; a bottom sheet on a phone that a flick
- * dismisses. An item that resolves while you watch shows its done row in
- * place for a moment, then moves to Resolved.
+ * The Inbox, grouped by status: open (problems that need you, down first,
+ * then integration repairs), being fixed (a fix is running, or it's
+ * recovering by itself), and resolved. Real and demo hubs fill it the same
+ * way, from the `inbox` topic. A glass panel on desktop; a bottom sheet on a
+ * phone that a flick dismisses. An item that resolves while you watch shows
+ * its done row in place for a moment, then moves to Resolved.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
@@ -11,9 +13,10 @@ import Glyph from './marks/Glyph.vue';
 import IncidentItem from './IncidentItem.vue';
 import { hhmm } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
-import { incidents, needsYou, resolved, settling } from '../model/inbox';
+import { groupInbox, incidents, type InboxGroups } from '../model/inbox';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
+import type { Incident } from '../model/types';
 
 const live = useLive();
 const ui = useUi();
@@ -28,11 +31,31 @@ const LINGER_MS = 2600;
 
 const all = computed(() => incidents(live.inbox.value));
 const isLingering = (id: string) => lingering.has(id);
-const problems = computed(() => all.value.filter((i) => i.class === 'problem' && (needsYou(i) || (i.status === 'resolved' && isLingering(i.id)))));
-const repairs = computed(() => all.value.filter((i) => i.class === 'repair' && (i.status === 'open' || isLingering(i.id))));
-const quiet = computed(() => settling(live.inbox.value));
-const done = computed(() => resolved(live.inbox.value).filter((i) => !isLingering(i.id)));
-const openCount = computed(() => problems.value.filter((i) => i.status === 'open').length + repairs.value.filter((i) => i.status === 'open').length);
+const groups = computed(() => groupInbox(live.inbox.value, live.fixes));
+
+/**
+ * Lists hold still while you read them: an item keeps the group it had when
+ * the Inbox opened (or when it arrived), even if a fix moves it to "being
+ * fixed" meanwhile. The groups re-sort the next time the Inbox opens.
+ */
+type Place = 'open' | 'fixing';
+const placed = reactive(new Map<string, Place>());
+function place(g: InboxGroups, reset = false) {
+  if (reset) {
+    for (const id of [...placed.keys()]) if (!isLingering(id)) placed.delete(id);
+  }
+  for (const i of g.open) if (!placed.has(i.id)) placed.set(i.id, 'open');
+  for (const i of g.fixing) if (!placed.has(i.id)) placed.set(i.id, 'fixing');
+}
+watch(groups, (g) => place(g), { immediate: true, flush: 'sync' });
+
+const inGroup = (where: Place): Incident[] =>
+  [...groups.value.open, ...groups.value.fixing, ...groups.value.resolved.filter((i) => isLingering(i.id))].filter((i) => placed.get(i.id) === where);
+const open = computed(() => inGroup('open'));
+const fixing = computed(() => inGroup('fixing'));
+const openNow = (list: Incident[]) => list.filter((i) => i.status === 'open').length;
+const done = computed(() => groups.value.resolved.filter((i) => !isLingering(i.id)));
+const openCount = computed(() => openNow(open.value));
 
 // Keep a just-resolved item in place briefly, expanded on its done row.
 watch(
@@ -43,8 +66,12 @@ watch(
     for (const i of all.value) {
       if (i.status === 'resolved' && was.get(i.id) === 'open') {
         lingering.set(i.id, Date.now());
+        if (!placed.has(i.id)) placed.set(i.id, 'open');
         expanded.add(i.id);
-        setTimeout(() => lingering.delete(i.id), LINGER_MS);
+        setTimeout(() => {
+          lingering.delete(i.id);
+          placed.delete(i.id);
+        }, LINGER_MS);
       }
     }
   },
@@ -79,6 +106,7 @@ watch(
       return;
     }
     lastFocus = document.activeElement;
+    place(groups.value, true);
     onResize();
     await nextTick();
     const el = panel.value instanceof HTMLElement ? panel.value : panel.value?.$el;
@@ -160,22 +188,17 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
             </div>
           </div>
 
-          <template v-if="problems.length">
-            <div class="ib-grp">Needs you · {{ problems.filter((i) => i.status === 'open').length }}</div>
-            <IncidentItem v-for="i in problems" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
+          <template v-if="open.length">
+            <div class="ib-grp">Open · {{ openNow(open) }}</div>
+            <IncidentItem v-for="i in open" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
-          <template v-if="repairs.length">
-            <div class="ib-grp">Repairs · {{ repairs.filter((i) => i.status === 'open').length }}</div>
-            <IncidentItem v-for="i in repairs" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
+          <template v-if="fixing.length">
+            <div class="ib-grp">Being fixed · {{ openNow(fixing) }}</div>
+            <IncidentItem v-for="i in fixing" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
-          <template v-if="quiet.length">
-            <div class="ib-grp">Settling · {{ quiet.length }}</div>
-            <IncidentItem v-for="i in quiet" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
-          </template>
-
-          <div v-if="!problems.length && !repairs.length && !quiet.length" class="ib-empty">
+          <div v-if="!open.length && !fixing.length" class="ib-empty">
             <Glyph kind="check" />
             <div class="t">Nothing needs you</div>
             <div class="m">Every integration is reading normally.{{ done[0] ? ` The last fix was “${done[0].title}”, at ${hhmm(done[0].resolved_at)}.` : '' }}</div>

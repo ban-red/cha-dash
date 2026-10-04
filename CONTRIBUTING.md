@@ -49,11 +49,15 @@ After editing a theme in `design/tokens/themes/`, run `bun run generate` in `des
 bun run dev          # hub on 127.0.0.1:3696 (data in ./data) + the SPA with hot reload on :5173
 ```
 
-It builds the hub, waits until it's healthy, starts the Vite dev server (which proxies `/api` and `/ws` to the hub), and on first run prints the **setup token** to enter at http://localhost:5173. Ctrl-C stops both.
+It builds the hub, waits until it's healthy, and starts the Vite dev server (which proxies `/api` and `/ws` to the hub). Open http://localhost:5173 and press **Login as Local Dev**: no setup token, no password. Ctrl-C stops both.
+
+- **What the button does.** It signs in as the owner. On first run there is no owner, so it creates a passwordless one named `dev`. To try the real first-run flow, use the setup token the script prints.
+- **Where it exists.** Only `bun run dev` builds the hub with `-tags devlogin`, and only the Vite dev server shows the button (`web/src/dev/`).
+- **Safety.** The route answers loopback clients only. Release builds and images contain neither half, and CI checks the image's build tags, that the route answers 404, and that the bundle has no `web/src/dev/` code.
 
 | Command | What it does |
 |---|---|
-| `bun run dev:fresh` | Wipes `./data` first: a brand-new instance and setup token |
+| `bun run dev:fresh` | Wipes `./data` first: a brand-new instance, no owner yet |
 | `bun run dev --now` | Runs the demo on the wall clock instead of from 14:05 |
 | `bun run dev --check` | Checks prerequisites and ports, starts nothing |
 
@@ -73,7 +77,7 @@ docker build -t chadash:dev .        # the image, from the same steps
 
 | Job | Checks |
 |---|---|
-| Go | gofmt, `go vet`, `go test -race`, staticcheck, govulncheck |
+| Go | gofmt, `go vet`, `go test -race` (and again with `-tags devlogin`), staticcheck, govulncheck |
 | JavaScript | frozen `bun install`, typecheck, tests, design tokens up to date |
 | Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui` |
 | Image | amd64 and arm64 builds (no push), a smoke run, **image ≤ 40 MB compressed** |

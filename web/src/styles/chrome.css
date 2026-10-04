@@ -663,3 +663,60 @@
   font-family: var(--font-num);
   color: var(--text-2);
 }
+
+.door-or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: calc(var(--space-2) * -1) 0;
+}
+.door-or::before,
+.door-or::after {
+  content: '';
+  flex: 1;
+  height: var(--hairline);
+  background: var(--line);
+}
+.door-card .pk-btn {
+  min-height: var(--target-min);
+  font-size: var(--type-body);
+}
+.pk-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pk-off {
+  padding: 10px 12px;
+  border: var(--hairline) dashed var(--line-2);
+  border-radius: var(--radius-md);
+}
+
+/* ───────────── Inbox: repairs ───────────── */
+.ib-quick {
+  grid-column: 2 / -1;
+  margin-top: calc(var(--space-1) * -1);
+}
+.ib-kind {
+  font-family: var(--font-num);
+}
+
+/* ───────────── Key caps (⌘K, the command bar) ───────────── */
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  padding: 3px 5px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-xs);
+  font: var(--weight-medium) 10.5px/1 var(--font-num);
+  color: var(--text-2);
+}
+.theme-acts {
+  display: inline-flex;
+  gap: 2px;
+}

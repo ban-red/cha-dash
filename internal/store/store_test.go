@@ -47,12 +47,12 @@ func TestMigrateUp(t *testing.T) {
 	s, path := openTemp(t)
 	ctx := t.Context()
 
-	want := []string{"audit", "boards", "goose_db_version", "integration_instances", "layouts", "sessions", "settings", "users", "vault_secrets"}
+	want := []string{"audit", "boards", "goose_db_version", "integration_instances", "layouts", "passkey_users", "passkeys", "sessions", "settings", "users", "vault_secrets"}
 	if got := tables(t, s.Reader()); !slices.Equal(got, want) {
 		t.Fatalf("tables = %v, want %v", got, want)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 1 {
+	if err != nil || v != 2 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 

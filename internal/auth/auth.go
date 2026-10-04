@@ -8,8 +8,8 @@
 // Sessions: a random 256-bit token in an HttpOnly, SameSite=Lax cookie. Only
 // its SHA-256 is stored, so a database leak doesn't leak live sessions.
 //
-// Passkeys (v0.1) plug in beside password login: verifying a credential is
-// separate from StartSession, which every sign-in method ends with.
+// Passkeys (WebAuthn; passkeys.go) sit beside password login: verifying a
+// credential is separate from StartSession, which every sign-in method ends with.
 package auth
 
 import (
@@ -49,6 +49,7 @@ const (
 // Sign-in methods recorded on sessions; step-up checks will key off these.
 const (
 	MethodPassword = "password"
+	MethodPasskey  = "passkey"
 )
 
 // Roles. Only the owner exists in v0; the rest arrive with RBAC in v0.2.
@@ -96,12 +97,26 @@ type Service struct {
 	now     func() time.Time
 	params  argonParams
 
+	// Passkeys: the relying party from CHADASH_PUBLIC_URL (or why it can't be
+	// one), and the ceremonies begun but not yet finished.
+	publicURL  string
+	publicRP   relyingParty
+	publicWhy  string
+	ceremonies ceremonies
+
 	mu         sync.Mutex
 	setupToken string // empty once an owner exists
 }
 
+// Option adjusts New.
+type Option func(*Service)
+
+// WithPublicURL passes CHADASH_PUBLIC_URL, the scheme://host[:port] people open
+// Cha Dash at. Passkeys take their relying party ID and origin from it.
+func WithPublicURL(u string) Option { return func(s *Service) { s.publicURL = u } }
+
 // New starts the auth service. With no users it mints and logs a setup token.
-func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.Proxies) (*Service, error) {
+func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.Proxies, opts ...Option) (*Service, error) {
 	s := &Service{
 		st:      st,
 		log:     log,
@@ -109,6 +124,19 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.P
 		limiter: newLimiter(10, 6*time.Second), // 10 attempts, then one per 6 s, per client IP
 		now:     time.Now,
 		params:  defaultParams,
+	}
+	for _, o := range opts {
+		o(s)
+	}
+	if s.publicURL != "" {
+		rp, why, err := publicRelyingParty(s.publicURL)
+		if err != nil {
+			return nil, err
+		}
+		s.publicRP, s.publicWhy = rp, why
+		if why != "" {
+			log.Warn("passkeys are unavailable: "+why, "public_url", s.publicURL)
+		}
 	}
 	if _, err := st.Writer().ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= ?`, s.now().UnixMilli()); err != nil {
 		return nil, fmt.Errorf("auth: prune sessions: %w", err)

@@ -71,7 +71,7 @@ describe('front page with today’s incidents', () => {
   });
 
   it('runs T1 straight away and asks to hold for T2', async () => {
-    const { mountIn, ui, live } = harness(docs(withIncidents));
+    const { mountIn, ui, live } = harness(docs(withIncidents), { demo: true });
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'backup-failed' }), { status: 202 }));
     vi.stubGlobal('fetch', fetchMock);
     const w = mountIn(NeedsAttention);

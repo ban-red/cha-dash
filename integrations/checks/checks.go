@@ -1,5 +1,5 @@
 // Package checks is the built-in uptime checks integration: HTTP and TCP
-// probes that need no credentials. Each target becomes an app resource with
+// probes that need no credentials. Each target becomes a check resource with
 // an up/down health and a latency series, and a target that fails
 // fail_after times in a row (3 by default) raises a problem in the inbox,
 // resolved when it answers again. See README.md.
@@ -111,14 +111,13 @@ func (Integration) ValidateConfig(cfg integration.Config) []integration.FieldErr
 				at("port", "is required for a tcp check")
 			}
 		}
-		s := slug(t.Name)
-		switch {
-		case s == "":
+		if slug(t.Name) == "" {
 			at("name", "needs a letter or a digit")
-		case seen[s]:
+		}
+		if seen[t.Name] {
 			at("name", "is already used by another target")
 		}
-		seen[s] = true
+		seen[t.Name] = true
 		if t.TLS != nil {
 			if _, err := integration.ParseTLS(t.TLS); err != nil {
 				at("tls", err.Error())
@@ -155,8 +154,16 @@ func (Integration) Connect(ctx context.Context, cfg integration.Config, d integr
 		key = "test"
 	}
 	in := &instance{d: d}
+	slugs := map[string]bool{}
 	for _, t := range c.Targets {
-		p := &probe{target: t, slug: slug(t.Name)}
+		// Names are unique, slugs might not be ("Sonarr" and "sonarr!"): the
+		// later one gets a number.
+		s := slug(t.Name)
+		for n := 2; slugs[s]; n++ {
+			s = slug(t.Name) + "-" + strconv.Itoa(n)
+		}
+		slugs[s] = true
+		p := &probe{target: t, slug: s}
 		p.rid = "check:" + key + "/" + p.slug
 		p.interval = DefaultInterval
 		if t.IntervalS > 0 {
@@ -425,7 +432,7 @@ func (in *instance) publish() error {
 	var f integration.Facts
 	for _, p := range in.probes {
 		r := integration.Resource{
-			ID: p.rid, Kind: "app", Name: p.Name, Caps: []string{"checks.uptime"},
+			ID: p.rid, Kind: "check", Name: p.Name, Caps: []string{"checks.uptime"},
 			Attrs: map[string]any{"check": p.Kind, "target": p.where()},
 		}
 		if p.Kind == "http" {
@@ -492,10 +499,10 @@ func (p *probe) incident(self string) integration.Incident {
 	}
 	in := integration.Incident{
 		ID: "check." + p.slug, Scenario: "check-failed", Class: integration.ClassProblem,
-		Severity: integration.SeverityDown, Phase: "down",
-		Title:   p.Name + " isn't answering",
-		Summary: fmt.Sprintf("%s has failed its %s check since %s: %s.", p.Name, kind, hhmm(p.firstFail), p.last.err),
-		Target:  p.rid, OpenedAt: p.firstFail, Facts: facts,
+		Severity: integration.SeverityDown,
+		Title:    p.Name + " isn't answering",
+		Summary:  fmt.Sprintf("%s has failed its %s check since %s: %s.", p.Name, kind, hhmm(p.firstFail), p.last.err),
+		Target:   p.rid, OpenedAt: p.firstFail, Facts: facts,
 		Causes:       []integration.Cause{{Text: p.last.err, Resource: p.rid, At: p.firstFail.UTC().Truncate(time.Second)}},
 		ResolvesWhen: fmt.Sprintf("Resolves when %s answers again.", p.Name),
 	}

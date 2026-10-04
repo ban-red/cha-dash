@@ -1,0 +1,1798 @@
+{
+  "plan": {
+    "source": "homepage",
+    "board": {
+      "id": "b_ajrtwtlddnb3sgor",
+      "name": "Alpaca Homepage",
+      "slug": "alpaca-homepage",
+      "format_version": 1,
+      "layout": {
+        "version": 1,
+        "columns": 12,
+        "sections": [
+          {
+            "id": "home",
+            "title": "Home",
+            "span": 4,
+            "items": [
+              {
+                "id": "homeassistant",
+                "type": "homeassistant",
+                "size": "wide",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 0
+              },
+              {
+                "id": "cameras",
+                "type": "cameras",
+                "size": "large",
+                "supportedSizes": [
+                  "wide",
+                  "large",
+                  "hero"
+                ],
+                "x": 0,
+                "y": 2
+              }
+            ]
+          },
+          {
+            "id": "servers",
+            "title": "Servers",
+            "span": 4,
+            "items": [
+              {
+                "id": "opnsense",
+                "type": "opnsense",
+                "size": "wide",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 0
+              },
+              {
+                "id": "service@homepage:servers/proxmoxpluto",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 2
+              },
+              {
+                "id": "service@homepage:servers/proxmoxminig5",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 2,
+                "y": 2
+              },
+              {
+                "id": "service@homepage:servers/proxmoxmarscluster",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 4
+              },
+              {
+                "id": "service@homepage:servers/proxmoxio",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 2,
+                "y": 4
+              },
+              {
+                "id": "service@homepage:servers/jupiter",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 6
+              },
+              {
+                "id": "service@homepage:servers/jupiternas",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 2,
+                "y": 6
+              },
+              {
+                "id": "service@homepage:servers/jupiternascockpit",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 8
+              }
+            ]
+          },
+          {
+            "id": "services",
+            "title": "Services",
+            "span": 5,
+            "items": [
+              {
+                "id": "traefik",
+                "type": "traefik",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 0
+              },
+              {
+                "id": "uptimekuma",
+                "type": "uptimekuma",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 2,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "media",
+            "title": "Media",
+            "span": 5,
+            "items": [
+              {
+                "id": "plex",
+                "type": "plex",
+                "size": "wide",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 0
+              },
+              {
+                "id": "arr@app:radarr",
+                "type": "arr",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 2
+              },
+              {
+                "id": "arr@app:sonarr",
+                "type": "arr",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 2,
+                "y": 2
+              },
+              {
+                "id": "service@homepage:media/bazarr",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "data",
+            "span": 2,
+            "items": [
+              {
+                "id": "calendar",
+                "type": "calendar",
+                "size": "tall",
+                "supportedSizes": [
+                  "wide",
+                  "tall"
+                ],
+                "x": 0,
+                "y": 0
+              },
+              {
+                "id": "service@homepage:data/tautulli",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "apps",
+            "title": "Apps",
+            "span": 4,
+            "items": []
+          },
+          {
+            "id": "archive-backup",
+            "title": "Archive/Backup",
+            "span": 4,
+            "items": [
+              {
+                "id": "service@homepage:archive-backup/linkding",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 0
+              },
+              {
+                "id": "service@homepage:archive-backup/hoarder-karakeep",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 2,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "downloads",
+            "title": "Downloads",
+            "span": 4,
+            "items": [
+              {
+                "id": "downloads",
+                "type": "downloads",
+                "size": "wide",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 0
+              },
+              {
+                "id": "service@homepage:downloads/prowlarr",
+                "type": "service",
+                "size": "small",
+                "supportedSizes": [
+                  "small",
+                  "wide"
+                ],
+                "x": 0,
+                "y": 2
+              }
+            ]
+          }
+        ]
+      },
+      "settings": {
+        "locale": {
+          "first_day_of_week": "sunday"
+        },
+        "quicklaunch": {
+          "search_descriptions": true
+        }
+      }
+    },
+    "tiles": [
+      {
+        "item_id": "homeassistant",
+        "section": "home",
+        "widget": "homeassistant",
+        "size": "wide",
+        "name": "HomeAssistant",
+        "icon": "mdi-home-assistant",
+        "href": "https://home.lab.example",
+        "instance": "i_zsqwalwibofrelao",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Home",
+          "entry": "HomeAssistant"
+        }
+      },
+      {
+        "item_id": "cameras",
+        "section": "home",
+        "widget": "cameras",
+        "size": "large",
+        "name": "Frigate",
+        "icon": "frigate.png",
+        "href": "http://10.0.11.202:55000",
+        "instance": "i_m7udm4qeeigrmmzp",
+        "options": {
+          "recent_events": true
+        },
+        "origin": {
+          "file": "services.yaml",
+          "group": "Home",
+          "entry": "Frigate"
+        }
+      },
+      {
+        "item_id": "opnsense",
+        "section": "servers",
+        "widget": "opnsense",
+        "size": "wide",
+        "name": "OPNSense",
+        "icon": "opnsense.png",
+        "href": "https://opnsense.lab.example",
+        "instance": "i_ch2hkjvzjsf2fito",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "OPNSense"
+        }
+      },
+      {
+        "item_id": "service@homepage:servers/proxmoxpluto",
+        "section": "servers",
+        "widget": "service",
+        "size": "small",
+        "name": "Pluto PVE (main opnsense)",
+        "icon": "https://api.iconify.design/simple-icons:proxmox.svg?color=%23888888",
+        "href": "https://pluto.lan:8006",
+        "instance": "i_o2asa67xbuwy4huh",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxPluto"
+        }
+      },
+      {
+        "item_id": "service@homepage:servers/proxmoxminig5",
+        "section": "servers",
+        "widget": "service",
+        "size": "small",
+        "name": "MiniG5 PVE (homeassistant/frigate)",
+        "icon": "https://api.iconify.design/simple-icons:proxmox.svg?color=%23888888",
+        "href": "https://mini_g5.lan:8006/",
+        "instance": "i_x5t4lqdn5f2ibdcq",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxMiniG5"
+        }
+      },
+      {
+        "item_id": "service@homepage:servers/proxmoxmarscluster",
+        "section": "servers",
+        "widget": "service",
+        "size": "small",
+        "name": "Mars PVE Cluster (pvedocker, 2 nodes)",
+        "icon": "https://api.iconify.design/simple-icons:proxmox.svg?color=%23888888",
+        "href": "https://mars-1.lan:8006/",
+        "instance": "i_qoaivy5d7lp7egtk",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxMarsCluster"
+        }
+      },
+      {
+        "item_id": "service@homepage:servers/proxmoxio",
+        "section": "servers",
+        "widget": "service",
+        "size": "small",
+        "name": "IO PVE (windows gaming vm, iolinux ubuntu vm)",
+        "icon": "https://api.iconify.design/simple-icons:proxmox.svg?color=%23888888",
+        "href": "https://io.lan:8006/",
+        "instance": "i_p45njhvwhis2iyxw",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxIO"
+        }
+      },
+      {
+        "item_id": "service@homepage:servers/jupiter",
+        "section": "servers",
+        "widget": "service",
+        "size": "small",
+        "name": "Jupiter Unraid",
+        "icon": "https://api.iconify.design/simple-icons:unraid.svg?color=%23888888",
+        "href": "https://jupiter.lab.example/",
+        "instance": "i_kbnjctytomk34vem",
+        "check": "Jupiter Unraid",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "Jupiter"
+        }
+      },
+      {
+        "item_id": "service@homepage:servers/jupiternas",
+        "section": "servers",
+        "widget": "service",
+        "size": "small",
+        "name": "JupiterNas PVE",
+        "icon": "https://api.iconify.design/simple-icons:proxmox.svg?color=%23888888",
+        "href": "https://jupiter-nas.lan:8006/",
+        "instance": "i_4fnc3bq5ucxu3wwe",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "JupiterNas"
+        }
+      },
+      {
+        "item_id": "service@homepage:servers/jupiternascockpit",
+        "section": "servers",
+        "widget": "service",
+        "size": "small",
+        "name": "JupiterNasCockpit",
+        "icon": "https://api.iconify.design/logos:cockpit.svg?color=%23888888",
+        "href": "https://jupiter-nas-debian.lan:9090/",
+        "instance": "i_kbnjctytomk34vem",
+        "check": "JupiterNasCockpit",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "JupiterNasCockpit"
+        }
+      },
+      {
+        "item_id": "traefik",
+        "section": "services",
+        "widget": "traefik",
+        "size": "small",
+        "name": "Traefik",
+        "icon": "traefik.png",
+        "href": "https://traefik.lab.example",
+        "instance": "i_gyfwnbmt43byqrax",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Services",
+          "entry": "Traefik"
+        }
+      },
+      {
+        "item_id": "uptimekuma",
+        "section": "services",
+        "widget": "uptimekuma",
+        "size": "small",
+        "name": "UptimeKuma",
+        "icon": "uptime-kuma.png",
+        "href": "https://uptime.lab.example",
+        "instance": "i_mawmwlcshko5ibtw",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Services",
+          "entry": "UptimeKuma"
+        }
+      },
+      {
+        "item_id": "plex",
+        "section": "media",
+        "widget": "plex",
+        "size": "wide",
+        "name": "Plex",
+        "icon": "plex.png",
+        "href": "https://plex.lab.example",
+        "instance": "i_5njw22ml2n6ozckf",
+        "options": {
+          "fields": [
+            "streams",
+            "movies",
+            "tv"
+          ]
+        },
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Plex"
+        }
+      },
+      {
+        "item_id": "arr@app:radarr",
+        "section": "media",
+        "widget": "arr",
+        "size": "small",
+        "name": "Radarr",
+        "icon": "radarr.png",
+        "href": "https://jupiter.lab.example/radarr",
+        "instance": "i_g5kql652f2lxk6rm",
+        "options": {
+          "fields": [
+            "wanted",
+            "queued"
+          ]
+        },
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Radarr"
+        }
+      },
+      {
+        "item_id": "arr@app:sonarr",
+        "section": "media",
+        "widget": "arr",
+        "size": "small",
+        "name": "Sonarr",
+        "icon": "sonarr.png",
+        "href": "https://jupiter.lab.example/sonarr",
+        "instance": "i_s55rcerwmzzr554z",
+        "options": {
+          "fields": [
+            "wanted",
+            "queued"
+          ]
+        },
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Sonarr"
+        }
+      },
+      {
+        "item_id": "service@homepage:media/bazarr",
+        "section": "media",
+        "widget": "service",
+        "size": "small",
+        "name": "Bazarr",
+        "icon": "bazarr.png",
+        "href": "https://jupiter.lab.example/bazarr",
+        "instance": "i_jqbdvpceqynnyt6x",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Bazarr"
+        }
+      },
+      {
+        "item_id": "calendar",
+        "section": "data",
+        "widget": "calendar",
+        "size": "tall",
+        "name": "",
+        "chromeless": true,
+        "sources": [
+          {
+            "instance": "i_s55rcerwmzzr554z",
+            "capability": "media.calendar",
+            "options": {
+              "color": "teal",
+              "unmonitored": true
+            }
+          },
+          {
+            "instance": "i_g5kql652f2lxk6rm",
+            "capability": "media.calendar",
+            "options": {
+              "unmonitored": true
+            }
+          }
+        ],
+        "options": {
+          "max_events": 10,
+          "show_time": true,
+          "view": "monthly"
+        },
+        "origin": {
+          "file": "services.yaml",
+          "group": "Data"
+        }
+      },
+      {
+        "item_id": "service@homepage:data/tautulli",
+        "section": "data",
+        "widget": "service",
+        "size": "small",
+        "name": "Tautulli",
+        "icon": "tautulli",
+        "href": "https://jupiter.lab.example/tautulli",
+        "instance": "i_poxoqojnqiwrybc4",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Data",
+          "entry": "Tautulli"
+        }
+      },
+      {
+        "item_id": "service@homepage:archive-backup/linkding",
+        "section": "archive-backup",
+        "widget": "service",
+        "size": "small",
+        "name": "Linkding",
+        "icon": "linkding.png",
+        "href": "https://links.lab.example",
+        "description": "Shared bookmarks",
+        "instance": "i_kbnjctytomk34vem",
+        "check": "Linkding",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Archive/Backup",
+          "entry": "Linkding"
+        }
+      },
+      {
+        "item_id": "service@homepage:archive-backup/hoarder-karakeep",
+        "section": "archive-backup",
+        "widget": "service",
+        "size": "small",
+        "name": "Hoarder/Karakeep",
+        "icon": "karakeep.png",
+        "href": "https://hoarder.lab.example",
+        "description": "Long term archived bookmarks/websites",
+        "instance": "i_gdyr57ydzmmkaznp",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Archive/Backup",
+          "entry": "Hoarder/Karakeep"
+        }
+      },
+      {
+        "item_id": "downloads",
+        "section": "downloads",
+        "widget": "downloads",
+        "size": "wide",
+        "name": "qBittorrent",
+        "icon": "qbittorrent.png",
+        "href": "https://torrents.lab.example",
+        "instance": "i_ad7qchlfi5nys2ag",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Downloads",
+          "entry": "qBittorrent"
+        }
+      },
+      {
+        "item_id": "service@homepage:downloads/prowlarr",
+        "section": "downloads",
+        "widget": "service",
+        "size": "small",
+        "name": "Prowlarr",
+        "icon": "prowlarr",
+        "href": "https://jupiter.lab.example/prowlarr",
+        "instance": "i_k5mv5mkrmvnky5vm",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Downloads",
+          "entry": "Prowlarr"
+        }
+      }
+    ],
+    "instances": [
+      {
+        "id": "i_zsqwalwibofrelao",
+        "integration": "homeassistant",
+        "name": "HomeAssistant",
+        "config": {
+          "tls": {
+            "mode": "verify"
+          },
+          "token": "${secret:instance/i_zsqwalwibofrelao/token}",
+          "url": "https://home.lab.example"
+        },
+        "secret_fields": [
+          "token"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Home",
+          "entry": "HomeAssistant"
+        }
+      },
+      {
+        "id": "i_m7udm4qeeigrmmzp",
+        "integration": "frigate",
+        "name": "Frigate",
+        "config": {
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "http://10.0.11.202:55000"
+        },
+        "secret_fields": [],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Home",
+          "entry": "Frigate"
+        }
+      },
+      {
+        "id": "i_ch2hkjvzjsf2fito",
+        "integration": "opnsense",
+        "name": "OPNSense",
+        "config": {
+          "key": "${secret:instance/i_ch2hkjvzjsf2fito/key}",
+          "secret": "${secret:instance/i_ch2hkjvzjsf2fito/secret}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "http://10.0.11.1"
+        },
+        "secret_fields": [
+          "key",
+          "secret"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "OPNSense"
+        }
+      },
+      {
+        "id": "i_o2asa67xbuwy4huh",
+        "integration": "proxmox",
+        "name": "Pluto PVE (main opnsense)",
+        "config": {
+          "tls": {
+            "mode": "tofu"
+          },
+          "token_id": "api@pam!homepage",
+          "token_secret": "${secret:instance/i_o2asa67xbuwy4huh/token_secret}",
+          "url": "https://pluto.lan:8006"
+        },
+        "secret_fields": [
+          "token_secret"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxPluto"
+        }
+      },
+      {
+        "id": "i_x5t4lqdn5f2ibdcq",
+        "integration": "proxmox",
+        "name": "MiniG5 PVE (homeassistant/frigate)",
+        "config": {
+          "tls": {
+            "mode": "tofu"
+          },
+          "token_id": "api@pam!homepage",
+          "token_secret": "${secret:instance/i_x5t4lqdn5f2ibdcq/token_secret}",
+          "url": "https://mini_g5.lan:8006"
+        },
+        "secret_fields": [
+          "token_secret"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxMiniG5"
+        }
+      },
+      {
+        "id": "i_qoaivy5d7lp7egtk",
+        "integration": "proxmox",
+        "name": "Mars PVE Cluster (pvedocker, 2 nodes)",
+        "config": {
+          "tls": {
+            "mode": "tofu"
+          },
+          "token_id": "api@pam!homepage",
+          "token_secret": "${secret:instance/i_qoaivy5d7lp7egtk/token_secret}",
+          "url": "https://mars-1.lan:8006/"
+        },
+        "secret_fields": [
+          "token_secret"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxMarsCluster"
+        }
+      },
+      {
+        "id": "i_p45njhvwhis2iyxw",
+        "integration": "proxmox",
+        "name": "IO PVE (windows gaming vm, iolinux ubuntu vm)",
+        "config": {
+          "tls": {
+            "mode": "tofu"
+          },
+          "token_id": "api@pam!homepage",
+          "token_secret": "${secret:instance/i_p45njhvwhis2iyxw/token_secret}",
+          "url": "https://io.lan:8006/"
+        },
+        "secret_fields": [
+          "token_secret"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "ProxmoxIO"
+        }
+      },
+      {
+        "id": "i_4fnc3bq5ucxu3wwe",
+        "integration": "proxmox",
+        "name": "JupiterNas PVE",
+        "config": {
+          "tls": {
+            "mode": "tofu"
+          },
+          "token_id": "api@pam!homepage",
+          "token_secret": "${secret:instance/i_4fnc3bq5ucxu3wwe/token_secret}",
+          "url": "https://jupiter-nas.lan:8006"
+        },
+        "secret_fields": [
+          "token_secret"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "JupiterNas"
+        }
+      },
+      {
+        "id": "i_gyfwnbmt43byqrax",
+        "integration": "traefik",
+        "name": "Traefik",
+        "config": {
+          "password": "${secret:instance/i_gyfwnbmt43byqrax/password}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "http://traefik.lab.example",
+          "username": "admin"
+        },
+        "secret_fields": [
+          "password"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Services",
+          "entry": "Traefik"
+        }
+      },
+      {
+        "id": "i_mawmwlcshko5ibtw",
+        "integration": "uptimekuma",
+        "name": "UptimeKuma",
+        "config": {
+          "key": "${secret:instance/i_mawmwlcshko5ibtw/key}",
+          "slug": "current",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://uptime.lab.example"
+        },
+        "secret_fields": [
+          "key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Services",
+          "entry": "UptimeKuma"
+        }
+      },
+      {
+        "id": "i_5njw22ml2n6ozckf",
+        "integration": "plex",
+        "name": "Plex",
+        "config": {
+          "tls": {
+            "mode": "verify"
+          },
+          "token": "${secret:instance/i_5njw22ml2n6ozckf/token}",
+          "url": "https://plex.lab.example"
+        },
+        "secret_fields": [
+          "token"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Plex"
+        }
+      },
+      {
+        "id": "i_g5kql652f2lxk6rm",
+        "integration": "radarr",
+        "name": "Radarr",
+        "config": {
+          "api_key": "${secret:instance/i_g5kql652f2lxk6rm/api_key}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://jupiter.lab.example/radarr"
+        },
+        "secret_fields": [
+          "api_key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Radarr"
+        }
+      },
+      {
+        "id": "i_s55rcerwmzzr554z",
+        "integration": "sonarr",
+        "name": "Sonarr",
+        "config": {
+          "api_key": "${secret:instance/i_s55rcerwmzzr554z/api_key}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://jupiter.lab.example/sonarr"
+        },
+        "secret_fields": [
+          "api_key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Sonarr"
+        }
+      },
+      {
+        "id": "i_jqbdvpceqynnyt6x",
+        "integration": "bazarr",
+        "name": "Bazarr",
+        "config": {
+          "api_key": "${secret:instance/i_jqbdvpceqynnyt6x/api_key}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://jupiter.lab.example/bazarr"
+        },
+        "secret_fields": [
+          "api_key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Bazarr"
+        }
+      },
+      {
+        "id": "i_poxoqojnqiwrybc4",
+        "integration": "tautulli",
+        "name": "Tautulli",
+        "config": {
+          "api_key": "${secret:instance/i_poxoqojnqiwrybc4/api_key}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://jupiter.lab.example/tautulli"
+        },
+        "secret_fields": [
+          "api_key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Data",
+          "entry": "Tautulli"
+        }
+      },
+      {
+        "id": "i_gdyr57ydzmmkaznp",
+        "integration": "karakeep",
+        "name": "Hoarder/Karakeep",
+        "config": {
+          "api_key": "${secret:instance/i_gdyr57ydzmmkaznp/api_key}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://hoarder.lab.example"
+        },
+        "secret_fields": [
+          "api_key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Archive/Backup",
+          "entry": "Hoarder/Karakeep"
+        }
+      },
+      {
+        "id": "i_ad7qchlfi5nys2ag",
+        "integration": "qbittorrent",
+        "name": "qBittorrent",
+        "config": {
+          "password": "${secret:instance/i_ad7qchlfi5nys2ag/password}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://torrents.lab.example",
+          "username": "admin"
+        },
+        "secret_fields": [
+          "password"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Downloads",
+          "entry": "qBittorrent"
+        }
+      },
+      {
+        "id": "i_k5mv5mkrmvnky5vm",
+        "integration": "prowlarr",
+        "name": "Prowlarr",
+        "config": {
+          "api_key": "${secret:instance/i_k5mv5mkrmvnky5vm/api_key}",
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://jupiter.lab.example/prowlarr"
+        },
+        "secret_fields": [
+          "api_key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Downloads",
+          "entry": "Prowlarr"
+        }
+      },
+      {
+        "id": "i_7s62vgw54ti4itof",
+        "integration": "docker",
+        "name": "my-docker",
+        "config": {
+          "endpoint": "tcp://dockerproxy:2375"
+        },
+        "secret_fields": [],
+        "origin": {
+          "file": "docker.yaml",
+          "entry": "my-docker"
+        }
+      },
+      {
+        "id": "i_mg763up6m3qzsfev",
+        "integration": "docker",
+        "name": "my-unraid",
+        "config": {
+          "endpoint": "tcp://10.0.11.120:2375"
+        },
+        "secret_fields": [],
+        "origin": {
+          "file": "docker.yaml",
+          "entry": "my-unraid"
+        }
+      },
+      {
+        "id": "i_kbnjctytomk34vem",
+        "integration": "checks",
+        "name": "Homepage",
+        "config": {
+          "targets": [
+            {
+              "interval_s": 60,
+              "kind": "http",
+              "name": "Jupiter Unraid",
+              "url": "http://10.0.11.120"
+            },
+            {
+              "interval_s": 60,
+              "kind": "http",
+              "name": "JupiterNasCockpit",
+              "url": "https://jupiter-nas-debian.lan:9090/"
+            },
+            {
+              "interval_s": 60,
+              "kind": "http",
+              "name": "Linkding",
+              "url": "https://links.lab.example"
+            }
+          ]
+        },
+        "secret_fields": [],
+        "origin": {
+          "file": "services.yaml"
+        }
+      }
+    ],
+    "secrets": [
+      {
+        "name": "instance/i_zsqwalwibofrelao/token",
+        "instance": "i_zsqwalwibofrelao",
+        "field": "token"
+      },
+      {
+        "name": "instance/i_ch2hkjvzjsf2fito/key",
+        "instance": "i_ch2hkjvzjsf2fito",
+        "field": "key"
+      },
+      {
+        "name": "instance/i_ch2hkjvzjsf2fito/secret",
+        "instance": "i_ch2hkjvzjsf2fito",
+        "field": "secret"
+      },
+      {
+        "name": "instance/i_o2asa67xbuwy4huh/token_secret",
+        "instance": "i_o2asa67xbuwy4huh",
+        "field": "token_secret"
+      },
+      {
+        "name": "instance/i_x5t4lqdn5f2ibdcq/token_secret",
+        "instance": "i_x5t4lqdn5f2ibdcq",
+        "field": "token_secret"
+      },
+      {
+        "name": "instance/i_qoaivy5d7lp7egtk/token_secret",
+        "instance": "i_qoaivy5d7lp7egtk",
+        "field": "token_secret"
+      },
+      {
+        "name": "instance/i_p45njhvwhis2iyxw/token_secret",
+        "instance": "i_p45njhvwhis2iyxw",
+        "field": "token_secret"
+      },
+      {
+        "name": "instance/i_4fnc3bq5ucxu3wwe/token_secret",
+        "instance": "i_4fnc3bq5ucxu3wwe",
+        "field": "token_secret"
+      },
+      {
+        "name": "instance/i_gyfwnbmt43byqrax/password",
+        "instance": "i_gyfwnbmt43byqrax",
+        "field": "password"
+      },
+      {
+        "name": "instance/i_mawmwlcshko5ibtw/key",
+        "instance": "i_mawmwlcshko5ibtw",
+        "field": "key"
+      },
+      {
+        "name": "instance/i_5njw22ml2n6ozckf/token",
+        "instance": "i_5njw22ml2n6ozckf",
+        "field": "token"
+      },
+      {
+        "name": "instance/i_g5kql652f2lxk6rm/api_key",
+        "instance": "i_g5kql652f2lxk6rm",
+        "field": "api_key"
+      },
+      {
+        "name": "instance/i_s55rcerwmzzr554z/api_key",
+        "instance": "i_s55rcerwmzzr554z",
+        "field": "api_key"
+      },
+      {
+        "name": "instance/i_jqbdvpceqynnyt6x/api_key",
+        "instance": "i_jqbdvpceqynnyt6x",
+        "field": "api_key"
+      },
+      {
+        "name": "instance/i_poxoqojnqiwrybc4/api_key",
+        "instance": "i_poxoqojnqiwrybc4",
+        "field": "api_key"
+      },
+      {
+        "name": "instance/i_gdyr57ydzmmkaznp/api_key",
+        "instance": "i_gdyr57ydzmmkaznp",
+        "field": "api_key"
+      },
+      {
+        "name": "instance/i_ad7qchlfi5nys2ag/password",
+        "instance": "i_ad7qchlfi5nys2ag",
+        "field": "password"
+      },
+      {
+        "name": "instance/i_k5mv5mkrmvnky5vm/api_key",
+        "instance": "i_k5mv5mkrmvnky5vm",
+        "field": "api_key"
+      }
+    ],
+    "secrets_moved": 18,
+    "links": [
+      {
+        "type": "runs_on",
+        "instance": "i_gyfwnbmt43byqrax",
+        "tile": "traefik",
+        "docker": "i_7s62vgw54ti4itof",
+        "endpoint": "my-docker",
+        "container": "traefik",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Services",
+          "entry": "Traefik"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_mawmwlcshko5ibtw",
+        "tile": "uptimekuma",
+        "docker": "i_7s62vgw54ti4itof",
+        "endpoint": "my-docker",
+        "container": "uptimekuma",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Services",
+          "entry": "UptimeKuma"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_5njw22ml2n6ozckf",
+        "tile": "plex",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "container": "Plex-Current",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Plex"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_g5kql652f2lxk6rm",
+        "tile": "arr@app:radarr",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "container": "radarr",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Radarr"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_s55rcerwmzzr554z",
+        "tile": "arr@app:sonarr",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "container": "sonarr",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Sonarr"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_jqbdvpceqynnyt6x",
+        "tile": "service@homepage:media/bazarr",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "container": "bazarr",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Media",
+          "entry": "Bazarr"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_poxoqojnqiwrybc4",
+        "tile": "service@homepage:data/tautulli",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "container": "tautulli",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Data",
+          "entry": "Tautulli"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_ad7qchlfi5nys2ag",
+        "tile": "downloads",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "container": "binhex-qbittorrentvpn",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Downloads",
+          "entry": "qBittorrent"
+        }
+      },
+      {
+        "type": "runs_on",
+        "instance": "i_k5mv5mkrmvnky5vm",
+        "tile": "service@homepage:downloads/prowlarr",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "container": "binhex-prowlarr",
+        "origin": {
+          "file": "services.yaml",
+          "group": "Downloads",
+          "entry": "Prowlarr"
+        }
+      }
+    ],
+    "discovery": [
+      {
+        "kind": "label_section",
+        "section": "apps",
+        "message": "Apps has no services in services.yaml. Homepage fills it from homepage.* container labels, so it's created empty and fills in through discovery (my-docker, my-unraid)."
+      },
+      {
+        "kind": "label_endpoint",
+        "docker": "i_7s62vgw54ti4itof",
+        "endpoint": "my-docker",
+        "message": "Containers on my-docker with homepage.* labels will appear through Docker discovery, in the group their label names."
+      },
+      {
+        "kind": "label_endpoint",
+        "docker": "i_mg763up6m3qzsfev",
+        "endpoint": "my-unraid",
+        "message": "Containers on my-unraid with homepage.* labels will appear through Docker discovery, in the group their label names."
+      }
+    ],
+    "ignored": [
+      {
+        "file": "settings.yaml",
+        "key": "providers",
+        "reason": "weather providers aren't imported (their API keys aren't moved either)"
+      },
+      {
+        "file": "settings.yaml",
+        "key": "background",
+        "reason": "Cha Dash doesn't put content over a wallpaper"
+      },
+      {
+        "file": "settings.yaml",
+        "key": "hideVersion",
+        "reason": "Cha Dash shows its version in settings"
+      },
+      {
+        "file": "settings.yaml",
+        "key": "useEqualHeights",
+        "reason": "tile heights come from widget sizes"
+      },
+      {
+        "file": "settings.yaml",
+        "key": "color",
+        "reason": "Cha Dash has its own themes (light, dark, OLED)"
+      },
+      {
+        "file": "settings.yaml",
+        "key": "statusStyle",
+        "reason": "status display is part of the Cha Dash theme"
+      },
+      {
+        "file": "settings.yaml",
+        "key": "disableCollapse",
+        "reason": "Cha Dash sections don't collapse"
+      },
+      {
+        "file": "settings.yaml",
+        "key": "headerStyle",
+        "reason": "section headers are part of the Cha Dash theme"
+      },
+      {
+        "file": "services.yaml",
+        "key": "id",
+        "entries": [
+          "Media → Plex"
+        ],
+        "reason": "not used by Cha Dash"
+      }
+    ],
+    "summary": {
+      "sections": 8,
+      "tiles": 22,
+      "instances": 21,
+      "integrations": {
+        "bazarr": 1,
+        "checks": 1,
+        "docker": 2,
+        "frigate": 1,
+        "homeassistant": 1,
+        "karakeep": 1,
+        "opnsense": 1,
+        "plex": 1,
+        "prowlarr": 1,
+        "proxmox": 5,
+        "qbittorrent": 1,
+        "radarr": 1,
+        "sonarr": 1,
+        "tautulli": 1,
+        "traefik": 1,
+        "uptimekuma": 1
+      },
+      "checks": 3,
+      "links": 9,
+      "secrets_moved": 18,
+      "hints": 6,
+      "inbox_hints": 3,
+      "unmapped": 0,
+      "discovery": 3,
+      "ignored": 9,
+      "notes": [
+        "Apps has no services in services.yaml. Homepage fills it from homepage.* container labels, so it's created empty and fills in through discovery (my-docker, my-unraid)."
+      ]
+    },
+    "changes": [
+      {
+        "kind": "board",
+        "id": "b_ajrtwtlddnb3sgor",
+        "name": "Alpaca Homepage",
+        "action": "create"
+      },
+      {
+        "kind": "layout",
+        "id": "b_ajrtwtlddnb3sgor",
+        "name": "Alpaca Homepage",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_zsqwalwibofrelao",
+        "name": "HomeAssistant",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_m7udm4qeeigrmmzp",
+        "name": "Frigate",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_ch2hkjvzjsf2fito",
+        "name": "OPNSense",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_o2asa67xbuwy4huh",
+        "name": "Pluto PVE (main opnsense)",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_x5t4lqdn5f2ibdcq",
+        "name": "MiniG5 PVE (homeassistant/frigate)",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_qoaivy5d7lp7egtk",
+        "name": "Mars PVE Cluster (pvedocker, 2 nodes)",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_p45njhvwhis2iyxw",
+        "name": "IO PVE (windows gaming vm, iolinux ubuntu vm)",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_4fnc3bq5ucxu3wwe",
+        "name": "JupiterNas PVE",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_gyfwnbmt43byqrax",
+        "name": "Traefik",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_mawmwlcshko5ibtw",
+        "name": "UptimeKuma",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_5njw22ml2n6ozckf",
+        "name": "Plex",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_g5kql652f2lxk6rm",
+        "name": "Radarr",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_s55rcerwmzzr554z",
+        "name": "Sonarr",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_jqbdvpceqynnyt6x",
+        "name": "Bazarr",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_poxoqojnqiwrybc4",
+        "name": "Tautulli",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_gdyr57ydzmmkaznp",
+        "name": "Hoarder/Karakeep",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_ad7qchlfi5nys2ag",
+        "name": "qBittorrent",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_k5mv5mkrmvnky5vm",
+        "name": "Prowlarr",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_7s62vgw54ti4itof",
+        "name": "my-docker",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_mg763up6m3qzsfev",
+        "name": "my-unraid",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_kbnjctytomk34vem",
+        "name": "Homepage",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_zsqwalwibofrelao/token",
+        "name": "token",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_ch2hkjvzjsf2fito/key",
+        "name": "key",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_ch2hkjvzjsf2fito/secret",
+        "name": "secret",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_o2asa67xbuwy4huh/token_secret",
+        "name": "token_secret",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_x5t4lqdn5f2ibdcq/token_secret",
+        "name": "token_secret",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_qoaivy5d7lp7egtk/token_secret",
+        "name": "token_secret",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_p45njhvwhis2iyxw/token_secret",
+        "name": "token_secret",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_4fnc3bq5ucxu3wwe/token_secret",
+        "name": "token_secret",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_gyfwnbmt43byqrax/password",
+        "name": "password",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_mawmwlcshko5ibtw/key",
+        "name": "key",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_5njw22ml2n6ozckf/token",
+        "name": "token",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_g5kql652f2lxk6rm/api_key",
+        "name": "api_key",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_s55rcerwmzzr554z/api_key",
+        "name": "api_key",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_jqbdvpceqynnyt6x/api_key",
+        "name": "api_key",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_poxoqojnqiwrybc4/api_key",
+        "name": "api_key",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_gdyr57ydzmmkaznp/api_key",
+        "name": "api_key",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_ad7qchlfi5nys2ag/password",
+        "name": "password",
+        "action": "create"
+      },
+      {
+        "kind": "secret",
+        "id": "instance/i_k5mv5mkrmvnky5vm/api_key",
+        "name": "api_key",
+        "action": "create"
+      },
+      {
+        "kind": "record",
+        "id": "import/homepage",
+        "action": "create"
+      }
+    ]
+  },
+  "hints": [
+    {
+      "code": "reused_secret",
+      "severity": "attention",
+      "inbox": true,
+      "message": "The same password is used by Traefik and qBittorrent. Give each service its own.",
+      "subjects": [
+        {
+          "instance": "i_gyfwnbmt43byqrax",
+          "field": "password",
+          "origin": {
+            "file": "services.yaml",
+            "group": "Services",
+            "entry": "Traefik"
+          }
+        },
+        {
+          "instance": "i_ad7qchlfi5nys2ag",
+          "field": "password",
+          "origin": {
+            "file": "services.yaml",
+            "group": "Downloads",
+            "entry": "qBittorrent"
+          }
+        }
+      ]
+    },
+    {
+      "code": "plain_http_credentials",
+      "severity": "attention",
+      "inbox": true,
+      "message": "OPNSense sends its credentials over plain http:// to 10.0.11.1. Use https:// if it supports it.",
+      "subjects": [
+        {
+          "instance": "i_ch2hkjvzjsf2fito",
+          "origin": {
+            "file": "services.yaml",
+            "group": "Servers",
+            "entry": "OPNSense"
+          }
+        }
+      ]
+    },
+    {
+      "code": "plain_http_credentials",
+      "severity": "attention",
+      "inbox": true,
+      "message": "Traefik sends its credentials over plain http:// to traefik.lab.example. Use https:// if it supports it.",
+      "subjects": [
+        {
+          "instance": "i_gyfwnbmt43byqrax",
+          "origin": {
+            "file": "services.yaml",
+            "group": "Services",
+            "entry": "Traefik"
+          }
+        }
+      ]
+    },
+    {
+      "code": "docker_endpoint",
+      "severity": "info",
+      "inbox": false,
+      "message": "my-docker (tcp://dockerproxy:2375): a Docker API over plain TCP. When it connects, Cha Dash runs a safe, read-only probe to tell a raw API from a filtering proxy, and never probes write endpoints. \"dockerproxy\" is a bare host name, probably a compose service, so it only resolves on that compose network.",
+      "subjects": [
+        {
+          "instance": "i_7s62vgw54ti4itof",
+          "origin": {
+            "file": "docker.yaml",
+            "entry": "my-docker"
+          }
+        }
+      ]
+    },
+    {
+      "code": "docker_endpoint",
+      "severity": "info",
+      "inbox": false,
+      "message": "my-unraid (tcp://10.0.11.120:2375): a Docker API over plain TCP. When it connects, Cha Dash runs a safe, read-only probe to tell a raw API from a filtering proxy, and never probes write endpoints.",
+      "subjects": [
+        {
+          "instance": "i_mg763up6m3qzsfev",
+          "origin": {
+            "file": "docker.yaml",
+            "entry": "my-unraid"
+          }
+        }
+      ]
+    },
+    {
+      "code": "self_host",
+      "severity": "info",
+      "inbox": false,
+      "message": "This config lives on pvedocker (instanceName), so the hub probably runs there too. Cha Dash confirms it once it can see its own container.",
+      "subjects": [
+        {
+          "origin": {
+            "file": "settings.yaml"
+          }
+        }
+      ]
+    }
+  ],
+  "unmapped": []
+}

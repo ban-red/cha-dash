@@ -7,6 +7,10 @@
  *
  * A null layout means a new board: build the default from the graph and PUT
  * it. A 409 means someone else saved first; theirs wins and is loaded.
+ *
+ * `load(id)` opens a board by id (the /boards/{id} route, or the board an
+ * import just created); without one it opens the first. When the hub can't be
+ * reached, the board from the last-known snapshot stands in, read-only.
  */
 import { inject, provide, reactive, shallowRef, type InjectionKey } from 'vue';
 import { LAYOUT_VERSION, fromDocument, toDocument, type Board, type LayoutDocument } from '@chadash/layout';
@@ -33,6 +37,14 @@ export interface BoardOptions {
   now?: () => number;
 }
 
+/** The board as the last-known snapshot keeps it. */
+export interface StoredBoard {
+  id: string;
+  name: string;
+  revision: number;
+  layout: unknown;
+}
+
 export function createBoardStore(opts: BoardOptions) {
   const state = reactive({
     status: 'idle' as BoardStatus,
@@ -42,29 +54,64 @@ export function createBoardStore(opts: BoardOptions) {
     revision: 0,
     /** Built here and not saved (e.g. the stored layout is from a newer version). */
     unsaved: false,
+    /** Showing the last-known board because the hub can't be reached. */
+    lastKnown: false,
     error: '',
   });
   const board = shallowRef<Board | undefined>(undefined);
+  /** The last stored layout document as the hub has it, for the snapshot. */
+  let stored: unknown = undefined;
+  let fallback: StoredBoard | undefined;
 
-  async function load(): Promise<void> {
+  /** The board to fall back on while the hub is unreachable. */
+  function restore(b: StoredBoard | undefined): void {
+    fallback = b;
+    if (!b) return;
+    if (board.value) {
+      if (state.boardId === b.id) {
+        state.lastKnown = true;
+        state.status = 'ready';
+      }
+      return;
+    }
+    try {
+      board.value = fromDocument(b.layout);
+      stored = b.layout;
+      state.boardId = b.id;
+      state.name = b.name;
+      state.revision = b.revision;
+      state.lastKnown = true;
+      state.status = 'ready';
+    } catch {
+      /* a layout this version can't read: the page waits for the hub */
+    }
+  }
+
+  async function load(id?: string): Promise<void> {
     state.status = 'loading';
     state.error = '';
     try {
       const { boards } = await api<{ boards: BoardRef[] }>('/api/boards');
       state.boards = boards ?? [];
-      const first = state.boards[0];
-      if (!first) {
+      const pick = (id && state.boards.find((b) => b.id === id)) || state.boards[0];
+      if (!pick) {
         // No board on the hub yet: show the default, unsaved.
         board.value = defaultBoard(await opts.waitForGraph(), (opts.now ?? Date.now)());
         state.unsaved = true;
+        state.lastKnown = false;
         state.status = 'ready';
         return;
       }
-      state.boardId = first.id;
-      state.name = first.name;
+      state.boardId = pick.id;
+      state.name = pick.name;
       await loadLayout();
+      state.lastKnown = false;
       state.status = 'ready';
     } catch (err) {
+      if (err instanceof ApiError && err.status === 0 && fallback && (!id || fallback.id === id)) {
+        restore(fallback);
+        if (board.value) return;
+      }
       state.status = 'error';
       state.error =
         err instanceof ApiError && err.status === 0
@@ -81,6 +128,7 @@ export function createBoardStore(opts: BoardOptions) {
     if (res.layout !== null && res.layout !== undefined) {
       try {
         board.value = fromDocument(res.layout);
+        stored = res.layout;
         state.unsaved = false;
         return;
       } catch {
@@ -99,6 +147,7 @@ export function createBoardStore(opts: BoardOptions) {
     try {
       const res = await put(b);
       state.revision = res.revision;
+      stored = toDocument(b);
       state.unsaved = false;
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -108,6 +157,7 @@ export function createBoardStore(opts: BoardOptions) {
         if (again.layout) {
           try {
             board.value = fromDocument(again.layout);
+            stored = again.layout;
             state.unsaved = false;
             return;
           } catch {
@@ -136,6 +186,7 @@ export function createBoardStore(opts: BoardOptions) {
     try {
       const res = await put(b);
       state.revision = res.revision;
+      stored = toDocument(b);
       state.unsaved = false;
       return true;
     } catch (err) {
@@ -148,7 +199,13 @@ export function createBoardStore(opts: BoardOptions) {
     }
   }
 
-  return { state, board, load, save };
+  /** What the last-known snapshot keeps: the saved layout, never an unsaved one. */
+  function snapshot(): StoredBoard | undefined {
+    if (!state.boardId || stored === undefined) return undefined;
+    return { id: state.boardId, name: state.name, revision: state.revision, layout: stored };
+  }
+
+  return { state, board, load, save, restore, snapshot };
 }
 
 export type BoardStore = ReturnType<typeof createBoardStore>;

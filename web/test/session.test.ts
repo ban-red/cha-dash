@@ -17,6 +17,16 @@ describe('session store', () => {
     expect(s.state.phase).toBe('setup');
   });
 
+  it('offers dev login only when the hub says so', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(200, { required: true })));
+    const s = createSession();
+    await s.refresh();
+    expect(s.state.devLogin).toBe(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(200, { required: true, dev_login: true })));
+    await s.refresh();
+    expect(s.state.devLogin).toBe(true);
+  });
+
   it('opens sign-in when there is no session, and the app when there is', async () => {
     const fetchMock = vi
       .fn()

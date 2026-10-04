@@ -77,9 +77,11 @@ func CheckResponse(resp *http.Response) error {
 }
 
 // AuthError is an explicit credential failure, for sources that report it
-// inside a 200 (GraphQL's UNAUTHENTICATED, a JSON error field).
+// inside a 200 (GraphQL's UNAUTHENTICATED, a JSON error field), or for any
+// auth failure whose field the integration knows.
 type AuthError struct {
 	Message string
+	Field   string // the secret that was rejected, when the integration knows it
 }
 
 func (e *AuthError) Error() string {
@@ -95,6 +97,7 @@ func (e *AuthError) Error() string {
 type RepairError struct {
 	Code    string
 	Message string
+	Field   string // the config or secret field to fix, when known
 }
 
 func (e *RepairError) Error() string { return e.Message }
@@ -103,9 +106,34 @@ func (e *RepairError) Error() string { return e.Message }
 // but, say, names a socket that doesn't exist).
 type ConfigError struct {
 	Message string
+	Field   string // the field that's wrong, when known
 }
 
 func (e *ConfigError) Error() string { return e.Message }
+
+// FieldOf returns the config or secret field an error points at, when the
+// integration said: AuthError, RepairError and ConfigError carry it, and a
+// TLS refusal points at "tls". The runtime puts it in a repair's
+// facts.field, so the UI opens the right input.
+func FieldOf(err error) string {
+	var (
+		ae *AuthError
+		re *RepairError
+		ce *ConfigError
+		te *TLSError
+	)
+	switch {
+	case errors.As(err, &ae):
+		return ae.Field
+	case errors.As(err, &re):
+		return re.Field
+	case errors.As(err, &ce):
+		return ce.Field
+	case errors.As(err, &te):
+		return "tls"
+	}
+	return ""
+}
 
 // TLSError is a certificate the instance's TLS policy refused.
 type TLSError struct {

@@ -53,7 +53,7 @@ const itemStyle = (i: PlacedItem) => ({ gridColumn: `${i.x + 1} / span ${i.w}`, 
     <section v-for="s in layout.sections" :key="s.id" class="sec" :style="sectionStyle(s)" :aria-label="s.title ?? s.id">
       <slot name="section" :section="s" :editing="false"></slot>
       <div class="sec-grid" :style="gridStyle(s)">
-        <div v-for="i in s.items" :key="i.id" class="cell" :data-forced="i.forced || undefined" :style="itemStyle(i)">
+        <div v-for="i in s.items" :key="i.id" class="cell" :data-item="i.id" :data-forced="i.forced || undefined" :style="itemStyle(i)">
           <slot v-if="items.get(i.id)" name="item" :item="items.get(i.id)!" :size="i.size" :editing="false" :dragging="false" :placed="i"></slot>
         </div>
       </div>
@@ -70,5 +70,18 @@ const itemStyle = (i: PlacedItem) => ({ gridColumn: `${i.x + 1} / span ${i.w}`, 
 .cell > * {
   min-width: 0;
   min-height: 0;
+}
+/* ⌘K → a resource: its tile scrolls into view and rings once. */
+.cell.flash > * {
+  animation: cell-flash 1.5s var(--motion-fade-easing);
+}
+@keyframes cell-flash {
+  0%,
+  45% {
+    box-shadow: 0 0 0 2px var(--focus);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
 }
 </style>

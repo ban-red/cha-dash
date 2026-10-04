@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -30,7 +31,19 @@ type harness struct {
 	srv   *httptest.Server
 	logs  *syncBuffer
 	token string
+
+	opts  []Option   // passed to New
+	clock *testClock // the service's clock; real time plus an offset tests move
+	// origin and host, when set, go out as the Origin and Host headers of
+	// every request, as a browser at that address would send them.
+	origin, host string
 }
+
+// testClock is the real clock plus an offset, safe to move while handlers run.
+type testClock struct{ offset atomic.Int64 }
+
+func (c *testClock) now() time.Time          { return time.Now().Add(time.Duration(c.offset.Load())) }
+func (c *testClock) advance(d time.Duration) { c.offset.Add(int64(d)) }
 
 type syncBuffer struct {
 	mu sync.Mutex
@@ -52,6 +65,11 @@ func (s *syncBuffer) String() string {
 var tokenRE = regexp.MustCompile(`setup_token=(cds_[a-z2-7]+)`)
 
 func newHarness(t *testing.T, proxies ...netip.Prefix) *harness {
+	return newHarnessWith(t, nil, proxies...)
+}
+
+// newHarnessWith is newHarness with options for New.
+func newHarnessWith(t *testing.T, opts []Option, proxies ...netip.Prefix) *harness {
 	t.Helper()
 	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "chadash.db"))
 	if err != nil {
@@ -61,7 +79,7 @@ func newHarness(t *testing.T, proxies ...netip.Prefix) *harness {
 	if _, err := st.Migrate(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	h := &harness{t: t, st: st, logs: &syncBuffer{}}
+	h := &harness{t: t, st: st, logs: &syncBuffer{}, opts: opts, clock: &testClock{}}
 	h.start(proxies...)
 	return h
 }
@@ -72,11 +90,12 @@ func (h *harness) start(proxies ...netip.Prefix) {
 	if h.srv != nil {
 		h.srv.Close()
 	}
-	svc, err := New(h.t.Context(), h.st, slog.New(slog.NewTextHandler(h.logs, nil)), httpx.NewProxies(proxies))
+	svc, err := New(h.t.Context(), h.st, slog.New(slog.NewTextHandler(h.logs, nil)), httpx.NewProxies(proxies), h.opts...)
 	if err != nil {
 		h.t.Fatal(err)
 	}
 	svc.params = testParams
+	svc.now = h.clock.now // set before the server starts serving
 	h.svc = svc
 	mux := http.NewServeMux()
 	svc.Register(mux)
@@ -98,23 +117,47 @@ func (h *harness) client() *http.Client {
 
 func (h *harness) do(c *http.Client, method, path string, body any) (*http.Response, map[string]any) {
 	h.t.Helper()
+	resp, raw := h.doRaw(c, method, path, body, nil)
+	var out map[string]any
+	_ = json.Unmarshal(raw, &out)
+	return resp, out
+}
+
+// doRaw sends body as JSON ([]byte as is) with extra headers, and returns the
+// response body unparsed.
+func (h *harness) doRaw(c *http.Client, method, path string, body any, hdr map[string]string) (*http.Response, []byte) {
+	h.t.Helper()
 	var rd io.Reader
 	if body != nil {
-		b, _ := json.Marshal(body)
+		b, ok := body.([]byte)
+		if !ok {
+			b, _ = json.Marshal(body)
+		}
 		rd = bytes.NewReader(b)
 	}
 	req, _ := http.NewRequest(method, h.srv.URL+path, rd)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if h.origin != "" {
+		req.Header.Set("Origin", h.origin)
+	}
+	if h.host != "" {
+		req.Host = h.host
+	}
+	for k, v := range hdr {
+		req.Header.Set(k, v)
+	}
 	resp, err := c.Do(req)
 	if err != nil {
 		h.t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	var out map[string]any
-	_ = json.NewDecoder(resp.Body).Decode(&out)
-	return resp, out
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	return resp, raw
 }
 
 func TestFirstRunFlow(t *testing.T) {
@@ -318,6 +361,10 @@ func TestSessionRenewsWhileInUse(t *testing.T) {
 
 func TestLoginRateLimited(t *testing.T) {
 	h := newHarness(t)
+	// A frozen clock: under a loaded -race run, 11 attempts can take longer
+	// than the 6 s refill, and a refilled token would let the 11th through.
+	frozen := time.Now()
+	h.svc.limiter.now = func() time.Time { return frozen }
 	c := h.client()
 	var last *http.Response
 	for range 11 {

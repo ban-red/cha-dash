@@ -358,7 +358,7 @@ func TestInstancesCRUD(t *testing.T) {
 	if _, ok := e.set.Graph.Get(graph.RID("integration:" + id)); ok {
 		t.Fatal("a disabled instance publishes nothing")
 	}
-	_, body = e.call(t, "PUT", "/api/integrations/instances/"+id, map[string]any{"enabled": true})
+	e.call(t, "PUT", "/api/integrations/instances/"+id, map[string]any{"enabled": true})
 	waitFor(t, "re-enabled", func() bool { return e.status(id) == StatusOK })
 
 	// Single GET, then delete: row, facts and secrets all go.
@@ -488,8 +488,8 @@ func TestSecretsNeverLeak(t *testing.T) {
 	}))["id"]
 	waitFor(t, "a failed sync", func() bool { v, _ := e.m.Get(id); return v.LastError != nil })
 	v := decodeAs[InstanceView](t, call("GET", "/api/integrations/instances/"+id, nil))
-	if !strings.Contains(v.LastError.Message, "invalid key [redacted]") {
-		t.Fatalf("last_error = %+v", v.LastError)
+	if !strings.Contains(*v.LastError, "invalid key [redacted]") || *v.LastErrorCode != integration.CodeUpstream || v.LastErrorAt == nil {
+		t.Fatalf("last_error = %v", *v.LastError)
 	}
 	call("GET", "/api/integrations/instances", nil)
 	call("GET", "/api/integrations/instances/"+id+"/diagnostics", nil)
@@ -526,7 +526,7 @@ func TestTestEndpoints(t *testing.T) {
 	if _, ok := res["latency_ms"].(float64); !ok {
 		t.Fatalf("latency_ms: %s", body)
 	}
-	if !strings.Contains(body, `"grants":[{"name":"read","write":false},{"name":"write","write":true}]`) ||
+	if !strings.Contains(body, `"grants":[{"name":"read","access":"read","write":false},{"name":"write","access":"write","write":true}]`) ||
 		!strings.Contains(body, `"code":"write_grant"`) || !strings.Contains(body, `"code":"plain_http"`) {
 		t.Fatalf("grants and warnings: %s", body)
 	}
@@ -551,6 +551,27 @@ func TestTestEndpoints(t *testing.T) {
 	code, body = e.call(t, "POST", "/api/integrations/instances/"+id+"/test", nil)
 	if res := decodeAs[map[string]any](t, body); code != 200 || res["ok"] != true || res["version"] != "4.2.0" {
 		t.Fatalf("saved test: %d %s", code, body)
+	}
+
+	// Unsaved edits of a saved instance: the secret not retyped comes from
+	// the vault, and nothing is saved.
+	other := newUpstream(t, secret, false)
+	code, body = e.call(t, "POST", "/api/integrations/test", map[string]any{"instance_id": id, "config": map[string]any{"url": other.URL, "label": "edited"}})
+	if res := decodeAs[map[string]any](t, body); code != 200 || res["ok"] != true {
+		t.Fatalf("edit test: %d %s", code, body)
+	}
+	if v, _ := e.m.Get(id); v.Config["url"] != up.URL || v.Config["label"] != nil {
+		t.Fatalf("an edit test must not save: %v", v.Config)
+	}
+	code, body = e.call(t, "POST", "/api/integrations/test", map[string]any{"instance_id": id, "secrets": map[string]any{"api_key": "retyped-wrong"}})
+	if res := decodeAs[map[string]any](t, body); code != 200 || res["ok"] != false || res["error"].(map[string]any)["code"] != integration.CodeAuth {
+		t.Fatalf("edit test with a retyped key: %d %s", code, body)
+	}
+	if code, _ := e.call(t, "POST", "/api/integrations/test", map[string]any{"instance_id": "i_nope"}); code != 404 {
+		t.Fatalf("unknown instance: %d", code)
+	}
+	if code, _ := e.call(t, "POST", "/api/integrations/test", map[string]any{"instance_id": id, "integration": "checks"}); code != 422 {
+		t.Fatalf("mismatched integration: %d", code)
 	}
 }
 
@@ -601,7 +622,8 @@ func TestTOFUPinnedOnFirstSuccess(t *testing.T) {
 	}
 	waitFor(t, "the instance to need repair", func() bool { return e.status(id) == StatusRepair })
 	in := incident(t, e.set, id+".repair")
-	if in.Scenario != "tls-pin-mismatch" || in.Status != "open" {
+	if in.Scenario != "tls-pin-mismatch" || in.Status != "open" || in.Phase != PhaseOpen || in.Target != "integration:"+id ||
+		in.Facts["instance"] != id || in.Facts["field"] != "tls" {
 		t.Fatalf("repair = %+v", in)
 	}
 	if v, _ := e.m.Get(id); v.Config["tls"].(map[string]any)["pin"] != wrong {
@@ -626,6 +648,7 @@ func TestReload(t *testing.T) {
 	for _, r := range [][]any{
 		{"i_imported", "echo", "Imported", string(cfg), 1, now, now},
 		{"i_later", "proxmox", "pluto", `{"url":"https://pluto.lab.example:8006","token_secret":"${secret:homepage/pve/secret}"}`, 1, now, now},
+		{"i_nokey", "echo", "No key", `{"url":"https://echo.lab.example"}`, 1, now, now}, // the importer couldn't find its key
 	} {
 		if _, err := e.st.Writer().Exec(`INSERT INTO integration_instances (id, integration, name, config, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, r...); err != nil {
 			t.Fatal(err)
@@ -638,6 +661,12 @@ func TestReload(t *testing.T) {
 	v, _ := e.m.Get("i_imported")
 	if !v.Secrets["api_key"].Set || v.Config["api_key"] != nil {
 		t.Fatalf("imported = %+v", v)
+	}
+	// A row that doesn't validate doesn't start, and says why.
+	nokey, _ := e.m.Get("i_nokey")
+	if nokey.Status != StatusError || nokey.LastError == nil || *nokey.LastErrorCode != integration.CodeInvalidConfig ||
+		!strings.Contains(*nokey.LastError, "/api_key: is required") {
+		t.Fatalf("invalid imported row = %+v", nokey)
 	}
 	// An integration this build doesn't have yet is listed, as an error.
 	later, _ := e.m.Get("i_later")

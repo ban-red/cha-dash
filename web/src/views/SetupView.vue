@@ -6,6 +6,7 @@
  */
 import { computed, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
+import { DevLogin } from '../dev';
 import { authMessage, MIN_PASSWORD, passwordLength, USERNAME_RE, useSession } from '../stores/session';
 
 const session = useSession();
@@ -116,6 +117,7 @@ async function submit() {
 
       <button type="submit" class="btn primary" :disabled="busy" :aria-busy="busy">{{ busy ? 'Creating…' : 'Create owner account' }}</button>
       <p class="door-foot">Cha Dash runs on your hardware. The account lives on this hub only; nothing is sent anywhere else.</p>
+      <component :is="DevLogin" v-if="DevLogin && session.state.devLogin" />
     </form>
   </main>
 </template>

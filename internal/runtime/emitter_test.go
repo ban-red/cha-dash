@@ -225,12 +225,21 @@ func TestEmitterIncidents(t *testing.T) {
 		t.Fatalf("updated = %+v", got)
 	}
 
+	// The user acts: being fixed until the next result.
+	e.setPhase("check.sonarr", PhaseFixing)
+	if got = incident(t, set, "in_a.check.sonarr"); got.Phase != PhaseFixing {
+		t.Fatalf("phase = %q", got.Phase)
+	}
+	_ = e.Raise(in) // still failing: open again
+	if got = incident(t, set, "in_a.check.sonarr"); got.Phase != PhaseOpen {
+		t.Fatalf("phase after another failure = %q", got.Phase)
+	}
 	clk.t = clk.t.Add(time.Minute)
 	if err := e.Resolve("check.sonarr", "Sonarr answered again at 14:07."); err != nil {
 		t.Fatal(err)
 	}
 	got = incident(t, set, "in_a.check.sonarr")
-	if got.Status != "resolved" || got.ResolvedBy != "auto" || !got.ResolvedAt.Equal(clk.t) || got.Resolution == "" {
+	if got.Status != "resolved" || got.Phase != PhaseResolved || got.ResolvedBy != "auto" || !got.ResolvedAt.Equal(clk.t) || got.Resolution == "" {
 		t.Fatalf("resolved = %+v", got)
 	}
 	_ = e.Resolve("check.sonarr", "again") // not open: nothing happens

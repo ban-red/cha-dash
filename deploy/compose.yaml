@@ -20,6 +20,7 @@ services:
       - data:/data                  # database + vault key: back them up together
     # environment:
     #   CHADASH_TRUSTED_PROXIES: 172.30.0.0/16   # behind a reverse proxy (README)
+    #   CHADASH_PUBLIC_URL: https://dash.lab.example   # for passkeys, over HTTPS (README)
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777     # SQLite's temporary files; nothing else writes outside /data

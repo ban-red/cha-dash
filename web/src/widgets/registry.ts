@@ -12,6 +12,7 @@ import HostWidget from './HostWidget.vue';
 import IncidentsWidget from './IncidentsWidget.vue';
 import OpnsenseWidget from './OpnsenseWidget.vue';
 import PlexWidget from './PlexWidget.vue';
+import ServiceWidget from './ServiceWidget.vue';
 import TraefikWidget from './TraefikWidget.vue';
 import UptimeKumaWidget from './UptimeKumaWidget.vue';
 
@@ -28,6 +29,7 @@ export const WIDGET_COMPONENTS: Record<string, Component> = {
   incidents: IncidentsWidget,
   opnsense: OpnsenseWidget,
   plex: PlexWidget,
+  service: ServiceWidget,
   traefik: TraefikWidget,
   uptimekuma: UptimeKumaWidget,
 };

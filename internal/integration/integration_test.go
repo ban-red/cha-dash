@@ -307,6 +307,39 @@ func TestTestResultJSON(t *testing.T) {
 	}
 }
 
+func TestGrantJSON(t *testing.T) {
+	b, _ := json.Marshal([]Grant{
+		{Name: "VM.Audit"},
+		{Name: "VM.PowerMgmt", Write: true},
+		{Name: "docker", Access: AccessReadWrite, Detail: "DOCKER:READ_ANY, DOCKER:UPDATE_ANY"},
+		{Name: "root@pam", Access: AccessAdmin},
+	})
+	want := `[{"name":"VM.Audit","access":"read","write":false},` +
+		`{"name":"VM.PowerMgmt","access":"write","write":true},` +
+		`{"name":"docker","access":"rw","write":true,"detail":"DOCKER:READ_ANY, DOCKER:UPDATE_ANY"},` +
+		`{"name":"root@pam","access":"admin","write":true}]`
+	if string(b) != want {
+		t.Fatalf("grants:\n%s\nwant\n%s", b, want)
+	}
+	if w := WriteGrantWarning([]Grant{{Name: "root@pam", Access: AccessAdmin}}); w == nil {
+		t.Fatal("an admin grant is a write grant")
+	}
+}
+
+func TestFieldOf(t *testing.T) {
+	for err, want := range map[error]string{
+		fmt.Errorf("x: %w", &AuthError{Field: "token_secret"}): "token_secret",
+		&RepairError{Code: CodeAPIChanged, Field: "url"}:       "url",
+		&ConfigError{Message: "no", Field: "endpoint"}:         "endpoint",
+		&TLSError{Code: CodeTLSPinMismatch}:                    "tls",
+		errors.New("plain"):                                    "",
+	} {
+		if got := FieldOf(err); got != want {
+			t.Errorf("FieldOf(%v) = %q, want %q", err, got, want)
+		}
+	}
+}
+
 func TestNumJSON(t *testing.T) {
 	b, _ := json.Marshal([]Num{1.5, Num(math.NaN()), Num(math.Inf(1)), Num(math.Copysign(0, -1))})
 	if string(b) != `[1.5,null,null,0]` {

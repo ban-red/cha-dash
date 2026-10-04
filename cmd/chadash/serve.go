@@ -22,6 +22,7 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/realtime"
+	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/server"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -80,6 +81,11 @@ type app struct {
 	topics  *topics.Set
 	demo    *demo.Driver // nil outside demo mode
 	hub     *realtime.Hub
+	// integrations runs the integration instances. In demo mode they write
+	// to integrationTopics, a private set nobody subscribes to, so real
+	// instances never reach the Demo Home; otherwise that's topics.
+	integrations      *runtime.Manager
+	integrationTopics *topics.Set
 
 	stop context.CancelFunc // ends the background work below
 	bg   sync.WaitGroup     // the demo driver or the inbox clock
@@ -113,15 +119,16 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 
 	keyPath, explicit := cfg.KeyFile()
-	// Nothing reads the vault yet; integrations (v0.1) will. Opening it now
-	// creates the key on first boot and catches a wrong key early.
+	// The Homepage importer moves secrets into the vault; integrations
+	// (v0.1) read them. Opening it at boot creates the key on first run and
+	// catches a wrong key early.
 	v, err := vault.Open(ctx, st, vault.KeyConfig{Path: keyPath, Generate: !explicit}, log)
 	if err != nil {
 		return nil, err
 	}
 
 	proxies := httpx.NewProxies(cfg.TrustedProxies)
-	authSvc, err := auth.New(ctx, st, log, proxies)
+	authSvc, err := auth.New(ctx, st, log, proxies, auth.WithPublicURL(cfg.PublicURL))
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +156,19 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
-	hub := realtime.New(tp.Source(), realtime.Options{
+	// Instances poll at full rate only while a tab subscribes to something;
+	// watch counts the realtime feeds.
+	watch := runtime.NewWatch()
+	itp := tp
+	if cfg.Demo {
+		itp = topics.New(graph.New(), time.Now())
+	}
+	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log})
+	if err != nil {
+		return nil, err
+	}
+
+	hub := realtime.New(watch.Source(tp.Source()), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,
 		Log:            log,
@@ -163,14 +182,23 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Proxies:        proxies,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Demo:           drv,
+		Vault:          v,
+		Integrations:   mgr,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub}
+	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp}
 	bg, stop := context.WithCancel(ctx)
 	a.stop = stop
+	if err := mgr.Start(bg); err != nil {
+		stop()
+		return nil, err
+	}
+	if cfg.Demo {
+		log.Info("demo mode: integration instances run, but write to a private graph, not the Demo Home")
+	}
 	if drv != nil {
 		a.bg.Go(func() { drv.Run(bg) })
 	} else {
@@ -181,6 +209,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 
 func (a *app) close() error {
 	a.stop()
+	a.integrations.Close()
 	a.bg.Wait()
 	a.hub.Close()
 	return a.store.Close()

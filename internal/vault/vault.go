@@ -153,29 +153,40 @@ func (v *Vault) Put(ctx context.Context, name string, value []byte) error {
 	if len(value) > MaxValueSize {
 		return ErrTooLarge
 	}
-	return v.st.WriteTx(ctx, func(tx *sql.Tx) error {
-		var id string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM vault_secrets WHERE name = ?`, name).Scan(&id)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			id = "sec_" + strings.ToLower(rand.Text())
-		case err != nil:
-			return err
-		}
-		dataKey, ciphertext, err := v.seal(id, name, value)
-		if err != nil {
-			return err
-		}
-		now := store.NowMillis()
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO vault_secrets (id, name, alg, kek_id, data_key, ciphertext, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT (name) DO UPDATE SET
-				alg = excluded.alg, kek_id = excluded.kek_id, data_key = excluded.data_key,
-				ciphertext = excluded.ciphertext, updated_at = excluded.updated_at`,
-			id, name, alg, v.kekID, dataKey, ciphertext, now, now)
+	return v.st.WriteTx(ctx, func(tx *sql.Tx) error { return v.PutTx(ctx, tx, name, value) })
+}
+
+// PutTx is Put inside the caller's write transaction (from the store's
+// writer), so a secret commits or rolls back with the rows that reference
+// it. The importer uses it to apply a plan atomically.
+func (v *Vault) PutTx(ctx context.Context, tx *sql.Tx, name string, value []byte) error {
+	if !nameRE.MatchString(name) {
+		return ErrInvalidName
+	}
+	if len(value) > MaxValueSize {
+		return ErrTooLarge
+	}
+	var id string
+	err := tx.QueryRowContext(ctx, `SELECT id FROM vault_secrets WHERE name = ?`, name).Scan(&id)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		id = "sec_" + strings.ToLower(rand.Text())
+	case err != nil:
 		return err
-	})
+	}
+	dataKey, ciphertext, err := v.seal(id, name, value)
+	if err != nil {
+		return err
+	}
+	now := store.NowMillis()
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO vault_secrets (id, name, alg, kek_id, data_key, ciphertext, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (name) DO UPDATE SET
+			alg = excluded.alg, kek_id = excluded.kek_id, data_key = excluded.data_key,
+			ciphertext = excluded.ciphertext, updated_at = excluded.updated_at`,
+		id, name, alg, v.kekID, dataKey, ciphertext, now, now)
+	return err
 }
 
 // Get returns the value stored under name.

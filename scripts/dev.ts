@@ -4,8 +4,12 @@
  *
  * Builds and starts the hub on the Demo Home simulator (demo mode, data in ./data,
  * on 127.0.0.1:3696), waits until it's healthy, then starts the Vite dev server with
- * hot reload, which proxies /api and /ws to the hub. On first run it prints the setup
- * token. Ctrl-C stops both.
+ * hot reload, which proxies /api and /ws to the hub. Ctrl-C stops both.
+ *
+ * The hub is built with -tags devlogin, so the setup and sign-in screens offer
+ * "Login as Local Dev": one click, no setup token, no password. It signs in as the
+ * owner, creating a passwordless `dev` owner on first run. Release builds don't
+ * contain it. The setup token is still printed if you'd rather go through setup.
  *
  *   bun run dev              reuse ./data, so your owner account and layouts survive
  *   bun run dev --fresh      wipe ./data first: a brand-new instance and setup token
@@ -122,7 +126,8 @@ if (!reuseHub) {
   }
 
   say('Building the hub');
-  const build = Bun.spawnSync(['go', 'build', '-o', BIN, './cmd/chadash'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' });
+  // devlogin: the one-click "Login as Local Dev" (internal/auth/devlogin.go). Never in release builds.
+  const build = Bun.spawnSync(['go', 'build', '-tags', 'devlogin', '-o', BIN, './cmd/chadash'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' });
   if (build.exitCode !== 0) fail('go build failed');
 
   const env: Record<string, string> = {
@@ -162,12 +167,12 @@ if (!reuseHub) {
   // The token is logged during startup, before /healthz answers.
   await Bun.sleep(100);
   if (token) {
-    console.log(`\n  ${yellow('First run.')} Open ${bold(WEB_URL)} and enter this setup token:\n\n      ${bold(token)}\n`);
+    console.log(`\n  ${yellow('First run.')} Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}, or set up an owner with this token:\n\n      ${bold(token)}\n`);
   } else {
-    console.log(`\n  ${dim('Owner account already set up; sign in at')} ${bold(WEB_URL)}${dim('. Start over with')} bun run dev --fresh\n`);
+    console.log(`\n  Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}${dim(' (signs in as the owner). Start over with')} bun run dev --fresh\n`);
   }
 } else {
-  say(`Reusing the hub already running at ${HUB}`);
+  say(`Reusing the hub already running at ${HUB} ${dim('(Login as Local Dev shows only if it was built by bun run dev)')}`);
 }
 
 // ── Web ──────────────────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ import (
 //	GET    /api/integrations/instances/{id}             instance
 //	PUT    /api/integrations/instances/{id}             {name?, config?, secrets?, enabled?} → 200 instance
 //	DELETE /api/integrations/instances/{id}             204
-//	POST   /api/integrations/test                       {integration, config, secrets} → test result
+//	POST   /api/integrations/test                       {integration, config, secrets} or {instance_id, config?, secrets?} → test result
 //	POST   /api/integrations/instances/{id}/test        test result
 //	GET    /api/integrations/instances/{id}/diagnostics diagnostics, secrets redacted
 //
@@ -129,19 +129,12 @@ func (m *Manager) handleDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// testBody is the body of POST /api/integrations/test.
-type testBody struct {
-	Integration string         `json:"integration"`
-	Config      map[string]any `json:"config"`
-	Secrets     map[string]any `json:"secrets"`
-}
-
 func (m *Manager) handleTest(w http.ResponseWriter, r *http.Request) {
-	var req testBody
+	var req TestRequest
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	res, err := m.Test(r.Context(), req.Integration, req.Config, req.Secrets)
+	res, err := m.Test(r.Context(), req)
 	if err != nil {
 		m.writeError(w, err)
 		return

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -84,13 +85,50 @@ func TestInvalidValues(t *testing.T) {
 		"CHADASH_LOG_FORMAT":      "xml",
 		"CHADASH_TRUSTED_PROXIES": "not-an-ip",
 		"CHADASH_ALLOWED_ORIGINS": "ftp://x, https://x/path",
+		"CHADASH_PUBLIC_URL":      "dash.example.com",
 	})
 	if err == nil {
 		t.Fatal("expected errors")
 	}
-	for _, want := range []string{"listen address", "log level", "log format", "trusted proxy", "ftp://x", "https://x/path"} {
+	for _, want := range []string{"listen address", "log level", "log format", "trusted proxy", "ftp://x", "https://x/path", "public URL"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+}
+
+func TestPublicURL(t *testing.T) {
+	c, err := load(t, nil)
+	if err != nil || c.PublicURL != "" {
+		t.Fatalf("default public URL = %q, %v", c.PublicURL, err)
+	}
+
+	// Normalised, and trusted like an allowed origin (once).
+	c, err = load(t, map[string]string{
+		"CHADASH_PUBLIC_URL":      "https://Dash.Lab.Example/",
+		"CHADASH_ALLOWED_ORIGINS": "https://other.example",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PublicURL != "https://dash.lab.example" {
+		t.Fatalf("public URL = %q", c.PublicURL)
+	}
+	if !slices.Equal(c.AllowedOrigins, []string{"https://other.example", "https://dash.lab.example"}) {
+		t.Fatalf("allowed origins = %v", c.AllowedOrigins)
+	}
+	c, err = load(t, map[string]string{"CHADASH_ALLOWED_ORIGINS": "http://localhost:5173"}, "--public-url", "http://localhost:5173")
+	if err != nil || c.PublicURL != "http://localhost:5173" || len(c.AllowedOrigins) != 1 {
+		t.Fatalf("flag public URL = %q %v, %v", c.PublicURL, c.AllowedOrigins, err)
+	}
+
+	// Plain http on the LAN is accepted here; passkeys explain at use that they need HTTPS.
+	if c, err := load(t, map[string]string{"CHADASH_PUBLIC_URL": "http://192.168.1.5:3696"}); err != nil || c.PublicURL != "http://192.168.1.5:3696" {
+		t.Fatalf("http public URL = %q, %v", c.PublicURL, err)
+	}
+	for _, bad := range []string{"https://dash.example.com/sub", "ftp://dash.example.com", "https://user@dash.example.com", "https://"} {
+		if _, err := load(t, map[string]string{"CHADASH_PUBLIC_URL": bad}); err == nil || !strings.Contains(err.Error(), "public URL") {
+			t.Errorf("public URL %q: err = %v", bad, err)
 		}
 	}
 }

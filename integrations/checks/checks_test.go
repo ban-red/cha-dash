@@ -89,10 +89,22 @@ func TestValidate(t *testing.T) {
 	}
 	dup := map[string]any{"targets": []any{
 		map[string]any{"name": "Sonarr", "kind": "http", "url": "http://a"},
-		map[string]any{"name": "sonarr!", "kind": "http", "url": "http://b"},
+		map[string]any{"name": "Sonarr", "kind": "http", "url": "http://b"},
 	}}
 	if errs := integrationtest.Validate(Integration{}, dup, nil); len(errs) != 1 || errs[0].Path != "/targets/1/name" {
-		t.Fatalf("same slug twice: %v", errs)
+		t.Fatalf("same name twice: %v", errs)
+	}
+	// Names that differ but slug the same are fine: the later one is numbered.
+	h := integrationtest.New(t)
+	inst := h.Connect(Integration{}, map[string]any{"targets": []any{
+		map[string]any{"name": "Sonarr", "kind": "tcp", "host": "127.0.0.1", "port": closedPort(t)},
+		map[string]any{"name": "sonarr!", "kind": "tcp", "host": "127.0.0.1", "port": closedPort(t)},
+	}}, nil)
+	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := h.Resource("check:i_test/sonarr-2"); !ok {
+		t.Fatalf("resources = %v", h.Graph().Resources)
 	}
 	if errs := integrationtest.Validate(Integration{}, map[string]any{"targets": []any{}}, nil); len(errs) == 0 {
 		t.Fatal("no targets")
@@ -137,7 +149,7 @@ func TestEndToEnd(t *testing.T) {
 	sync()
 
 	sonarr, ok := h.Resource("check:i_test/sonarr")
-	if !ok || sonarr.Kind != "app" || sonarr.Health != integration.HealthOK || sonarr.State != "online" || sonarr.Source != "integration:i_test" ||
+	if !ok || sonarr.Kind != "check" || sonarr.Health != integration.HealthOK || sonarr.State != "online" || sonarr.Source != "integration:i_test" ||
 		sonarr.Attrs["check"] != "http" || sonarr.Attrs["status_code"] != 200.0 || sonarr.Attrs["target"] != web.URL+"/health" {
 		t.Fatalf("sonarr = %+v", sonarr)
 	}

@@ -5,12 +5,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"strings"
 	"testing"
 	"time"
 
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/topics"
+	"dash.cha.sh/internal/vault"
 )
 
 // signIn completes first-run setup and returns a client holding the owner's
@@ -116,5 +118,48 @@ func TestDemoEndpoints(t *testing.T) {
 	}
 	if resp := e.request(t, c, "POST", "/api/demo/incidents/nope/fix", nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown incident: %d", resp.StatusCode)
+	}
+}
+
+func TestImportRoutes(t *testing.T) {
+	body := map[string]string{"services_yaml": "- Links:\n  - Example:\n      href: https://example.com\n"}
+
+	// Without a vault the import routes aren't mounted.
+	e := newEnv(t)
+	c := signIn(t, e)
+	if resp := e.request(t, c, "POST", "/api/import/homepage?dry_run=1", body, nil); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("import without a vault: %d", resp.StatusCode)
+	}
+
+	e = newEnvWith(t, func(d *Deps) {
+		v, err := vault.New(d.Store, make([]byte, 32))
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Vault = v
+	})
+	anon := &http.Client{}
+	for _, r := range []struct{ method, path string }{
+		{"POST", "/api/import/homepage?dry_run=1"}, {"POST", "/api/import/homepage"}, {"GET", "/api/import/homepage"},
+	} {
+		if resp := e.request(t, anon, r.method, r.path, body, nil); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("%s %s without a session: %d", r.method, r.path, resp.StatusCode)
+		}
+	}
+	c = signIn(t, e)
+	if resp := e.request(t, c, "POST", "/api/import/homepage", body, map[string]string{"Origin": "https://evil.example", "Sec-Fetch-Site": "cross-site"}); resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-site import: %d", resp.StatusCode)
+	}
+	m := decode(t, e.request(t, c, "POST", "/api/import/homepage?dry_run=1", body, nil))
+	if _, ok := m["plan"].(map[string]any); !ok {
+		t.Fatalf("dry run = %v", m)
+	}
+	m = decode(t, e.request(t, c, "POST", "/api/import/homepage", body, nil))
+	if id, _ := m["board_id"].(string); !strings.HasPrefix(id, "b_") {
+		t.Fatalf("apply = %v", m)
+	}
+	boards := decode(t, e.request(t, c, "GET", "/api/boards", nil, nil))["boards"].([]any)
+	if len(boards) != 1 || boards[0].(map[string]any)["name"] != "Homepage" {
+		t.Fatalf("boards after import = %v", boards)
 	}
 }

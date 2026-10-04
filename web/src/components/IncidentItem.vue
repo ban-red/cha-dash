@@ -1,9 +1,16 @@
 <script setup lang="ts">
 /**
  * One incident in the Inbox: symptom first, then (expanded) the facts, the
- * likely causes, the blast radius and the suggested action with its tier.
- * Fix runs through the safety ladder; progress and the resolution arrive
- * live from the `inbox` topic.
+ * likely causes, the blast radius and the action.
+ *
+ * - A Repair (an integration Cha Dash can't read) offers Reconnect: the
+ *   integration's settings, with the field that failed focused. In demo mode
+ *   its suggested action can also run, so the Demo Home can still settle it.
+ * - A problem offers its suggested action through the safety ladder. That
+ *   runs through the demo Fix endpoint in demo mode only; elsewhere the flow
+ *   shows what Cha Dash would do, and `link.open` actions open their link.
+ *
+ * Progress and the resolution arrive live from the `inbox` topic.
  */
 import { computed } from 'vue';
 import Glyph from './marks/Glyph.vue';
@@ -11,7 +18,7 @@ import { hhmm, since } from '../lib/format';
 import { label } from '../model/graph';
 import { glyphFor } from '../model/status';
 import { factLabel, factValue, impactName, relationWords } from '../model/words';
-import type { Incident } from '../model/types';
+import type { Action, Incident } from '../model/types';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 
@@ -21,28 +28,34 @@ const live = useLive();
 const ui = useUi();
 
 const isResolved = computed(() => incident.status === 'resolved');
+const isRepair = computed(() => incident.class === 'repair');
 const fix = computed(() => live.fixes[incident.id]);
 const working = computed(() => !isResolved.value && fix.value?.state === 'accepted');
-const glyph = computed(() => (isResolved.value ? 'check' : incident.class === 'repair' ? 'repair' : glyphFor(incident.severity)));
-const glyphLabel = computed(() => (isResolved.value ? 'resolved' : incident.class === 'repair' ? 'repair' : incident.severity === 'down' ? 'down' : 'needs attention'));
+const glyph = computed(() => (isResolved.value ? 'check' : isRepair.value ? 'repair' : glyphFor(incident.severity)));
+const glyphLabel = computed(() => (isResolved.value ? 'resolved' : isRepair.value ? 'repair' : incident.severity === 'down' ? 'down' : 'needs attention'));
 const facts = computed(() => Object.entries(incident.facts ?? {}).slice(0, 6));
 const blast = computed(() => (incident.blast_radius ?? []).slice(0, 8));
 const action = computed(() => incident.suggested);
-const disabled = computed(
-  () => live.stale.value || fix.value?.state === 'sending' || !action.value || action.value.tier === 'T3' || action.value.tier === 'T4',
-);
+const primary = computed(() => ui.canRun(incident));
+/** For a repair, the Demo Home can also run its suggested action, which settles it without settings. */
+const demoRepairAction = computed(() => (isRepair.value && live.demo.value && action.value ? action.value : undefined));
+const runnable = (a: Action) => ui.canRun(incident, a);
 const whenText = computed(() => (isResolved.value ? hhmm(incident.resolved_at ?? incident.updated_at) : hhmm(incident.opened_at)));
 const id = computed(() => `ib-${incident.id}`);
 </script>
 
 <template>
-  <div :class="['ib', { open: expanded }]">
+  <div :class="['ib', { open: expanded, repair: isRepair }]">
     <Glyph :kind="glyph" :label="glyphLabel" />
     <div>
       <button type="button" class="ib-title" :aria-expanded="expanded" :aria-controls="id" @click="emit('toggle')">{{ incident.title }}</button>
       <div class="m">{{ isResolved && incident.resolution ? incident.resolution : incident.summary }}</div>
     </div>
-    <span class="when" :title="isResolved ? 'resolved' : 'opened'">{{ whenText }}</span>
+    <span class="when" :title="isResolved ? 'resolved' : 'opened'"><span v-if="isRepair && !isResolved" class="ib-kind">Repair · </span>{{ whenText }}</span>
+
+    <div v-if="!expanded && isRepair && !isResolved" class="ib-quick">
+      <button type="button" class="btn sm" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect</button>
+    </div>
 
     <div v-if="expanded && !isResolved" :id="id" class="flow">
       <div v-if="working" class="working" role="status">
@@ -52,11 +65,40 @@ const id = computed(() => `ib-${incident.id}`);
         </svg>
         <span>{{ action?.label }}: working · {{ incident.phase }}. This updates by itself.</span>
       </div>
+
+      <div v-else-if="isRepair" class="col">
+        <h4>Repair · T0</h4>
+        <p class="action-detail">
+          Cha Dash can’t read this integration, but the service itself may be fine. Reconnect opens its settings with the field that failed, so you can paste a new
+          credential and test it before saving.
+        </p>
+        <div class="acts">
+          <button type="button" class="btn primary" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect<span class="tier">T0</span></button>
+          <button
+            v-if="demoRepairAction"
+            type="button"
+            class="btn"
+            :disabled="!runnable(demoRepairAction).ok"
+            :title="runnable(demoRepairAction).why ?? 'Runs in the Demo Home'"
+            @click="ui.act(incident, demoRepairAction)"
+          >
+            {{ demoRepairAction.label }}<span class="tier">{{ demoRepairAction.tier }}</span>
+          </button>
+          <template v-for="alt in incident.alternatives ?? []" :key="alt.id + alt.label">
+            <button v-if="alt.id === 'link.open'" type="button" class="btn" :disabled="!runnable(alt).ok" :title="runnable(alt).why" @click="ui.act(incident, alt)">
+              {{ alt.label }}<span class="tier">{{ alt.tier }}</span>
+            </button>
+          </template>
+        </div>
+        <p v-if="demoRepairAction" class="sub">In the Demo Home, “{{ demoRepairAction.label }}” settles this one without opening settings.</p>
+        <p v-if="fix?.state === 'failed'" class="err" role="alert">{{ fix.error }}</p>
+      </div>
+
       <div v-else-if="action" class="col">
         <h4>Suggested · {{ action.tier }}</h4>
         <p v-if="action.detail" class="action-detail">{{ action.detail }}</p>
         <div class="acts">
-          <button type="button" class="btn primary" :disabled="disabled" @click="ui.act(incident)">
+          <button type="button" class="btn primary" :disabled="!primary.ok" :title="primary.why" @click="ui.act(incident)">
             {{ action.label }}<span class="tier">{{ action.tier }}</span>
           </button>
           <button
@@ -64,12 +106,14 @@ const id = computed(() => `ib-${incident.id}`);
             :key="alt.id + alt.label"
             type="button"
             class="btn"
-            disabled
-            :title="'Only the suggested action runs in this version'"
+            :disabled="!runnable(alt).ok"
+            :title="runnable(alt).why"
+            @click="ui.act(incident, alt)"
           >
             {{ alt.label }}<span class="tier">{{ alt.tier }}</span>
           </button>
         </div>
+        <p v-if="!live.demo.value && !primary.ok && primary.why && !live.stale.value" class="sub">{{ primary.why }}</p>
         <p v-if="fix?.state === 'failed'" class="err" role="alert">{{ fix.error }}</p>
       </div>
 

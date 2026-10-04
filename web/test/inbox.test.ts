@@ -22,8 +22,8 @@ describe('Inbox sheet', () => {
     setDisplayTimeZone('UTC');
   });
 
-  async function openOn(id: string, data = docs(withIncidents)) {
-    const h = harness(data);
+  async function openOn(id: string, data = docs(withIncidents), demo = true) {
+    const h = harness(data, { demo });
     h.mountIn(InboxSheet);
     h.ui.openInbox(id);
     await flushPromises();
@@ -32,11 +32,21 @@ describe('Inbox sheet', () => {
     return { ...h, panel };
   }
 
-  it('groups problems and repairs, and opens on the focused incident with facts, causes and blast radius', async () => {
+  it('groups by status, and opens on the focused incident with facts, causes and blast radius', async () => {
     const { panel } = await openOn('pbs-datastore-filling');
     expect(panel).not.toBeNull();
     const groups = [...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
-    expect(groups).toEqual(['Needs you · 4', 'Repairs · 2']);
+    // qBittorrent is restarting by itself: open, but being fixed.
+    expect(groups).toEqual(['Open · 5', 'Being fixed · 1']);
+    const titles = [...panel.querySelectorAll('.ib-title')].map((t) => t.textContent);
+    // problems first (by severity, then age), then repairs
+    expect(titles.slice(0, 5)).toEqual([
+      'Backup of homeassistant failed',
+      'PBS datastore is filling up',
+      'jupiter-nas is running out of memory',
+      "Karakeep's API changed",
+      'Plex rejected its token',
+    ]);
     const open = panel.querySelector('.ib.open')!;
     expect(open.querySelector('.ib-title')!.textContent).toBe('PBS datastore is filling up');
     expect(open.textContent).toContain('What Cha Dash saw');
@@ -46,8 +56,12 @@ describe('Inbox sheet', () => {
     expect(open.textContent).toContain('win-gaming · VM');
     const primary = open.querySelector<HTMLButtonElement>('.btn.primary')!;
     expect(primary.textContent).toBe('Prune per policyT2');
-    // alternatives are listed but only the suggested action runs
-    expect([...open.querySelectorAll<HTMLButtonElement>('.acts .btn:not(.primary)')].every((b) => b.disabled)).toBe(true);
+    // alternatives are listed; only the suggested action and links run
+    const alts = [...open.querySelectorAll<HTMLButtonElement>('.acts .btn:not(.primary)')];
+    expect(alts.map((b) => [b.textContent, b.disabled])).toEqual([
+      ['Re-enable the daily prune jobT1', true],
+      ['Open PBST0', false],
+    ]);
   });
 
   it('asks to hold for T2, and runs T1 then shows the resolution in place', async () => {
@@ -78,7 +92,7 @@ describe('Inbox sheet', () => {
     vi.advanceTimersByTime(3000);
     await nextTick();
     const groups = [...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
-    expect(groups).toEqual(['Needs you · 3', 'Repairs · 2', 'Resolved · 1']);
+    expect(groups).toEqual(['Open · 4', 'Being fixed · 1', 'Resolved · 1']);
   });
 
   it('is empty when nothing needs you', async () => {
@@ -123,7 +137,7 @@ describe('hold to confirm', () => {
 
   it('lights the blast radius while you hold and runs the action when confirmed', async () => {
     vi.setSystemTime(new Date('2026-10-03T14:05:10Z'));
-    const h = harness(docs(withIncidents));
+    const h = harness(docs(withIncidents), { demo: true });
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'host-memory-pressure' }), { status: 202 }));
     vi.stubGlobal('fetch', fetchMock);
     h.mountIn(ConfirmDialog);

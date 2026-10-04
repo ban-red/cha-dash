@@ -69,6 +69,11 @@ jobs:
         run: go vet ./...
       - name: go test -race
         run: go test -race ./...
+      - name: dev login (-tags devlogin)
+        # Only `bun run dev` builds with this tag; release builds must not.
+        run: |
+          go vet -tags devlogin ./...
+          go test -race -tags devlogin ./internal/auth/ ./internal/server/ ./cmd/chadash/
       - name: staticcheck
         run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...   # 2026.2.1: Go 1.27 support
       - name: govulncheck
@@ -154,6 +159,13 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Build the SPA
         run: bun run build   # Vite writes internal/webui/dist/
+      - name: No dev-only code in the bundle
+        # web/src/dev/ is for the Vite dev server only (Login as Local Dev).
+        run: |
+          if grep -rlE 'dev-login|Login as Local Dev' internal/webui/dist; then
+            echo "::error::The production bundle contains dev-only code from web/src/dev/"
+            exit 1
+          fi
       - name: Bundle-size budget
         # Initial JS is what index.html loads before the app can render: module
         # scripts plus their modulepreloads. Lazy chunks don't count.
@@ -303,6 +315,7 @@ jobs:
           docker rm "$id" >/dev/null
           settings=$(go version -m "$RUNNER_TEMP/chadash" | awk '$1 == "build" { print $2 }')
           echo "$settings"
+          # -tags=webui exactly: also proves devlogin (bun run dev's one-click sign-in) isn't in.
           for want in GOOS=linux "GOARCH=$WANT_GOARCH" ${WANT_GOARM:+"GOARM=$WANT_GOARM"} CGO_ENABLED=0 -tags=webui; do
             grep -qxF -e "$want" <<<"$settings" || fail "The binary wasn't built with $want"
           done
@@ -332,6 +345,12 @@ jobs:
             echo "::error::No setup token in the first-run logs"
             exit 1
           fi
+          if grep -q 'dev login is built in' <<<"$logs"; then
+            echo "::error::The image was built with -tags devlogin"
+            exit 1
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3696/api/auth/dev-login)
+          [ "$code" = 404 ] || { echo "::error::POST /api/auth/dev-login answered $code, want 404"; exit 1; }
           curl -fsS -o /dev/null http://127.0.0.1:3696/
       - name: Image-size budget
         # Per platform: each image on its own must fit.

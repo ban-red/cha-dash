@@ -316,7 +316,8 @@ func TestCoordinatorAuthRepair(t *testing.T) {
 			t.Fatalf("status %s, want repair", c.st.status())
 		}
 		in := incident(t, set, "in_test.repair")
-		if in.Class != integration.ClassRepair || in.Status != integration.StatusOpen || in.Scenario != "auth-rejected" ||
+		if in.Class != integration.ClassRepair || in.Status != integration.StatusOpen || in.Scenario != "auth-rejected" || in.Phase != PhaseOpen ||
+			in.Facts["instance"] != "in_test" || in.Facts["field"] != nil || in.Facts["status"] != 401.0 ||
 			in.Title != "Fake rejected its credential" || in.Target != "integration:in_test" || in.Suggested.ID != "integration.reconnect" {
 			t.Fatalf("repair = %+v", in)
 		}
@@ -349,7 +350,7 @@ func TestCoordinatorAuthRepair(t *testing.T) {
 			t.Fatalf("status %s after recovery", c.st.status())
 		}
 		done := incident(t, set, "in_test.repair")
-		if done.Status != integration.StatusResolved || done.ResolvedBy != "auto" || done.Resolution == "" || done.ResolvedAt.IsZero() {
+		if done.Status != integration.StatusResolved || done.Phase != PhaseResolved || done.ResolvedBy != "auto" || done.Resolution == "" || done.ResolvedAt.IsZero() {
 			t.Fatalf("resolved repair = %+v", done)
 		}
 		if self, _ := set.Graph.Get("integration:in_test"); self.Health != integration.HealthOK {

@@ -12,7 +12,7 @@ import ThemeMenu from './ThemeMenu.vue';
 import { fmtPct, hhmm, longDate, numberWord, plural, shortDate } from '../lib/format';
 import { currentTheme, THEMES } from '../lib/theme';
 import { inSentence, joinAnd, peoplePhrase, summarize } from '../model/briefing';
-import { nbHyphen } from '../model/inbox';
+import { groupInbox, nbHyphen } from '../model/inbox';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 
@@ -29,7 +29,9 @@ const ui = useUi();
 
 const s = computed(() => summarize(live.graph.value, live.metrics.value, live.inbox.value, live.now.value));
 const headline = computed(() => THEMES.find((t) => t.id === currentTheme.value)?.briefing === 'headline');
-const inboxCount = computed(() => s.value.problems.length + s.value.repairs.length);
+/** What the Inbox lists as open: needs you, not already being fixed. */
+const inboxCount = computed(() => groupInbox(live.inbox.value, live.fixes).open.length);
+const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const clock = computed(() => hhmm(live.now.value));
 const eyebrow = computed(() => {
   if (live.stale.value && live.offlineAt.value) return ['Last known', `as of ${hhmm(live.offlineAt.value)}`];
@@ -158,6 +160,9 @@ const open = (id: string) => ui.openInbox(id);
       <div class="brief-tools">
         <button type="button" class="pill" aria-haspopup="dialog" :aria-label="`Inbox: ${inboxCount} need you`" @click="ui.openInbox()">
           Inbox <span :class="['badge', { zero: !inboxCount }]">{{ inboxCount }}</span>
+        </button>
+        <button type="button" class="tool search-tool" aria-haspopup="dialog" :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'" aria-label="Search and commands" :title="`Search and commands (${mac ? '⌘K' : 'Ctrl K'})`" @click="ui.openPalette()">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="m10.4 10.4 3.4 3.4" /></svg>
         </button>
         <ThemeMenu @sign-out="emit('signOut')" />
       </div>

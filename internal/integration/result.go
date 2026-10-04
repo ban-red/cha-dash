@@ -29,11 +29,46 @@ type TestResult struct {
 	Certificate *Certificate
 }
 
+// Grant access levels.
+const (
+	AccessRead      = "read"
+	AccessWrite     = "write"
+	AccessReadWrite = "rw"
+	AccessAdmin     = "admin"
+)
+
 // Grant is one permission the credential holds, as the source reports it
 // (Unraid's me, PVE's /access/permissions, OPNsense's ACL-filtered menu).
+// On the wire: {name, access, write, detail?}; access defaults to "write"
+// when Write is set and "read" otherwise, and write is true whenever access
+// is write, rw or admin.
 type Grant struct {
-	Name  string `json:"name"`
-	Write bool   `json:"write"` // it can change something
+	Name   string
+	Access string // AccessRead, AccessWrite, AccessReadWrite or AccessAdmin
+	Write  bool   // it can change something
+	Detail string // optional: what the grant covers, as the source says it
+}
+
+// CanWrite reports whether the grant can change something.
+func (g Grant) CanWrite() bool {
+	return g.Write || g.Access == AccessWrite || g.Access == AccessReadWrite || g.Access == AccessAdmin
+}
+
+// MarshalJSON writes {name, access, write, detail?}.
+func (g Grant) MarshalJSON() ([]byte, error) {
+	access := g.Access
+	if access == "" {
+		access = AccessRead
+		if g.Write {
+			access = AccessWrite
+		}
+	}
+	return json.Marshal(struct {
+		Name   string `json:"name"`
+		Access string `json:"access"`
+		Write  bool   `json:"write"`
+		Detail string `json:"detail,omitempty"`
+	}{g.Name, access, g.CanWrite(), g.Detail})
 }
 
 // Warning severities.
@@ -102,7 +137,7 @@ func (r TestResult) MarshalJSON() ([]byte, error) {
 func WriteGrantWarning(grants []Grant) *Warning {
 	var names []string
 	for _, g := range grants {
-		if g.Write {
+		if g.CanWrite() {
 			names = append(names, g.Name)
 		}
 	}

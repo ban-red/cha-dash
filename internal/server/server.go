@@ -6,10 +6,17 @@
 //	POST /api/auth/login       password sign-in
 //	POST /api/auth/logout      sign out
 //	GET  /api/auth/session     current user and session            (session)
+//	POST /api/auth/dev-login   one-click owner sign-in; -tags devlogin builds only, loopback only
+//	POST /api/auth/passkeys/login/{begin,finish}      usernameless passkey sign-in
+//	POST /api/auth/passkeys/register/{begin,finish}   add a passkey  (owner)
+//	GET  /api/auth/passkeys, PATCH|DELETE …/{id}      manage them    (owner)
 //	GET  /api/version          build version                       (session)
 //	GET  /api/boards           boards; creates "Home" on first use (owner)
 //	GET  /api/boards/{id}/layout   latest layout and revision      (owner)
 //	PUT  /api/boards/{id}/layout   save at the next revision       (owner)
+//	/api/integrations/…        catalog, instances, tests, diagnostics (owner; see runtime.Manager.Register)
+//	POST /api/import/homepage  Homepage import; ?dry_run=1 plans only (owner)
+//	GET  /api/import/homepage  the last Homepage import's record   (owner)
 //	GET  /api/demo             demo clock and seed; demo mode only (owner)
 //	POST /api/demo/incidents/{id}/fix   press the suggested action (owner)
 //	GET  /ws                   realtime WebSocket                  (session)
@@ -34,7 +41,11 @@ import (
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/importer"
+	"dash.cha.sh/internal/importer/homepage"
+	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/store"
+	"dash.cha.sh/internal/vault"
 )
 
 // Deps are the subsystems the HTTP layer exposes.
@@ -50,6 +61,12 @@ type Deps struct {
 	// Demo is the Demo Home driver in demo mode, nil otherwise. Without it
 	// the /api/demo endpoints answer 404.
 	Demo *demo.Driver
+	// Vault holds integration credentials. Without it the import routes
+	// aren't mounted (they move secrets into it).
+	Vault *vault.Vault
+	// Integrations runs integration instances and serves their API. Nil
+	// leaves /api/integrations unmounted.
+	Integrations *runtime.Manager
 }
 
 // New builds the root handler.
@@ -74,6 +91,18 @@ func New(d Deps) (http.Handler, error) {
 	})))
 	owner := func(h http.Handler) http.Handler { return d.Auth.Require(requireOwner(h)) }
 	boards.New(d.Store).Register(mux, owner, d.Log)
+	if d.Integrations != nil {
+		d.Integrations.Register(mux, owner)
+	}
+	if d.Vault != nil {
+		wrap := owner
+		if d.Integrations != nil {
+			// An applied import writes instances directly; start them now
+			// rather than at the manager's next periodic reload.
+			wrap = func(h http.Handler) http.Handler { return owner(reloadAfter(h, d.Integrations, d.Log)) }
+		}
+		homepage.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log)
+	}
 	if d.Demo != nil {
 		d.Demo.Register(mux, owner)
 	}
@@ -114,6 +143,40 @@ func New(d Deps) (http.Handler, error) {
 	h = httpx.SecurityHeaders(h)
 	return h, nil
 }
+
+// reloadAfter reloads the integration instances after a successful POST.
+func reloadAfter(next http.Handler, m *runtime.Manager, log *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusWriter{ResponseWriter: w}
+		next.ServeHTTP(rec, r)
+		if r.Method == http.MethodPost && rec.code < 300 {
+			if err := m.Reload(context.WithoutCancel(r.Context())); err != nil {
+				log.Error("reloading integration instances failed", "err", err)
+			}
+		}
+	})
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	code int
+}
+
+func (s *statusWriter) WriteHeader(code int) {
+	if s.code == 0 {
+		s.code = code
+	}
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *statusWriter) Write(b []byte) (int, error) {
+	if s.code == 0 {
+		s.code = http.StatusOK
+	}
+	return s.ResponseWriter.Write(b)
+}
+
+func (s *statusWriter) Unwrap() http.ResponseWriter { return s.ResponseWriter }
 
 // requireOwner admits the owner's session only. Every account is the owner
 // today; other roles arrive later and must not inherit these routes.

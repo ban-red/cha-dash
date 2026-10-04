@@ -37,6 +37,8 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   calendar: spec('calendar', 'Up next', 'wide', ['wide', 'tall']),
   containers: spec('containers', 'Containers', 'small', ['small', 'wide', 'large']),
   incidents: spec('incidents', 'Incidents', 'large', ['wide', 'tall', 'large']),
+  /** Any imported service without a catalog widget: `service@homepage:<section>/<entry>`. */
+  service: spec('service', 'Service', 'small', ['small', 'wide'], true),
 };
 
 export function itemId(type: string, target?: string): string {

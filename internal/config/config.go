@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -47,8 +48,13 @@ type Config struct {
 
 	// AllowedOrigins are extra browser origins (scheme://host[:port]) accepted for
 	// state-changing requests and WebSockets, for proxies that rewrite Host.
-	// Same-origin requests are always allowed.
+	// Same-origin requests are always allowed. PublicURL is always among them.
 	AllowedOrigins []string
+
+	// PublicURL is the address people open Cha Dash at, as scheme://host[:port]
+	// (CHADASH_PUBLIC_URL). Passkeys take their relying party ID and origin from
+	// it. Empty means unknown: passkeys then work only on localhost.
+	PublicURL string
 
 	// Demo runs the Demo Home simulator in place of a real home.
 	Demo bool
@@ -88,6 +94,7 @@ func (c Config) Logger(w io.Writer) *slog.Logger {
 // Loader binds the shared flags to a FlagSet. Call Config after fs.Parse.
 type Loader struct {
 	listen, dataDir, keyFile, level, format, proxies, origins string
+	publicURL                                                 string
 	demo                                                      bool
 	demoAt, demoSeed                                          string
 	envErrs                                                   []error // env values a flag default can't hold
@@ -109,6 +116,7 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 	fs.StringVar(&l.format, "log-format", env("CHADASH_LOG_FORMAT", "text"), "text or json (env CHADASH_LOG_FORMAT)")
 	fs.StringVar(&l.proxies, "trusted-proxies", env("CHADASH_TRUSTED_PROXIES", ""), "comma-separated proxy IPs/CIDRs whose X-Forwarded-* headers are trusted (env CHADASH_TRUSTED_PROXIES)")
 	fs.StringVar(&l.origins, "allowed-origins", env("CHADASH_ALLOWED_ORIGINS", ""), "comma-separated extra origins, e.g. https://dash.example.com (env CHADASH_ALLOWED_ORIGINS)")
+	fs.StringVar(&l.publicURL, "public-url", env("CHADASH_PUBLIC_URL", ""), "the address you open Cha Dash at, e.g. https://dash.example.com; passkeys need it, over HTTPS (env CHADASH_PUBLIC_URL)")
 
 	demo := false
 	if v := env("CHADASH_DEMO", ""); v != "" {
@@ -177,6 +185,18 @@ func (l *Loader) Config() (Config, error) {
 			continue
 		}
 		c.AllowedOrigins = append(c.AllowedOrigins, o)
+	}
+	if s := strings.TrimSpace(l.publicURL); s != "" {
+		if o, err := parseOrigin(s); err != nil {
+			errs = append(errs, fmt.Errorf("public URL %q: %w", s, err))
+		} else {
+			c.PublicURL = o
+			// The public address is trusted like an allowed origin, so it keeps
+			// working behind a proxy that rewrites Host.
+			if !slices.Contains(c.AllowedOrigins, o) {
+				c.AllowedOrigins = append(c.AllowedOrigins, o)
+			}
+		}
 	}
 	return c, errors.Join(errs...)
 }

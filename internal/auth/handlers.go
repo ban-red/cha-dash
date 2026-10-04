@@ -27,17 +27,22 @@ func FromContext(ctx context.Context) (Identity, bool) {
 
 // Register mounts the auth endpoints:
 //
-//	GET  /api/setup          {"required": bool}
+//	GET  /api/setup          {"required": bool, "dev_login": true (devlogin builds only)}
 //	POST /api/setup          {"token","username","password"} → 201 {"user"} + session cookie
 //	POST /api/auth/login     {"username","password"} → 200 {"user"} + session cookie
 //	POST /api/auth/logout    → 204, cookie cleared
 //	GET  /api/auth/session   → 200 {"user","session"} or 401
+//
+// plus the passkey endpoints under /api/auth/passkeys (registerPasskeys).
+// Binaries built with -tags devlogin also mount POST /api/auth/dev-login.
 func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/setup", s.handleSetupStatus)
 	mux.HandleFunc("POST /api/setup", s.handleSetup)
 	mux.HandleFunc("POST /api/auth/login", s.handleLogin)
 	mux.HandleFunc("POST /api/auth/logout", s.handleLogout)
 	mux.Handle("GET /api/auth/session", s.Require(http.HandlerFunc(s.handleSession)))
+	s.registerPasskeys(mux)
+	s.registerDevLogin(mux)
 }
 
 // Require rejects requests without a valid session cookie with 401 and
@@ -115,7 +120,11 @@ func (s *Service) rateLimited(w http.ResponseWriter, r *http.Request, scope stri
 }
 
 func (s *Service) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteJSON(w, http.StatusOK, map[string]bool{"required": s.SetupRequired()})
+	status := map[string]bool{"required": s.SetupRequired()}
+	if devLoginBuilt {
+		status["dev_login"] = true
+	}
+	httpx.WriteJSON(w, http.StatusOK, status)
 }
 
 type setupRequest struct {
