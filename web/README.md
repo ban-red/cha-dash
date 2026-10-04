@@ -1,6 +1,6 @@
 # @chadash/web
 
-The Cha Dash web app: first-run setup (with an optional passkey, then "Connect your home") and sign-in (password or passkey), the front page (Briefing, Needs attention, the board), the Inbox, the ⌘K command bar, Settings (integrations, import from Homepage, backup, the security level and passkeys), and the realtime client. An installable PWA that opens on the last-known page when the hub can't be reached. Vue 3.6 and Vite, built into `internal/webui/dist`, which the hub embeds with `go build -tags webui`.
+The Cha Dash web app: first-run setup (with an optional passkey, then "Connect your home") and sign-in (password or passkey), the front page (Briefing, Needs attention, the board), the Inbox, the safety ladder on the hub's action engine (plan, confirm by tier, step-up, tasks), the ⌘K command bar, Settings (integrations, import from Homepage, backup, users, the audit log, the security level, step-up and passkeys), and the realtime client. An installable PWA that opens on the last-known page when the hub can't be reached. Vue 3.6 and Vite, built into `internal/webui/dist`, which the hub embeds with `go build -tags webui`.
 
 Design: Direction A ("Instrument") from [02 · Experience](../docs/plan/02-experience.md), following [prototype v2](../design/prototypes/m0-v2.html). Every colour, size and spring comes from [`@chadash/tokens`](../design/tokens/README.md).
 
@@ -45,7 +45,8 @@ src/
                       Discover and Add steps; state.ts (the hub-kept step), discover.ts, draft.ts
   settings/           SettingsSheet (lazy) and its panes: IntegrationsPane, IntegrationEditor,
                       SchemaField (forms from JSON Schema), TestResultView, ImportPane,
-                      BackupPane (its own chunk), SecurityPane (with SecurityLevel)
+                      BackupPane, UsersPane and AuditPane (each its own chunk), SecurityPane
+                      (with SecurityLevel and StepUpSetting)
   dev/                dev-server-only pieces (Login as Local Dev); each export is undefined in
                       `vite build`, so production bundles carry none of it
   board/
@@ -55,30 +56,33 @@ src/
     WidgetPicker.vue  "Add widget" (lazy, its own chunk); TileEditor.vue, per-tile Edit (lazy)
     SectionHeader.vue label · meta · rule, meta live from the graph
   components/         Briefing, NeedsAttention, HubBanner, InboxSheet, IncidentItem, DiscoveryItem,
-                      SuggestionItem, CommandPalette (lazy), ConfirmDialog, HoldToConfirm, ThemeMenu, Toasts, Tile, marks/
+                      SuggestionItem, CommandPalette (lazy), ConfirmDialog (hold), TypeConfirmDialog and
+                      StepUpDialog (lazy), HoldToConfirm, TaskPresence, ThemeMenu, Toasts, Tile, marks/
   widgets/            one component per widget type (see "Widgets"), registry.ts, WidgetHost.vue;
                       subject.ts (the eight states), read.ts, checks.ts, guests.ts, serviceStats.ts
                       (the service tile's stat per integration), use.ts, parts/ (Frame, StateNote,
                       StatusBars, WxIcon, WidgetPending), widgets.css
-  model/              pure views: graph, inbox (grouping), briefing copy, widget catalog, default
+  model/              pure views: graph, inbox (grouping), roles (what each role sees), briefing copy, widget catalog, default
                       layout, words, commands (⌘K), integrations, import plan, backup plan, service status,
                       feeds (what the graph can feed each widget), edit (add / edit / remove),
                       discovery (label discovery)
   realtime/           protocol v1 client (client.ts), frames, backoff
-  stores/             session (doors, offline start), live (realtime, clock, demo Fix, restore),
-                      board (layout and tiles), tiles (tile config adapter), discovery, ui (layers,
-                      safety ladder), integrations, persist
+  stores/             session (doors, offline start), live (realtime, clock, restore, the demo Fix fallback),
+                      board (layout and tiles), tiles (tile config adapter), discovery, ui (layers, roles),
+                      actions (the safety ladder on the engine, tasks, step-up), integrations, persist
   lib/                router, fetch wrapper, RFC 6902 applier, formatting, themes, motion tokens,
-                      fuzzy, schema (JSON Schema subset), webauthn, passkeys, snapshot (IndexedDB),
+                      fuzzy, schema (JSON Schema subset), webauthn, passkeys, actions (plan, approve,
+                      tasks, refusals), stepup, trap (Tab inside a dialog), snapshot (IndexedDB),
                       inline (the hub's first-paint snapshot), pwa
   styles/             fonts, base, board, tiles, chrome (global, token-only CSS)
-test/                 Vitest: patches, protocol, stores, components, ⌘K, Inbox, settings forms,
+test/                 Vitest: patches, protocol, stores, components, ⌘K, Inbox, the safety ladder on a
+                      fake engine (fake-engine.ts), users, audit and step-up, settings forms,
                       import, passkeys, offline, widgets (Demo Home and real-instance graphs), first
                       paint, the service worker's shell, accessibility (axe-core, token pairs);
                       fixtures from sim/snapshots and the importer's golden plan
 ```
 
-**State.** Plain Vue reactivity with `provide`/`inject`; no store library. The realtime client keeps one `reactive()` document with a member per topic (`graph`, `metrics`, `inbox`) and applies diffs in place, so a metrics diff only re-renders the widgets reading the series it touched.
+**State.** Plain Vue reactivity with `provide`/`inject`; no store library. The realtime client keeps one `reactive()` document with a member per topic (`graph`, `metrics`, `inbox`, `tasks`) and applies diffs in place, so a metrics diff only re-renders the widgets reading the series it touched.
 
 **One of each thing.** The hub keeps one resource per source and links the ones that are one thing with `<alias> same_as <primary>` ([`internal/correlate`](../internal/correlate/README.md)). `byKind`, `distinct` (⌘K) and the containers tile skip aliases; `members`, `mergedHealth` (the worst) and `sourcesOf` merge what each source says, so a container Docker and Unraid both report is one row naming both.
 
@@ -107,13 +111,32 @@ test/                 Vitest: patches, protocol, stores, components, ⌘K, Inbox
 | `/settings/integrations` | instances and their status; `/new` the catalog, `/new/{type}` the add form, `/{id}` the edit form (`?field=` focuses a field, `?reason=auth` the first secret) |
 | `/settings/import` | import from Homepage |
 | `/settings/backup` | export this hub as a Home file; import one with the diff preview |
-| `/settings/security` | the security level, then passkeys |
+| `/settings/users` | users and roles (owner; admins for everyone but the owner) |
+| `/settings/audit` | the audit log and its chain (owner, admin) |
+| `/settings/security` | the security level and step-up (owner), then passkeys |
 
 Settings is a sheet over the front page, not a separate app: the board, the socket and the Inbox stay live underneath, and Esc goes back.
 
 **The Inbox** reads the `inbox` topic the same way in demo and real mode, grouped by status: **open** (problems, down first, then repairs), **discovered** (services found by their labels, below), **suggestions** (class `suggestion`: the hub's correlator asking whether two things are one; **Merge** or **Link them**, and **Keep separate**, answer through `POST /api/correlate/suggestions/{id}/confirm` or `…/reject`, and count in the Inbox badge until answered), **being fixed** (a fix was accepted, or the phase says it's in hand), **hints** (open info problems nothing is working on: standing advice such as a socket proxy that's too broad, and every open info security finding whatever its phase; never in Needs attention, the Briefing count, the Inbox badge or the Incidents tile; headed "Security hints · N" when every hint has `category: security`), and **resolved**. Groups hold still while the Inbox is open and re-sort the next time it opens. A **repair** (class `repair`) offers **Reconnect**: the integration's settings with the failing field focused (`facts.field`, else the first secret for a 401/403); its target is `integration:<instance id>`, resolved by id, then name, then the only instance of that integration.
 
-**Safety ladder.** In demo mode only (`GET /api/demo` says so), an incident's suggested action runs through `POST /api/demo/incidents/{id}/fix`: T0 and T1 straight away, T2 behind the hold-to-confirm ring (about 650 ms, with the blast radius lighting up as you hold). Elsewhere the flow shows what Cha Dash would do and the button says actions arrive with the action engine. `link.open` (T0) opens the target's link in any mode. T3 and T4 aren't offered yet. Progress and the resolution arrive on the `inbox` topic.
+**Safety ladder** (`stores/actions.ts`, through `useUi()`). Every action, an incident's suggested one or an alternative, in demo mode or not, is planned by the hub's engine (`POST /api/actions/plan` `{action, target, params?}`), and the plan's `confirm` picks the rung ([08 · v0.2 → API shapes](../docs/plan/08-v0.2.md#api-shapes)):
+
+| `confirm` | Tier | What the page does |
+|---|---|---|
+| `none` | T0 | approves straight away (`POST /api/plans/{id}/approve` `{hash}`) |
+| `undo` | T1 | approves straight away, then a toast with **Undo** for 10 s, which plans and approves the plan's `undo` (its action and params, on the same target) |
+| `hold` | T2 | the hold-to-confirm ring (about 650 ms), with the plan's `impact` lighting up as the blast radius and its `steps` listed; Esc, Cancel or the scrim cancels |
+| `type` | T3, T4 | `TypeConfirmDialog` (lazy, a native modal `<dialog>`): the steps, what will be lost or affected, "This can't be undone" when there's no undo; the button enables once `confirm_text` is typed exactly, and the typed text goes in the approve body |
+
+When the plan's `step_up` is `required` (no grant on this session) or `fresh` (T4: every time), the step-up dialog runs after confirming and before approving; a grant is trusted for 4½ minutes here (the hub's are 5). Refusals are the hub's sentences, shown as they come: `forbidden`, `not_found`, `precondition`, `invalid` and `locked` as an error toast and under the action; `unavailable` with a link to the instance named by `recipe` (its settings, where the recipe is); `step_up_required` on approve steps up and retries once; `plan_expired` re-plans once without asking (and shows the new plan if its rung or confirm text changed); `plan_changed` shows the new plan (the error's `plan`, else a fresh one) with the hub's sentence, as a plain review for T0 and T1; `confirm_mismatch` stays in the typed dialog, said at the field. Availability comes from the hub: an action's `unavailable` sentence (or `plan_ready: false`) disables its button with that reason. `link.open` (T0) opens the target's link.
+
+**Tasks.** Approving returns a Task; the `tasks` topic (`{"tasks": {id: Task}}`) carries its state, current step and progress, and a hub that doesn't serve the topic is asked with `GET /api/tasks/{id}` every 1.5 s instead. The incident it works on shows the step and progress in its "working" row (and in Needs attention), `TaskPresence` shows the oldest running task and how many more at the bottom left (pressing it opens its incident), and a task started in this tab ends in a toast: done, or the task's `error.message`. A failed task puts its sentence under the incident's action.
+
+**Demo fallback.** The Demo Home registers its actions with the engine, so demo mode goes through plan and approve too. Only when planning a demo incident's suggested action answers 404 (a hub from before the engine) does the page fall back to `POST /api/demo/incidents/{id}/fix` (T0 and T1 straight away, T2 behind the ring); it's marked for removal in wave 8.
+
+**Step-up** (`components/StepUpDialog.vue` with `lib/stepup.ts`, one lazy chunk). `POST /api/auth/step-up/begin` answers WebAuthn request options (the browser's passkey prompt, via `lib/webauthn.ts`, then the assertion to `POST /api/auth/step-up`) or `{"method": "password"}` (a password field, `{password}` to the same route, and a nudge to add a passkey). A refusal that leaves no way (`passkey_required`, `no_passkey`, `step_up_unavailable`, or a 409/412: "Passkey only" and no passkey yet) explains it and offers **Open Settings → Security**. Any other v0.2 request the hub refuses with `step_up_required` (a user change, the step-up setting) goes through `ui.withStepUp()`: step up, then try once more; closing the dialog cancels quietly.
+
+**Roles** (`model/roles.ts`, from 08 · v0.2 → Roles; the role is `user.role` from the session). The page hides what a role can't use and the hub enforces it anyway: action buttons above the role's tier (Owner T4, Admin T3, Operator T2, Viewer T0; Household T0 plus actions marked `household: true`) aren't shown, and the Inbox says the role can see but not run it; Settings, ⌘K's Settings and Integrations entries and Edit layout are for owners and admins; Settings → Security's hub-wide settings are the owner's (admins see their passkeys); Household sees boards only: no Inbox, no Needs attention, no Briefing phrases that open the Inbox. An unknown role is treated as a viewer.
 
 ## The command bar (⌘K)
 
@@ -131,7 +154,11 @@ It's an ARIA combobox: focus stays in the input, the active option is `aria-acti
 
 **Backup.** `settings/BackupPane.vue`, loaded with the pane. **Export** downloads the hub as a Home file (`GET /api/export`: boards, layouts and tiles, connections, carried settings; secrets as `!secret` placeholders). "Include secrets, encrypted with a passphrase" asks for it twice (12 characters at least) and posts it to `POST /api/export`; the file arrives as a blob URL and an `<a download>` (no `data:` URIs under the CSP), and the passphrase fields are cleared once it's used. **Restore or import** takes a Home file chosen, dropped or pasted. When it carries a secrets bundle a passphrase field appears; a wrong one is said at that field. The dry run (`POST /api/import/chadash?dry_run=1`, read by `model/backupPlan.ts`) shows the totals, the bundle's state, warnings, the secrets still needed, then a section per kind (boards, layouts, tile settings, connections, settings): each created, updated or stale object with its field changes (`+` added, `~` changed, `−` removed, `⇅` reordered, paths in words) and its secrets by field (restored, kept, needed), and the unchanged ones folded into a count. Apply posts the same body, toasts the totals, reloads the instances and the board on screen, and points at Integrations for any secret still needed. Secret values never reach the page; the hub only names them. Cha Dash YAML lives here rather than in Import's source picker: importers move another dashboard's config in, while a Home file is this hub's own state going out and back (with its encrypted bundle, stale objects and field-level diff), so it sits next to Export. Import's source section links here.
 
-**Security.** **Security level** first (`settings/SecurityLevel.vue`): how much security findings (`category: security` incidents: a socket proxy that's too broad, secrets in container labels, credentials over plain http) interrupt you. Three radio cards from `GET /api/settings/security`, Relaxed marked as the default: **Relaxed · LAN-only home network** (every finding a hint), **Standard · reachable beyond the LAN** (exposures need you, advice stays a hint), **Strict · exposed to the internet or shared networks** (every finding needs you). A native radio group in a `fieldset` with a hidden `legend`, each radio described by its line; choosing one `PUT`s it at once, and a refused save puts the choice back with the hub's reason. The hub re-publishes every open finding before answering, so the Inbox, the Briefing and Needs attention follow over the realtime feed; the web never transforms severities itself. The wizard's last step says the level starts at Relaxed and where to change it. Then passkeys: list (synced, other RP ID, clone warning), rename, delete after a confirmation, add one on this device.
+**Users** (`settings/UsersPane.vue`, its own chunk). `GET /api/users` as a list: name, role, passkey, last seen, disabled. **Add a user** (username and password checked as the hub does, a role), change a role with a select (`PUT /api/users/{id}` `{role}`), **Disable** or **Enable** (`{disabled}`; users are never deleted, so the audit log keeps pointing at someone). Nobody becomes owner except by **Make owner…**, the owner's alone: type the user's name, then `POST /api/users/{id}/transfer-ownership` (step-up when the hub asks), after which the session is read again for the new role. Admins manage everyone but the owner. The viewer can't change themselves here.
+
+**Audit** (`settings/AuditPane.vue`, its own chunk). The chain's state first, from `GET /api/audit/verify`: "The audit log is intact · 4,812 events checked", or where it breaks (`first_break` as a number or `{seq, at}`), with **Check again** and an **Export · NDJSON** link (`/api/audit/export`). Then the events, newest first (`GET /api/audit?actor=&action=&target=&result=&since=&limit=50`; the time filter is a span turned into `since` on the hub's clock): the result as glyph and word, the action and its target by name, who and via what, the tier, how long it took, the hub's error sentence, and **Details** (the event number, where from, the task, params, and the hash chain link). **Show older** sends the `next` cursor back as `before`.
+
+**Security.** **Security level** first (`settings/SecurityLevel.vue`): how much security findings (`category: security` incidents: a socket proxy that's too broad, secrets in container labels, credentials over plain http) interrupt you. Three radio cards from `GET /api/settings/security`, Relaxed marked as the default: **Relaxed · LAN-only home network** (every finding a hint), **Standard · reachable beyond the LAN** (exposures need you, advice stays a hint), **Strict · exposed to the internet or shared networks** (every finding needs you). A native radio group in a `fieldset` with a hidden `legend`, each radio described by its line; choosing one `PUT`s it at once, and a refused save puts the choice back with the hub's reason. The hub re-publishes every open finding before answering, so the Inbox, the Briefing and Needs attention follow over the realtime feed; the web never transforms severities itself. The wizard's last step says the level starts at Relaxed and where to change it. Then **Confirming destructive actions** (`settings/StepUpSetting.vue`, `security.step_up`): **Passkey, or password if no passkey** (the default) or **Passkey only**, a radio group that saves through `PUT /api/settings/security` `{step_up}`; changing it is a T3 change, so a `step_up_required` runs step-up and saves again, and closing the dialog puts the choice back. With Passkey only and no passkey of your own, it says you can't run destructive actions until you add one. Both of these are the owner's. Then passkeys: list (synced, other RP ID, clone warning), rename, delete after a confirmation, add one on this device.
 
 ## First run: Connect your home
 
@@ -250,13 +277,13 @@ From [03 · Architecture → Performance budgets](../docs/plan/03-architecture.m
 | Hub RSS, Demo Home, 20 tabs | ≤ 120 MB peak | 55 MB (macOS, earlier run) | same |
 | Hub image | ≤ 40 MB gzip, per platform | — | CI, Image jobs, "Image-size budget" (blocking) |
 
-**Bundle.** The initial JS is the entry chunk only (no modulepreloads): the Vue runtime, the doors, the session and the router. The front page, the Inbox, the confirm dialog, the command bar, Settings, the first-run wizard, the passkey offer and the WebAuthn code load on demand; motion-v rides with the Inbox and the confirm dialog. It was 37.3 kB before wave 4 and 39.4 kB after it (`boot.js` 0.5 kB plus the entry chunk). The first-paint code (`lib/inline.ts`, a few hundred bytes) rides in the entry chunk.
+**Bundle.** The initial JS is the entry chunk only (no modulepreloads): the Vue runtime, the doors, the session and the router. The front page, the Inbox, the confirm dialogs, step-up, the command bar, Settings (with Users, Audit and Backup each their own chunk), the first-run wizard, the passkey offer and the WebAuthn code load on demand; motion-v rides with the Inbox and the hold-to-confirm dialog. It was 37.3 kB before wave 4 and 39.4 kB after it (`boot.js` 0.5 kB plus the entry chunk); 40.5 kB before wave 7 and 40.6 kB after it. Wave 7 added about 1 kB to the front page's chunk (the ladder, tasks, roles) and lazy chunks of about 2–3.6 kB each for the typed confirm, step-up, Users and Audit. The first-paint code (`lib/inline.ts`, a few hundred bytes) rides in the entry chunk.
 
 ## Accessibility
 
 WCAG 2.2 AA is a release gate ([02 · Experience](../docs/plan/02-experience.md#accessibility-a-release-gate-not-a-nice-to-have)). In `bun run test`:
 
-- **axe-core** (`test/axe.ts`, pinned dev dependency) over the doors (loading, setup with errors, the passkey offer, sign-in after a failure, unreachable), the front page (busy, quiet, offline, edit mode), the Inbox (a problem, a repair), ⌘K (empty and with results), the confirm dialog, toasts, every Settings pane (Backup included) and an integration form with errors (`test/a11y-views.test.ts`); the Inbox's Discovered and Suggestions groups, the widget picker and the tile editor, the first-run wizard's steps and a Backup preview (`test/a11y-more.test.ts`); and every catalog widget, the on-demand ones preloaded, at every size in six states: loading, empty, healthy, today's incidents, stale, and the hub's graph shape (`test/a11y-widgets.test.ts`). It runs the WCAG 2.0–2.2 A/AA rules plus best practice; a planted violation proves it sees the tiles.
+- **axe-core** (`test/axe.ts`, pinned dev dependency) over the doors (loading, setup with errors, the passkey offer, sign-in after a failure, unreachable), the front page (busy, quiet, offline, edit mode), the Inbox (a problem, a repair), ⌘K (empty and with results), the hold-to-confirm dialog, the typed confirmation (with a mismatch at the field), the step-up dialog (passkey, password, and Passkey only without a passkey), the running-task presence, toasts, every Settings pane (Backup, Users and Audit included) and an integration form with errors (`test/a11y-views.test.ts`); the Inbox's Discovered and Suggestions groups, the widget picker and the tile editor, the first-run wizard's steps and a Backup preview (`test/a11y-more.test.ts`); and every catalog widget, the on-demand ones preloaded, at every size in six states: loading, empty, healthy, today's incidents, stale, and the hub's graph shape (`test/a11y-widgets.test.ts`). It runs the WCAG 2.0–2.2 A/AA rules plus best practice; a planted violation proves it sees the tiles.
 - **Contrast** can't be measured in happy-dom (no layout or paint), so it's checked on the tokens: `design/tokens` holds every text/background token pair to 4.5:1 in all six themes, and `test/token-pairs.test.ts` checks every pair the components' CSS declares (`color` with `background` in one rule) against the generated tokens.
 - **Token rule:** `--text-3` is for labels on `--bg` and `--surface`; on a hover row (`--surface-hover`) a component moves it up to `--text-2`.
 
@@ -278,4 +305,4 @@ WCAG 2.2 AA is a release gate ([02 · Experience](../docs/plan/02-experience.md#
 - Rolling numerals, lenses, wall and ink levels of detail.
 - Real camera frames (placeholders drawn from tokens), service logos (monograms: the CSP forbids hot-linking, and the hub doesn't cache icons yet).
 - Widget detail the sources don't publish yet: per-torrent download items, who's watching and recently added, Home Assistant's picked entities, per-night backup history, failed *arr imports, the 30-day storage history (sparklines show the 24 h the metrics keep), linked scrubbing across sparklines.
-- Undo toasts for T1 and type-to-confirm for T3, which need the action engine.
+- Resource-qualified scopes in the UI (the hub supports them; the page only knows roles), and T4's cooldown.
