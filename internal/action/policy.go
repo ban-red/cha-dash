@@ -12,10 +12,9 @@ type AllowAll struct{}
 // Authorize implements Policy.
 func (AllowAll) Authorize(context.Context, Actor, string, string, Tier) error { return nil }
 
-// OwnerOnly is the policy the hub runs until internal/authz lands: only the
-// owner may act or read the audit log, T3 needs a step-up grant that hasn't
-// ended, and T4 is refused unless AllowT4 is set. It's safe because every
-// account is the owner today and later roles get nothing.
+// OwnerOnly is a simple policy for the engine's tests: only the owner may act
+// or read the audit log, T3 needs a step-up grant that hasn't ended, and T4
+// is refused unless AllowT4 is set. The hub runs internal/authz's.
 type OwnerOnly struct {
 	AllowT4 bool
 	Now     func() time.Time // nil means time.Now

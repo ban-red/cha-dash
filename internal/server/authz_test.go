@@ -8,10 +8,13 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"dash.cha.sh/internal/action"
+	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/correlate"
@@ -62,6 +65,18 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		}
 		d.Vault, d.Integrations, d.Onboarding, d.Security, d.Demo = v, m, ob, sec, drv
 		d.Correlator = correlate.New(correlate.Options{Topics: tp, Store: d.Store, Log: d.Log})
+		eng, err := action.New(t.Context(), action.Options{
+			Store: d.Store, Audit: audit.New(d.Store), Registry: action.NewRegistry(), Graph: tp.Graph,
+			Policy:   authz.NewPolicy(d.Store, d.Log).ForEngine(),
+			Sessions: action.Sessions{StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
+			Log:      d.Log,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(eng.Close)
+		d.Actions = eng
+		d.Audit = audit.New(d.Store)
 	})
 	return e, st
 }
@@ -481,5 +496,49 @@ func TestNewUnsafeRoutesRefuseCrossOrigin(t *testing.T) {
 	// The trusted extra origin still works.
 	if status, _, b := e.raw(t, owner, "POST", "/api/auth/step-up/begin", nil, map[string]string{"Origin": "https://dash.example.com", "Sec-Fetch-Site": "cross-site"}); status != http.StatusOK {
 		t.Errorf("allowed origin: %d %s", status, b)
+	}
+}
+
+// Changes made outside the engine reach the audit log too: users, and the
+// security settings, including the refused attempts.
+func TestChangesAreAudited(t *testing.T) {
+	e, _ := fullEnv(t)
+	owner := signIn(t, e)
+	_, ada := addUser(t, e, owner, "ada", auth.RoleAdmin)
+	if status, _, b := e.call(t, owner, "PUT", "/api/settings/security", map[string]string{"posture": "standard"}); status != http.StatusOK {
+		t.Fatalf("set posture: %d %s", status, b)
+	}
+	// Changing the step-up rule without a step-up is refused, and audited.
+	if status, code, _ := e.call(t, owner, "PUT", "/api/settings/security", map[string]string{"step_up": "passkey_only"}); code != "step_up_required" {
+		t.Fatalf("step_up without a grant: %d %s", status, code)
+	}
+	_, _, body := e.call(t, ada, "GET", "/api/audit?limit=10", nil)
+	var got struct {
+		Events []struct {
+			Action string `json:"action"`
+			Result string `json:"result"`
+			Actor  struct {
+				Name string `json:"name"`
+			} `json:"actor"`
+			Params map[string]any `json:"params"`
+		} `json:"events"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("audit: %v %s", err, body)
+	}
+	var seen []string
+	for _, ev := range got.Events {
+		seen = append(seen, ev.Action+" "+ev.Result+" "+ev.Actor.Name)
+		if _, ok := ev.Params["password"]; ok {
+			t.Fatalf("a password reached the audit log: %+v", ev)
+		}
+	}
+	want := []string{"settings.security.update refused owner", "settings.security.update ok owner", "users.create ok owner"}
+	if !slices.Equal(seen, want) {
+		t.Fatalf("audited %v, want %v", seen, want)
+	}
+	_, _, body = e.call(t, ada, "GET", "/api/audit/verify", nil)
+	if !strings.Contains(string(body), `"ok":true`) {
+		t.Fatalf("verify: %s", body)
 	}
 }

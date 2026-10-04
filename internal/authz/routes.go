@@ -134,9 +134,9 @@ var Routes = []Route{
 
 	// Actions: the engine authorizes each one (Policy), so the routes only
 	// need a session. Added by the action engine track.
-	{Pattern: "POST /api/actions/plan", Access: SignedIn, Optional: true},
-	{Pattern: "POST /api/plans/{id}/approve", Access: SignedIn, Optional: true},
-	{Pattern: "GET /api/tasks/{id}", Access: SignedIn, Optional: true},
+	{Pattern: "POST /api/actions/plan", Access: SignedIn},
+	{Pattern: "POST /api/plans/{id}/approve", Access: SignedIn},
+	{Pattern: "GET /api/tasks/{id}", Access: SignedIn},
 	// The Demo Home's fix button, until the demo runs on the engine.
 	{Pattern: "POST /api/demo/incidents/{id}/fix", Access: Operator},
 
@@ -185,9 +185,9 @@ var Routes = []Route{
 	{Pattern: "POST /api/users/{id}/transfer-ownership", Access: Owner},
 
 	// Settings → Audit. Added by the audit track.
-	{Pattern: "GET /api/audit", Access: Admin, Optional: true},
-	{Pattern: "GET /api/audit/export", Access: Admin, Optional: true},
-	{Pattern: "GET /api/audit/verify", Access: Admin, Optional: true},
+	{Pattern: "GET /api/audit", Access: Admin},
+	{Pattern: "GET /api/audit/export", Access: Admin},
+	{Pattern: "GET /api/audit/verify", Access: Admin},
 }
 
 var routeIndex = func() map[string]Route {

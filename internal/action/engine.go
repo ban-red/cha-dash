@@ -46,8 +46,11 @@ type Options struct {
 	// Sessions turns the signed-in session into an Actor, for the HTTP
 	// routes and the tasks topic.
 	Sessions Sessions
-	Log      *slog.Logger
-	Now      func() time.Time // nil means time.Now
+	// ConsumeStepUp ends a session's step-up grant once a T4 action has
+	// used it, so the next T4 asks again. Nil leaves grants to lapse.
+	ConsumeStepUp func(ctx context.Context, session string) error
+	Log           *slog.Logger
+	Now           func() time.Time // nil means time.Now
 }
 
 // Engine runs the lifecycle. It's safe for concurrent use.
@@ -58,6 +61,7 @@ type Engine struct {
 	policy   Policy
 	graph    *graph.Graph
 	sessions Sessions
+	consume  func(ctx context.Context, session string) error
 	log      *slog.Logger
 	now      func() time.Time
 
@@ -93,7 +97,7 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 		return nil, errors.New("action: Store, Audit, Registry and Policy are required")
 	}
 	e := &Engine{
-		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, log: o.Log, now: o.Now,
+		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, log: o.Log, now: o.Now,
 		tasks: livedoc.New(tasksColl),
 		live:  map[string]*liveTask{},
 		locks: map[string]string{},

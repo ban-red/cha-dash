@@ -97,7 +97,7 @@ const (
 )
 
 // Policy decides whether an actor may act. internal/authz implements it;
-// OwnerOnly stands in until then.
+// The hub runs authz's through authz.Policy.ForEngine; OwnerOnly is for tests.
 type Policy interface {
 	// Authorize returns nil, ErrForbidden or ErrStepUpRequired. scope is
 	// the action's scope (its ID unless the Def says otherwise) or a read

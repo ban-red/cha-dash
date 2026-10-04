@@ -15,10 +15,9 @@ import (
 // Actor.
 type Sessions struct {
 	Proxies httpx.Proxies
-	// StepUpUntil reads the session's step-up grant. It's an adapter so the
-	// engine doesn't wait for the step-up work in internal/auth: nil means
-	// no session ever has a grant, so OwnerOnly refuses T3 with
-	// step_up_required. Wire it to the session's grant when that lands.
+	// StepUpUntil reads the session's step-up grant (the hub passes
+	// auth's Session.StepUpUntil). Nil means no session ever has one, so T3
+	// answers step_up_required.
 	StepUpUntil func(auth.Identity) time.Time
 	// Lookup finds the session's identity in a context; nil means
 	// auth.FromContext. Tests replace it.

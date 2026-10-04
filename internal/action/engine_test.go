@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -56,6 +57,8 @@ type env struct {
 	clock  *clock
 	policy Policy
 	e      *Engine
+	// consumed lists the sessions whose step-up grant a T4 spent.
+	consumed []string
 }
 
 var (
@@ -114,7 +117,8 @@ func newEnv(t *testing.T, policy Policy, defs ...Def) *env {
 func (e *env) start() {
 	e.t.Helper()
 	eng, err := New(e.t.Context(), Options{Store: e.st, Audit: e.audit, Registry: e.reg, Policy: e.policy, Graph: e.g,
-		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now})
+		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now,
+		ConsumeStepUp: func(_ context.Context, session string) error { e.consumed = append(e.consumed, session); return nil }})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -564,6 +568,10 @@ func TestTypeToConfirmAndStepUp(t *testing.T) {
 	e.wait(task.ID)
 	if got := e.lastEvent(); got.Tier != "T4" {
 		t.Fatalf("audited at %s, want the raised tier", got.Tier)
+	}
+	// The T4 spent the grant; the T3 before it didn't.
+	if !slices.Equal(e.consumed, []string{owner.Session}) {
+		t.Fatalf("consumed step-up grants = %v", e.consumed)
 	}
 
 	// With T4 off, it's forbidden outright.

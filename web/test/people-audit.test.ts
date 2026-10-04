@@ -44,7 +44,7 @@ describe('Settings → Audit', () => {
     return fakeFetch({
       'GET /api/audit/verify': { status: 200, body: { ok: true, checked: 4812 } },
       'GET /api/audit': (_b, url) =>
-        url.searchParams.get('before') === 'c1'
+        url.searchParams.get('cursor') === 'c1'
           ? { status: 200, body: { events: [{ ...EVENTS[1], id: 'a1', seq: 4810, action: 'settings.security.update', target: '', result: 'ok' }] } }
           : { status: 200, body: { events: EVENTS, next: 'c1' } },
       ...over,
@@ -89,7 +89,7 @@ describe('Settings → Audit', () => {
     expect(q.get('limit')).toBe('50');
     await w.findAll('button').find((b) => b.text() === 'Show older')!.trigger('click');
     await settle();
-    expect(f.calls.at(-1)!.path).toContain('before=c1');
+    expect(f.calls.at(-1)!.path).toContain('cursor=c1');
     expect(w.findAll('.au-list > li')).toHaveLength(3);
     expect(w.findAll('button').some((b) => b.text() === 'Show older')).toBe(false);
   });

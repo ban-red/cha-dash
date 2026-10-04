@@ -18,6 +18,8 @@ type Users struct {
 	auth *auth.Service
 	log  *slog.Logger
 	now  func() time.Time
+	// Audit records every change (nil: none, for tests).
+	Audit *Recorder
 }
 
 // NewUsers returns the users API over a.
@@ -65,6 +67,7 @@ func (u *Users) create(w http.ResponseWriter, r *http.Request) {
 	if u.refused(w, err) {
 		return
 	}
+	u.Audit.Change(r, "users.create", "user:"+user.ID, map[string]string{"username": req.Username, "role": req.Role}, T1, nil)
 	httpx.WriteJSON(w, http.StatusCreated, user)
 }
 
@@ -90,12 +93,17 @@ func (u *Users) update(w http.ResponseWriter, r *http.Request) {
 	if u.refused(w, err) {
 		return
 	}
+	u.Audit.Change(r, "users.update", "user:"+target.ID, req, T1, nil)
 	httpx.WriteJSON(w, http.StatusOK, user)
 }
 
 func (u *Users) transfer(w http.ResponseWriter, r *http.Request) {
 	actor, _ := ActorFrom(r)
-	err := Decide(actor, Request{Scope: "users.transfer-ownership", Target: "user:" + r.PathValue("id"), Tier: T3}, Env{Now: u.now()})
+	target := "user:" + r.PathValue("id")
+	err := Decide(actor, Request{Scope: "users.transfer-ownership", Target: target, Tier: T3}, Env{Now: u.now()})
+	if err != nil {
+		u.Audit.Change(r, "users.transfer-ownership", target, nil, T3, err)
+	}
 	if WriteRefusal(w, err) {
 		return
 	}
@@ -103,6 +111,7 @@ func (u *Users) transfer(w http.ResponseWriter, r *http.Request) {
 	if u.refused(w, err) {
 		return
 	}
+	u.Audit.Change(r, "users.transfer-ownership", target, nil, T3, nil)
 	httpx.WriteJSON(w, http.StatusOK, user)
 }
 

@@ -3,12 +3,12 @@
  * Settings → Audit (owner and admin): every attempt to change something,
  * refusals and failures included, newest first.
  *
- *   GET /api/audit?actor=&action=&target=&result=&since=&before=&limit=  → {events, next?}
+ *   GET /api/audit?actor=&action=&target=&result=&since=&before=&limit=&cursor=  → {events, next?}
  *   GET /api/audit/verify                                                 → {ok, checked, first_break?}
  *   GET /api/audit/export                                                 NDJSON
  *
  * The log is hash-chained; the chain's state is said plainly at the top.
- * "Show older" pages with the `next` cursor (sent back as `before`).
+ * "Show older" pages with the `next` cursor (sent back as `cursor`).
  * Its own chunk, loaded with the pane.
  */
 import { computed, onMounted, reactive, ref, useId } from 'vue';
@@ -65,12 +65,12 @@ const verify = ref<Verify | null>(null);
 const verifyError = ref('');
 const verifying = ref(false);
 
-function query(before?: string): string {
+function query(cursor?: string): string {
   const q = new URLSearchParams();
   for (const k of ['actor', 'action', 'target', 'result'] as const) if (filters[k].trim()) q.set(k, filters[k].trim());
   const span = SINCE.find((s) => s.id === filters.since)?.ms ?? 0;
   if (span) q.set('since', new Date(live.now.value - span).toISOString());
-  if (before) q.set('before', before);
+  if (cursor) q.set('cursor', cursor);
   q.set('limit', String(PAGE));
   return q.toString();
 }

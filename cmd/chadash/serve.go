@@ -18,6 +18,7 @@ import (
 	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/config"
@@ -96,8 +97,7 @@ type app struct {
 	// correlator merges what several instances report as one thing, over
 	// integrationTopics: the Demo Home has nothing to merge.
 	correlator *correlate.Correlator
-	// actions is the action engine, under the OwnerOnly policy until
-	// internal/authz replaces it.
+	// actions is the action engine, under internal/authz's policy.
 	actions *action.Engine
 
 	stop context.CancelFunc // ends the background work below
@@ -205,17 +205,18 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// The action engine and its audit log. In demo mode the Demo Home's
 	// incident fixes are its actions.
 	actions := action.NewRegistry()
+	auditLog := audit.New(st)
 	if drv != nil {
 		if err := actions.Register(demo.ActionSource, drv.Actions()...); err != nil {
 			return nil, err
 		}
 	}
 	eng, err := action.New(ctx, action.Options{
-		Store: st, Audit: audit.New(st), Registry: actions, Policy: action.OwnerOnly{}, Graph: g,
-		// No step-up grants yet: OwnerOnly refuses T3 until the session's
-		// grant is wired into StepUpUntil.
-		Sessions: action.Sessions{Proxies: proxies},
-		Log:      log,
+		Store: st, Audit: auditLog, Registry: actions, Policy: authz.NewPolicy(st, log).ForEngine(), Graph: g,
+		Sessions: action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
+		// A T4 spends the grant that allowed it.
+		ConsumeStepUp: authSvc.ClearStepUp,
+		Log:           log,
 	})
 	if err != nil {
 		return nil, err
@@ -248,6 +249,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		FirstPaint:     firstPaint,
 		Security:       sec,
 		Actions:        eng,
+		Audit:          auditLog,
 	})
 	if err != nil {
 		eng.Close()

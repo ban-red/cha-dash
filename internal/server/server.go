@@ -58,6 +58,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/action"
+	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/boards"
@@ -111,6 +112,9 @@ type Deps struct {
 	// Actions is the action engine; it also serves the audit log. Nil
 	// leaves /api/actions, /api/plans, /api/tasks and /api/audit unmounted.
 	Actions *action.Engine
+	// Audit records changes to users and settings; actions record their
+	// own through the engine. Nil records nothing.
+	Audit *audit.Log
 }
 
 // New builds the root handler.
@@ -138,7 +142,10 @@ func New(d Deps) (http.Handler, error) {
 	// internal/authz/routes.go: a new route needs a row there.
 	session := d.Auth.Require
 	boards.New(d.Store).Register(mux, session, d.Log)
-	authz.NewUsers(d.Auth, d.Log).Register(mux, session)
+	rec := &authz.Recorder{Log: d.Audit, Logger: d.Log}
+	users := authz.NewUsers(d.Auth, d.Log)
+	users.Audit = rec
+	users.Register(mux, session)
 	if d.Integrations != nil {
 		d.Integrations.Register(mux, session)
 	}
@@ -162,6 +169,7 @@ func New(d Deps) (http.Handler, error) {
 		d.Onboarding.Register(mux, session)
 	}
 	if d.Security != nil {
+		d.Security.Audit = rec
 		d.Security.Register(mux, session, session)
 		d.Auth.SetStepUpMode(d.Security.StepUp)
 	}

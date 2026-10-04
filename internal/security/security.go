@@ -105,6 +105,8 @@ type Service struct {
 	st  *store.Store
 	log *slog.Logger
 	now func() time.Time
+	// Audit records every change to these settings (nil: none, for tests).
+	Audit *authz.Recorder
 
 	set    sync.Mutex // serialises Set: the row and the subscribers change in order
 	mu     sync.Mutex
@@ -305,6 +307,9 @@ func (s *Service) handlePut(w http.ResponseWriter, r *http.Request) {
 			// Changing how people confirm destructive actions is itself one (T3).
 			actor, _ := authz.ActorFrom(r)
 			err := authz.Decide(actor, authz.Request{Scope: "settings.security.update", Tier: authz.T3}, authz.Env{Now: s.now()})
+			if err != nil {
+				s.Audit.Change(r, "settings.security.update", "settings:security", req, authz.T3, err)
+			}
 			if authz.WriteRefusal(w, err) {
 				return
 			}
@@ -324,5 +329,10 @@ func (s *Service) handlePut(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	tier := authz.T1
+	if req.StepUp != nil {
+		tier = authz.T3
+	}
+	s.Audit.Change(r, "settings.security.update", "settings:security", req, tier, nil)
 	httpx.WriteJSON(w, http.StatusOK, s.view())
 }

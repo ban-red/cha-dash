@@ -256,10 +256,18 @@ func redact(params json.RawMessage, d *Def) json.RawMessage {
 }
 
 func forbidden(err error) *Refusal {
-	if errors.Is(err, ErrStepUpRequired) {
-		return &Refusal{Status: http.StatusForbidden, Code: "step_up_required", Message: "Confirm it's you first: this needs a fresh sign-in check."}
+	// A policy may explain itself ("Your role (viewer) can't run T2
+	// actions."); the bare sentinels get a generic sentence.
+	said := func(generic string) string {
+		if err == ErrForbidden || err == ErrStepUpRequired {
+			return generic
+		}
+		return err.Error()
 	}
-	return &Refusal{Status: http.StatusForbidden, Code: "forbidden", Message: "You don't have permission to do this."}
+	if errors.Is(err, ErrStepUpRequired) {
+		return &Refusal{Status: http.StatusForbidden, Code: "step_up_required", Message: said("Confirm it's you first: this needs a fresh sign-in check.")}
+	}
+	return &Refusal{Status: http.StatusForbidden, Code: "forbidden", Message: said("You don't have permission to do this.")}
 }
 
 // refusalOf turns a Def hook's error into a refusal.
@@ -438,6 +446,12 @@ func (e *Engine) Approve(ctx context.Context, a Actor, planID string, req Approv
 			return refuse(&Refusal{Status: http.StatusGone, Code: "plan_expired", Message: "This plan has already run. Plan it again."})
 		}
 		return Task{}, fmt.Errorf("action: start task: %w", err)
+	}
+	if p.tier == T4 && e.consume != nil && a.Session != "" {
+		// The grant is spent: the next T4 asks again, even within its five minutes.
+		if err := e.consume(ctx, a.Session); err != nil && e.log != nil {
+			e.log.Warn("action: ending the step-up grant after a T4 failed", "err", err)
+		}
 	}
 	if !e.start(d, r, task, p.tier, p.doc.Undo, created) {
 		e.unlock(t.ID, task.ID)
