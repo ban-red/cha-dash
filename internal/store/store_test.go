@@ -49,12 +49,12 @@ func TestMigrateUp(t *testing.T) {
 	s, path := openTemp(t)
 	ctx := t.Context()
 
-	want := []string{"api_tokens", "audit", "board_dismissals", "boards", "correlation_decisions", "goose_db_version", "integration_instances", "integration_state", "layouts", "passkey_users", "passkeys", "sessions", "settings", "users", "vault_secrets"}
+	want := []string{"api_tokens", "audit", "audit_events", "board_dismissals", "boards", "correlation_decisions", "goose_db_version", "integration_instances", "integration_state", "layouts", "passkey_users", "passkeys", "sessions", "settings", "users", "vault_secrets"}
 	if got := tables(t, s.Reader()); !slices.Equal(got, want) {
 		t.Fatalf("tables = %v, want %v", got, want)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 6 {
+	if err != nil || v != 8 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 
@@ -222,6 +222,11 @@ func TestSchemaConstraints(t *testing.T) {
 	mustExec(`INSERT INTO audit (at, actor, action, result) VALUES (0, '{}', 'test', 'ok')`)
 	mustFail("audit append-only", `UPDATE audit SET result = 'tampered'`)
 	mustExec(`DELETE FROM audit`) // retention may delete
+
+	mustExec(`INSERT INTO audit_events (seq, id, at, action, result, event, prev_hash, hash) VALUES (1, 'a_1', 0, 'test', 'ok', '{}', 'x', 'y')`)
+	mustFail("audit_events refuses updates", `UPDATE audit_events SET result = 'failed'`)
+	mustFail("audit_events refuses deletes", `DELETE FROM audit_events`)
+	mustFail("audit_events result check", `INSERT INTO audit_events (seq, id, at, action, result, event, prev_hash, hash) VALUES (2, 'a_2', 0, 'test', 'maybe', '{}', 'x', 'y')`)
 
 	mustExec(`INSERT INTO boards (id, slug, title, created_at, updated_at) VALUES ('b_1', 'home', 'Home', 0, 0)`)
 	mustExec(`INSERT INTO layouts (board_id, revision, format_version, document, created_at, created_by) VALUES ('b_1', 1, 1, '{"sections":[]}', 0, 'u_1')`)
