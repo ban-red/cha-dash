@@ -1,0 +1,24 @@
+{
+  "id": "6e0a1b52-0000-4000-8000-000000000101",
+  "username": "chadash",
+  "type": "user",
+  "mediaProgress": [],
+  "seriesHideFromContinueListening": [],
+  "bookmarks": [],
+  "isActive": true,
+  "isLocked": false,
+  "lastSeen": 1790949600000,
+  "createdAt": 1767225600000,
+  "permissions": {
+    "download": false,
+    "update": false,
+    "delete": false,
+    "upload": false,
+    "createEreader": false,
+    "accessAllLibraries": true,
+    "accessAllTags": true,
+    "accessExplicitContent": true
+  },
+  "librariesAccessible": [],
+  "itemTagsSelected": []
+}

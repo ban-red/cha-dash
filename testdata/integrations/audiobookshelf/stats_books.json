@@ -1,0 +1,20 @@
+{
+  "totalItems": 124,
+  "totalAuthors": 61,
+  "totalGenres": 18,
+  "totalDuration": 1648234.5,
+  "longestItems": [
+    {"id": "li_0001", "title": "A Very Long Synthetic Saga", "duration": 162000.0}
+  ],
+  "numAudioTracks": 2031,
+  "totalSize": 98765432100,
+  "largestItems": [
+    {"id": "li_0001", "title": "A Very Long Synthetic Saga", "size": 2147483648}
+  ],
+  "authorsWithCount": [
+    {"id": "aut_0001", "name": "Synthetic Author", "count": 7}
+  ],
+  "genresWithCount": [
+    {"genre": "Fiction", "count": 80}
+  ]
+}

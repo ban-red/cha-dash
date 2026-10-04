@@ -1,0 +1,15 @@
+{
+  "usersOnline": [
+    {
+      "id": "6e0a1b52-0000-4000-8000-000000000102",
+      "username": "reader",
+      "type": "user",
+      "session": {"id": "play_0001", "libraryItemId": "li_0042", "mediaType": "book", "displayTitle": "Synthetic Title", "currentTime": 3611.2},
+      "lastSeen": 1790949840000,
+      "createdAt": 1767225600000
+    }
+  ],
+  "openSessions": [
+    {"id": "play_0001", "userId": "6e0a1b52-0000-4000-8000-000000000102", "libraryId": "3f5a1c2e-0000-4000-8000-000000000001", "libraryItemId": "li_0042", "mediaType": "book", "currentTime": 3611.2, "updatedAt": 1790949840000}
+  ]
+}

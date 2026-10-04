@@ -1,0 +1,14 @@
+{
+  "totalItems": 9,
+  "totalAuthors": 0,
+  "totalGenres": 6,
+  "totalDuration": 2161440,
+  "longestItems": [],
+  "numAudioTracks": 1210,
+  "totalSize": 61234567890,
+  "largestItems": [],
+  "authorsWithCount": [],
+  "genresWithCount": [
+    {"genre": "Technology", "count": 4}
+  ]
+}
