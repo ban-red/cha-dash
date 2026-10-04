@@ -11,6 +11,7 @@ import (
 	_ "dash.cha.sh/integrations/immich"        // Immich photo library statistics
 	_ "dash.cha.sh/integrations/jellyfin"      // Jellyfin: streams, libraries
 	_ "dash.cha.sh/integrations/lidarr"        // Lidarr: queue, wanted, calendar
+	_ "dash.cha.sh/integrations/nextcloud"     // Nextcloud: users, files, free space
 	_ "dash.cha.sh/integrations/nzbget"        // NZBGet: speed, queue
 	_ "dash.cha.sh/integrations/opnsense"      // OPNsense WAN traffic (counters + SSE)
 	_ "dash.cha.sh/integrations/pbs"           // Proxmox Backup Server
