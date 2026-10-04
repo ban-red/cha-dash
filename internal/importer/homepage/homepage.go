@@ -724,11 +724,12 @@ func (b *builder) mapWidget(sec *section, e entry, idx int, wn *yaml.Node, base 
 		}
 	}
 
-	// Catalog widgets are singletons on a board ("plex"), or bound to the
-	// app ("arr@app:sonarr"); a second one of a kind gets a service tile.
+	// Catalog widgets are singletons on a board ("plex"), or bound to their
+	// instance's app ("arr@sonarr:i_…/app", 07 · Wave 5 conventions); a second
+	// singleton of a kind gets a service tile.
 	id := spec.tile
 	if spec.bound {
-		id = spec.tile + "@app:" + spec.integration
+		id = spec.tile + "@" + spec.integration + ":" + inst.ID + "/app"
 	}
 	if spec.tile == "service" || b.singletons[id] {
 		t.Widget = "service"

@@ -5,7 +5,7 @@ import type { SizeId } from '@chadash/layout';
 import Tile from '../components/Tile.vue';
 import Meter from '../components/marks/Meter.vue';
 import { fmtInt, fmtPct, hhmm } from '../lib/format';
-import { attr, byKind, incoming, lastBackup, series, value } from '../model/graph';
+import { attr, byKind, incoming, lastBackup, resolve, series, value } from '../model/graph';
 import { glyphFor, tileStatus } from '../model/status';
 import { normalizeHealth, resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
@@ -20,7 +20,8 @@ const id = computed(() => store.value?.id ?? '');
 const used = computed(() => series(live.metrics.value, id.value, 'used.pct'));
 const health = computed(() => normalizeHealth(store.value));
 const jobsHealth = computed(() => byKind(live.graph.value, 'backup_job').map((j) => normalizeHealth(j)));
-const failed = computed(() => value(live.metrics.value, 'app:pbs', 'tasks.failed_24h'));
+const app = computed(() => resolve(live.graph.value, 'app:pbs'));
+const failed = computed(() => value(live.metrics.value, app.value?.id ?? 'app:pbs', 'tasks.failed_24h'));
 const last = computed(() => lastBackup(live.graph.value));
 const covered = computed(() => {
   const g = live.graph.value;
@@ -34,7 +35,6 @@ const status = computed(() => {
 const incident = computed(() =>
   live.problems.value.find((i) => i.target === id.value || byKind(live.graph.value, 'backup_job').some((j) => j.id === i.target) || i.scenario === 'backup-failed'),
 );
-const app = computed(() => live.graph.value?.resources['app:pbs']);
 const tag = computed(() => (status.value === 'ok' ? '' : (health.value.reason ?? 'needs you')));
 </script>
 

@@ -55,10 +55,13 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
-# Go sources. A new top-level Go package directory needs a line here.
+# Go sources. A new top-level Go package directory needs a line here (CI
+# checks this against `go list -deps ./cmd/chadash`).
 COPY cmd cmd
+COPY integrations integrations
 COPY internal internal
 COPY sim sim
+COPY specs specs
 COPY --from=web /src/internal/webui/dist internal/webui/dist
 
 ARG TARGETOS

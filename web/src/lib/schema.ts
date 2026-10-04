@@ -39,6 +39,8 @@ export interface JsonSchema {
   minItems?: number;
   maxItems?: number;
   writeOnly?: boolean;
+  /** A secret the integration's sign-in flow can fill in (Plex's PIN): the form offers "Sign in with …". */
+  'x-chadash-authorize'?: boolean;
   readOnly?: boolean;
   examples?: unknown[];
   if?: JsonSchema;

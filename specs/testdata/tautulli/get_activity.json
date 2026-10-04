@@ -1,0 +1,51 @@
+{
+  "response": {
+    "result": "success",
+    "message": null,
+    "data": {
+      "stream_count": "2",
+      "stream_count_direct_play": 1,
+      "stream_count_direct_stream": 0,
+      "stream_count_transcode": 1,
+      "total_bandwidth": 18450,
+      "lan_bandwidth": 8450,
+      "wan_bandwidth": 10000,
+      "sessions": [
+        {
+          "session_key": "41",
+          "media_type": "movie",
+          "title": "Night of the Living Dead",
+          "full_title": "Night of the Living Dead",
+          "year": "1968",
+          "user": "lab-member",
+          "friendly_name": "Lab Member",
+          "player": "Living room TV",
+          "platform": "Android",
+          "state": "playing",
+          "progress_percent": "37",
+          "transcode_decision": "direct play",
+          "location": "lan",
+          "ip_address": "10.0.11.61",
+          "bandwidth": "8450"
+        },
+        {
+          "session_key": "42",
+          "media_type": "movie",
+          "title": "Big Buck Bunny",
+          "full_title": "Big Buck Bunny",
+          "year": "2008",
+          "user": "lab-guest",
+          "friendly_name": "Lab Guest",
+          "player": "Chrome",
+          "platform": "Chrome",
+          "state": "playing",
+          "progress_percent": "64",
+          "transcode_decision": "transcode",
+          "location": "wan",
+          "ip_address": "198.51.100.23",
+          "bandwidth": "10000"
+        }
+      ]
+    }
+  }
+}

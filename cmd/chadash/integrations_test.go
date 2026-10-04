@@ -15,7 +15,12 @@ import (
 )
 
 func TestIntegrationsLinkedIn(t *testing.T) {
-	for _, id := range []string{"checks", "seerr"} {
+	// Every v0.1 integration ID from 07 · Integration IDs, plus the sample spec.
+	for _, id := range []string{
+		"checks", "proxmox", "pbs", "docker", "traefik", "unraid", "opnsense", "frigate",
+		"uptimekuma", "homeassistant", "plex", "sonarr", "radarr", "prowlarr", "qbittorrent", "immich",
+		"tautulli", "bazarr", "mealie", "linkding", "karakeep", "seerr",
+	} {
 		if _, _, ok := integration.Default.Get(id); !ok {
 			t.Errorf("%s isn't registered in the hub", id)
 		}

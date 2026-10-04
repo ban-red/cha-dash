@@ -247,6 +247,23 @@ type Deps struct {
 	// UpdateConfig persists a change to the instance's non-secret config
 	// without restarting it (TOFU pins for per-target TLS, discovered IDs).
 	UpdateConfig func(ctx context.Context, mutate func(cfg map[string]any)) error
+	// State keeps what the instance accumulates across restarts. Never nil:
+	// an unsaved config under test gets one in memory.
+	State State
+}
+
+// MaxStateBytes caps one State value.
+const MaxStateBytes = 64 << 10
+
+// State is a small key-value store per instance that survives restarts and
+// config changes, for what an integration accumulates over time (OPNsense's
+// 30-day WAN totals), never as a cache of what it reads. Values are JSON, at
+// most MaxStateBytes each, and are deleted with the instance.
+type State interface {
+	// Load returns the value stored under key, or nil when there is none.
+	Load(ctx context.Context, key string) ([]byte, error)
+	// Save stores value under key, replacing what was there.
+	Save(ctx context.Context, key string, value []byte) error
 }
 
 // RedirectPolicy says which redirects a client follows.
@@ -270,6 +287,10 @@ type HTTPOptions struct {
 	Session   Session           // optional login session
 	Timeout   time.Duration     // per request; default 15 s
 	Headers   map[string]string // added to every request that doesn't set them
+	// UnixSocket, when set, is the path of a Unix socket every request is
+	// dialled to instead of the URL's host (Docker's /var/run/docker.sock).
+	// Use an http:// URL; its host only names the connection.
+	UnixSocket string
 }
 
 // Session is the session cache hook: log in once, apply the session to each

@@ -1,0 +1,23 @@
+{
+  "page": 1,
+  "pageSize": 1,
+  "sortKey": "movieMetadata.sortTitle",
+  "sortDirection": "ascending",
+  "totalRecords": 3,
+  "records": [
+    {
+      "title": "Brass Weather",
+      "originalTitle": "Brass Weather",
+      "sortTitle": "brass weather",
+      "status": "released",
+      "inCinemas": "2025-11-07T00:00:00Z",
+      "physicalRelease": "2026-02-10T00:00:00Z",
+      "year": 2025,
+      "hasFile": true,
+      "monitored": true,
+      "isAvailable": true,
+      "tmdbId": 9100002,
+      "id": 288
+    }
+  ]
+}

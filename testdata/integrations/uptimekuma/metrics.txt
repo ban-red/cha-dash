@@ -1,0 +1,95 @@
+# HELP process_cpu_user_seconds_total Total user CPU time spent in seconds.
+# TYPE process_cpu_user_seconds_total counter
+process_cpu_user_seconds_total 1843.211
+
+# HELP monitor_cert_days_remaining The number of days remaining until the certificate expires
+# TYPE monitor_cert_days_remaining gauge
+monitor_cert_days_remaining{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null"} 61
+monitor_cert_days_remaining{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null"} 61
+monitor_cert_days_remaining{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null"} 61
+monitor_cert_days_remaining{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null"} 61
+monitor_cert_days_remaining{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null"} 61
+monitor_cert_days_remaining{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null"} 61
+monitor_cert_days_remaining{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null"} 12
+
+# HELP monitor_cert_is_valid Is the certificate still valid? (1 = Yes, 0= No)
+# TYPE monitor_cert_is_valid gauge
+monitor_cert_is_valid{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_cert_is_valid{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_cert_is_valid{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_cert_is_valid{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_cert_is_valid{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_cert_is_valid{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_cert_is_valid{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null"} 1
+
+# HELP monitor_uptime_ratio Uptime ratio calculated over sliding window specified by the 'window' label. (0.0 - 1.0)
+# TYPE monitor_uptime_ratio gauge
+monitor_uptime_ratio{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="2",monitor_name="OPNsense",monitor_type="ping",monitor_url="https://",monitor_hostname="10.0.11.1",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="2",monitor_name="OPNsense",monitor_type="ping",monitor_url="https://",monitor_hostname="10.0.11.1",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="2",monitor_name="OPNsense",monitor_type="ping",monitor_url="https://",monitor_hostname="10.0.11.1",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="8",monitor_name="qBittorrent",monitor_type="port",monitor_url="https://",monitor_hostname="10.0.11.30",monitor_port="8080",window="1d"} 0.9965
+monitor_uptime_ratio{monitor_id="8",monitor_name="qBittorrent",monitor_type="port",monitor_url="https://",monitor_hostname="10.0.11.30",monitor_port="8080",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="8",monitor_name="qBittorrent",monitor_type="port",monitor_url="https://",monitor_hostname="10.0.11.30",monitor_port="8080",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null",window="1d"} 1
+monitor_uptime_ratio{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null",window="365d"} 0.9987
+monitor_uptime_ratio{monitor_id="10",monitor_name="Internal DNS",monitor_type="dns",monitor_url="https://",monitor_hostname="10.0.11.53",monitor_port="53",window="1d"} 1
+monitor_uptime_ratio{monitor_id="10",monitor_name="Internal DNS",monitor_type="dns",monitor_url="https://",monitor_hostname="10.0.11.53",monitor_port="53",window="30d"} 0.9991
+monitor_uptime_ratio{monitor_id="10",monitor_name="Internal DNS",monitor_type="dns",monitor_url="https://",monitor_hostname="10.0.11.53",monitor_port="53",window="365d"} 0.9987
+
+# HELP monitor_response_time_seconds Average response time in seconds calculated over sliding window specified by the 'window' label
+# TYPE monitor_response_time_seconds gauge
+monitor_response_time_seconds{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 0.042
+monitor_response_time_seconds{monitor_id="2",monitor_name="OPNsense",monitor_type="ping",monitor_url="https://",monitor_hostname="10.0.11.1",monitor_port="null",window="1d"} 0.001
+monitor_response_time_seconds{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 0.057
+monitor_response_time_seconds{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 0.113
+monitor_response_time_seconds{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 0.071
+monitor_response_time_seconds{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 0.139
+monitor_response_time_seconds{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null",window="1d"} 0.038
+monitor_response_time_seconds{monitor_id="8",monitor_name="qBittorrent",monitor_type="port",monitor_url="https://",monitor_hostname="10.0.11.30",monitor_port="8080",window="1d"} 0.0
+monitor_response_time_seconds{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null",window="1d"} 0.021
+monitor_response_time_seconds{monitor_id="10",monitor_name="Internal DNS",monitor_type="dns",monitor_url="https://",monitor_hostname="10.0.11.53",monitor_port="53",window="1d"} 0.004
+
+# HELP monitor_response_time Monitor Response Time (ms)
+# TYPE monitor_response_time gauge
+monitor_response_time{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null"} 42
+monitor_response_time{monitor_id="2",monitor_name="OPNsense",monitor_type="ping",monitor_url="https://",monitor_hostname="10.0.11.1",monitor_port="null"} 1
+monitor_response_time{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null"} 57
+monitor_response_time{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null"} 113
+monitor_response_time{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null"} 71
+monitor_response_time{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null"} 139
+monitor_response_time{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null"} 38
+monitor_response_time{monitor_id="8",monitor_name="qBittorrent",monitor_type="port",monitor_url="https://",monitor_hostname="10.0.11.30",monitor_port="8080"} 0
+monitor_response_time{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null"} 21
+monitor_response_time{monitor_id="10",monitor_name="Internal DNS",monitor_type="dns",monitor_url="https://",monitor_hostname="10.0.11.53",monitor_port="53"} 4
+
+# HELP monitor_status Monitor Status (1 = UP, 0= DOWN, 2= PENDING, 3= MAINTENANCE)
+# TYPE monitor_status gauge
+monitor_status{monitor_id="1",monitor_name="Home Assistant",monitor_type="http",monitor_url="https://home.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_status{monitor_id="2",monitor_name="OPNsense",monitor_type="ping",monitor_url="https://",monitor_hostname="10.0.11.1",monitor_port="null"} 1
+monitor_status{monitor_id="3",monitor_name="Plex",monitor_type="http",monitor_url="https://plex.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_status{monitor_id="4",monitor_name="Immich",monitor_type="keyword",monitor_url="https://photos.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_status{monitor_id="5",monitor_name="Mealie",monitor_type="http",monitor_url="https://recipes.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_status{monitor_id="6",monitor_name="Karakeep",monitor_type="http",monitor_url="https://hoarder.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_status{monitor_id="7",monitor_name="Linkding",monitor_type="http",monitor_url="https://links.lab.example",monitor_hostname="null",monitor_port="null"} 1
+monitor_status{monitor_id="8",monitor_name="qBittorrent",monitor_type="port",monitor_url="https://",monitor_hostname="10.0.11.30",monitor_port="8080"} 0
+monitor_status{monitor_id="9",monitor_name="Cockpit",monitor_type="http",monitor_url="https://cockpit.lab.example:9090",monitor_hostname="null",monitor_port="null"} 1
+monitor_status{monitor_id="10",monitor_name="Internal DNS",monitor_type="dns",monitor_url="https://",monitor_hostname="10.0.11.53",monitor_port="53"} 1

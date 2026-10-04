@@ -5,17 +5,18 @@ import type { SizeId } from '@chadash/layout';
 import Tile from '../components/Tile.vue';
 import Sparkline from '../components/marks/Sparkline.vue';
 import { fmtInt, fmtNum } from '../lib/format';
-import { attr, placeOf, series } from '../model/graph';
+import { attr, placeOf, resolve, series } from '../model/graph';
 import { glyphFor, tileStatus } from '../model/status';
 import { normalizeHealth, resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
 
 const { size } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
-const ID = 'app:homeassistant';
+const WANT = 'app:homeassistant';
 
-const app = computed(() => live.graph.value?.resources[ID]);
-const s = (m: string) => series(live.metrics.value, ID, m);
+const app = computed(() => resolve(live.graph.value, WANT));
+const ID = computed(() => app.value?.id ?? WANT);
+const s = (m: string) => series(live.metrics.value, ID.value, m);
 const people = computed(() => s('people_home'));
 const lights = computed(() => s('lights_on'));
 const switches = computed(() => s('switches_on'));
@@ -24,7 +25,7 @@ const energy = computed(() => s('energy.kwh'));
 const health = computed(() => normalizeHealth(app.value));
 const status = computed(() => tileStatus(health.value, app.value));
 const stale = computed(() => Boolean(power.value?.stale || people.value?.stale));
-const place = computed(() => placeOf(live.graph.value, ID));
+const place = computed(() => placeOf(live.graph.value, ID.value));
 </script>
 
 <template>

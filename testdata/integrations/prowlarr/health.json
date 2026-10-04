@@ -1,0 +1,9 @@
+[
+  {
+    "source": "IndexerStatusCheck",
+    "type": "warning",
+    "message": "Indexers unavailable due to failures: Archive Tracker",
+    "wikiUrl": "https://wiki.servarr.com/prowlarr/system#indexers-are-unavailable-due-to-failures",
+    "id": 1
+  }
+]

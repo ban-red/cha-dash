@@ -1,0 +1,55 @@
+{
+  "config": {
+    "slug": "current",
+    "title": "Lab status",
+    "description": "What's up in the lab",
+    "icon": "/icon.svg",
+    "autoRefreshInterval": 300,
+    "theme": "auto",
+    "published": true,
+    "showTags": false,
+    "customCSS": "body {\n  \n}\n",
+    "footerText": null,
+    "showPoweredBy": true,
+    "analyticsId": null,
+    "analyticsScriptUrl": null,
+    "analyticsType": null,
+    "showCertificateExpiry": true,
+    "showOnlyLastHeartbeat": false,
+    "rssTitle": null
+  },
+  "incidents": [],
+  "publicGroupList": [
+    {
+      "id": 1,
+      "name": "Home",
+      "weight": 1,
+      "monitorList": [
+        {"id": 1, "name": "Home Assistant", "sendUrl": 1, "type": "http", "url": "https://home.lab.example", "certExpiryDaysRemaining": 61, "validCert": true},
+        {"id": 2, "name": "OPNsense", "sendUrl": 0, "type": "ping", "certExpiryDaysRemaining": -1, "validCert": false}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Media",
+      "weight": 2,
+      "monitorList": [
+        {"id": 3, "name": "Plex", "sendUrl": 1, "type": "http", "url": "https://plex.lab.example", "certExpiryDaysRemaining": 61, "validCert": true},
+        {"id": 4, "name": "Immich", "sendUrl": 0, "type": "keyword", "certExpiryDaysRemaining": 61, "validCert": true},
+        {"id": 8, "name": "qBittorrent", "sendUrl": 0, "type": "port", "certExpiryDaysRemaining": -1, "validCert": false}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Apps",
+      "weight": 3,
+      "monitorList": [
+        {"id": 5, "name": "Mealie", "sendUrl": 0, "type": "http", "certExpiryDaysRemaining": 61, "validCert": true},
+        {"id": 6, "name": "Karakeep", "sendUrl": 0, "type": "http", "certExpiryDaysRemaining": 61, "validCert": true},
+        {"id": 7, "name": "Linkding", "sendUrl": 0, "type": "http", "certExpiryDaysRemaining": 61, "validCert": true},
+        {"id": 9, "name": "Cockpit", "sendUrl": 0, "type": "http", "certExpiryDaysRemaining": 12, "validCert": true}
+      ]
+    }
+  ],
+  "maintenanceList": []
+}

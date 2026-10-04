@@ -1,0 +1,48 @@
+{
+  "rid": 2,
+  "server_state": {
+    "dht_nodes": 415,
+    "dl_info_speed": 4100000
+  },
+  "torrents": {
+    "0101010101010101010101010101010101010101": {
+      "amount_left": 0,
+      "completed": 754974720,
+      "dlspeed": 0,
+      "eta": 0,
+      "progress": 1,
+      "state": "uploading",
+      "upspeed": 120000
+    },
+    "0202020202020202020202020202020202020202": {
+      "num_seeds": 2
+    },
+    "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d": {
+      "added_on": 1790046800,
+      "amount_left": 11338713661,
+      "category": "linux-isos",
+      "completed": 472446402,
+      "dlspeed": 1900000,
+      "eta": 8640000,
+      "force_start": false,
+      "hash": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+      "name": "rockylinux-10.1-x86_64-dvd.iso",
+      "num_leechs": 0,
+      "num_seeds": 12,
+      "priority": 0,
+      "progress": 0.04,
+      "ratio": 0,
+      "save_path": "/data/downloads/linux-isos/",
+      "seq_dl": false,
+      "size": 11811160064,
+      "state": "downloading",
+      "super_seeding": false,
+      "tags": "",
+      "total_size": 11811160064,
+      "upspeed": 0
+    }
+  },
+  "torrents_removed": [
+    "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c"
+  ]
+}

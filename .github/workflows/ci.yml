@@ -69,6 +69,16 @@ jobs:
         run: go vet ./...
       - name: go test -race
         run: go test -race ./...
+      - name: The Dockerfile copies every package the hub imports
+        run: |
+          missing=""
+          for dir in $(go list -deps ./cmd/chadash | sed -n 's|^dash\.cha\.sh/\([^/]*\).*|\1|p' | sort -u); do
+            grep -qE "^COPY $dir $dir\$" Dockerfile || missing="$missing $dir"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Add COPY lines to the Dockerfile for:$missing"
+            exit 1
+          fi
       - name: dev login (-tags devlogin)
         # Only `bun run dev` builds with this tag; release builds must not.
         run: |

@@ -41,6 +41,9 @@ type Harness struct {
 	// RootCAs are trusted in tls mode verify (e.g. an httptest TLS server's
 	// certificate). Set before Connect.
 	RootCAs *x509.CertPool
+	// State is the instance's key-value state, in memory. Every Connect of
+	// the harness shares it, so connecting again is a restart.
+	State integration.State
 
 	mu     sync.Mutex
 	now    time.Time
@@ -51,7 +54,7 @@ type Harness struct {
 // New returns a harness for instance "i_test" with its clock at
 // 2026-10-03 14:05 UTC, the Demo Home's moment.
 func New(t *testing.T) *Harness {
-	h := &Harness{t: t, ID: "i_test", now: time.Date(2026, 10, 3, 14, 5, 0, 0, time.UTC)}
+	h := &Harness{t: t, ID: "i_test", now: time.Date(2026, 10, 3, 14, 5, 0, 0, time.UTC), State: runtime.NewMemoryState()}
 	h.Set = topics.New(graph.New(), h.now)
 	h.Emitter = runtime.NewEmitter(h.Set, h.ID, h.Now)
 	if err := h.Emitter.PublishSelf(integration.Resource{Kind: "integration", Name: "Test", State: "connected",
@@ -123,7 +126,7 @@ func (h *Harness) Connect(integ integration.Integration, config map[string]any, 
 	h.mu.Unlock()
 	cfg := integration.Config{InstanceID: h.ID, Name: "Test", Values: full}
 	deps, _, release := runtime.NewDeps(runtime.DepsOptions{
-		Config: cfg, Emit: h.Emitter, Now: h.Now, RootCAs: h.RootCAs,
+		Config: cfg, Emit: h.Emitter, Now: h.Now, RootCAs: h.RootCAs, State: h.State,
 		Log: slog.New(slog.NewTextHandler(&lockedWriter{h: h}, &slog.HandlerOptions{Level: slog.LevelDebug})),
 		UpdateConfig: func(_ context.Context, mutate func(map[string]any)) error {
 			h.mu.Lock()

@@ -1,0 +1,77 @@
+# Bazarr: subtitles still wanted for episodes and movies, and Bazarr's own
+# health issues.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test: bazarr_test.go, against
+# testdata/bazarr/ (synthetic). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: bazarr
+  name: Bazarr
+  icon: bazarr
+  version: 0.1.0
+  tier: bronze
+  capabilities: [media.library]
+
+config:
+  api_key: { type: secret, title: API key, required: true, description: "Settings → General → Security → API Key" }
+
+source:
+  headers:
+    X-API-KEY: "{{ secret.api_key }}"
+  timeout: 10s
+
+every: 60s
+
+requests:
+  status:
+    path: /api/system/status
+    extract:
+      version: data.bazarr_version
+      sonarr_version: data.sonarr_version
+      radarr_version: data.radarr_version
+  badges:
+    path: /api/badges
+    extract:
+      episodes: episodes # subtitles missing, summed over episodes (Wanted → Series)
+      movies: movies # the same for movies (Wanted → Movies)
+      providers: providers # throttled providers
+      issues: status # health issues (System → Status)
+      sonarr_signalr: sonarr_signalr
+      radarr_signalr: radarr_signalr
+
+version: 'status.version == nil ? nil : trimPrefix(status.version, "v")'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: '(badges.issues ?? 0) > 0 || (badges.providers ?? 0) > 0 ? "attention" : "ok"'
+    reason: >-
+      (badges.issues ?? 0) > 0 ? string(badges.issues) + (badges.issues == 1 ? " health issue" : " health issues") + "; see System → Status" :
+      (badges.providers ?? 0) > 0 ? string(badges.providers) + (badges.providers == 1 ? " subtitle provider is" : " subtitle providers are") + " throttled" : ""
+    attrs:
+      type: '"bazarr"'
+      version: 'status.version == nil ? nil : trimPrefix(status.version, "v")'
+      sonarr_version: status.sonarr_version
+      radarr_version: status.radarr_version
+      sonarr_signalr: badges.sonarr_signalr
+      radarr_signalr: badges.radarr_signalr
+      health_issues: badges.issues
+      throttled_providers: badges.providers
+    caps: [media.library]
+    links:
+      - { title: Bazarr, url: config.url }
+
+metrics:
+  # The Demo Home's keys, plus their sum as wanted, the key the *arr tile reads.
+  - { resource: app, key: wanted, value: 'badges.episodes == nil && badges.movies == nil ? nil : (badges.episodes ?? 0) + (badges.movies ?? 0)', unit: count, max: 100000, band: [0, 1000] }
+  - { resource: app, key: missing.episodes, value: badges.episodes, unit: count, max: 100000, band: [0, 1000] }
+  - { resource: app, key: missing.movies, value: badges.movies, unit: count, max: 10000, band: [0, 20] }
+
+repairs:
+  - when: 'status.version != nil && status.version matches "^v?0\\."'
+    code: unsupported_version
+    message: '"Bazarr " + status.version + " is older than this spec supports (1.0 or later)."'

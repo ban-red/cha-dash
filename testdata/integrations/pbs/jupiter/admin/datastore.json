@@ -1,0 +1,29 @@
+{
+  "data": [
+    {
+      "store": "mars",
+      "mount-status": "nonremovable",
+      "backend-type": "filesystem"
+    },
+    {
+      "store": "mini-g5",
+      "mount-status": "nonremovable",
+      "backend-type": "filesystem"
+    },
+    {
+      "store": "pluto.lab.example",
+      "mount-status": "nonremovable",
+      "backend-type": "filesystem"
+    },
+    {
+      "store": "pve.lab.example",
+      "mount-status": "nonremovable",
+      "backend-type": "filesystem"
+    },
+    {
+      "store": "store-2",
+      "mount-status": "nonremovable",
+      "backend-type": "filesystem"
+    }
+  ]
+}

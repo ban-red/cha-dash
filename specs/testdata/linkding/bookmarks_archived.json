@@ -1,0 +1,25 @@
+{
+  "count": 21,
+  "next": "https://links.lab.example/api/bookmarks/archived/?limit=1&offset=1",
+  "previous": null,
+  "results": [
+    {
+      "id": 88,
+      "url": "https://wiki.lab.example/old-network-plan",
+      "title": "Old network plan",
+      "description": "",
+      "notes": "",
+      "website_title": "Network plan (2024)",
+      "website_description": "",
+      "web_archive_snapshot_url": "",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": true,
+      "unread": false,
+      "shared": false,
+      "tag_names": ["network"],
+      "date_added": "2024-03-11T08:15:00.000000Z",
+      "date_modified": "2025-06-01T10:00:00.000000Z"
+    }
+  ]
+}

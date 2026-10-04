@@ -47,12 +47,12 @@ func TestMigrateUp(t *testing.T) {
 	s, path := openTemp(t)
 	ctx := t.Context()
 
-	want := []string{"audit", "boards", "goose_db_version", "integration_instances", "layouts", "passkey_users", "passkeys", "sessions", "settings", "users", "vault_secrets"}
+	want := []string{"audit", "boards", "goose_db_version", "integration_instances", "integration_state", "layouts", "passkey_users", "passkeys", "sessions", "settings", "users", "vault_secrets"}
 	if got := tables(t, s.Reader()); !slices.Equal(got, want) {
 		t.Fatalf("tables = %v, want %v", got, want)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 2 {
+	if err != nil || v != 3 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 
@@ -133,6 +133,16 @@ func TestSchemaConstraints(t *testing.T) {
 	mustExec(`INSERT INTO boards (id, slug, title, created_at, updated_at) VALUES ('b_1', 'home', 'Home', 0, 0)`)
 	mustExec(`INSERT INTO layouts (board_id, revision, format_version, document, created_at, created_by) VALUES ('b_1', 1, 1, '{"sections":[]}', 0, 'u_1')`)
 	mustFail("layout revisions are unique per board", `INSERT INTO layouts (board_id, revision, format_version, document, created_at) VALUES ('b_1', 1, 1, '{}', 0)`)
+
+	mustFail("integration state needs its instance", `INSERT INTO integration_state (instance_id, key, value, updated_at) VALUES ('i_missing', 'k', '{}', 0)`)
+	mustExec(`INSERT INTO integration_instances (id, integration, name, created_at, updated_at) VALUES ('i_1', 'opnsense', 'Router', 0, 0)`)
+	mustExec(`INSERT INTO integration_state (instance_id, key, value, updated_at) VALUES ('i_1', 'k', '{}', 0)`)
+	mustFail("one value per key", `INSERT INTO integration_state (instance_id, key, value, updated_at) VALUES ('i_1', 'k', '[]', 0)`)
+	mustExec(`DELETE FROM integration_instances WHERE id = 'i_1'`)
+	var n int
+	if err := s.Reader().QueryRowContext(ctx, `SELECT count(*) FROM integration_state`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("state rows after deleting the instance = %d, %v", n, err)
+	}
 }
 
 func TestWriteTxRollsBack(t *testing.T) {

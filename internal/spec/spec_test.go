@@ -209,6 +209,41 @@ func TestEngine(t *testing.T) {
 	}
 }
 
+// An old release often lacks an endpoint: when a repair already holds on
+// what was read before the 404, it wins over "the API changed".
+func TestRepairBeforeMissingEndpoint(t *testing.T) {
+	up := &widgets{version: "9.9", healthy: true}
+	srv := up.serve(t)
+	h := integrationtest.New(t)
+	gone := map[string]any{"url": srv.URL + "/base", "site": "gone"} // /base/api/gone/stats is a 404
+	inst := h.Connect(mustParse(t, base), gone, map[string]string{"token": "t"})
+	code, _, msg := integration.Classify(inst.Sync(t.Context(), integrationtest.Watched))
+	if code != integration.CodeUnsupportedVersion || msg != "version 9.9 is too new" {
+		t.Fatalf("repair before a 404: %s %q", code, msg)
+	}
+	res := inst.Test(t.Context())
+	if res.OK || res.ErrorCode != integration.CodeUnsupportedVersion || res.Version != "9.9" {
+		t.Fatalf("test = %+v", res)
+	}
+
+	// No repair holds: the 404 is the API changing, naming the version.
+	up.mu.Lock()
+	up.version = "1.4"
+	up.mu.Unlock()
+	code, _, msg = integration.Classify(inst.Sync(t.Context(), integrationtest.Watched))
+	if code != integration.CodeAPIChanged || !strings.Contains(msg, "(detected version 1.4)") {
+		t.Fatalf("404 without a repair: %s %q", code, msg)
+	}
+
+	// A condition that needs a request the 404 cut short can't be evaluated:
+	// it's skipped, not a spec failure.
+	partial := strings.Replace(base, `'info.version == "9.9"'`, `'stats.count > 5'`, 1)
+	inst = integrationtest.New(t).Connect(mustParse(t, partial), gone, map[string]string{"token": "t"})
+	if code, _, msg := integration.Classify(inst.Sync(t.Context(), integrationtest.Watched)); code != integration.CodeAPIChanged {
+		t.Fatalf("unevaluable condition: %s %q", code, msg)
+	}
+}
+
 func TestBadHealthValue(t *testing.T) {
 	up := &widgets{version: "1.4", healthy: true, stats: `{"data":{"count":1}}`}
 	srv := up.serve(t)

@@ -1,0 +1,29 @@
+{
+  "data": [
+    {
+      "upid": "UPID:jupiter:00002201:05F5E400:00000000:6AC0D220:verificationjob:store\\x2d2\\x3averify\\x2dweekly:root@pam:",
+      "node": "localhost",
+      "pid": 8705,
+      "pstart": 100000768,
+      "starttime": 1791021600,
+      "worker_type": "verificationjob",
+      "worker_id": "store-2:verify-weekly",
+      "user": "root@pam",
+      "endtime": 1791029040,
+      "status": "verification failed - please check the log for details"
+    },
+    {
+      "upid": "UPID:jupiter:00002003:05F5E103:00000000:6AC0B600:garbage_collection:pve.lab.example:root@pam:",
+      "node": "localhost",
+      "pid": 8195,
+      "pstart": 100000003,
+      "starttime": 1791014400,
+      "worker_type": "garbage_collection",
+      "worker_id": "pve.lab.example",
+      "user": "root@pam",
+      "endtime": 1791015540,
+      "status": "WARNINGS: 2"
+    }
+  ],
+  "total": 2
+}

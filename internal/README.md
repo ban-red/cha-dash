@@ -110,6 +110,8 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `DELETE /api/integrations/instances/{id}` | owner | `204`. Removes the row, its facts, and its vault entries no other instance references |
 | `POST /api/integrations/test` | owner | `{"integration","config","secrets"}`, or unsaved edits of a saved instance: `{"instance_id","config"?,"secrets"?}` (secrets not sent come from the vault) → `200 {"ok","version","latency_ms","grants","warnings","error","certificate"?}`. Saves nothing. `grants` are `[{"name","access":"read\|write\|rw\|admin","write","detail"?}]`; `error` is `{"code","message"}` or `null`; `certificate` is `{"sha256"}` of the leaf the server presented |
 | `POST /api/integrations/instances/{id}/test` | owner | The same result for the saved config. In `tofu` mode with no pin yet, the certificate seen is pinned |
+| `POST /api/integrations/authorize/{integration}` | owner | Start a sign-in flow for an integration with an `Authorizer` (Plex's PIN) → `200 {"id","code","url","expires_at","interval_s"}`; 422 `no_sign_in` without one. Flows live in memory (at most 32, 30 minutes each) and always verify TLS |
+| `GET /api/integrations/authorize/{integration}/{id}` | owner | `{"status":"pending"\|"expired"\|"failed"\|"done"}`; `done` carries `secrets` (write-only fields only) exactly once, then the flow is forgotten |
 | `GET /api/integrations/instances/{id}/diagnostics` | owner | A bundle for bug reports, as an attachment: hub and manifest versions, the instance (secrets as `{"set"}`), schedule, TLS mode and pin, fact counts and the last 20 attempts. No secret values |
 | `GET /api/demo` | owner | Demo mode only: `{"enabled":true,"now":RFC 3339,"seed":n}`. `now` is the simulated time |
 | `POST /api/demo/incidents/{id}/fix` | owner | Demo mode only: presses the incident's suggested action → `202 {"id"}`. `404` unknown incident, `409` not open yet, already fixing or resolved. Progress arrives on the `inbox` topic |
@@ -190,6 +192,8 @@ What wave 5 integrations must do:
 - **IDs and config keys** from [07 · v0.1](../docs/plan/07-v0.1.md#instance-config-keys). Identifiers (`token_id`, `username`) are plain string properties; only passwords, keys and tokens are `integration.Secret` (write-only).
 - **Connect without I/O**; read the config with `cfg.Decode` or `cfg.String`. Secrets arrive resolved.
 - **Use `d.HTTP`** (or `d.NewHTTPClient`, e.g. with a `Session` for cookie logins) for every request, so the TLS policy, timeouts, the response cap and same-origin redirects apply. Put keys in headers, never in paths.
+- **State across restarts** goes in `d.State` (`Load`/`Save` of small JSON values, at most 64 KiB each), backed by the `integration_state` table and deleted with the instance; an unsaved config under test gets an in-memory one. OPNsense keeps its 30-day WAN totals there. Never put secrets in it.
+- **A Unix socket** (Docker's `unix://`) is `HTTPOptions.UnixSocket` on `d.NewHTTPClient`.
 - **Return errors from `Sync`** and let the runtime classify them: `CheckResponse` for HTTP status, `&integration.AuthError{Field: …}` for an auth failure reported inside a 200 (say which secret when you know), `&integration.RepairError{Code: integration.CodeAPIChanged, …}` for a vanished endpoint or `CodeUnsupportedVersion`, `&integration.ConfigError{…}` for a config that can't work. Don't retry or sleep: the coordinator backs off.
 - **Publish complete scopes** with `d.Emit.Replace(scope, facts)`: resources (namespaced, stable IDs), relations (`d.Emit.Self()` `monitors` what you read), metrics (keys like the simulator's, unknown as `integration.Unknown()`, never 0). Use one scope, or one per refresh rate.
 - **Respect the interest.** `want.Watched` false means nobody's looking: report health, skip the expensive parts. Set `Manifest.Poll` (interval while watched, idle interval, timeout) to the spike's polling plan.
@@ -237,7 +241,9 @@ repairs:
 ```
 
 A 401 or 403 is an auth Repair; a 404 or 410 is an `api_changed` Repair that
-names the version the spec detected so far. Responses must be JSON and at most
+names the version the spec detected so far, unless one of the spec's repairs
+already holds on what was read before it (an old release without the
+endpoint is `unsupported_version`, not "the API changed"). Responses must be JSON and at most
 1 MiB. Expressions are compiled at load, so a typo fails registration (and
 `go test ./specs`), not a sync.
 

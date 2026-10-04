@@ -15,10 +15,14 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/coder/websocket"
 
 	"dash.cha.sh/internal/integration"
 )
@@ -287,6 +291,106 @@ func TestResponseCap(t *testing.T) {
 		t.Fatalf("at the cap: %v", err)
 	}
 }
+
+func TestUnixSocket(t *testing.T) {
+	// A short path: macOS caps socket paths at 104 bytes, and t.TempDir's
+	// are long.
+	dir, err := os.MkdirTemp("", "cd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "d.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, r.Host+" "+r.URL.Path+" "+r.Header.Get("User-Agent"))
+	})}
+	go srv.Serve(ln)
+	t.Cleanup(func() { srv.Close() })
+
+	c := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{UnixSocket: sock}})
+	resp, err := c.Get("http://docker/_ping")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if got := string(b); got != "docker /_ping "+UserAgent() {
+		t.Fatalf("over the socket: %q", got)
+	}
+	// Nothing listening: a refusal like any other, not a hang.
+	gone := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{UnixSocket: filepath.Join(dir, "none.sock")}})
+	if err := get(gone, "http://docker/_ping"); code(err) != integration.CodeUnreachable {
+		t.Fatalf("missing socket: %v (%s)", err, code(err))
+	}
+}
+
+// TestWebSocket: a WebSocket dialled through an instance client gets the
+// client's session and keeps working past the response cap, which applies
+// to bodies, not to an upgraded connection.
+func TestWebSocket(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Session") != "tok" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		conn, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.CloseNow()
+		for range 3 {
+			if err := conn.Write(r.Context(), websocket.MessageText, make([]byte, 1024)); err != nil {
+				return
+			}
+		}
+		conn.Close(websocket.StatusNormalClosure, "")
+	}))
+	defer srv.Close()
+	c := client(t, ClientOptions{MaxBody: 1024, HTTPOptions: integration.HTTPOptions{Session: fixedSession("tok")}})
+	conn, _, err := websocket.Dial(t.Context(), srv.URL, &websocket.DialOptions{HTTPClient: c.Client})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+	for i := range 3 {
+		if _, b, err := conn.Read(t.Context()); err != nil || len(b) != 1024 {
+			t.Fatalf("message %d: %d bytes, %v", i, len(b), err)
+		}
+	}
+}
+
+// TestUnaskedUpgrade: a 101 answer to a request that didn't ask to upgrade
+// keeps the response cap.
+func TestUnaskedUpgrade(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, err := http.NewResponseController(w).Hijack()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf.WriteString("HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+		buf.Write(make([]byte, 4096))
+		buf.Flush()
+	}))
+	defer srv.Close()
+	resp, err := client(t, ClientOptions{MaxBody: 1024}).Get(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if _, err := io.ReadAll(resp.Body); !errors.Is(err, ErrResponseTooLarge) {
+		t.Fatalf("status %d, read err %v; want the cap", resp.StatusCode, err)
+	}
+}
+
+type fixedSession string
+
+func (fixedSession) Login(context.Context, *http.Client) error { return nil }
+func (s fixedSession) Apply(r *http.Request)                   { r.Header.Set("X-Session", string(s)) }
 
 // session logs in with a fake form login that hands out a token.
 type session struct {

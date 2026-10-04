@@ -3,7 +3,7 @@
 import { computed } from 'vue';
 import type { PlacedSection } from '@chadash/layout';
 import { fmtInt, plural } from '../lib/format';
-import { byKind, value } from '../model/graph';
+import { byKind, resolve, value } from '../model/graph';
 import { useLive } from '../stores/live';
 
 const { section } = defineProps<{ section: Pick<PlacedSection, 'id' | 'title'> }>();
@@ -14,7 +14,8 @@ const meta = computed(() => {
   if (!g) return '';
   switch (section.id) {
     case 'home': {
-      const people = value(live.metrics.value, 'app:homeassistant', 'people_home');
+      const ha = resolve(live.graph.value, 'app:homeassistant');
+      const people = ha ? value(live.metrics.value, ha.id, 'people_home') : null;
       const cams = byKind(g, 'camera').length;
       return [people !== null ? `${fmtInt(people)} ${people === 1 ? 'person' : 'people'} home` : '', cams ? plural(cams, 'camera') : ''].filter(Boolean).join(' · ');
     }

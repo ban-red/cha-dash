@@ -114,6 +114,33 @@ export function testConnection(
   return api<TestResult>('/api/integrations/test', { method: 'POST', body: target });
 }
 
+/** A started sign-in (POST /api/integrations/authorize/{integration}). */
+export interface AuthStart {
+  id: string;
+  code: string;
+  url: string;
+  expires_at: string;
+  interval_s: number;
+}
+
+/** A sign-in's progress. `secrets` come once, with `done`, and go only into the form. */
+export interface AuthStatus {
+  status: 'pending' | 'done' | 'expired' | 'failed';
+  expires_at?: string;
+  secrets?: Record<string, string>;
+  error?: { code: string; message: string };
+}
+
+/** Start an integration's sign-in flow (Plex's PIN). */
+export function beginAuthorize(integration: string): Promise<AuthStart> {
+  return api<AuthStart>(`/api/integrations/authorize/${encodeURIComponent(integration)}`, { method: 'POST' });
+}
+
+/** Check on a sign-in. */
+export function pollAuthorize(integration: string, id: string): Promise<AuthStatus> {
+  return api<AuthStatus>(`/api/integrations/authorize/${encodeURIComponent(integration)}/${encodeURIComponent(id)}`);
+}
+
 /** For tests. */
 export function resetIntegrations(): void {
   Object.assign(integrations, { catalog: [], instances: [], catalogStatus: 'idle', instancesStatus: 'idle', error: '' });

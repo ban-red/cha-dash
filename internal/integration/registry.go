@@ -47,6 +47,9 @@ func (r *Registry) Register(i Integration) error {
 	if err := ValidateManifest(m); err != nil {
 		return err
 	}
+	if _, ok := i.(Authorizer); ok != (len(m.AuthorizeFields()) > 0) {
+		return fmt.Errorf("integration %q: a field marked x-chadash-authorize and implementing Authorizer go together", m.ID)
+	}
 	if m.Engine == "" {
 		m.Engine = EngineGo
 	}

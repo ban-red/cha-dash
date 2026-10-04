@@ -88,25 +88,48 @@ func (in *instance) fetch(ctx context.Context) (map[string]any, string, error) {
 				env[r.Name] = map[string]any{}
 				continue
 			}
+			// An endpoint that's gone is often the version's doing (an old
+			// release without it): a repair that already holds on what was
+			// read so far says so better than "the API changed". Conditions
+			// that can't be evaluated on part of the data are skipped.
+			var re *integration.RepairError
+			if errors.As(err, &re) && re.Code == integration.CodeAPIChanged {
+				if rerr, _ := in.repair(fill(env, in.s.f.Requests)); rerr != nil {
+					return env, in.versionOf(env), rerr
+				}
+			}
 			return env, in.versionOf(env), err
 		}
 		env[r.Name] = vals
 	}
 	version := in.versionOf(env)
+	rerr, err := in.repair(env)
+	if err != nil {
+		return env, version, err
+	}
+	if rerr != nil {
+		return env, version, rerr
+	}
+	return env, version, nil
+}
+
+// repair returns the first of the spec's repairs whose condition holds, or
+// nil. The second result is a condition or message that failed to evaluate.
+func (in *instance) repair(env map[string]any) (*integration.RepairError, error) {
 	for _, rp := range in.s.repairs {
 		hit, err := run(rp.when, env)
 		if err != nil {
-			return env, version, specErr("repair condition", err)
+			return nil, specErr("repair condition", err)
 		}
 		if b, _ := hit.(bool); b {
 			msg, err := run(rp.msg, env)
 			if err != nil {
-				return env, version, specErr("repair message", err)
+				return nil, specErr("repair message", err)
 			}
-			return env, version, &integration.RepairError{Code: rp.code, Message: fmt.Sprint(msg)}
+			return &integration.RepairError{Code: rp.code, Message: fmt.Sprint(msg)}, nil
 		}
 	}
-	return env, version, nil
+	return nil, nil
 }
 
 func (in *instance) versionOf(env map[string]any) string {

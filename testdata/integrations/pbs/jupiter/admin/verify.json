@@ -1,0 +1,15 @@
+{
+  "data": [
+    {
+      "id": "verify-weekly",
+      "store": "store-2",
+      "schedule": "sat 04:00",
+      "ignore-verified": true,
+      "outdated-after": 30,
+      "next-run": 1791626400,
+      "last-run-state": "verification failed - please check the log for details",
+      "last-run-endtime": 1791029040,
+      "last-run-upid": "UPID:jupiter:00002201:05F5E400:00000000:6AC0D220:verificationjob:store\\x2d2\\x3averify\\x2dweekly:root@pam:"
+    }
+  ]
+}

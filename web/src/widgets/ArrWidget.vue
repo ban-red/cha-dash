@@ -9,7 +9,7 @@ import Tile from '../components/Tile.vue';
 import Glyph from '../components/marks/Glyph.vue';
 import Sparkline from '../components/marks/Sparkline.vue';
 import { fmtInt, since } from '../lib/format';
-import { label, placeOf, series } from '../model/graph';
+import { label, placeOf, resolve, series } from '../model/graph';
 import { glyphFor, tileStatus } from '../model/status';
 import { normalizeHealth, resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
@@ -17,13 +17,14 @@ import { useLive } from '../stores/live';
 const { size, target = '' } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
 
-const app = computed(() => live.graph.value?.resources[target]);
-const queue = computed(() => series(live.metrics.value, target, 'queue') ?? series(live.metrics.value, target, 'queued'));
-const wanted = computed(() => series(live.metrics.value, target, 'wanted'));
+const app = computed(() => resolve(live.graph.value, target));
+const id = computed(() => app.value?.id ?? target);
+const queue = computed(() => series(live.metrics.value, id.value, 'queue') ?? series(live.metrics.value, id.value, 'queued'));
+const wanted = computed(() => series(live.metrics.value, id.value, 'wanted'));
 const health = computed(() => normalizeHealth(app.value));
 const status = computed(() => tileStatus(health.value, app.value));
 const q = computed(() => queue.value?.value ?? null);
-const place = computed(() => placeOf(live.graph.value, target));
+const place = computed(() => placeOf(live.graph.value, id.value));
 const tone = computed(() => (status.value === 'attention' ? 'attn' : status.value === 'down' ? 'down' : 'neutral'));
 </script>
 

@@ -45,6 +45,14 @@ func TestDogfoodPlan(t *testing.T) {
 	t.Run("sections in order with column hints", func(t *testing.T) {
 		// Homepage renders settings.layout's groups first, in that order, so
 		// Apps (label-only) sits between Data and Archive/Backup.
+		arr := func(integ string) string { // queue tiles are bound to their instance
+			for _, in := range p.Instances {
+				if in.Integration == integ {
+					return "arr@" + integ + ":" + in.ID + "/app"
+				}
+			}
+			return "no " + integ + " instance"
+		}
 		want := []struct {
 			id, title string
 			span      int
@@ -57,7 +65,7 @@ func TestDogfoodPlan(t *testing.T) {
 				"service@homepage:servers/jupiter", "service@homepage:servers/jupiternas",
 				"service@homepage:servers/jupiternascockpit"}},
 			{"services", "Services", 5, []string{"traefik", "uptimekuma"}},
-			{"media", "Media", 5, []string{"plex", "arr@app:radarr", "arr@app:sonarr", "service@homepage:media/bazarr"}},
+			{"media", "Media", 5, []string{"plex", arr("radarr"), arr("sonarr"), "service@homepage:media/bazarr"}},
 			{"data", "", 2, []string{"calendar", "service@homepage:data/tautulli"}},
 			{"apps", "Apps", 4, []string{}},
 			{"archive-backup", "Archive/Backup", 4, []string{"service@homepage:archive-backup/linkding", "service@homepage:archive-backup/hoarder-karakeep"}},

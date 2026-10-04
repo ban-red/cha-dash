@@ -1,0 +1,16 @@
+[
+  [
+    {
+      "entity_id": "sensor.coffee_machine_energy",
+      "state": "152900",
+      "last_changed": "2026-10-02T21:59:30.004112+00:00"
+    }
+  ],
+  [
+    {
+      "entity_id": "sensor.house_energy",
+      "state": "18226.36",
+      "last_changed": "2026-10-02T21:59:58.391823+00:00"
+    }
+  ]
+]

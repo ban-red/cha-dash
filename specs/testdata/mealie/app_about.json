@@ -1,0 +1,1 @@
+{"production":true,"version":"3.3.0","demoStatus":false,"allowSignup":false,"defaultGroupSlug":"home","defaultHouseholdSlug":"family","enableOidc":false,"oidcRedirect":false,"oidcProviderName":"OAuth","allowPasswordLogin":true,"tokenTime":48}

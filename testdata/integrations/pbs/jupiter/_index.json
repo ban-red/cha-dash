@@ -1,0 +1,52 @@
+{
+  "instance": "jupiter",
+  "synthetic": true,
+  "captured_at": "2026-10-04T01:30Z",
+  "requests": [
+    {
+      "path": "/version",
+      "file": "version.json",
+      "status": 200
+    },
+    {
+      "path": "/access/permissions",
+      "file": "access/permissions.json",
+      "status": 200
+    },
+    {
+      "path": "/status/datastore-usage",
+      "file": "status/datastore-usage.json",
+      "status": 200
+    },
+    {
+      "path": "/admin/datastore",
+      "file": "admin/datastore.json",
+      "status": 200
+    },
+    {
+      "path": "/admin/gc",
+      "file": "admin/gc.json",
+      "status": 200
+    },
+    {
+      "path": "/admin/prune",
+      "file": "admin/prune.json",
+      "status": 200
+    },
+    {
+      "path": "/admin/verify",
+      "file": "admin/verify.json",
+      "status": 200
+    },
+    {
+      "path": "/nodes/localhost/status",
+      "file": "nodes/localhost/status.json",
+      "status": 200
+    },
+    {
+      "path": "/nodes/localhost/tasks?errors=1&limit=1000&since=1790991000",
+      "file": "nodes/localhost/tasks.json",
+      "status": 200
+    }
+  ]
+}

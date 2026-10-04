@@ -66,7 +66,7 @@ func TestSeerr(t *testing.T) {
 	}
 	r, ok := h.Resource("seerr:i_test/app")
 	if !ok || r.Kind != "app" || r.Name != "Test" || r.State != "running" || r.Health != integration.HealthOK ||
-		r.Attrs["version"] != "2.7.3" || r.Attrs["update_available"] != false {
+		r.Attrs["type"] != "seerr" || r.Attrs["version"] != "2.7.3" || r.Attrs["update_available"] != false {
 		t.Fatalf("resource = %+v", r)
 	}
 	if links := r.Attrs["links"].([]any); links[0].(map[string]any)["url"] != srv.URL+"/seerr/" {

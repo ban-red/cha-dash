@@ -1,0 +1,29 @@
+{
+  "photos": 44040,
+  "videos": 2401,
+  "usage": 292379898675,
+  "usagePhotos": 270475565465,
+  "usageVideos": 21904333210,
+  "usageByUser": [
+    {
+      "userId": "00000000-0000-4000-8000-000000000001",
+      "userName": "Lab Admin",
+      "photos": 32040,
+      "videos": 1901,
+      "usage": 238692807475,
+      "usagePhotos": 222157183385,
+      "usageVideos": 16535624090,
+      "quotaSizeInBytes": null
+    },
+    {
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "userName": "Lab Member",
+      "photos": 12000,
+      "videos": 500,
+      "usage": 53687091200,
+      "usagePhotos": 48318382080,
+      "usageVideos": 5368709120,
+      "quotaSizeInBytes": 214748364800
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+# Linkding: how many bookmarks and tags the token's user keeps.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test: linkding_test.go, against
+# testdata/linkding/ (synthetic). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: linkding
+  name: Linkding
+  icon: linkding
+  version: 0.1.0
+  tier: bronze
+  capabilities: [bookmarks.library]
+
+config:
+  token: { type: secret, title: API token, required: true, description: "Settings → Integrations → REST API" }
+
+source:
+  headers:
+    Authorization: "Token {{ secret.token }}"
+  timeout: 10s
+
+every: 5m
+
+# The lists are paginated: limit=1 keeps each answer small, and count is the
+# total either way.
+requests:
+  server:
+    path: /health # public
+    extract:
+      version: version
+      status: status
+  bookmarks:
+    path: /api/bookmarks/
+    query: { limit: "1" }
+    extract:
+      count: count
+  archived:
+    path: /api/bookmarks/archived/
+    query: { limit: "1" }
+    extract:
+      count: count
+  tags:
+    path: /api/tags/
+    query: { limit: "1" }
+    extract:
+      count: count
+
+version: server.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: 'server.status == nil || server.status == "healthy" ? "ok" : "attention"'
+    reason: 'server.status == nil || server.status == "healthy" ? "" : "Linkding reports its health as " + string(server.status)'
+    attrs:
+      type: '"linkding"'
+      version: server.version
+      archived: archived.count
+      tags: tags.count
+    caps: [bookmarks.library]
+    links:
+      - { title: Linkding, url: config.url }
+
+metrics:
+  # Every bookmark, archived ones included, like Karakeep's count.
+  - { resource: app, key: bookmarks, value: 'bookmarks.count == nil ? nil : bookmarks.count + (archived.count ?? 0)', unit: count, max: 1000000, band: [0, 100000] }

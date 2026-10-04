@@ -56,6 +56,8 @@ type Manager struct {
 	ctx    context.Context // nil until Start
 	cancel context.CancelFunc
 	bg     sync.WaitGroup
+
+	auth authState // sign-in flows (authorize.go)
 }
 
 // managed is one instance.
@@ -359,6 +361,7 @@ func (m *Manager) buildDeps(mi *managed, gen int, cfg integration.Config, log *s
 		o.UpdateConfig = func(ctx context.Context, mutate func(map[string]any)) error {
 			return m.updateConfig(ctx, mi, gen, mutate)
 		}
+		o.State = dbState{st: m.o.Store, id: cfg.InstanceID, now: m.o.Now}
 	}
 	return NewDeps(o)
 }
@@ -374,20 +377,26 @@ type DepsOptions struct {
 	// UpdateConfig persists a change to the non-secret config, TOFU pins
 	// included. Nil drops such changes (an unsaved config under test).
 	UpdateConfig func(ctx context.Context, mutate func(map[string]any)) error
+	// State is the instance's key-value state. Nil: one in memory, dropped
+	// with the Deps (an unsaved config under test).
+	State integration.State
 }
 
 // NewDeps builds the Deps an instance gets: its own HTTP client with the
 // config's TLS policy (a TOFU pin is recorded through UpdateConfig), a
-// factory for more clients, the emitter, the log and the clock. The Manager
-// uses it, and so can contract tests (see integrationtest). It returns the
-// instance's own client, and a release func that logs out of sessions and
-// closes every client made.
+// factory for more clients, the emitter, the log, the clock and the
+// instance's key-value state. The Manager uses it, and so can contract tests
+// (see integrationtest). It returns the instance's own client, and a release
+// func that logs out of sessions and closes every client made.
 func NewDeps(o DepsOptions) (integration.Deps, *Client, func()) {
 	if o.Log == nil {
 		o.Log = slog.New(slog.DiscardHandler)
 	}
 	if o.Now == nil {
 		o.Now = time.Now
+	}
+	if o.State == nil {
+		o.State = NewMemoryState()
 	}
 	cfg, log := o.Config, o.Log
 	var mu sync.Mutex
@@ -451,6 +460,7 @@ func NewDeps(o DepsOptions) (integration.Deps, *Client, func()) {
 			}
 			return o.UpdateConfig(ctx, mutate)
 		},
+		State: o.State,
 	}
 	release := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

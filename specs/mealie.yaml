@@ -1,0 +1,66 @@
+# Mealie: the household's recipes, categories and tags.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test: mealie_test.go, against
+# testdata/mealie/ (synthetic). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: mealie
+  name: Mealie
+  icon: mealie
+  version: 0.1.0
+  tier: bronze
+  capabilities: [recipes.library]
+
+config:
+  token: { type: secret, title: API token, required: true, description: "User profile → API Tokens" }
+
+source:
+  headers:
+    Authorization: "Bearer {{ secret.token }}"
+  timeout: 10s
+
+every: 5m
+
+requests:
+  about:
+    path: /api/app/about # public: the version, before the token is checked
+    extract:
+      version: version
+  stats:
+    path: /api/households/statistics # Mealie 2.0 and later; 1.x had /api/groups/statistics
+    extract:
+      recipes: totalRecipes
+      categories: totalCategories
+      tags: totalTags
+      tools: totalTools
+      users: totalUsers
+
+version: 'about.version == nil ? nil : trimPrefix(about.version, "v")'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    attrs:
+      type: '"mealie"'
+      version: 'about.version == nil ? nil : trimPrefix(about.version, "v")'
+      recipes: stats.recipes
+      categories: stats.categories
+      tags: stats.tags
+      tools: stats.tools
+    caps: [recipes.library]
+    links:
+      - { title: Mealie, url: config.url }
+
+metrics:
+  - { resource: app, key: recipes, value: stats.recipes, unit: count, max: 100000, band: [0, 1000] }
+
+repairs:
+  # A 1.x server has no /api/households/statistics: the engine evaluates this
+  # on the 404, so the Repair names the version instead of "the API changed".
+  - when: 'about.version != nil && about.version matches "^v?[01]\\."'
+    code: unsupported_version
+    message: '"Mealie " + about.version + " is older than this spec supports (2.0 or later, which counts recipes per household)."'

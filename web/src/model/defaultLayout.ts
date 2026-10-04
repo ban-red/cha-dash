@@ -18,7 +18,7 @@
  */
 import { createBoard, type Board, type ItemInput, type SectionInput } from '@chadash/layout';
 import { WIDGETS, itemId } from './widgets';
-import { byKind, calendar, resources } from './graph';
+import { appsOfType, byKind, calendar, resolve, resources } from './graph';
 import type { GraphDoc } from './types';
 
 function item(type: string, target?: string): ItemInput {
@@ -28,7 +28,7 @@ function item(type: string, target?: string): ItemInput {
 }
 
 export function defaultBoard(g: GraphDoc | undefined, nowMs = Date.now()): Board {
-  const has = (id: string) => Boolean(g?.resources[id]);
+  const has = (id: string) => Boolean(resolve(g, id));
   const kinds = new Set(resources(g).map((r) => r.kind));
   const any = !g; // no graph: show every singleton
   const sections: SectionInput[] = [];
@@ -52,7 +52,7 @@ export function defaultBoard(g: GraphDoc | undefined, nowMs = Date.now()): Board
 
   const media: ItemInput[] = [];
   if (any || has('app:plex')) media.push(item('plex'));
-  for (const id of ['app:sonarr', 'app:radarr']) if (has(id)) media.push(item('arr', id));
+  for (const type of ['sonarr', 'radarr']) for (const app of appsOfType(g, type)) media.push(item('arr', app.id));
   if (any || has('app:qbittorrent')) media.push(item('downloads'));
   if (any || calendar(g, nowMs - 7 * 86_400_000).length > 0) media.push(item('calendar'));
   if (media.length) sections.push({ id: 'media', title: 'Media', span: 8, items: media });

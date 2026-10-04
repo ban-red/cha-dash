@@ -1,0 +1,25 @@
+{
+  "count": 1180,
+  "next": "https://links.lab.example/api/bookmarks/?limit=1&offset=1",
+  "previous": null,
+  "results": [
+    {
+      "id": 1204,
+      "url": "https://docs.lab.example/runbooks/backups",
+      "title": "Backup runbook",
+      "description": "",
+      "notes": "",
+      "website_title": "Backups · Lab docs",
+      "website_description": "How the lab's backups run and how to restore them.",
+      "web_archive_snapshot_url": "",
+      "favicon_url": null,
+      "preview_image_url": null,
+      "is_archived": false,
+      "unread": false,
+      "shared": false,
+      "tag_names": ["homelab", "backups"],
+      "date_added": "2026-10-02T19:41:07.000000Z",
+      "date_modified": "2026-10-02T19:41:07.000000Z"
+    }
+  ]
+}

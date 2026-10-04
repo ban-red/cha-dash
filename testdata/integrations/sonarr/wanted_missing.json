@@ -1,0 +1,24 @@
+{
+  "page": 1,
+  "pageSize": 1,
+  "sortKey": "episodes.airDateUtc",
+  "sortDirection": "descending",
+  "totalRecords": 21,
+  "records": [
+    {
+      "seriesId": 12,
+      "tvdbId": 9000101,
+      "episodeFileId": 0,
+      "seasonNumber": 3,
+      "episodeNumber": 4,
+      "title": "Low Tide",
+      "airDate": "2026-10-02",
+      "airDateUtc": "2026-10-02T22:00:00Z",
+      "runtime": 45,
+      "hasFile": false,
+      "monitored": true,
+      "unverifiedSceneNumbering": false,
+      "id": 4012
+    }
+  ]
+}

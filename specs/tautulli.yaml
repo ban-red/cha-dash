@@ -1,0 +1,88 @@
+# Tautulli: what's playing on Plex right now, as Tautulli sees it.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test: tautulli_test.go, against
+# testdata/tautulli/ (synthetic). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: tautulli
+  name: Tautulli
+  icon: tautulli
+  version: 0.1.0
+  tier: bronze
+  capabilities: [media.sessions]
+
+config:
+  api_key: { type: secret, title: API key, required: true, description: "Settings → Web Interface → API key" }
+
+source:
+  timeout: 10s
+
+every: 30s
+
+# Tautulli's API takes the key as the apikey query parameter. The engine
+# allows secrets there, and errors and logs never show it.
+requests:
+  info:
+    path: /api/v2
+    query: { apikey: "{{ secret.api_key }}", cmd: get_tautulli_info }
+    extract:
+      result: response.result
+      message: response.message
+      version: response.data.tautulli_version
+      branch: response.data.tautulli_branch
+      install_type: response.data.tautulli_install_type
+  activity:
+    path: /api/v2
+    query: { apikey: "{{ secret.api_key }}", cmd: get_activity }
+    extract:
+      streams: response.data.stream_count # a string, "2"
+      direct_play: response.data.stream_count_direct_play
+      direct_stream: response.data.stream_count_direct_stream
+      transcode: response.data.stream_count_transcode
+      bandwidth_kbps: response.data.total_bandwidth
+      wan_kbps: response.data.wan_bandwidth
+  plex:
+    path: /api/v2
+    query: { apikey: "{{ secret.api_key }}", cmd: server_status }
+    optional: true
+    extract:
+      connected: response.data.connected
+
+version: 'info.version == nil ? nil : trimPrefix(info.version, "v")'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: 'plex.connected == false ? "attention" : "ok"'
+    reason: 'plex.connected == false ? "Tautulli has lost its connection to the Plex server" : ""'
+    attrs:
+      type: '"tautulli"'
+      version: 'info.version == nil ? nil : trimPrefix(info.version, "v")'
+      branch: info.branch
+      install_type: info.install_type
+      plex_connected: plex.connected
+    caps: [media.sessions]
+    links:
+      - { title: Tautulli, url: config.url }
+
+metrics:
+  - { resource: app, key: streams, value: 'activity.streams == nil ? nil : float(activity.streams)', unit: count, max: 10, band: [0, 3] }
+  - { resource: app, key: streams.transcode, value: 'activity.transcode == nil ? nil : float(activity.transcode)', unit: count, max: 10, band: [0, 2] }
+  - { resource: app, key: bandwidth.mbps, value: 'activity.bandwidth_kbps == nil ? nil : float(activity.bandwidth_kbps) / 1000', unit: Mb/s, max: 1000, band: [0, 100] }
+
+repairs:
+  # Tautulli answers a wrong key with a 401 (an auth Repair before any of
+  # this runs); these catch an error reported inside a 200.
+  - when: 'info.result == "error" && string(info.message ?? "") contains "apikey"'
+    code: auth
+    message: '"Tautulli rejected the API key."'
+  - when: 'info.result != nil && info.result != "success"'
+    code: api_changed
+    message: '"Tautulli answered get_tautulli_info with an error: " + string(info.message ?? "no message")'
+  - when: 'info.version != nil && info.version matches "^v?[01]\\."'
+    code: unsupported_version
+    message: '"Tautulli " + info.version + " is older than this spec supports (2.0 or later)."'

@@ -9,7 +9,7 @@ import type { SizeId } from '@chadash/layout';
 import Tile from '../components/Tile.vue';
 import Glyph from '../components/marks/Glyph.vue';
 import { fmtInt, plural } from '../lib/format';
-import { attr, placeOf, series } from '../model/graph';
+import { attr, integrationOf, placeOf, resolve, series } from '../model/graph';
 import { glyphFor, tileStatus } from '../model/status';
 import { normalizeHealth, resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
@@ -18,17 +18,18 @@ import { useUi } from '../stores/ui';
 const { size } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
 const ui = useUi();
-const ID = 'app:plex';
+const WANT = 'app:plex';
 
-const app = computed(() => live.graph.value?.resources[ID]);
-const integration = computed(() => live.graph.value?.resources['integration:plex']);
-const streams = computed(() => series(live.metrics.value, ID, 'streams'));
-const repair = computed(() => live.repairs.value.find((i) => i.target === 'integration:plex'));
+const app = computed(() => resolve(live.graph.value, WANT));
+const ID = computed(() => app.value?.id ?? WANT);
+const integration = computed(() => integrationOf(live.graph.value, app.value?.id) ?? live.graph.value?.resources['integration:plex']);
+const streams = computed(() => series(live.metrics.value, ID.value, 'streams'));
+const repair = computed(() => live.repairs.value.find((i) => i.target === (integration.value?.id ?? 'integration:plex')));
 const needsRepair = computed(() => Boolean(repair.value) || normalizeHealth(integration.value).status === 'repair');
 const health = computed(() => normalizeHealth(app.value));
 const status = computed(() => tileStatus(health.value, app.value));
 const n = computed(() => streams.value?.value ?? null);
-const place = computed(() => placeOf(live.graph.value, ID));
+const place = computed(() => placeOf(live.graph.value, ID.value));
 const tag = computed(() => (status.value !== 'ok' ? health.value.reason : n.value ? plural(n.value, 'stream') : 'idle'));
 </script>
 

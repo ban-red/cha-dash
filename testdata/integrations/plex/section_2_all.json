@@ -1,0 +1,20 @@
+{
+  "MediaContainer": {
+    "size": 0,
+    "totalSize": 318,
+    "offset": 0,
+    "allowSync": true,
+    "art": "/:/resources/show-fanart.jpg",
+    "identifier": "com.plexapp.plugins.library",
+    "librarySectionID": 2,
+    "librarySectionTitle": "TV Shows",
+    "librarySectionUUID": "00000000-0000-4000-8000-000000000002",
+    "mediaTagPrefix": "/system/bundle/media/flags/",
+    "mediaTagVersion": 1759400000,
+    "nocache": true,
+    "thumb": "/:/resources/show.png",
+    "title1": "TV Shows",
+    "title2": "All Shows",
+    "viewGroup": "show"
+  }
+}

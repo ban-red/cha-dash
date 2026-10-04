@@ -95,6 +95,7 @@ provide(FORM, {
   touched,
   focus: focusPath,
   disabled: computed(() => saving.value || deleting.value),
+  integration: computed(() => (entry.value ? { id: entry.value.id, name: entry.value.name } : undefined)),
 });
 
 type TestState = { state: 'idle' } | { state: 'running' } | { state: 'done'; result: TestResult } | { state: 'error'; message: string };

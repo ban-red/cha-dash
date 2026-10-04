@@ -92,9 +92,14 @@ func NewHTTPClient(opts ClientOptions) (*Client, error) {
 	if timeout <= 0 {
 		timeout = DefaultRequestTimeout
 	}
+	dialer := &net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}
+	dial := dialer.DialContext
+	if path := opts.UnixSocket; path != "" {
+		dial = func(ctx context.Context, _, _ string) (net.Conn, error) { return dialer.DialContext(ctx, "unix", path) }
+	}
 	tr := &http.Transport{
 		Proxy:                 nil,
-		DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		DialContext:           dial,
 		TLSClientConfig:       tc,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ResponseHeaderTimeout: timeout,
@@ -270,6 +275,13 @@ func (d *decorate) RoundTrip(req *http.Request) (*http.Response, error) {
 			d.guard.setObserved(integration.Fingerprint(cve.UnverifiedCertificates[0]))
 		}
 		return nil, err
+	}
+	if resp.StatusCode == http.StatusSwitchingProtocols && r.Header.Get("Upgrade") != "" {
+		// The body is the upgraded connection (a WebSocket): it must stay
+		// writable, and the protocol library caps its messages instead.
+		// Only a request that asked to upgrade skips the cap, so a server
+		// can't stream past it by answering a plain GET with a 101.
+		return resp, nil
 	}
 	resp.Body = &limitedBody{rc: resp.Body, remaining: d.maxBody}
 	return resp, nil

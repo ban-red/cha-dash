@@ -158,7 +158,10 @@ func TestWidgetsList(t *testing.T) {
 	if got := instanceNames(res.Plan); !slices.Equal(got, []string{"sonarr:Arr", "radarr:Arr (radarr)"}) {
 		t.Fatalf("instances = %v", got)
 	}
-	if got := tileIDs(res.Plan); !slices.Equal(got, []string{"media|arr@app:sonarr|Arr", "media|arr@app:radarr|Arr"}) {
+	arr := func(i int) string {
+		return "arr@" + res.Plan.Instances[i].Integration + ":" + res.Plan.Instances[i].ID + "/app"
+	}
+	if got := tileIDs(res.Plan); !slices.Equal(got, []string{"media|" + arr(0) + "|Arr", "media|" + arr(1) + "|Arr"}) {
 		t.Fatalf("tiles = %v", got)
 	}
 	if len(secrets) != 2 || len(res.Unmapped) != 0 {
@@ -452,7 +455,9 @@ func TestDuplicateNamesAndSingletons(t *testing.T) {
 	if got := instanceNames(res.Plan); !slices.Equal(got, []string{"sonarr:Sonarr", "sonarr:Sonarr (Anime)"}) {
 		t.Fatalf("instances = %v", got)
 	}
-	if got := tileIDs(res.Plan); !slices.Equal(got, []string{"media|arr@app:sonarr|Sonarr", "anime|service@homepage:anime/sonarr|Sonarr"}) {
+	// Each Sonarr gets its own queue tile, bound to its instance.
+	arr := func(i int) string { return "arr@sonarr:" + res.Plan.Instances[i].ID + "/app" }
+	if got := tileIDs(res.Plan); !slices.Equal(got, []string{"media|" + arr(0) + "|Sonarr", "anime|" + arr(1) + "|Sonarr"}) {
 		t.Fatalf("tiles = %v", got)
 	}
 	if res.Plan.Instances[0].ID == res.Plan.Instances[1].ID {

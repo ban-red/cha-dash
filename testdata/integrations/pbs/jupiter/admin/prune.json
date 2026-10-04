@@ -1,0 +1,40 @@
+{
+  "data": [
+    {
+      "id": "prune-mars",
+      "store": "mars",
+      "disable": true,
+      "schedule": "daily",
+      "last-run-state": "OK",
+      "last-run-endtime": 1789354860,
+      "last-run-upid": "UPID:jupiter:00001F00:05E00000:00000000:6AA76330:prunejob:mars\\x3aprune\\x2dmars:root@pam:",
+      "keep-daily": 7,
+      "keep-weekly": 4,
+      "keep-monthly": 6
+    },
+    {
+      "id": "prune-pluto",
+      "store": "pluto.lab.example",
+      "schedule": "daily",
+      "next-run": 1791099000,
+      "last-run-state": "OK",
+      "last-run-endtime": 1791012641,
+      "last-run-upid": "UPID:jupiter:00002101:05F5E200:00000000:6AC0AEF8:prunejob:pluto.lab.example\\x3aprune\\x2dpluto:root@pam:",
+      "keep-daily": 7,
+      "keep-weekly": 4,
+      "keep-monthly": 6
+    },
+    {
+      "id": "prune-store-2",
+      "store": "store-2",
+      "schedule": "daily",
+      "next-run": 1791099000,
+      "last-run-state": "OK",
+      "last-run-endtime": 1791012652,
+      "last-run-upid": "UPID:jupiter:00002102:05F5E300:00000000:6AC0AEF8:prunejob:store\\x2d2\\x3aprune\\x2dstore\\x2d2:root@pam:",
+      "keep-daily": 7,
+      "keep-weekly": 4,
+      "keep-monthly": 6
+    }
+  ]
+}

@@ -20,6 +20,8 @@ export interface FormContext {
   focus: Ref<string | undefined>;
   /** Fields are read-only (the hub is unreachable). */
   disabled: Ref<boolean>;
+  /** The integration the form configures, for its sign-in flow. */
+  integration?: ComputedRef<{ id: string; name: string } | undefined>;
 }
 
 export const FORM: InjectionKey<FormContext> = Symbol('schema-form');

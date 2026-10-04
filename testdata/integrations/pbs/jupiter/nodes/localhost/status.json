@@ -1,0 +1,46 @@
+{
+  "data": {
+    "memory": {
+      "total": 67322441728,
+      "used": 41875623936,
+      "free": 2147483648
+    },
+    "swap": {
+      "total": 0,
+      "used": 0,
+      "free": 0
+    },
+    "root": {
+      "total": 8256049152,
+      "used": 2363727872,
+      "avail": 5470908416
+    },
+    "uptime": 1210000,
+    "loadavg": [
+      1.12,
+      0.98,
+      0.91
+    ],
+    "kversion": "Linux 6.12.24-Unraid #1 SMP PREEMPT_DYNAMIC",
+    "current-kernel": {
+      "sysname": "Linux",
+      "release": "6.12.24-Unraid",
+      "version": "#1 SMP PREEMPT_DYNAMIC",
+      "machine": "x86_64"
+    },
+    "cpuinfo": {
+      "model": "AMD Ryzen 9 5900X 12-Core Processor",
+      "sockets": 1,
+      "cpus": 24
+    },
+    "cpu": 0.046,
+    "wait": 0.002,
+    "info": {
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:05"
+    },
+    "boot-info": {
+      "mode": "efi",
+      "secureboot": false
+    }
+  }
+}

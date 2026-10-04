@@ -3,7 +3,7 @@
  * copy is tested without a DOM. Phrases that name an incident carry its id so
  * the page can open the Inbox on it.
  */
-import { byKind, calendar, lastBackup, value, type CalendarEntry } from './graph';
+import { byKind, calendar, lastBackup, resolve, value, type CalendarEntry } from './graph';
 import { needsYou, openProblems, openRepairs } from './inbox';
 import { normalizeHealth, type GraphDoc, type Incident, type InboxDoc, type MetricsDoc } from './types';
 
@@ -26,7 +26,7 @@ export function summarize(g: GraphDoc | undefined, m: MetricsDoc | undefined, in
   const apps = byKind(g, 'app');
   const problems = openProblems(inbox);
   const array = byKind(g, 'array')[0];
-  const ha = g?.resources['app:homeassistant'];
+  const ha = resolve(g, 'app:homeassistant');
   const peopleTotal = ha?.attrs?.['people_total'];
   return {
     ready: Boolean(g),
@@ -35,7 +35,7 @@ export function summarize(g: GraphDoc | undefined, m: MetricsDoc | undefined, in
     servicesHealthy: apps.filter((a) => normalizeHealth(a).status === 'ok').length,
     servicesTotal: apps.length,
     cameras: byKind(g, 'camera').length,
-    peopleHome: value(m, 'app:homeassistant', 'people_home'),
+    peopleHome: ha ? value(m, ha.id, 'people_home') : null,
     peopleTotal: typeof peopleTotal === 'number' ? peopleTotal : null,
     next: calendar(g, nowMs)[0],
     lastBackup: lastBackup(g),

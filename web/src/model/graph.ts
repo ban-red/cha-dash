@@ -24,6 +24,32 @@ export function value(m: MetricsDoc | undefined, resource: string, metric: strin
   return s && typeof s.value === 'number' ? s.value : null;
 }
 
+/**
+ * The resource a widget means by `id`. The exact resource if there is one
+ * (the Demo Home's `app:plex`); otherwise, for `app:<type>`, the app a real
+ * integration instance publishes as `<type>:<instance id>/app` with
+ * `attrs.type` = <type> (the first by ID, if there are several).
+ */
+export function resolve(g: GraphDoc | undefined, id: string): Resource | undefined {
+  if (!g || !id) return undefined;
+  const exact = g.resources[id];
+  if (exact) return exact;
+  const type = /^app:([a-z0-9_-]+)$/.exec(id)?.[1];
+  return type ? appsOfType(g, type)[0] : undefined;
+}
+
+/** Every app of one integration type, by ID: `app:<type>` itself, or instances' apps. */
+export function appsOfType(g: GraphDoc | undefined, type: string): Resource[] {
+  return resources(g)
+    .filter((r) => r.kind === 'app' && (r.id === `app:${type}` || attr<string>(r, 'type') === type))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** The integration instance reporting on a resource: whoever `monitors` it. */
+export function integrationOf(g: GraphDoc | undefined, id: string | undefined): Resource | undefined {
+  return id ? incoming(g, id, 'monitors').find((r) => r.kind === 'integration') : undefined;
+}
+
 export function attr<T = unknown>(r: Resource | undefined, key: string): T | undefined {
   return r?.attrs?.[key] as T | undefined;
 }

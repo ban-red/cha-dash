@@ -181,7 +181,7 @@
                 "y": 0
               },
               {
-                "id": "arr@app:radarr",
+                "id": "arr@radarr:i_g5kql652f2lxk6rm/app",
                 "type": "arr",
                 "size": "small",
                 "supportedSizes": [
@@ -192,7 +192,7 @@
                 "y": 2
               },
               {
-                "id": "arr@app:sonarr",
+                "id": "arr@sonarr:i_s55rcerwmzzr554z/app",
                 "type": "arr",
                 "size": "small",
                 "supportedSizes": [
@@ -527,7 +527,7 @@
         }
       },
       {
-        "item_id": "arr@app:radarr",
+        "item_id": "arr@radarr:i_g5kql652f2lxk6rm/app",
         "section": "media",
         "widget": "arr",
         "size": "small",
@@ -548,7 +548,7 @@
         }
       },
       {
-        "item_id": "arr@app:sonarr",
+        "item_id": "arr@sonarr:i_s55rcerwmzzr554z/app",
         "section": "media",
         "widget": "arr",
         "size": "small",
@@ -1258,7 +1258,7 @@
       {
         "type": "runs_on",
         "instance": "i_g5kql652f2lxk6rm",
-        "tile": "arr@app:radarr",
+        "tile": "arr@radarr:i_g5kql652f2lxk6rm/app",
         "docker": "i_mg763up6m3qzsfev",
         "endpoint": "my-unraid",
         "container": "radarr",
@@ -1271,7 +1271,7 @@
       {
         "type": "runs_on",
         "instance": "i_s55rcerwmzzr554z",
-        "tile": "arr@app:sonarr",
+        "tile": "arr@sonarr:i_s55rcerwmzzr554z/app",
         "docker": "i_mg763up6m3qzsfev",
         "endpoint": "my-unraid",
         "container": "sonarr",

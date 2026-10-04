@@ -1,0 +1,19 @@
+{
+  "id": "00000000-0000-4000-8000-000000000002",
+  "name": "Lab Member",
+  "email": "member@lab.example",
+  "profileImagePath": "",
+  "avatarColor": "primary",
+  "profileChangedAt": "2026-01-12T09:30:00.000Z",
+  "storageLabel": null,
+  "shouldChangePassword": false,
+  "isAdmin": false,
+  "createdAt": "2026-01-12T09:30:00.000Z",
+  "deletedAt": null,
+  "updatedAt": "2026-09-30T12:00:00.000Z",
+  "oauthId": "",
+  "quotaSizeInBytes": 214748364800,
+  "quotaUsageInBytes": 53687091200,
+  "status": "active",
+  "license": null
+}

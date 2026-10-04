@@ -1,0 +1,71 @@
+# Karakeep (formerly Hoarder): the key's user's bookmarks, favourites,
+# archive, tags, lists and highlights.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test: karakeep_test.go, against
+# testdata/karakeep/ (synthetic). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: karakeep
+  name: Karakeep
+  icon: karakeep
+  version: 0.1.0
+  tier: bronze
+  capabilities: [bookmarks.library]
+
+config:
+  api_key: { type: secret, title: API key, required: true, description: "Settings → API Keys" }
+
+source:
+  headers:
+    Authorization: "Bearer {{ secret.api_key }}"
+  timeout: 10s
+
+every: 5m
+
+requests:
+  server:
+    path: /api/version # public; older releases don't have it
+    optional: true
+    extract:
+      version: version
+  stats:
+    path: /api/v1/users/me/stats # 0.23 and later
+    extract:
+      bookmarks: numBookmarks
+      favorites: numFavorites
+      archived: numArchived
+      tags: numTags
+      lists: numLists
+      highlights: numHighlights
+
+# "unknown" is what a build without a stamped version reports.
+version: 'server.version == nil || server.version == "unknown" ? nil : server.version'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    attrs:
+      type: '"karakeep"'
+      version: 'server.version == nil || server.version == "unknown" ? nil : server.version'
+      favorites: stats.favorites
+      archived: stats.archived
+      tags: stats.tags
+      lists: stats.lists
+      highlights: stats.highlights
+    caps: [bookmarks.library]
+    links:
+      - { title: Karakeep, url: config.url }
+
+metrics:
+  - { resource: app, key: bookmarks, value: stats.bookmarks, unit: count, max: 1000000, band: [0, 100000] }
+
+repairs:
+  # Hoarder 0.22 and earlier have no stats endpoint. When the version is known,
+  # the 404 on it becomes this instead of "the API changed".
+  - when: 'server.version != nil && server.version matches "^0\\.([0-9]|1[0-9]|2[0-2])\\."'
+    code: unsupported_version
+    message: '"Karakeep " + server.version + " is older than this spec supports (0.23 or later)."'

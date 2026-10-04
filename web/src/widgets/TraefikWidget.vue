@@ -4,21 +4,22 @@ import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Tile from '../components/Tile.vue';
 import { fmtInt } from '../lib/format';
-import { attr, byKind, placeOf, series } from '../model/graph';
+import { attr, byKind, placeOf, resolve, series } from '../model/graph';
 import { glyphFor, tileStatus } from '../model/status';
 import { normalizeHealth, resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
 
 const { size } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
-const ID = 'app:traefik';
+const WANT = 'app:traefik';
 
-const app = computed(() => live.graph.value?.resources[ID]);
-const http = computed(() => series(live.metrics.value, ID, 'http.ms'));
+const app = computed(() => resolve(live.graph.value, WANT));
+const ID = computed(() => app.value?.id ?? WANT);
+const http = computed(() => series(live.metrics.value, ID.value, 'http.ms'));
 const routes = computed(() => byKind(live.graph.value, 'route'));
 const health = computed(() => normalizeHealth(app.value));
 const status = computed(() => tileStatus(health.value, app.value));
-const place = computed(() => placeOf(live.graph.value, ID));
+const place = computed(() => placeOf(live.graph.value, ID.value));
 const routed = computed(() =>
   routes.value
     .map((r) => r.name || r.id.split('/').pop() || r.id)

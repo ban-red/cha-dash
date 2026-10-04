@@ -1,0 +1,14 @@
+{
+  "numBookmarks": 1201,
+  "numFavorites": 57,
+  "numArchived": 310,
+  "numTags": 142,
+  "numLists": 9,
+  "numHighlights": 33,
+  "bookmarksByType": {"link": 1105, "text": 61, "asset": 35},
+  "topDomains": [
+    {"domain": "docs.lab.example", "count": 40},
+    {"domain": "wiki.lab.example", "count": 22}
+  ],
+  "totalAssetSize": 734003200
+}

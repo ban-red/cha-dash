@@ -1,0 +1,12 @@
+{
+  "id": 564964751,
+  "code": "syntheticstrongpincode001",
+  "product": "Cha Dash",
+  "trusted": false,
+  "clientIdentifier": "chadash-00000000000000000000000000000000",
+  "expiresIn": 1650,
+  "createdAt": "2026-10-03T14:05:00Z",
+  "expiresAt": "2026-10-03T14:35:00Z",
+  "authToken": "synthetic-plex-token-0001",
+  "newRegistration": false
+}

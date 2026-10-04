@@ -1,0 +1,53 @@
+{
+  "indexers": [
+    {
+      "indexerId": 1,
+      "indexerName": "Open Tracker",
+      "averageResponseTime": 812,
+      "averageGrabResponseTime": 640,
+      "numberOfQueries": 18240,
+      "numberOfGrabs": 611,
+      "numberOfRssQueries": 30115,
+      "numberOfAuthQueries": 0,
+      "numberOfFailedQueries": 214,
+      "numberOfFailedGrabs": 3,
+      "numberOfFailedRssQueries": 97,
+      "numberOfFailedAuthQueries": 0
+    },
+    {
+      "indexerId": 2,
+      "indexerName": "Lab Usenet Indexer",
+      "averageResponseTime": 433,
+      "averageGrabResponseTime": 280,
+      "numberOfQueries": 9902,
+      "numberOfGrabs": 402,
+      "numberOfRssQueries": 30120,
+      "numberOfAuthQueries": 12,
+      "numberOfFailedQueries": 40,
+      "numberOfFailedGrabs": 1,
+      "numberOfFailedRssQueries": 18,
+      "numberOfFailedAuthQueries": 0
+    },
+    {
+      "indexerId": 3,
+      "indexerName": "Archive Tracker",
+      "averageResponseTime": 1544,
+      "averageGrabResponseTime": 1210,
+      "numberOfQueries": 2310,
+      "numberOfGrabs": 87,
+      "numberOfRssQueries": 11870,
+      "numberOfAuthQueries": 210,
+      "numberOfFailedQueries": 301,
+      "numberOfFailedGrabs": 6,
+      "numberOfFailedRssQueries": 520,
+      "numberOfFailedAuthQueries": 22
+    }
+  ],
+  "userAgents": [
+    {"userAgent": "Sonarr", "numberOfQueries": 21002, "numberOfGrabs": 702},
+    {"userAgent": "Radarr", "numberOfQueries": 9450, "numberOfGrabs": 398}
+  ],
+  "hosts": [
+    {"host": "10.0.11.120", "numberOfQueries": 30452, "numberOfGrabs": 1100}
+  ]
+}

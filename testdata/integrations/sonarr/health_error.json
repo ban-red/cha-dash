@@ -1,0 +1,23 @@
+[
+  {
+    "source": "DownloadClientCheck",
+    "type": "error",
+    "message": "Unable to communicate with qBittorrent. Connection refused (torrents.lab.example:443)",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#unable-to-communicate-with-download-client",
+    "id": 1
+  },
+  {
+    "source": "IndexerSearchCheck",
+    "type": "error",
+    "message": "All search-capable indexers are temporarily unavailable due to recent indexer errors",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#indexers-are-unavailable-due-to-failures",
+    "id": 2
+  },
+  {
+    "source": "UpdateCheck",
+    "type": "warning",
+    "message": "New update is available: 4.0.16.2944",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#new-update-is-available",
+    "id": 3
+  }
+]

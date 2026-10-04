@@ -35,4 +35,5 @@ docs
 design/prototypes
 spikes
 testdata
+**/testdata
 deploy

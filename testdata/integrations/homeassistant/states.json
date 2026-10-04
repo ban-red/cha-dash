@@ -1,0 +1,624 @@
+[
+  {
+    "entity_id": "sun.sun",
+    "state": "above_horizon",
+    "attributes": {
+      "next_dawn": "2026-10-04T04:41:12+00:00",
+      "next_dusk": "2026-10-03T17:28:51+00:00",
+      "elevation": 29.3,
+      "azimuth": 213.4,
+      "rising": false,
+      "friendly_name": "Sun"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1000",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "zone.home",
+    "state": "2",
+    "attributes": {
+      "latitude": 52.52,
+      "longitude": 13.405,
+      "radius": 100,
+      "passive": false,
+      "persons": [
+        "person.resident_a",
+        "person.resident_c"
+      ],
+      "editable": true,
+      "icon": "mdi:home",
+      "friendly_name": "Home"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1001",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "person.resident_a",
+    "state": "home",
+    "attributes": {
+      "editable": true,
+      "id": "resident_a",
+      "device_trackers": [
+        "device_tracker.phone_a"
+      ],
+      "user_id": "3f0c2a8e5b1d4c6f9a7e1b2c3d4e5f60",
+      "friendly_name": "Resident A"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1002",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "person.resident_b",
+    "state": "not_home",
+    "attributes": {
+      "editable": true,
+      "id": "resident_b",
+      "device_trackers": [
+        "device_tracker.phone_b"
+      ],
+      "user_id": null,
+      "friendly_name": "Resident B"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1003",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "person.resident_c",
+    "state": "home",
+    "attributes": {
+      "editable": true,
+      "id": "resident_c",
+      "device_trackers": [],
+      "user_id": null,
+      "friendly_name": "Resident C"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1004",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.kitchen",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 180,
+      "friendly_name": "Kitchen",
+      "supported_features": 40
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1005",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.living_room",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 180,
+      "friendly_name": "Living room",
+      "supported_features": 40
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1006",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.hallway",
+    "state": "off",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": null,
+      "brightness": null,
+      "friendly_name": "Hallway",
+      "supported_features": 40
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1007",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.bedroom",
+    "state": "off",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": null,
+      "brightness": null,
+      "friendly_name": "Bedroom",
+      "supported_features": 40
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1008",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.porch",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "friendly_name": "Porch",
+      "supported_features": 40
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1009",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.desk",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 180,
+      "friendly_name": "Desk",
+      "supported_features": 40
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1010",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.downstairs",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 180,
+      "friendly_name": "Downstairs",
+      "supported_features": 40,
+      "entity_id": [
+        "light.kitchen",
+        "light.living_room",
+        "light.hallway"
+      ],
+      "icon": "mdi:lightbulb-group"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1011",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.lounge",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 180,
+      "friendly_name": "Lounge",
+      "supported_features": 40,
+      "is_hue_group": true,
+      "hue_scenes": [],
+      "hue_type": "room",
+      "lights": [
+        "Desk"
+      ],
+      "dynamics": false
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1012",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.coffee_machine",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Coffee machine"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1013",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.server_rack",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Server rack"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1014",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.garden_pump",
+    "state": "off",
+    "attributes": {
+      "friendly_name": "Garden pump"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1015",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.fan",
+    "state": "off",
+    "attributes": {
+      "friendly_name": "Fan"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1016",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.all_plugs",
+    "state": "on",
+    "attributes": {
+      "entity_id": [
+        "switch.coffee_machine",
+        "switch.server_rack",
+        "switch.garden_pump"
+      ],
+      "friendly_name": "All plugs",
+      "icon": "mdi:power-socket-eu"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1017",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.house_power",
+    "state": "1234",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "House power"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1018",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.coffee_machine_power",
+    "state": "15.2",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Coffee machine power"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1019",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.solar_power",
+    "state": "0.8",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "kW",
+      "device_class": "power",
+      "friendly_name": "Solar power"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1020",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.grid_power_net",
+    "state": "-350",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Grid power (net)"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1021",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.fridge_power",
+    "state": "unavailable",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Fridge power"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1022",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.house_energy",
+    "state": "18234.56",
+    "attributes": {
+      "state_class": "total_increasing",
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "House energy"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1023",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.coffee_machine_energy",
+    "state": "153200",
+    "attributes": {
+      "state_class": "total_increasing",
+      "unit_of_measurement": "Wh",
+      "device_class": "energy",
+      "friendly_name": "Coffee machine energy"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1024",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.house_energy_daily",
+    "state": "8.25",
+    "attributes": {
+      "source": "sensor.house_energy",
+      "status": "collecting",
+      "last_period": "11.87",
+      "last_valid_state": "8.25",
+      "meter_period": "daily",
+      "cron pattern": null,
+      "last_reset": "2026-10-02T22:00:00.000210+00:00",
+      "state_class": "total_increasing",
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "icon": "mdi:counter",
+      "friendly_name": "House energy today"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1025",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.fridge_energy",
+    "state": "unknown",
+    "attributes": {
+      "state_class": "total_increasing",
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Fridge energy"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1026",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.outdoor_temperature",
+    "state": "14.6",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "°C",
+      "device_class": "temperature",
+      "friendly_name": "Outdoor temperature"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1027",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.front_door",
+    "state": "off",
+    "attributes": {
+      "device_class": "door",
+      "friendly_name": "Front door"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1028",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "automation.lights_at_sunset",
+    "state": "on",
+    "attributes": {
+      "id": "1700000000001",
+      "last_triggered": "2026-10-02T17:31:02.551203+00:00",
+      "mode": "single",
+      "current": 0,
+      "friendly_name": "Lights at sunset"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1029",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "input_boolean.guest_mode",
+    "state": "off",
+    "attributes": {
+      "editable": true,
+      "icon": "mdi:account-group",
+      "friendly_name": "Guest mode"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1030",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "update.home_assistant_core_update",
+    "state": "off",
+    "attributes": {
+      "installed_version": "2026.9.3",
+      "latest_version": "2026.9.3",
+      "title": "Home Assistant Core",
+      "friendly_name": "Home Assistant Core Update"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JA3B7Q8YV2K5N0M4R6T9W1031",
+      "parent_id": null,
+      "user_id": null
+    }
+  }
+]

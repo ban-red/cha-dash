@@ -1,0 +1,23 @@
+{
+  "page": 1,
+  "pageSize": 1,
+  "sortKey": "movieMetadata.sortTitle",
+  "sortDirection": "ascending",
+  "totalRecords": 7,
+  "records": [
+    {
+      "title": "A Map of Small Islands",
+      "originalTitle": "A Map of Small Islands",
+      "sortTitle": "map of small islands",
+      "status": "released",
+      "inCinemas": "2026-03-13T00:00:00Z",
+      "digitalRelease": "2026-05-29T00:00:00Z",
+      "year": 2026,
+      "hasFile": false,
+      "monitored": true,
+      "isAvailable": true,
+      "tmdbId": 9100001,
+      "id": 301
+    }
+  ]
+}

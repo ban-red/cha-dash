@@ -1,0 +1,62 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "addedAt": 1757000000,
+        "duration": 2700000,
+        "grandparentTitle": "The Lighthouse Keepers",
+        "index": 4,
+        "key": "/library/metadata/40120",
+        "librarySectionID": "2",
+        "librarySectionTitle": "TV Shows",
+        "parentIndex": 3,
+        "ratingKey": "40120",
+        "sessionKey": "17",
+        "title": "Low Tide",
+        "type": "episode",
+        "viewOffset": 1210000,
+        "Media": [{"id": 88001, "videoResolution": "1080", "container": "mkv", "Part": [{"id": 99001, "decision": "directplay"}]}],
+        "User": {"id": "1", "title": "household-owner"},
+        "Player": {
+          "address": "10.0.11.61",
+          "device": "Android TV",
+          "local": true,
+          "machineIdentifier": "synthetic-player-0001",
+          "platform": "Android",
+          "product": "Plex for Android (TV)",
+          "state": "playing",
+          "title": "Living room TV"
+        },
+        "Session": {"id": "synthetic-session-0017", "bandwidth": 12000, "location": "lan"}
+      },
+      {
+        "addedAt": 1759000000,
+        "duration": 5880000,
+        "key": "/library/metadata/51001",
+        "librarySectionID": "1",
+        "librarySectionTitle": "Movies",
+        "ratingKey": "51001",
+        "sessionKey": "18",
+        "title": "Sintel",
+        "type": "movie",
+        "viewOffset": 300000,
+        "year": 2010,
+        "Media": [{"id": 88002, "videoResolution": "4k", "container": "mkv", "Part": [{"id": 99002, "decision": "transcode"}]}],
+        "User": {"id": "3", "title": "household-guest"},
+        "Player": {
+          "address": "203.0.113.24",
+          "device": "iPhone",
+          "local": false,
+          "machineIdentifier": "synthetic-player-0002",
+          "platform": "iOS",
+          "product": "Plex for iOS",
+          "state": "paused",
+          "title": "Phone"
+        },
+        "Session": {"id": "synthetic-session-0018", "bandwidth": 4000, "location": "wan"},
+        "TranscodeSession": {"key": "/transcode/sessions/synthetic-0018", "throttled": false, "progress": 12.5, "speed": 1.8, "videoDecision": "transcode", "audioDecision": "copy", "sourceVideoCodec": "hevc", "videoCodec": "h264"}
+      }
+    ]
+  }
+}

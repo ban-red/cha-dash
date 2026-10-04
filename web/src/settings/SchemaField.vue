@@ -13,6 +13,7 @@
  */
 import { computed, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
+import AuthorizeButton from './AuthorizeButton.vue';
 import { choices, effective, fieldId, fieldLabel, kindOf, newItem, type JsonSchema } from '../lib/schema';
 import { useForm } from './form';
 
@@ -194,6 +195,7 @@ function removeItem(i: number): void {
         {{ reveal ? 'Hide' : 'Show' }}
       </button>
     </div>
+    <AuthorizeButton v-if="kind === 'secret' && schema['x-chadash-authorize'] === true && typeof k === 'string'" :label="label" />
 
     <input
       v-else-if="kind === 'number' || kind === 'integer'"

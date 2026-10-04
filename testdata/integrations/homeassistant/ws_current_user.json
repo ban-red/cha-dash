@@ -1,0 +1,24 @@
+{
+  "id": 1,
+  "type": "result",
+  "success": true,
+  "result": {
+    "id": "3f0c2a8e5b1d4c6f9a7e1b2c3d4e5f60",
+    "name": "Dashboard",
+    "is_owner": false,
+    "is_admin": true,
+    "credentials": [
+      {
+        "auth_provider_type": "homeassistant",
+        "auth_provider_id": null
+      }
+    ],
+    "mfa_modules": [
+      {
+        "id": "totp",
+        "name": "Authenticator app",
+        "enabled": false
+      }
+    ]
+  }
+}

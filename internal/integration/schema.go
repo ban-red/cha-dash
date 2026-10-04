@@ -21,8 +21,9 @@ import (
 // it) and validates decoded JSON. Supported keywords: type, title,
 // description, properties, required, additionalProperties (false only),
 // items, enum, default, format (uri, hostname), pattern, minLength,
-// maxLength, minimum, maximum, minItems, maxItems and writeOnly. Anything a
-// schema can't say goes in a ConfigValidator.
+// maxLength, minimum, maximum, minItems, maxItems and writeOnly, plus the
+// extension x-chadash-authorize. Anything a schema can't say goes in a
+// ConfigValidator.
 type Schema struct {
 	Type        string // object, array, string, integer, number, boolean
 	Title       string
@@ -46,6 +47,10 @@ type Schema struct {
 	// WriteOnly marks a secret: kept in the vault, never returned. Only
 	// top-level string properties may be write-only.
 	WriteOnly bool
+	// Authorize marks a secret the integration's sign-in flow can fill in
+	// (see Authorizer): "x-chadash-authorize": true, so the form offers a
+	// "Sign in with …" button. Only on write-only properties.
+	Authorize bool
 
 	re *regexp.Regexp // Pattern, compiled by Check
 }
@@ -181,6 +186,9 @@ func (s *Schema) check(path string, top bool) error {
 	}
 	if s.WriteOnly && (!top || s.Type != "string") {
 		return fail("writeOnly is only allowed on top-level string properties")
+	}
+	if s.Authorize && !s.WriteOnly {
+		return fail("x-chadash-authorize is only allowed on write-only properties")
 	}
 	if len(s.Properties) > 0 && s.Type != "object" {
 		return fail("properties on a %s", s.Type)
@@ -507,6 +515,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	set("minItems", s.MinItems, s.MinItems != nil)
 	set("maxItems", s.MaxItems, s.MaxItems != nil)
 	set("writeOnly", true, s.WriteOnly)
+	set("x-chadash-authorize", true, s.Authorize)
 	if err != nil {
 		return nil, err
 	}

@@ -159,7 +159,7 @@ type env struct {
 	srv  *httptest.Server
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T, extra ...integration.Integration) *env {
 	t.Helper()
 	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "chadash.db"))
 	if err != nil {
@@ -176,8 +176,10 @@ func newEnv(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	reg := integration.NewRegistry()
-	if err := reg.Register(echo{}); err != nil {
-		t.Fatal(err)
+	for _, i := range append([]integration.Integration{echo{}}, extra...) {
+		if err := reg.Register(i); err != nil {
+			t.Fatal(err)
+		}
 	}
 	logs := &lockedBuffer{}
 	set := topics.New(graph.New(), time.Now())

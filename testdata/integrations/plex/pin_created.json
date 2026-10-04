@@ -1,0 +1,26 @@
+{
+  "id": 564964751,
+  "code": "syntheticstrongpincode001",
+  "product": "Cha Dash",
+  "trusted": false,
+  "qr": "https://plex.tv/api/v2/pins/qr/syntheticstrongpincode001",
+  "clientIdentifier": "chadash-00000000000000000000000000000000",
+  "location": {
+    "code": "XX",
+    "european_union_member": false,
+    "continent_code": "XX",
+    "country": "Example",
+    "city": "Example",
+    "time_zone": "Etc/UTC",
+    "postal_code": "00000",
+    "in_privacy_restricted_country": false,
+    "in_privacy_restricted_region": false,
+    "subdivisions": "Example",
+    "coordinates": "0.0, 0.0"
+  },
+  "expiresIn": 1800,
+  "createdAt": "2026-10-03T14:05:00Z",
+  "expiresAt": "2026-10-03T14:35:00Z",
+  "authToken": null,
+  "newRegistration": null
+}

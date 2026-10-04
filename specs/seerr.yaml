@@ -50,6 +50,7 @@ resources:
     health: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? "attention" : "ok"'
     reason: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? string(counts.pending) + " requests are waiting for approval" : ""'
     attrs:
+      type: '"seerr"'
       version: status.version
       update_available: status.update_available
     caps: [media.requests]

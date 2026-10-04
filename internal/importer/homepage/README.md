@@ -45,7 +45,7 @@ Integration IDs and config keys are the ones in [07 · v0.1 → Instance config 
 | `uptimekuma` | `uptimekuma` | `url`, `slug` | `key` (optional) | `uptimekuma` | |
 | `unraid` | `unraid` | `url` | `key` → `api_key` | `service` | `pool1`–`pool4` |
 | `plex` | `plex` | `url` | `key` → `token` | `plex` | |
-| `sonarr`, `radarr` | same | `url` | `key` → `api_key` | `arr@app:<id>` | `enableQueue` → `queue` |
+| `sonarr`, `radarr` | same | `url` | `key` → `api_key` | `arr@<id>:<instance id>/app` | `enableQueue` → `queue` |
 | `prowlarr`, `bazarr` | same | `url` | `key` → `api_key` | `service` | |
 | `tautulli` | `tautulli` | `url` | `key` → `api_key` | `service` | `enableUser`, `showEpisodeNumber`, `expandOneStreamToTwoRows` |
 | `qbittorrent` | `qbittorrent` | `url`, `username` | `password` | `downloads` | `enableLeechProgress` → `leech_progress` |
@@ -73,7 +73,7 @@ The layout document follows `packages/layout` version 1 exactly (`version`, `col
 | `header: false` | No `title` (an untitled section). |
 | A group only in `settings.layout` | An empty section plus a `label_section` discovery entry: Homepage fills it from `homepage.*` container labels (Apps on the dogfood home). |
 
-Tile widget types come from `web/src/model/widgets.ts`. A catalog widget that shows one app is a singleton (`plex`, `cameras`, …) or bound to its app (`arr@app:sonarr`); a second one of a kind falls back to the generic tile. Everything without a catalog widget is a **generic service tile**, `service@homepage:<section id>/<entry slug>`, sizes `small` (default) and `wide`. The web catalog doesn't have `service` yet. Each tile's default size shrinks to the closest supported size that fits its section (same height first, as `closestFit` does); if none fits, the section widens to the narrowest supported size and the summary says so.
+Tile widget types come from `web/src/model/widgets.ts`. A catalog widget that shows one app is a singleton (`plex`, `cameras`, …) or bound to its instance's app (`arr@sonarr:<instance id>/app`, so each Sonarr gets its own queue tile); a second singleton of a kind falls back to the generic tile. Everything without a catalog widget is a **generic service tile**, `service@homepage:<section id>/<entry slug>`, sizes `small` (default) and `wide`. The web catalog doesn't have `service` yet. Each tile's default size shrinks to the closest supported size that fits its section (same height first, as `closestFit` does); if none fits, the section widens to the narrowest supported size and the summary says so.
 
 Tile metadata the layout document can't carry (name, icon, href, description, options, the instance or check it shows, calendar sources) is in the plan's `tiles` and in the stored import record.
 

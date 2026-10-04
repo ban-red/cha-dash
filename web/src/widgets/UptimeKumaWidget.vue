@@ -7,18 +7,19 @@ import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Tile from '../components/Tile.vue';
 import { fmtInt } from '../lib/format';
-import { attr, placeOf, series } from '../model/graph';
+import { attr, placeOf, resolve, series } from '../model/graph';
 import { glyphFor, tileStatus } from '../model/status';
 import { normalizeHealth, resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
 
 const { size } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
-const ID = 'app:uptimekuma';
+const WANT = 'app:uptimekuma';
 
-const app = computed(() => live.graph.value?.resources[ID]);
-const up = computed(() => series(live.metrics.value, ID, 'monitors.up'));
-const down = computed(() => series(live.metrics.value, ID, 'monitors.down'));
+const app = computed(() => resolve(live.graph.value, WANT));
+const ID = computed(() => app.value?.id ?? WANT);
+const up = computed(() => series(live.metrics.value, ID.value, 'monitors.up'));
+const down = computed(() => series(live.metrics.value, ID.value, 'monitors.down'));
 const total = computed(() => attr<number>(app.value, 'monitors') ?? ((up.value?.value ?? 0) + (down.value?.value ?? 0) || null));
 const health = computed(() => normalizeHealth(app.value));
 const downNow = computed(() => down.value?.value ?? 0);
@@ -43,7 +44,7 @@ const upPct = computed(() => {
   const known = h.filter((v): v is number => typeof v === 'number');
   return known.length ? Math.round((known.filter((v) => v === 0).length / known.length) * 1000) / 10 : null;
 });
-const place = computed(() => placeOf(live.graph.value, ID));
+const place = computed(() => placeOf(live.graph.value, ID.value));
 const tag = computed(() => (downNow.value > 0 ? `${downNow.value} monitor${downNow.value === 1 ? '' : 's'} down` : status.value === 'ok' ? '' : health.value.reason));
 </script>
 

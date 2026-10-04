@@ -24,10 +24,13 @@ import (
 //	POST   /api/integrations/test                       {integration, config, secrets} or {instance_id, config?, secrets?} → test result
 //	POST   /api/integrations/instances/{id}/test        test result
 //	GET    /api/integrations/instances/{id}/diagnostics diagnostics, secrets redacted
+//	POST   /api/integrations/authorize/{integration}      start a sign-in → {id, code, url, expires_at, interval_s}
+//	GET    /api/integrations/authorize/{integration}/{id} {status: pending|done|expired|failed, expires_at?, secrets?, error?}
 //
 // An instance is {id, integration, name, enabled, status, version, last_ok,
 // last_error, warnings, config, secrets, created_at, updated_at}; secrets
-// only ever appear as {"<field>": {"set": bool}}.
+// only ever appear as {"<field>": {"set": bool}}, except that a finished
+// sign-in hands its secrets to the form that started it, once.
 func (m *Manager) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler) {
 	h := func(f http.HandlerFunc) http.Handler { return wrap(f) }
 	mux.Handle("GET /api/integrations/catalog", h(m.handleCatalog))
@@ -39,6 +42,8 @@ func (m *Manager) Register(mux *http.ServeMux, wrap func(http.Handler) http.Hand
 	mux.Handle("POST /api/integrations/test", h(m.handleTest))
 	mux.Handle("POST /api/integrations/instances/{id}/test", h(m.handleTestSaved))
 	mux.Handle("GET /api/integrations/instances/{id}/diagnostics", h(m.handleDiagnostics))
+	mux.Handle("POST /api/integrations/authorize/{integration}", h(m.handleAuthBegin))
+	mux.Handle("GET /api/integrations/authorize/{integration}/{id}", h(m.handleAuthPoll))
 }
 
 // invalidBody is a 422 with the fields that failed.

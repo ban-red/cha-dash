@@ -8,7 +8,7 @@ import type { SizeId } from '@chadash/layout';
 import Tile from '../components/Tile.vue';
 import CameraScene from './CameraScene.vue';
 import { fmtInt, hhmm } from '../lib/format';
-import { attr, byKind, label, placeOf, value } from '../model/graph';
+import { attr, byKind, label, placeOf, resolve, value } from '../model/graph';
 import { tileStatus, worst } from '../model/status';
 import { normalizeHealth, resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
@@ -24,7 +24,7 @@ const cams = computed(() =>
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || label(a).localeCompare(label(b));
   }),
 );
-const frigate = computed(() => live.graph.value?.resources['app:frigate']);
+const frigate = computed(() => resolve(live.graph.value, 'app:frigate'));
 const shown = computed(() => cams.value.slice(0, 3));
 const detections = computed(() => cams.value.reduce((n, c) => n + (value(live.metrics.value, c.id, 'detections.24h') ?? 0), 0));
 const status = computed(() => worst(cams.value.map((c) => tileStatus(normalizeHealth(c), c))));
@@ -55,7 +55,7 @@ const layout = computed(() => (size === 'wide' ? 'row3' : size === 'hero' ? 'her
     :size="size"
     name="Cameras"
     mono="FR"
-    :context="frigate ? `Frigate on ${placeOf(live.graph.value, 'app:frigate') ?? 'the LAN'}` : ''"
+    :context="frigate ? `Frigate on ${placeOf(live.graph.value, frigate.id) ?? 'the LAN'}` : ''"
     :href="resourceLinks(frigate)[0]?.url"
     :status="status"
     :tag="cams.length ? `${online} recording` : ''"
