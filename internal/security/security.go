@@ -16,6 +16,11 @@
 // own state, so a change re-applies to every open finding at once.
 //
 // The posture is one settings row, SettingsKey, holding a JSON string.
+//
+// The same settings page holds the step-up rule (StepUpKey): how people
+// confirm destructive actions, a passkey or the password fallback
+// (auth.StepUpMode). auth reads it through StepUp; changing it is a T3
+// change, so it needs a step-up under the rule in force.
 package security
 
 import (
@@ -29,6 +34,8 @@ import (
 	"sync"
 	"time"
 
+	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/store"
@@ -99,37 +106,110 @@ type Service struct {
 	log *slog.Logger
 	now func() time.Time
 
-	set  sync.Mutex // serialises Set: the row and the subscribers change in order
-	mu   sync.Mutex
-	cur  Posture
-	subs []func(Posture)
+	set    sync.Mutex // serialises Set: the row and the subscribers change in order
+	mu     sync.Mutex
+	cur    Posture
+	stepUp auth.StepUpMode
+	subs   []func(Posture)
 }
 
-// New loads the posture. An unreadable or unknown row reads as Default.
+// New loads the posture and the step-up rule. An unreadable or unknown row
+// reads as its default.
 func New(ctx context.Context, st *store.Store, log *slog.Logger) (*Service, error) {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	s := &Service{st: st, log: log, now: time.Now, cur: Default}
-	var raw string
-	err := st.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, SettingsKey).Scan(&raw)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-	case err != nil:
+	s := &Service{st: st, log: log, now: time.Now, cur: Default, stepUp: auth.DefaultStepUpMode}
+	if v, ok, err := s.load(ctx, SettingsKey); err != nil {
 		return nil, fmt.Errorf("security: reading the posture: %w", err)
-	default:
-		var v string
-		p, ok := Posture(""), false
-		if json.Unmarshal([]byte(raw), &v) == nil {
-			p, ok = Parse(v)
+	} else if ok {
+		if p, known := Parse(v); known {
+			s.cur = p
+		} else {
+			log.Warn("security: unknown posture; using the default", "value", v, "default", Default)
 		}
-		if !ok {
-			log.Warn("security: unknown posture; using the default", "value", raw, "default", Default)
-			break
+	}
+	if v, ok, err := s.load(ctx, StepUpKey); err != nil {
+		return nil, fmt.Errorf("security: reading the step-up rule: %w", err)
+	} else if ok {
+		if m, known := auth.ParseStepUpMode(v); known {
+			s.stepUp = m
+		} else {
+			log.Warn("security: unknown step-up rule; using the default", "value", v, "default", auth.DefaultStepUpMode)
 		}
-		s.cur = p
 	}
 	return s, nil
+}
+
+// load reads a settings row holding a JSON string. A row that isn't one
+// reads as the string "?", which no setting accepts.
+func (s *Service) load(ctx context.Context, key string) (string, bool, error) {
+	var raw string
+	err := s.st.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, key).Scan(&raw)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", false, nil
+	case err != nil:
+		return "", false, err
+	}
+	var v string
+	if json.Unmarshal([]byte(raw), &v) != nil {
+		return raw, true, nil
+	}
+	return v, true, nil
+}
+
+func (s *Service) save(ctx context.Context, key, value string) error {
+	b, _ := json.Marshal(value)
+	_, err := s.st.Writer().ExecContext(ctx, `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+		key, string(b), s.now().UnixMilli())
+	return err
+}
+
+// StepUpKey is the settings row the step-up rule lives in, a JSON string.
+const StepUpKey = "security.step_up"
+
+// StepUpModes describes the step-up rules for the settings page.
+var StepUpModes = []StepUpLevel{
+	{ID: auth.StepUpPasskeyOrPassword, Label: "Passkey, or password if no passkey", Description: "Destructive actions ask for a passkey. Accounts without one re-enter their password.", Default: true},
+	{ID: auth.StepUpPasskeyOnly, Label: "Passkey only", Description: "Destructive actions need a passkey. Accounts without one can't run them until they add one."},
+}
+
+// StepUpLevel describes a step-up rule.
+type StepUpLevel struct {
+	ID          auth.StepUpMode `json:"id"`
+	Label       string          `json:"label"`
+	Description string          `json:"description"`
+	Default     bool            `json:"default,omitempty"`
+}
+
+// StepUp is the current step-up rule; auth.Service.SetStepUpMode reads it.
+func (s *Service) StepUp() auth.StepUpMode {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stepUp
+}
+
+// SetStepUp stores the step-up rule. Whether the caller may change it (a
+// T3 change, so it needs a step-up) is decided by the handler, through authz.
+func (s *Service) SetStepUp(ctx context.Context, m auth.StepUpMode) error {
+	if _, ok := auth.ParseStepUpMode(string(m)); !ok {
+		return fmt.Errorf("%w %q", ErrInvalid, m)
+	}
+	s.set.Lock()
+	defer s.set.Unlock()
+	if err := s.save(ctx, StepUpKey, string(m)); err != nil {
+		return fmt.Errorf("security: saving the step-up rule: %w", err)
+	}
+	s.mu.Lock()
+	changed := s.stepUp != m
+	s.stepUp = m
+	s.mu.Unlock()
+	if changed {
+		s.log.Warn("step-up rule changed", "step_up", m)
+	}
+	return nil
 }
 
 // Posture is the current posture.
@@ -155,10 +235,7 @@ func (s *Service) Set(ctx context.Context, p Posture) error {
 	}
 	s.set.Lock()
 	defer s.set.Unlock()
-	b, _ := json.Marshal(string(p))
-	if _, err := s.st.Writer().ExecContext(ctx, `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-		SettingsKey, string(b), s.now().UnixMilli()); err != nil {
+	if err := s.save(ctx, SettingsKey, string(p)); err != nil {
 		return fmt.Errorf("security: saving the posture: %w", err)
 	}
 	s.mu.Lock()
@@ -177,16 +254,21 @@ func (s *Service) Set(ctx context.Context, p Posture) error {
 
 // View is the API's answer.
 type View struct {
-	Posture Posture `json:"posture"`
-	Levels  []Level `json:"levels"`
+	Posture     Posture         `json:"posture"`
+	Levels      []Level         `json:"levels"`
+	StepUp      auth.StepUpMode `json:"step_up"`
+	StepUpModes []StepUpLevel   `json:"step_up_modes"`
 }
 
-func (s *Service) view() View { return View{Posture: s.Posture(), Levels: Levels} }
+func (s *Service) view() View {
+	return View{Posture: s.Posture(), Levels: Levels, StepUp: s.StepUp(), StepUpModes: StepUpModes}
+}
 
 // Register mounts the routes:
 //
-//	GET /api/settings/security   {posture, levels: [{id, label, description, default?}]}  (read wraps it)
-//	PUT /api/settings/security   {posture} → the same; 422 for an unknown level           (write wraps it)
+//	GET /api/settings/security   {posture, levels, step_up, step_up_modes}       (read wraps it)
+//	PUT /api/settings/security   {posture?, step_up?} → the same; 422 for an     (write wraps it)
+//	                             unknown value; changing step_up needs a step-up
 func (s *Service) Register(mux *http.ServeMux, read, write func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/settings/security", read(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, s.view())
@@ -196,19 +278,51 @@ func (s *Service) Register(mux *http.ServeMux, read, write func(http.Handler) ht
 
 func (s *Service) handlePut(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Posture string `json:"posture"`
+		Posture *string `json:"posture"`
+		StepUp  *string `json:"step_up"`
 	}
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	err := s.Set(r.Context(), Posture(req.Posture))
-	switch {
-	case errors.Is(err, ErrInvalid):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", fmt.Sprintf("%q isn't a security level: use relaxed, standard or strict", req.Posture))
-	case err != nil:
-		s.log.Error("security: saving the posture failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
-	default:
-		httpx.WriteJSON(w, http.StatusOK, s.view())
+	if req.Posture == nil && req.StepUp == nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "send posture, step_up or both")
+		return
 	}
+	// Check everything before changing anything.
+	if req.Posture != nil {
+		if _, ok := Parse(*req.Posture); !ok {
+			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", fmt.Sprintf("%q isn't a security level: use relaxed, standard or strict", *req.Posture))
+			return
+		}
+	}
+	if req.StepUp != nil {
+		m, ok := auth.ParseStepUpMode(*req.StepUp)
+		if !ok {
+			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", fmt.Sprintf("%q isn't a step-up rule: use passkey_or_password or passkey_only", *req.StepUp))
+			return
+		}
+		if m != s.StepUp() {
+			// Changing how people confirm destructive actions is itself one (T3).
+			actor, _ := authz.ActorFrom(r)
+			err := authz.Decide(actor, authz.Request{Scope: "settings.security.update", Tier: authz.T3}, authz.Env{Now: s.now()})
+			if authz.WriteRefusal(w, err) {
+				return
+			}
+		}
+	}
+	if req.Posture != nil {
+		if err := s.Set(r.Context(), Posture(*req.Posture)); err != nil {
+			s.log.Error("security: saving the posture failed", "err", err)
+			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			return
+		}
+	}
+	if req.StepUp != nil {
+		if err := s.SetStepUp(r.Context(), auth.StepUpMode(*req.StepUp)); err != nil {
+			s.log.Error("security: saving the step-up rule failed", "err", err)
+			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			return
+		}
+	}
+	httpx.WriteJSON(w, http.StatusOK, s.view())
 }

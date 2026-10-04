@@ -5,30 +5,37 @@
 //	POST /api/setup            create the owner with the setup token
 //	POST /api/auth/login       password sign-in
 //	POST /api/auth/logout      sign out
-//	GET  /api/auth/session     current user and session            (session)
+//	GET  /api/auth/session     current user, session and step-up state (session)
 //	POST /api/auth/dev-login   one-click owner sign-in; -tags devlogin builds only, loopback only
 //	POST /api/auth/passkeys/login/{begin,finish}      usernameless passkey sign-in
-//	POST /api/auth/passkeys/register/{begin,finish}   add a passkey  (owner)
-//	GET  /api/auth/passkeys, PATCH|DELETE …/{id}      manage them    (owner)
+//	POST /api/auth/passkeys/register/{begin,finish}   add a passkey to your account (session)
+//	GET  /api/auth/passkeys, PATCH|DELETE …/{id}      manage your passkeys          (session)
+//	POST /api/auth/step-up/begin, POST /api/auth/step-up   confirm it's you for T3+ (session)
 //	GET  /api/version          build version                       (session)
-//	GET  /api/boards           boards; creates "Home" on first use (owner)
-//	GET  /api/boards/{id}/layout   latest layout and revision      (owner)
-//	PUT  /api/boards/{id}/layout   save at the next revision       (owner)
-//	/api/integrations/…        catalog, instances, tests, diagnostics (owner; see runtime.Manager.Register)
-//	/api/correlate/…           identity suggestions and decisions  (owner; see correlate.Correlator.Register)
-//	POST /api/import/homepage  Homepage import; ?dry_run=1 plans only (owner)
-//	GET  /api/import/homepage  the last Homepage import's record   (owner)
-//	GET  /api/export           the hub as a Home file, secrets as placeholders (owner)
-//	POST /api/export           the same with an encrypted secrets bundle (owner)
-//	POST /api/import/chadash   import a Home file; ?dry_run=1 plans only (owner)
-//	GET|PUT /api/onboarding, POST /api/onboarding/discover   first-run wizard (owner; see onboarding)
-//	GET  /api/settings/security    security posture and its levels  (session)
-//	PUT  /api/settings/security    {posture}; 422 for an unknown level (owner)
-//	GET  /api/demo             demo clock and seed; demo mode only (owner)
-//	POST /api/demo/incidents/{id}/fix   press the suggested action (owner)
+//	GET  /api/boards           boards; creates "Home" on first use (session)
+//	GET  /api/boards/{id}/layout   latest layout and revision      (session)
+//	PUT  /api/boards/{id}/layout   save at the next revision       (admin)
+//	GET|POST /api/users, PUT /api/users/{id}   users and roles     (admin; see authz.Users)
+//	POST /api/users/{id}/transfer-ownership    hand over ownership (owner, step-up)
+//	/api/integrations/…        catalog, instances, tests, diagnostics (admin; see runtime.Manager.Register)
+//	/api/correlate/…           identity suggestions and decisions  (viewer reads, admin decides)
+//	POST /api/import/homepage  Homepage import; ?dry_run=1 plans only (admin)
+//	GET  /api/import/homepage  the last Homepage import's record   (admin)
+//	GET  /api/export           the hub as a Home file, secrets as placeholders (admin)
+//	POST /api/export           the same with an encrypted secrets bundle (admin)
+//	POST /api/import/chadash   import a Home file; ?dry_run=1 plans only (admin)
+//	GET|PUT /api/onboarding, POST /api/onboarding/discover   first-run wizard (admin; see onboarding)
+//	GET  /api/settings/security    security posture, step-up rule and their options (viewer)
+//	PUT  /api/settings/security    {posture?, step_up?}; step_up needs a step-up (owner)
+//	GET  /api/demo             demo clock and seed; demo mode only (session)
+//	POST /api/demo/incidents/{id}/fix   press the suggested action (operator)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
 //	                           with the first-paint snapshot for a signed-in owner)
+//
+// Roles in parentheses are the least a route admits ("session": any signed-in
+// role). The table that decides is internal/authz/routes.go, enforced by
+// authz.Guard in front of the mux; a route without a row there is refused.
 //
 // Every response gets security headers; state-changing requests from other
 // origins are refused (net/http CrossOriginProtection), and the WebSocket
@@ -48,6 +55,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/correlate"
@@ -118,32 +126,37 @@ func New(d Deps) (http.Handler, error) {
 	mux.Handle("GET /api/version", d.Auth.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"version": buildinfo.Version, "commit": buildinfo.Commit})
 	})))
-	owner := func(h http.Handler) http.Handler { return d.Auth.Require(requireOwner(h)) }
-	boards.New(d.Store).Register(mux, owner, d.Log)
+	// session attaches the signed-in identity. Who may call each route is
+	// decided by authz.Guard, in front of the whole mux, from the table in
+	// internal/authz/routes.go: a new route needs a row there.
+	session := d.Auth.Require
+	boards.New(d.Store).Register(mux, session, d.Log)
+	authz.NewUsers(d.Auth, d.Log).Register(mux, session)
 	if d.Integrations != nil {
-		d.Integrations.Register(mux, owner)
+		d.Integrations.Register(mux, session)
 	}
 	if d.Correlator != nil {
-		d.Correlator.Register(mux, owner, d.Log)
+		d.Correlator.Register(mux, session, d.Log)
 	}
 	if d.Vault != nil {
-		wrap := owner
+		wrap := session
 		if d.Integrations != nil {
 			// An applied import writes instances directly; start them now
 			// rather than at the manager's next periodic reload.
-			wrap = func(h http.Handler) http.Handler { return owner(reloadAfter(h, d.Integrations, d.Log)) }
+			wrap = func(h http.Handler) http.Handler { return session(reloadAfter(h, d.Integrations, d.Log)) }
 		}
 		homepage.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log)
 		export.Register(mux, wrap, export.New(d.Store, d.Vault, export.Options{HubVersion: buildinfo.Version}), d.Log)
 	}
 	if d.Demo != nil {
-		d.Demo.Register(mux, owner)
+		d.Demo.Register(mux, session)
 	}
 	if d.Onboarding != nil {
-		d.Onboarding.Register(mux, owner)
+		d.Onboarding.Register(mux, session)
 	}
 	if d.Security != nil {
-		d.Security.Register(mux, d.Auth.Require, owner)
+		d.Security.Register(mux, session, session)
+		d.Auth.SetStepUpMode(d.Security.StepUp)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")
@@ -178,7 +191,7 @@ func New(d Deps) (http.Handler, error) {
 		httpx.Error(w, http.StatusForbidden, "cross_origin", "cross-origin request refused")
 	}))
 
-	var h http.Handler = mux
+	var h http.Handler = authz.Guard(mux, d.Auth, d.Log)
 	h = compressAPI(h)
 	h = cop.Handler(h)
 	h = httpx.Recover(d.Log)(h)
@@ -255,18 +268,6 @@ func (s *statusWriter) Write(b []byte) (int, error) {
 }
 
 func (s *statusWriter) Unwrap() http.ResponseWriter { return s.ResponseWriter }
-
-// requireOwner admits the owner's session only. Every account is the owner
-// today; other roles arrive later and must not inherit these routes.
-func requireOwner(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if id, ok := auth.FromContext(r.Context()); !ok || id.User.Role != auth.RoleOwner {
-			httpx.Error(w, http.StatusForbidden, "forbidden", "only the owner can do this")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 // Placeholder answers "/" when Deps.Web is nil, as in tests that don't need
 // the web app.
