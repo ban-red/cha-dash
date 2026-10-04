@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -290,11 +291,15 @@ func TestTopicsOverWebSocket(t *testing.T) {
 		switch {
 		case strings.HasPrefix(p, "/metrics/series/"):
 			metricsPaths++
+			// Only changed fields go out, never a whole series or its history.
+			if strings.Count(p, "/") != 4 || strings.HasSuffix(p, "/history") {
+				t.Fatalf("a tick sent %s", p)
+			}
 		case p == "/inbox/now":
 			inboxPaths++
 		}
 	}
-	if metricsPaths == 0 || inboxPaths != 1 {
+	if metricsPaths == 0 || inboxPaths != 1 || !slices.Contains(paths, "/metrics/series/unraid:jupiter#cpu.pct/as_of") {
 		t.Fatalf("diff after a tick: %d metrics paths, %d inbox paths (%v)", metricsPaths, inboxPaths, paths)
 	}
 	if doc["inbox"].(map[string]any)["now"] != "2026-10-03T14:05:30Z" {
@@ -312,7 +317,7 @@ func TestTopicsOverWebSocket(t *testing.T) {
 	sawGraph, sawIncident := false, false
 	for _, p := range paths {
 		sawGraph = sawGraph || strings.HasPrefix(p, "/graph/")
-		sawIncident = sawIncident || p == "/inbox/incidents/qbittorrent-oom"
+		sawIncident = sawIncident || strings.HasPrefix(p, "/inbox/incidents/qbittorrent-oom/") // the fields that changed
 	}
 	if !sawGraph || !sawIncident {
 		t.Fatalf("fix diff paths: %v", paths)

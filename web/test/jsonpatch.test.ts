@@ -38,6 +38,29 @@ describe('applyPatch', () => {
     expect(doc.metrics.series['pve:io/qemu/201#cpu.pct']).toEqual({ value: 3 });
   });
 
+  it('adds, replaces and removes fields inside a member (live-document diffs)', () => {
+    const key = 'pve:io/qemu/201#cpu.pct';
+    const doc = {
+      metrics: { series: { [key]: { value: 3, as_of: 't0', history: [1, 2, 3] } as Record<string, unknown> } },
+    };
+    const series = doc.metrics.series[key]!;
+    const base = toPointer('metrics', 'series', key);
+    applyPatch(doc, [
+      { op: 'replace', path: `${base}/as_of`, value: 't1' },
+      { op: 'add', path: `${base}/stale`, value: true },
+      { op: 'replace', path: `${base}/value`, value: 4 },
+    ]);
+    expect(series).toEqual({ value: 4, as_of: 't1', stale: true, history: [1, 2, 3] });
+    applyPatch(doc, [
+      { op: 'replace', path: `${base}/history`, value: [2, 3, 4] },
+      { op: 'remove', path: `${base}/stale` },
+    ]);
+    expect(series).toEqual({ value: 4, as_of: 't1', history: [2, 3, 4] });
+    expect(doc.metrics.series[key]).toBe(series); // patched in place, not replaced
+    // A field of a member that isn't there is an error, not a new member.
+    expect(() => applyPatch(doc, [{ op: 'replace', path: toPointer('metrics', 'series', 'gone', 'value'), value: 1 }])).toThrow(PatchError);
+  });
+
   it('works on arrays, including "-"', () => {
     const doc = { a: [1, 2, 3] };
     applyPatch(doc, [

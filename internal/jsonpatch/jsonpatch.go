@@ -3,9 +3,10 @@
 // against the snapshot a subscription received, so the browser can apply them
 // with any JSON Patch implementation.
 //
-// The hub's patches touch whole members at fixed depths (a resource, a
-// relation) and never a path inside another touched path. That invariant is
-// what makes Compact sound.
+// The hub's patches address object members: whole members (a resource, an
+// incident) or, for live documents, the top-level fields of one
+// (/series/<key>/value). They never index into an array; arrays are replaced
+// whole. Compact relies on that.
 package jsonpatch
 
 import (
@@ -67,22 +68,45 @@ func Prefix(prefix string, ops []Op) []Op {
 	return out
 }
 
-// Compact folds a sequence of ops into the shortest equivalent one: per path,
-// only the net effect survives (add then remove cancels out; remove then add
-// becomes replace). Output keeps the order in which paths first appeared.
+// Compact folds a sequence of ops into a shorter equivalent one:
+//   - per path, only the net effect survives (add then remove cancels out;
+//     remove then add becomes replace);
+//   - an op on a member makes earlier ops inside it moot (replacing
+//     /series/k discards an earlier replace of /series/k/value), and ops
+//     inside it that come later stay after it.
+//
+// Output keeps the order in which paths first appeared, or reappeared after
+// being made moot, which keeps every op inside a member after the op on the
+// member itself.
+//
+// Paths must address object members: Compact doesn't understand array
+// indices, which shift, so it must never see an op inside an array.
 func Compact(ops []Op) []Op {
 	type net struct {
+		path          string
 		before, after bool // member existed before the sequence / exists after it
 		value         any
+		moot          bool
 	}
-	states := make(map[string]*net, len(ops))
-	var order []string
+	live := make(map[string]*net, len(ops))
+	below := map[string][]*net{} // a path → the nets created inside it
+	order := make([]*net, 0, len(ops))
 	for _, o := range ops {
-		s, ok := states[o.Path]
+		for _, s := range below[o.Path] {
+			if !s.moot {
+				s.moot = true
+				delete(live, s.path)
+			}
+		}
+		delete(below, o.Path)
+		s, ok := live[o.Path]
 		if !ok {
-			s = &net{before: o.Op != Add}
-			states[o.Path] = s
-			order = append(order, o.Path)
+			s = &net{path: o.Path, before: o.Op != Add}
+			live[o.Path] = s
+			order = append(order, s)
+			for p := parentOf(o.Path); p != ""; p = parentOf(p) {
+				below[p] = append(below[p], s)
+			}
 		}
 		if o.Op == Remove {
 			s.after, s.value = false, nil
@@ -91,18 +115,26 @@ func Compact(ops []Op) []Op {
 		}
 	}
 	out := make([]Op, 0, len(order))
-	for _, p := range order {
-		s := states[p]
+	for _, s := range order {
 		switch {
+		case s.moot:
 		case s.before && s.after:
-			out = append(out, Op{Op: Replace, Path: p, Value: s.value})
+			out = append(out, Op{Op: Replace, Path: s.path, Value: s.value})
 		case !s.before && s.after:
-			out = append(out, Op{Op: Add, Path: p, Value: s.value})
+			out = append(out, Op{Op: Add, Path: s.path, Value: s.value})
 		case s.before && !s.after:
-			out = append(out, Op{Op: Remove, Path: p})
+			out = append(out, Op{Op: Remove, Path: s.path})
 		}
 	}
 	return out
+}
+
+// parentOf returns the pointer of p's parent: "/a" for "/a/b", "" for "/a".
+func parentOf(p string) string {
+	if i := strings.LastIndexByte(p, '/'); i > 0 {
+		return p[:i]
+	}
+	return ""
 }
 
 // Apply applies ops to a document decoded by encoding/json (nested

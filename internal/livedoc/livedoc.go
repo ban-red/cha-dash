@@ -10,9 +10,15 @@
 //
 // Values are stored encoded. That makes them immutable, lets equality be
 // exact (reflect.DeepEqual would call every NaN a change) and lets snapshots
-// be serialised without locks. Patches only touch a whole value (/now) or a
-// whole collection item (/incidents/<key>), never a path inside another,
-// which is what keeps jsonpatch.Compact sound.
+// be serialised without locks.
+//
+// A member that appears or disappears is added or removed whole (/now,
+// /incidents/<key>). A member that changes, when it is a JSON object before
+// and after, gets ops for just the top-level fields that changed
+// (/series/<key>/value, /series/<key>/as_of), unless replacing it whole
+// would be no bigger. A field's value is always replaced whole, arrays
+// included, so patches never index into an array; jsonpatch.Compact relies
+// on that.
 package livedoc
 
 import (
@@ -35,6 +41,7 @@ type Doc struct {
 	values   map[string]json.RawMessage
 	colls    map[string]map[string]json.RawMessage
 	watchers map[*Watcher]struct{}
+	diff     differ // scratch space for Update
 }
 
 // New returns an empty document at version 0. The named collections are
@@ -112,32 +119,31 @@ func (d *Doc) Update(fn func(tx *Tx) error) (uint64, error) {
 		return d.version, tx.err
 	}
 
+	// Patches are only built for watchers, but a change is a change either way.
+	emit := len(d.watchers) > 0
+	changed := false
 	var ops []jsonpatch.Op
 	for m, v := range tx.values {
 		old, had := d.values[m]
 		if had && bytes.Equal(old, v) {
 			continue
 		}
-		op := jsonpatch.Replace
-		if !had {
-			op = jsonpatch.Add
+		changed = true
+		if emit {
+			ops = d.diff.memberOps(ops, jsonpatch.Pointer(m), old, v)
 		}
-		ops = append(ops, jsonpatch.Op{Op: op, Path: jsonpatch.Pointer(m), Value: v})
 	}
 	for k, v := range tx.items {
 		old, had := d.colls[k.coll][k.key]
-		path := jsonpatch.Pointer(k.coll, k.key)
-		switch {
-		case v == nil && had:
-			ops = append(ops, jsonpatch.Op{Op: jsonpatch.Remove, Path: path})
-		case v == nil, had && bytes.Equal(old, v):
-		case had:
-			ops = append(ops, jsonpatch.Op{Op: jsonpatch.Replace, Path: path, Value: v})
-		default:
-			ops = append(ops, jsonpatch.Op{Op: jsonpatch.Add, Path: path, Value: v})
+		if (v == nil && !had) || (had && bytes.Equal(old, v)) {
+			continue
+		}
+		changed = true
+		if emit {
+			ops = d.diff.memberOps(ops, jsonpatch.Pointer(k.coll, k.key), old, v)
 		}
 	}
-	if len(ops) == 0 {
+	if !changed {
 		return d.version, nil
 	}
 

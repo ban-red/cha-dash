@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { nextTick, watch } from 'vue';
+import { computed, nextTick, watch } from 'vue';
 import { createLive } from '../src/stores/live';
 import { toPointer } from '../src/lib/jsonpatch';
 import { FakeSocket, factory } from './fake-socket';
@@ -61,6 +61,57 @@ describe('live store fed with the sim snapshots', () => {
     ws.push({ op: 'diff', id: ws.subId('metrics'), seq: 2001, patch: [{ op: 'replace', path: toPointer('metrics', 'series', key), value: s }] });
     await nextTick();
     expect(live.metrics.value!.series[key]!.value).toBe(72.1);
+  });
+
+  it('follows field-level diffs inside a series and an incident, reactively', async () => {
+    // What the hub sends since live-document diffs carry changed fields only.
+    const { live, ws } = liveWithFixtures();
+    const key = 'unraid:jupiter/array#used.pct';
+    const base = toPointer('metrics', 'series', key);
+    const s = computed(() => live.metrics.value?.series[key]);
+    const seen: unknown[] = [];
+    watch(
+      () => [s.value?.value, s.value?.as_of, s.value?.stale, s.value?.history?.at(-1)],
+      (v) => seen.push(v),
+    );
+    ws.push({
+      op: 'diff',
+      id: ws.subId('metrics'),
+      seq: 2002,
+      patch: [
+        { op: 'replace', path: `${base}/as_of`, value: '2026-10-03T14:05:30Z' },
+        { op: 'add', path: `${base}/stale`, value: true },
+        { op: 'replace', path: `${base}/value`, value: 72.1 },
+      ],
+    });
+    await nextTick();
+    expect(seen).toEqual([[72.1, '2026-10-03T14:05:30Z', true, s.value!.history!.at(-1)]]);
+
+    const history = [...s.value!.history!.slice(1), 73.5];
+    ws.push({
+      op: 'diff',
+      id: ws.subId('metrics'),
+      seq: 2003,
+      patch: [
+        { op: 'replace', path: `${base}/history`, value: history },
+        { op: 'remove', path: `${base}/stale` },
+      ],
+    });
+    await nextTick();
+    expect(seen).toHaveLength(2);
+    expect(s.value).not.toHaveProperty('stale');
+    expect(s.value!.history).toEqual(history);
+    expect(s.value!.value).toBe(72.1);
+
+    expect(live.problems.value.map((i) => i.id)).toContain('backup-failed');
+    ws.push({
+      op: 'diff',
+      id: ws.subId('inbox'),
+      seq: 2004,
+      patch: [{ op: 'replace', path: toPointer('inbox', 'incidents', 'backup-failed', 'status'), value: 'resolved' }],
+    });
+    await nextTick();
+    expect(live.problems.value.map((i) => i.id)).not.toContain('backup-failed');
   });
 
   it('follows the hub clock when demo time is far from the browser’s', () => {

@@ -96,12 +96,14 @@ paths start with `/<topic>/`.
 |---|---|---|
 | `graph` | `{"resources":{id: resource},"relations":{key: relation}}` | Whole resources and relations; see `internal/graph` |
 | `graph:kind/<kind>[,<kind>…]` | The same, filtered to those kinds | As above |
-| `metrics` | `{"series":{"<resource id>#<metric key>": series}}` | Whole series, each sample tick |
-| `inbox` | `{"now": RFC 3339, "incidents":{id: incident}}` | Whole incidents; `/now` each tick |
+| `metrics` | `{"series":{"<resource id>#<metric key>": series}}` | Each sample tick, the fields of each series that changed: `/series/<key>/value`, `/as_of`, and `/stale` when it flips. Every 30 minutes, when the history gains a point, `/history` whole (or the whole series, when that's smaller). Whole series when one appears or disappears |
+| `inbox` | `{"now": RFC 3339, "incidents":{id: incident}}` | The fields of an incident that changed, or the whole incident when it appears or disappears; `/now` each tick |
 
 A series is exactly a `series` entry of the simulator's snapshots (`unit`,
 `min`, `max`, `band`, `warn`, `crit`, `value`, `as_of`, `stale`, `history`), and
 an incident is exactly an `incidents` entry; see [`sim/README.md`](../sim/README.md).
+Optional fields come and go (`stale` is omitted when false), so a field op can
+be an `add` or a `remove` as well as a `replace`.
 Outside demo mode `metrics` is empty and `inbox` has no incidents, and the inbox
 clock follows the wall clock, ticking every 30 s.
 
@@ -158,7 +160,7 @@ clock follows the wall clock, ticking every 30 s.
 - At boot the hub inserts itself as `chadash:hub` (kind `app`), except in demo mode.
 
 **Realtime**
-- **A subscription's state is one JSON document** with a member per topic. `snap` carries it whole; `diff` is an RFC 6902 patch against it, with paths like `/graph/resources/<id>`. Clients can use any JSON Patch library. Ops only ever touch whole members, which is what makes `jsonpatch.Compact` sound.
+- **A subscription's state is one JSON document** with a member per topic. `snap` carries it whole; `diff` is an RFC 6902 patch against it, with paths like `/graph/resources/<id>`. Clients can use any JSON Patch library. Ops address object members and never index into an array (arrays are replaced whole). That's what keeps `jsonpatch.Compact` sound now that ops nest (`/metrics/series/<key>` and `/metrics/series/<key>/value`): an op on a member makes earlier ops inside it moot, and later ones inside it stay after it.
 - **`diff` frames carry the subscription `id`.** The architecture doc's example omits it, but a multiplexed socket needs it.
 - **Coalescing**: at most one `diff` per subscription per 250 ms. The first change after a quiet period goes out immediately.
 - **Backpressure**: each feed is bounded, and the connection has a 64-frame send queue. If a feed overflows, or a `diff` doesn't fit in the queue, the pending diffs are dropped and the subscription gets `snap` with `resync: true`. Memory stays bounded however slow the client is. A frame that can't be written within 10 s drops the connection.
@@ -168,6 +170,9 @@ clock follows the wall clock, ticking every 30 s.
 - **Origin**: same-origin is always allowed; `CHADASH_ALLOWED_ORIGINS` adds more. Auth is the session cookie, checked before the upgrade.
 - **Topics**: see [Realtime topics](#realtime-topics). `realtime.Mux` routes a topic by the name before its first `:`; lens topics plug in as more `Source`s.
 - **Live documents** (`internal/livedoc`) back the topics that aren't the graph. Values are stored encoded, so they're immutable and compare exactly; `reflect.DeepEqual` would call every unknown (NaN) metric a change. Like the graph, a batch bumps the version once and a no-op batch doesn't bump it.
+- **Live-document diffs carry changed fields.** A member that appears or disappears goes out whole. One that changes, if it's an object before and after, gets an `add`/`replace`/`remove` per top-level field that changed, unless replacing it whole is no bigger. This is shallow and general (the inbox gets it too), not a metrics special case. Field values go out whole, so a history that gains a point is one `replace` of the array, never `add …/history/-` plus `remove …/history/0`: array ops can't be compacted safely. The diff splits the stored encodings without copying, and only runs when someone is watching.
+- **What that saves.** In demo mode a tab subscribed to every topic gets ~47 kB per simulated minute, down from ~128 kB with whole series (13:00–20:30, `TestDiffBytesPerMinute`). About 70% of what's left is each series' `as_of`, which every tick changes; moving it out of the series (one tick time per document) would cut the rest to ~15 kB, at the cost of a shape change.
+- **More ops per tick.** A metrics tick is now ~300 ops (two per series) instead of 152, so a feed that isn't drained lags after ~13 ticks instead of ~27 (the bound is 4096 pending ops). A subscription drains on every notification, so in practice only a client blocked on a resync snapshot gets near it.
 - **`seq` is per topic and informational.** A subscription's `seq` is the highest of its topics' versions, which are separate counters.
 - **Topics publish separately.** One demo tick updates the graph, metrics and inbox in turn, so a subscription may see it as two diffs a moment apart. Each diff is correct on its own.
 - **Shutdown**: hijacked connections aren't covered by `http.Server.Shutdown`, so `Serve` calls `Hub.Close` afterwards. That sends close code 1001 (going away), and new upgrades then get 1013 (try again later).
