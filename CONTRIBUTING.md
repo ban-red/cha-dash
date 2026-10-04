@@ -84,6 +84,43 @@ docker build -t chadash:dev .        # the image, from the same steps
 
 The budgets come from [03 · Architecture](docs/plan/03-architecture.md#performance-budgets-enforced-in-ci-where-possible). Raising one takes a reason in the pull request.
 
+## Releasing
+
+The maintainer cuts releases by pushing a version tag. [`.github/workflows/release.yml`](.github/workflows/release.yml) does the rest and stops at a **draft** GitHub release, so nothing is announced until someone has read it. It never runs on branches or pull requests.
+
+| Job | What it does | Permissions |
+|---|---|---|
+| Prepare | Checks the tag (`vMAJOR.MINOR.PATCH`, optionally `-beta.N` or `-rc.N`), works out the image tags, and fails early if `CHANGELOG.md` has no section for the version | `contents: read` |
+| Build and push | The binaries from the Dockerfile's `binary` stage (linux amd64, arm64 and armv7; darwin amd64 and arm64), checked and summed into `SHA256SUMS`; a smoke-tested linux/amd64 image; then the linux/amd64, arm64 and arm/v7 image pushed to `ghcr.io/ban-red/chadash` with provenance and an SBOM | `contents: read`, `packages: write` |
+| Sign | cosign keyless signing of the image (by digest) and of `SHA256SUMS`, each verified straight after | `packages: write`, `id-token: write`, `actions: read` |
+| Draft release | The draft, marked prerelease for `-beta` and `-rc`: notes from `CHANGELOG.md` plus install and verify instructions, with the binaries, `SHA256SUMS` and its signature attached | `contents: write`, `actions: read` |
+
+| Tag pushed | Image tags |
+|---|---|
+| `v0.1.0-beta.2` | `0.1.0-beta.2`, `beta` |
+| `v0.1.0-rc.1` | `0.1.0-rc.1` |
+| `v0.1.0` | `0.1.0`, `0.1`, and `latest` if it's the newest stable tag |
+
+**Cutting a beta:**
+
+1. **Start from `main` with CI green** on the commit you're going to tag.
+2. **Check `COSIGN_VERSION`** at the top of `release.yml`. It should be the current cosign release.
+3. **Write the changelog.** Move what's under `## [Unreleased]` in `CHANGELOG.md` into a new `## [0.1.0-beta.2] - YYYY-MM-DD` section, written for people who run Cha Dash. It becomes the release text, so links must be full URLs. Update the comparison links at the bottom. Preview it with `scripts/release-notes.sh 0.1.0-beta.2`.
+4. **Merge that to `main`** the usual way.
+5. **Tag the merge commit and push the tag:**
+   ```sh
+   git tag -a v0.1.0-beta.2 -m "Cha Dash 0.1.0-beta.2"
+   git push origin v0.1.0-beta.2
+   ```
+6. **Watch the Release run** in Actions. Building and installing cosign take most of its time.
+7. **Read the draft** under Releases: the notes, the image tags, the attached files. To check the signature yourself, run the `cosign verify` command in the notes. Then press **Publish**.
+
+**If something goes wrong,** don't move or reuse a pushed tag: images may already be published under it. Fix it on `main` and tag the next beta. Re-running the workflow for the same tag is safe; it rebuilds and pushes the same image tags again, and updates the draft instead of adding a second one.
+
+**The first release only:** ghcr.io makes a new package private. Open the package's settings, make it public, and check it's linked to this repository. If the package already existed, give the repository write access under *Manage Actions access*, or the push is refused.
+
+**At 0.1.0,** the first stable release: point the Unraid template at `latest` and drop `Status:Beta` from its category ([deploy/unraid](deploy/unraid/README.md#for-the-maintainer-listing-it-in-ca)), take the `beta` override out of [docs/beta.md](docs/beta.md) and [deploy/README.md](deploy/README.md), and fill in *Supported versions* in [SECURITY.md](SECURITY.md).
+
 ## Fixtures and privacy
 
 Fixtures must **never** contain real secrets, domains, public IPs or personal names. Sanitize them the way [testdata/importers/homepage/dogfood](testdata/importers/homepage/dogfood/README.md) does:

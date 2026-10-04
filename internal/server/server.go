@@ -30,7 +30,9 @@
 //
 // Every response gets security headers; state-changing requests from other
 // origins are refused (net/http CrossOriginProtection), and the WebSocket
-// upgrade checks Origin itself.
+// upgrade checks Origin itself. JSON API responses of 1 KiB or more are
+// gzipped for clients that accept it, except on the routes that handle
+// secrets (compressAPI); the web app compresses its own files.
 package server
 
 import (
@@ -40,6 +42,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"dash.cha.sh/internal/auth"
@@ -167,11 +170,47 @@ func New(d Deps) (http.Handler, error) {
 	}))
 
 	var h http.Handler = mux
+	h = compressAPI(h)
 	h = cop.Handler(h)
 	h = httpx.Recover(d.Log)(h)
 	h = httpx.AccessLog(d.Log, d.Proxies)(h)
 	h = httpx.SecurityHeaders(h)
 	return h, nil
+}
+
+// compressAPI gzips the API's JSON responses (httpx.GzipJSON) on the routes
+// compressible allows. The web app compresses its own files (webui), and
+// /ws and /healthz are never touched.
+func compressAPI(next http.Handler) http.Handler {
+	gz := httpx.GzipJSON(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if compressible(r.URL.Path) {
+			gz.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// noCompress are the API routes whose responses can carry a secret, or take
+// one in: sign-in, passkey ceremonies and the session; first-run setup with
+// its token; and an integration sign-in, whose poll hands the new token to
+// the form once. Compressing a secret next to anything an attacker might
+// influence is what BREACH needs, so these stay identity whatever their size
+// (internal/httpx/gzip.go has the full reasoning).
+var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authorize"}
+
+// compressible reports whether GzipJSON may handle a request for path.
+func compressible(path string) bool {
+	if !strings.HasPrefix(path, "/api/") {
+		return false
+	}
+	for _, p := range noCompress {
+		if path == p || strings.HasPrefix(path, p+"/") {
+			return false
+		}
+	}
+	return true
 }
 
 // reloadAfter reloads the integration instances after a successful POST.

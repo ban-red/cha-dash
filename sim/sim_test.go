@@ -85,6 +85,9 @@ func TestEventReplay(t *testing.T) {
 		rels[r] = true
 	}
 	incs := map[string]Incident{}
+	for _, in := range st.Incidents { // the standing hints
+		incs[in.ID] = in
+	}
 	var lastSeq uint64
 	var lastAt time.Time
 	for _, ev := range s.Advance(30 * time.Hour) {
@@ -210,10 +213,16 @@ func TestReferencesExist(t *testing.T) {
 					t.Fatalf("incident %s references unknown resource %q", in.ID, id)
 				}
 			}
-			if len(in.BlastRadius) == 0 {
+			// Hints carry no causes and no blast radius, as the hub's do;
+			// anything else has a blast radius unless nothing depends on
+			// its target.
+			if in.BlastRadius == nil || in.Causes == nil {
+				t.Errorf("incident %s has a null list (the hub sends [])", in.ID)
+			}
+			if len(in.BlastRadius) == 0 && !isHint(in) && len(BlastRadius(s.top.rels, in.Target)) > 0 {
 				t.Errorf("incident %s has an empty blast radius", in.ID)
 			}
-			if in.Suggested.Tier == "" || in.ResolvesWhen == "" || len(in.Causes) == 0 || in.Title == "" || in.Summary == "" {
+			if in.Suggested.Tier == "" || in.ResolvesWhen == "" || (len(in.Causes) == 0 && !isHint(in)) || in.Title == "" || in.Summary == "" {
 				t.Errorf("incident %s is missing Inbox fields", in.ID)
 			}
 		}
@@ -256,7 +265,13 @@ func TestMetricsInRange(t *testing.T) {
 		}
 		for _, ev := range s.Advance(24 * time.Hour) {
 			for _, smp := range ev.Samples {
-				inRange(smp.Resource, smp.Metric, smp.Value, ev.At)
+				if !smp.Value.Valid() {
+					if m := specs[smp.Resource+"|"+smp.Metric]; m == nil || !m.awake {
+						t.Fatalf("seed %d, %v: %s %s sampled as unknown, but only spun-down disks report unknown", seed, ev.At, smp.Resource, smp.Metric)
+					}
+					continue
+				}
+				inRange(smp.Resource, smp.Metric, float64(smp.Value), ev.At)
 			}
 		}
 		for _, se := range s.Snapshot().Series {
@@ -272,26 +287,56 @@ func TestMetricsInRange(t *testing.T) {
 	}
 }
 
-// expected opens and resolutions of the default script.
+// expected opens and resolutions of the default script. The backup
+// failures v0.1 can only report clear with the next night's runs.
 var defaultExpect = []struct {
 	id           string
 	open, closes time.Duration
 	by           string
 }{
+	{"proxmox-pluto.backup.daily", 2 * time.Hour, 26*time.Hour + 4*time.Minute, "auto"},
 	{"backup-failed", 2*time.Hour + 14*time.Minute, 15*time.Hour + 34*time.Minute, "action"},
+	{"proxmox-mars.backup.daily", 2*time.Hour + 20*time.Minute, 26*time.Hour + 27*time.Minute, "auto"},
 	{"pbs-datastore-filling", 2*time.Hour + 44*time.Minute, 16*time.Hour + 22*time.Minute, "action"},
+	{"proxmox-io.backup.daily", 2*time.Hour + 55*time.Minute, 27*time.Hour + time.Minute, "auto"},
 	{"karakeep-api-changed", 9*time.Hour + 5*time.Minute, 19*time.Hour + 30*time.Second, "action"},
+	{"proxmox-jupiter-nas.guest.101", 11*time.Hour + 20*time.Minute, 18*time.Hour + 5*time.Minute, "auto"},
+	{"unraid-jupiter.repair", 12*time.Hour + 5*time.Minute, 16*time.Hour + 45*time.Minute, "auto"},
 	{"plex-token-revoked", 13*time.Hour + 27*time.Minute, 18*time.Hour + 10*time.Second, "action"},
 	{"host-memory-pressure", 13*time.Hour + 30*time.Minute, 17*time.Hour + 10*time.Minute, "action"},
 	{"qbittorrent-oom", 14*time.Hour + 3*time.Minute, 20*time.Hour + 2*time.Minute, "action"},
+}
+
+// standingHints are the default script's hints: open before the day starts,
+// open after it ends.
+var standingHints = []string{"docker-jupiter.hint.docker_endpoint", "frigate.unauthenticated-admin", "traefik.hint.api_no_auth"}
+
+func isHint(in Incident) bool {
+	return in.Class == ClassProblem && (in.Scenario == "credential-hygiene" || in.Scenario == "frigate-unauthenticated-admin")
+}
+
+// openIDs are the open incidents' IDs, sorted.
+func openIDs(st State) []string {
+	var ids []string
+	for _, in := range st.Open() {
+		ids = append(ids, in.ID)
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 func TestDefaultScriptTimeline(t *testing.T) {
 	s := mustNew(t, 1)
 	start := s.Start()
 	healthy := s.Snapshot()
-	if len(healthy.Incidents) != 0 {
-		t.Fatalf("t0 has %d incidents", len(healthy.Incidents))
+	// t0: nothing needs you; only the standing hints are open, quietly.
+	if got := openIDs(healthy); !slices.Equal(got, standingHints) || len(healthy.Incidents) != len(standingHints) {
+		t.Fatalf("t0 has incidents %v, want only the hints %v", got, standingHints)
+	}
+	for _, in := range healthy.Incidents {
+		if in.Severity != SeverityInfo || !isHint(in) || len(in.Causes) != 0 || len(in.BlastRadius) != 0 {
+			t.Errorf("t0: hint %s should be a quiet problem (info, no causes, no blast radius): %+v", in.ID, in)
+		}
 	}
 	for _, r := range healthy.Resources {
 		if r.Health.Status != HealthOK {
@@ -325,8 +370,8 @@ func TestDefaultScriptTimeline(t *testing.T) {
 
 	// 14:05: everything open at once, and the metrics agree with the story.
 	st := s.Snapshot()
-	if got := len(st.Open()); got != len(defaultExpect) {
-		t.Fatalf("at %v, %d incidents open, want %d", st.Now, got, len(defaultExpect))
+	if got := len(st.Open()); got != len(defaultExpect)+len(standingHints) {
+		t.Fatalf("at %v, %d incidents open, want %d: %v", st.Now, got, len(defaultExpect)+len(standingHints), openIDs(st))
 	}
 	series := map[string]Series{}
 	for _, se := range st.Series {
@@ -338,7 +383,7 @@ func TestDefaultScriptTimeline(t *testing.T) {
 	if v := float64(series["pve:jupiter-nas|mem.pct"].Value); v < 93.5 || v > 97.5 {
 		t.Errorf("jupiter-nas memory at %v%%, want about 95%%", v)
 	}
-	for _, k := range []string{"app:plex|streams", "app:karakeep|bookmarks"} {
+	for _, k := range []string{"app:plex|streams", "app:karakeep|bookmarks", "unraid:jupiter|cpu.pct", "unraid:jupiter/array|used.pct"} {
 		if se := series[k]; !se.Stale || !se.Value.Valid() {
 			t.Errorf("%s should be stale with a last-known value, got %+v", k, se)
 		}
@@ -346,8 +391,13 @@ func TestDefaultScriptTimeline(t *testing.T) {
 	if se := series["app:plex|streams"]; !se.AsOf.Equal(start.Add(13*time.Hour + 26*time.Minute + 30*time.Second)) {
 		t.Errorf("Plex streams as of %v, want the last sample before 13:27", se.AsOf)
 	}
-	if se := series["app:plex|http.ms"]; se.Stale || !se.Value.Valid() {
-		t.Error("Plex's own HTTP check should still be live: a broken integration is not an outage")
+	if se := series["unraid:jupiter|cpu.pct"]; !se.AsOf.Equal(start.Add(12*time.Hour + 4*time.Minute + 30*time.Second)) {
+		t.Errorf("jupiter's CPU as of %v, want the last sample before Unraid's repair at 12:05", se.AsOf)
+	}
+	for _, k := range []string{"app:plex|http.ms", "check:checks/jupiter-unraid|http.ms"} {
+		if se := series[k]; se.Stale || !se.Value.Valid() {
+			t.Errorf("%s should still be live: a broken integration is not an outage", k)
+		}
 	}
 	if r, _ := st.Resource(qbCt); r.Attrs["restart_count"] != 1 {
 		t.Errorf("qBittorrent restart_count = %v, want 1", r.Attrs["restart_count"])
@@ -363,13 +413,13 @@ func TestDefaultScriptTimeline(t *testing.T) {
 			t.Errorf("%s resolved at %v, want %v", want.id, ev.At, start.Add(want.closes))
 			continue
 		}
-		if ev.Incident.ResolvedBy != want.by || ev.Incident.Resolution == "" {
-			t.Errorf("%s resolved by %q (%q), want %q", want.id, ev.Incident.ResolvedBy, ev.Incident.Resolution, want.by)
+		if ev.Incident.ResolvedBy != want.by || ev.Incident.Resolution == "" || ev.Incident.Phase != "resolved" {
+			t.Errorf("%s resolved by %q (%q, phase %s), want %q", want.id, ev.Incident.ResolvedBy, ev.Incident.Resolution, ev.Incident.Phase, want.by)
 		}
 	}
 	end := s.Snapshot()
-	if len(end.Open()) != 0 {
-		t.Errorf("%d incidents still open at the end of the day", len(end.Open()))
+	if got := openIDs(end); !slices.Equal(got, standingHints) {
+		t.Errorf("open at the end of the day: %v, want only the hints", got)
 	}
 	for _, r := range end.Resources {
 		if r.Health.Status != HealthOK {
@@ -590,7 +640,12 @@ func TestSnapshotIsACopy(t *testing.T) {
 	}
 	for i := range st.Incidents {
 		st.Incidents[i].Facts["mutated"] = true
-		st.Incidents[i].BlastRadius[0].Resource = "nope"
+		if len(st.Incidents[i].BlastRadius) > 0 {
+			st.Incidents[i].BlastRadius[0].Resource = "nope"
+		}
+		if len(st.Incidents[i].Causes) > 0 {
+			st.Incidents[i].Causes[0].Text = "nope"
+		}
 	}
 	if !bytes.Equal(before, EncodeState(s.Snapshot())) {
 		t.Fatal("changing a snapshot changed the simulation")
@@ -635,7 +690,8 @@ func TestJSONStable(t *testing.T) {
 }
 
 // TestSanitized guards the public repo: only 10.0.11.x addresses, only
-// *.lab.example and *.family.example names.
+// *.lab.example and *.family.example names, plus the public weather service
+// the weather integration credits.
 func TestSanitized(t *testing.T) {
 	s := mustNew(t, 1)
 	s.Skip(DefaultAllOpen)
@@ -645,7 +701,7 @@ func TestSanitized(t *testing.T) {
 			t.Errorf("unsanitized address %s", ip)
 		}
 	}
-	host := regexp.MustCompile(`^(10\.0\.11\.\d+|[a-z0-9-]+|[a-z0-9.-]+\.(lab|family)\.example)$`)
+	host := regexp.MustCompile(`^(10\.0\.11\.\d+|[a-z0-9-]+|[a-z0-9.-]+\.(lab|family)\.example|open-meteo\.com)$`)
 	for _, m := range regexp.MustCompile(`(?:https?|tcp)://([^/:"\s]+)`).FindAllStringSubmatch(text, -1) {
 		if !host.MatchString(m[1]) {
 			t.Errorf("unsanitized host %s", m[1])

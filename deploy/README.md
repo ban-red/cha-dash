@@ -6,6 +6,9 @@ Docker Compose is the main way to run Cha Dash ([ADR-0007](../docs/adr/0007-dock
 |---|---|
 | [`compose.yaml`](compose.yaml) | The hub, plus an optional read-only Docker socket proxy |
 | [`compose.demo.yaml`](compose.demo.yaml) | An override that runs the built-in Demo Home simulator |
+| [`unraid/`](unraid/README.md) | A Community Applications template for Unraid |
+
+Unraid and plain binaries are the secondary channels ([Binaries](#binaries)).
 
 ## Hardware
 
@@ -29,6 +32,10 @@ You need Docker with the Compose plugin, on amd64 or arm64.
    ```sh
    mkdir chadash && cd chadash
    curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.yaml
+   ```
+   **During the beta** there's no `latest` image yet. Follow the betas with an override, as the [beta guide](../docs/beta.md) does:
+   ```sh
+   printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n' > compose.override.yaml
    ```
 2. **Start it:**
    ```sh
@@ -290,8 +297,27 @@ docker compose up -d
 ```
 
 - **Back up first** ([below](#backing-up)). Database migrations run on start, and there's no downgrade: to go back, restore the backup and run the older image.
-- **`latest` follows every release.** To upgrade on your own schedule, pin a release tag in `compose.override.yaml`, for example `image: ghcr.io/ban-red/chadash:0.1`.
+- **Image tags.** To upgrade on your own schedule, pin one in `compose.override.yaml`:
+
+  | Tag | Follows |
+  |---|---|
+  | `latest` | Every stable release |
+  | `0.1` | Stable releases in the 0.1 line: fixes, nothing that needs you to change anything |
+  | `0.1.0`, `0.1.0-beta.1` | Exactly that release |
+  | `beta` | The newest beta |
+
 - **A new `compose.yaml`** can replace the old one; your changes live in `compose.override.yaml`.
+
+### Checking an image
+
+Every published image is signed by the release workflow with [cosign](https://docs.sigstore.dev/), keyless, and carries build provenance and an SBOM. To check one before you run it:
+
+```sh
+cosign verify ghcr.io/ban-red/chadash:0.1.0-beta.1 \
+  --certificate-identity-regexp '^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+docker buildx imagetools inspect ghcr.io/ban-red/chadash:0.1.0-beta.1 --format '{{ json .SBOM }}'
+```
 
 ## Backing up
 
@@ -325,6 +351,47 @@ docker compose start chadash
 ```
 
 **Treat the archive as a secret.** With the key inside, it opens every stored credential. Keep it encrypted, or move the key out of `/data` ([how](#keeping-the-key-outside-data)) and back the two up separately.
+
+## Binaries
+
+Every [release](https://github.com/ban-red/cha-dash/releases) also has the hub as a single static binary: `chadash-<version>-linux-amd64`, `-linux-arm64` and `-linux-armv7`, plus `-darwin-arm64` and `-darwin-amd64` for development on a Mac. The web app is inside, so there's nothing else to install. `SHA256SUMS` lists their checksums, and `SHA256SUMS.cosign.bundle` is its signature.
+
+```sh
+v=0.1.0-beta.1
+curl -fsSLO "https://github.com/ban-red/cha-dash/releases/download/v$v/chadash-$v-linux-amd64"
+curl -fsSLO "https://github.com/ban-red/cha-dash/releases/download/v$v/SHA256SUMS"
+sha256sum --ignore-missing -c SHA256SUMS
+sudo install -m 0755 "chadash-$v-linux-amd64" /usr/local/bin/chadash
+```
+
+It takes the same `CHADASH_*` settings as the container; give it a data directory of its own. With systemd, a unit like this runs it as a throwaway unprivileged user that can write only to `/var/lib/chadash`:
+
+```ini
+# /etc/systemd/system/chadash.service
+[Unit]
+Description=Cha Dash hub
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/chadash serve
+Environment=CHADASH_DATA_DIR=/var/lib/chadash
+DynamicUser=yes
+StateDirectory=chadash
+StateDirectoryMode=0700
+CapabilityBoundingSet=
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```sh
+sudo systemctl enable --now chadash
+journalctl -u chadash | grep setup
+```
+
+Docker access works through a socket proxy, as with Compose. To upgrade, back up `/var/lib/chadash`, replace the binary and restart the service.
 
 ## Uninstalling
 

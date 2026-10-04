@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!--
+  Cha Dash for Unraid: the hub only. How to add it before it's listed in
+  Community Applications, and what each choice here means: README.md next to
+  this file. The hardening in ExtraParams matches deploy/compose.yaml.
+-->
+<Container version="2">
+  <Name>chadash</Name>
+  <Repository>ghcr.io/ban-red/chadash:beta</Repository>
+  <Registry>https://github.com/ban-red/cha-dash/pkgs/container/chadash</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/ban-red/cha-dash/issues</Support>
+  <Project>https://github.com/ban-red/cha-dash</Project>
+  <ReadMe>https://github.com/ban-red/cha-dash/blob/main/deploy/unraid/README.md</ReadMe>
+  <Overview>Cha Dash is the front page of your home: one calm, live page that shows what is running across your homelab and what needs your attention. It reads from Unraid, Proxmox, Docker, Home Assistant, Frigate, Plex, Jellyfin, the *arr apps and more, about 26 services in all. It only reads: it never changes anything. Your credentials stay on this server, encrypted. There is no telemetry: Cha Dash talks only to the services you add.
+
+This is a beta. Before the first start, give the appdata folder to the user the container runs as (uid 65532). In a terminal, run: mkdir -p /mnt/user/appdata/chadash; chown 65532:65532 /mnt/user/appdata/chadash; chmod 700 /mnt/user/appdata/chadash
+
+Then start it, open its log and copy the setup token (the line ending in setup_token=cds_...), and open the Web UI to create your account. The beta guide: https://github.com/ban-red/cha-dash/blob/main/docs/beta.md</Overview>
+  <Changes>### 0.1.0-beta.1
+The first beta. What's in it: https://github.com/ban-red/cha-dash/blob/main/CHANGELOG.md</Changes>
+  <Category>Tools:Utilities Network:Management Status:Beta</Category>
+  <WebUI>http://[IP]:[PORT:3696]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/unraid/chadash.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/ban-red/cha-dash/main/web/public/icons/icon-512.png</Icon>
+  <ExtraParams>--read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true --user 65532:65532</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>The appdata folder must belong to uid 65532 before the first start: mkdir -p /mnt/user/appdata/chadash; chown 65532:65532 /mnt/user/appdata/chadash; chmod 700 /mnt/user/appdata/chadash</Requires>
+  <Config Name="Web UI port" Target="3696" Default="3696" Mode="tcp" Description="The port you open Cha Dash on. The container always listens on 3696: change only this host side." Type="Port" Display="always" Required="true" Mask="false">3696</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/chadash" Mode="rw" Description="The database and the key that unlocks the stored credentials. Back them up together. Owned by uid 65532 (see Requires)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/chadash</Config>
+  <Config Name="Public URL" Target="CHADASH_PUBLIC_URL" Default="" Mode="" Description="Optional. The https:// address you open Cha Dash at, such as https://dash.lab.example. Passkeys need it, and only work over HTTPS. Everything else works without it." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Trusted proxies" Target="CHADASH_TRUSTED_PROXIES" Default="" Mode="" Description="Optional. Behind a reverse proxy (SWAG, Nginx Proxy Manager, Traefik, Caddy): the proxy's IP address or subnet, comma-separated, such as 172.18.0.0/16. Cha Dash then believes the client address and HTTPS the proxy reports." Type="Variable" Display="always" Required="false" Mask="false"/>
+</Container>

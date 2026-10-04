@@ -3,8 +3,8 @@ package sim
 import "time"
 
 // Routines are the everyday rhythm of the home, independent of incidents:
-// nightly backups and camera detections. Like everything else they are pure
-// functions of time.
+// nightly backups, disks spinning down, camera detections and the weather.
+// Like everything else they are pure functions of time.
 
 // ── nightly backups ──────────────────────────────────────────────────────
 
@@ -22,67 +22,141 @@ func slotOf(guest string) backupSlot {
 func (sl backupSlot) begin(day time.Time) time.Time { return day.Add(backupWindow + sl.start) }
 func (sl backupSlot) end(day time.Time) time.Time   { return day.Add(backupWindow + sl.start + sl.dur) }
 
-// jobWindow is when a job runs on a given day.
-func jobWindow(job string, day time.Time) (begin, end time.Time) {
+// guestBackup is one guest's backup within a run.
+type guestBackup struct {
+	guest      string
+	begin, end time.Time // a failure ends when it happens
+	ok         bool
+	err        string // why it failed, as the task log says
+}
+
+// jobRun is one run of a backup job: the scheduled one, or one started by
+// hand. A run that couldn't reach its target stops before any guest: every
+// guest fails at its start, with the task's error.
+type jobRun struct {
+	job        string
+	begin, end time.Time
+	manual     bool // started by hand: the Proxmox integration doesn't count it as a run of the job
+	whole      bool // a manual run of the whole job (not one guest's backup): the job shows as running
+	err        string
+	guests     []guestBackup
+}
+
+func (r jobRun) failed() int {
+	n := 0
+	for _, g := range r.guests {
+		if !g.ok {
+			n++
+		}
+	}
+	return n
+}
+
+// firstErr is the run's error as the Proxmox integration reports it: the
+// task's own, else the first failed guest's.
+func (r jobRun) firstErr() string {
+	if r.err != "" {
+		return r.err
+	}
+	for _, g := range r.guests {
+		if !g.ok {
+			return g.err
+		}
+	}
+	return ""
+}
+
+func (r *jobRun) span() {
+	for i, g := range r.guests {
+		if i == 0 || g.begin.Before(r.begin) {
+			r.begin = g.begin
+		}
+		if g.end.After(r.end) {
+			r.end = g.end
+		}
+	}
+}
+
+func (r *jobRun) guest(id string) *guestBackup {
+	for i := range r.guests {
+		if r.guests[i].guest == id {
+			return &r.guests[i]
+		}
+	}
+	return nil
+}
+
+// backupShaper is a scenario that changes backup runs: a guest that fails
+// one night, a target that can't be reached, a retry started by hand.
+type backupShaper interface {
+	// shapeNight changes a job's scheduled run on day. r.begin and r.end are
+	// set from the guests afterwards.
+	shapeNight(s *Sim, in *instance, day time.Time, r *jobRun)
+	// manualRuns are the runs the scenario starts by hand.
+	manualRuns(s *Sim, in *instance) []jobRun
+}
+
+// manualRun lays out a run of the whole job started by hand at begin, its
+// guests one after another as the slots go.
+func manualRun(job string, begin time.Time) jobRun {
+	r := jobRun{job: job, manual: true, whole: true}
+	at := begin
 	for _, sl := range backupSlots {
-		if sl.job != job {
-			continue
-		}
-		if b := sl.begin(day); begin.IsZero() || b.Before(begin) {
-			begin = b
-		}
-		if e := sl.end(day); e.After(end) {
-			end = e
+		if sl.job == job {
+			r.guests = append(r.guests, guestBackup{guest: sl.guest, begin: at, end: at.Add(sl.dur), ok: true})
+			at = at.Add(sl.dur)
 		}
 	}
-	return begin, end
+	r.span()
+	return r
 }
 
-// failures returns the backup-failed instances that target a guest.
-func (s *Sim) failures(guest string) []*instance {
-	var out []*instance
+// nightly is a job's scheduled run on day, as the script's scenarios shape it.
+func (s *Sim) nightly(job string, day time.Time) jobRun {
+	r := jobRun{job: job}
+	for _, sl := range backupSlots {
+		if sl.job == job {
+			r.guests = append(r.guests, guestBackup{guest: sl.guest, begin: sl.begin(day), end: sl.end(day), ok: true})
+		}
+	}
 	for _, in := range s.inst {
-		if in.sc == ScenarioBackupFailed && guest == bfGuest {
-			out = append(out, in)
+		if sh, ok := in.impl.(backupShaper); ok {
+			sh.shapeNight(s, in, day, &r)
 		}
 	}
-	return out
+	r.span()
+	return r
 }
 
-// replaced reports whether a failure took the place of a guest's nightly run
-// on day: the failure happened inside that run's slot.
-func (s *Sim) replaced(sl backupSlot, day time.Time) bool {
-	for _, in := range s.failures(sl.guest) {
-		if !in.open.Before(sl.begin(day)) && !in.open.After(sl.end(day)) {
-			return true
-		}
+// jobBegin is when a job's scheduled run on day starts.
+func jobBegin(job string, day time.Time) time.Time {
+	return day.Add(backupWindow + jobOf(job).offset)
+}
+
+// nightOf is the day of the latest scheduled run of job that began at or
+// before t.
+func nightOf(job string, t time.Time) time.Time {
+	day := dayStart(t)
+	if jobBegin(job, day).After(t) {
+		day = day.Add(-24 * time.Hour)
 	}
-	return false
+	return day
 }
 
-type backupEvent struct {
-	at time.Time
-	ok bool
-}
-
-// backupEvents lists a guest's recent backup results up to t, in no
-// particular order: nightly runs, failures and retries.
-func (s *Sim) backupEvents(sl backupSlot, t time.Time) []backupEvent {
-	var out []backupEvent
+// recentRuns are a job's scheduled runs of the four nights up to t's day,
+// then the runs started by hand, as far as the task list goes.
+func (s *Sim) recentRuns(job string, t time.Time) []jobRun {
 	today := dayStart(t)
+	out := make([]jobRun, 0, 5)
 	for i := 3; i >= 0; i-- {
-		day := today.Add(-time.Duration(i) * 24 * time.Hour)
-		if e := sl.end(day); !e.After(t) && !s.replaced(sl, day) {
-			out = append(out, backupEvent{e, true})
-		}
+		out = append(out, s.nightly(job, today.Add(-time.Duration(i)*24*time.Hour)))
 	}
-	for _, in := range s.failures(sl.guest) {
-		if !in.open.After(t) {
-			out = append(out, backupEvent{in.open, false})
-		}
-		if !in.fix.IsZero() {
-			if r := in.fix.Add(bfRetry); !r.After(t) && in.fix.Before(in.impl.horizon(in)) {
-				out = append(out, backupEvent{r, true})
+	for _, in := range s.inst {
+		if sh, ok := in.impl.(backupShaper); ok {
+			for _, r := range sh.manualRuns(s, in) {
+				if r.job == job {
+					out = append(out, r)
+				}
 			}
 		}
 	}
@@ -92,15 +166,43 @@ func (s *Sim) backupEvents(sl backupSlot, t time.Time) []backupEvent {
 // lastBackupOK is the guest's latest successful backup at or before t.
 func (s *Sim) lastBackupOK(guest string, t time.Time) time.Time {
 	var last time.Time
-	for _, ev := range s.backupEvents(slotOf(guest), t) {
-		if ev.ok && ev.at.After(last) {
-			last = ev.at
+	for _, r := range s.recentRuns(slotOf(guest).job, t) {
+		if g := r.guest(guest); g != nil && g.ok && !g.end.After(t) && g.end.After(last) {
+			last = g.end
 		}
 	}
 	return last
 }
 
-// failedBackupsIn counts failed backup tasks in (from, to].
+// jobHistory is what the Proxmox integration knows about a job's scheduled
+// runs at t: how many finished, how many failed and when, and when the last
+// good one ended.
+type jobHistory struct {
+	runs, failed int
+	failedAt     []string
+	lastOK       time.Time
+}
+
+func (s *Sim) jobHistory(job string, t time.Time) jobHistory {
+	var h jobHistory
+	for _, r := range s.recentRuns(job, t) {
+		if r.manual || r.end.After(t) {
+			continue
+		}
+		h.runs++
+		if r.failed() > 0 {
+			h.failed++
+			h.failedAt = append(h.failedAt, r.begin.UTC().Format(time.RFC3339))
+		} else if r.end.After(h.lastOK) {
+			h.lastOK = r.end
+		}
+	}
+	return h
+}
+
+// failedBackupsIn counts the backup tasks that failed on PBS in (from, to]:
+// the guest-agent timeouts. A run that couldn't reach PBS, or a guest that
+// couldn't start, never made a PBS task.
 func (s *Sim) failedBackupsIn(from, to time.Time) int {
 	n := 0
 	for _, in := range s.inst {
@@ -113,24 +215,35 @@ func (s *Sim) failedBackupsIn(from, to time.Time) int {
 
 func (s *Sim) applyBackups(w *world) {
 	t := w.t
+	runs := make(map[string][]jobRun, len(backupJobs))
+	for _, j := range backupJobs {
+		runs[j.id] = s.recentRuns(j.id, t)
+	}
 	for _, sl := range backupSlots {
 		g := w.res[sl.guest]
 		if g == nil {
 			continue
 		}
-		var last backupEvent
+		var last *guestBackup
 		var lastOK time.Time
-		for _, ev := range s.backupEvents(sl, t) {
-			if !ev.at.Before(last.at) {
-				last = ev
+		for i := range runs[sl.job] {
+			gb := runs[sl.job][i].guest(sl.guest)
+			if gb == nil || gb.end.After(t) {
+				continue
 			}
-			if ev.ok && ev.at.After(lastOK) {
-				lastOK = ev.at
+			if last == nil || !gb.end.Before(last.end) {
+				last = gb
+			}
+			if gb.ok && gb.end.After(lastOK) {
+				lastOK = gb.end
 			}
 		}
-		if !last.at.IsZero() {
-			g.Attrs["backup.last_at"] = last.at
+		if last != nil {
+			g.Attrs["backup.last_at"] = last.end
 			g.Attrs["backup.last_status"] = map[bool]string{true: "ok", false: "failed"}[last.ok]
+			if !last.ok {
+				g.Attrs["backup.last_error"] = last.err
+			}
 		}
 		if !lastOK.IsZero() {
 			g.Attrs["backup.last_ok"] = lastOK
@@ -141,45 +254,140 @@ func (s *Sim) applyBackups(w *world) {
 		if r == nil {
 			continue
 		}
-		today := dayStart(t)
-		if b, e := jobWindow(j.id, today); within(t, b, e) {
-			r.State = StateRunning
-		}
-		// The last finished run.
-		day := today
-		if _, e := jobWindow(j.id, day); e.After(t) {
-			day = day.Add(-24 * time.Hour)
-		}
-		b, e := jobWindow(j.id, day)
-		total, failed := 0, 0
-		for _, sl := range backupSlots {
-			if sl.job == j.id {
-				total++
-				if s.replaced(sl, day) {
-					failed++
-				}
+		var last *jobRun
+		var lastOK time.Time
+		for i := range runs[j.id] {
+			run := &runs[j.id][i]
+			if within(t, run.begin, run.end) && (!run.manual || run.whole) {
+				r.State = StateRunning
+			}
+			if run.manual || run.end.After(t) {
+				continue
+			}
+			if last == nil || run.begin.After(last.begin) {
+				last = run
+			}
+			if run.failed() == 0 && run.end.After(lastOK) {
+				lastOK = run.end
 			}
 		}
-		status := "ok"
-		if failed > 0 {
-			status = "failed"
+		if last == nil {
+			continue
 		}
-		r.Attrs["last_run.start"] = b
-		r.Attrs["last_run.end"] = e
-		r.Attrs["last_run.status"] = status
-		r.Attrs["last_run.ok"] = total - failed
+		failed := last.failed()
+		r.Attrs["last_run.start"] = last.begin
+		r.Attrs["last_run.end"] = last.end
+		r.Attrs["last_run.status"] = map[bool]string{true: "ok", false: "failed"}[failed == 0]
+		r.Attrs["last_run.ok"] = len(last.guests) - failed
 		r.Attrs["last_run.failed"] = failed
+		if failed > 0 {
+			r.Attrs["last_run.error"] = last.firstErr()
+		}
+		if !lastOK.IsZero() {
+			r.Attrs["last_ok"] = lastOK
+		}
 	}
 }
 
-// backupChangePoints lists slot boundaries in (from, to].
-func backupChangePoints(from, to time.Time) []time.Time {
+// backupChangePoints lists, in (from, to], when runs start and end and when
+// each guest's backup finishes or fails.
+func (s *Sim) backupChangePoints(from, to time.Time) []time.Time {
 	var out []time.Time
+	add := func(r jobRun) {
+		for _, t := range []time.Time{r.begin, r.end} {
+			if t.After(from) && !t.After(to) {
+				out = append(out, t)
+			}
+		}
+		for _, g := range r.guests {
+			if g.end.After(from) && !g.end.After(to) {
+				out = append(out, g.end)
+			}
+		}
+	}
 	for day := dayStart(from).Add(-24 * time.Hour); !day.After(to); day = day.Add(24 * time.Hour) {
-		for _, sl := range backupSlots {
-			for _, t := range []time.Time{sl.begin(day), sl.end(day)} {
-				if t.After(from) && !t.After(to) {
-					out = append(out, t)
+		for _, j := range backupJobs {
+			add(s.nightly(j.id, day))
+		}
+	}
+	for _, in := range s.inst {
+		if sh, ok := in.impl.(backupShaper); ok {
+			for _, r := range sh.manualRuns(s, in) {
+				add(r)
+			}
+		}
+	}
+	return out
+}
+
+// ── disks spinning down ──────────────────────────────────────────────────
+
+// diskSpin is when jupiter's array disks spin, as times of day (UTC). Unraid
+// spins a disk down after 30 idle minutes. disk1–3 hold the media and photos
+// that are read all day, so they never stop. The mover (cache to array, from
+// 03:40) writes to disk6 and parity; evening viewing reads older shows from
+// disk4; disk5 is cold storage. A disk not listed always spins.
+var diskSpin = map[string][][2]time.Duration{
+	"parity": {{3*time.Hour + 40*time.Minute, 4*time.Hour + 45*time.Minute}},
+	"disk4":  {{19 * time.Hour, 23*time.Hour + 30*time.Minute}},
+	"disk5":  nil,
+	"disk6":  {{3*time.Hour + 40*time.Minute, 4*time.Hour + 45*time.Minute}},
+}
+
+// moverRuns is 1 while the mover writes to the array (03:40 to about 04:15).
+func moverRuns(t time.Time) float64 { return bump(t, 3.95, 0.3) }
+
+func diskSpins(name string, t time.Time) bool {
+	wins, listed := diskSpin[name]
+	if !listed {
+		return true
+	}
+	of := t.Sub(dayStart(t))
+	for _, w := range wins {
+		if of >= w[0] && of < w[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// unraidUnread reports whether Cha Dash can't read jupiter's Unraid API at
+// t, and since when: its resources then keep what was read last.
+func (s *Sim) unraidUnread(t time.Time) (time.Time, bool) {
+	for _, in := range s.inst {
+		if in.sc != ScenarioUnraidAPI || t.Before(in.open) {
+			continue
+		}
+		if h := in.impl.horizon(in); h.IsZero() || t.Before(h) {
+			return in.open, true
+		}
+	}
+	return time.Time{}, false
+}
+
+// applyDisks spins disks down: state idle, which the Unraid integration
+// reports with no temperature.
+func (s *Sim) applyDisks(w *world) {
+	at := w.t
+	if since, unread := s.unraidUnread(at); unread {
+		at = since
+	}
+	for name := range diskSpin {
+		if r := w.res["unraid:jupiter/disk/"+name]; r != nil && !diskSpins(name, at) {
+			r.State = StateIdle
+		}
+	}
+}
+
+func diskChangePoints(from, to time.Time) []time.Time {
+	var out []time.Time
+	for day := dayStart(from); !day.After(to); day = day.Add(24 * time.Hour) {
+		for _, wins := range diskSpin {
+			for _, w := range wins {
+				for _, t := range []time.Time{day.Add(w[0]), day.Add(w[1])} {
+					if t.After(from) && !t.After(to) {
+						out = append(out, t)
+					}
 				}
 			}
 		}

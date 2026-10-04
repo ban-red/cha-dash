@@ -608,7 +608,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | i18n | `vue-i18n` (ICU-style messages); Weblate for community translations | Big translation communities exist | Crowdin |
 | Frontend tests | `bun test` + fast-check for plain TypeScript packages; Vitest + Vue Test Utils for components, launched through Bun ([ADR-0019](../adr/0019-bun-for-javascript-tooling.md)); Playwright (e2e and visual regression against the simulator); axe | — | — |
 | Auth libs | go-webauthn, coreos/go-oidc, argon2id | Standard and maintained | — |
-| Build and ship | goreleaser + buildx; scratch or distroless; non-root; `/data`; healthcheck subcommand; cosign; SBOM; **compose files in `deploy/`** | Catalog requirements | — |
+| Build and ship | Dockerfile stages + buildx in a tag-triggered workflow (`.github/workflows/release.yml`); scratch image; non-root; `/data`; healthcheck subcommand; cosign keyless; SBOM and provenance; static binaries with `SHA256SUMS`; **compose files in `deploy/`**, Unraid template in `deploy/unraid/` | Catalog requirements | — |
 
 ---
 

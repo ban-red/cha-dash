@@ -23,6 +23,7 @@
 
 **The evidence:**
 - **Sizes:** the hub is 12.0–12.8 MiB, or 12.9–13.7 MiB with the SPA (5.8–6.3 MB gzip, against a 40 MB image budget). The node is 28.3–30.5 MiB, against ≤ 40 MB.
+  - **At the v0.1 beta** (2026-10-04), with all 27 integrations, passkeys, the correlator and export: the stripped hub is 23.4 MiB on amd64 and 21.6 MiB on arm64, without the SPA. Still well inside the 40 MB image budget, which CI checks per platform.
 - **armv7 is clean today:** all three binaries build for armv7 with `CGO_ENABLED=0` and no warnings. `go vet` is clean for arm and 386. The hub doesn't use 64-bit atomics, and its timestamps are `int64`. Nothing has run on armv7 hardware yet.
 - **Hub memory** (macOS, so upper bounds; see the spike for why):
   - the empty hub peaks at 44 MiB RSS and 31 MiB footprint;

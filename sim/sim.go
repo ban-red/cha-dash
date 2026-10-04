@@ -235,7 +235,9 @@ func (s *Sim) world(t time.Time, full bool) *world {
 		w.res[id] = cloneResource(r)
 	}
 	s.applyBackups(w)
+	s.applyDisks(w)
 	s.applyCameras(w)
+	s.applyWeather(w)
 	for _, in := range s.inst {
 		in.impl.apply(s, in, w)
 	}
@@ -256,6 +258,7 @@ func (s *Sim) world(t time.Time, full bool) *world {
 				w.incidents = append(w.incidents, inc)
 			}
 		}
+		s.correlate(w)
 		slices.SortFunc(w.incidents, func(a, b *Incident) int {
 			return cmp.Or(a.OpenedAt.Compare(b.OpenedAt), cmp.Compare(a.ID, b.ID))
 		})
@@ -265,7 +268,9 @@ func (s *Sim) world(t time.Time, full bool) *world {
 
 // changePoints lists the moments in (from, to] where the world may change.
 func (s *Sim) changePoints(from, to time.Time) []time.Time {
-	pts := backupChangePoints(from, to)
+	pts := s.backupChangePoints(from, to)
+	pts = append(pts, diskChangePoints(from, to)...)
+	pts = append(pts, weatherChangePoints(from, to)...)
 	pts = append(pts, s.cameraChangePoints(from, to)...)
 	for _, in := range s.inst {
 		for _, t := range in.impl.changePoints(in) {
@@ -311,7 +316,9 @@ func reporting(state string) bool {
 }
 
 // available reports whether a metric can be read in w: its resource exists
-// and is up, and the integration that reports it is connected.
+// and is up, and the integration that reports it is connected. A readable
+// series can still say "unknown" (a spun-down disk's temperature); one that
+// can't be read keeps its last-known value, marked stale.
 func (s *Sim) available(m *metricSpec, w *world) bool {
 	r := w.res[m.res]
 	if r == nil || !reporting(r.State) {
@@ -327,7 +334,7 @@ func (s *Sim) available(m *metricSpec, w *world) bool {
 }
 
 func (s *Sim) value(m *metricSpec, t time.Time, w *world) Num {
-	if !s.available(m, w) {
+	if !s.available(m, w) || (m.awake && w.res[m.res].State == StateIdle) {
 		return Unknown()
 	}
 	return Num(roundTo(clamp(s.raw(m, t, w), m.min, m.max), m.dec))
@@ -345,11 +352,13 @@ func (s *Sim) nextTick(t time.Time) time.Time {
 	return time.Unix((floorDiv(t.Unix(), s.every())+1)*s.every(), 0).UTC()
 }
 
+// samples are the readable series at t. A series reported as unknown comes
+// with a null value; one that can't be read isn't sampled at all.
 func (s *Sim) samples(t time.Time, w *world) []Sample {
 	out := make([]Sample, 0, len(s.top.specs))
 	for _, m := range s.top.specs {
-		if v := s.value(m, t, w); v.Valid() {
-			out = append(out, Sample{Resource: m.res, Metric: m.key, Value: float64(v)})
+		if s.available(m, w) {
+			out = append(out, Sample{Resource: m.res, Metric: m.key, Value: s.value(m, t, w)})
 		}
 	}
 	return out
@@ -530,19 +539,25 @@ func (s *Sim) series(now time.Time) (HistoryAxis, []Series) {
 			se.History[i] = s.value(m, w.t, w)
 		}
 		se.Value = se.History[n-1]
-		if se.Value.Valid() {
-			se.AsOf = end
-		} else if v, at := s.lastKnown(m, end); v.Valid() {
-			se.Value, se.AsOf, se.Stale = v, at, true
+		switch {
+		case s.available(m, worlds[n-1]):
+			se.AsOf = end // read, even if what it says is "unknown"
+		default:
+			// Not readable: the last sample stands. A known value is stale;
+			// an unknown one stays unknown, as of when it was read.
+			if v, at, ok := s.lastKnown(m, end); ok {
+				se.Value, se.AsOf, se.Stale = v, at, v.Valid()
+			}
 		}
 		out = append(out, se)
 	}
 	return ax, out
 }
 
-// lastKnown finds a metric's most recent readable sample before end, walking
-// back through change points (up to two days).
-func (s *Sim) lastKnown(m *metricSpec, end time.Time) (Num, time.Time) {
+// lastKnown finds a metric's most recent sample before end, walking back
+// through change points (up to two days). Its value may be unknown: a
+// spun-down disk's temperature.
+func (s *Sim) lastKnown(m *metricSpec, end time.Time) (Num, time.Time, bool) {
 	// The world is constant between change points, so test one tick per
 	// interval, newest first. The interval ending at `end` is already known
 	// to be unreadable.
@@ -552,9 +567,9 @@ func (s *Sim) lastKnown(m *metricSpec, end time.Time) (Num, time.Time) {
 		if i > 0 && tk.Before(cps[i-1]) {
 			continue // no sample tick in this interval
 		}
-		if v := s.value(m, tk, s.world(tk, false)); v.Valid() {
-			return v, tk
+		if w := s.world(tk, false); s.available(m, w) {
+			return s.value(m, tk, w), tk, true
 		}
 	}
-	return Unknown(), time.Time{}
+	return Unknown(), time.Time{}, false
 }

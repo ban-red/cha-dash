@@ -2,17 +2,25 @@
 
 # Cha Dash hub image: ghcr.io/ban-red/chadash
 #
-# Three stages:
-#   1. web    builds the Vue SPA with Bun. It runs on the build machine's
-#             platform, because the output is the same for every target.
-#   2. hub    cross-compiles the Go binary with the SPA embedded (-tags webui),
-#             and prepares the files the final image needs.
-#   3. final  scratch: the binary, CA certificates and a non-root user. Nothing else.
+# Stages:
+#   1. web     builds the Vue SPA with Bun. It runs on the build machine's
+#              platform, because the output is the same for every target.
+#   2. hub     cross-compiles the Go binary with the SPA embedded (-tags webui),
+#              and prepares the files the final image needs.
+#   3. binary  the binary alone, for release downloads (--target binary).
+#   4. final   scratch: the binary, CA certificates and a non-root user. Nothing
+#              else. The default target.
 #
 # Build (CI does this for linux/amd64, linux/arm64 and linux/arm/v7, with no
 # emulation; arm/v7 is best-effort, see ADR-0016):
 #   docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 \
-#     --build-arg VERSION=v0.1.0 --build-arg COMMIT=$(git rev-parse --short HEAD) .
+#     --build-arg VERSION=v0.1.0 --build-arg COMMIT=$(git rev-parse HEAD) .
+#
+# The release binaries come from the same steps, darwin included (Go
+# cross-compiles; nothing from the image is needed):
+#   docker buildx build --target binary --output type=local,dest=out \
+#     --platform linux/amd64,linux/arm64,linux/arm/v7,darwin/amd64,darwin/arm64 \
+#     --build-arg VERSION=v0.1.0 --build-arg COMMIT=$(git rev-parse HEAD) .
 #
 # Base images are pinned by tag and digest. Bump both together, and keep Bun in
 # step with BUN_VERSION in .github/workflows/ci.yml.
@@ -86,7 +94,13 @@ RUN --mount=type=cache,target=/go/pkg/mod \
       -ldflags "-s -w -X dash.cha.sh/internal/buildinfo.Version=${VERSION} -X dash.cha.sh/internal/buildinfo.Commit=${COMMIT}" \
       -o /out/chadash ./cmd/chadash
 
-# ── 3. Final image ────────────────────────────────────────────────────────────
+# ── 3. Binary only ────────────────────────────────────────────────────────────
+# For .github/workflows/release.yml: exported with --output type=local, never
+# pushed. The final image below stays the default target.
+FROM scratch AS binary
+COPY --from=hub /out/chadash /chadash
+
+# ── 4. Final image ────────────────────────────────────────────────────────────
 FROM scratch
 
 COPY --from=hub /rootfs/ /

@@ -3,7 +3,10 @@ package sim
 import (
 	"cmp"
 	"fmt"
+	"maps"
+	"math"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -32,6 +35,7 @@ type metricSpec struct {
 	warn, crit     float64
 	dec            int
 	source         string // integration that reports it; "" = a built-in check
+	awake          bool   // reported unknown (null) while its resource is spun down (state idle)
 	fn             valueFn
 	hk             uint64      // noise stream key
 	adj            []*instance // incidents that shape this series
@@ -89,6 +93,8 @@ func buildTopology(start time.Time, r rng) *topology {
 	b.pvedocker()
 	b.backups()
 	b.routes()
+	b.checks()
+	b.weather()
 	b.finish()
 	return b.tp
 }
@@ -142,18 +148,18 @@ func (b *builder) cpuMem(res, source string, cpu, mem wave, memBand [2]float64) 
 	b.metric(pct(res, "mem.pct", source, memBand, 90, 98, mem))
 }
 
-// temp adds a CPU temperature that follows the resource's CPU load.
-func (b *builder) temp(res, source string, base, cpuBase float64) {
-	b.metric(&metricSpec{res: res, key: "temp.c", unit: "°C", min: 20, max: 105, band: [2]float64{base - 8, base + 12}, warn: 80, crit: 90, dec: 0, source: source,
-		fn: func(e *eval, m *metricSpec, t time.Time) float64 {
-			cpu := e.raw(res, "cpu.pct", t)
-			return base + 0.3*(cpu-cpuBase) + 1.5*diurnal(t, 16) + 0.8*e.s.rng.smooth(m.hk, t, 30*time.Minute)
-		}})
-}
+// Hosts have no temp.c: neither the PVE API nor the Unraid API reports a CPU
+// temperature (spike 4.1, integrations/unraid). It needs the node agent.
 
-func (b *builder) check(app string, ms float64) {
-	b.metric(&metricSpec{res: app, key: "http.ms", unit: "ms", min: 1, max: 5000, band: [2]float64{1, max(150, ms*2.5)}, warn: 800, crit: 2000, dec: 0,
-		fn: wave{base: ms, amp: ms * 0.25, peak: 21, slow: ms * 0.12, fast: ms * 0.08}.fn()})
+// check adds a latency series. Without a source it's the hub's own HTTP
+// check of an app; with one, the series of a built-in check resource.
+func (b *builder) check(res string, ms float64, source ...string) {
+	m := &metricSpec{res: res, key: "http.ms", unit: "ms", min: 1, max: 5000, band: [2]float64{1, max(150, ms*2.5)}, warn: 800, crit: 2000, dec: 0,
+		fn: wave{base: ms, amp: ms * 0.25, peak: 21, slow: ms * 0.12, fast: ms * 0.08}.fn()}
+	if len(source) > 0 {
+		m.source = source[0]
+	}
+	b.metric(m)
 }
 
 func (b *builder) count(res, key, source string, lo, hi float64, band [2]float64, fn valueFn) {
@@ -178,33 +184,38 @@ type integ struct {
 	version                        string
 	monitors                       string
 	group                          string
+	name                           string // the instance's name, when it isn't its ID
 }
 
+// integrationTable lists the hub's integration instances. The Proxmox
+// versions are the dogfood fleet's (spike 4.1): mixed 8.4 and 9.x.
 var integrationTable = []integ{
-	{"proxmox-pluto", "proxmox", "go", "token", "https", true, "9.0", "pve:pluto", "Servers"},
-	{"proxmox-minig5", "proxmox", "go", "token", "https", true, "9.0", "pve:minig5", "Servers"},
-	{"proxmox-mars", "proxmox", "go", "token", "https", true, "9.0", "pve:mars", "Servers"},
-	{"proxmox-io", "proxmox", "go", "token", "https", true, "9.0", "pve:io", "Servers"},
-	{"proxmox-jupiter-nas", "proxmox", "go", "token", "https", true, "9.0", "pve:jupiter-nas", "Servers"},
-	{"unraid-jupiter", "unraid", "go", "key", "https", true, "7.3", "unraid:jupiter", "Servers"},
-	{"docker-pvedocker", "docker", "go", "socket-proxy", "tcp", true, "", "docker:pvedocker", "Servers"},
-	{"docker-jupiter", "docker", "go", "socket-proxy", "tcp", true, "", "docker:jupiter", "Servers"},
-	{"opnsense", "opnsense", "go", "key", "http", true, "", "net:opnsense", "Servers"},
-	{"pbs", "pbs", "go", "token", "https", true, "4.0", "app:pbs", "Backup"},
-	{"homeassistant", "homeassistant", "go", "token", "https", false, "", "app:homeassistant", "Home"},
-	{"frigate", "frigate", "go", "none", "http", true, "0.18.0", "app:frigate", "Home"},
-	{"traefik", "traefik", "go", "basic", "http", true, "", "app:traefik", "Services"},
-	{"uptimekuma", "uptimekuma", "go", "key", "https", true, "", "app:uptimekuma", "Services"},
-	{"plex", "plex", "go", "token", "https", true, "", "app:plex", "Media"},
-	{"tautulli", "tautulli", "spec", "key", "https", true, "", "app:tautulli", "Media"},
-	{"sonarr", "sonarr", "go", "key", "https", true, "", "app:sonarr", "Media"},
-	{"radarr", "radarr", "go", "key", "https", true, "", "app:radarr", "Media"},
-	{"bazarr", "bazarr", "spec", "key", "https", true, "", "app:bazarr", "Media"},
-	{"prowlarr", "prowlarr", "go", "key", "https", true, "", "app:prowlarr", "Downloads"},
-	{"qbittorrent", "qbittorrent", "go", "basic", "https", true, "", "app:qbittorrent", "Downloads"},
-	{"karakeep", "karakeep", "spec", "key", "https", true, "0.30.2", "app:karakeep", "Archive"},
-	{"immich", "immich", "go", "key", "https", true, "", "app:immich", "Apps"},
-	{"mealie", "mealie", "spec", "key", "https", true, "", "app:mealie", "Apps"},
+	{"proxmox-pluto", "proxmox", "go", "token", "https", true, "9.0.9", "pve:pluto", "Servers", ""},
+	{"proxmox-minig5", "proxmox", "go", "token", "https", true, "8.4.19", "pve:minig5", "Servers", ""},
+	{"proxmox-mars", "proxmox", "go", "token", "https", true, "9.1.5", "pve:mars", "Servers", ""},
+	{"proxmox-io", "proxmox", "go", "token", "https", true, "9.2.20", "pve:io", "Servers", ""},
+	{"proxmox-jupiter-nas", "proxmox", "go", "token", "https", true, "8.4.21", "pve:jupiter-nas", "Servers", ""},
+	{"unraid-jupiter", "unraid", "go", "key", "https", true, "7.3.2", "unraid:jupiter", "Servers", ""},
+	{"docker-pvedocker", "docker", "go", "socket-proxy", "tcp", true, "", "docker:pvedocker", "Servers", ""},
+	{"docker-jupiter", "docker", "go", "socket-proxy", "tcp", true, "", "docker:jupiter", "Servers", ""},
+	{"opnsense", "opnsense", "go", "key", "http", true, "", "net:opnsense", "Servers", ""},
+	{"pbs", "pbs", "go", "token", "https", true, "4.0", "app:pbs", "Backup", ""},
+	{"homeassistant", "homeassistant", "go", "token", "https", false, "", "app:homeassistant", "Home", ""},
+	{"frigate", "frigate", "go", "none", "http", true, "0.18.0", "app:frigate", "Home", ""},
+	{"traefik", "traefik", "go", "basic", "http", true, "3.6.7", "app:traefik", "Services", ""},
+	{"uptimekuma", "uptimekuma", "go", "key", "https", true, "", "app:uptimekuma", "Services", ""},
+	{"plex", "plex", "go", "token", "https", true, "", "app:plex", "Media", ""},
+	{"tautulli", "tautulli", "spec", "key", "https", true, "", "app:tautulli", "Media", ""},
+	{"sonarr", "sonarr", "go", "key", "https", true, "", "app:sonarr", "Media", ""},
+	{"radarr", "radarr", "go", "key", "https", true, "", "app:radarr", "Media", ""},
+	{"bazarr", "bazarr", "spec", "key", "https", true, "", "app:bazarr", "Media", ""},
+	{"prowlarr", "prowlarr", "go", "key", "https", true, "", "app:prowlarr", "Downloads", ""},
+	{"qbittorrent", "qbittorrent", "go", "basic", "https", true, "", "app:qbittorrent", "Downloads", ""},
+	{"karakeep", "karakeep", "spec", "key", "https", true, "0.30.2", "app:karakeep", "Archive", ""},
+	{"immich", "immich", "go", "key", "https", true, "", "app:immich", "Apps", ""},
+	{"mealie", "mealie", "spec", "key", "https", true, "", "app:mealie", "Apps", ""},
+	{"checks", "checks", "go", "none", "http", true, "", "", "Services", ""},           // monitors each check
+	{"demo", "weather", "go", "none", "https", true, "", weatherID, "Home", "Weather"}, // Open-Meteo, keyless
 }
 
 func (b *builder) integrations() {
@@ -217,10 +228,16 @@ func (b *builder) integrations() {
 		if it.typ == "karakeep" {
 			attrs["adapter"] = "≤ 0.30"
 		}
-		b.add(&Resource{ID: id, Kind: KindIntegration, Name: it.id, Source: "hub", State: StateConnected,
+		name := it.id
+		if it.name != "" {
+			name = it.name
+		}
+		b.add(&Resource{ID: id, Kind: KindIntegration, Name: name, Source: "hub", State: StateConnected,
 			Labels: map[string]string{"chadash.group": it.group}, Attrs: attrs,
 			Health: Health{Status: HealthOK, Since: b.start.Add(-9 * 24 * time.Hour)}})
-		b.rel(id, RelMonitors, it.monitors)
+		if it.monitors != "" {
+			b.rel(id, RelMonitors, it.monitors)
+		}
 	}
 	b.rel("integration:docker-pvedocker", RelDependsOn, "docker:pvedocker/dockerproxy")
 	b.rel("integration:docker-jupiter", RelDependsOn, "docker:jupiter/socket-proxy")
@@ -263,12 +280,15 @@ func (b *builder) network() {
 
 // ── PVE hosts and guests ─────────────────────────────────────────────────
 
-func (b *builder) pveHost(id, name, src, ip, role string, cores int, memGB float64) *Resource {
+// pveHost adds a PVE node. version is its pve-manager version: the fleet
+// mixes 8.4 and 9.x (spike 4.1), published as the Proxmox integration does.
+func (b *builder) pveHost(id, name, src, ip, role, version string, cores int, memGB float64) *Resource {
 	r := b.add(&Resource{ID: id, Kind: KindHost, Name: name, Source: src, State: StateOnline,
 		Labels: map[string]string{"chadash.role": role, "chadash.group": "Servers"},
-		Attrs:  map[string]any{"platform": "pve", "ip": ip, "cores": cores, "mem_gb": memGB, "boot_at": b.ago(id, 24*6, 24*60)},
-		Links:  []Link{{Title: "Proxmox", URL: pveUI(name)}},
-		Caps:   []string{"host.metrics", "compute.guests", "power"}})
+		Attrs: map[string]any{"platform": "pve", "node": name, "pve_version": version, "ip": ip, "cores": cores, "mem_gb": memGB,
+			"boot_at": b.ago(id, 24*6, 24*60)},
+		Links: []Link{{Title: "Proxmox", URL: pveUI(name)}},
+		Caps:  []string{"host.metrics", "compute.guests", "power"}})
 	b.rel("net:opnsense", RelProvidesNetworkFor, id)
 	return r
 }
@@ -290,6 +310,8 @@ type guestSpec struct {
 	memGB     float64
 	running   bool
 	storage   string
+	byHand    time.Time // running, started by hand at this time rather than at boot (no onboot)
+	hostpci   []string  // passed-through PCI devices
 }
 
 func (b *builder) guest(g guestSpec, src string) string {
@@ -300,15 +322,21 @@ func (b *builder) guest(g guestSpec, src string) string {
 		kind = KindLXC
 	}
 	state, desired := StateStopped, StateStopped
-	attrs := map[string]any{"vmid": g.vmid, "os": g.os, "mem_gb": g.memGB, "onboot": g.running}
+	attrs := map[string]any{"vmid": g.vmid, "os": g.os, "mem_gb": g.memGB, "onboot": g.running && g.byHand.IsZero()}
 	if g.ip != "" {
 		attrs["ip"] = g.ip
+	}
+	if len(g.hostpci) > 0 {
+		attrs["hostpci"] = g.hostpci
 	}
 	health := Health{Status: HealthOK, Since: b.ago("stopped:"+id, 24*2, 24*30)}
 	if g.running {
 		state, desired = StateRunning, StateRunning
 		boot := b.tp.res[g.host].Attrs["boot_at"].(time.Time)
 		started := boot.Add(time.Duration(2+b.rng.u(hashKey("onboot:"+id), 0)*6) * time.Minute).Truncate(time.Second)
+		if !g.byHand.IsZero() {
+			started, desired = g.byHand, "" // no onboot: running it by hand is fine, stopping it too
+		}
 		attrs["started_at"] = started
 		health = Health{Status: HealthOK, Since: started}
 	} else {
@@ -322,18 +350,24 @@ func (b *builder) guest(g guestSpec, src string) string {
 	return id
 }
 
-func (b *builder) app(id, name, group, url string, caps ...string) *Resource {
+// app adds a logical service. attrs.type is the ID of the integration that
+// reads it ("app:sonarr" is a Sonarr), how widgets find a service on a real
+// hub; the apps no integration reads (Cockpit, Cha Dash itself) carry their
+// own name. extra attrs are merged in.
+func (b *builder) app(id, name, group, url string, extra map[string]any, caps ...string) *Resource {
+	attrs := map[string]any{"type": strings.TrimPrefix(id, "app:")}
+	maps.Copy(attrs, extra)
 	return b.add(&Resource{ID: id, Kind: KindApp, Name: name, Source: "", State: StateRunning, Desired: StateRunning,
 		Labels: map[string]string{"chadash.group": group},
+		Attrs:  attrs,
 		Links:  []Link{{Title: name, URL: url}},
 		Caps:   caps})
 }
 
 func (b *builder) pluto() {
 	src := "integration:proxmox-pluto"
-	b.pveHost("pve:pluto", "pluto", src, "10.0.11.10", "network-core", 4, 16)
+	b.pveHost("pve:pluto", "pluto", src, "10.0.11.10", "network-core", "9.0.9", 4, 16)
 	b.cpuMem("pve:pluto", src, wave{base: 7, amp: 3, peak: 21, slow: 1.5, fast: 0.8}, wave{base: 80, amp: 1, peak: 21, slow: 0.8, fast: 0.2}, [2]float64{55, 85})
-	b.temp("pve:pluto", src, 47, 7)
 	st := b.pveStorage("pve:pluto", "local-zfs", "zfspool", 0.5, src, 31)
 
 	vm := b.guest(guestSpec{host: "pve:pluto", typ: "qemu", vmid: 100, name: "opnsense", os: "freebsd", ip: "10.0.11.1", memGB: 8, running: true, storage: st}, src)
@@ -344,9 +378,8 @@ func (b *builder) pluto() {
 
 func (b *builder) minig5() {
 	src := "integration:proxmox-minig5"
-	b.pveHost("pve:minig5", "minig5", src, "10.0.11.11", "home-automation", 6, 16)
+	b.pveHost("pve:minig5", "minig5", src, "10.0.11.11", "home-automation", "8.4.19", 6, 16)
 	b.cpuMem("pve:minig5", src, wave{base: 34, amp: 9, peak: 14, slow: 3, fast: 1.5}, wave{base: 66, amp: 1.5, peak: 14, slow: 1, fast: 0.3}, [2]float64{50, 80})
-	b.temp("pve:minig5", src, 58, 38)
 	st := b.pveStorage("pve:minig5", "local-lvm", "lvmthin", 0.5, src, 48)
 
 	vm := b.guest(guestSpec{host: "pve:minig5", typ: "qemu", vmid: 100, name: "homeassistant", os: "haos", ip: "10.0.11.203", memGB: 4, running: true, storage: st}, src)
@@ -354,12 +387,14 @@ func (b *builder) minig5() {
 	ct := b.guest(guestSpec{host: "pve:minig5", typ: "lxc", vmid: 101, name: "frigate", os: "debian", ip: "10.0.11.202", memGB: 4, running: true, storage: st}, src)
 	b.cpuMem(ct, src, wave{base: 42, amp: 15, peak: 14, slow: 5, fast: 2}, wave{base: 52, amp: 3, peak: 14, slow: 1.5, fast: 0.4}, [2]float64{35, 70})
 
-	ha := b.app("app:homeassistant", "Home Assistant", "Home", "https://home.lab.example", "home.entities")
-	ha.Attrs = map[string]any{"people_total": 2, "lights_total": 39, "switches_total": 305}
+	b.app("app:homeassistant", "Home Assistant", "Home", "https://home.lab.example",
+		map[string]any{"people_total": 2, "lights_total": 39, "switches_total": 305}, "home.entities")
 	b.rel("app:homeassistant", RelRunsOn, vm)
 	b.rel("app:homeassistant", RelDependsOn, "app:frigate")
-	fr := b.app("app:frigate", "Frigate", "Home", "http://10.0.11.202:55000", "cameras", "cameras.events")
-	fr.Attrs = map[string]any{"version": "0.18.0", "cameras": 3, "detector": "openvino"}
+	// Cha Dash reads Frigate on 55000, the internal port published as is: it
+	// answers anyone as an admin (the hint in hintFrigate).
+	b.app("app:frigate", "Frigate", "Home", "http://10.0.11.202:55000",
+		map[string]any{"version": "0.18.0", "cameras": 3, "detector": "openvino"}, "cameras", "cameras.events")
 	b.rel("app:frigate", RelRunsOn, ct)
 	b.check("app:homeassistant", 35)
 	b.check("app:frigate", 22)
@@ -425,17 +460,19 @@ func (b *builder) mars() {
 	src := "integration:proxmox-mars"
 	b.add(&Resource{ID: "pve:mars", Kind: KindCluster, Name: "mars", Source: src, State: StateOnline,
 		Labels: map[string]string{"chadash.group": "Servers"},
-		Attrs:  map[string]any{"nodes": 2, "quorate": true},
+		Attrs:  map[string]any{"platform": "pve", "cluster": "mars", "nodes": 2, "quorate": true},
 		Links:  []Link{{Title: "Proxmox", URL: pveUI("mars-1")}},
 		Health: Health{Status: HealthOK, Since: b.start.Add(-90 * 24 * time.Hour)}})
-	b.pveHost("pve:mars-1", "mars-1", src, "10.0.11.12", "docker", 8, 32)
-	b.pveHost("pve:mars-2", "mars-2", src, "10.0.11.13", "cluster", 8, 32)
+	for _, n := range []*Resource{
+		b.pveHost("pve:mars-1", "mars-1", src, "10.0.11.12", "docker", "9.1.5", 8, 32),
+		b.pveHost("pve:mars-2", "mars-2", src, "10.0.11.13", "cluster", "9.1.5", 8, 32),
+	} {
+		n.Attrs["cluster"] = "mars"
+	}
 	b.rel("pve:mars-1", RelPartOf, "pve:mars")
 	b.rel("pve:mars-2", RelPartOf, "pve:mars")
 	b.cpuMem("pve:mars-1", src, wave{base: 4, amp: 1.5, peak: 21, slow: 1, fast: 0.5}, wave{base: 32, amp: 1, peak: 21, slow: 0.6, fast: 0.2}, [2]float64{20, 60})
 	b.cpuMem("pve:mars-2", src, wave{base: 1, amp: 0.3, peak: 21, slow: 0.3, fast: 0.2}, wave{base: 28, slow: 0.4, fast: 0.1}, [2]float64{15, 60})
-	b.temp("pve:mars-1", src, 41, 4)
-	b.temp("pve:mars-2", src, 38, 1)
 	st := b.pveStorage("pve:mars-1", "local-lvm", "lvmthin", 1, src, 40)
 	b.pveStorage("pve:mars-2", "local-lvm", "lvmthin", 1, src, 12)
 
@@ -445,27 +482,29 @@ func (b *builder) mars() {
 
 func (b *builder) io() {
 	src := "integration:proxmox-io"
-	b.pveHost("pve:io", "io", src, "10.0.11.14", "workstation", 16, 64)
+	b.pveHost("pve:io", "io", src, "10.0.11.14", "workstation", "9.2.20", 16, 64)
 	b.cpuMem("pve:io", src, wave{base: 1.5, amp: 0.8, peak: 20, slow: 0.5, fast: 0.3}, wave{base: 55, slow: 0.6, fast: 0.2}, [2]float64{30, 70})
-	b.temp("pve:io", src, 36, 1.5)
 	st := b.pveStorage("pve:io", "local-lvm", "lvmthin", 2, src, 67)
-	b.guest(guestSpec{host: "pve:io", typ: "qemu", vmid: 201, name: "win-gaming", os: "windows", memGB: 16, storage: st}, src)
-	vm := b.guest(guestSpec{host: "pve:io", typ: "qemu", vmid: 202, name: "iolinux", os: "ubuntu", ip: "10.0.11.204", memGB: 8, running: true, storage: st}, src)
+	// win-gaming and iolinux pass through the same GPU (spike 4.1). iolinux
+	// is started by hand when it's wanted: since yesterday evening.
+	gpu := []string{ptDevice[:len("0000:01:00")]}
+	b.guest(guestSpec{host: "pve:io", typ: "qemu", vmid: 201, name: "win-gaming", os: "windows", memGB: 16, storage: st, hostpci: gpu}, src)
+	vm := b.guest(guestSpec{host: "pve:io", typ: "qemu", vmid: 202, name: "iolinux", os: "ubuntu", ip: "10.0.11.204", memGB: 8, running: true, storage: st,
+		byHand: b.start.Add(-2*time.Hour - 45*time.Minute), hostpci: gpu}, src)
 	b.cpuMem(vm, src, wave{base: 2, amp: 1, peak: 20, slow: 0.8, fast: 0.4}, wave{base: 35, slow: 1, fast: 0.3}, [2]float64{20, 60})
 	b.guest(guestSpec{host: "pve:io", typ: "qemu", vmid: 203, name: "devbox", os: "ubuntu", memGB: 8, storage: st}, src)
 }
 
 func (b *builder) jupiterNAS() {
 	src := "integration:proxmox-jupiter-nas"
-	h := b.pveHost("pve:jupiter-nas", "jupiter-nas", src, "10.0.11.15", "nas", 4, 8)
+	h := b.pveHost("pve:jupiter-nas", "jupiter-nas", src, "10.0.11.15", "nas", "8.4.21", 4, 8)
 	h.Attrs["swap_gb"] = 0
 	b.cpuMem("pve:jupiter-nas", src, wave{base: 4, amp: 1.5, peak: 20, slow: 1, fast: 0.5}, wave{base: 62, amp: 1, peak: 20, slow: 0.8, fast: 0.2}, [2]float64{45, 85})
-	b.temp("pve:jupiter-nas", src, 44, 4)
 	st := b.pveStorage("pve:jupiter-nas", "tank", "zfspool", 8, src, 58)
 	ct := b.guest(guestSpec{host: "pve:jupiter-nas", typ: "lxc", vmid: 100, name: "debian-nas", os: "debian", ip: "10.0.11.121", memGB: 4, running: true, storage: st}, src)
 	b.cpuMem(ct, src, wave{base: 3, amp: 1, peak: 20, slow: 0.8, fast: 0.4}, wave{base: 12.5, amp: 0.5, peak: 20, slow: 0.4, fast: 0.1}, [2]float64{5, 40})
 	b.guest(guestSpec{host: "pve:jupiter-nas", typ: "qemu", vmid: 101, name: "scratch", os: "debian", memGB: 2, storage: st}, src)
-	b.app("app:cockpit", "Cockpit", "Servers", "https://jupiter-nas-debian.lab.example:9090/")
+	b.app("app:cockpit", "Cockpit", "Servers", "https://jupiter-nas-debian.lab.example:9090/", nil)
 	b.rel("app:cockpit", RelRunsOn, ct)
 	b.check("app:cockpit", 23)
 }
@@ -493,14 +532,14 @@ func (b *builder) jupiter() {
 	src := "integration:unraid-jupiter"
 	b.add(&Resource{ID: "unraid:jupiter", Kind: KindHost, Name: "jupiter", Source: src, State: StateOnline,
 		Labels: map[string]string{"chadash.role": "nas", "chadash.group": "Servers"},
-		Attrs:  map[string]any{"platform": "unraid", "version": "7.3", "ip": "10.0.11.120", "cores": 12, "mem_gb": 64, "boot_at": b.ago("unraid:jupiter", 24*12, 24*50)},
-		Links:  []Link{{Title: "Unraid", URL: "https://jupiter.lab.example/"}},
-		Caps:   []string{"host.metrics", "storage.pools", "storage.disks", "storage.shares", "containers", "power"}})
+		Attrs: map[string]any{"platform": "unraid", "version": "7.3.2", "hostname": "jupiter", "ip": "10.0.11.120", "cores": 12, "mem_gb": 64,
+			"boot_at": b.ago("unraid:jupiter", 24*12, 24*50)},
+		Links: []Link{{Title: "Unraid", URL: "https://jupiter.lab.example/"}},
+		Caps:  []string{"host.metrics", "storage.pools", "storage.disks", "storage.shares", "containers", "power"}})
 	b.rel("net:opnsense", RelProvidesNetworkFor, "unraid:jupiter")
 	b.cpuMem("unraid:jupiter", src,
 		wave{base: 14, amp: 8, peak: 21, slow: 2.5, fast: 1.2, extra: func(t time.Time) float64 { return 9 * nightlyBackups(t) }},
 		wave{base: 41, amp: 2, peak: 21, slow: 0.8, fast: 0.2}, [2]float64{30, 60})
-	b.temp("unraid:jupiter", src, 52, 18)
 
 	// Array and disks.
 	usable := 0.0
@@ -523,8 +562,10 @@ func (b *builder) jupiter() {
 		if d.used > 0 {
 			b.metric(pct(id, "used.pct", src, [2]float64{0, 85}, 90, 97, wave{base: d.used, slow: 0.02}))
 		}
-		b.metric(&metricSpec{res: id, key: "temp.c", unit: "°C", min: 15, max: 70, band: [2]float64{30, 45}, warn: 50, crit: 55, dec: 0, source: src,
-			fn: wave{base: d.temp, amp: 1.5, peak: 16, slow: 0.6, extra: func(t time.Time) float64 { return 1.5 * nightlyBackups(t) }}.fn()})
+		// Unknown while the disk is spun down (routines.go, diskSpin): Unraid
+		// reports no temperature then, and reading one would wake the disk.
+		b.metric(&metricSpec{res: id, key: "temp.c", unit: "°C", min: 15, max: 70, band: [2]float64{30, 45}, warn: 50, crit: 55, dec: 0, source: src, awake: true,
+			fn: wave{base: d.temp, amp: 1.5, peak: 16, slow: 0.6, extra: func(t time.Time) float64 { return 1.5 * moverRuns(t) }}.fn()})
 	}
 	b.metric(pct("unraid:jupiter/array", "used.pct", src, [2]float64{0, 85}, 85, 95, wave{}))
 	b.tp.specIdx["unraid:jupiter/array|used.pct"].fn = func(e *eval, m *metricSpec, t time.Time) float64 {
@@ -561,9 +602,13 @@ func (b *builder) jupiter() {
 	eng := "docker:jupiter"
 	boot := b.tp.res["unraid:jupiter"].Attrs["boot_at"].(time.Time)
 	engStart := boot.Add(4 * time.Minute)
+	// The proxy is a coarse one (spike 4.4): every GET under /containers/
+	// gets through, so the Docker integration's probe says broad-proxy and
+	// raises a hint (hintDocker).
 	b.add(&Resource{ID: eng, Kind: KindEngine, Name: "jupiter", Source: "integration:docker-jupiter", State: StateRunning,
-		Attrs: map[string]any{"endpoint": "tcp://10.0.11.120:2375", "via": "socket-proxy", "manager": "unraid", "started_at": engStart},
-		Caps:  []string{"containers"}})
+		Attrs: map[string]any{"endpoint": jupiterProxy, "via": "socket-proxy", "access": "broad-proxy", "host": "10.0.11.120", "ip": "10.0.11.120",
+			"manager": "unraid", "started_at": engStart},
+		Caps: []string{"containers"}})
 	b.rel(eng, RelRunsOn, "unraid:jupiter")
 	b.rel(eng, RelDependsOn, "unraid:jupiter/array")
 	b.rel(eng, RelStoresOn, "unraid:jupiter/pool/cache")
@@ -573,6 +618,17 @@ func (b *builder) jupiter() {
 		cpu, mem         wave
 		memLimit         int
 		ports            []string
+	}
+	// Homepage builds Mealie, Immich and PBS from these containers' labels
+	// (05-dogfood-home); the Docker integration copies the homepage.* labels
+	// that aren't secrets, so label discovery offers them as tiles.
+	homepage := map[string]map[string]string{
+		"mealie": {"homepage.group": "Apps", "homepage.name": "Mealie", "homepage.href": "https://food.family.example", "homepage.icon": "mealie.png",
+			"homepage.description": "Recipes", "homepage.widget.type": "mealie", "homepage.widget.url": "http://10.0.11.120:9925"},
+		"immich": {"homepage.group": "Apps", "homepage.name": "Immich", "homepage.href": "https://photos.family.example", "homepage.icon": "immich.png",
+			"homepage.description": "Photos", "homepage.widget.type": "immich", "homepage.widget.url": "http://10.0.11.120:2283", "homepage.widget.version": "2"},
+		"pbs": {"homepage.group": "Backup", "homepage.name": "Proxmox Backup Server", "homepage.href": "https://10.0.11.120:8007",
+			"homepage.icon": "proxmox-backup-server.png", "homepage.widget.type": "proxmoxbackupserver", "homepage.widget.url": "https://10.0.11.120:8007"},
 	}
 	cts := []ct{
 		{"Plex-Current", "plexinc/pms-docker:latest", "app:plex",
@@ -601,9 +657,14 @@ func (b *builder) jupiter() {
 		if c.memLimit > 0 {
 			attrs["mem_limit_mib"] = c.memLimit
 		}
+		labels := map[string]string{"net.unraid.docker.managed": "dockerman"}
+		var links []Link
+		if hp := homepage[c.name]; hp != nil {
+			maps.Copy(labels, hp)
+			links = []Link{{Title: hp["homepage.name"], URL: hp["homepage.href"]}}
+		}
 		b.add(&Resource{ID: id, Kind: KindContainer, Name: c.name, Source: "integration:docker-jupiter", State: StateRunning, Desired: StateRunning,
-			Labels: map[string]string{"net.unraid.docker.managed": "dockerman"},
-			Attrs:  attrs, Caps: []string{"lifecycle", "logs", "metrics"}})
+			Labels: labels, Attrs: attrs, Links: links, Caps: []string{"lifecycle", "logs", "metrics"}})
 		b.rel(id, RelRunsOn, eng)
 		b.rel(id, RelStoresOn, "unraid:jupiter/share/appdata")
 		if c.app != "" {
@@ -620,22 +681,23 @@ func (b *builder) jupiter() {
 	b.tp.res[eng+"/binhex-qbittorrentvpn"].Attrs["vpn"] = "wireguard"
 
 	// Apps on jupiter.
-	b.app("app:plex", "Plex", "Media", "https://plex.lab.example", "media.sessions", "media.library").Attrs = map[string]any{"movies": 1240, "shows": 318}
-	b.app("app:tautulli", "Tautulli", "Media", "https://jupiter.lab.example/tautulli", "media.sessions")
-	sonarr := b.app("app:sonarr", "Sonarr", "Media", "https://jupiter.lab.example/sonarr", "media.calendar", "media.library")
-	sonarr.Attrs = map[string]any{"calendar": []CalendarItem{
+	b.app("app:plex", "Plex", "Media", "https://plex.lab.example", map[string]any{"movies": 1240, "shows": 318}, "media.sessions", "media.library")
+	b.app("app:tautulli", "Tautulli", "Media", "https://jupiter.lab.example/tautulli", nil, "media.sessions")
+	b.app("app:sonarr", "Sonarr", "Media", "https://jupiter.lab.example/sonarr", map[string]any{"calendar": []CalendarItem{
 		{At: b.start.Add(28 * time.Hour), Title: "Black Clover", Detail: "new episode"},
 		{At: b.start.Add(34 * time.Hour), Title: "Ranma ½ (2024)", Detail: "new episode"},
 		{At: b.start.Add(3*24*time.Hour + 20*time.Hour), Title: "4 more episodes", Detail: "this week"},
-	}}
-	radarr := b.app("app:radarr", "Radarr", "Media", "https://jupiter.lab.example/radarr", "media.calendar", "media.library")
-	radarr.Attrs = map[string]any{"calendar": []CalendarItem{{At: b.start.Add(6*24*time.Hour + 8*time.Hour), Title: "1 movie release", Detail: "digital release"}}}
-	b.app("app:bazarr", "Bazarr", "Media", "https://jupiter.lab.example/bazarr", "media.library")
-	b.app("app:prowlarr", "Prowlarr", "Downloads", "https://jupiter.lab.example/prowlarr", "downloads.indexers")
-	b.app("app:qbittorrent", "qBittorrent", "Downloads", "https://torrents.lab.example", "downloads.queue")
-	b.app("app:mealie", "Mealie", "Apps", "https://food.family.example").Attrs = map[string]any{"recipes": 87, "categories": 8, "tags": 240}
-	b.app("app:immich", "Immich", "Apps", "https://photos.family.example").Attrs = map[string]any{"users": 2}
-	b.app("app:pbs", "Proxmox Backup Server", "Backup", "https://10.0.11.120:8007", "backups.jobs", "backups.snapshots", "backups.targets")
+	}}, "media.calendar", "media.library")
+	b.app("app:radarr", "Radarr", "Media", "https://jupiter.lab.example/radarr", map[string]any{"calendar": []CalendarItem{
+		{At: b.start.Add(6*24*time.Hour + 8*time.Hour), Title: "1 movie release", Detail: "digital release"},
+	}}, "media.calendar", "media.library")
+	b.app("app:bazarr", "Bazarr", "Media", "https://jupiter.lab.example/bazarr", nil, "media.library")
+	b.app("app:prowlarr", "Prowlarr", "Downloads", "https://jupiter.lab.example/prowlarr", map[string]any{"indexers": 3}, "downloads.indexers")
+	b.app("app:qbittorrent", "qBittorrent", "Downloads", "https://torrents.lab.example", nil, "downloads.queue")
+	b.app("app:mealie", "Mealie", "Apps", "https://food.family.example", map[string]any{"recipes": 87, "categories": 8, "tags": 240})
+	b.app("app:immich", "Immich", "Apps", "https://photos.family.example", map[string]any{"users": 2}, "photos.library")
+	b.app("app:pbs", "Proxmox Backup Server", "Backup", "https://10.0.11.120:8007", map[string]any{"version": "4.0.14", "datastores": 1},
+		"backups.jobs", "backups.snapshots", "backups.targets")
 
 	for _, d := range []struct{ from, to string }{
 		{"app:sonarr", "app:qbittorrent"}, {"app:sonarr", "app:prowlarr"},
@@ -664,11 +726,15 @@ func (b *builder) jupiter() {
 	b.count("app:sonarr", "queue", "integration:sonarr", 0, 200, [2]float64{0, 15}, wave{base: 9, amp: 4, peak: 14, slow: 0.8}.fn())
 	b.count("app:sonarr", "wanted", "integration:sonarr", 0, 5000, [2]float64{0, 40}, wave{base: 25, slow: 0.7}.fn())
 	b.count("app:radarr", "wanted", "integration:radarr", 0, 5000, [2]float64{0, 20}, wave{base: 10, slow: 0.6}.fn())
-	b.count("app:radarr", "queued", "integration:radarr", 0, 200, [2]float64{0, 5}, wave{base: 0.2, slow: 0.6}.fn())
+	b.count("app:radarr", "queue", "integration:radarr", 0, 200, [2]float64{0, 5}, wave{base: 0.2, slow: 0.6}.fn()) // Sonarr's key, as the integration has it
 	b.count("app:bazarr", "missing.episodes", "integration:bazarr", 0, 100000, [2]float64{0, 1000}, func(e *eval, m *metricSpec, t time.Time) float64 {
 		return 798.4 - 0.238*hours(t.Sub(b.start)) + 0.4*e.s.rng.smooth(m.hk, t, 2*time.Hour) // down ~40 a week
 	})
 	b.count("app:bazarr", "missing.movies", "integration:bazarr", 0, 10000, [2]float64{0, 20}, wave{base: 6, slow: 0.3}.fn())
+	// wanted is the sum the Bazarr spec publishes for the *arr tile.
+	b.count("app:bazarr", "wanted", "integration:bazarr", 0, 100000, [2]float64{0, 1000}, func(e *eval, m *metricSpec, t time.Time) float64 {
+		return math.Round(e.raw("app:bazarr", "missing.episodes", t)) + math.Round(e.raw("app:bazarr", "missing.movies", t))
+	})
 	b.count("app:prowlarr", "grabs", "integration:prowlarr", 0, 1e7, [2]float64{0, 2000}, func(e *eval, m *metricSpec, t time.Time) float64 {
 		return float64(int64(1100 + 1.14*hours(t.Sub(b.start)))) // a running total
 	})
@@ -682,6 +748,7 @@ func (b *builder) jupiter() {
 		fn: wave{base: 3, amp: 4, peak: 22, slow: 1.5, fast: 0.4}.fn()})
 	b.count("app:qbittorrent", "leeching", "integration:qbittorrent", 0, 1000, [2]float64{0, 30}, wave{base: 20, slow: 1.2}.fn())
 	b.count("app:qbittorrent", "seeding", "integration:qbittorrent", 0, 10000, [2]float64{50, 100}, wave{base: 78, slow: 0.8}.fn())
+	b.count("app:qbittorrent", "queued", "integration:qbittorrent", 0, 1000, [2]float64{0, 10}, wave{base: 3, slow: 1}.fn())
 	b.count("app:immich", "photos", "integration:immich", 0, 1e7, [2]float64{0, 1e6}, func(e *eval, m *metricSpec, t time.Time) float64 {
 		return float64(int64(44040 + 4.26*hours(t.Sub(b.start))))
 	})
@@ -709,8 +776,9 @@ func (b *builder) pvedocker() {
 	lxc := "pve:mars-1/lxc/110"
 	engStart := b.tp.res[lxc].Attrs["started_at"].(time.Time).Add(40 * time.Second)
 	b.add(&Resource{ID: eng, Kind: KindEngine, Name: "pvedocker", Source: "integration:docker-pvedocker", State: StateRunning,
-		Attrs: map[string]any{"endpoint": "tcp://dockerproxy:2375", "via": "socket-proxy", "manager": "compose", "started_at": engStart},
-		Caps:  []string{"containers", "stacks"}})
+		Attrs: map[string]any{"endpoint": "tcp://dockerproxy:2375", "via": "socket-proxy", "access": "filtered-proxy", "host": "dockerproxy",
+			"manager": "compose", "started_at": engStart},
+		Caps: []string{"containers", "stacks"}})
 	b.rel(eng, RelRunsOn, lxc)
 
 	type ct struct {
@@ -751,16 +819,15 @@ func (b *builder) pvedocker() {
 	b.rel(eng+"/karakeep-web-1", RelDependsOn, eng+"/karakeep-chrome-1")
 	b.rel(eng+"/karakeep-web-1", RelDependsOn, eng+"/karakeep-meilisearch-1")
 
-	self := b.app("app:chadash", "Cha Dash", "Services", "https://dash.lab.example")
-	self.Attrs = map[string]any{"self": true, "version": "0.1.0-dev"}
-	tr := b.app("app:traefik", "Traefik", "Services", "https://traefik.lab.example", "proxy.routes")
-	tr.Attrs = map[string]any{"routers": 61, "services": 56, "middlewares": 7}
-	uk := b.app("app:uptimekuma", "Uptime Kuma", "Services", "https://uptime.lab.example", "checks.uptime")
-	uk.Attrs = map[string]any{"status_page": "current", "monitors": len(kumaMonitors)}
-	ld := b.app("app:linkding", "Linkding", "Archive", "https://links.lab.example")
-	ld.Attrs = map[string]any{"description": "Shared bookmarks"}
-	kk := b.app("app:karakeep", "Karakeep", "Archive", "https://hoarder.lab.example")
-	kk.Attrs = map[string]any{"version": "0.30.2", "description": "Long term archived bookmarks/websites"}
+	b.app("app:chadash", "Cha Dash", "Services", "https://dash.lab.example", map[string]any{"self": true, "version": "0.1.0-dev"})
+	// The counts the Traefik integration reads from /api/overview.
+	b.app("app:traefik", "Traefik", "Services", "https://traefik.lab.example",
+		map[string]any{"routers": 61, "services": 56, "middlewares": 7, "version": "3.6.7", "providers": []string{"docker", "file"}}, "proxy.routes")
+	b.app("app:uptimekuma", "Uptime Kuma", "Services", "https://uptime.lab.example",
+		map[string]any{"status_page": "current", "monitors": len(kumaMonitors)}, "checks.uptime")
+	b.app("app:linkding", "Linkding", "Archive", "https://links.lab.example", map[string]any{"description": "Shared bookmarks"})
+	b.app("app:karakeep", "Karakeep", "Archive", "https://hoarder.lab.example",
+		map[string]any{"version": "0.30.2", "description": "Long term archived bookmarks/websites"})
 
 	for app, ms := range map[string]float64{"app:chadash": 8, "app:traefik": 12, "app:uptimekuma": 30, "app:linkding": 38, "app:karakeep": 120} {
 		b.check(app, ms)
@@ -793,7 +860,7 @@ func kumaDown(w *world) int {
 func (b *builder) backups() {
 	b.add(&Resource{ID: "pbs:main", Kind: KindBackupTarget, Name: "main", Source: "integration:pbs", State: StateOnline,
 		Labels: map[string]string{"chadash.group": "Backup"},
-		Attrs: map[string]any{"capacity_tb": 2.0, "retention": "keep-daily 7 · weekly 4 · monthly 6", "prune_job": "disabled",
+		Attrs: map[string]any{"store": "main", "capacity_tb": 2.0, "retention": "keep-daily 7 · weekly 4 · monthly 6", "prune_job": "disabled",
 			"prune_job_disabled_at": pruneDisabledAt, "snapshots_beyond_policy": 38, "gc_last": b.start.Add(-19*24*time.Hour + 5*time.Hour)},
 		Links:  []Link{{Title: "PBS", URL: "https://10.0.11.120:8007/#DataStore-main"}},
 		Caps:   []string{"backups.targets"},
@@ -804,7 +871,9 @@ func (b *builder) backups() {
 
 	for _, j := range backupJobs {
 		b.add(&Resource{ID: j.id, Kind: KindBackupJob, Name: "daily", Source: j.source, State: StateIdle,
-			Attrs:  map[string]any{"schedule": fmt.Sprintf("daily %02d:%02d", 2, int(j.offset/time.Minute)), "mode": "snapshot", "storage": "pbs-jupiter"},
+			Attrs: map[string]any{"job": "daily", "schedule": fmt.Sprintf("daily %02d:%02d", 2, int(j.offset/time.Minute)), "mode": "snapshot",
+				"storage": pbsStorage, "enabled": true},
+			Links:  []Link{{Title: "Proxmox", URL: pveUI(j.ui)}},
 			Caps:   []string{"backups.jobs"},
 			Health: Health{Status: HealthOK, Since: b.start.Add(-14 * 24 * time.Hour)}})
 		b.rel(j.id, RelStoresOn, "pbs:main")
@@ -820,14 +889,25 @@ var pruneDisabledAt = time.Date(2026, 9, 14, 9, 12, 0, 0, time.UTC)
 type backupJob struct {
 	id, source string
 	offset     time.Duration // after 02:00
+	where      string        // the node, or the cluster, as the Proxmox integration names it
+	ui         string        // the node whose web UI the job links to
 }
 
 var backupJobs = []backupJob{
-	{"pve:pluto/backup/daily", "integration:proxmox-pluto", 0},
-	{"pve:minig5/backup/daily", "integration:proxmox-minig5", 10 * time.Minute},
-	{"pve:mars/backup/daily", "integration:proxmox-mars", 20 * time.Minute},
-	{"pve:io/backup/daily", "integration:proxmox-io", 30 * time.Minute},
-	{"pve:jupiter-nas/backup/daily", "integration:proxmox-jupiter-nas", 40 * time.Minute},
+	{"pve:pluto/backup/daily", "integration:proxmox-pluto", 0, "pluto", "pluto"},
+	{"pve:minig5/backup/daily", "integration:proxmox-minig5", 10 * time.Minute, "minig5", "minig5"},
+	{"pve:mars/backup/daily", "integration:proxmox-mars", 20 * time.Minute, "mars", "mars-1"},
+	{"pve:io/backup/daily", "integration:proxmox-io", 30 * time.Minute, "io", "io"},
+	{"pve:jupiter-nas/backup/daily", "integration:proxmox-jupiter-nas", 40 * time.Minute, "jupiter-nas", "jupiter-nas"},
+}
+
+func jobOf(id string) backupJob {
+	for _, j := range backupJobs {
+		if j.id == id {
+			return j
+		}
+	}
+	panic("sim: no backup job " + id)
 }
 
 // backupSlot is one guest's place in the nightly run, relative to 02:00 UTC.
@@ -879,6 +959,36 @@ func (b *builder) routes() {
 			Health: Health{Status: HealthOK, Since: b.start.Add(-9 * 24 * time.Hour)}})
 		b.rel(id, RelPartOf, "app:traefik")
 		b.rel(id, RelRoutesTo, r.to)
+	}
+}
+
+// ── built-in checks ──────────────────────────────────────────────────────
+
+// checks adds two of the checks the Homepage importer creates from the
+// dogfood config (siteMonitor): the Unraid web UI, which answers while its
+// API integration can't read it, and Linkding, which only a check watches.
+func (b *builder) checks() {
+	src := "integration:checks"
+	for _, c := range []struct {
+		slug, name, url string
+		status          int
+		ms              float64
+		monitors        string
+	}{
+		{"jupiter-unraid", "Jupiter Unraid", "http://10.0.11.120", 302, 34, ""}, // a redirect to the sign-in page means up
+		{"linkding", "Linkding", "https://links.lab.example", 200, 41, "app:linkding"},
+	} {
+		id := "check:checks/" + c.slug
+		b.add(&Resource{ID: id, Kind: KindCheck, Name: c.name, Source: src, State: StateOnline,
+			Attrs:  map[string]any{"check": "http", "target": c.url, "status_code": c.status},
+			Links:  []Link{{Title: c.name, URL: c.url}},
+			Caps:   []string{"checks.uptime"},
+			Health: Health{Status: HealthOK, Since: b.start.Add(-9*24*time.Hour + 2*time.Minute)}})
+		b.rel(src, RelMonitors, id)
+		if c.monitors != "" {
+			b.rel(id, RelMonitors, c.monitors) // the correlator's: the check's target is the app's URL
+		}
+		b.check(id, c.ms, src)
 	}
 }
 

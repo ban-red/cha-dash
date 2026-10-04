@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -27,7 +30,8 @@ import (
 // without -race (see .github/workflows/ci.yml, "Performance budgets").
 const (
 	// Time to answer GET / for a signed-in owner: session lookup, the
-	// first board and its layout, the snapshot, encoding and the page.
+	// first board and its layout, the snapshot, encoding and the page,
+	// with and without gzip.
 	budgetFirstPaintMedian = 10 * time.Millisecond
 	budgetFirstPaintP95    = 50 * time.Millisecond // shared CI runners have noisy tails
 	// The inline snapshot over the Demo Home's afternoon and evening, the
@@ -123,54 +127,84 @@ func TestBudgetFirstPaint(t *testing.T) {
 	h := e.srv.Config.Handler
 	u, _ := url.Parse(e.srv.URL)
 	cookies := jar.Cookies(u)
-	get := func() (time.Duration, int) {
+	// get serves the owner GET /, gzipped when gz is set (as every browser
+	// asks for it), and returns the time, the bytes sent and the snapshot's
+	// size.
+	get := func(gz bool) (time.Duration, int, int) {
 		req := httptest.NewRequest("GET", "/", nil)
 		for _, ck := range cookies {
 			req.AddCookie(ck)
+		}
+		if gz {
+			req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
 		}
 		rec := httptest.NewRecorder()
 		start := time.Now()
 		h.ServeHTTP(rec, req)
 		took := time.Since(start)
-		m := dataBlock.FindSubmatch(rec.Body.Bytes())
+		page := rec.Body.Bytes()
+		sent := len(page)
+		if gz {
+			zr, err := gzip.NewReader(bytes.NewReader(page))
+			if err != nil || rec.Header().Get("Content-Encoding") != "gzip" {
+				t.Fatalf("GET / with gzip: Content-Encoding %q, %v", rec.Header().Get("Content-Encoding"), err)
+			}
+			if page, err = io.ReadAll(zr); err != nil {
+				t.Fatal(err)
+			}
+		}
+		m := dataBlock.FindSubmatch(page)
 		if rec.Code != 200 || m == nil {
 			t.Fatalf("GET /: %d, no snapshot", rec.Code)
 		}
-		return took, len(m[1])
+		return took, sent, len(m[1])
 	}
 
 	// Size over 13:00–20:30, sampled every simulated half hour.
 	largest, at := 0, ""
+	var pageBytes, gzipBytes int // the page at the largest snapshot, as sent
 	for tick := 0; tick <= 900; tick++ {
 		if tick%60 == 0 {
-			if _, n := get(); n > largest {
-				largest, at = n, drv.Now().Format("15:04")
+			if _, sent, n := get(false); n > largest {
+				largest, at, pageBytes = n, drv.Now().Format("15:04"), sent
+				_, gzipBytes, _ = get(true)
 			}
 		}
 		clock.Advance(30 * time.Second)
 		drv.Step()
 	}
 
-	// Time, at 20:30 with the day's incidents behind it.
-	for range 10 {
-		get() // warm up
+	// Time, at 20:30 with the day's incidents behind it: identity, then
+	// gzip, which is what browsers get.
+	timeGet := func(gz bool) (median, p95 time.Duration) {
+		for range 10 {
+			get(gz) // warm up
+		}
+		runtime.GC() // start from a clean heap, not the sweep's garbage
+		var took []time.Duration
+		for range 100 {
+			d, _, _ := get(gz)
+			took = append(took, d)
+		}
+		slices.Sort(took)
+		return took[len(took)/2], took[len(took)*95/100]
 	}
-	runtime.GC() // start from a clean heap, not the sweep's garbage
-	var took []time.Duration
-	for range 100 {
-		d, _ := get()
-		took = append(took, d)
-	}
-	slices.Sort(took)
-	median, p95 := took[len(took)/2], took[len(took)*95/100]
-	t.Logf("first paint: GET / median %s, p95 %s (budgets %s, %s); largest inline snapshot %.1f kB at %s (budget %.0f kB, cap %.0f kB)",
-		median.Round(10*time.Microsecond), p95.Round(10*time.Microsecond), budgetFirstPaintMedian, budgetFirstPaintP95,
+	median, p95 := timeGet(false)
+	gzMedian, gzP95 := timeGet(true)
+	round := func(d time.Duration) time.Duration { return d.Round(10 * time.Microsecond) }
+	t.Logf("first paint: GET / median %s, p95 %s; with gzip median %s, p95 %s (budgets %s, %s); largest inline snapshot %.1f kB at %s (budget %.0f kB, cap %.0f kB)",
+		round(median), round(p95), round(gzMedian), round(gzP95), budgetFirstPaintMedian, budgetFirstPaintP95,
 		float64(largest)/1000, at, float64(budgetSnapshotBytes)/1000, float64(firstpaint.MaxBytes)/1000)
+	t.Logf("first paint: the page at %s is %.1f kB, %.1f kB gzipped (%.0f%%)",
+		at, float64(pageBytes)/1000, float64(gzipBytes)/1000, 100*float64(gzipBytes)/float64(pageBytes))
 
 	if largest > budgetSnapshotBytes {
 		t.Errorf("the inline snapshot reached %.1f kB at %s, over the %.0f kB budget", float64(largest)/1000, at, float64(budgetSnapshotBytes)/1000)
 	}
 	if median > budgetFirstPaintMedian || p95 > budgetFirstPaintP95 {
 		t.Errorf("GET / took %s median, %s p95: over the %s / %s budget", median, p95, budgetFirstPaintMedian, budgetFirstPaintP95)
+	}
+	if gzMedian > budgetFirstPaintMedian || gzP95 > budgetFirstPaintP95 {
+		t.Errorf("GET / with gzip took %s median, %s p95: over the %s / %s budget", gzMedian, gzP95, budgetFirstPaintMedian, budgetFirstPaintP95)
 	}
 }

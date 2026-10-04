@@ -1,0 +1,406 @@
+name: Release
+
+# Runs when the maintainer pushes a version tag (v0.1.0, v0.1.0-beta.1,
+# v0.1.0-rc.1), and never on branch pushes or pull requests. It publishes the
+# hub image to ghcr.io, signs it, builds the binaries, and leaves a draft
+# GitHub release to read over and publish by hand. How to cut one:
+# CONTRIBUTING.md, "Releasing".
+#
+# Like ci.yml: every action is pinned by commit SHA with the release in a
+# comment, checkouts keep no credentials, and each job asks for only the
+# permissions it uses. The image and the binaries come from the Dockerfile,
+# so they are built exactly the way CI builds them.
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false     # never stop a release halfway through a push
+
+env:
+  IMAGE: ghcr.io/ban-red/chadash
+  # Installed with `go install`, so the Go checksum database vouches for the
+  # source, the way ci.yml runs staticcheck and govulncheck. Bump it to the
+  # current cosign release before tagging (CONTRIBUTING.md, "Releasing").
+  COSIGN_VERSION: v2.4.1
+  # What `cosign verify` expects: this workflow, at this tag, signed through
+  # GitHub's OIDC issuer.
+  OIDC_ISSUER: https://token.actions.githubusercontent.com
+
+defaults:
+  run:
+    shell: bash                 # -eo pipefail
+
+jobs:
+  # Checks the tag and the changelog before anything is built or pushed.
+  prepare:
+    name: Prepare
+    if: github.repository == 'ban-red/cha-dash'   # a fork's tags publish nothing
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      tags: ${{ steps.version.outputs.tags }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0        # every tag, to tell whether this is the newest stable release
+      - name: Version and image tags
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          semver='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(beta|rc)\.(0|[1-9][0-9]*))?$'
+          if [[ ! "$TAG" =~ $semver ]]; then
+            echo "::error::$TAG isn't a release tag. Use vMAJOR.MINOR.PATCH, optionally with -beta.N or -rc.N."
+            exit 1
+          fi
+          major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} pre=${BASH_REMATCH[5]}
+          version=${TAG#v}
+
+          # The version always; "beta" follows the betas; "major.minor" and
+          # "latest" are for stable releases only. "latest" moves only when
+          # this is the newest stable tag, so a patch to an older line can't
+          # take it back.
+          tags="$IMAGE:$version"
+          if [ -n "$pre" ]; then
+            prerelease=true
+            if [ "$pre" = beta ]; then tags+=$'\n'"$IMAGE:beta"; fi
+          else
+            prerelease=false
+            tags+=$'\n'"$IMAGE:$major.$minor"
+            newest=$(git tag --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+            if [ "$newest" = "$TAG" ]; then
+              tags+=$'\n'"$IMAGE:latest"
+            else
+              echo "::notice::$newest is newer than $TAG, so latest stays where it is."
+            fi
+          fi
+          {
+            echo "tag=$TAG"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+            echo "tags<<TAGS"
+            echo "$tags"
+            echo "TAGS"
+          } >> "$GITHUB_OUTPUT"
+          { echo "### $TAG"; echo; echo "Prerelease: $prerelease"; echo; echo "Image tags:"; sed 's/^/- `/; s/$/`/' <<<"$tags"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          scripts/release-notes.sh "$VERSION" > "$RUNNER_TEMP/notes.md"
+          { echo; echo "### Release notes"; echo; cat "$RUNNER_TEMP/notes.md"; } >> "$GITHUB_STEP_SUMMARY"
+
+  # The binaries, then a smoke-tested image, then the multi-platform push.
+  # All three builds share this job's BuildKit cache, so the linux binaries
+  # attached to the release are the ones inside the image. Nothing comes from
+  # CI's cache: a release is built from the tag alone.
+  build:
+    name: Build and push
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write           # push to ghcr.io
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false          # only for `go version -m`; nothing compiles on the runner
+
+      - name: Build the binaries
+        # The Dockerfile's binary stage: the SPA, then the hub with it
+        # embedded, CGO_ENABLED=0, stamped with the tag and the commit. Go
+        # cross-compiles every platform, so there's no emulation. darwin
+        # builds are for development on a Mac; Docker is the way to run it.
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: binary
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,darwin/amd64,darwin/arm64
+          outputs: type=local,dest=out
+          provenance: false
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Check and name the binaries
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          # buildx writes one folder per platform: out/linux_arm_v7/chadash.
+          declare -A names=(
+            [linux_amd64]=linux-amd64 [linux_arm64]=linux-arm64 [linux_arm_v7]=linux-armv7
+            [darwin_amd64]=darwin-amd64 [darwin_arm64]=darwin-arm64
+          )
+          mkdir dist
+          for dir in "${!names[@]}"; do
+            src="out/$dir/chadash"
+            [ -f "$src" ] || fail "No $src. buildx wrote: $(ls out | tr '\n' ' ')"
+            name="chadash-$VERSION-${names[$dir]}"
+            install -m 0755 "$src" "dist/$name"
+
+            os=${dir%%_*}; rest=${dir#*_}; arch=${rest%%_*}
+            settings=$(go version -m "dist/$name" | awk '$1 == "build" { $1 = ""; print substr($0, 2) }')
+            # -tags=webui exactly: the SPA is in, and devlogin isn't.
+            for want in "GOOS=$os" "GOARCH=$arch" CGO_ENABLED=0 -tags=webui; do
+              grep -qxF -e "$want" <<<"$settings" || fail "$name wasn't built with $want"
+            done
+            if [ "$dir" = linux_arm_v7 ]; then
+              grep -qxF GOARM=7 <<<"$settings" || fail "$name wasn't built with GOARM=7"
+            fi
+            # -trimpath keeps -ldflags out of the build info, so look for the
+            # stamped strings themselves (-X stores them as string data).
+            for want in "$TAG" "$GITHUB_SHA"; do
+              grep -qaF -e "$want" "dist/$name" || fail "$name isn't stamped with $want"
+            done
+          done
+          # The runner is linux/amd64: run that one.
+          got=$("dist/chadash-$VERSION-linux-amd64" version)
+          echo "$got"
+          [[ "$got" == "chadash $TAG (commit $GITHUB_SHA, "* ]] || fail "version printed '$got'"
+
+          cd dist
+          sha256sum chadash-* > SHA256SUMS
+          cat SHA256SUMS
+          { echo "### Binaries"; echo; echo '```'; cat SHA256SUMS; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chadash-binaries
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build the linux/amd64 image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: chadash:release
+          provenance: false
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Smoke test
+        # As ci.yml runs it, the way deploy/compose.yaml does: read-only, no
+        # capabilities, a fresh /data. It must turn healthy and print a
+        # setup token, and say which release it is.
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          got=$(docker run --rm chadash:release version)
+          [[ "$got" == "chadash $TAG (commit $GITHUB_SHA, "* ]] || fail "the image's version is '$got'"
+          docker run -d --name chadash-smoke -p 127.0.0.1:3696:3696 \
+            --read-only --tmpfs /tmp:size=64m,mode=1777 \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            chadash:release
+          healthy=
+          for _ in $(seq 30); do
+            if docker exec chadash-smoke /chadash healthcheck 2>/dev/null; then healthy=1; break; fi
+            sleep 1
+          done
+          logs=$(docker logs chadash-smoke 2>&1)
+          echo "$logs"
+          docker rm -f chadash-smoke >/dev/null
+          [ -n "$healthy" ] || fail "The hub never passed its healthcheck"
+          grep -q 'setup_token=cds_' <<<"$logs" || fail "No setup token in the first-run logs"
+          if grep -q 'dev login is built in' <<<"$logs"; then fail "The image was built with -tags devlogin"; fi
+
+      - name: Sign in to ghcr.io
+        env:
+          TOKEN: ${{ github.token }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build and push the image
+        id: push
+        # linux/arm/v7 is best-effort (ADR-0016) but published like the
+        # others. Provenance (SLSA, mode=max) and an SPDX SBOM are attached
+        # to the image index as attestations.
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          tags: ${{ needs.prepare.outputs.tags }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.tag }}
+            COMMIT=${{ github.sha }}
+          # The Dockerfile's labels are per platform; ghcr.io reads a
+          # multi-platform image's description from the index.
+          annotations: |
+            index:org.opencontainers.image.title=Cha Dash
+            index:org.opencontainers.image.description=The front page of your home: a self-hosted homelab dashboard
+            index:org.opencontainers.image.source=https://github.com/ban-red/cha-dash
+            index:org.opencontainers.image.licenses=AGPL-3.0-or-later
+            index:org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            index:org.opencontainers.image.revision=${{ github.sha }}
+      - name: Summary
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+          TAGS: ${{ needs.prepare.outputs.tags }}
+        run: |
+          { echo "### Image"; echo; echo "\`$IMAGE@$DIGEST\`"; echo; sed 's/^/- `/; s/$/`/' <<<"$TAGS"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Sign out of ghcr.io
+        if: always()
+        run: docker logout ghcr.io
+
+  # Keyless signing: GitHub's OIDC token buys a short-lived Sigstore
+  # certificate naming this workflow and tag, and the signature goes in the
+  # public Rekor log. Its own job, so the build steps above never hold an
+  # OIDC token.
+  sign:
+    name: Sign
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write           # the image signature is stored next to the image
+      id-token: write           # the OIDC token for the Sigstore certificate
+      actions: read             # download this run's binaries
+    env:
+      DIGEST: ${{ needs.build.outputs.digest }}
+      IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Install cosign
+        run: |
+          go install "github.com/sigstore/cosign/v2/cmd/cosign@$COSIGN_VERSION"
+          echo "COSIGN=$(go env GOPATH)/bin/cosign" >> "$GITHUB_ENV"
+      - name: Sign in to ghcr.io
+        env:
+          TOKEN: ${{ github.token }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Sign the image
+        # By digest: the index every tag of this release points at.
+        run: |
+          [[ "$DIGEST" == sha256:* ]] || { echo "::error::No image digest from the build job"; exit 1; }
+          "$COSIGN" sign --yes "$IMAGE@$DIGEST"
+          "$COSIGN" verify "$IMAGE@$DIGEST" \
+            --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$OIDC_ISSUER" > /dev/null
+      - name: Sign the checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name chadash-binaries --dir "$RUNNER_TEMP/binaries"
+          cd "$(dirname "$(find "$RUNNER_TEMP/binaries" -name SHA256SUMS -print -quit)")"
+          sha256sum -c SHA256SUMS
+          mkdir -p "$RUNNER_TEMP/signatures"
+          "$COSIGN" sign-blob --yes --bundle "$RUNNER_TEMP/signatures/SHA256SUMS.cosign.bundle" SHA256SUMS > /dev/null
+          "$COSIGN" verify-blob SHA256SUMS --bundle "$RUNNER_TEMP/signatures/SHA256SUMS.cosign.bundle" \
+            --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$OIDC_ISSUER"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chadash-signatures
+          path: ${{ runner.temp }}/signatures/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Sign out of ghcr.io
+        if: always()
+        run: docker logout ghcr.io
+
+  # A draft, so nothing is announced until the maintainer has read it and
+  # pressed Publish. Re-running the workflow refreshes the draft's files and
+  # notes instead of failing.
+  release:
+    name: Draft release
+    needs: [prepare, build, sign]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write           # create the draft release and upload its files
+      actions: read             # download this run's artifacts
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+      TAGS: ${{ needs.prepare.outputs.tags }}
+      DIGEST: ${{ needs.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Collect the files
+        run: |
+          for name in chadash-binaries chadash-signatures; do
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$RUNNER_TEMP/download/$name"
+          done
+          mkdir "$RUNNER_TEMP/assets"
+          find "$RUNNER_TEMP/download" -type f -exec cp {} "$RUNNER_TEMP/assets/" \;
+          cd "$RUNNER_TEMP/assets"
+          for want in SHA256SUMS SHA256SUMS.cosign.bundle "chadash-$VERSION-linux-amd64" "chadash-$VERSION-linux-arm64" \
+              "chadash-$VERSION-linux-armv7" "chadash-$VERSION-darwin-amd64" "chadash-$VERSION-darwin-arm64"; do
+            [ -f "$want" ] || { echo "::error::$want is missing"; exit 1; }
+          done
+          sha256sum -c SHA256SUMS
+          ls -l
+      - name: Notes
+        run: |
+          base="https://github.com/$GITHUB_REPOSITORY/blob/$TAG"
+          # The other tags, as `beta` or `0.1`, `latest`; none for an rc.
+          also=$({ grep -v -xF "$IMAGE:$VERSION" <<<"$TAGS" || true; } | sed "s|^$IMAGE:|\`|; s/$/\`/" | paste -sd, - | sed 's/,/, /g')
+          {
+            scripts/release-notes.sh "$VERSION"
+            echo
+            echo "### Get it"
+            echo
+            echo "- **Image:** \`$IMAGE:$VERSION\`${also:+ (also $also)}, for linux/amd64, linux/arm64 and linux/arm/v7 (best-effort). Index digest \`$DIGEST\`."
+            echo "- **Docker Compose:** [deploy/README.md]($base/deploy/README.md). Trying the beta? Start with [docs/beta.md]($base/docs/beta.md)."
+            echo "- **Unraid:** the template in [deploy/unraid]($base/deploy/unraid/README.md)."
+            echo "- **Binaries** (below): static Linux builds for amd64, arm64 and armv7, and macOS builds for development."
+            echo
+            echo "### Verify"
+            echo
+            echo "The image and the checksums are signed with [cosign](https://docs.sigstore.dev/) by this release's workflow:"
+            echo
+            echo '```sh'
+            echo "cosign verify $IMAGE:$VERSION \\"
+            echo "  --certificate-identity https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG \\"
+            echo "  --certificate-oidc-issuer $OIDC_ISSUER"
+            echo
+            echo "cosign verify-blob SHA256SUMS --bundle SHA256SUMS.cosign.bundle \\"
+            echo "  --certificate-identity https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG \\"
+            echo "  --certificate-oidc-issuer $OIDC_ISSUER"
+            echo "sha256sum --ignore-missing -c SHA256SUMS"
+            echo '```'
+            echo
+            echo "The image also carries build provenance and an SBOM: \`docker buildx imagetools inspect $IMAGE:$VERSION --format '{{ json .Provenance }}'\` (or \`.SBOM\`)."
+          } > "$RUNNER_TEMP/body.md"
+          cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Draft the GitHub release
+        run: |
+          cd "$RUNNER_TEMP/assets"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" ./* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/body.md" --repo "$GITHUB_REPOSITORY"
+            echo "::notice::Updated the existing release for $TAG."
+          else
+            flags=(--draft --verify-tag --title "Cha Dash $VERSION" --notes-file "$RUNNER_TEMP/body.md")
+            if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+            gh release create "$TAG" ./* "${flags[@]}" --repo "$GITHUB_REPOSITORY"
+          fi

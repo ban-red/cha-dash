@@ -57,6 +57,7 @@ func (s *Sim) action(id, label string, tier Tier, target, detail string) Action 
 
 func resolve(inc *Incident, at time.Time, by, text string) {
 	inc.Status = StatusResolved
+	inc.Phase = "resolved" // as the hub's emitter does
 	inc.ResolvedAt = at
 	inc.UpdatedAt = at
 	inc.ResolvedBy = by
@@ -74,7 +75,30 @@ const (
 	bfGuest = "pve:minig5/qemu/100"
 	bfJob   = "pve:minig5/backup/daily"
 	bfRetry = 4 * time.Minute
+	bfError = "qmp command 'guest-fsfreeze-freeze' failed - got timeout"
 )
+
+// shapeNight fails homeassistant's backup on the night the failure happens
+// in its slot.
+func (backupFailed) shapeNight(_ *Sim, in *instance, day time.Time, r *jobRun) {
+	if r.job != bfJob {
+		return
+	}
+	sl := slotOf(bfGuest)
+	if g := r.guest(bfGuest); g != nil && !in.open.Before(sl.begin(day)) && !in.open.After(sl.end(day)) {
+		g.ok, g.err, g.end = false, bfError, in.open
+	}
+}
+
+// manualRuns is the retry: one backup of homeassistant, started by the fix.
+func (b backupFailed) manualRuns(_ *Sim, in *instance) []jobRun {
+	if in.fix.IsZero() || !in.fix.Before(b.horizon(in)) {
+		return nil
+	}
+	r := jobRun{job: bfJob, manual: true, guests: []guestBackup{{guest: bfGuest, begin: in.fix, end: in.fix.Add(bfRetry), ok: true}}}
+	r.span()
+	return []jobRun{r}
+}
 
 func (backupFailed) lead() time.Duration { return 0 }
 
@@ -128,10 +152,10 @@ func (b backupFailed) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Phase = "failed"
 	inc.Title = "Backup of homeassistant failed"
 	inc.Summary = fmt.Sprintf("The nightly backup of homeassistant (VM 100 on minig5) failed at %s. The last good backup is from %s.", clock(in.open), when(lastOK, in.open))
-	inc.Facts = map[string]any{"task": "vzdump", "error": "qmp command 'guest-fsfreeze-freeze' failed - got timeout", "last_ok": lastOK, "job": bfJob}
+	inc.Facts = map[string]any{"task": "vzdump", "error": bfError, "last_ok": lastOK, "job": bfJob}
 	inc.Causes = []Cause{
 		{Text: "The QEMU guest agent in homeassistant didn't answer the filesystem freeze (timeout).", Resource: bfGuest, At: in.open},
-		{Text: fmt.Sprintf("The other %d guests backed up normally, so PBS and its datastore are reachable.", len(backupSlots)-1), Resource: "pbs:main"},
+		{Text: "minig5's job reached PBS: the backup started and stopped at the filesystem freeze.", Resource: "pbs:main"},
 	}
 	inc.Suggested = s.action("pve.guest.backup", "Back up homeassistant now", T1, bfGuest, "Runs a one-off backup to PBS. It takes about 4 minutes and the VM keeps running.")
 	inc.Alternatives = []Action{s.action("pbs.task.log", "View the failed task's log", T0, "app:pbs", "")}
@@ -159,7 +183,7 @@ func (backupFailed) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v fl
 
 // ── pbs-datastore-filling ────────────────────────────────────────────────
 
-// win-gaming's nightly backup writes 108 GB of new chunks and pushes the PBS
+// iolinux's nightly backup writes 108 GB of new chunks and pushes the PBS
 // datastore over 90%. The prune job has been disabled for weeks, so nothing
 // makes room. Pruning per policy (the suggested action) brings it back to 86%.
 type pbsFilling struct{}
@@ -247,7 +271,7 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc := s.newIncident(in, ClassProblem, SeverityAttention, pbsTarget)
 	inc.Title = "PBS datastore is filling up"
 	inc.Phase = "rising"
-	inc.Summary = fmt.Sprintf("Datastore main on jupiter crossed 90%% at %s while win-gaming's backup was writing.", clock(in.open))
+	inc.Summary = fmt.Sprintf("Datastore main on jupiter crossed 90%% at %s while iolinux's backup was writing.", clock(in.open))
 	inc.Facts = map[string]any{"used_pct": 90, "capacity_tb": 2}
 	if !t.Before(in.open.Add(pbsRampAfter)) {
 		inc.Phase = "high"
@@ -258,7 +282,8 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 	}
 	inc.Causes = []Cause{
 		{Text: fmt.Sprintf("The daily prune job has been disabled since %s, so 38 snapshots are outside the retention policy.", pruneDisabledAt.Format("2 Jan")), Resource: pbsTarget, At: pruneDisabledAt},
-		{Text: fmt.Sprintf("win-gaming's backup at %s wrote 108 GB, about 12 times a usual night. It's stopped, so each backup reads its whole disk; the new data looks like a game install.", clock(in.open.Add(-pbsRampBefore))), Resource: "pve:io/qemu/201", At: in.open.Add(-pbsRampBefore)},
+		{Text: fmt.Sprintf("iolinux's backup at %s wrote 108 GB of new data, about 12 times a usual night. It has been running since %s.",
+			clock(in.open.Add(-pbsRampBefore)), when(s.top.res[ptHolder].Attrs["started_at"].(time.Time), in.open)), Resource: ptHolder, At: in.open.Add(-pbsRampBefore)},
 	}
 	inc.Suggested = s.action("pbs.datastore.prune", "Prune per policy", T2, pbsTarget,
 		"Removes the 38 snapshots outside keep-daily 7 · weekly 4 · monthly 6, then runs garbage collection (about 20 minutes). Frees about 116 GB (92% → 86%). Pruned snapshots can't be restored.")
@@ -506,10 +531,11 @@ func (p plexToken) incident(s *Sim, in *instance, t time.Time) *Incident {
 		return nil
 	}
 	inc := s.newIncident(in, ClassRepair, SeverityAttention, plexInt)
-	inc.Phase = "rejected"
+	inc.Scenario = "auth-rejected" // the hub's repair for a rejected credential
+	inc.Phase = "open"
 	inc.Title = "Plex rejected its token"
 	inc.Summary = fmt.Sprintf("Plex has answered 401 Unauthorized since %s. Plex itself is up; its tiles show values as of %s.", clock(in.open), clock(in.open))
-	inc.Facts = map[string]any{"status": 401, "endpoint": "/status/sessions"}
+	inc.Facts = map[string]any{"code": "auth", "instance": "plex", "field": "token", "status": 401, "endpoint": "/status/sessions"}
 	inc.Causes = []Cause{
 		{Text: fmt.Sprintf("The stored token stopped working at %s. It was probably revoked, by signing out all devices or changing the Plex password.", clock(in.open)), Resource: plexInt, At: in.open},
 		{Text: "Plex's own HTTP check still passes, so the problem is the connection, not Plex.", Resource: "app:plex"},
@@ -607,10 +633,11 @@ func (k karakeepAPI) incident(s *Sim, in *instance, t time.Time) *Incident {
 	}
 	update := in.open.Add(-kkLead)
 	inc := s.newIncident(in, ClassRepair, SeverityAttention, kkInt)
-	inc.Phase = "api-changed"
+	inc.Scenario = "api-changed" // the hub's repair for an answer the integration doesn't support
+	inc.Phase = "open"
 	inc.Title = "Karakeep's API changed"
 	inc.Summary = fmt.Sprintf("Karakeep was updated to %s at %s, and its stats endpoint now returns 404. Karakeep itself is up; bookmark counts show values as of %s.", kkVersion, clock(update), clock(in.open))
-	inc.Facts = map[string]any{"detected_version": kkVersion, "supported": "≤ 0.30", "endpoint": "/api/v1/users/me/stats", "status": 404}
+	inc.Facts = map[string]any{"code": "api_changed", "instance": "karakeep", "detected_version": kkVersion, "supported": "≤ 0.30", "endpoint": "/api/v1/users/me/stats", "status": 404}
 	inc.Causes = []Cause{
 		{Text: fmt.Sprintf("karakeep-web-1 was recreated with image %s at %s.", kkVersion, clock(update)), Resource: kkCt, At: update},
 		{Text: "This integration supports Karakeep up to 0.30.", Resource: kkInt},

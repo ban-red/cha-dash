@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"dash.cha.sh/internal/httpx"
 )
 
 // SnapshotID is the id of the data block index.html carries the first-paint
@@ -40,6 +42,11 @@ func WithInline(ctx context.Context, f InlineFunc) context.Context {
 // if it has one, and reports whether it did. The page is never cached (no
 // ETag, no-store), so a validator from the generic page can't match it and
 // a shared or service-worker cache can't keep it.
+//
+// It's gzipped per request for clients that accept it (a Range request gets
+// the identity bytes). The page holds no credential and reflects nothing
+// from the request, so compressing it can't make a BREACH oracle; see
+// internal/httpx/gzip.go.
 func (h *handler) servePersonal(w http.ResponseWriter, r *http.Request, index io.ReadSeeker) bool {
 	f, _ := r.Context().Value(inlineKey{}).(InlineFunc)
 	if f == nil {
@@ -56,8 +63,14 @@ func (h *handler) servePersonal(w http.ResponseWriter, r *http.Request, index io
 	page = withDataBlock(page, data)
 	hdr := w.Header()
 	hdr.Set("Cache-Control", cacheNoStore)
-	hdr.Add("Vary", "Cookie")
+	httpx.AddVary(hdr, "Cookie")
+	httpx.AddVary(hdr, "Accept-Encoding")
 	hdr.Del("ETag")
+	if len(page) >= httpx.MinGzipBytes && r.Header.Get("Range") == "" && httpx.AcceptsGzip(r) {
+		hdr.Set("Content-Encoding", "gzip")
+		serveEncoded(w, r, indexFile, httpx.GzipBytes(page))
+		return true
+	}
 	http.ServeContent(w, r, indexFile, time.Time{}, bytes.NewReader(page))
 	return true
 }

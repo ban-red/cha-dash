@@ -3,13 +3,19 @@
 **The front page of your home.**
 One calm, beautiful page that tells you everything's fine — and lets you fix it, safely, when it isn't.
 
-> Status: **planning** (October 2026). No code yet — the research and product plan are below. Repo: [github.com/ban-red/cha-dash](https://github.com/ban-red/cha-dash)
+> Status: **beta** (0.1.0-beta.1, October 2026): the read-only Front Page. **Want to try it?** Start with the [beta guide](docs/beta.md), and tell us how it goes. Repo: [github.com/ban-red/cha-dash](https://github.com/ban-red/cha-dash)
 
 Cha Dash is an open-source, self-hosted dashboard for homelabs. Unraid, Docker and Proxmox are supported first-class. It starts as one customizable page of live widgets, and grows into safe control of your containers, stacks, VMs and LXCs, snapshots, updates and backups, across every host you run.
 
 ```bash
-docker compose up -d   # the primary way to self-host Cha Dash (coming soon) — then open http://<host>:3696
+docker compose up -d   # the main way to run Cha Dash (deploy/README.md) — then open http://<host>:3696
 ```
+
+## Using it
+
+- [Beta guide](docs/beta.md) — install in 3 minutes, what's read-only, privacy, and how to send feedback
+- [Deploying](deploy/README.md) — Docker Compose, reverse proxies, backups and upgrades; the [Unraid template](deploy/unraid/README.md)
+- [Changelog](CHANGELOG.md) — what's in each release
 
 ## Docs
 
@@ -42,7 +48,7 @@ docker compose up -d   # the primary way to self-host Cha Dash (coming soon) —
 
 ## Contributing, security & license
 
-- [CONTRIBUTING.md](CONTRIBUTING.md): how to help while Cha Dash is in planning
+- [CONTRIBUTING.md](CONTRIBUTING.md): how to help, develop and release
 - [CLA.md](CLA.md): you keep your copyright, and contributions can only ever be released under OSI-approved licences
 - [SECURITY.md](SECURITY.md): report vulnerabilities privately
 - Licensed under [AGPL-3.0-or-later](LICENSE)

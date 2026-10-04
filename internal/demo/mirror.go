@@ -110,11 +110,12 @@ func (m *mirror) apply(events []sim.Event, now time.Time) error {
 
 // sample folds one metrics event into the series, matching what a
 // simulator snapshot would say at that moment: a series without a sample
-// keeps its last-known value, marked stale, and unknown history points are
+// keeps its last-known value, marked stale (an unknown one stays unknown),
+// a sample can itself be unknown (null), and unknown history points are
 // null.
 func (m *mirror) sample(ev sim.Event, changed map[string]bool) {
 	t := ev.At
-	vals := make(map[string]float64, len(ev.Samples))
+	vals := make(map[string]sim.Num, len(ev.Samples))
 	for _, s := range ev.Samples {
 		vals[topics.SeriesKey(s.Resource, s.Metric)] = s.Value
 	}
@@ -127,7 +128,7 @@ func (m *mirror) sample(ev sim.Event, changed map[string]bool) {
 		v, ok := vals[k]
 		switch {
 		case ok:
-			se.Value, se.AsOf, se.Stale = sim.Num(v), t, false
+			se.Value, se.AsOf, se.Stale = v, t, false
 			changed[k] = true
 		case se.Value.Valid() && !se.Stale:
 			se.Stale = true
@@ -141,7 +142,7 @@ func (m *mirror) sample(ev sim.Event, changed map[string]bool) {
 				h[i] = sim.Unknown()
 			}
 			if ok && m.axis.Equal(t) && len(h) > 0 {
-				h[len(h)-1] = sim.Num(v)
+				h[len(h)-1] = v
 			}
 			changed[k] = true
 		}

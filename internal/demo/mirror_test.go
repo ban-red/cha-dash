@@ -3,6 +3,7 @@ package demo
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -70,7 +71,7 @@ func TestMirrorFollowsTheSimulator(t *testing.T) {
 	if err := m.load(st); err != nil {
 		t.Fatal(err)
 	}
-	if len(st.Series) == 0 || len(st.Open()) != 6 {
+	if len(st.Series) == 0 || len(st.Open()) != 14 {
 		t.Fatalf("unexpected starting point: %d series, %d open", len(st.Series), len(st.Open()))
 	}
 	expectSeries(t, tp, st, true)
@@ -96,8 +97,16 @@ func TestMirrorFollowsTheSimulator(t *testing.T) {
 	if stale == 0 {
 		t.Fatal("no series was ever stale; the test isn't exercising last-known values")
 	}
-	if open := s.Snapshot().Open(); len(open) != 0 {
-		t.Fatalf("by 20:05 every incident should be resolved, %d open", len(open))
+	// By 20:05 everything is resolved but the standing hints and the three
+	// backups that clear with the next night's runs.
+	var open []string
+	for _, in := range s.Snapshot().Open() {
+		open = append(open, in.ID)
+	}
+	slices.Sort(open)
+	if want := []string{"docker-jupiter.hint.docker_endpoint", "frigate.unauthenticated-admin", "proxmox-io.backup.daily",
+		"proxmox-mars.backup.daily", "proxmox-pluto.backup.daily", "traefik.hint.api_no_auth"}; !slices.Equal(open, want) {
+		t.Fatalf("open at 20:05: %v, want %v", open, want)
 	}
 	expectGraph(t, tp.Graph, s.Snapshot())
 }

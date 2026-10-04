@@ -29,11 +29,11 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/graph` | Home Graph v0: resources, relations, version, watchers |
 | `internal/livedoc` | Live JSON documents for topics that aren't the graph: values, keyed collections, watchers; `Tx.Item` reads an item inside an update, so read-modify-write is atomic |
 | `internal/jsonpatch` | The RFC 6902 subset used on the wire, plus `Compact` for coalescing |
-| `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise. `WithInline` attaches a per-request first-paint snapshot, embedded only in `index.html` |
+| `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise. `WithInline` attaches a per-request first-paint snapshot, embedded only in `index.html`. Compressible files of 1 KiB or more are gzipped once and kept (their own ETag, `Vary: Accept-Encoding`; ranges get identity bytes); the personalised page is gzipped per request |
 | `internal/firstpaint` | Builds the snapshot inlined into the first paint: user, board (layout and tiles), graph, metrics for its resources, open incidents. HTML-escaped, capped at 512 KiB |
 | `internal/vault` | Envelope-encrypted secrets |
 | `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions |
-| `internal/httpx` | Client IP and scheme behind trusted proxies, JSON I/O, shared middleware |
+| `internal/httpx` | Client IP and scheme behind trusted proxies, JSON I/O, shared middleware; `GzipJSON` compresses `/api` JSON of 1 KiB or more (never auth, setup or sign-in flows, upgrades or ranges; the BREACH reasoning is at the top of `gzip.go`) |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
 
@@ -412,5 +412,5 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - Importer follow-ups: turning the record's `runs_on` links into confirmed correlation decisions; mapping `homepage.widget.type` of a label-discovered container to a catalog widget.
 - Graph persistence (the last-known cache). Correlator follow-ups are in its [README](correlate/README.md): DNS ↔ IP matching, the nginx-proxy hop, MACs, cross-source `backed_up_by`.
 - Export follow-ups: correlation decisions (left out of v0.1 files), scheduled exports.
-- Replaying diffs on resume. Response compression (the personalised `index.html` is ~145 kB uncompressed on the Demo Home).
+- Replaying diffs on resume. Brotli (gzip only today: the personalised Demo Home page is 145 kB, 24 kB gzipped).
 - An SSE fallback for realtime.

@@ -12,7 +12,8 @@ import (
 // Script decides which scenarios happen and when.
 type Scenario string
 
-// Scenarios of the Demo Home. They come from docs/plan/05-dogfood-home.md.
+// Scenarios of the Demo Home. They come from docs/plan/05-dogfood-home.md
+// and from what the M0 spikes found in that lab.
 const (
 	ScenarioBackupFailed Scenario = "backup-failed"         // homeassistant's nightly backup fails
 	ScenarioPBSFilling   Scenario = "pbs-datastore-filling" // PBS datastore crosses 90%
@@ -20,6 +21,15 @@ const (
 	ScenarioPlexToken    Scenario = "plex-token-revoked"    // Plex answers 401 (a repair)
 	ScenarioKarakeepAPI  Scenario = "karakeep-api-changed"  // Karakeep's stats endpoint 404s after an update (a repair)
 	ScenarioQbitOOM      Scenario = "qbittorrent-oom"       // qBittorrent is OOM-killed and restarted
+
+	ScenarioPlutoUnreachable Scenario = "pluto-backup-unreachable"  // pluto's nightly backup can't reach PBS
+	ScenarioMarsUnreachable  Scenario = "mars-backup-unreachable"   // mars's nightly backup can't reach PBS
+	ScenarioIOPassthrough    Scenario = "io-backup-passthrough"     // win-gaming's backup can't start: iolinux holds the GPU
+	ScenarioGuestError       Scenario = "scratch-internal-error"    // jupiter-nas's VM scratch goes into internal-error
+	ScenarioUnraidAPI        Scenario = "unraid-api-unsupported"    // Unraid's API is older than 4.37.4 (a repair)
+	ScenarioHintTraefik      Scenario = "traefik-dashboard-no-auth" // a hint: Traefik's dashboard routed without auth
+	ScenarioHintDocker       Scenario = "docker-proxy-broad"        // a hint: jupiter's socket proxy lets every container read through
+	ScenarioHintFrigate      Scenario = "frigate-anonymous-admin"   // a hint: Frigate's internal port answers as an admin
 )
 
 // Offset is a duration after the simulation start. In JSON it is a Go
@@ -50,19 +60,35 @@ type ScriptEntry struct {
 // Script is a list of scheduled incidents.
 type Script []ScriptEntry
 
-// DefaultAllOpen is the offset in the default script at which all six
-// incidents are open at once (14:05 on the first day). incidents.json is taken
-// there.
+// DefaultAllOpen is the offset in the default script at which every incident
+// is open at once (14:05 on the first day). incidents.json is taken there.
 const DefaultAllOpen = 14*time.Hour + 5*time.Minute
 
-// DefaultScript is the default day: every incident from the dogfood home's
-// 2026-10-03 snapshot, opening through the night and morning, all open at
-// 14:05, and fixed one by one in the afternoon and evening.
+// HintsOpen is when the default script's hints opened: when the instances
+// first read the lab, nine days before the day starts. They stand all day.
+const HintsOpen = -9*24*time.Hour + 2*time.Minute
+
+// DefaultScript is the default day: the dogfood home's 2026-10-03 snapshot
+// and what the spikes found there. The standing hints are open from the
+// start; the incidents open through the night and morning, are all open at
+// 14:05, and are fixed or clear one by one from the afternoon. The backups
+// v0.1 can't fix clear with the next night's runs.
+//
+// IDs follow the hub's: <instance id>.<local id> for what the v0.1
+// integrations raise, the scenario name for the original six.
 func DefaultScript() Script {
 	return Script{
+		{Scenario: ScenarioHintTraefik, ID: "traefik.hint.api_no_auth", Open: Offset(HintsOpen)},
+		{Scenario: ScenarioHintDocker, ID: "docker-jupiter.hint.docker_endpoint", Open: Offset(HintsOpen)},
+		{Scenario: ScenarioHintFrigate, ID: "frigate.unauthenticated-admin", Open: Offset(HintsOpen)},
+		{Scenario: ScenarioPlutoUnreachable, ID: "proxmox-pluto.backup.daily", Open: Offset(2 * time.Hour)},
 		{Scenario: ScenarioBackupFailed, Open: Offset(2*time.Hour + 14*time.Minute), Fix: Offset(15*time.Hour + 30*time.Minute)},
+		{Scenario: ScenarioMarsUnreachable, ID: "proxmox-mars.backup.daily", Open: Offset(2*time.Hour + 20*time.Minute)},
 		{Scenario: ScenarioPBSFilling, Open: Offset(2*time.Hour + 44*time.Minute), Fix: Offset(16 * time.Hour)},
+		{Scenario: ScenarioIOPassthrough, ID: "proxmox-io.backup.daily", Open: Offset(2*time.Hour + 55*time.Minute)},
 		{Scenario: ScenarioKarakeepAPI, Open: Offset(9*time.Hour + 5*time.Minute), Fix: Offset(19 * time.Hour)},
+		{Scenario: ScenarioGuestError, ID: "proxmox-jupiter-nas.guest.101", Open: Offset(11*time.Hour + 20*time.Minute), Fix: Offset(18*time.Hour + 5*time.Minute)},
+		{Scenario: ScenarioUnraidAPI, ID: "unraid-jupiter.repair", Open: Offset(12*time.Hour + 5*time.Minute), Fix: Offset(16*time.Hour + 40*time.Minute)},
 		{Scenario: ScenarioPlexToken, Open: Offset(13*time.Hour + 27*time.Minute), Fix: Offset(18 * time.Hour)},
 		{Scenario: ScenarioHostMemory, Open: Offset(13*time.Hour + 30*time.Minute), Fix: Offset(17 * time.Hour)},
 		{Scenario: ScenarioQbitOOM, Open: Offset(14*time.Hour + 3*time.Minute), Fix: Offset(20 * time.Hour)},
@@ -144,10 +170,18 @@ type scenario interface {
 }
 
 var scenarios = map[Scenario]scenario{
-	ScenarioBackupFailed: backupFailed{},
-	ScenarioPBSFilling:   pbsFilling{},
-	ScenarioHostMemory:   hostMemory{},
-	ScenarioPlexToken:    plexToken{},
-	ScenarioKarakeepAPI:  karakeepAPI{},
-	ScenarioQbitOOM:      qbitOOM{},
+	ScenarioBackupFailed:     backupFailed{},
+	ScenarioPBSFilling:       pbsFilling{},
+	ScenarioHostMemory:       hostMemory{},
+	ScenarioPlexToken:        plexToken{},
+	ScenarioKarakeepAPI:      karakeepAPI{},
+	ScenarioQbitOOM:          qbitOOM{},
+	ScenarioPlutoUnreachable: backupUnreachable{job: "pve:pluto/backup/daily"},
+	ScenarioMarsUnreachable:  backupUnreachable{job: "pve:mars/backup/daily"},
+	ScenarioIOPassthrough:    backupPassthrough{},
+	ScenarioGuestError:       guestError{},
+	ScenarioUnraidAPI:        unraidAPI{},
+	ScenarioHintTraefik:      hintTraefik,
+	ScenarioHintDocker:       hintDocker,
+	ScenarioHintFrigate:      hintFrigate,
 }

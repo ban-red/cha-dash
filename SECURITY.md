@@ -16,7 +16,9 @@ You'll get an acknowledgement within a few days. Once a fix is ready, we'll coor
 
 ## Supported versions
 
-Cha Dash is pre-release, in planning. Once releases begin, security fixes go to the latest release line. This section will be updated then.
+Cha Dash is in **beta** (`0.1.0-beta.N`). Security fixes go to the latest beta; there are no maintained older lines before 1.0, so upgrade to the newest tag.
+
+Release images and binaries are signed with cosign (keyless, GitHub OIDC) and published with an SBOM and build provenance. [docs/beta.md](docs/beta.md) shows how to verify them.
 
 ## Design commitments
 

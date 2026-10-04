@@ -31,6 +31,8 @@ const (
 	KindWAN          Kind = "wan"           // the internet uplink
 	KindCamera       Kind = "camera"        // a Frigate camera
 	KindRoute        Kind = "route"         // a Traefik router
+	KindCheck        Kind = "check"         // a built-in uptime check
+	KindWeather      Kind = "weather"       // the place a weather source reports on
 )
 
 // RelType is the type of a relation between two resources.
@@ -175,11 +177,13 @@ type HistoryAxis struct {
 	Points      int       `json:"points"`
 }
 
-// Sample is one metric value in a metrics event.
+// Sample is one metric value in a metrics event. Value is null when the
+// source reads the series and reports it as unknown (a spun-down disk's
+// temperature), never 0.
 type Sample struct {
-	Resource string  `json:"resource"`
-	Metric   string  `json:"metric"`
-	Value    float64 `json:"value"`
+	Resource string `json:"resource"`
+	Metric   string `json:"metric"`
+	Value    Num    `json:"value"`
 }
 
 // Severity is how loudly an incident should present.

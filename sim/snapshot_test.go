@@ -28,7 +28,7 @@ func TestSnapshots(t *testing.T) {
 
 	s := mustNew(t, snapshotSeed)
 	files["healthy.json"] = EncodeState(s.Snapshot())
-	files["timeline.json"] = EncodeTimeline(s.Record(24*time.Hour, 15*time.Minute))
+	files["timeline.json"] = EncodeTimeline(s.Record(24*time.Hour, 30*time.Minute))
 
 	s = mustNew(t, snapshotSeed)
 	s.Advance(DefaultAllOpen)
