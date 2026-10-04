@@ -47,13 +47,19 @@ const cap = (t: string) => (t ? t[0]!.toUpperCase() + t.slice(1) : t);
 const glyph = computed(() => (!s.value.ready ? 'prog' : s.value.worst === 'down' ? 'down' : s.value.worst === 'attention' ? 'attn' : 'ok'));
 const glyphLabel = computed(() => (!s.value.ready ? 'connecting' : s.value.worst === 'ok' ? 'all healthy' : 'needs attention'));
 
+/** How many problems the Briefing names; the rest are "N more", which opens the Inbox. */
+const NAMED = { sentence: 3, headline: 2 };
+
 /** Sentence style, line one: "▲ 4 things need you · Backup of … · PBS …" or "All quiet · …". */
 const line1 = computed<Part[]>(() => {
   const v = s.value;
   if (!v.ready) return [{ text: 'Reading your home…' }];
   if (v.problems.length) {
     const parts: Part[] = [{ text: `${plural(v.problems.length, 'thing')} need${v.problems.length === 1 ? 's' : ''} you`, bold: true }];
-    for (const p of v.problems) parts.push({ text: ' · ' }, { text: nbHyphen(p.title), open: p.id });
+    const named = v.problems.slice(0, NAMED.sentence);
+    for (const p of named) parts.push({ text: ' · ' }, { text: nbHyphen(p.title), open: p.id });
+    const rest = v.problems.length - named.length;
+    if (rest) parts.push({ text: ' · ' }, { text: `${rest} more`, open: '' });
     return parts;
   }
   const quiet = [
@@ -91,10 +97,14 @@ const headlineParts = computed<Part[]>(() => {
   if (!v.problems.length) return [{ text: 'All quiet at home.' }];
   const n = v.problems.length;
   const parts: Part[] = [{ text: `${cap(numberWord(n))} ${n === 1 ? 'thing needs' : 'things need'} you: ` }];
-  v.problems.forEach((p, i) => {
-    if (i > 0) parts.push({ text: i === n - 1 ? ' and ' : ', ' });
+  // Name the first two; a headline that lists seven things is a paragraph.
+  const named = v.problems.slice(0, NAMED.headline);
+  const rest = n - named.length;
+  named.forEach((p, i) => {
+    if (i > 0) parts.push({ text: rest || i < named.length - 1 ? ', ' : ' and ' });
     parts.push({ text: nbHyphen(inSentence(p.title)), open: p.id });
   });
+  if (rest) parts.push({ text: ' and ' }, { text: `${numberWord(rest)} more`, open: '' });
   parts.push({ text: '.' });
   return parts;
 });
@@ -121,7 +131,14 @@ const deck = computed(() => {
   return out.join(' ');
 });
 
-const open = (id: string) => ui.openInbox(id);
+const open = (id: string) => (id ? ui.openInbox(id) : ui.openInbox());
+/** Phrases are spans, not buttons: a button is laid out as a box, so punctuation after it wraps to the next line. */
+function key(e: KeyboardEvent, id: string) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    open(id);
+  }
+}
 </script>
 
 <template>
@@ -134,6 +151,10 @@ const open = (id: string) => ui.openInbox(id);
         <button type="button" class="pill" aria-haspopup="dialog" @click="ui.openInbox()">
           Inbox <span :class="['badge', { zero: !inboxCount }]">{{ inboxCount }}</span>
         </button>
+        <button type="button" class="tool search-tool" aria-haspopup="dialog" :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'" aria-label="Search and commands" :title="`Search and commands (${mac ? '⌘K' : 'Ctrl K'})`" @click="ui.openPalette()">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="m10.4 10.4 3.4 3.4" /></svg>
+        </button>
+        <ThemeMenu v-if="headline" @sign-out="emit('signOut')" />
       </div>
     </div>
 
@@ -145,7 +166,7 @@ const open = (id: string) => ui.openInbox(id);
       <h1 class="sentence">
         <Glyph :kind="glyph" :label="glyphLabel" />
         <template v-for="(p, k) in headline ? headlineParts : line1" :key="k">
-          <button v-if="p.open !== undefined" type="button" class="phrase" @click="open(p.open)">{{ p.text }}</button>
+          <span v-if="p.open !== undefined" role="button" tabindex="0" class="phrase" @click="open(p.open)" @keydown="key($event, p.open)">{{ p.text }}</span>
           <b v-else-if="p.bold">{{ p.text }}</b>
           <template v-else>{{ p.text }}</template>
         </template>
@@ -154,7 +175,7 @@ const open = (id: string) => ui.openInbox(id);
       <p v-else class="sentence-2">
         <Glyph v-if="s.ready && s.problems.length" kind="ok" />
         <template v-for="(p, k) in line2" :key="k">
-          <button v-if="p.open !== undefined" type="button" class="phrase" @click="open(p.open)">{{ p.text }}</button>
+          <span v-if="p.open !== undefined" role="button" tabindex="0" class="phrase" @click="open(p.open)" @keydown="key($event, p.open)">{{ p.text }}</span>
           <template v-else>{{ p.text }}</template>
         </template>
       </p>
@@ -170,7 +191,7 @@ const open = (id: string) => ui.openInbox(id);
         <button type="button" class="tool search-tool" aria-haspopup="dialog" :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'" aria-label="Search and commands" :title="`Search and commands (${mac ? '⌘K' : 'Ctrl K'})`" @click="ui.openPalette()">
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="m10.4 10.4 3.4 3.4" /></svg>
         </button>
-        <ThemeMenu @sign-out="emit('signOut')" />
+        <ThemeMenu v-if="!headline" @sign-out="emit('signOut')" />
       </div>
     </div>
   </section>

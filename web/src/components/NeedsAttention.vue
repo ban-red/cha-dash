@@ -5,7 +5,7 @@
  * first. When the last one clears, the section collapses on the `move`
  * spring (the CSS token is the spring, sampled into linear()).
  */
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Glyph from './marks/Glyph.vue';
 import Meter from './marks/Meter.vue';
 import Sparkline from './marks/Sparkline.vue';
@@ -18,7 +18,15 @@ import { useUi } from '../stores/ui';
 
 const live = useLive();
 const ui = useUi();
-const items = computed(() => live.problems.value);
+const all = computed(() => live.problems.value);
+/** Down first, so the first few are the worst; the rest wait behind "Show all". */
+const LIMIT = 3;
+const expanded = ref(false);
+const items = computed(() => (expanded.value ? all.value : all.value.slice(0, LIMIT)));
+const hidden = computed(() => all.value.length - LIMIT);
+watch(hidden, (n) => {
+  if (n <= 0) expanded.value = false;
+});
 
 /**
  * The mark that shows the symptom, chosen from what the incident's facts
@@ -79,9 +87,9 @@ const fixState = (id: string) => live.fixes[id]?.state;
 
 <template>
   <Transition :css="false" @enter="onEnter" @leave="onLeave">
-    <section v-if="items.length" class="attn-sec collapse" aria-label="Needs attention">
+    <section v-if="all.length" class="attn-sec collapse" aria-label="Needs attention">
       <header class="sh">
-        <span>Needs attention · {{ items.length }}</span>
+        <span>Needs attention · {{ all.length }}</span>
         <span class="sh-rule" aria-hidden="true"></span>
         <span class="sh-m">mirrored from their sections; your layout doesn't move</span>
       </header>
@@ -133,6 +141,9 @@ const fixState = (id: string) => live.fixes[id]?.state;
           </div>
         </article>
       </TransitionGroup>
+      <button v-if="hidden > 0" type="button" class="btn ghost attn-more" :aria-expanded="expanded" @click="expanded = !expanded">
+        {{ expanded ? 'Show fewer' : `Show all ${all.length}` }}
+      </button>
     </section>
   </Transition>
 </template>
@@ -162,5 +173,8 @@ const fixState = (id: string) => live.fixes[id]?.state;
 }
 .strips {
   position: relative;
+}
+.attn-more {
+  margin-top: var(--space-2);
 }
 </style>

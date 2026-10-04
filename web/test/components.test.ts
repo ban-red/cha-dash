@@ -33,39 +33,42 @@ describe('front page with today’s incidents', () => {
     const w = mountIn(Briefing);
     const h1 = w.find('h1.sentence');
     expect(h1.text()).toContain('8 things need you');
-    const phrases = h1.findAll('button.phrase');
+    // The three worst by name, then the rest as one phrase that opens the Inbox.
+    const phrases = h1.findAll('.phrase[role="button"]');
     expect(phrases.map((p) => p.text())).toEqual([
       'scratch is in internal‑error',
       "Backups on pluto couldn't reach pbs‑jupiter",
       'Backup of homeassistant failed',
-      "Backups on mars couldn't reach pbs‑jupiter",
-      'Backup of win‑gaming failed',
-      'PBS datastore is filling up',
-      'jupiter\u2011nas is running out of memory',
-      'qBittorrent ran out of memory',
+      '5 more',
     ]);
     expect(w.find('.sentence-2').text()).toContain('3 integrations to reconnect');
     expect(w.find('.clock').text()).toBe('14:05');
-    await phrases[5]!.trigger('click');
+    await phrases[1]!.trigger('keydown', { key: 'Enter' });
     expect(ui.state.inboxOpen).toBe(true);
-    expect(ui.state.inboxFocus).toBe('pbs-datastore-filling');
+    expect(ui.state.inboxFocus).toBe('proxmox-pluto.backup.daily');
   });
 
   it('switches to the headline with a deck in Paper', () => {
     applyTheme('paper');
     const { mountIn } = harness(docs(withIncidents));
     const w = mountIn(Briefing);
-    expect(w.find('h1.sentence').text()).toMatch(/^Eight things need you: scratch is in internal‑error, backups on pluto couldn't reach pbs‑jupiter, backup of homeassistant failed/);
-    expect(w.find('h1.sentence').text()).toContain('filling up, jupiter‑nas is running out of memory and qBittorrent ran out of memory.');
+    // A headline names two and counts the rest.
+    expect(w.find('h1.sentence').text()).toBe("Eight things need you: scratch is in internal‑error, backups on pluto couldn't reach pbs‑jupiter and six more.");
+    expect(w.find('.mast-meta [aria-label="Search and commands"]').exists()).toBe(true);
+    expect(w.find('.mast-meta .theme-menu, .mast-meta [aria-label*="heme"]').exists()).toBe(true); // themes stay reachable in Paper
     expect(w.find('.sentence-2').text()).toContain('Next: Black Clover at 04:00. Three integrations need reconnecting in the Inbox.');
   });
 
-  it('mirrors problems into Needs attention with the suggested action and its tier', () => {
+  it('mirrors problems into Needs attention with the suggested action and its tier', async () => {
     const { mountIn } = harness(docs(withIncidents));
     const w = mountIn(NeedsAttention);
+    // The three worst show; the rest wait behind "Show all".
+    expect(w.findAll('.strip')).toHaveLength(3);
+    expect(w.find('.sh').text()).toContain('Needs attention · 8');
+    await w.find('.attn-more').trigger('click');
     const strips = w.findAll('.strip');
     expect(strips).toHaveLength(8);
-    expect(w.find('.sh').text()).toContain('Needs attention · 8');
+    expect(w.find('.attn-more').text()).toBe('Show fewer');
     const strip = (title: string) => strips.find((s) => s.text().includes(title))!;
     // Down first: the guest in internal-error, whose action opens Proxmox.
     expect(strips[0]!.text()).toContain('scratch is in internal-error');
@@ -86,6 +89,7 @@ describe('front page with today’s incidents', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'backup-failed' }), { status: 202 }));
     vi.stubGlobal('fetch', fetchMock);
     const w = mountIn(NeedsAttention);
+    await w.find('.attn-more').trigger('click');
     const strip = (title: string) => w.findAll('.strip').find((s) => s.text().includes(title))!;
     await strip('PBS datastore is filling up').findAll('.acts button')[1]!.trigger('click');
     expect(ui.state.confirm?.action.id).toBe('pbs.datastore.prune');

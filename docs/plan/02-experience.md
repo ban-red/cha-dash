@@ -137,7 +137,7 @@ The dark-theme pairs sit above the validator's *categorical* lightness band. Tha
 
 A light's attention was snapped from L .66 to .64 by the token generator, so the mark clears contrast on Instrument Light's surfaces. Every built-in theme's numbers are in [tokens v0](../../design/tokens/README.md). Two rules the generator enforces on top of the validator:
 - **The accent never reads as status.** A theme is refused if its accent sits within ΔE 15 of either status color, because progress would read as attention.
-- **Night is dim by design.** It's monochrome red, so state is carried by glyph and word only. Since wave 6 its text pairs meet WCAG AA (4.5:1), so its secondary and tertiary text sit close together (text-2 4.59, text-3 4.52); keeping three distinct levels would mean dropping text-2 below AA.
+- **Night is dim by design.** It's monochrome red, so state is carried by glyph and word only. Since wave 6 every text level meets WCAG AA, and each has its own floor so the three stay distinct: text 6.5:1, text-2 5.5:1, text-3 4.5:1. It's still a dim red, just not as dim as before AA.
 
 **Modes**
 - Light, Dark, **OLED black** (for kiosks), and **Night** (monochrome red, StandBy-style).

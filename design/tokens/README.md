@@ -182,11 +182,11 @@ Targets: text Lc 90, text-2 Lc 75, text-3 Lc 60 (labels), and WCAG AA 4.5:1 for 
 | Instrument Dark | standard | 90.8 / 15.11 | 90.2 / 14.21 | 76.0 / 11.98 | 75.4 / 11.26 | 60.9 / 9.08 | 60.3 / 8.54 |
 | Instrument Light | standard | 90.1 / 11.26 | 96.0 / 12.29 | 75.0 / 6.06 | 81.0 / 6.62 | 66.5 / 4.50 | 72.4 / 4.92 |
 | OLED | standard | 90.1 / 16.44 | 90.1 / 16.44 | 75.3 / 12.98 | 75.3 / 12.98 | 60.3 / 9.83 | 60.3 / 9.83 |
-| Night | dim | 38.1 / 5.64 | 38.1 / 5.64 | 31.2 / 4.59 | 31.2 / 4.59 | 30.6 / 4.52 | 30.6 / 4.52 |
+| Night | dim | 43.3 / 6.52 | 43.3 / 6.52 | 37.1 / 5.50 | 37.1 / 5.50 | 30.6 / 4.52 | 30.6 / 4.52 |
 | High Contrast | standard | 104.6 / 19.30 | 104.2 / 18.36 | 90.4 / 15.85 | 90.1 / 15.08 | 75.7 / 12.55 | 75.4 / 11.94 |
 | Paper | standard | 91.4 / 10.89 | 97.2 / 11.83 | 76.6 / 6.00 | 82.4 / 6.52 | 68.3 / 4.52 | 74.0 / 4.91 |
 
-In the light themes, text-3 lands at Lc 66–68 rather than 60. That's because **WCAG AA is the binding constraint there**: Lc 60 dark-on-light is only about 3.8:1. The same floor lifts Night's text-2 and text-3 above their dim targets, to about the same level (4.59 and 4.52:1).
+In the light themes, text-3 lands at Lc 66–68 rather than 60. That's because **WCAG AA is the binding constraint there**: Lc 60 dark-on-light is only about 3.8:1. In the dim profile the AA floor alone would put text-2 and text-3 at about the same 4.5:1, so each Night text level has its own floor (`WCAG_TEXT_LEVELS`: 6.4, 5.4 and 4.5:1), which keeps three visible levels, all AA: 6.52, 5.50 and 4.52:1.
 
 ### Text/background pairs (WCAG 2 AA, 4.5:1)
 

@@ -682,7 +682,7 @@
   --neutral-9: oklch(0.35 0.1435 29);
   --neutral-10: oklch(0.395 0.162 29);
   --neutral-11: oklch(0.5814 0.1818 29);
-  --neutral-12: oklch(0.6367 0.2 29);
+  --neutral-12: oklch(0.6738 0.2 29);
   --accent-1: oklch(0 0.0095 29);
   --accent-2: oklch(0.032 0.0171 29);
   --accent-3: oklch(0.07 0.0304 29);
@@ -738,10 +738,10 @@
   --surface-active: oklch(0.13 0.0533 29);
   --border: oklch(0.165 0.0677 29);
   --border-strong: oklch(0.215 0.0882 29);
-  --line: oklch(0.6367 0.2 29 / 0.09);
-  --line-2: oklch(0.6367 0.2 29 / 0.171);
-  --text: oklch(0.6367 0.2 29);
-  --text-2: oklch(0.5854 0.1909 29);
+  --line: oklch(0.6738 0.2 29 / 0.09);
+  --line-2: oklch(0.6738 0.2 29 / 0.171);
+  --text: oklch(0.6738 0.2 29);
+  --text-2: oklch(0.63 0.1909 29);
   --text-3: oklch(0.5814 0.1818 29);
   --text-inverse: oklch(0 0 0);
   --accent: oklch(0.585 0.19 29);
@@ -764,10 +764,10 @@
   --maint: oklch(0.5 0.17 29);
   --maint-text: oklch(0.5764 0.1445 29);
   --maint-bg: oklch(0.07 0.0272 29);
-  --focus: oklch(0.5854 0.1909 29);
-  --spark: oklch(0.6367 0.2 29 / 0.55);
-  --band: oklch(0.6367 0.2 29 / 0.065);
-  --hatch: oklch(0.6367 0.2 29 / 0.075);
+  --focus: oklch(0.63 0.1909 29);
+  --spark: oklch(0.6738 0.2 29 / 0.55);
+  --band: oklch(0.6738 0.2 29 / 0.065);
+  --hatch: oklch(0.6738 0.2 29 / 0.075);
   --scrim: oklch(0 0 0 / 0.6);
   --font-ui: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-num: "Geist Mono", ui-monospace, monospace;

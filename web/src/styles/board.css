@@ -78,6 +78,10 @@
 .phrase:hover {
   box-shadow: inset 0 -1px 0 currentColor;
 }
+.phrase:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 .brief-side {
   display: flex;
   flex-direction: column;
@@ -184,10 +188,14 @@
   color: var(--text-2);
 }
 :root[data-briefing='headline'] .sentence {
-  max-width: 24ch;
-  font: var(--weight-regular) var(--type-display) / 1.04 var(--font-head);
+  max-width: 28ch;
+  font: var(--weight-regular) var(--type-display) / 1.08 var(--font-head);
+  text-wrap: pretty;
   letter-spacing: -0.026em;
   font-variation-settings: 'opsz' 72;
+}
+:root[data-briefing='headline'] .sentence .phrase {
+  box-shadow: inset 0 -2px 0 color-mix(in oklch, currentColor 22%, transparent);
 }
 :root[data-briefing='headline'] .sentence .g {
   width: 0.4em;

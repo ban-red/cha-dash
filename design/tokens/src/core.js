@@ -450,6 +450,10 @@ const BOOST = [14, 15, 15];
    is a release gate (02-experience -> Accessibility), and red on black reaches
    4.5:1 even where it can't reach Lc 60. */
 const WCAG_TEXT = { standard: 4.5, dim: 4.5 };
+/* Per text level [primary, secondary, tertiary]. In the dim profile the APCA
+   targets are out of reach, so the AA floor alone would put text-2 and text-3
+   at about the same 4.5:1. These floors keep three visible levels, all AA. */
+const WCAG_TEXT_LEVELS = { standard: [4.5, 4.5, 4.5], dim: [6.4, 5.4, 4.5] };
 /* WCAG 2 AA for text (1.4.3). */
 const WCAG_AA = 4.5;
 
@@ -705,9 +709,10 @@ export function resolveTheme(doc) {
   const wbgs = textBgs.map((c) => toHex(c));
   const start = dir > 0 ? Math.max(neutral[0].l, neutral[1].l) : Math.min(neutral[0].l, neutral[1].l);
   const startAll = dir > 0 ? Math.max(...textBgs.map((c) => c.l)) : Math.min(...textBgs.map((c) => c.l));
-  const n11 = solveText(tg[2], bgs, neutralAt(10 / 11).h, neutralAt(10 / 11).c, dir, start, wmin);
-  const n12 = solveText(tg[0], bgs, ink.hue, ink.chroma, dir, startAll, wmin, wbgs);
-  const t2 = solveText(tg[1], bgs, neutralAt(10.5 / 11).h, neutralAt(10.5 / 11).c, dir, startAll, wmin, wbgs);
+  const [w1, w2, w3] = WCAG_TEXT_LEVELS[profile];
+  const n11 = solveText(tg[2], bgs, neutralAt(10 / 11).h, neutralAt(10 / 11).c, dir, start, w3);
+  const n12 = solveText(tg[0], bgs, ink.hue, ink.chroma, dir, startAll, w1, wbgs);
+  const t2 = solveText(tg[1], bgs, neutralAt(10.5 / 11).h, neutralAt(10.5 / 11).c, dir, startAll, w2, wbgs);
   for (const [nm, r, t] of /** @type {[string, {reached: boolean}, number][]} */ ([['text-3', n11, tg[2]], ['text-2', t2, tg[1]], ['text', n12, tg[0]]])) {
     if (!r.reached) notes.push(`${nm}: Lc ${round(t, 1)} is out of reach on these surfaces; using the extreme lightness`);
   }
