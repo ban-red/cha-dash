@@ -151,6 +151,8 @@ Compare it for one day against a gridstack 14 prototype.
 
 ## v0.2: Control (plus owned stacks on the hub's host)
 
+> The detailed plan is in [08 · v0.2](08-v0.2.md) (draft).
+
 **Engine and security**
 - Action engine: registry, tiers, scopes, undo, plan/approve/execute, per-resource locks.
 - **Audit log.**
