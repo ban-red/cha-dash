@@ -451,7 +451,7 @@ Every surface goes through this engine: tile buttons, ⌘K, the REST API, mobile
 **Transport:**
 - One persistent outbound WSS connection that multiplexes RPC, metrics, logs, exec and deploy progress.
 - Optional direct mode (the hub dials the node) for air-gapped LANs.
-- Mutual auth via mTLS or a Noise handshake. **ADR**.
+- Mutual auth: TLS 1.3 *inside* the WebSocket, each side identified by an Ed25519 key pinned at enrollment, no CA. It works behind TLS-terminating proxies. Proposed in [ADR-0014](../adr/0014-node-transport.md).
 - **No shared default certificates, ever.**
 
 **Local policy.** The hub can't exceed it:
@@ -486,7 +486,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 
 ## Storage
 
-**SQLite in WAL mode**, pure Go (`modernc.org/sqlite`, or `ncruces/go-sqlite3` for at-rest encryption; **ADR**). One writer plus a read pool. goose for migrations.
+**SQLite in WAL mode**, pure Go: `modernc.org/sqlite` today; [ADR-0015](../adr/0015-sqlite-driver.md) proposes `ncruces/go-sqlite3`, with optional Adiantum encryption at rest keyed from the vault's key. One writer plus a read pool. goose for migrations.
 
 | Area | Contents | Retention |
 |---|---|---|
@@ -591,7 +591,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Motion | **Motion for Vue** (springs, layout animations, gestures); Vue `<Transition>` / `<TransitionGroup>` (FLIP moves); View Transitions API for expand-in-place; `prefers-reduced-motion` honored everywhere | Interruptible spring physics, which is the "Apple feel" | @vueuse/motion |
 | Utilities | **VueUse**: wake lock, media queries, reduced motion, intersection, idle | Kiosk and PWA needs covered | — |
 | Styling | Tailwind 4 + our token layer (OKLCH CSS variables) | Tokens are the design system | UnoCSS |
-| Grid | **Our own layout engine**: a framework-agnostic TS package (packing, collision, Z-reflow, snapping to supported sizes, derived breakpoints) rendered by Vue with Motion. **ADR**: spike against gridstack 14 first | The layout engine *is* how the product feels | gridstack 14, dnd-kit/dom (pre-1.0) |
+| Grid | **Our own layout engine**: a framework-agnostic TS package (packing, collision, Z-reflow, snapping to supported sizes, derived breakpoints) rendered by Vue with Motion. Proposed in [ADR-0013](../adr/0013-grid-engine.md) after the gridstack 14 comparison | The layout engine *is* how the product feels | gridstack 14, dnd-kit/dom (pre-1.0) |
 | Charts | Hand-rolled SVG/canvas sparklines and bars; uPlot for detailed time series | Tiny, fast, on-brand | ECharts (heavy) |
 | API client | `openapi-typescript` + `openapi-fetch`, generated from the hub's OpenAPI | One typed source of truth | — |
 | PWA | `vite-plugin-pwa` (Workbox), CSP-compatible | Offline shell, last-known snapshot, Web Push | — |

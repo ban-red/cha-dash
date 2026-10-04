@@ -31,11 +31,11 @@
 
 | # | Decision | Options | Recommendation | When |
 |---|---|---|---|---|
-| 13 | **Grid engine** | Build our own · gridstack 14 · dnd-kit/dom | **Build** (TS package + Vue/Motion renderer), after a one-day comparison spike | M0 |
-| 14 | **Node transport and identity** | mTLS · Noise | mTLS with a pinned self-signed CA, unless the spike shows Noise is better | Before v0.2 (the local node) |
-| 15 | **SQLite driver** | modernc · ncruces (encryption at rest) | Spike both; prefer ncruces if encryption is cheap | M0 |
-| 16 | **Hardware floor** | arm64 · armv7 | Fully support amd64 and arm64; armv7 best-effort. | M0 |
-| 17 | **AI/MCP stance** | Embrace post-1.0, with approvals · avoid | Embrace, but only through the action engine with human approval. Design the "propose" API now | Before v0.2 |
+| 13 | **Grid engine** | Build our own · gridstack 14 · dnd-kit/dom | **Build** (TS package + Vue/Motion renderer). Spike 2.4 confirms it: **proposed in [ADR-0013](../adr/0013-grid-engine.md)** | M0 |
+| 14 | **Node transport and identity** | mTLS · Noise | Spike 4.7: mutual TLS 1.3 *inside* the WebSocket with keys pinned at enrollment and no CA; it beats both a CA and Noise and works behind TLS-terminating proxies. **Proposed in [ADR-0014](../adr/0014-node-transport.md)** | Before v0.2 (the local node) |
+| 15 | **SQLite driver** | modernc · ncruces (encryption at rest) | Spike 4.8: ncruces is level or faster on the hub's queries and links fewer modules; encryption is cheap in CPU but ~4× on writes and makes a lost key fatal, so it's opt-in. **Proposed in [ADR-0015](../adr/0015-sqlite-driver.md)** | M0 |
+| 16 | **Hardware floor** | arm64 · armv7 | Fully support amd64 and arm64; armv7 best-effort; 512 MB minimum. Measured: hub ≤ 55 MB with 20 tabs, node ≤ 32 MB, image ~6 MB. **Proposed in [ADR-0016](../adr/0016-hardware-floor.md)** | M0 |
+| 17 | **AI/MCP stance** | Embrace post-1.0, with approvals · avoid | Embrace, but only through the action engine with human approval. Design the "propose" API now. **Proposed in [ADR-0017](../adr/0017-ai-and-mcp.md)** | Before v0.2 |
 
 ---
 

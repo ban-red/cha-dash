@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["bun", "vite/client"],
+    "jsx": "preserve",
+    // Our packages from source, and their imports from this spike's node_modules
+    // (the worktree root has no install), the same mapping as vite.shared.ts.
+    "paths": {
+      "@chadash/layout": ["../../packages/layout/src/index.ts"],
+      "@chadash/layout-vue": ["../../packages/layout-vue/src/index.ts"],
+      "vue": ["./node_modules/vue"],
+      "vue/*": ["./node_modules/vue/*"],
+      "@vue/*": ["./node_modules/@vue/*"],
+      "motion-v": ["./node_modules/motion-v"]
+    }
+  },
+  "vueCompilerOptions": {
+    "strictTemplates": true,
+    "dataAttributes": ["data-*"]
+  },
+  "include": ["scenarios", "harness", "adapters", "test", "test-vue", "bench", "bundle", "page", "*.ts"]
+}

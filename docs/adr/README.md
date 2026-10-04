@@ -38,11 +38,11 @@
 | [0010](0010-unraid-stays-unraid.md) | Unraid stays Unraid | accepted | 2026-10-03 |
 | [0011](0011-pwa-is-the-mobile-client.md) | The PWA is the mobile client | accepted | 2026-10-03 |
 | [0012](0012-direction-a-themeable.md) | Visual direction: Instrument, built to be themeable | accepted | 2026-10-03 |
-| 0013 | **Grid engine:** build our own layout engine, or adopt an existing grid library. Settled by a one-day comparison spike. [Roadmap](../plan/04-roadmap.md#still-open) | open | — |
-| 0014 | **Node transport and identity:** mTLS with a pinned self-signed CA, or a Noise handshake. Needed before v0.2. [Roadmap](../plan/04-roadmap.md#still-open) | open | — |
-| 0015 | **SQLite driver:** pure-Go modernc, or ncruces for encryption at rest. [Roadmap](../plan/04-roadmap.md#still-open) | open | — |
-| 0016 | **Hardware floor:** amd64 and arm64 fully supported; how far armv7 goes. [Roadmap](../plan/04-roadmap.md#still-open) | open | — |
-| 0017 | **AI/MCP stance:** embrace only through the action engine with human approval, or avoid. Needed before v0.2. [Roadmap](../plan/04-roadmap.md#still-open) | open | — |
+| [0013](0013-grid-engine.md) | Grid engine: build our own (`@chadash/layout` + `@chadash/layout-vue`), from the spike 2.4 comparison | proposed | 2026-10-03 |
+| [0014](0014-node-transport.md) | Node transport and identity: mutual TLS 1.3 inside the WebSocket, Ed25519 keys pinned at enrollment, no CA | proposed | 2026-10-03 |
+| [0015](0015-sqlite-driver.md) | SQLite driver: ncruces/go-sqlite3; Adiantum encryption at rest as an opt-in | proposed | 2026-10-03 |
+| [0016](0016-hardware-floor.md) | Hardware floor: amd64 and arm64 fully supported, armv7 best-effort, 512 MB minimum | proposed | 2026-10-03 |
+| [0017](0017-ai-and-mcp.md) | AI and MCP: agents read and propose, humans approve every write; off by default; MCP after 1.0 | proposed | 2026-10-03 |
 | [0018](0018-go-module-path.md) | Go module path: `dash.cha.sh` | accepted | 2026-10-03 |
 | [0019](0019-bun-for-javascript-tooling.md) | Bun for JavaScript tooling | accepted | 2026-10-03 |
 | [0020](0020-node-deploys-with-compose-sdk-and-go-git.md) | The node deploys with the Compose SDK and go-git | accepted | 2026-10-03 |

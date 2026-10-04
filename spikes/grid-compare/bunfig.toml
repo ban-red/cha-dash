@@ -1,0 +1,10 @@
+[install]
+# Like the root workspace: each package gets exactly the versions it asked for.
+# Hoisted, vue-tsc's Vue 3.5 compiler shadows Vue 3.6's and the SFC build breaks.
+linker = "isolated"
+
+[test]
+# bun test runs the engine-level checks in test/; the Vue renderer checks in
+# test-vue/ need the Vue SFC compiler and run under Vitest.
+root = "./test"
+preload = ["./harness/dom.ts"]
