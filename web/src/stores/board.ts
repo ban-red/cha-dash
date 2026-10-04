@@ -87,6 +87,27 @@ export function createBoardStore(opts: BoardOptions) {
     }
   }
 
+  /**
+   * Show the board the hub inlined into the page (lib/inline.ts). It's
+   * current, so no load is needed; false if this version can't read it.
+   */
+  function seed(boards: BoardRef[], b: StoredBoard): boolean {
+    try {
+      board.value = fromDocument(b.layout);
+    } catch {
+      return false;
+    }
+    stored = b.layout;
+    state.boards = boards;
+    state.boardId = b.id;
+    state.name = b.name;
+    state.revision = b.revision;
+    state.unsaved = false;
+    state.lastKnown = false;
+    state.status = 'ready';
+    return true;
+  }
+
   async function load(id?: string): Promise<void> {
     state.status = 'loading';
     state.error = '';
@@ -205,7 +226,7 @@ export function createBoardStore(opts: BoardOptions) {
     return { id: state.boardId, name: state.name, revision: state.revision, layout: stored };
   }
 
-  return { state, board, load, save, restore, snapshot };
+  return { state, board, load, save, restore, seed, snapshot };
 }
 
 export type BoardStore = ReturnType<typeof createBoardStore>;

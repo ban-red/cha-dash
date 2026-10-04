@@ -69,6 +69,15 @@ jobs:
         run: go vet ./...
       - name: go test -race
         run: go test -race ./...
+      - name: Performance budgets
+        # The hub's budgets that run headlessly (web/README.md, "Budgets"):
+        # GET / with the inline snapshot (median, p95), the snapshot's size,
+        # and one tab's realtime diff rate on the Demo Home. Without -race,
+        # which skips them, and one package at a time, so they don't time
+        # each other; the numbers are in the test files.
+        run: |
+          go test -p 1 -count=1 -run '^TestBudget' -v ./internal/server/ ./internal/demo/ | tee budgets.txt
+          { echo "### Performance budgets (${{ matrix.arch }})"; echo; sed -n 's/^ *budget_test.go:[0-9]*: /- /p' budgets.txt; } >> "$GITHUB_STEP_SUMMARY"
       - name: The Dockerfile copies every package the hub imports
         run: |
           missing=""
@@ -374,9 +383,11 @@ jobs:
           fi
 
   # Real Linux numbers for the footprint spike, which so far has only macOS
-  # upper bounds (ADR-0016). Non-blocking: not a required check, until the
-  # numbers are stable enough to become a budget. The full output is an
-  # artifact, and the tables go in the job summary.
+  # upper bounds (ADR-0016). It checks the hub's RSS budgets (the empty hub;
+  # the Demo Home with 20 tabs: spikes/footprint/budget_test.go) and fails
+  # when one is over, but stays non-blocking: not a required check, until
+  # the numbers are stable on shared runners. The full output is an
+  # artifact, and the tables and budget lines go in the job summary.
   footprint:
     name: Footprint (${{ matrix.arch }}, non-blocking)
     runs-on: ${{ matrix.runner }}
@@ -414,7 +425,7 @@ jobs:
         if: always()
         run: |
           [ -f "$OUT" ] || exit 0
-          { echo "### Footprint, linux/${{ matrix.arch }}"; sed -n '/^linux\//,/^Memory in MiB/p' "$OUT"; } >> "$GITHUB_STEP_SUMMARY"
+          { echo "### Footprint, linux/${{ matrix.arch }}"; sed -n '/^linux\//,/^Memory in MiB/p' "$OUT"; echo; sed -n 's/^Budget: /- /p' "$OUT"; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

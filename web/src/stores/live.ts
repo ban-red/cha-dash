@@ -7,6 +7,9 @@
  * is `demo` (from GET /api/demo), which allows the demo Fix endpoint.
  * `restore()` fills the document from a last-known snapshot when the page
  * opens while the hub is unreachable; the first live snapshot replaces it.
+ * `hydrate()` fills it from the snapshot the hub inlined into index.html,
+ * which is current: no skeletons, no stale treatment, and the socket's
+ * snapshots supersede it in place.
  *
  * Plain Vue reactivity. Patches mutate `doc` in place, so a metrics diff only
  * re-renders the widgets that read the series it touched.
@@ -152,6 +155,16 @@ export function createLive(opts: LiveOptions = {}) {
     restoredAt.value = snap.savedAt;
   }
 
+  /** Fill the document from the hub's first-paint snapshot (lib/inline.ts): current values, so not marked last-known. */
+  function hydrate(snap: { graph?: GraphDoc; metrics?: MetricsDoc; inbox?: InboxDoc }): void {
+    if (snap.graph) doc.graph = snap.graph;
+    if (snap.metrics) doc.metrics = snap.metrics;
+    if (snap.inbox) {
+      doc.inbox = snap.inbox;
+      syncClock();
+    }
+  }
+
   const graph = computed<GraphDoc | undefined>(() => doc.graph);
   const metrics = computed<MetricsDoc | undefined>(() => doc.metrics);
   const inbox = computed<InboxDoc | undefined>(() => doc.inbox);
@@ -203,6 +216,7 @@ export function createLive(opts: LiveOptions = {}) {
     demo,
     restoredAt,
     restore,
+    hydrate,
     /** Hub clock minus browser clock, for the snapshot. */
     clockOffset: () => offset.value,
     graph,

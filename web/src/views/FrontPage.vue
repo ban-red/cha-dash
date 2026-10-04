@@ -5,6 +5,8 @@
  *
  * - the route (which board; Settings as a layer over the page);
  * - ⌘K / Ctrl K and / for the command bar;
+ * - the hub's first-paint snapshot, inlined into index.html: the page and
+ *   its board render from it at once, and the socket supersedes it;
  * - the last-known snapshot: written while live, and the page opens on it
  *   when the hub was unreachable at start-up (session.state.offline);
  * - demo mode (GET /api/demo), which lets incidents' actions run.
@@ -58,6 +60,16 @@ function waitForGraph(): Promise<GraphDoc | undefined> {
 }
 const board = createBoardStore({ waitForGraph, now: () => live.now.value });
 provideBoard(board);
+
+// Signed in with the hub's first-paint snapshot: render from it now; the socket supersedes it.
+const inline = session.takeInline();
+let seeded = false;
+if (inline) {
+  if (inline.demo) setDisplayTimeZone('UTC');
+  live.demo.value = inline.demo === true;
+  live.hydrate(inline);
+  if (inline.board && inline.board.layout != null) seeded = board.seed(inline.boards, inline.board);
+}
 
 // Opened while the hub was unreachable: show the last-known page.
 const restored = session.takeRestored();
@@ -140,7 +152,8 @@ let stopPersist: (() => void) | undefined;
 onMounted(() => {
   live.start();
   if (!restored) void demo();
-  void board.load(view.value.name === 'front' ? view.value.board : undefined);
+  const want = view.value.name === 'front' ? view.value.board : undefined;
+  if (!seeded || (want !== undefined && want !== board.state.boardId)) void board.load(want);
   document.addEventListener('keydown', onKey);
   stopPersist = persistSnapshots(live, board, session);
 });

@@ -11,6 +11,9 @@
  * - /api and /ws are never touched: requests pass straight through and
  *   nothing that carries the session is ever stored. The last-known data the
  *   page shows offline lives in IndexedDB, written by the page itself.
+ * - The shell is the generic index.html. A signed-in owner's navigation gets
+ *   index.html with their first-paint snapshot inlined, marked no-store, so
+ *   it's never kept; the precache asks without cookies, so it can't get one.
  *
  * Plain JavaScript, no imports, no eval: the CSP's default-src 'self' covers
  * workers too.
@@ -30,7 +33,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(SHELL)
-      .then((cache) => cache.addAll(PRECACHE.map((p) => new Request(p, { cache: 'reload' }))))
+      .then((cache) => cache.addAll(PRECACHE.map((p) => new Request(p, { cache: 'reload', credentials: 'omit' }))))
       .then(() => self.skipWaiting()),
   );
 });

@@ -42,9 +42,9 @@ onMounted(() => {
   />
 
   <!-- The catalog -->
-  <div v-else-if="v?.add === ''" class="st-section">
+  <section v-else-if="v?.add === ''" class="st-section" aria-labelledby="catalog-h">
     <a class="st-crumb" :href="settingsPath('integrations')" @click.prevent="navigate(settingsPath('integrations'), { replace: true })">‹ Integrations</a>
-    <header><h3>Add an integration</h3><span class="st-meta">{{ integrations.catalog.length }} available</span></header>
+    <header><h3 id="catalog-h">Add an integration</h3><span class="st-meta">{{ integrations.catalog.length }} available</span></header>
     <p class="st-lede">Each integration reads one kind of service. Start read-only; Cha Dash shows what the credential can actually do when you test it.</p>
     <div class="field">
       <label for="catalog-q" class="sr">Filter integrations</label>
@@ -62,7 +62,7 @@ onMounted(() => {
       </li>
       <li v-if="!catalogShown.length" class="cat-none">Nothing matches “{{ query }}”.</li>
     </ul>
-  </div>
+  </section>
 
   <!-- The list -->
   <template v-else>
@@ -137,6 +137,9 @@ onMounted(() => {
 }
 .cat-card:hover {
   background: var(--surface-hover);
+}
+.cat-card:hover .m {
+  color: var(--text-2); /* text-3 is too faint on a hover row (WCAG AA) */
 }
 .cat-card:active {
   transform: scale(0.98);

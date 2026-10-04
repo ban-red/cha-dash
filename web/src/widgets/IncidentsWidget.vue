@@ -37,11 +37,13 @@ const tag = computed(() => (open.value.length ? `${open.value.length} open` : 'n
       <div class="lab">{{ last ? `Last: ${last.title}, resolved ${hhmm(last.resolved_at ?? last.updated_at)}.` : 'No incidents today.' }}</div>
     </template>
     <div v-else class="list" role="list">
-      <button v-for="i in shown" :key="i.id" type="button" class="li" role="listitem" @click="ui.openInbox(i.id)">
-        <Glyph :kind="i.class === 'repair' ? 'repair' : glyphFor(i.severity)" :label="i.class === 'repair' ? 'repair' : i.severity" />
-        <span><span class="t">{{ i.title }}</span><small>{{ i.class === 'repair' ? 'Repair' : i.phase }}</small></span>
-        <span class="n">{{ hhmm(i.opened_at) }}</span>
-      </button>
+      <div v-for="i in shown" :key="i.id" role="listitem">
+        <button type="button" class="li" @click="ui.openInbox(i.id)">
+          <Glyph :kind="i.class === 'repair' ? 'repair' : glyphFor(i.severity)" :label="i.class === 'repair' ? 'repair' : i.severity" />
+          <span><span class="t">{{ i.title }}</span><small>{{ i.class === 'repair' ? 'Repair' : i.phase }}</small></span>
+          <span class="n">{{ hhmm(i.opened_at) }}</span>
+        </button>
+      </div>
     </div>
     <div v-if="open.length > shown.length" class="tf">
       <span>+{{ open.length - shown.length }} more in the Inbox</span>

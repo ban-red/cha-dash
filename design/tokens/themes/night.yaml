@@ -12,7 +12,7 @@ profile: dim
 monochrome: true
 color:
   base: oklch(0 0 0)
-  accent: oklch(0.56 0.19 29)
+  accent: oklch(0.585 0.19 29)   # just light enough for black text on it to reach 4.5:1
   contrast: 50
   ink: { hue: 29, chroma: 0.2 }
   status:

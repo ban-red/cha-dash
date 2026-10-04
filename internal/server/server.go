@@ -20,7 +20,8 @@
 //	GET  /api/demo             demo clock and seed; demo mode only (owner)
 //	POST /api/demo/incidents/{id}/fix   press the suggested action (owner)
 //	GET  /ws                   realtime WebSocket                  (session)
-//	GET  /…                    the web app (history-mode: unknown paths get index.html)
+//	GET  /…                    the web app (history-mode: unknown paths get index.html,
+//	                           with the first-paint snapshot for a signed-in owner)
 //
 // Every response gets security headers; state-changing requests from other
 // origins are refused (net/http CrossOriginProtection), and the WebSocket
@@ -40,12 +41,14 @@ import (
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/demo"
+	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/importer"
 	"dash.cha.sh/internal/importer/homepage"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
+	"dash.cha.sh/internal/webui"
 )
 
 // Deps are the subsystems the HTTP layer exposes.
@@ -67,6 +70,9 @@ type Deps struct {
 	// Integrations runs integration instances and serves their API. Nil
 	// leaves /api/integrations unmounted.
 	Integrations *runtime.Manager
+	// FirstPaint builds the snapshot index.html carries for a signed-in
+	// owner (see firstPaint). Nil serves the generic page to everyone.
+	FirstPaint *firstpaint.Builder
 }
 
 // New builds the root handler.
@@ -122,6 +128,9 @@ func New(d Deps) (http.Handler, error) {
 			w.Header().Set("Allow", "GET, HEAD")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
+		}
+		if d.FirstPaint != nil {
+			r = r.WithContext(webui.WithInline(r.Context(), func() []byte { return firstPaint(d, r) }))
 		}
 		web.ServeHTTP(w, r)
 	}))

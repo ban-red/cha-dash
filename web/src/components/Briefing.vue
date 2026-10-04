@@ -156,7 +156,8 @@ const open = (id: string) => ui.openInbox(id);
     </div>
 
     <div class="brief-side">
-      <div class="clock" aria-label="Time at home">{{ clock }}</div>
+      <span class="sr">Time at home:</span>
+      <div class="clock">{{ clock }}</div>
       <div class="brief-tools">
         <button type="button" class="pill" aria-haspopup="dialog" :aria-label="`Inbox: ${inboxCount} need you`" @click="ui.openInbox()">
           Inbox <span :class="['badge', { zero: !inboxCount }]">{{ inboxCount }}</span>

@@ -184,6 +184,7 @@ func TestFootprint(t *testing.T) {
 		results = append(results, r)
 	}
 	fmt.Println(table(results))
+	checkBudgets(t, results)
 }
 
 func mib(b uint64) string { return fmt.Sprintf("%.1f", float64(b)/(1<<20)) }

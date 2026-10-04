@@ -114,8 +114,8 @@ describe('status pairs pass the palette validator on every theme surface', () =>
     test(`${t.id} (${t.scheme})`, () => {
       const att = t.hex['--attention'], down = t.hex['--down'];
       for (const s of ['--bg', '--surface']) {
-        expect(wcag(att, t.hex[s])).toBeGreaterThanOrEqual(t.profile === 'dim' ? 2 : THRESHOLDS.markContrast);
-        expect(wcag(down, t.hex[s])).toBeGreaterThanOrEqual(t.profile === 'dim' ? 2 : THRESHOLDS.markContrast);
+        expect(wcag(att, t.hex[s])).toBeGreaterThanOrEqual(THRESHOLDS.markContrast);
+        expect(wcag(down, t.hex[s])).toBeGreaterThanOrEqual(THRESHOLDS.markContrast);
       }
       if (t.monochrome) {
         // Only monochrome themes may skip separation; state is glyph + word there.
@@ -164,13 +164,15 @@ describe('text contrast', () => {
       ['--text', '--text-2', '--text-3'].forEach((tok, i) => {
         for (const s of ['--bg', '--surface']) {
           expect(Math.abs(apca(t.hex[tok], t.hex[s]))).toBeGreaterThanOrEqual(floors[i] - 0.05);
-          if (t.profile === 'standard') expect(wcag(t.hex[tok], t.hex[s])).toBeGreaterThanOrEqual(4.5);
+          expect(wcag(t.hex[tok], t.hex[s])).toBeGreaterThanOrEqual(4.5); // WCAG AA in every profile, dim included
         }
       });
-      // text steps are ordered: text > text-2 > text-3 in contrast
+      // text steps are ordered: text > text-2 > text-3 in contrast. In the dim
+      // profile the AA floor lifts text-2 and text-3 to about the same level.
       const lc = (tok: string) => Math.abs(apca(t.hex[tok], t.hex['--surface']));
       expect(lc('--text')).toBeGreaterThan(lc('--text-2'));
-      expect(lc('--text-2')).toBeGreaterThan(lc('--text-3'));
+      if (t.profile === 'dim') expect(lc('--text-2')).toBeGreaterThanOrEqual(lc('--text-3'));
+      else expect(lc('--text-2')).toBeGreaterThan(lc('--text-3'));
     });
   }
 

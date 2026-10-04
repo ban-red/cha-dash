@@ -7,6 +7,9 @@
 // Routing is history-mode: a GET for a path that isn't a file gets
 // index.html, so client-side routes survive a reload. Hashed files under
 // /assets/ are cached for a year; everything else is revalidated.
+//
+// index.html can carry a first-paint snapshot for whoever asked (WithInline,
+// inline.go); that variant is never cached.
 package webui
 
 import (
@@ -123,6 +126,9 @@ func (h *handler) serveFile(w http.ResponseWriter, r *http.Request, name string)
 		hdr.Set("Cache-Control", cacheImmutable)
 	} else {
 		hdr.Set("Cache-Control", cacheRevalidate)
+	}
+	if name == indexFile && h.servePersonal(w, r, rs) {
+		return
 	}
 	if et := h.etags[name]; et != "" {
 		hdr.Set("ETag", et)

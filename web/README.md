@@ -59,10 +59,12 @@ src/
   stores/             session (doors, offline start), live (realtime, clock, demo Fix, restore),
                       board, ui (layers, safety ladder), integrations, tiles (import record), persist
   lib/                router, fetch wrapper, RFC 6902 applier, formatting, themes, motion tokens,
-                      fuzzy, schema (JSON Schema subset), webauthn, passkeys, snapshot (IndexedDB), pwa
+                      fuzzy, schema (JSON Schema subset), webauthn, passkeys, snapshot (IndexedDB),
+                      inline (the hub's first-paint snapshot), pwa
   styles/             fonts, base, board, tiles, chrome (global, token-only CSS)
 test/                 Vitest: patches, protocol, stores, components, ⌘K, Inbox, settings forms,
-                      import, passkeys, offline; fixtures from sim/snapshots and the importer's golden plan
+                      import, passkeys, offline, first paint, the service worker's shell, accessibility
+                      (axe-core, token pairs); fixtures from sim/snapshots and the importer's golden plan
 ```
 
 **State.** Plain Vue reactivity with `provide`/`inject`; no store library. The realtime client keeps one `reactive()` document with a member per topic (`graph`, `metrics`, `inbox`) and applies diffs in place, so a metrics diff only re-renders the widgets reading the series it touched.
@@ -112,6 +114,16 @@ It's an ARIA combobox: focus stays in the input, the active option is `aria-acti
 - **Errors in words:** cancelled (quiet), not allowed or timed out, already registered, the address doesn't match `CHADASH_PUBLIC_URL`, ceremony expired, the last way to sign in.
 - **WebAuthn needs HTTPS or localhost.** On a plain-http address the page explains that inline instead of offering a button that can't work.
 
+## First paint: the inline snapshot
+
+For a signed-in owner the hub embeds the first board's snapshot in `index.html` (`internal/firstpaint`, `internal/webui/inline.go`), so the front page renders with real values on its first paint, then goes live.
+
+- **Format:** `<script type="application/json" id="chadash-snapshot">` holding `{v: 1, user, boards, board: {id, name, revision, format_version, layout}, demo?, graph, metrics, inbox}`: the documents the socket would send, trimmed to what the front page shows (every open incident and only the newest resolution; series of resources in the graph). It's at most 512 KiB; a bigger one isn't inlined and the page starts the usual way.
+- **CSP:** a JSON data block never executes, so `default-src 'self'` holds and nothing inline runs. The JSON escapes `<`, `>` and `&`, so no resource name can end the element; `lib/inline.ts` reads it as text, parses it, and removes it.
+- **Who gets it:** only a valid owner session (checked by `auth.Identify`); everyone else, and the service worker, get the generic shell.
+- **Caching:** the personalised page is `Cache-Control: no-store` with no ETag (`Vary: Cookie`); the generic shell keeps its validator. The service worker precaches the shell without cookies and never keeps a `no-store` navigation.
+- **The page:** `stores/session.ts` starts signed in with no request (the hub checked the session to inline it); `FrontPage` hydrates the live document (`live.hydrate`: current values, so no skeletons and no stale treatment) and seeds the board without `GET /api/boards`. Demo times are UTC from the first paint. The socket's first snapshots replace the documents in place: same values, no change on screen. It's preferred over the IndexedDB snapshot, which is only for an unreachable hub.
+
 ## Offline and the PWA
 
 - **Installable:** `public/manifest.webmanifest`, PNG, maskable and SVG icons, an apple-touch-icon.
@@ -136,9 +148,29 @@ The hub serves the app with `default-src 'self'; base-uri 'none'; object-src 'no
 - **Self-hosted fonts.** Instrument Sans, Geist Mono, Doto, Schibsted Grotesk and Newsreader come from the `@fontsource-variable` packages (OFL-1.1), declared in `styles/fonts.css` under the family names the tokens use. A theme only downloads its own faces; Newsreader keeps its optical-size axis for Paper's headlines.
 - **Same-origin only.** `fetch` uses relative URLs; the WebSocket URL is built from `location`.
 
-## Bundle
+## Budgets
 
-The initial JS is the entry chunk only (no modulepreloads): the Vue runtime, the doors, the session and the router. The front page, the Inbox, the confirm dialog, the command bar, Settings, the passkey offer and the WebAuthn code load on demand; motion-v rides with the Inbox and the confirm dialog. CI enforces a 150 kB gzip budget on the initial JS: it was 37.3 kB before wave 4 and is 39.4 kB after it (`boot.js` 0.5 kB plus the entry chunk).
+From [03 · Architecture → Performance budgets](../docs/plan/03-architecture.md#performance-budgets-enforced-in-ci-where-possible), the ones that run headlessly:
+
+| Budget | Number | Today | Where it's enforced |
+|---|---|---|---|
+| Initial JS | ≤ 150 kB gzip | 39.4 kB | CI, Build job, "Bundle-size budget" (blocking) |
+| `GET /` with the inline snapshot, hub side | median ≤ 10 ms, p95 ≤ 50 ms | about 1.1 ms median, 1.3–8 ms p95 (M4 Pro) | `internal/server/budget_test.go`; CI "Performance budgets" (blocking, without `-race`) |
+| Inline snapshot size, Demo Home 13:00–20:30 | ≤ 200 kB (hard cap 512 KiB) | 144.6 kB | same test and step |
+| Realtime diffs, one tab, Demo Home | ≤ 55 kB per simulated minute | 46.9 kB | `internal/demo/budget_test.go`; same step |
+| Hub RSS, empty, no tabs | ≤ 60 MB peak | 41 MB (macOS) | `spikes/footprint/budget_test.go`; CI Footprint job (non-blocking) |
+| Hub RSS, Demo Home, 20 tabs | ≤ 120 MB peak | 55 MB (macOS, earlier run) | same |
+| Hub image | ≤ 40 MB gzip, per platform | — | CI, Image jobs, "Image-size budget" (blocking) |
+
+**Bundle.** The initial JS is the entry chunk only (no modulepreloads): the Vue runtime, the doors, the session and the router. The front page, the Inbox, the confirm dialog, the command bar, Settings, the passkey offer and the WebAuthn code load on demand; motion-v rides with the Inbox and the confirm dialog. It was 37.3 kB before wave 4 and 39.4 kB after it (`boot.js` 0.5 kB plus the entry chunk). The first-paint code (`lib/inline.ts`, a few hundred bytes) rides in the entry chunk.
+
+## Accessibility
+
+WCAG 2.2 AA is a release gate ([02 · Experience](../docs/plan/02-experience.md#accessibility-a-release-gate-not-a-nice-to-have)). In `bun run test`:
+
+- **axe-core** (`test/axe.ts`, pinned dev dependency) over the doors (loading, setup with errors, the passkey offer, sign-in after a failure, unreachable), the front page (busy, quiet, offline, edit mode), the Inbox (a problem, a repair), ⌘K (empty and with results), the confirm dialog, toasts, every Settings pane and an integration form with errors (`test/a11y-views.test.ts`), and every catalog widget at every size in six states: loading, empty, healthy, today's incidents, stale, and the hub's graph shape (`test/a11y-widgets.test.ts`). It runs the WCAG 2.0–2.2 A/AA rules plus best practice; a planted violation proves it sees the tiles.
+- **Contrast** can't be measured in happy-dom (no layout or paint), so it's checked on the tokens: `design/tokens` holds every text/background token pair to 4.5:1 in all six themes, and `test/token-pairs.test.ts` checks every pair the components' CSS declares (`color` with `background` in one rule) against the generated tokens.
+- **Token rule:** `--text-3` is for labels on `--bg` and `--surface`; on a hover row (`--surface-hover`) a component moves it up to `--text-2`.
 
 ## Versions
 
@@ -150,6 +182,7 @@ The initial JS is the entry chunk only (no modulepreloads): the Vue runtime, the
 | vitest | 5.0.3 | with @vue/test-utils 2.5.1 and happy-dom 20.14.5 |
 | motion-v | 2.5.2 | with its peer @vueuse/core 15 |
 | fake-indexeddb | 6.2.5 | dev only: IndexedDB for the snapshot tests (happy-dom has none) |
+| axe-core | 4.13.0 | dev only: accessibility checks in Vitest (MPL-2.0; never shipped) |
 
 ## Not yet
 
@@ -157,4 +190,3 @@ The initial JS is the entry chunk only (no modulepreloads): the Vue runtime, the
 - Rolling numerals, lenses, wall and ink levels of detail.
 - Real camera frames (placeholders drawn from tokens), service logos (monograms: the CSP forbids hot-linking, and the hub doesn't cache icons yet).
 - Undo toasts for T1 and type-to-confirm for T3, which need the action engine.
-- Inline snapshot in the first paint (wave 6); today a snapshot is only used when the hub can't be reached.

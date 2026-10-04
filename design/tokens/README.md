@@ -19,7 +19,7 @@ design/tokens/
 | `bun install` | Dev dependencies: `typescript`, `@types/bun`, `ajv` (schema test), `apca-w3` (parity test). The core itself has none |
 | `bun run generate` | Writes `dist/`. Refuses to write if a theme is invalid or fails an error-level check. `--check` exits 1 if `dist/` is stale |
 | `bun run inject` | Copies the core, `tokens.css` and the theme documents into `design/prototypes/m0-v2.html` |
-| `bun test` | 50 tests. Add `DATAVIZ_VALIDATOR=/path/to/validate_palette.js` to also cross-check against the dataviz palette validator |
+| `bun test` | 66 tests. Add `DATAVIZ_VALIDATOR=/path/to/validate_palette.js` to also cross-check against the dataviz palette validator |
 | `bun run typecheck` | `tsc --noEmit` with `checkJs` over the core, scripts and tests |
 | `bun run report` | Markdown tables of status-pair and text-contrast results |
 
@@ -83,12 +83,15 @@ Fonts are limited to the bundled set: Instrument Sans, Inter, IBM Plex Sans, Sch
 - Chroma and hue interpolate from the base to the `ink`.
 - **Steps 11 and 12 are solved, not picked.** A binary search finds the lightness closest to the background that reaches **APCA Lc 60 / Lc 90 and WCAG 4.5:1** on *both* step 1 and step 2. They're guaranteed by construction.
 - `--text-2` is solved the same way at Lc 75. It's a semantic token, not a scale step.
+- `--text` and `--text-2` also hold **WCAG 4.5:1 on steps 3 and 4** (`--surface-2`, `--surface-hover`: raised rows and hover states). `--text-3` is for labels on bg and surface; on a hover or raised row a component moves it up to `--text-2`.
 - Contrast above 50 raises the targets (up to Lc 104 / 90 / 75 at 100). Below 50 it only softens surfaces and hairlines; **text never drops below its floor**.
 
 **Chromatic scales** (accent, attention, down, maintenance):
 - Step 9 is the solid colour itself.
 - Steps 1–8 reuse the neutral lightness with a rising share of the solid's chroma.
-- Steps 11 and 12 are solved for text contrast, like the neutrals.
+- Steps 11 and 12 are solved for text contrast, like the neutrals, and also hold WCAG 4.5:1 on the scale's own tint (step 3, the `-bg` token), so `--attention-text` reads on `--attention-bg`.
+
+**Text on solids** (`--on-accent`, `--on-attention`, `--on-down`) is whichever end of the neutral scale APCA prefers, unless that misses WCAG 4.5:1 and the other end doesn't. On mid-tone ambers and reds the two models disagree, and AA wins: Instrument Light's and Paper's `--on-attention` are dark ink, and the dark themes' `--on-down` is the background colour. When neither end reaches 4.5:1, the ink is pushed towards black or white until it does.
 
 **Status lightness** defaults per scheme to the M0 validated values (dark: attention 0.74, down 0.64; light: 0.66, 0.55). It's then **snapped to passing**: hold the hue, move the lightness until the colour clears 3:1 on both surfaces, within ±0.1. Instrument Light's attention moved 0.66 → 0.64 this way.
 
@@ -179,17 +182,30 @@ Targets: text Lc 90, text-2 Lc 75, text-3 Lc 60 (labels), and WCAG AA 4.5:1 for 
 | Instrument Dark | standard | 90.8 / 15.11 | 90.2 / 14.21 | 76.0 / 11.98 | 75.4 / 11.26 | 60.9 / 9.08 | 60.3 / 8.54 |
 | Instrument Light | standard | 90.1 / 11.26 | 96.0 / 12.29 | 75.0 / 6.06 | 81.0 / 6.62 | 66.5 / 4.50 | 72.4 / 4.92 |
 | OLED | standard | 90.1 / 16.44 | 90.1 / 16.44 | 75.3 / 12.98 | 75.3 / 12.98 | 60.3 / 9.83 | 60.3 / 9.83 |
-| Night | dim | 38.1 / 5.64 | 38.1 / 5.64 | 30.0 / 4.41 | 30.0 / 4.41 | 24.1 / 3.61 | 24.1 / 3.61 |
+| Night | dim | 38.1 / 5.64 | 38.1 / 5.64 | 31.2 / 4.59 | 31.2 / 4.59 | 30.6 / 4.52 | 30.6 / 4.52 |
 | High Contrast | standard | 104.6 / 19.30 | 104.2 / 18.36 | 90.4 / 15.85 | 90.1 / 15.08 | 75.7 / 12.55 | 75.4 / 11.94 |
 | Paper | standard | 91.4 / 10.89 | 97.2 / 11.83 | 76.6 / 6.00 | 82.4 / 6.52 | 68.3 / 4.52 | 74.0 / 4.91 |
 
-In the light themes, text-3 lands at Lc 66–68 rather than 60. That's because **WCAG AA is the binding constraint there**: Lc 60 dark-on-light is only about 3.8:1.
+In the light themes, text-3 lands at Lc 66–68 rather than 60. That's because **WCAG AA is the binding constraint there**: Lc 60 dark-on-light is only about 3.8:1. The same floor lifts Night's text-2 and text-3 above their dim targets, to about the same level (4.59 and 4.52:1).
+
+### Text/background pairs (WCAG 2 AA, 4.5:1)
+
+`TEXT_PAIRS` in the core lists every text-on-background pairing the semantic tokens make, 30 of them: text and text-2 on bg, surface, surface-2 and surface-hover; text-3 on bg and surface; accent-, attention-, down- and maint-text on bg, surface and their own tint; text on the four tints; each `--on-*` on its solid; and `--text-inverse` on `--text`. `checkTheme` refuses a theme where any of them is under 4.5:1, naming the pair, and `test/contrast.test.ts` checks every built-in theme and its `prefers-contrast: more` variant. Marks (attention, down, progress, maintenance, focus) need 3:1 on bg and surface in every profile.
+
+| Theme | Weakest pair | Ratio | Weakest, more contrast | Ratio |
+|---|---|---|---|---|
+| Instrument Dark | on-down on down | 5.10 | on-down on down | 5.10 |
+| Instrument Light | on-attention on attention | 4.50 | on-accent on accent | 4.73 |
+| OLED | on-down on down | 5.64 | on-down on down | 5.64 |
+| Night | accent-text on accent-bg | 4.50 | on-accent on accent | 4.56 |
+| High Contrast | on-down on down | 6.36 | on-down on down | 6.36 |
+| Paper | attention-text on attention-bg | 4.51 | maint-text on maint-bg | 4.98 |
 
 Reported, not gated:
 - **Hairlines** are measured as OKLab lightness difference after compositing, because WCAG ratios compress near black. They must be visible (≥ 5) and, below contrast 70, quiet (≤ 20).
-- **text-2 and text-3 on surface-2** (hover and raised rows) are about 1 Lc below their floors in Instrument Dark: 74.3 and 59.2.
+- **APCA for text-2 and text-3 on surface-2** (hover and raised rows): about 1 Lc below their floors in Instrument Dark, 74.3 and 59.2. WCAG AA holds there.
 
-All six themes pass: 31 checks each, and 25 for Night.
+All six themes pass: 57 checks each, and 51 for Night.
 
 ---
 
@@ -202,7 +218,7 @@ All six themes pass: 31 checks each, and 25 for Night.
 5. **WCAG AA is enforced alongside APCA,** because 02 · Experience requires both.
 6. **In light themes, cards are lighter than the page** (step 2 > step 1), carried over from v1's warm light theme. Component states go darker from there.
 7. **Status lightness snaps to passing,** holding the hue, as the dataviz method prescribes. Each snap is recorded in the theme's `notes`.
-8. **Night is `profile: dim` and `monochrome: true`.** Pure `#ff0000` on black is only Lc 38, so red-on-black can't reach Lc 60 at all. Night therefore uses dim targets (Lc 38 / 30 / 24), and its contrast results are warnings, not refusals. State is carried by glyph shape and word. **Night is for walls with the simplified level of detail,** not for reading body text. Only monochrome themes may skip the pair-separation checks (a test enforces this).
+8. **Night is `profile: dim` and `monochrome: true`.** Pure `#ff0000` on black is only Lc 38, so red-on-black can't reach Lc 60 at all. Night therefore uses dim APCA targets (Lc 38 / 30 / 24), and its APCA results are warnings, not refusals. WCAG AA, which red on black can reach, is enforced like everywhere else: text-2 and text-3 sit at the 4.5:1 floor, and the accent is just light enough (L 0.585) for black text on it. State is carried by glyph shape and word. **Night is for walls with the simplified level of detail,** not for reading body text. Only monochrome themes may skip the pair-separation checks (a test enforces this).
 9. **Mid-lightness bases are refused, not silently fixed.** A light base below about L 0.92, or a dark base above about L 0.4, can't reach Lc 90. The editor allows it, so the refusal can be seen: "Text on bg is too low-contrast to read (Lc 87.6, needs Lc 90)".
 10. **Hairlines firm up above contrast 70.** That gives High Contrast and `prefers-contrast: more` clearly ruled tiles. Below 70 they stay at 8–12% alpha.
 11. **The type scale is global and role-named.** Themes change faces and figures, not sizes, so layouts stay predictable across themes.

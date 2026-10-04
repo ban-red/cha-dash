@@ -10,20 +10,22 @@ import { defineAsyncComponent, onMounted } from 'vue';
 import Glyph from './components/marks/Glyph.vue';
 import LoginView from './views/LoginView.vue';
 import SetupView from './views/SetupView.vue';
+import { takeInlineSnapshot } from './lib/inline';
 import { startRouter } from './lib/router';
 import { createSession, provideSession } from './stores/session';
 
 const FrontPage = defineAsyncComponent(() => import('./views/FrontPage.vue'));
 const PasskeyOffer = defineAsyncComponent(() => import('./views/PasskeyOffer.vue'));
 
-const session = createSession();
+// Signed in, the hub inlines the first board's snapshot: the front page renders from it at once.
+const session = createSession({ inline: takeInlineSnapshot() });
 provideSession(session);
 startRouter();
 onMounted(() => void session.refresh());
 </script>
 
 <template>
-  <div v-if="session.state.phase === 'loading'" class="door" aria-busy="true"><span class="caps">Cha Dash</span></div>
+  <main v-if="session.state.phase === 'loading'" class="door" aria-busy="true"><span class="caps">Cha Dash</span></main>
   <SetupView v-else-if="session.state.phase === 'setup'" />
   <LoginView v-else-if="session.state.phase === 'login'" />
   <PasskeyOffer v-else-if="session.state.phase === 'ready' && session.state.offerPasskey" />

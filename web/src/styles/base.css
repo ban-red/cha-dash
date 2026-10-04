@@ -143,6 +143,9 @@ p {
 .btn:hover {
   background: var(--surface-hover);
 }
+.btn:not(.primary):hover .tier {
+  color: var(--text-2); /* text-3 is too faint on surface-hover (WCAG AA) */
+}
 .btn:active {
   transform: scale(0.97);
 }

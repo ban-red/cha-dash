@@ -189,12 +189,12 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
           </div>
 
           <template v-if="open.length">
-            <div class="ib-grp">Open · {{ openNow(open) }}</div>
+            <h3 class="ib-grp">Open · {{ openNow(open) }}</h3>
             <IncidentItem v-for="i in open" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
           <template v-if="fixing.length">
-            <div class="ib-grp">Being fixed · {{ openNow(fixing) }}</div>
+            <h3 class="ib-grp">Being fixed · {{ openNow(fixing) }}</h3>
             <IncidentItem v-for="i in fixing" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
@@ -205,7 +205,7 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
           </div>
 
           <template v-if="done.length">
-            <div class="ib-grp">Resolved · {{ done.length }}</div>
+            <h3 class="ib-grp">Resolved · {{ done.length }}</h3>
             <IncidentItem v-for="i in done" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
         </motion.div>

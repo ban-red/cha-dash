@@ -4,7 +4,7 @@
  *
  *   bun run report
  */
-import { apca, checkTheme, resolveTheme, separation, wcag } from '../src/core.js';
+import { apca, checkTheme, moreContrast, resolveTheme, separation, TEXT_PAIRS, wcag } from '../src/core.js';
 import { loadThemes } from './themes.ts';
 
 const f1 = (n: number) => n.toFixed(1);
@@ -27,6 +27,17 @@ console.log('|---|---|---|---|---|---|---|---|');
 for (const t of themes) {
   const cell = (tok: string, s: string) => `${f1(Math.abs(apca(t.hex[tok], t.hex[s])))} / ${f2(wcag(t.hex[tok], t.hex[s]))}`;
   console.log(`| ${t.name} | ${t.profile} | ${cell('--text', '--bg')} | ${cell('--text', '--surface')} | ${cell('--text-2', '--bg')} | ${cell('--text-2', '--surface')} | ${cell('--text-3', '--bg')} | ${cell('--text-3', '--surface')} |`);
+}
+
+console.log('\n### Text/background pairs (WCAG 2 AA, 4.5:1)\n');
+console.log(`Every pair in \`TEXT_PAIRS\` (${TEXT_PAIRS.length}), in each theme and its \`prefers-contrast: more\` variant.\n`);
+console.log('| Theme | Weakest pair | Ratio | Weakest, more contrast | Ratio |');
+console.log('|---|---|---|---|---|');
+const weakest = (t: ReturnType<typeof resolveTheme>) =>
+  TEXT_PAIRS.map(([fg, bg]) => ({ pair: `${fg} on ${bg}`, r: wcag(t.hex[`--${fg}`], t.hex[`--${bg}`]) })).sort((a, b) => a.r - b.r)[0]!;
+for (const t of themes) {
+  const a = weakest(t), b = weakest(resolveTheme(moreContrast(t.doc)));
+  console.log(`| ${t.name} | ${a.pair} | ${f2(a.r)} | ${b.pair} | ${f2(b.r)} |`);
 }
 
 console.log('\n### Check summary\n');

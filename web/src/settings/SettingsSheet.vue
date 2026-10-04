@@ -177,6 +177,9 @@ onBeforeUnmount(() => {
   background: var(--surface-hover);
   color: var(--text);
 }
+.st-nav a:hover small {
+  color: var(--text-2); /* text-3 is too faint on a hover row (WCAG AA) */
+}
 .st-nav a[aria-current='page'] {
   background: var(--surface);
   box-shadow: 0 0 0 var(--hairline) var(--line-2);

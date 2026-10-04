@@ -66,6 +66,7 @@
       "devDependencies": {
         "@vitejs/plugin-vue": "6.0.9",
         "@vue/test-utils": "2.5.1",
+        "axe-core": "4.13.0",
         "fake-indexeddb": "6.2.5",
         "happy-dom": "20.14.5",
         "typescript": "6.0.3",
@@ -253,6 +254,8 @@
     "apca-w3": ["apca-w3@0.1.9", "", { "dependencies": { "colorparsley": "^0.1.8" } }, "sha512-Zrf6AeBeQjNe/fxK7U1jCo5zfdjDl6T4/kdw5Xlky3G7u+EJTZkyItjMYQGtwf9pkftsINxcYyOpuLkzKf1ITQ=="],
 
     "assertion-error": ["assertion-error@2.0.1", "", {}, "sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA=="],
+
+    "axe-core": ["axe-core@4.13.0", "", {}, "sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A=="],
 
     "balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
 

@@ -16,9 +16,11 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/config"
 	"dash.cha.sh/internal/demo"
+	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/realtime"
@@ -168,6 +170,12 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
+	// index.html carries the first board's snapshot for a signed-in owner,
+	// when the web app is built in (the placeholder page has no use for it).
+	var firstPaint *firstpaint.Builder
+	if webui.Embedded {
+		firstPaint = &firstpaint.Builder{Topics: tp, Boards: boards.New(st), Demo: drv != nil}
+	}
 	hub := realtime.New(watch.Source(tp.Source()), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,
@@ -184,6 +192,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Demo:           drv,
 		Vault:          v,
 		Integrations:   mgr,
+		FirstPaint:     firstPaint,
 	})
 	if err != nil {
 		return nil, err

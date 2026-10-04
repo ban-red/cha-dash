@@ -7,9 +7,14 @@
  * page opens on it under the offline banner. The session is confirmed with
  * the hub as soon as the realtime socket is back; signing out deletes the
  * snapshot.
+ *
+ * First paint: when the hub inlined a snapshot into index.html
+ * (lib/inline.ts), it checked the session to do so, so the app starts
+ * signed in with no request at all, and the front page renders from it.
  */
 import { inject, provide, reactive, type InjectionKey } from 'vue';
 import { ApiError, api } from '../lib/api';
+import type { InlineSnapshot } from '../lib/inline';
 import type { Snapshot } from '../lib/snapshot';
 
 export interface User {
@@ -64,10 +69,24 @@ export function authMessage(err: unknown, context: 'setup' | 'login' | 'dev'): s
 
 const sentence = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) + (/[.!?]$/.test(s) ? '' : '.') : s);
 
-export function createSession() {
+export interface SessionOptions {
+  /** The snapshot the hub inlined into index.html (takeInlineSnapshot()), if any. */
+  inline?: InlineSnapshot | undefined;
+}
+
+export function createSession(opts: SessionOptions = {}) {
   const state = reactive<SessionState>({ phase: 'loading', user: undefined, error: '', devLogin: false, offerPasskey: false, offline: false });
   /** The snapshot the offline front page opens on; taken once by the shell. Not reactive. */
   let restored: Snapshot | undefined;
+  /** The hub's first-paint snapshot; taken once by the shell. Not reactive. */
+  let inline = opts.inline;
+  /** The hub vouched for this session when it served the page: the first refresh() has nothing to ask. */
+  let vouched = false;
+  if (inline) {
+    state.user = inline.user;
+    state.phase = 'ready';
+    vouched = true;
+  }
 
   /** Open the front page on the last-known snapshot, if this device has one. */
   async function tryOffline(): Promise<boolean> {
@@ -86,6 +105,10 @@ export function createSession() {
   }
 
   async function refresh(): Promise<void> {
+    if (vouched) {
+      vouched = false;
+      return;
+    }
     try {
       const setup = await api<{ required: boolean; dev_login?: boolean }>('/api/setup');
       state.devLogin = import.meta.env.DEV && setup?.dev_login === true;
@@ -146,6 +169,7 @@ export function createSession() {
       state.offline = false;
       state.offerPasskey = false;
       restored = undefined;
+      inline = undefined;
       state.phase = 'login';
       try {
         const { clearSnapshot } = await import('../lib/snapshot');
@@ -179,6 +203,13 @@ export function createSession() {
     return s;
   }
 
+  /** The hub's first-paint snapshot, handed over once. */
+  function takeInline(): InlineSnapshot | undefined {
+    const s = inline;
+    inline = undefined;
+    return s;
+  }
+
   /** Is the session still good? Used when the realtime socket keeps failing. */
   async function check(): Promise<boolean> {
     try {
@@ -194,7 +225,7 @@ export function createSession() {
     }
   }
 
-  return { state, refresh, setup, login, signedIn, logout, check, confirm, takeRestored };
+  return { state, refresh, setup, login, signedIn, logout, check, confirm, takeRestored, takeInline };
 }
 
 export type Session = ReturnType<typeof createSession>;

@@ -114,6 +114,10 @@
   background: var(--surface-hover);
   color: var(--text);
 }
+.pill:hover .badge.zero,
+.pill:hover .more {
+  color: var(--text-2); /* text-3 is too faint on surface-hover (WCAG AA) */
+}
 .pill .badge {
   display: inline-grid;
   place-items: center;

@@ -446,26 +446,33 @@ const STATUS_L = { dark: { attention: 0.74, down: 0.64, maintenance: 0.72 }, lig
 const TARGETS = { standard: [90, 75, 60], dim: [38, 30, 24] };
 const BOOST = [14, 15, 15];
 
-/* WCAG 2 AA floor for text, per profile (dim themes are reported, not gated). */
-const WCAG_TEXT = { standard: 4.5, dim: 0 };
+/* WCAG 2 AA floor for text, per profile. Dim themes meet it too: WCAG 2.2 AA
+   is a release gate (02-experience -> Accessibility), and red on black reaches
+   4.5:1 even where it can't reach Lc 60. */
+const WCAG_TEXT = { standard: 4.5, dim: 4.5 };
+/* WCAG 2 AA for text (1.4.3). */
+const WCAG_AA = 4.5;
 
 /**
  * Solve for the lightness (in the text direction, closest to the backgrounds)
- * whose colour reaches |Lc| >= target and a WCAG ratio >= wcagMin on every
- * background. Both are monotone in L along the search direction.
+ * whose colour reaches |Lc| >= target on every background in `bgs` and a WCAG
+ * ratio >= wcagMin on every background in `wcagBgs` (by default the same).
+ * Both are monotone in L along the search direction, as long as `from` is
+ * beyond every background.
  * @param {number} target @param {string[]} bgs @param {number} hue @param {number} chroma
  * @param {1 | -1} dir +1 = lighter text (dark scheme), -1 = darker text
  * @param {number} from lightness to search from
  * @param {number} wcagMin
+ * @param {string[]} [wcagBgs]
  * @returns {{ col: Oklch, reached: boolean }}
  */
-function solveText(target, bgs, hue, chroma, dir, from, wcagMin) {
+function solveText(target, bgs, hue, chroma, dir, from, wcagMin, wcagBgs = bgs) {
   /** @param {number} l */
   const at = (l) => canon({ l, c: chroma, h: hue });
   /** @param {number} l */
   const ok = (l) => {
     const hx = toHex(at(l));
-    return bgs.every((b) => Math.abs(apca(hx, b)) >= target && wcag(hx, b) >= wcagMin);
+    return bgs.every((b) => Math.abs(apca(hx, b)) >= target) && wcagBgs.every((b) => wcag(hx, b) >= wcagMin);
   };
   const end = dir > 0 ? 1 : 0;
   if (!ok(end)) return { col: at(end), reached: false };
@@ -499,7 +506,9 @@ function snapContrast(col, bgs, min, dir) {
 const A = (c, alpha = 1) => ({ ...c, alpha });
 
 /**
- * Generate a chromatic 12-step scale around a solid (step 9).
+ * Generate a chromatic 12-step scale around a solid (step 9). Its text steps
+ * (11, 12) also clear WCAG AA on the scale's own tint (step 3, the `-bg`
+ * token), so `attention-text` reads on `attention-bg`.
  * @param {Oklch} solid @param {number[]} ls lightness of neutral steps 1-8
  * @param {'light' | 'dark'} scheme @param {string[]} bgs @param {number[]} tg [t1, t3]
  * @param {number} wcagMin
@@ -511,10 +520,11 @@ function chromaticScale(solid, ls, scheme, bgs, tg, wcagMin) {
   for (let i = 0; i < 8; i++) s.push(canon({ l: ls[i], c: solid.c * TINT[i], h: solid.h }));
   s.push(canon(solid));
   s.push(canon({ l: solid.l + dir * 0.045, c: solid.c, h: solid.h }));
-  const bgL = bgs.map((b) => hexToOklch(b).l);
+  const wbgs = [...bgs, toHex(s[2])];
+  const bgL = wbgs.map((b) => hexToOklch(b).l);
   const start = dir > 0 ? Math.max(...bgL) : Math.min(...bgL);
-  s.push(solveText(tg[1], bgs, solid.h, solid.c * 0.85, dir, start, wcagMin).col);
-  s.push(solveText(tg[0], bgs, solid.h, Math.min(solid.c * 0.3, 0.06), dir, start, wcagMin).col);
+  s.push(solveText(tg[1], bgs, solid.h, solid.c * 0.85, dir, start, wcagMin, wbgs).col);
+  s.push(solveText(tg[0], bgs, solid.h, Math.min(solid.c * 0.3, 0.06), dir, start, wcagMin, wbgs).col);
   return s;
 }
 
@@ -688,10 +698,16 @@ export function resolveTheme(doc) {
   /** @type {Oklch[]} */
   const neutral = ls.map((l, i) => canon({ l, ...neutralAt(i / 11) }));
   const bgs = [toHex(neutral[0]), toHex(neutral[1])];
+  // Text and text-2 also sit on raised rows and hover states (surface-2,
+  // surface-hover): APCA aims at bg and surface, WCAG AA holds on all four.
+  // text-3 is for labels on bg and surface only (see TEXT_PAIRS).
+  const textBgs = neutral.slice(0, 4);
+  const wbgs = textBgs.map((c) => toHex(c));
   const start = dir > 0 ? Math.max(neutral[0].l, neutral[1].l) : Math.min(neutral[0].l, neutral[1].l);
+  const startAll = dir > 0 ? Math.max(...textBgs.map((c) => c.l)) : Math.min(...textBgs.map((c) => c.l));
   const n11 = solveText(tg[2], bgs, neutralAt(10 / 11).h, neutralAt(10 / 11).c, dir, start, wmin);
-  const n12 = solveText(tg[0], bgs, ink.hue, ink.chroma, dir, start, wmin);
-  const t2 = solveText(tg[1], bgs, neutralAt(10.5 / 11).h, neutralAt(10.5 / 11).c, dir, start, wmin);
+  const n12 = solveText(tg[0], bgs, ink.hue, ink.chroma, dir, startAll, wmin, wbgs);
+  const t2 = solveText(tg[1], bgs, neutralAt(10.5 / 11).h, neutralAt(10.5 / 11).c, dir, startAll, wmin, wbgs);
   for (const [nm, r, t] of /** @type {[string, {reached: boolean}, number][]} */ ([['text-3', n11, tg[2]], ['text-2', t2, tg[1]], ['text', n12, tg[0]]])) {
     if (!r.reached) notes.push(`${nm}: Lc ${round(t, 1)} is out of reach on these surfaces; using the extreme lightness`);
   }
@@ -731,10 +747,20 @@ export function resolveTheme(doc) {
     'ink/hatch': A(inkCol, scheme === 'dark' ? 0.075 : 0.08),
     'bg/scrim': A(neutral[0], scheme === 'dark' ? 0.6 : 0.5),
   };
-  /** @param {Oklch} solid */
+  /**
+   * Text on a solid: the end of the neutral scale APCA prefers, unless it
+   * misses WCAG AA and the other end doesn't (mid-tone ambers and reds, where
+   * the two models disagree). When neither end reaches AA, the ink is pushed
+   * towards black or white, whichever the solid allows, until it does.
+   * @param {Oklch} solid
+   */
   const onColor = (solid) => {
     const hx = toHex(solid);
-    return Math.abs(apca(toHex(neutral[0]), hx)) >= Math.abs(apca(toHex(neutral[11]), hx)) ? A(neutral[0]) : A(neutral[11]);
+    const [pick, other] = Math.abs(apca(toHex(neutral[0]), hx)) >= Math.abs(apca(toHex(neutral[11]), hx)) ? [neutral[0], neutral[11]] : [neutral[11], neutral[0]];
+    if (wcag(toHex(pick), hx) >= WCAG_AA) return A(pick);
+    if (wcag(toHex(other), hx) >= WCAG_AA) return A(other);
+    const toDark = wcag('#000000', hx) >= wcag('#ffffff', hx);
+    return A(solveText(0, [hx], ink.hue, ink.chroma, toDark ? -1 : 1, solid.l, WCAG_AA).col);
   };
   /** @type {Record<string, OklchA>} */
   const colors = {};
@@ -859,12 +885,12 @@ export function checkTheme(t) {
     add({ id: 'status.band', group: 'status', label: 'Lightness band (categorical)', value: outBand.length, target: 0, unit: 'outside', severity: 'info',
       message: outBand.length ? `outside the chart-series band ${band[0]}–${band[1]}; allowed for status colours, which always ship with a glyph and a word` : `inside ${band[0]}–${band[1]}` }, true);
   }
-  // Marks against surfaces (WCAG 1.4.11 non-text contrast)
-  for (const [name, col] of [['attention', att], ['down', down], ['progress', acc], ['focus', hx['--focus']]]) {
+  // Marks against surfaces (WCAG 1.4.11 non-text contrast), every profile
+  for (const [name, col] of [['attention', att], ['down', down], ['progress', acc], ['maintenance', hx['--maint']], ['focus', hx['--focus']]]) {
     for (const [sn, sc] of surfaces) {
       const r = wcag(col, sc);
       add({ id: `mark.${name}.${sn}`, group: 'chrome', label: `${cap(name)} on ${sn}`, value: r, target: T.markContrast, unit: ':1',
-        severity: t.profile === 'dim' ? 'warn' : 'error', message: 'non-text contrast for glyphs, meters and rings' }, r >= T.markContrast);
+        message: 'non-text contrast for glyphs, meters and rings' }, r >= T.markContrast);
     }
   }
   // Text: APCA targets plus WCAG 2 AA
@@ -875,9 +901,8 @@ export function checkTheme(t) {
       add({ id: `text.${name}.${sn}.apca`, group: 'text', label: `${cap(name)} on ${sn}`, value: lc, target: floor, unit: 'Lc',
         severity: t.profile === 'dim' ? 'warn' : 'error', message: aim > floor ? `aiming for Lc ${aim} at this contrast` : 'APCA' }, lc >= floor - 0.05);
       const r = wcag(hx[`--${name}`], sc);
-      const wTarget = t.profile === 'dim' ? 3 : 4.5;
-      add({ id: `text.${name}.${sn}.wcag`, group: 'text', label: `${cap(name)} on ${sn}`, value: r, target: wTarget, unit: ':1',
-        severity: t.profile === 'dim' ? 'warn' : 'error', message: 'WCAG 2 AA' }, r >= wTarget);
+      add({ id: `text.${name}.${sn}.wcag`, group: 'text', label: `${cap(name)} on ${sn}`, value: r, target: WCAG_AA, unit: ':1',
+        message: 'WCAG 2 AA' }, r >= WCAG_AA);
     }
   }
   // Text on the raised surface (hover rows, segmented controls): reported, not gated
@@ -897,9 +922,37 @@ export function checkTheme(t) {
       message: `hairlines must be visible (≥ ${lo * 100}) but quiet (≤ ${hi * 100})` }, dl >= lo * 100 && dl <= hi * 100);
   }
 
+  // Every other text/background pair the tokens make, at WCAG AA (after the
+  // checks above, so their refusals keep their wording).
+  for (const [fg, bg] of TEXT_PAIRS) {
+    if (['text', 'text-2', 'text-3'].includes(fg) && (bg === 'bg' || bg === 'surface')) continue; // checked above
+    const r = wcag(hx[`--${fg}`], hx[`--${bg}`]);
+    add({ id: `pair.${fg}.${bg}`, group: 'text', label: `${cap(fg)} on ${bg}`, value: r, target: WCAG_AA, unit: ':1', message: 'WCAG 2 AA' }, r >= WCAG_AA);
+  }
+
   const failing = checks.filter((c) => !c.pass && c.severity === 'error');
   return { ok: failing.length === 0, checks, refusal: failing.length ? refusalMessage(failing[0]) : null };
 }
+
+/**
+ * Every text-on-background pairing the semantic tokens make, [foreground,
+ * background], each held to WCAG 2 AA (4.5:1) in every theme:
+ * - text and text-2 on every surface, hover and raised rows included; text-3
+ *   (labels, captions) on bg and surface only: on a hover or raised row a
+ *   component moves it up to text-2;
+ * - status and accent text on the page, cards and their own tint (chips);
+ * - body text on the tints (notes, banners);
+ * - text on solids (badges, solid buttons) and inverse text on ink.
+ * @type {readonly [string, string][]}
+ */
+export const TEXT_PAIRS = [
+  ...['text', 'text-2'].flatMap((fg) => ['bg', 'surface', 'surface-2', 'surface-hover'].map((bg) => /** @type {[string, string]} */ ([fg, bg]))),
+  ['text-3', 'bg'], ['text-3', 'surface'],
+  ...['accent', 'attention', 'down', 'maint'].flatMap((k) => ['bg', 'surface', `${k}-bg`].map((bg) => /** @type {[string, string]} */ ([`${k}-text`, bg]))),
+  ...['accent-bg', 'attention-bg', 'down-bg', 'maint-bg'].map((bg) => /** @type {[string, string]} */ (['text', bg])),
+  ['on-accent', 'accent'], ['on-attention', 'attention'], ['on-down', 'down'],
+  ['text-inverse', 'text'],
+];
 
 /** @param {string} s */
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
