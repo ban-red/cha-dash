@@ -246,7 +246,7 @@ sample, with a fixture test.
 ```yaml
 apiVersion: chadash/v1alpha1
 kind: Integration
-meta: { id: seerr, name: Seerr, icon: seerr, version: 0.1.0, tier: bronze, capabilities: [media.requests] }
+meta: { id: seerr, name: Seerr, aliases: [Overseerr, Jellyseerr], icon: seerr, version: 0.1.0, tier: bronze, capabilities: [media.requests] }   # aliases: optional, other names it goes by
 config:                           # url and tls are always added; types: string, url, secret, integer, number, boolean
   api_key: { type: secret, title: API key, required: true }
 source:

@@ -8,7 +8,7 @@ discover:
 
 ## Copy the API key
 
-In Seerr, **Settings → General → API Key**. Paste it into **API key**.
+In Seerr, **Settings → General → API Key**. Paste it into **API key**. Overseerr and Jellyseerr have it in the same place, and connect as Seerr: they share its API.
 
 ## Notes
 

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -79,6 +80,32 @@ func TestSeerr(t *testing.T) {
 	}
 	if h.Graph().Relations["integration:i_test monitors seerr:i_test/app"] == nil {
 		t.Fatal("the instance should monitor its app")
+	}
+}
+
+// Overseerr and Jellyseerr are Seerr under older names: same endpoints, same
+// shapes, so the one spec reads them (Overseerr's versions are 1.x).
+func TestSeerrIsOverseerrAndJellyseerr(t *testing.T) {
+	_, m, _ := integration.Default.Get("seerr")
+	if !slices.Equal(m.Aliases, []string{"Overseerr", "Jellyseerr"}) {
+		t.Fatalf("aliases = %v", m.Aliases)
+	}
+	srv, files := seerr(t, "")
+	files.Store(map[string]string{
+		"/api/v1/status":        "testdata/seerr/status_overseerr.json",
+		"/api/v1/request/count": "testdata/seerr/request_count.json",
+	})
+	h := integrationtest.New(t)
+	inst := h.Connect(seerrIntegration(t), map[string]any{"url": srv.URL}, map[string]string{"api_key": key})
+	if res := inst.Test(t.Context()); !res.OK || res.Version != "1.33.2" {
+		t.Fatalf("Overseerr: %+v", res)
+	}
+	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := h.Resource("seerr:i_test/app")
+	if r.Attrs["type"] != "seerr" || r.Attrs["version"] != "1.33.2" || r.Attrs["update_available"] != true {
+		t.Fatalf("Overseerr app = %+v", r)
 	}
 }
 

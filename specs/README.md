@@ -20,6 +20,8 @@ The config shapes are the Homepage importer's ([07 · v0.1](../docs/plan/07-v0.1
 
 ## Notes per spec
 
+**Seerr.** Also Overseerr and Jellyseerr (the manifest lists them as `aliases`). Seerr is their merged successor, and `/api/v1/status` and `/api/v1/request/count` are the same in all three, so there's one spec and one ID, `seerr`, rather than three copies; Overseerr 1.x, Jellyseerr 1.x and 2.x, and Seerr pass the version check. The Homepage importer maps its `overseerr` and `jellyseerr` widgets to it.
+
 **Tautulli.** Polls every 30 s: it's the "what's playing" tile. `streams` is `stream_count` (a string in Tautulli's answer), `streams.transcode` is `stream_count_transcode`, and `bandwidth.mbps` is `total_bandwidth` (kbps) in Mb/s. `streams` uses Plex's scale from the Demo Home (0–10, band 0–3). Health is `attention` when `server_status` says Tautulli has lost Plex; that request is optional, so a Tautulli without it still reads. Capability `media.sessions`, like the Demo Home's Tautulli.
 
 **Bazarr.** `missing.episodes` and `missing.movies` are the Demo Home's keys: Bazarr's sidebar badges, the subtitles still wanted, summed over episodes and movies. `wanted` is their sum, the key the *arr tile reads. Health is `attention` with health issues (System → Status) or throttled providers, the reason naming which. Capability `media.library`, like the Demo Home's Bazarr.

@@ -182,6 +182,9 @@ type Manifest struct {
 	Version      string       `json:"version"` // the integration's own version
 	Tier         Tier         `json:"tier"`
 	Capabilities []Capability `json:"capabilities"`
+	// Aliases are other names the same upstream goes by (Seerr is also
+	// Overseerr and Jellyseerr), for search and the add list. Optional.
+	Aliases []string `json:"aliases,omitempty"`
 	// ConfigSchema is the instance config as JSON Schema (the subset in
 	// schema.go). Secret fields are top-level strings marked WriteOnly.
 	ConfigSchema *Schema `json:"config_schema"`

@@ -1,5 +1,11 @@
 # Seerr (Overseerr, Jellyseerr): media requests waiting for approval.
 #
+# One spec for all three. Seerr is the merged successor of Overseerr and
+# Jellyseerr, and the two endpoints read here (/api/v1/status and
+# /api/v1/request/count) are the same in every one of them, so Overseerr 1.x
+# and Jellyseerr 1.x and 2.x connect as Seerr. The Homepage importer maps its
+# overseerr and jellyseerr widgets here.
+#
 # The sample Tier 1 spec. Format: chadash/v1alpha1, internal and unstable
 # until v1.0; see internal/README.md, "Tier 1 specs".
 # The fixture test is specs_test.go, against testdata/seerr/.
@@ -8,6 +14,7 @@ kind: Integration
 meta:
   id: seerr
   name: Seerr
+  aliases: [Overseerr, Jellyseerr]
   icon: seerr
   version: 0.1.0
   tier: bronze
