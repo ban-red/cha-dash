@@ -23,6 +23,7 @@ ev, err = s.Fix("plex-token-revoked") // press an open incident's suggested acti
 | `Advance(d) []Event` / `AdvanceTo(t)` | Moves the clock and returns the events. The result doesn't depend on step size |
 | `Skip(d)` | Moves the clock without producing events. The state matches `Advance`; take a new `Snapshot` afterwards |
 | `Fix(id) ([]Event, error)` | Applies an open incident's suggested action now. It replaces any later scripted fix |
+| `CanFix(id) error` | Whether `Fix` would accept the incident now: nil, or the error `Fix` would return. Changes nothing |
 | `BlastRadius(id) []Impact` | What an action on a resource would affect. Use it for the hold-to-confirm list. A package-level `BlastRadius(rels, id)` works on any relation list |
 | `Detections(camera, from, to)` | Frigate events for the camera hero widget (`driveway`, `side_deck`, `backyard`) |
 | `Record(span, step) Timeline` | Advances and returns a compact columnar recording |

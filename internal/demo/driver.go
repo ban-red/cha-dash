@@ -10,6 +10,7 @@ package demo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -241,8 +242,31 @@ func (d *Driver) Fix(id string) error {
 	return nil
 }
 
-// fixError strips the simulator's package prefix for API messages.
+// CanFix reports whether Fix would accept the incident now: nil, or the
+// error Fix would return. It changes nothing.
+func (d *Driver) CanFix(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.step()
+	if err := d.sim.CanFix(id); err != nil {
+		return fixError{err}
+	}
+	return nil
+}
+
+// fixError turns the simulator's refusals into sentences for the API.
 type fixError struct{ err error }
 
-func (e fixError) Error() string { return strings.TrimPrefix(e.err.Error(), "sim: ") }
+func (e fixError) Error() string {
+	switch {
+	case errors.Is(e.err, sim.ErrNotOpen):
+		return "That incident isn't open yet."
+	case errors.Is(e.err, sim.ErrResolved):
+		return "That incident is already resolved."
+	case errors.Is(e.err, sim.ErrFixing):
+		return "That incident is already being fixed."
+	}
+	return strings.TrimPrefix(e.err.Error(), "sim: ")
+}
+
 func (e fixError) Unwrap() error { return e.err }

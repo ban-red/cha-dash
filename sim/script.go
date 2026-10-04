@@ -137,6 +137,13 @@ func (sc Script) Validate() error {
 // ErrUnknownIncident is returned by Sim.Fix for an ID not in the script.
 var ErrUnknownIncident = errors.New("sim: unknown incident")
 
+// Why Sim.Fix (and CanFix) refuse an incident in the script.
+var (
+	ErrNotOpen  = errors.New("sim: not open yet")
+	ErrResolved = errors.New("sim: already resolved")
+	ErrFixing   = errors.New("sim: already being fixed")
+)
+
 // instance is one scheduled incident.
 type instance struct {
 	id   string

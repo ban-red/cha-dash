@@ -166,24 +166,42 @@ func (s *Sim) Skip(d time.Duration) {
 func (s *Sim) Fix(id string) ([]Event, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	in, ok := s.byID[id]
-	if !ok {
-		return nil, fmt.Errorf("%w: %q", ErrUnknownIncident, id)
-	}
-	if s.now.Before(in.open) {
-		return nil, fmt.Errorf("sim: incident %q is not open yet (opens %s)", id, in.open.Format(time.RFC3339))
-	}
-	if h := in.impl.horizon(in); !h.IsZero() && !s.now.Before(h) {
-		return nil, fmt.Errorf("sim: incident %q is already resolved", id)
-	}
-	if !in.fix.IsZero() && !in.fix.After(s.now) {
-		return nil, fmt.Errorf("sim: incident %q is already being fixed (since %s)", id, in.fix.Format(time.RFC3339))
+	in, err := s.fixable(id)
+	if err != nil {
+		return nil, err
 	}
 	in.fix = s.now
 	w := s.world(s.now, true)
 	ev := s.diff(s.cur, w)
 	s.cur = w
 	return ev, nil
+}
+
+// CanFix reports whether Fix would accept the incident now, without fixing
+// it: nil, or the error Fix would return.
+func (s *Sim) CanFix(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.fixable(id)
+	return err
+}
+
+// fixable returns the incident if it can be fixed now. The caller holds s.mu.
+func (s *Sim) fixable(id string) (*instance, error) {
+	in, ok := s.byID[id]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownIncident, id)
+	}
+	if s.now.Before(in.open) {
+		return nil, fmt.Errorf("%w: incident %q opens %s", ErrNotOpen, id, in.open.Format(time.RFC3339))
+	}
+	if h := in.impl.horizon(in); !h.IsZero() && !s.now.Before(h) {
+		return nil, fmt.Errorf("%w: incident %q", ErrResolved, id)
+	}
+	if !in.fix.IsZero() && !in.fix.After(s.now) {
+		return nil, fmt.Errorf("%w: incident %q, since %s", ErrFixing, id, in.fix.Format(time.RFC3339))
+	}
+	return in, nil
 }
 
 // BlastRadius returns what an action on the resource would affect, over the
