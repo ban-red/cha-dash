@@ -15,6 +15,8 @@ import (
 type Identity struct {
 	User    User
 	Session Session
+	// IP is the client address, behind trusted proxies, for audit records.
+	IP string
 }
 
 type ctxKey struct{}
@@ -31,9 +33,10 @@ func FromContext(ctx context.Context) (Identity, bool) {
 //	POST /api/setup          {"token","username","password"} → 201 {"user"} + session cookie
 //	POST /api/auth/login     {"username","password"} → 200 {"user"} + session cookie
 //	POST /api/auth/logout    → 204, cookie cleared
-//	GET  /api/auth/session   → 200 {"user","session"} or 401
+//	GET  /api/auth/session   → 200 {"user","session","step_up_until","step_up_methods"} or 401
 //
-// plus the passkey endpoints under /api/auth/passkeys (registerPasskeys).
+// plus the passkey endpoints under /api/auth/passkeys (registerPasskeys) and
+// step-up under /api/auth/step-up (registerStepUp).
 // Binaries built with -tags devlogin also mount POST /api/auth/dev-login.
 func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/setup", s.handleSetupStatus)
@@ -42,13 +45,20 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/logout", s.handleLogout)
 	mux.Handle("GET /api/auth/session", s.Require(http.HandlerFunc(s.handleSession)))
 	s.registerPasskeys(mux)
+	s.registerStepUp(mux)
 	s.registerDevLogin(mux)
 }
 
 // Require rejects requests without a valid session cookie with 401 and
-// attaches the Identity for the rest.
+// attaches the Identity for the rest. A request that already carries one
+// (authz.Guard runs Require in front of every signed-in route) passes
+// straight through, so wrapping a route again costs nothing.
 func (s *Service) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := FromContext(r.Context()); ok {
+			next.ServeHTTP(w, r)
+			return
+		}
 		c, err := r.Cookie(CookieName)
 		if err != nil {
 			httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "sign in required")
@@ -67,7 +77,8 @@ func (s *Service) Require(next http.Handler) http.Handler {
 		if s.touchSession(r.Context(), &sess) {
 			s.setCookie(w, r, c.Value, sess.ExpiresAt)
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, Identity{User: u, Session: sess})))
+		id := Identity{User: u, Session: sess, IP: s.proxies.ClientIP(r).String()}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)))
 	})
 }
 
@@ -214,8 +225,20 @@ func (s *Service) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) handleSession(w http.ResponseWriter, r *http.Request) {
 	id, _ := FromContext(r.Context())
+	opts, err := s.stepUpOptions(r, id.User.ID)
+	if err != nil {
+		s.internalError(w, "could not work out the step-up methods", err)
+		return
+	}
+	var until *time.Time
+	if id.Session.StepUpUntil.After(s.now()) {
+		t := id.Session.StepUpUntil.UTC()
+		until = &t
+	}
 	httpx.WriteJSON(w, http.StatusOK, struct {
-		User    User    `json:"user"`
-		Session Session `json:"session"`
-	}{id.User, id.Session})
+		User          User       `json:"user"`
+		Session       Session    `json:"session"`
+		StepUpUntil   *time.Time `json:"step_up_until"`
+		StepUpMethods []string   `json:"step_up_methods"`
+	}{id.User, id.Session, until, opts.methods()})
 }

@@ -17,33 +17,25 @@ import (
 // parseRequestOptionsFromJSON, and finish takes what the credential's toJSON()
 // returns.
 //
-//	POST   /api/auth/passkeys/register/begin   (owner) → 200 {"publicKey": creation options}
-//	POST   /api/auth/passkeys/register/finish  (owner) registration JSON → 201 {"id","name"}
+// The management routes act on the signed-in user's own passkeys, whatever
+// their role: every account needs one to step up under "passkey only".
+//
+//	POST   /api/auth/passkeys/register/begin   (session) → 200 {"publicKey": creation options}
+//	POST   /api/auth/passkeys/register/finish  (session) registration JSON → 201 {"id","name"}
 //	POST   /api/auth/passkeys/login/begin      → 200 {"publicKey": request options}
 //	POST   /api/auth/passkeys/login/finish     authentication JSON → 200 {"user"} + session cookie
-//	GET    /api/auth/passkeys                  (owner) → 200 [passkey]
-//	PATCH  /api/auth/passkeys/{id}             (owner) {"name"} → 200 passkey
-//	DELETE /api/auth/passkeys/{id}             (owner) → 204
+//	GET    /api/auth/passkeys                  (session) → 200 [passkey]
+//	PATCH  /api/auth/passkeys/{id}             (session) {"name"} → 200 passkey
+//	DELETE /api/auth/passkeys/{id}             (session) → 204
 func (s *Service) registerPasskeys(mux *http.ServeMux) {
-	owner := func(h http.HandlerFunc) http.Handler { return s.Require(ownerOnly(h)) }
-	mux.Handle("POST /api/auth/passkeys/register/begin", owner(s.handleRegisterBegin))
-	mux.Handle("POST /api/auth/passkeys/register/finish", owner(s.handleRegisterFinish))
+	own := func(h http.HandlerFunc) http.Handler { return s.Require(h) }
+	mux.Handle("POST /api/auth/passkeys/register/begin", own(s.handleRegisterBegin))
+	mux.Handle("POST /api/auth/passkeys/register/finish", own(s.handleRegisterFinish))
 	mux.HandleFunc("POST /api/auth/passkeys/login/begin", s.handlePasskeyLoginBegin)
 	mux.HandleFunc("POST /api/auth/passkeys/login/finish", s.handlePasskeyLoginFinish)
-	mux.Handle("GET /api/auth/passkeys", owner(s.handleListPasskeys))
-	mux.Handle("PATCH /api/auth/passkeys/{id}", owner(s.handleRenamePasskey))
-	mux.Handle("DELETE /api/auth/passkeys/{id}", owner(s.handleDeletePasskey))
-}
-
-// ownerOnly admits the owner's session, behind Require.
-func ownerOnly(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if id, ok := FromContext(r.Context()); !ok || id.User.Role != RoleOwner {
-			httpx.Error(w, http.StatusForbidden, "forbidden", "only the owner can do this")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	mux.Handle("GET /api/auth/passkeys", own(s.handleListPasskeys))
+	mux.Handle("PATCH /api/auth/passkeys/{id}", own(s.handleRenamePasskey))
+	mux.Handle("DELETE /api/auth/passkeys/{id}", own(s.handleDeletePasskey))
 }
 
 func (s *Service) handleRegisterBegin(w http.ResponseWriter, r *http.Request) {

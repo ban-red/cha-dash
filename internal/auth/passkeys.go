@@ -166,13 +166,14 @@ type ceremonyKind string
 const (
 	ceremonyRegister ceremonyKind = "register"
 	ceremonyLogin    ceremonyKind = "login"
+	ceremonyStepUp   ceremonyKind = "step-up"
 )
 
 type ceremony struct {
 	kind    ceremonyKind
 	rp      relyingParty
 	session webauthn.SessionData
-	userID  string // registration: the signed-in user who began it
+	userID  string // registration and step-up: the signed-in user who began it
 	expires time.Time
 }
 
@@ -220,7 +221,12 @@ func (cs *ceremonies) take(now time.Time, id string, kind ceremonyKind) (ceremon
 	return c, true
 }
 
-func ceremonyPath(kind ceremonyKind) string { return "/api/auth/passkeys/" + string(kind) }
+func ceremonyPath(kind ceremonyKind) string {
+	if kind == ceremonyStepUp {
+		return stepUpPath // covers …/step-up/begin and …/step-up
+	}
+	return "/api/auth/passkeys/" + string(kind)
+}
 
 func (s *Service) beginCeremony(w http.ResponseWriter, r *http.Request, c ceremony) {
 	now := s.now()

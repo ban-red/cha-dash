@@ -738,7 +738,7 @@ func TestPasskeyNamesAndExclusions(t *testing.T) {
 	}
 }
 
-func TestPasskeyRoutesNeedOwnerSession(t *testing.T) {
+func TestPasskeyRoutesNeedASession(t *testing.T) {
 	h := newPasskeyHarness(t)
 	h.owner()
 	anon := h.client()

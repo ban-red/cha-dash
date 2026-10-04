@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -52,10 +53,22 @@ const (
 	MethodPasskey  = "passkey"
 )
 
-// Roles. Only the owner exists in v0; the rest arrive with RBAC in v0.2.
+// Roles, most powerful first. What each may do is decided in internal/authz,
+// never here; this package only stores them and keeps the one-owner rule.
 const (
-	RoleOwner = "owner"
+	RoleOwner     = "owner"
+	RoleAdmin     = "admin"
+	RoleOperator  = "operator"
+	RoleViewer    = "viewer"
+	RoleHousehold = "household"
 )
+
+// Roles lists every role, most powerful first. The users table's CHECK
+// constraint lists the same five.
+var Roles = []string{RoleOwner, RoleAdmin, RoleOperator, RoleViewer, RoleHousehold}
+
+// ValidRole reports whether r is one of Roles.
+func ValidRole(r string) bool { return slices.Contains(Roles, r) }
 
 var (
 	ErrSetupComplete  = errors.New("auth: setup already completed")
@@ -85,7 +98,10 @@ type Session struct {
 	Method    string    `json:"method"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
-	lastSeen  time.Time
+	// StepUpUntil is when the session's step-up grant lapses (zero: none).
+	// GET /api/auth/session reports it beside the session; see stepup.go.
+	StepUpUntil time.Time `json:"-"`
+	lastSeen    time.Time
 }
 
 // Service is the auth subsystem.
@@ -103,6 +119,9 @@ type Service struct {
 	publicRP   relyingParty
 	publicWhy  string
 	ceremonies ceremonies
+
+	// stepUpMode is the owner's step-up rule (SetStepUpMode).
+	stepUpMode stepUpModeFunc
 
 	mu         sync.Mutex
 	setupToken string // empty once an owner exists
@@ -288,12 +307,15 @@ func (s *Service) lookupSession(ctx context.Context, token string) (Session, Use
 	var sess Session
 	var u User
 	var created, expires, seen int64
+	var stepUp sql.NullInt64
+	// The role comes from the users row on every lookup, so a role change
+	// takes effect on the user's next request.
 	err := s.st.Reader().QueryRowContext(ctx, `
-		SELECT s.id, s.method, s.created_at, s.expires_at, s.last_seen_at, u.id, u.username, u.role
+		SELECT s.id, s.method, s.created_at, s.expires_at, s.last_seen_at, s.step_up_until, u.id, u.username, u.role
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = ? AND s.expires_at > ? AND u.disabled_at IS NULL`,
 		tokenHash(token), s.now().UnixMilli()).
-		Scan(&sess.ID, &sess.Method, &created, &expires, &seen, &u.ID, &u.Username, &u.Role)
+		Scan(&sess.ID, &sess.Method, &created, &expires, &seen, &stepUp, &u.ID, &u.Username, &u.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Session{}, User{}, ErrNoSession
 	}
@@ -304,6 +326,9 @@ func (s *Service) lookupSession(ctx context.Context, token string) (Session, Use
 	sess.CreatedAt = time.UnixMilli(created)
 	sess.ExpiresAt = time.UnixMilli(expires)
 	sess.lastSeen = time.UnixMilli(seen)
+	if stepUp.Valid {
+		sess.StepUpUntil = time.UnixMilli(stepUp.Int64)
+	}
 	return sess, u, nil
 }
 
