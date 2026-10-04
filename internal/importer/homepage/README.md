@@ -52,6 +52,14 @@ Integration IDs and config keys are the ones in [07 · v0.1 → Instance config 
 | `immich` | `immich` | `url` | `key` → `api_key` | `service` | |
 | `mealie` | `mealie` | `url` | `key` → `token` | `service` | |
 | `karakeep`, `hoarder` | `karakeep` | `url` | `key` → `api_key` | `service` | |
+| `overseerr`, `jellyseerr` | `seerr` (Seerr is the successor of both, with the same API) | `url` | `key` → `api_key` | `service` | |
+| `lidarr` | `lidarr` | `url` | `key` → `api_key` | `arr@lidarr:<instance id>/app` | `enableQueue` → `queue` |
+| `transmission` | `transmission` | `url`, `username`, `rpcUrl` → `rpc_path` | `password` (optional) | `downloads` | |
+| `nzbget` | `nzbget` | `url`, `username` | `password` (optional) | `downloads` | |
+| `nextcloud` | `nextcloud` | `url`, `username` | `key` → `token`, or `password` (either; both optional) | `service` | |
+| `audiobookshelf` | `audiobookshelf` | `url` | `key` → `api_key` | `service` | |
+| `paperlessngx` | `paperlessngx` | `url` | `key` → `token` (a username and password are listed as ignored: the spec reads with a token) | `service` | |
+| `speedtest` | `speedtesttracker` | `url` | `key` → `token` (Homepage's `version: 2`; `version` is dropped as for every widget) | `service` | |
 | `calendar` | none: binds to instances | | | `calendar` | below |
 
 Every widget's `fields` becomes the tile option `fields`; `version` is dropped (integrations negotiate it). Any other widget field is listed under `ignored`.
@@ -60,7 +68,7 @@ Every widget's `fields` becomes the tile option `fields`; `version` is dropped (
 
 **TLS.** Homepage never verified certificates. An `https://` URL whose host is an IP, a bare name, or ends in `.lan`, `.local`, `.home.arpa`, `.internal` (and a few more) gets `{"mode": "tofu"}`, so a self-signed Proxmox certificate keeps working but a changed one is caught. Other names get `{"mode": "verify"}`, as does plain `http://`.
 
-**The media calendar** (`type: calendar`) creates no instance. It binds to the instances its `integrations` name (by `service_group` and `service_name`, matching the entry's key or display name) through the `media.calendar` capability, keeping each source's `params` (`unmonitored`) and `color` as source options. `view`, `maxEvents`, `showTime`, `previousDays` and `timezone` become tile options; `firstDayInWeek` becomes the board setting `locale.first_day_of_week`. Sources other than Sonarr and Radarr, or names that don't resolve, are unmapped (`kind: calendar_source`).
+**The media calendar** (`type: calendar`) creates no instance. It binds to the instances its `integrations` name (by `service_group` and `service_name`, matching the entry's key or display name) through the `media.calendar` capability, keeping each source's `params` (`unmonitored`) and `color` as source options. `view`, `maxEvents`, `showTime`, `previousDays` and `timezone` become tile options; `firstDayInWeek` becomes the board setting `locale.first_day_of_week`. Sources other than Sonarr, Radarr and Lidarr, or names that don't resolve, are unmapped (`kind: calendar_source`).
 
 ### Tiles and the layout
 

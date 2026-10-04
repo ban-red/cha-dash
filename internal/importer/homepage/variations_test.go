@@ -105,14 +105,14 @@ func TestMissingDockerYAML(t *testing.T) {
 func TestUnknownWidgetIsUnmappedAndNeverEchoed(t *testing.T) {
 	src := `
 - Media:
-  - Overseerr:
-      href: https://requests.example
-      icon: overseerr.png
+  - Gotify:
+      href: https://notify.example
+      icon: gotify.png
       widget:
-        type: overseerr
-        url: https://requests.example
-        key: FAKE-overseerr-key-0001
-        password: FAKE-overseerr-password
+        type: gotify
+        url: https://notify.example
+        key: FAKE-gotify-key-0001
+        password: FAKE-gotify-password
   - Mystery:
       href: https://mystery.example
       widget:
@@ -127,18 +127,18 @@ func TestUnknownWidgetIsUnmappedAndNeverEchoed(t *testing.T) {
 		t.Fatalf("unmapped = %+v", res.Unmapped)
 	}
 	u := res.Unmapped[0]
-	if u.Kind != "widget" || u.Type != "overseerr" || !slices.Equal(u.Fields, []string{"type", "url", "key", "password"}) || u.Origin.Entry != "Overseerr" {
+	if u.Kind != "widget" || u.Type != "gotify" || !slices.Equal(u.Fields, []string{"type", "url", "key", "password"}) || u.Origin.Entry != "Gotify" {
 		t.Errorf("unmapped = %+v", u)
 	}
 	if res.Unmapped[1].Reason != "the widget has no type" {
 		t.Errorf("untyped widget = %+v", res.Unmapped[1])
 	}
 	// The entry still lands, as a service tile watched through its href.
-	if len(res.Plan.Tiles) != 2 || res.Plan.Tiles[0].Widget != "service" || res.Plan.Tiles[0].Check != "Overseerr" {
+	if len(res.Plan.Tiles) != 2 || res.Plan.Tiles[0].Widget != "service" || res.Plan.Tiles[0].Check != "Gotify" {
 		t.Fatalf("tiles = %+v", res.Plan.Tiles)
 	}
 	j, _ := json.Marshal(res)
-	assertNoLeak(t, "the plan", string(j), []string{"FAKE-overseerr-key-0001", "FAKE-overseerr-password", "FAKE-mystery-key"})
+	assertNoLeak(t, "the plan", string(j), []string{"FAKE-gotify-key-0001", "FAKE-gotify-password", "FAKE-mystery-key"})
 }
 
 func TestWidgetsList(t *testing.T) {

@@ -844,7 +844,7 @@ func (b *builder) resolveCalendars() {
 			switch {
 			case !calendarSources[ref.typ]:
 				b.unmapped(importer.Unmapped{Kind: "calendar_source", Origin: pc.origin, Type: ref.typ,
-					Reason: fmt.Sprintf("the calendar can't read %q yet (Sonarr and Radarr only)", ref.typ)})
+					Reason: fmt.Sprintf("the calendar can't read %q yet (Sonarr, Radarr and Lidarr only)", ref.typ)})
 			case !found || inst.integration != ref.typ:
 				b.unmapped(importer.Unmapped{Kind: "calendar_source", Origin: pc.origin, Type: ref.typ,
 					Reason: fmt.Sprintf("no %s service named %q in group %q", ref.typ, ref.service, ref.group)})

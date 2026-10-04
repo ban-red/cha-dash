@@ -68,6 +68,26 @@ var widgetSpecs = map[string]widgetSpec{
 	"mealie":   {integration: "mealie", tile: "service", fields: token},
 	"karakeep": {integration: "karakeep", tile: "service", fields: apiKey},
 	"hoarder":  {integration: "karakeep", tile: "service", fields: apiKey}, // Karakeep's old name
+	// Seerr is the merged successor of both; the spec reads either.
+	"overseerr":  {integration: "seerr", tile: "service", fields: apiKey},
+	"jellyseerr": {integration: "seerr", tile: "service", fields: apiKey},
+	// v0.2's breadth integrations.
+	"lidarr": {integration: "lidarr", tile: "arr", bound: true, fields: apiKey,
+		options: map[string]string{"enableQueue": "queue"}},
+	"transmission": {integration: "transmission", tile: "downloads",
+		fields: []field{{from: "username", to: "username", optional: true}, {from: "password", to: "password", secret: true, optional: true},
+			{from: "rpcUrl", to: "rpc_path", optional: true}}},
+	"nzbget": {integration: "nzbget", tile: "downloads", fields: basic},
+	// Nextcloud takes a serverinfo token (Homepage's key) or a username and
+	// app password; either is enough, so neither is required.
+	"nextcloud": {integration: "nextcloud", tile: "service",
+		fields: []field{{from: "key", to: "token", secret: true, optional: true}, {from: "username", to: "username", optional: true},
+			{from: "password", to: "password", secret: true, optional: true}}},
+	"audiobookshelf": {integration: "audiobookshelf", tile: "service", fields: apiKey},
+	// Paperless-ngx reads with a token only: Homepage's username and
+	// password are listed as ignored, and the instance asks for a token.
+	"paperlessngx": {integration: "paperlessngx", tile: "service", fields: token},
+	"speedtest":    {integration: "speedtesttracker", tile: "service", fields: token},
 }
 
 // Fields every widget may carry. Version is Homepage's API-version switch;
@@ -94,11 +114,12 @@ var catalog = map[string]catalogSize{
 	"service":       {"small", []string{"small", "wide"}},
 }
 
-// calendarCapability is what the media calendar reads from Sonarr and Radarr.
+// calendarCapability is what the media calendar reads from Sonarr, Radarr and
+// Lidarr.
 const calendarCapability = "media.calendar"
 
 // calendarSources are the Homepage calendar integrations Cha Dash can read.
-var calendarSources = map[string]bool{"sonarr": true, "radarr": true}
+var calendarSources = map[string]bool{"sonarr": true, "radarr": true, "lidarr": true}
 
 // Entry fields the importer understands. Anything else is listed as ignored.
 var entryFields = map[string]bool{
