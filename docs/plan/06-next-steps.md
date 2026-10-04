@@ -82,7 +82,7 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 | 3.7 | ✅ **Demo Home simulator v0** ([`sim/`](../../sim/README.md)): the dogfood topology (5 PVE endpoints, Unraid with PBS, pvedocker, OPNsense, HA, Frigate) plus scripted incidents (PBS filling up, failed backup, memory pressure, Plex token revoked, Karakeep API change, OOM-killed qBittorrent). It also exports JSON snapshots so later prototypes use the same data | `sim/` |
 | 3.8 | ✅ **`web/` scaffold**: Vue 3.6 + Vite SPA embedded with `go:embed`; one live page subscribed to the simulator over the WebSocket | SPA |
 | 3.9 | ✅ **Ship shape** (written; first real build is CI's Image job): multi-stage Dockerfile (scratch, non-root, `/data`), `deploy/compose.yaml` with the socket-proxy preset | ▶ you run `docker compose up -d` |
-| 3.10 | ✅ **CI** (staticcheck, govulncheck, budgets: 150 kB initial JS gzip, 40 MB image): go vet/test/govulncheck; bun lint/typecheck/test; image build (no push); bundle-size budget. Then turn on branch protection for `main` | `.github/workflows/ci.yml` |
+| 3.10 | ✅ **CI** (staticcheck, govulncheck, budgets: 150 kB initial JS gzip, 40 MB image per platform; native amd64 + arm64, best-effort 32-bit/armv7, non-blocking footprint per ADR-0016). **Branch protection:** require Go (amd64), Go (arm64), JavaScript, Build, Image (amd64), Image (arm64): go vet/test/govulncheck; bun lint/typecheck/test; image build (no push); bundle-size budget. Then turn on branch protection for `main` | `.github/workflows/ci.yml` |
 
 ## Track 4: Plumbing spikes against your lab
 

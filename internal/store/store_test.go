@@ -3,9 +3,11 @@ package store
 import (
 	"context"
 	"database/sql"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -155,5 +157,101 @@ func TestWriteTxRollsBack(t *testing.T) {
 func TestOpenRejectsQueryInPath(t *testing.T) {
 	if _, err := Open(t.Context(), filepath.Join(t.TempDir(), "x?mode=memory")); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestDSN(t *testing.T) {
+	path := "/data dir/50%#1+2/chadash.db"
+	for _, readOnly := range []bool{false, true} {
+		d := dsn(path, readOnly)
+		// ncruces reads _pragma and _txlock only from file: URIs.
+		rest, ok := strings.CutPrefix(d, "file:")
+		if !ok {
+			t.Fatalf("dsn %q lacks the file: prefix", d)
+		}
+		// SQLite reads modeof itself and doesn't decode "+" as a space.
+		if _, query, _ := strings.Cut(rest, "?"); strings.ContainsAny(query, "+ ") || strings.Contains(rest, " ") {
+			t.Fatalf("dsn %q has a space, or a '+' in its query", d)
+		}
+		u, err := url.Parse(rest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if u.Path != path {
+			t.Fatalf("path %q, want %q", u.Path, path)
+		}
+		q := u.Query()
+		// ncruces runs pragmas in order; busy_timeout must come first.
+		want := []string{"busy_timeout(5000)", "journal_mode(WAL)", "foreign_keys(1)", "synchronous(NORMAL)"}
+		txlock := "immediate"
+		if readOnly {
+			want, txlock = append(want, "query_only(1)"), ""
+		}
+		if got := q["_pragma"]; !slices.Equal(got, want) {
+			t.Errorf("readOnly=%v: pragmas %v, want %v", readOnly, got, want)
+		}
+		if got := q.Get("_txlock"); got != txlock {
+			t.Errorf("readOnly=%v: _txlock %q, want %q", readOnly, got, txlock)
+		}
+		if got := q.Get("modeof"); got != path {
+			t.Errorf("modeof %q, want the database path", got)
+		}
+	}
+}
+
+func TestOpenEscapesThePath(t *testing.T) {
+	// URI metacharacters in the path must reach the file system as they
+	// are, not turn into a query or a different file name.
+	dir := filepath.Join(t.TempDir(), "a dir#with%25odd+plus")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(t.Context(), filepath.Join(dir, "chadash.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.Migrate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if !slices.Contains(names, "chadash.db") || !slices.Contains(names, "chadash.db-wal") {
+		t.Fatalf("files in the data dir: %v", names)
+	}
+}
+
+func TestWALFileIsPrivate(t *testing.T) {
+	// The -wal file holds row data. The driver creates it 0666 minus the
+	// umask, so modeof must give it the database's 0600 whatever the umask.
+	// (-shm relies on the umask; cmd/chadash tests that.)
+	s, path := openTemp(t)
+	if _, err := s.Writer().ExecContext(t.Context(), `INSERT INTO settings (key, value, updated_at) VALUES ('k', '1', 0)`); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(path + "-wal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := fi.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("-wal mode = %o, want 600", perm)
+	}
+}
+
+func TestDoubleQuotedStringsAreErrors(t *testing.T) {
+	// SQLite is built with DQS=0: "k" is an identifier, never a string. If
+	// this starts passing, the driver changed, and SQL that relies on
+	// single quotes may need another look.
+	s, _ := openTemp(t)
+	var n int
+	err := s.Reader().QueryRowContext(t.Context(), `SELECT count(*) FROM settings WHERE key = "k"`).Scan(&n)
+	if err == nil || !strings.Contains(err.Error(), "no such column") {
+		t.Fatalf("double-quoted literal: %v", err)
 	}
 }

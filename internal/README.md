@@ -20,7 +20,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/jsonpatch` | The RFC 6902 subset used on the wire, plus `Compact` for coalescing |
 | `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise |
 | `internal/vault` | Envelope-encrypted secrets |
-| `internal/store` | SQLite connections, pragmas, embedded goose migrations |
+| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations |
 | `internal/httpx` | Client IP and scheme behind trusted proxies, JSON I/O, shared middleware |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
@@ -59,7 +59,8 @@ The demo settings are validated even when demo mode is off, so a typo shows
 up before anyone turns it on.
 
 The data directory holds `chadash.db` (plus `-wal`/`-shm`) and `secret.key`.
-It's created `0700`; the database and key files are `0600`.
+It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
+`0600`.
 
 ## HTTP surface
 
@@ -107,10 +108,18 @@ clock follows the wall clock, ticking every 30 s.
 ## Decisions
 
 **Storage**
+- **The driver is `github.com/ncruces/go-sqlite3`, pinned at v0.35.6** ([ADR-0015](../docs/adr/0015-sqlite-driver.md)). It's SQLite's Wasm build translated to pure Go, so the hub stays a static, cross-compiled binary. On the hub's own workload it matched or beat modernc (session lookups 18–37% faster, no `SQLITE_BUSY` under mixed load), links fewer modules, and offers an encrypting VFS. It's v0.x and young, hence the pin.
+- **The driver is named in one file**, `store/driver_ncruces.go`, behind `openDB(path, readOnly)`. Going back to modernc is a swap of that file, as long as encryption stays off. Swap notes, all handled there:
+  - ncruces reads `_pragma` and `_txlock` only from a `file:` URI, so the DSN is an escaped `file:` URI. Spaces are written `%20`, not `+`: SQLite reads `modeof` itself and doesn't decode `+`.
+  - Pragmas run in the order given, so `busy_timeout` comes first.
+  - The driver creates `-wal` and `-shm` `0666` minus the umask, where SQLite's own VFS copies the database's mode. `modeof=<db path>` makes `-wal` (which holds row data) `0600`. `-shm` (the WAL index) relies on the process umask: `chadash` sets `077` at startup on Unix, so every file it creates is private. Anything that must be group-readable later needs an explicit `chmod`.
+  - SQLite is built with `DQS=0`: a double-quoted string literal is an error. Strings in SQL are single-quoted; a test pins this.
+  - Don't import ncruces's deprecated `embed` package (it warns at init). Extensions such as FTS5 are opt-in `ext/` packages.
 - **One writer connection, four query-only readers.** SQLite has one writer at a time; a one-connection pool makes writes queue in Go instead of failing with `SQLITE_BUSY`. Readers carry `query_only(1)`, so a stray write fails loudly. Never query the writer pool while holding one of its transactions: that deadlocks.
-- **Pragmas** on every connection: WAL, `busy_timeout(5000)`, `foreign_keys(1)`, `synchronous(NORMAL)` (safe with WAL; at worst it loses the last commits on power loss). The writer uses `_txlock=immediate`.
-- **The driver is named in one file**, `store/driver_modernc.go`. Decision 15 (modernc vs ncruces) is still open; both accept the same `_pragma`/`_txlock` DSN parameters.
-- **Driver-neutral columns.** Timestamps are Unix milliseconds (`INTEGER`), not `time.Time`, because the two drivers scan times differently. Tables are `STRICT`. IDs are prefixed random strings (`u_`, `s_`, `sec_`) from `crypto/rand.Text`.
+- **Idle readers close after a minute.** An ncruces connection keeps its memory high-water mark (~6 MiB after a 1 MiB layout) until it closes; reopening one costs ~0.3 ms. The writer stays open.
+- **Pragmas** on every connection: `busy_timeout(5000)`, WAL, `foreign_keys(1)`, `synchronous(NORMAL)` (safe with WAL; at worst it loses the last commits on power loss). The writer uses `_txlock=immediate`.
+- **Encryption at rest is opt-in and not implemented yet.** ADR-0015 picks ncruces's Adiantum VFS, off by default. The seam is `openDB`: it gains a key and opens the pool with `driver.Open` and a connection hook that runs `PRAGMA hexkey` before the other pragmas, keeping the key out of the DSN. `store.Open` passes the key through, and `cmd/chadash` loads the KEK (and derives the database key with HKDF) before opening the store, the reverse of today's order. Converting an existing file means `VACUUM INTO` and a rename at startup, and the `sqlite3` shell can't open an encrypted file, so `chadash db decrypt` comes with it.
+- **Driver-neutral columns.** Timestamps are Unix milliseconds (`INTEGER`), not `time.Time`, because drivers scan times differently. Tables are `STRICT`. IDs are prefixed random strings (`u_`, `s_`, `sec_`) from `crypto/rand.Text`.
 - **goose through its `Provider` API**, not the global one. Don't call `Provider.Close`: it closes the database it was handed.
 - **Layouts** are opaque JSON with a `format_version` (the layout package's document format) and a per-board `revision`. Each save appends a row, so history and undo survive restarts. The hub stores the document as sent (compacted), key order included.
 - **Optimistic saves.** A save names the revision it started from; the check and the insert share one write transaction, and the single writer connection serialises them, so two tabs can't both win. The loser gets `409` and the current revision.

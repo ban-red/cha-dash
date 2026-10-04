@@ -9,8 +9,9 @@
 #             and prepares the files the final image needs.
 #   3. final  scratch: the binary, CA certificates and a non-root user. Nothing else.
 #
-# Build (CI does this for linux/amd64 and linux/arm64, with no emulation):
-#   docker buildx build --platform linux/amd64,linux/arm64 \
+# Build (CI does this for linux/amd64, linux/arm64 and linux/arm/v7, with no
+# emulation; arm/v7 is best-effort, see ADR-0016):
+#   docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 \
 #     --build-arg VERSION=v0.1.0 --build-arg COMMIT=$(git rev-parse --short HEAD) .
 #
 # Base images are pinned by tag and digest. Bump both together, and keep Bun in
@@ -62,11 +63,22 @@ COPY --from=web /src/internal/webui/dist internal/webui/dist
 
 ARG TARGETOS
 ARG TARGETARCH
+ARG TARGETVARIANT
 ARG VERSION
 ARG COMMIT
+# GOARM comes from the platform's variant, not from Go's default for a
+# cross-compiler (also 7), so the binary always matches the image's label.
+# linux/arm/v7 is the only arm platform built (ADR-0016); any other arm
+# variant stops the build rather than ship a binary that doesn't fit it.
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    if [ "$TARGETARCH" = arm ]; then \
+      case "$TARGETVARIANT" in \
+        v7) export GOARM=7 ;; \
+        *) echo "linux/arm/${TARGETVARIANT:-(no variant)} isn't built: only linux/arm/v7 (ADR-0016)" >&2; exit 1 ;; \
+      esac; \
+    fi \
+ && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -tags webui -trimpath \
       -ldflags "-s -w -X dash.cha.sh/internal/buildinfo.Version=${VERSION} -X dash.cha.sh/internal/buildinfo.Commit=${COMMIT}" \
       -o /out/chadash ./cmd/chadash

@@ -5,7 +5,8 @@
 // SQLite allows one writer at a time, so the store keeps a single-connection
 // writer pool (writes queue in Go instead of failing with SQLITE_BUSY) and a
 // small query-only read pool. WAL mode lets readers run while a write is in
-// progress.
+// progress. driver_ncruces.go is the only file that knows which SQLite driver
+// that is.
 package store
 
 import (
@@ -27,6 +28,11 @@ var migrations embed.FS
 
 const readPoolSize = 4
 
+// readerIdle closes a reader that has sat idle this long. An ncruces
+// connection keeps its memory high-water mark (about 6 MiB after a 1 MiB
+// layout) until it closes, and reopening one costs about 0.3 ms.
+const readerIdle = time.Minute
+
 // Store is an open hub database.
 type Store struct {
 	w *sql.DB // exactly one connection
@@ -39,14 +45,15 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		return nil, fmt.Errorf("store: database path %q must not contain '?'", path)
 	}
 	// Create the file ourselves so it is private: it holds password hashes and
-	// wrapped secrets. SQLite gives the -wal and -shm files the same mode.
+	// wrapped secrets. The driver gives -wal the same mode (see dsn); -shm
+	// relies on the process umask.
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("store: %w", err)
 	}
 	f.Close()
 
-	w, err := sql.Open(driverName, dsn(path, false))
+	w, err := openDB(path, false)
 	if err != nil {
 		return nil, fmt.Errorf("store: open writer: %w", err)
 	}
@@ -65,13 +72,14 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		return nil, fmt.Errorf("store: journal_mode is %q, want wal", mode)
 	}
 
-	r, err := sql.Open(driverName, dsn(path, true))
+	r, err := openDB(path, true)
 	if err != nil {
 		w.Close()
 		return nil, fmt.Errorf("store: open readers: %w", err)
 	}
 	r.SetMaxOpenConns(readPoolSize)
 	r.SetMaxIdleConns(readPoolSize)
+	r.SetConnMaxIdleTime(readerIdle)
 	if err := r.PingContext(ctx); err != nil {
 		w.Close()
 		r.Close()

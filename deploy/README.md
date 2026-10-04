@@ -7,6 +7,20 @@ Docker Compose is the main way to run Cha Dash ([ADR-0007](../docs/adr/0007-dock
 | [`compose.yaml`](compose.yaml) | The hub, plus an optional read-only Docker socket proxy |
 | [`compose.demo.yaml`](compose.demo.yaml) | An override that runs the built-in Demo Home simulator |
 
+## Hardware
+
+Which platforms get images, and how far they're tested ([ADR-0016](../docs/adr/0016-hardware-floor.md)):
+
+| Tier | Platforms | What it means |
+|---|---|---|
+| **Supported** | linux/amd64, linux/arm64 | Tested natively in CI. Bugs block a release |
+| **Best-effort** | linux/arm/v7 | Images are published and the tests run as 32-bit in CI, but nothing is tested on armv7 hardware, and a regression doesn't hold up a release |
+| **Not supported** | armv6 (Pi 1, Zero, Zero W), 386, anything else | No images |
+
+**Memory:** 512 MB of RAM at minimum, OS and Docker included; 1 GB if the host runs other things too. Cha Dash itself stays under about 130 MB at its busiest.
+
+**Raspberry Pi:** on a Pi 3 or newer (3, 4, 5 or Zero 2 W), install a 64-bit OS, and Docker pulls the arm64 image. 32-bit Raspberry Pi OS stops at Docker Engine 28: [Docker's docs](https://docs.docker.com/engine/install/raspberry-pi-os/) name v28 as the last major version with packages for it. Older boards, such as the Pi 2, get the best-effort armv7 image.
+
 ## Install
 
 You need Docker with the Compose plugin, on amd64 or arm64.

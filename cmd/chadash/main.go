@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	privateUmask() // before anything creates a file
 	os.Exit(run(context.Background(), os.Args[1:], os.Getenv, os.Stdout, os.Stderr))
 }
 

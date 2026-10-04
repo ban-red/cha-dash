@@ -29,11 +29,28 @@ defaults:
   run:
     shell: bash                 # -eo pipefail
 
+# Required checks for branch protection (ADR-0016): Go (amd64), Go (arm64),
+# JavaScript, Build, Image (amd64) and Image (arm64).
+#
+# Jobs marked best-effort (armv7) or non-blocking (the footprint) are kept
+# out of the required checks instead of using continue-on-error: a failure
+# shows as a failed check on the pull request, and a failed run on main, but
+# never blocks a merge.
 jobs:
+  # amd64 and arm64 are the supported platforms: every check runs natively on
+  # both, and both legs are required.
   go:
-    name: Go
-    runs-on: ubuntu-latest
+    name: Go (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
+    strategy:
+      fail-fast: false          # an arm64-only failure still reports amd64, and vice versa
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm   # free for public repositories
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,6 +73,47 @@ jobs:
         run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...   # 2026.2.1: Go 1.27 support
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
+  # linux/arm/v7 is best-effort (ADR-0016): tested as 32-bit and built here,
+  # but nothing runs on armv7 hardware. Not a required check (see above).
+  go-32bit:
+    name: Go 32-bit (best-effort)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: "0"          # the release builds are CGO-free on every platform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            spikes/node-compose/go.sum
+      - name: GOARCH=386 go test
+        # 386 has armv7's 32-bit int and its alignment rules for 64-bit
+        # atomics, and an amd64 kernel runs it natively: the suite runs as
+        # 32-bit with no emulation. (The race detector doesn't support 386.)
+        run: GOARCH=386 go test ./...
+      - name: GOARCH=arm GOARM=7 go vet
+        run: GOARCH=arm GOARM=7 go vet ./...
+      - name: Build the hub for linux/arm/v7
+        # -tags webui embeds internal/webui/dist. A one-file stand-in is enough
+        # to prove the binary compiles; Image (armv7) builds it with the real SPA.
+        run: |
+          mkdir -p internal/webui/dist
+          echo '<!doctype html><title>Cha Dash</title>' > internal/webui/dist/index.html
+          GOOS=linux GOARCH=arm GOARM=7 go build -tags webui -trimpath -ldflags "-s -w" \
+            -o "$RUNNER_TEMP/chadash-armv7" ./cmd/chadash
+          ls -l "$RUNNER_TEMP/chadash-armv7"
+      - name: Build the node spike for linux/arm/v7
+        working-directory: spikes/node-compose
+        run: |
+          GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags "-s -w" \
+            -o "$RUNNER_TEMP/node-armv7" .
+          ls -l "$RUNNER_TEMP/node-armv7"
 
   js:
     name: JavaScript
@@ -168,51 +226,92 @@ jobs:
           ./chadash version
           ls -l chadash
 
+  # One leg per published platform; nothing is pushed. Every leg builds
+  # without emulation: Bun and Go run on the runner's own platform, and Go
+  # cross-compiles for the target.
+  # - amd64 and arm64 build on their own runners, so their images run natively
+  #   for the smoke test. Both are required.
+  # - arm/v7 is built on amd64 and can't run there. Its leg checks the image's
+  #   platform and the binary inside it instead, and is best-effort (ADR-0016).
   image:
-    name: Image
-    runs-on: ubuntu-latest
+    name: Image (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false          # a failing armv7 leg must not cancel the required ones
+      matrix:
+        include:
+          - label: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+            goarch: amd64
+            smoke: true
+          - label: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            goarch: arm64
+            smoke: true
+          - label: armv7, best-effort
+            runner: ubuntu-latest
+            platform: linux/arm/v7
+            goarch: arm
+            goarm: "7"
+            smoke: false
+    env:
+      PLATFORM: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      # Both platforms build without emulation: Bun runs on the runner's platform
-      # and Go cross-compiles. The result stays in the build cache; nothing is pushed.
-      - name: Build linux/amd64 and linux/arm64
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false          # only for `go version -m` below; nothing compiles on the runner
+      - name: Build ${{ matrix.platform }}
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: false
-          provenance: false
-          build-args: |
-            VERSION=dev
-            COMMIT=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Load linux/amd64 for the smoke test
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          platforms: linux/amd64
+          platforms: ${{ matrix.platform }}
           load: true
           tags: chadash:ci
           provenance: false
           build-args: |
             VERSION=dev
             COMMIT=${{ github.sha }}
-          cache-from: type=gha
+          cache-from: type=gha,scope=image-${{ matrix.goarch }}
+          cache-to: type=gha,scope=image-${{ matrix.goarch }},mode=max
+      - name: Image and binary match the platform
+        # The binary is copied out, not run, so the armv7 leg gets this check
+        # too. GOARM=7 proves the Dockerfile passed the variant through.
+        env:
+          WANT_GOARCH: ${{ matrix.goarch }}
+          WANT_GOARM: ${{ matrix.goarm }}
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          got=$(docker image inspect -f '{{.Os}}/{{.Architecture}}' chadash:ci)
+          [ "$got" = "linux/$WANT_GOARCH" ] || fail "The image is $got, not linux/$WANT_GOARCH"
+          if [ -n "$WANT_GOARM" ]; then
+            got=$(docker image inspect -f '{{.Variant}}' chadash:ci)
+            [ "$got" = "v$WANT_GOARM" ] || fail "The image's variant is '$got', not v$WANT_GOARM"
+          fi
+          user=$(docker image inspect -f '{{.Config.User}}' chadash:ci)
+          [ "$user" = "65532:65532" ] || fail "The image runs as '$user', not 65532:65532"
+
+          id=$(docker create --platform "$PLATFORM" chadash:ci)
+          docker cp "$id:/chadash" "$RUNNER_TEMP/chadash"
+          docker rm "$id" >/dev/null
+          settings=$(go version -m "$RUNNER_TEMP/chadash" | awk '$1 == "build" { print $2 }')
+          echo "$settings"
+          for want in GOOS=linux "GOARCH=$WANT_GOARCH" ${WANT_GOARM:+"GOARM=$WANT_GOARM"} CGO_ENABLED=0 -tags=webui; do
+            grep -qxF -e "$want" <<<"$settings" || fail "The binary wasn't built with $want"
+          done
       - name: Smoke test
         # Runs the image the way deploy/compose.yaml does: read-only, no
         # capabilities, a fresh /data volume. It must turn healthy and print a
         # setup token.
+        if: matrix.smoke
         run: |
-          user=$(docker image inspect -f '{{.Config.User}}' chadash:ci)
-          if [ "$user" != "65532:65532" ]; then
-            echo "::error::The image runs as '$user', not 65532:65532"
-            exit 1
-          fi
           docker run --rm chadash:ci version
           docker run -d --name chadash-smoke -p 127.0.0.1:3696:3696 \
             --read-only --tmpfs /tmp:size=64m,mode=1777 \
@@ -235,11 +334,61 @@ jobs:
           fi
           curl -fsS -o /dev/null http://127.0.0.1:3696/
       - name: Image-size budget
+        # Per platform: each image on its own must fit.
         run: |
           bytes=$(docker save chadash:ci | gzip -6 | wc -c)
           mb=$(awk -v b="$bytes" 'BEGIN { printf "%.1f", b / 1000000 }')
-          echo "Image: ${mb} MB gzip (budget ${IMAGE_BUDGET_MB} MB)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Image ${PLATFORM}: ${mb} MB gzip (budget ${IMAGE_BUDGET_MB} MB)" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$bytes" -gt $((IMAGE_BUDGET_MB * 1000000)) ]; then
-            echo "::error::The image is over the ${IMAGE_BUDGET_MB} MB budget"
+            echo "::error::The ${PLATFORM} image is over the ${IMAGE_BUDGET_MB} MB budget"
             exit 1
           fi
+
+  # Real Linux numbers for the footprint spike, which so far has only macOS
+  # upper bounds (ADR-0016). Non-blocking: not a required check, until the
+  # numbers are stable enough to become a budget. The full output is an
+  # artifact, and the tables go in the job summary.
+  footprint:
+    name: Footprint (${{ matrix.arch }}, non-blocking)
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      OUT: footprint-linux-${{ matrix.arch }}.txt
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Measure the hub
+        # About 9 minutes on an M4 Pro. Most of that is paced in real time (a
+        # demo tick every 60 ms), so a slower runner shouldn't take much longer.
+        run: |
+          {
+            echo "commit ${GITHUB_SHA}, runner image ${ImageOS:-?} ${ImageVersion:-?}"
+            uname -srm
+            echo "CPUs: $(nproc), page size: $(getconf PAGESIZE) B, $(lscpu | grep -m1 'Model name' | tr -s ' ')"
+            free -m | sed -n 2p
+            echo
+          } > "$OUT"
+          go test -tags footprint -run '^TestFootprint$' -timeout 35m -v ./spikes/footprint/ 2>&1 | tee -a "$OUT"
+      - name: Summary
+        if: always()
+        run: |
+          [ -f "$OUT" ] || exit 0
+          { echo "### Footprint, linux/${{ matrix.arch }}"; sed -n '/^linux\//,/^Memory in MiB/p' "$OUT"; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: footprint-linux-${{ matrix.arch }}
+          path: ${{ env.OUT }}
+          if-no-files-found: warn
