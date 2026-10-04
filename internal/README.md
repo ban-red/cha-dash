@@ -10,7 +10,8 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 |---|---|
 | `cmd/chadash` | Entry point: `serve`, `healthcheck`, `version`, `export`, `import`. Wires everything together in `newApp` |
 | `internal/server` | HTTP routes, the middleware chain, graceful `Serve` |
-| `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, attempt limiting. `Identify` reads a session without renewing it |
+| `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, step-up grants, attempt limiting; the users store and its invariants (one owner, disabled never deleted). `Identify` reads a session without renewing it |
+| `internal/authz` | Every permission decision: the five roles, the route table and `Guard` that enforces it, action decisions by tier and scope (`Decide`, and `Policy` for the action engine), `ActorFrom` for a request, and the users API |
 | `internal/boards` | Boards, their layouts and tile config (one revision carries both): optimistic revisions, history, label-discovery dismissals, the boards API |
 | `internal/correlate` | Identity across sources: `same_as` links to a primary, cross-source relations, causes across instances, merge suggestions and decisions. Design in its [README](correlate/README.md) |
 | `internal/export` | YAML export and import of a hub with a field-level diff; secrets as placeholders or a passphrase-sealed bundle. Format in its [README](export/README.md) |
@@ -33,12 +34,12 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise. `WithInline` attaches a per-request first-paint snapshot, embedded only in `index.html`. Compressible files of 1 KiB or more are gzipped once and kept (their own ETag, `Vary: Accept-Encoding`; ranges get identity bytes); the personalised page is gzipped per request |
 | `internal/firstpaint` | Builds the snapshot inlined into the first paint: user, board (layout and tiles), graph, metrics for its resources, open incidents. HTML-escaped, capped at 512 KiB |
 | `internal/vault` | Envelope-encrypted secrets |
-| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions |
+| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table |
 | `internal/httpx` | Client IP and scheme behind trusted proxies, JSON I/O, shared middleware; `GzipJSON` compresses `/api` JSON of 1 KiB or more (never auth, setup or sign-in flows, upgrades or ranges; the BREACH reasoning is at the top of `gzip.go`) |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
 
-Dependencies point down: `cmd → server → {auth, boards, demo, realtime, importer/homepage, runtime} → {importer, integration, security, topics, graph, livedoc, vault, store} → …`.
+Dependencies point down: `cmd → server → {auth, authz, boards, demo, realtime, importer/homepage, runtime} → {importer, integration, security, topics, graph, livedoc, vault, store} → …`. `security → authz → auth`: decisions live in `authz`, which reads identities from `auth`; `auth` never imports either.
 Integrations import only `integration`; `runtime` imports them never (they
 register themselves), and `cmd/chadash` links them in.
 `realtime` sees topics only through its `Source` interface; `graph` and
@@ -92,48 +93,54 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `POST /api/setup` | setup token | `{"token","username","password"}` → `201 {"user"}` + session cookie. `403` wrong token, `422` invalid input (token stays valid), `409` already done |
 | `POST /api/auth/login` | none | `{"username","password"}` → `200 {"user"}` + cookie, `401` otherwise |
 | `POST /api/auth/logout` | cookie (optional) | `204`; deletes the session server-side and clears the cookie |
-| `GET /api/auth/session` | session | `{"user","session"}`. `session.method` is `password` or `passkey` |
-| `POST /api/auth/passkeys/register/begin` | owner | No body → `200 {"publicKey": creation options}`, plus the ceremony cookie |
-| `POST /api/auth/passkeys/register/finish` | owner | The new credential's `toJSON()` → `201 {"id","name"}`. `400 ceremony_expired`, `400 passkey_rejected`, `409 passkey_exists` |
+| `GET /api/auth/session` | session | `{"user","session","step_up_until","step_up_methods"}`. `session.method` is `password` or `passkey`; `step_up_until` is RFC 3339 while a step-up grant lasts, else `null`; `step_up_methods` is what this account can step up with here: `["passkey"]`, `["password"]` or `[]` |
+| `POST /api/auth/step-up/begin` | session | No body → `200 {"method":"passkey","publicKey": request options}` (the account's passkeys, user verification required) plus the ceremony cookie, or `{"method":"password"}` under the fallback. `403 passkey_required` under "passkey only" without a passkey; `409 passkeys_unavailable` when the account's passkeys can't work at this address and the password can't stand in |
+| `POST /api/auth/step-up` | session | The assertion's `toJSON()`, or `{"password"}` → `200 {"until"}`, five minutes on this session. `403 step_up_failed` (wrong password or passkey), `403 passkey_required` (a password when a passkey is due), `400 ceremony_expired`, `429` |
+| `POST /api/auth/passkeys/register/begin` | session | No body → `200 {"publicKey": creation options}`, plus the ceremony cookie |
+| `POST /api/auth/passkeys/register/finish` | session | The new credential's `toJSON()` → `201 {"id","name"}`. `400 ceremony_expired`, `400 passkey_rejected`, `409 passkey_exists` |
 | `POST /api/auth/passkeys/login/begin` | none | No body → `200 {"publicKey": request options}`, plus the ceremony cookie |
 | `POST /api/auth/passkeys/login/finish` | none | The assertion's `toJSON()` → `200 {"user"}` + session cookie. `400 ceremony_expired`; `401 passkey_rejected`; `401 unknown_passkey` with `"signal":{"rpId","credentialId"}` |
-| `GET /api/auth/passkeys` | owner | `[{"id","name","created_at","last_used_at","rp_id","backed_up","clone_warning"}]`, oldest first. `last_used_at` is `null` until first use |
-| `PATCH /api/auth/passkeys/{id}` | owner | `{"name"}` → `200` the passkey. `422` empty, over 64 characters or control characters; `404` |
-| `DELETE /api/auth/passkeys/{id}` | owner | `204`. `404`; `409 last_sign_in_method` if it's the only way left to sign in |
+| `GET /api/auth/passkeys` | session | `[{"id","name","created_at","last_used_at","rp_id","backed_up","clone_warning"}]`, oldest first. `last_used_at` is `null` until first use |
+| `PATCH /api/auth/passkeys/{id}` | session | `{"name"}` → `200` the passkey. `422` empty, over 64 characters or control characters; `404` |
+| `DELETE /api/auth/passkeys/{id}` | session | `204`. `404`; `409 last_sign_in_method` if it's the only way left to sign in |
 | `GET /api/version` | session | `{"version","commit"}` |
-| `GET /api/boards` | owner | `{"boards":[{"id","name"}]}`. The first call creates a `Home` board |
-| `GET /api/boards/{id}/layout` | owner | `{"revision","format_version","layout","tiles"}`. A board never saved gives `{"revision":0,"format_version":0,"layout":null,"tiles":{}}`; the SPA then creates the first layout. `tiles` is per layout item id: `name`, `icon`, `href` (http(s) only), `description`, `chromeless`, `bind {instance, check, resource, sources}`, `options`, `origin` (`internal/boards/tiles.go`). `404` unknown board |
-| `PUT /api/boards/{id}/layout` | owner | `{"revision","format_version","layout","tiles"?}`, where `revision` is the one the edit started from → `200 {"revision": n+1}`. Missing or `null` `tiles` carry the latest over; `{}` clears them. Stale → `409 {"error":{"code":"conflict",…},"revision": current}`. `422` if `revision` < 0, `format_version` < 1, `layout` isn't an object, or a tile is invalid. Up to 1 MiB |
-| `GET /api/boards/{id}/discovery` | owner | `{"dismissed":[resource id]}`: label-discovered services the owner said no to |
-| `POST /api/boards/{id}/discovery/dismiss` | owner | `{"resources":[…]}` (1–200) → `{"dismissed":[…]}`. Idempotent; each board keeps its newest 1000 |
-| `POST /api/import/homepage?dry_run=1` | owner | `{"services_yaml","docker_yaml","settings_yaml"}` (only `services_yaml` is required) → `200 {"plan","hints","unmapped"}`; the plan's `changes` say what applying would create, update or leave alone. Writes nothing. `422` for invalid YAML (the message names the file and line, never the text). Up to 1 MiB |
-| `POST /api/import/homepage` | owner | The same body → `200 {"board_id","instance_ids","changes"}`, applied in one transaction. Re-importing the same files changes nothing |
-| `GET /api/import/homepage` | owner | `{"record"}`: the last import's links, discovery entries and instance ids (its tiles live in the board). `404` before the first import |
-| `GET /api/export` | owner | The hub as YAML (`kind: Home`), as an attachment: boards with layouts and tiles, instances (secrets as `!secret` placeholders), `import/*` settings. `409 secret_in_plain_text` if a stored secret appears in a plain value |
-| `POST /api/export` | owner | `{"passphrase"}` (12+ characters) → the same with a sealed `secrets_bundle` (scrypt + XChaCha20-Poly1305). `422 weak_passphrase` |
-| `POST /api/import/chadash?dry_run=1` | owner | `{"yaml","passphrase"?}` → `{"plan"}`: per object create/update/unchanged/stale with field-level changes, `secrets_needed`, the bundle's state. Never a secret value. `422 invalid_export`, `wrong_passphrase`, `bad_bundle`; `413` over 6 MiB |
-| `POST /api/import/chadash` | owner | The same body → `{"plan","changed","board_ids","instance_ids"}`, in one transaction. Nothing is deleted; re-importing an export of the same hub changes nothing |
-| `GET /api/integrations/catalog` | owner | `[{"id","name","icon","version","tier","capabilities","config_schema","recipe"?}]`, by id. `config_schema` is JSON Schema; secret fields are top-level strings with `"writeOnly": true`, and `"x-chadash-authorize": true` marks one a sign-in flow can fill. `recipe` is the least-privilege credential: `{title, summary, access: read-only\|scoped\|full\|none, params, steps, notes, fills, grants}`; parameters have anchored patterns, so a generated command can't carry a shell metacharacter |
-| `GET /api/integrations/instances` | owner | `[instance]`, by integration and name. An instance is `{"id","integration","name","enabled","status","version","last_ok","last_error","last_error_code","last_error_at","warnings","config","secrets","created_at","updated_at"}`: `status` is `ok`, `degraded`, `repair`, `error` or `disabled` (an instance missing only a secret is `repair`, with a Repair naming the field); `last_error` is the last failure's message (or `null`), with its stable code and time beside it; `warnings` are `[{"code","severity","message"}]`; `config` never holds a secret or a `${secret:…}` reference; `secrets` is `{"<field>":{"set":bool}}` for every write-only field |
-| `POST /api/integrations/instances` | owner | `{"integration","name","config","secrets","enabled"?}` → `201 {"id"}`. `422 invalid` with `"fields":[{"path","message"}]` (JSON Pointers into the config), `422 unknown_integration`, `409 conflict` for a name the integration already has |
-| `GET /api/integrations/instances/{id}` | owner | One instance. `404` |
-| `PUT /api/integrations/instances/{id}` | owner | `{"name"?,"config"?,"secrets"?,"enabled"?}` → `200` the instance. `config` replaces the whole non-secret config (send `tls.pin` back to keep a TOFU pin); in `secrets` a string sets a field, `null` or `""` clears it, and fields left out keep their value. Restarts the instance |
-| `DELETE /api/integrations/instances/{id}` | owner | `204`. Removes the row, its facts, and its vault entries no other instance references |
-| `POST /api/integrations/test` | owner | `{"integration","config","secrets"}`, or unsaved edits of a saved instance: `{"instance_id","config"?,"secrets"?}` (secrets not sent come from the vault) → `200 {"ok","version","latency_ms","grants","warnings","error","certificate"?}`. Saves nothing. `grants` are `[{"name","access":"read\|write\|rw\|admin","write","detail"?}]`; `error` is `{"code","message"}` or `null`; `certificate` is `{"sha256"}` of the leaf the server presented |
-| `POST /api/integrations/instances/{id}/test` | owner | The same result for the saved config. In `tofu` mode with no pin yet, the certificate seen is pinned |
-| `POST /api/integrations/authorize/{integration}` | owner | Start a sign-in flow for an integration with an `Authorizer` (Plex's PIN) → `200 {"id","code","url","expires_at","interval_s"}`; 422 `no_sign_in` without one. Flows live in memory (at most 32, 30 minutes each) and always verify TLS |
-| `GET /api/integrations/authorize/{integration}/{id}` | owner | `{"status":"pending"\|"expired"\|"failed"\|"done"}`; `done` carries `secrets` (write-only fields only) exactly once, then the flow is forgotten |
-| `GET /api/integrations/instances/{id}/diagnostics` | owner | A bundle for bug reports, as an attachment: hub and manifest versions, the instance (secrets as `{"set"}`), schedule, TLS mode and pin, fact counts and the last 20 attempts. No secret values |
-| `GET /api/correlate/links` | owner | Every published cross-source link with its rule, confidence (`exact`, `strong`, `confirmed`) and evidence |
-| `GET /api/correlate/suggestions` | owner | Weak matches awaiting the owner; they're also `class: "suggestion"` incidents on the `inbox` topic |
-| `POST /api/correlate/suggestions/{id}/confirm`, `…/reject` | owner | Answer one; the decision persists and the incident resolves |
-| `GET`, `POST /api/correlate/decisions`, `DELETE …/{id}` | owner | List, make (merge or split any pair) or undo decisions. They go when either instance is deleted |
-| `GET`, `PUT /api/onboarding` | owner | The wizard's state; the hub computes `show` (a new hub with no instances, never in demo mode) |
-| `POST /api/onboarding/discover` | owner | `{"sidecar"?,"docker"?,"hosts"?}`: probes the compose sidecar, Docker endpoints the owner ticked, and named hosts (at most 8 each, a 20 s budget, GET only, no ranges) |
-| `GET /api/settings/security` | session | `{"posture":"relaxed","levels":[{"id":"relaxed","label":"Relaxed · LAN-only home network","description":"…","default":true},{"id":"standard",…},{"id":"strict",…}]}`, least interrupting first. `posture` is `relaxed` until the owner changes it |
-| `PUT /api/settings/security` | owner | `{"posture"}` → `200` the same shape. `422 invalid` for an unknown level. Every open security finding is re-published under the new level before it answers |
-| `GET /api/demo` | owner | Demo mode only: `{"enabled":true,"now":RFC 3339,"seed":n}`. `now` is the simulated time |
-| `POST /api/demo/incidents/{id}/fix` | owner | Demo mode only: presses the incident's suggested action → `202 {"id"}`. `404` unknown incident, `409` not open yet, already fixing or resolved. Progress arrives on the `inbox` topic |
+| `GET /api/boards` | session | `{"boards":[{"id","name"}]}`. The first call creates a `Home` board |
+| `GET /api/boards/{id}/layout` | session | `{"revision","format_version","layout","tiles"}`. A board never saved gives `{"revision":0,"format_version":0,"layout":null,"tiles":{}}`; the SPA then creates the first layout. `tiles` is per layout item id: `name`, `icon`, `href` (http(s) only), `description`, `chromeless`, `bind {instance, check, resource, sources}`, `options`, `origin` (`internal/boards/tiles.go`). `404` unknown board |
+| `PUT /api/boards/{id}/layout` | admin | `{"revision","format_version","layout","tiles"?}`, where `revision` is the one the edit started from → `200 {"revision": n+1}`. Missing or `null` `tiles` carry the latest over; `{}` clears them. Stale → `409 {"error":{"code":"conflict",…},"revision": current}`. `422` if `revision` < 0, `format_version` < 1, `layout` isn't an object, or a tile is invalid. Up to 1 MiB |
+| `GET /api/boards/{id}/discovery` | viewer | `{"dismissed":[resource id]}`: label-discovered services the owner said no to |
+| `POST /api/boards/{id}/discovery/dismiss` | admin | `{"resources":[…]}` (1–200) → `{"dismissed":[…]}`. Idempotent; each board keeps its newest 1000 |
+| `POST /api/import/homepage?dry_run=1` | admin | `{"services_yaml","docker_yaml","settings_yaml"}` (only `services_yaml` is required) → `200 {"plan","hints","unmapped"}`; the plan's `changes` say what applying would create, update or leave alone. Writes nothing. `422` for invalid YAML (the message names the file and line, never the text). Up to 1 MiB |
+| `POST /api/import/homepage` | admin | The same body → `200 {"board_id","instance_ids","changes"}`, applied in one transaction. Re-importing the same files changes nothing |
+| `GET /api/import/homepage` | admin | `{"record"}`: the last import's links, discovery entries and instance ids (its tiles live in the board). `404` before the first import |
+| `GET /api/export` | admin | The hub as YAML (`kind: Home`), as an attachment: boards with layouts and tiles, instances (secrets as `!secret` placeholders), `import/*` settings. `409 secret_in_plain_text` if a stored secret appears in a plain value |
+| `POST /api/export` | admin | `{"passphrase"}` (12+ characters) → the same with a sealed `secrets_bundle` (scrypt + XChaCha20-Poly1305). `422 weak_passphrase` |
+| `POST /api/import/chadash?dry_run=1` | admin | `{"yaml","passphrase"?}` → `{"plan"}`: per object create/update/unchanged/stale with field-level changes, `secrets_needed`, the bundle's state. Never a secret value. `422 invalid_export`, `wrong_passphrase`, `bad_bundle`; `413` over 6 MiB |
+| `POST /api/import/chadash` | admin | The same body → `{"plan","changed","board_ids","instance_ids"}`, in one transaction. Nothing is deleted; re-importing an export of the same hub changes nothing |
+| `GET /api/integrations/catalog` | admin | `[{"id","name","icon","version","tier","capabilities","config_schema","recipe"?}]`, by id. `config_schema` is JSON Schema; secret fields are top-level strings with `"writeOnly": true`, and `"x-chadash-authorize": true` marks one a sign-in flow can fill. `recipe` is the least-privilege credential: `{title, summary, access: read-only\|scoped\|full\|none, params, steps, notes, fills, grants}`; parameters have anchored patterns, so a generated command can't carry a shell metacharacter |
+| `GET /api/integrations/instances` | admin | `[instance]`, by integration and name. An instance is `{"id","integration","name","enabled","status","version","last_ok","last_error","last_error_code","last_error_at","warnings","config","secrets","created_at","updated_at"}`: `status` is `ok`, `degraded`, `repair`, `error` or `disabled` (an instance missing only a secret is `repair`, with a Repair naming the field); `last_error` is the last failure's message (or `null`), with its stable code and time beside it; `warnings` are `[{"code","severity","message"}]`; `config` never holds a secret or a `${secret:…}` reference; `secrets` is `{"<field>":{"set":bool}}` for every write-only field |
+| `POST /api/integrations/instances` | admin | `{"integration","name","config","secrets","enabled"?}` → `201 {"id"}`. `422 invalid` with `"fields":[{"path","message"}]` (JSON Pointers into the config), `422 unknown_integration`, `409 conflict` for a name the integration already has |
+| `GET /api/integrations/instances/{id}` | admin | One instance. `404` |
+| `PUT /api/integrations/instances/{id}` | admin | `{"name"?,"config"?,"secrets"?,"enabled"?}` → `200` the instance. `config` replaces the whole non-secret config (send `tls.pin` back to keep a TOFU pin); in `secrets` a string sets a field, `null` or `""` clears it, and fields left out keep their value. Restarts the instance |
+| `DELETE /api/integrations/instances/{id}` | admin | `204`. Removes the row, its facts, and its vault entries no other instance references |
+| `POST /api/integrations/test` | admin | `{"integration","config","secrets"}`, or unsaved edits of a saved instance: `{"instance_id","config"?,"secrets"?}` (secrets not sent come from the vault) → `200 {"ok","version","latency_ms","grants","warnings","error","certificate"?}`. Saves nothing. `grants` are `[{"name","access":"read\|write\|rw\|admin","write","detail"?}]`; `error` is `{"code","message"}` or `null`; `certificate` is `{"sha256"}` of the leaf the server presented |
+| `POST /api/integrations/instances/{id}/test` | admin | The same result for the saved config. In `tofu` mode with no pin yet, the certificate seen is pinned |
+| `POST /api/integrations/authorize/{integration}` | admin | Start a sign-in flow for an integration with an `Authorizer` (Plex's PIN) → `200 {"id","code","url","expires_at","interval_s"}`; 422 `no_sign_in` without one. Flows live in memory (at most 32, 30 minutes each) and always verify TLS |
+| `GET /api/integrations/authorize/{integration}/{id}` | admin | `{"status":"pending"\|"expired"\|"failed"\|"done"}`; `done` carries `secrets` (write-only fields only) exactly once, then the flow is forgotten |
+| `GET /api/integrations/instances/{id}/diagnostics` | admin | A bundle for bug reports, as an attachment: hub and manifest versions, the instance (secrets as `{"set"}`), schedule, TLS mode and pin, fact counts and the last 20 attempts. No secret values |
+| `GET /api/correlate/links` | viewer | Every published cross-source link with its rule, confidence (`exact`, `strong`, `confirmed`) and evidence |
+| `GET /api/correlate/suggestions` | viewer | Weak matches awaiting the owner; they're also `class: "suggestion"` incidents on the `inbox` topic |
+| `POST /api/correlate/suggestions/{id}/confirm`, `…/reject` | admin | Answer one; the decision persists and the incident resolves |
+| `GET`, `POST /api/correlate/decisions`, `DELETE …/{id}` | viewer reads, admin changes | List, make (merge or split any pair) or undo decisions. They go when either instance is deleted |
+| `GET`, `PUT /api/onboarding` | admin | The wizard's state; the hub computes `show` (a new hub with no instances, never in demo mode) |
+| `POST /api/onboarding/discover` | admin | `{"sidecar"?,"docker"?,"hosts"?}`: probes the compose sidecar, Docker endpoints the owner ticked, and named hosts (at most 8 each, a 20 s budget, GET only, no ranges) |
+| `GET /api/settings/security` | viewer | `{"posture":"relaxed","levels":[{"id":"relaxed","label":"Relaxed · LAN-only home network","description":"…","default":true},{"id":"standard",…},{"id":"strict",…}]}`, least interrupting first. `posture` is `relaxed` until the owner changes it. Also `"step_up":"passkey_or_password"` (the default) or `"passkey_only"`, and `step_up_modes` described the same way |
+| `PUT /api/settings/security` | owner | `{"posture"?,"step_up"?}` (at least one) → `200` the same shape. `422 invalid` for an unknown value; both are checked before either changes. Changing `step_up` is T3: `403 step_up_required` without a step-up grant. Every open security finding is re-published under a new level before it answers |
+| `GET /api/users` | admin | `[{"id","username","role","disabled","has_passkey","last_seen_at"}]`, the owner first. `last_seen_at` is the latest of the user's live sessions, or `null` |
+| `POST /api/users` | admin | `{"username","password","role"}` → `201` the user. `role` is `admin`, `operator`, `viewer` or `household`; `owner` is `422` (transfer instead). `409` for a taken username |
+| `PUT /api/users/{id}` | admin | `{"role"?,"disabled"?}` → `200` the user. Disabling ends the user's sessions at once. Only the owner may touch the owner's account (`403`), and even they can't demote or disable it (`409 owner_protected`); `owner` as a role is `422` |
+| `POST /api/users/{id}/transfer-ownership` | owner | No body → `200` the new owner; the old owner becomes an admin in the same transaction. T3: `403 step_up_required` without a step-up grant. `422` for a disabled target |
+| `GET /api/demo` | session | Demo mode only: `{"enabled":true,"now":RFC 3339,"seed":n}`. `now` is the simulated time |
+| `POST /api/demo/incidents/{id}/fix` | operator | Demo mode only: presses the incident's suggested action → `202 {"id"}`. `404` unknown incident, `409` not open yet, already fixing or resolved. Progress arrives on the `inbox` topic |
 | `GET /ws` | session | WebSocket; see [`realtime/protocol.go`](realtime/protocol.go) and the topics below |
 | `/api/*` (other) | — | JSON `404`; so are the demo routes outside demo mode |
 | `GET /…` | none | The web app. Unknown paths get `index.html` (history-mode routing). For an owner session, `index.html` carries the first-paint snapshot as `<script type="application/json" id="chadash-snapshot">` (non-executable, so the CSP holds), served `no-store` with `Vary: Cookie`; everyone else gets the generic shell (`no-cache`, ETag) |
@@ -143,9 +150,20 @@ Errors are `{"error":{"code","message"}}`. Attempts are limited per client IP:
 sign-in and passkey `login/finish` draw on one budget; `/setup` and passkey
 `login/begin` each have their own. Every passkey `begin` and `finish` answers
 `409 passkeys_unavailable`, with a message saying what to change, when
-passkeys can't work at the address in use. "Owner" routes need a session whose
-user has the owner role; today every account is the owner, and later roles get
-`403`.
+passkeys can't work at the address in use. Step-up has its own budget too, so
+a fumbled confirmation can't lock anyone out of signing in.
+
+**Roles.** The Auth column is the least a route admits: `session` is any
+signed-in role, household included; `viewer` is everything but household;
+then `operator`, `admin`, `owner`. The table that decides is
+[`authz/routes.go`](authz/routes.go): `authz.Guard` sits in front of the whole
+mux (inside the cross-origin check), looks up the pattern each request
+matched, and answers `401` without a session or `403 forbidden` with a
+sentence for the wrong role. A route with no row is refused with `500
+no_authz_rule` and an error in the log, and `authz`'s tests fail on it, so
+**a new route needs a row before it answers anyone**. Handlers then only
+attach the session (`auth.Require`, which passes straight through when Guard
+already ran it).
 
 Passkey options and credentials are the WebAuthn JSON forms, with binary fields
 as unpadded base64url. The SPA hands `publicKey` to
@@ -293,12 +311,19 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - **Exactly one owner**, enforced by a partial unique index. That also makes concurrent setup requests race-free at the database level.
 - **argon2id at OWASP's baseline** (19 MiB, t=2, p=1), with at most two hashes running at once. That keeps a login inside the RSS budget on small ARM boards. Parameters live in each PHC string, so they can be raised later. Unknown usernames are checked against a dummy hash, so timing doesn't reveal which usernames exist.
 - **Passwords**: at least 12 characters, at most 512 bytes. **Usernames**: 1–64 of `A–Z a–z 0–9 . _ @ -`, case-insensitive.
-- **Sessions**: a 256-bit token in the cookie; only its SHA-256 is stored, next to a public `s_…` ID for listing and audit. **30-day idle expiry that renews while in use:** at most once a day, a request slides `expires_at` forward and reissues the cookie, so a session in regular use never lapses and an unused one expires after 30 days. `last_seen_at` is written at most every 5 minutes. A `method` column (`password` or `passkey`) is there for step-up checks later.
+- **Sessions**: a 256-bit token in the cookie; only its SHA-256 is stored, next to a public `s_…` ID for listing and audit. **30-day idle expiry that renews while in use:** at most once a day, a request slides `expires_at` forward and reissues the cookie, so a session in regular use never lapses and an unused one expires after 30 days. `last_seen_at` is written at most every 5 minutes. A `method` column records how it was established (`password` or `passkey`). The role is read from the users row on every request, so a role change applies from the next request, and disabling a user deletes their sessions in the same transaction.
 - **Cookie** `chadash_session`: `HttpOnly`, `SameSite=Lax`, `Path=/`. `Secure` when the request came over TLS, or from a trusted proxy that sent `X-Forwarded-Proto: https`. There's no `__Host-` prefix, because plain-HTTP LAN installs are common and that prefix requires `Secure`.
 - **CSRF**: `SameSite=Lax`, plus net/http's `CrossOriginProtection` on every unsafe method (it uses `Sec-Fetch-Site`, falling back to Origin vs Host), plus JSON-only request bodies, which a cross-site form can't send. There are no per-request CSRF tokens. The architecture doc lists them; these three layers replace them on purpose, and tokens can still be added if a form-based flow ever needs them.
 - **One seam**: `auth.Service.StartSession(w, r, user, method)` is where every sign-in method ends: password, passkey, and later OIDC.
 - **Rate limiting** is per client IP and in memory. Behind a reverse proxy, set `CHADASH_TRUSTED_PROXIES`; otherwise every client shares the proxy's bucket.
 - **Forwarded headers** are honoured only from trusted proxies. The client IP is the rightmost `X-Forwarded-For` hop that isn't a trusted proxy.
+
+**Roles, authorization and step-up** (v0.2)
+- **Five roles**, most powerful first: owner, admin, operator, viewer, household. `users.role` has carried them since `00001`. What each may do is decided in `internal/authz` and nowhere else: routes by the table in `authz/routes.go`, actions by `authz.Decide` (tier caps: owner T4 where enabled, admin T3, operator T2, viewer T0, household T0 plus actions marked `household: true` up to T1).
+- **One owner, never stranded.** The owner can't be demoted, disabled or deleted; ownership moves only by `transfer-ownership`, which demotes the old owner to admin first so the single-owner index never sees two. An admin manages every other account. Users are disabled, never deleted, so audit records keep pointing at someone.
+- **Step-up** is a re-verification on the session: a passkey assertion with user verification required, or the password when the account has no passkey that works at this address and the rule allows it (`security.step_up`, `passkey_or_password` by default, or `passkey_only`). A grant is `sessions.step_up_until`, five minutes, server-side, gone with the session. T3 needs a grant; T4 needs one from the last minute and the engine clears it after use (`auth.Service.ClearStepUp`), so T4 always asks again. Changing the rule is itself T3.
+- **The engine's seam.** `authz.ActorFrom(r)` gives the actor behind a request, step-up included; `authz.Policy` implements the action engine's `Policy`. T4 is refused unless its scope is listed in the `actions.t4` setting (a JSON array of scopes, empty by default). Scopes can be qualified by resource (`proxmox.guest.reboot:host=pve-a`) and patterns (`proxmox.guest.*`) are understood; the UI doesn't offer them yet.
+- **`api_tokens`** (`00006`) holds wave 10's scoped, expiring tokens: hashed secrets, a JSON scope list, `last_used_at`, revocation. A token acts as its user narrowed to its scopes (`authz.WithGrants`) and can't step up, so T3+ is out of its reach.
 
 **Passkeys**
 - **`github.com/go-webauthn/webauthn` v0.18.2** does the ceremonies. It adds about 2 MB to the stripped binary: it links every attestation format (TPM, Android, SafetyNet) even though we ask for none.

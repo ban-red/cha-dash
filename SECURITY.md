@@ -26,7 +26,9 @@ These are tracked as requirements in [docs/plan/03-architecture.md](docs/plan/03
 
 - Secrets never reach the browser. They're encrypted at rest and redacted in exports and diagnostics.
 - The hub never has write access to Docker. Only nodes do, and only within each host's local policy.
-- Every action is authorized centrally and audited.
+- Every action is authorized centrally and audited. Every HTTP route has a row in one table ([`internal/authz/routes.go`](internal/authz/routes.go)) naming the least role it admits; a route without one is refused, and CI fails on it.
+- Five roles: owner, admin, operator, viewer and household. There is exactly one owner, who can't be demoted or disabled except by handing ownership to someone else. Users are disabled, never deleted, and disabling one ends their sessions at once.
+- Destructive (T3) actions, handing over ownership and changing how people confirm them need a fresh re-verification on the session (step-up): a passkey, or the password for an account without one unless the owner requires passkeys. It lasts five minutes. Catastrophic (T4) actions are off unless the owner enables them per action, and always ask again.
 - No unauthenticated network listeners.
 - No third-party JavaScript in the Cha Dash origin.
 - Releases will be signed and ship with an SBOM.
