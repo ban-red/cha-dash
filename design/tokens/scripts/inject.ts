@@ -5,7 +5,7 @@
  * can't import src/core.js. Instead this script copies three generated blocks
  * into the page between markers:
  *
- *   tokens-css  dist/tokens.css                        (inside <style>)
+ *   tokens-css  buildCss() with the grain inline       (inside <style>; dist/tokens.css ships it as a file)
  *   core        src/core.js as an IIFE named ChaTokens  (inside <script>)
  *   themes      themes/*.yaml as THEME_DOCS            (inside <script>)
  *
@@ -15,7 +15,8 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DIST_DIR, PROTOTYPE, ROOT, loadThemes } from './themes.ts';
+import { buildCss } from '../src/core.js';
+import { PROTOTYPE, ROOT, loadThemes } from './themes.ts';
 
 const MARK = (name: string, edge: 'begin' | 'end') => `/* @generated:${name} ${edge} */`;
 
@@ -46,8 +47,9 @@ export function themesBlock(): string {
   return `/* Source: design/tokens/themes/*.yaml. */\nconst THEME_DOCS = ${JSON.stringify(docs, null, 1)};`;
 }
 
+/** The prototype is a file:// page with no CSP, so it keeps the grain inline. */
 export function cssBlock(): string {
-  return readFileSync(join(DIST_DIR, 'tokens.css'), 'utf8').trimEnd();
+  return buildCss(loadThemes()).trimEnd();
 }
 
 /** Replace each marked block in the page. Throws if a marker pair is missing. */

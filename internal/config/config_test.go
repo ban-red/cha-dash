@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func load(t *testing.T, env map[string]string, args ...string) (Config, error) {
@@ -90,6 +91,39 @@ func TestInvalidValues(t *testing.T) {
 	for _, want := range []string{"listen address", "log level", "log format", "trusted proxy", "ftp://x", "https://x/path"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+}
+
+func TestDemo(t *testing.T) {
+	c, err := load(t, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Demo || c.DemoWallClock || c.DemoAt != DefaultDemoAt || c.DemoSeed != 1 {
+		t.Fatalf("demo defaults: %+v", c)
+	}
+
+	c, err = load(t, map[string]string{"CHADASH_DEMO": "1", "CHADASH_DEMO_AT": "now", "CHADASH_DEMO_SEED": "42"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Demo || !c.DemoWallClock || c.DemoSeed != 42 {
+		t.Fatalf("demo from env: %+v", c)
+	}
+
+	c, err = load(t, map[string]string{"CHADASH_DEMO": "false"}, "--demo", "--demo-at", "09:30:15", "--demo-seed", "-3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Demo || c.DemoWallClock || c.DemoAt != 9*time.Hour+30*time.Minute+15*time.Second || c.DemoSeed != -3 {
+		t.Fatalf("demo flags should win: %+v", c)
+	}
+
+	_, err = load(t, map[string]string{"CHADASH_DEMO": "sure", "CHADASH_DEMO_AT": "24:00", "CHADASH_DEMO_SEED": "one"})
+	for _, want := range []string{"CHADASH_DEMO", "demo start", "demo seed"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("error %v does not mention %q", err, want)
 		}
 	}
 }

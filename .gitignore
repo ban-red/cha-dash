@@ -41,3 +41,9 @@ coverage/
 *.db
 *.db-shm
 *.db-wal
+
+# Built SPA (vite writes it here; `go build -tags webui` embeds it)
+internal/webui/dist/
+# Local hub binaries
+/chadash
+/bin/

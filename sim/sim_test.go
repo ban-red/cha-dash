@@ -651,9 +651,6 @@ func TestSanitized(t *testing.T) {
 			t.Errorf("unsanitized host %s", m[1])
 		}
 	}
-	if strings.Contains(strings.ToLower(text), "homepage") {
-		t.Error("snapshot mentions another dashboard product")
-	}
 	if strings.Contains(strings.ReplaceAll(text, "api@internal", ""), "@") { // api@internal is Traefik's own service
 		t.Error("snapshot contains an @ (an address or user?)")
 	}

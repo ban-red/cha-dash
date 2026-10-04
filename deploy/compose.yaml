@@ -1,0 +1,81 @@
+# Cha Dash: the hub, plus a read-only Docker socket proxy.
+#
+#   docker compose up -d
+#   docker compose logs chadash | grep setup
+#
+# Then open http://<this host>:3696 and enter the setup token from the logs.
+# Nothing else is required. Options, reverse proxies, backups and upgrades are
+# in README.md next to this file. Put your own changes in compose.override.yaml,
+# which Compose loads automatically, so this file can be replaced on upgrade.
+
+name: chadash
+
+services:
+  chadash:
+    image: ghcr.io/ban-red/chadash:latest
+    restart: unless-stopped
+    ports:
+      - "3696:3696"
+    volumes:
+      - data:/data                  # database + vault key: back them up together
+    # environment:
+    #   CHADASH_TRUSTED_PROXIES: 172.30.0.0/16   # behind a reverse proxy (README)
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777     # SQLite's temporary files; nothing else writes outside /data
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - default                     # the published port, and integrations later
+      - docker-proxy                # reaches socket-proxy:2375, nothing else
+    # The healthcheck comes from the image: `/chadash healthcheck`.
+
+  # Lets Cha Dash *see* the containers on this host (v0.1). Optional: delete this
+  # service if you don't want it. It allows GET requests for containers, images,
+  # system info, events, networks and volumes, and nothing else: no POST, no
+  # exec, no logs, no file access. Only the chadash service can reach it.
+  socket-proxy:
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    restart: unless-stopped
+    # The socket's group ID differs from host to host, so the proxy runs as uid 0
+    # with every capability dropped. That works everywhere. To run it unprivileged,
+    # use "65534:<gid>" with the gid from `stat -c %g /var/run/docker.sock`.
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-proxy
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=chadash
+      # Paths are anchored regexps, with or without an API version prefix.
+      - -allowHEAD=/(v1\.[0-9]+/)?_ping
+      - -allowGET=/(v1\.[0-9]+/)?(_ping|version|info|events)
+      - -allowGET=/(v1\.[0-9]+/)?containers/json
+      - -allowGET=/(v1\.[0-9]+/)?containers/[a-zA-Z0-9][a-zA-Z0-9_.-]*/(json|stats)
+      - -allowGET=/(v1\.[0-9]+/)?images/json
+      - -allowGET=/(v1\.[0-9]+/)?images/[a-zA-Z0-9][a-zA-Z0-9_.:/@-]*/json
+      - -allowGET=/(v1\.[0-9]+/)?networks(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
+      - -allowGET=/(v1\.[0-9]+/)?volumes(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
+      - -allowhealthcheck
+      - -watchdoginterval=3600      # exit if the socket goes away (e.g. a Docker
+      - -stoponwatchdog             # upgrade), so the restart policy reconnects it
+      - -shutdowngracetime=5
+    healthcheck:
+      test: ["CMD", "/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+
+volumes:
+  data:
+
+networks:
+  docker-proxy:
+    internal: true                  # no route out, and no published ports

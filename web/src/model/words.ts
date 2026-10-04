@@ -1,0 +1,47 @@
+/** Plain words for graph vocabulary in the Inbox and confirm dialogs. */
+import { label } from './graph';
+import type { GraphDoc } from './types';
+
+const RELATIONS: Record<string, string> = {
+  runs_on: 'runs on it',
+  depends_on: 'depends on it',
+  stores_on: 'stores data on it',
+  backed_up_by: 'loses its backups',
+  routes_to: 'route breaks',
+  monitors: 'goes stale',
+  part_of: 'part of it',
+  provides_network_for: 'loses network',
+  exposes: 'feed stops',
+};
+
+export const relationWords = (via: string): string => RELATIONS[via] ?? via.replace(/_/g, ' ');
+
+/** "homeassistant (VM)" style names for impact lists. */
+export function impactName(g: GraphDoc | undefined, id: string): string {
+  const r = g?.resources[id];
+  if (!r) return id;
+  const kind: Record<string, string> = { vm: 'VM', lxc: 'LXC', container: 'container', route: 'route', backup_job: 'backup job', app: '' };
+  const k = kind[r.kind] ?? r.kind;
+  const name = r.kind === 'backup_job' ? `${id.split('/')[0]?.replace(/^pve:/, '') ?? ''} nightly` : label(r);
+  return k ? `${name} · ${k}` : name;
+}
+
+/** A fact value for display: ISO times as times, numbers grouped, the rest as text. */
+export function factValue(v: unknown, fmtTime: (iso: string) => string): string {
+  if (typeof v === 'number') return v.toLocaleString('en-US');
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) return fmtTime(v);
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  if (v === null || v === undefined) return '—';
+  return String(v);
+}
+
+/** "used_pct" → "Used %", "full_in_days" → "Full in days". */
+export function factLabel(key: string): string {
+  const s = key
+    .replace(/_pct$/, ' %')
+    .replace(/_gb$/, ' (GB)')
+    .replace(/_tb$/, ' (TB)')
+    .replace(/_mib$/, ' (MiB)')
+    .replace(/_/g, ' ');
+  return s[0]!.toUpperCase() + s.slice(1);
+}

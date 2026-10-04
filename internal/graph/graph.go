@@ -69,7 +69,7 @@ func (r Relation) Key() string { return string(r.From) + " " + string(r.Type) + 
 // Doc is the snapshot document a watcher or subscriber sees. Diffs are JSON
 // patches against it: /resources/<id> and /relations/<key>.
 type Doc struct {
-	Resources map[RID]*Resource   `json:"resources"`
+	Resources map[RID]*Resource    `json:"resources"`
 	Relations map[string]*Relation `json:"relations"`
 }
 

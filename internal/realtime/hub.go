@@ -142,9 +142,9 @@ type conn struct {
 	ws     *websocket.Conn
 	ctx    context.Context
 	cancel context.CancelFunc
-	out    chan []byte      // frames for the writer
-	subs   map[int64]*sub   // owned by the read loop
-	wg     sync.WaitGroup   // writer and subscription goroutines
+	out    chan []byte    // frames for the writer
+	subs   map[int64]*sub // owned by the read loop
+	wg     sync.WaitGroup // writer and subscription goroutines
 	closer sync.Once
 }
 

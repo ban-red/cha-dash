@@ -1,0 +1,32 @@
+<script setup lang="ts">
+/**
+ * The doors: first-run setup, sign-in, or the front page. The doors are small
+ * and load with the app; the front page is its own chunk.
+ */
+import { defineAsyncComponent, onMounted } from 'vue';
+import Glyph from './components/marks/Glyph.vue';
+import LoginView from './views/LoginView.vue';
+import SetupView from './views/SetupView.vue';
+import { createSession, provideSession } from './stores/session';
+
+const FrontPage = defineAsyncComponent(() => import('./views/FrontPage.vue'));
+
+const session = createSession();
+provideSession(session);
+onMounted(() => void session.refresh());
+</script>
+
+<template>
+  <div v-if="session.state.phase === 'loading'" class="door" aria-busy="true"><span class="caps">Cha Dash</span></div>
+  <SetupView v-else-if="session.state.phase === 'setup'" />
+  <LoginView v-else-if="session.state.phase === 'login'" />
+  <FrontPage v-else-if="session.state.phase === 'ready'" />
+  <main v-else class="door">
+    <div class="door-card" role="alert">
+      <div class="wordmark-row"><span class="brand">Cha Dash</span><span class="caps">Hub unreachable</span></div>
+      <h1><Glyph kind="down" label="unreachable" />{{ session.state.error }}</h1>
+      <p class="lede">Check that the hub is running, then try again.</p>
+      <button type="button" class="btn primary" @click="session.refresh()">Try again</button>
+    </div>
+  </main>
+</template>

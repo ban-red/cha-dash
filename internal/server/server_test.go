@@ -49,7 +49,10 @@ type env struct {
 	token string
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T) *env { return newEnvWith(t, nil) }
+
+// newEnvWith lets a test adjust the dependencies before the server is built.
+func newEnvWith(t *testing.T, adjust func(*Deps)) *env {
 	t.Helper()
 	logs := &lockedBuffer{}
 	log := slog.New(slog.NewTextHandler(logs, nil))
@@ -67,7 +70,11 @@ func newEnv(t *testing.T) *env {
 	}
 	g := graph.New()
 	hub := realtime.New(realtime.GraphSource{Graph: g}, realtime.Options{Coalesce: 10 * time.Millisecond, Log: log})
-	h, err := New(Deps{Log: log, Store: st, Auth: a, Realtime: hub, AllowedOrigins: []string{"https://dash.example.com"}})
+	deps := Deps{Log: log, Store: st, Auth: a, Realtime: hub, AllowedOrigins: []string{"https://dash.example.com"}}
+	if adjust != nil {
+		adjust(&deps)
+	}
+	h, err := New(deps)
 	if err != nil {
 		t.Fatal(err)
 	}

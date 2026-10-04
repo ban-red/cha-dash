@@ -4,9 +4,11 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "design/tokens"
+    "design/tokens",
+    "web"
   ],
   "scripts": {
+    "build": "bun run --filter @chadash/web build",
     "test": "bun run --filter '*' test",
     "typecheck": "bun run --filter '*' typecheck"
   }

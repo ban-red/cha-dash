@@ -1885,6 +1885,10 @@ html[data-studio-open] .studio{transform:none;visibility:visible;transition:tran
 .seg{display:flex;padding:2px;border-radius:calc(var(--radius-md) + 2px);background:color-mix(in oklch,var(--text) 7%,transparent)}
 .seg button{flex:1;padding:6px 9px;border:0;border-radius:var(--radius-md);background:transparent;font:var(--weight-medium) var(--type-caption)/1 var(--font-ui);color:var(--text-2);white-space:nowrap}
 .seg button[aria-pressed=true]{background:var(--surface);color:var(--text);box-shadow:0 0 0 var(--hairline) var(--line-2),0 1px 2px #0002}
+.seg button:disabled{opacity:.55;cursor:not-allowed}
+.import-src{margin:var(--space-3) 0 var(--space-2)}
+.import-src .seg{max-width:520px}
+.import-src .seg .n{margin-left:6px;color:var(--text-3);font-weight:var(--weight-regular)}
 .opt{display:grid;grid-template-columns:76px minmax(0,1fr);gap:var(--space-2);align-items:center;margin:0 0 var(--space-2)}
 .opt>span{font-size:var(--type-small);color:var(--text-2)}
 .verdict{display:flex;gap:var(--space-2);align-items:flex-start;margin:0 0 var(--space-3);padding:10px 12px;border-radius:var(--radius-md);border:var(--hairline) solid var(--line-2);font-size:var(--type-small);line-height:1.4;color:var(--text)}
@@ -2770,6 +2774,15 @@ function grain(ink) {
   return `url("data:image/svg+xml,${svg.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/"/g, "'")}")`;
 }
 
+const DATA_SVG = /url\("data:image\/svg\+xml,([^"]*)"\)/g;
+
+/** FNV-1a, 32-bit: a short, stable content hash for asset names. @param {string} s */
+function fnv1a(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+  return h.toString(16).padStart(8, '0');
+}
+
 /* ═══════════════════════ 6 · Accessibility checks ═══════════════════════ */
 
 /**
@@ -2935,6 +2948,27 @@ function buildCss(docs) {
 }
 
 /**
+ * CSS for apps served under a strict CSP: like buildCss, but every inline
+ * SVG (Paper's grain) becomes a file next to tokens.css, so `default-src
+ * 'self'` never meets a data: URI. Bundlers resolve the relative url() and
+ * ship the file. Returns the CSS and the files to write, by name.
+ * @param {ThemeDoc[]} docs
+ * @returns {{ css: string, assets: Record<string, string> }}
+ */
+function buildCssWithAssets(docs) {
+  /** @type {Record<string, string>} */
+  const assets = {};
+  const css = buildCss(docs).replace(DATA_SVG, (_, encoded) => {
+    // grain() escapes only < > and #, and swaps " for ', so undo exactly that.
+    const svg = encoded.replace(/%3C/g, '<').replace(/%3E/g, '>').replace(/%23/g, '#').replace(/'/g, '"');
+    const name = `grain-${fnv1a(svg)}.svg`;
+    assets[name] = svg + '\n';
+    return `url("${name}")`;
+  });
+  return { css, assets };
+}
+
+/**
  * JSON export: globals, variants, and per theme its inputs, defaults, CSS
  * tokens, sRGB hex for opaque colours, and the check results.
  * @param {ThemeDoc[]} docs
@@ -2962,7 +2996,7 @@ function buildJson(docs) {
     })),
   };
 }
-return { FORMAT, GENERATOR, oklchToLinear, toGamut, canon, toHex, hexToSrgb, hexToOklch, parseColor, formatOklch, composite, apca, wcag, THRESHOLDS, deltaE, separation, FONTS, OVERRIDABLE, validateThemeDoc, spring, MOTION, globalTokens, variantTokens, themeTokenNames, resolveTheme, checkTheme, refusalMessage, themeCss, moreContrast, buildCss, buildJson };
+return { FORMAT, GENERATOR, oklchToLinear, toGamut, canon, toHex, hexToSrgb, hexToOklch, parseColor, formatOklch, composite, apca, wcag, THRESHOLDS, deltaE, separation, FONTS, OVERRIDABLE, validateThemeDoc, spring, MOTION, globalTokens, variantTokens, themeTokenNames, resolveTheme, checkTheme, refusalMessage, themeCss, moreContrast, buildCss, buildCssWithAssets, buildJson };
 })();
 /* @generated:core end */
 /* @generated:themes begin */
@@ -4068,7 +4102,9 @@ function switchTab(btn) {
   body.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 90 * S.slow, fill: 'forwards' }).onfinish = () => { swap(); body.animate([{ opacity: 0 }, { opacity: 1 }], { duration: timing('fade').duration, fill: 'forwards' }); };
 }
 function openImport(fromEl) {
-  presentSheet({ id: null, label: 'Import from Homepage', fromEl, html: `<div class="sheet-h"><span class="mono" aria-hidden="true">HP</span><span class="tn">Import from Homepage</span><button class="x" data-act="close" aria-label="Close">${GLYPH.cross}</button></div>
+  presentSheet({ id: null, label: 'Import', fromEl, html: `<div class="sheet-h"><span class="mono" aria-hidden="true">HP</span><span class="tn">Import</span><button class="x" data-act="close" aria-label="Close">${GLYPH.cross}</button></div>
+    <div class="import-src"><div class="seg" role="group" aria-label="Import source"><button aria-pressed="true">Homepage<span class="n">found on pvedocker</span></button><button aria-pressed="false" disabled title="Arrives in v0.2">Homarr<span class="n">v0.2</span></button><button aria-pressed="false" disabled title="Arrives in v0.2">Plain YAML<span class="n">v0.2</span></button></div>
+      <p class="sub" style="margin:var(--space-2) 0 0">Each importer is named after what it reads, and all of them preview the diff before anything changes.</p></div>
     <div class="crumb">pvedocker › homepage › services.yaml · docker.yaml · settings.yaml</div>
     <div class="sheet-grid"><div><h4>What comes in</h4><dl class="kv"><dt>Services → tiles</dt><dd>38</dd><dt>Links and checks</dt><dd>2</dd><dt>Calendar → media calendar</dt><dd>1</dd><dt>Sections</dt><dd>8</dd><dt>Proxmox instances</dt><dd>5</dd><dt>Unmapped entries</dt><dd>0</dd></dl>
       <h4 style="margin-top:var(--space-5)">Secrets</h4><p class="sub" style="margin:0">18 credentials move into the encrypted vault and become <span class="n">\${secret:…}</span> references. Their values are never shown, logged or exported.</p></div>

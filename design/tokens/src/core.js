@@ -806,6 +806,15 @@ function grain(ink) {
   return `url("data:image/svg+xml,${svg.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/"/g, "'")}")`;
 }
 
+const DATA_SVG = /url\("data:image\/svg\+xml,([^"]*)"\)/g;
+
+/** FNV-1a, 32-bit: a short, stable content hash for asset names. @param {string} s */
+function fnv1a(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+  return h.toString(16).padStart(8, '0');
+}
+
 /* ═══════════════════════ 6 · Accessibility checks ═══════════════════════ */
 
 /**
@@ -968,6 +977,27 @@ export function buildCss(docs) {
   out.push(block(':root[data-material="solid"]', v.material.solid));
   out.push(`@media (prefers-reduced-transparency: reduce) {\n${block(':root:root', v.material.solid, '', '  ')}\n}`);
   return out.join('\n\n') + '\n';
+}
+
+/**
+ * CSS for apps served under a strict CSP: like buildCss, but every inline
+ * SVG (Paper's grain) becomes a file next to tokens.css, so `default-src
+ * 'self'` never meets a data: URI. Bundlers resolve the relative url() and
+ * ship the file. Returns the CSS and the files to write, by name.
+ * @param {ThemeDoc[]} docs
+ * @returns {{ css: string, assets: Record<string, string> }}
+ */
+export function buildCssWithAssets(docs) {
+  /** @type {Record<string, string>} */
+  const assets = {};
+  const css = buildCss(docs).replace(DATA_SVG, (_, encoded) => {
+    // grain() escapes only < > and #, and swaps " for ', so undo exactly that.
+    const svg = encoded.replace(/%3C/g, '<').replace(/%3E/g, '>').replace(/%23/g, '#').replace(/'/g, '"');
+    const name = `grain-${fnv1a(svg)}.svg`;
+    assets[name] = svg + '\n';
+    return `url("${name}")`;
+  });
+  return { css, assets };
 }
 
 /**

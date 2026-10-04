@@ -7,8 +7,13 @@
 //	POST /api/auth/logout      sign out
 //	GET  /api/auth/session     current user and session            (session)
 //	GET  /api/version          build version                       (session)
+//	GET  /api/boards           boards; creates "Home" on first use (owner)
+//	GET  /api/boards/{id}/layout   latest layout and revision      (owner)
+//	PUT  /api/boards/{id}/layout   save at the next revision       (owner)
+//	GET  /api/demo             demo clock and seed; demo mode only (owner)
+//	POST /api/demo/incidents/{id}/fix   press the suggested action (owner)
 //	GET  /ws                   realtime WebSocket                  (session)
-//	GET  /                     the web app (placeholder until the SPA is embedded)
+//	GET  /…                    the web app (history-mode: unknown paths get index.html)
 //
 // Every response gets security headers; state-changing requests from other
 // origins are refused (net/http CrossOriginProtection), and the WebSocket
@@ -25,7 +30,9 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
+	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/store"
 )
@@ -36,11 +43,13 @@ type Deps struct {
 	Store    *store.Store
 	Auth     *auth.Service
 	Realtime http.Handler // the WebSocket hub; mounted behind the session check
-	// Web serves the SPA. Nil serves Placeholder. Step 3.8 passes the embedded
-	// web/dist handler here (with history-mode fallback to index.html).
+	// Web serves the SPA (webui.New in the hub). Nil serves Placeholder.
 	Web            http.Handler
 	Proxies        httpx.Proxies
 	AllowedOrigins []string // extra trusted origins, scheme://host[:port]
+	// Demo is the Demo Home driver in demo mode, nil otherwise. Without it
+	// the /api/demo endpoints answer 404.
+	Demo *demo.Driver
 }
 
 // New builds the root handler.
@@ -63,6 +72,11 @@ func New(d Deps) (http.Handler, error) {
 	mux.Handle("GET /api/version", d.Auth.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"version": buildinfo.Version, "commit": buildinfo.Commit})
 	})))
+	owner := func(h http.Handler) http.Handler { return d.Auth.Require(requireOwner(h)) }
+	boards.New(d.Store).Register(mux, owner, d.Log)
+	if d.Demo != nil {
+		d.Demo.Register(mux, owner)
+	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")
 	})
@@ -101,7 +115,20 @@ func New(d Deps) (http.Handler, error) {
 	return h, nil
 }
 
-// Placeholder stands in for the SPA until it is embedded (step 3.8).
+// requireOwner admits the owner's session only. Every account is the owner
+// today; other roles arrive later and must not inherit these routes.
+func requireOwner(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if id, ok := auth.FromContext(r.Context()); !ok || id.User.Role != auth.RoleOwner {
+			httpx.Error(w, http.StatusForbidden, "forbidden", "only the owner can do this")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Placeholder answers "/" when Deps.Web is nil, as in tests that don't need
+// the web app.
 func Placeholder() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

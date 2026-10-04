@@ -1,0 +1,341 @@
+/*
+ * Base: reset, type, glyphs, buttons, marks. Everything visual comes from
+ * @chadash/tokens (semantic tokens only: --bg, --surface, --text-2, …).
+ * No hard-coded colours, and nothing that needs an inline style attribute:
+ * the CSP forbids those (Vue's :style bindings use the CSSOM, which is fine).
+ */
+
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--bg);
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--bg);
+  background-image: var(--backdrop);
+  color: var(--text);
+  font: var(--weight-regular) var(--type-body) / var(--leading-normal) var(--font-ui);
+  letter-spacing: var(--tracking-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+a {
+  color: inherit;
+}
+::selection {
+  background: color-mix(in oklch, var(--accent) 34%, transparent);
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+.n {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.nb {
+  white-space: nowrap;
+}
+.muted {
+  color: var(--text-3);
+}
+
+/* ───────────── Glyphs: state is shape + word + colour ───────────── */
+.g {
+  display: inline-flex;
+  width: 0.72em;
+  height: 0.72em;
+  flex: none;
+  vertical-align: baseline;
+  position: relative;
+  top: 0.02em;
+}
+.g svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.g-attn {
+  color: var(--attention);
+}
+.g-down {
+  color: var(--down);
+}
+.g-ok,
+.g-lock,
+.g-link,
+.g-off {
+  color: var(--text-3);
+}
+.g-prog {
+  color: var(--progress);
+}
+.g-maint {
+  color: var(--maint);
+}
+.g-repair,
+.g-check {
+  color: var(--text-2);
+}
+
+/* ───────────── Buttons ───────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 7px 12px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: var(--weight-medium) var(--type-small) / 1 var(--font-ui);
+  color: var(--text);
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color var(--motion-press-duration) var(--motion-press-easing),
+    transform var(--motion-press-duration) var(--motion-press-easing),
+    border-color var(--motion-press-duration) var(--motion-press-easing);
+}
+.btn:hover {
+  background: var(--surface-hover);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn.primary {
+  background: var(--text);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.btn.primary:hover {
+  background: color-mix(in oklch, var(--text) 88%, var(--bg));
+}
+.btn.ghost {
+  border-color: transparent;
+  color: var(--text-2);
+}
+.btn.sm {
+  min-height: 28px;
+  padding: 5px 9px;
+  font-size: var(--type-caption);
+}
+.btn[disabled],
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn .tier {
+  padding: 2px 3px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-xs);
+  font: 600 9px/1 var(--font-num);
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+.btn.primary .tier {
+  border-color: color-mix(in oklch, var(--text-inverse) 40%, transparent);
+  color: inherit;
+  opacity: 0.75;
+}
+.x {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-2);
+}
+.x:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.x svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* ───────────── Marks: meters and sparklines ───────────── */
+.meter {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  color: var(--text-3);
+  background: color-mix(in oklch, currentColor 22%, transparent);
+}
+.meter.sev-attn {
+  color: var(--attention);
+}
+.meter.sev-down {
+  color: var(--down);
+}
+.meter.thin {
+  height: 4px;
+}
+.meter.thick {
+  height: 14px;
+  border-radius: 7px;
+}
+.m-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: currentColor;
+  transition: width var(--motion-value-duration) var(--motion-value-easing);
+}
+.m-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1.5px;
+  margin-left: -0.75px;
+  border-radius: 1px;
+  background: var(--text-2);
+}
+.meter.unknown {
+  background: repeating-linear-gradient(90deg, var(--line-2) 0 4px, transparent 4px 8px);
+}
+
+.spark {
+  position: relative;
+  width: 100%;
+  color: var(--spark);
+}
+.spark svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.sp-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.sp-area {
+  fill: currentColor;
+  opacity: 0.09;
+}
+.sp-band {
+  fill: var(--band);
+}
+.spark.tone-attn {
+  color: var(--attention);
+}
+.spark.tone-down {
+  color: var(--down);
+}
+.sp-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px var(--tile-bg, var(--surface));
+}
+:root[data-surface='ruled'] .sp-dot {
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* hatch: stale and last-known values */
+.hatch {
+  background: repeating-linear-gradient(135deg, var(--hatch) 0 1.5px, transparent 1.5px 7px);
+}
+.asof {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+  border: var(--hairline) dashed var(--line-2);
+  border-radius: var(--radius-xs);
+  font: var(--weight-medium) 10.5px/1 var(--font-num);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.skel {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklch, var(--text) 9%, transparent);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: var(--radius-full);
+  border: var(--hairline) solid var(--line-2);
+  font: var(--weight-medium) 10.5px/1 var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* small caps labels: section heads, table heads, kickers */
+.caps {
+  font: var(--weight-medium) var(--type-micro) / 1 var(--font-num);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* reduced motion: everything crossfades (script springs check this too) */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) * {
+    scroll-behavior: auto;
+  }
+  html:not([data-motion='full']) .tile:active,
+  html:not([data-motion='full']) .btn:active {
+    transform: none;
+  }
+}

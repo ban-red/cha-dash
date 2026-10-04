@@ -1,0 +1,111 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick, watch } from 'vue';
+import { createLive } from '../src/stores/live';
+import { toPointer } from '../src/lib/jsonpatch';
+import { FakeSocket, factory } from './fake-socket';
+import { docs, resolvedIncident, withIncidents } from './fixtures';
+
+beforeEach(() => {
+  FakeSocket.reset();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-03T14:05:10Z'));
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+function liveWithFixtures() {
+  const live = createLive({ url: 'ws://hub.test/ws', createSocket: factory, tick: false });
+  live.start();
+  FakeSocket.last.handshake(docs(withIncidents));
+  return { live, ws: FakeSocket.last };
+}
+
+describe('live store fed with the sim snapshots', () => {
+  it('exposes the topics and derived views', () => {
+    const { live } = liveWithFixtures();
+    expect(live.conn.status).toBe('live');
+    expect(Object.keys(live.graph.value!.resources)).toHaveLength(129);
+    expect(Object.keys(live.metrics.value!.series)).toHaveLength(withIncidents.series.length);
+    expect(live.problems.value).toHaveLength(4);
+    expect(live.repairs.value.map((i) => i.id)).toEqual(['karakeep-api-changed', 'plex-token-revoked']);
+    expect(live.stale.value).toBe(false);
+    expect(live.loading.value).toBe(false);
+  });
+
+  it('reflects a resolution from an inbox diff, reactively', async () => {
+    const { live, ws } = liveWithFixtures();
+    const seen: number[] = [];
+    watch(() => live.problems.value.length, (n) => seen.push(n));
+    ws.push({
+      op: 'diff',
+      id: ws.subId('inbox'),
+      seq: 2000,
+      patch: [
+        { op: 'replace', path: toPointer('inbox', 'incidents', 'backup-failed'), value: resolvedIncident('backup-failed') },
+        { op: 'replace', path: '/inbox/now', value: '2026-10-03T15:34:00Z' },
+      ],
+    });
+    await nextTick();
+    expect(seen).toEqual([3]);
+    expect(live.problems.value.map((i) => i.id)).not.toContain('backup-failed');
+    expect(live.inbox.value!.incidents['backup-failed']!.resolution).toBe('The retry at 15:30 succeeded.');
+  });
+
+  it('follows metric diffs on series ids with slashes', async () => {
+    const { live, ws } = liveWithFixtures();
+    const key = 'unraid:jupiter/array#used.pct';
+    const s = JSON.parse(JSON.stringify(live.metrics.value!.series[key]!)) as { value: number };
+    s.value = 72.1;
+    ws.push({ op: 'diff', id: ws.subId('metrics'), seq: 2001, patch: [{ op: 'replace', path: toPointer('metrics', 'series', key), value: s }] });
+    await nextTick();
+    expect(live.metrics.value!.series[key]!.value).toBe(72.1);
+  });
+
+  it('follows the hub clock when demo time is far from the browser’s', () => {
+    vi.setSystemTime(new Date('2026-10-05T09:00:00Z'));
+    const { live } = liveWithFixtures();
+    live.tick();
+    expect(new Date(live.now.value).toISOString()).toBe('2026-10-03T14:05:00.000Z');
+  });
+
+  it('goes stale when the hub drops, and live again after reconnecting', () => {
+    const { live, ws } = liveWithFixtures();
+    ws.drop();
+    live.tick();
+    expect(live.conn.status).toBe('reconnecting');
+    expect(live.stale.value).toBe(true);
+    expect(live.problems.value).toHaveLength(4); // last-known values stay
+    vi.advanceTimersByTime(live.conn.nextRetryAt! - Date.now());
+    FakeSocket.last.handshake(docs(withIncidents));
+    live.tick();
+    expect(live.conn.status).toBe('live');
+    expect(live.stale.value).toBe(false);
+  });
+
+  it('re-checks the session when reconnecting keeps failing', async () => {
+    const checkSession = vi.fn().mockResolvedValue(false);
+    const live = createLive({ url: 'ws://hub.test/ws', createSocket: factory, tick: false, checkSession });
+    live.start();
+    FakeSocket.last.drop();
+    vi.advanceTimersByTime(live.conn.nextRetryAt! - Date.now());
+    FakeSocket.last.drop();
+    await vi.waitFor(() => expect(checkSession).toHaveBeenCalled());
+    await vi.waitFor(() => expect(live.conn.status).toBe('stopped'));
+  });
+
+  it('posts Fix to the demo endpoint and records the outcome', async () => {
+    const { live } = liveWithFixtures();
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 202 })).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'not_found', message: 'no such endpoint' } }), { status: 404 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await live.fix('pbs-datastore-filling');
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/demo/incidents/pbs-datastore-filling/fix');
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
+    expect(live.fixes['pbs-datastore-filling']).toEqual({ state: 'accepted', phase: 'high' });
+    await expect(live.fix('plex-token-revoked')).rejects.toThrow();
+    expect(live.fixes['plex-token-revoked']).toEqual({ state: 'failed', error: 'Actions run only in demo mode for now.' });
+  });
+});

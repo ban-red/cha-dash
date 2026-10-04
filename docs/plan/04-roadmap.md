@@ -137,7 +137,7 @@ Compare it for one day against a gridstack 14 prototype.
 
 **Config**
 - YAML export and import with a diff preview.
-- **Homepage importer**, tested on the owner's real config.
+- **Homepage importer**, tested on the owner's real config. It's the first of several importers, each named after its source.
 - Generator for least-privilege tokens (one per PVE instance).
 
 **Done when**
@@ -176,6 +176,7 @@ Compare it for one day against a gridstack 14 prototype.
 **Experience**
 - Safety ladder UI: undo, hold to confirm with a blast-radius preview (**"Reboot pluto takes down the router"**), typed confirmation.
 - ⌘K actions, **lenses**, and hub self-awareness.
+- **Homarr and plain-YAML importers**, on the same per-source pipeline as the Homepage importer.
 
 **Notifications:** symptom-first defaults; Web Push, ntfy, Apprise, webhook, email, HA.
 

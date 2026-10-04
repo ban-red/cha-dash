@@ -273,6 +273,49 @@ func TestExpiredSessionRejected(t *testing.T) {
 	}
 }
 
+func TestSessionRenewsWhileInUse(t *testing.T) {
+	h := newHarness(t)
+	c := h.client()
+	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
+		t.Fatal("setup failed")
+	}
+	expiresAt := func() time.Duration {
+		t.Helper()
+		var ms int64
+		if err := h.st.Reader().QueryRow(`SELECT expires_at FROM sessions`).Scan(&ms); err != nil {
+			t.Fatal(err)
+		}
+		return time.Until(time.UnixMilli(ms))
+	}
+
+	// Used again within a day: no renewal, no new cookie.
+	resp, _ := h.do(c, "GET", "/api/private", nil)
+	if resp.StatusCode != http.StatusOK || findCookie(resp, CookieName) != nil {
+		t.Fatalf("fresh session: status %d, cookie reissued %v", resp.StatusCode, findCookie(resp, CookieName) != nil)
+	}
+
+	// 28 days on, two days left: the next use slides it back to 30 days and reissues the cookie.
+	if _, err := h.st.Writer().Exec(`UPDATE sessions SET expires_at = ?`, time.Now().Add(48*time.Hour).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	resp, _ = h.do(c, "GET", "/api/private", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("renewing request = %d", resp.StatusCode)
+	}
+	ck := findCookie(resp, CookieName)
+	if ck == nil || ck.MaxAge < int((SessionTTL-time.Minute)/time.Second) {
+		t.Fatalf("cookie not reissued with a full lifetime: %+v", ck)
+	}
+	if left := expiresAt(); left < SessionTTL-time.Minute {
+		t.Fatalf("expiry not slid forward: %s left", left)
+	}
+
+	// Right after a renewal, further use doesn't write again.
+	if resp, _ := h.do(c, "GET", "/api/private", nil); findCookie(resp, CookieName) != nil {
+		t.Fatal("renewal should be throttled to once a day")
+	}
+}
+
 func TestLoginRateLimited(t *testing.T) {
 	h := newHarness(t)
 	c := h.client()

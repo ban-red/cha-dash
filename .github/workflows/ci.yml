@@ -1,0 +1,245 @@
+name: CI
+
+# Every push to main and every pull request into it. The token is read-only, and
+# every action is pinned by commit SHA; the comment names the release.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # A new push to a pull request cancels the run it replaces. Runs on main always
+  # finish, so every commit there gets a result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Keep in step with the oven/bun image in the Dockerfile.
+  BUN_VERSION: "1.4.2"
+  # Budgets from docs/plan/03-architecture.md, "Performance budgets". Raising
+  # one takes a reason in the pull request.
+  INITIAL_JS_BUDGET_KB: "150"   # entry script + modulepreloads, gzip -6, 1 kB = 1000 bytes
+  IMAGE_BUDGET_MB: "40"         # the whole image, gzip -6
+
+defaults:
+  run:
+    shell: bash                 # -eo pipefail
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod   # go 1.27.1
+      - name: gofmt
+        run: |
+          unformatted=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
+          if [ -n "$unformatted" ]; then
+            echo "::error::Run gofmt -w on: $(echo "$unformatted" | tr '\n' ' ')"
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: go test -race
+        run: go test -race ./...
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...   # 2026.2.1: Go 1.27 support
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
+  js:
+    name: JavaScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: bun install
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Test
+        run: bun run test
+      - name: Design tokens are up to date
+        working-directory: design/tokens
+        run: bun run generate --check
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: bun install
+        run: bun install --frozen-lockfile
+      - name: Build the SPA
+        run: bun run build   # Vite writes internal/webui/dist/
+      - name: Bundle-size budget
+        # Initial JS is what index.html loads before the app can render: module
+        # scripts plus their modulepreloads. Lazy chunks don't count.
+        run: |
+          python3 - <<'PY'
+          import gzip, os, sys
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          dist = Path("internal/webui/dist")
+          budget = int(os.environ["INITIAL_JS_BUDGET_KB"]) * 1000
+
+          class Initial(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.refs = []
+              def handle_starttag(self, tag, attrs):
+                  a = dict(attrs)
+                  rel = (a.get("rel") or "").split()
+                  if tag == "script" and a.get("src"):
+                      self.refs.append(a["src"])
+                  elif tag == "link" and "modulepreload" in rel and a.get("href"):
+                      self.refs.append(a["href"])
+
+          def gz(path):
+              return len(gzip.compress(path.read_bytes(), compresslevel=6))
+
+          index = dist / "index.html"
+          if not index.is_file():
+              sys.exit(f"::error::{index} is missing: bun run build should write it")
+          parser = Initial()
+          parser.feed(index.read_text(encoding="utf-8"))
+
+          rows, total = [], 0
+          for ref in dict.fromkeys(parser.refs):
+              if "://" in ref or ref.startswith("//"):
+                  sys.exit(f"::error::index.html loads {ref} from another origin; the CSP forbids that")
+              rel = ref.split("?")[0].split("#")[0]
+              rel = rel[2:] if rel.startswith("./") else rel.lstrip("/")
+              path = dist / rel
+              if not path.is_file():
+                  sys.exit(f"::error::index.html references {ref}, which isn't in {dist}")
+              size = gz(path)
+              rows.append((rel, size))
+              total += size
+          if not rows:
+              sys.exit("::error::index.html loads no scripts")
+          every_js = sum(gz(p) for p in dist.rglob("*.js"))
+
+          lines = ["| Initial JS | gzip |", "|---|---:|"]
+          lines += [f"| `{rel}` | {size / 1000:.1f} kB |" for rel, size in rows]
+          lines += [f"| **Total** (budget {budget / 1000:.0f} kB) | **{total / 1000:.1f} kB** |"]
+          note = f"All JS in dist, lazy chunks included: {every_js / 1000:.1f} kB gzip."
+          print("\n".join(lines) + "\n\n" + note)
+          if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+              with open(summary, "a", encoding="utf-8") as f:
+                  f.write("### Bundle-size budget\n\n" + "\n".join(lines) + "\n\n" + note + "\n")
+          if total > budget:
+              print(f"::error::Initial JS is {total / 1000:.1f} kB gzip, over the {budget / 1000:.0f} kB budget. "
+                    "Lazy-load something, or raise INITIAL_JS_BUDGET_KB with a reason.")
+              sys.exit(1)
+          PY
+      - name: Build the hub with the SPA embedded
+        run: |
+          CGO_ENABLED=0 go build -tags webui -trimpath \
+            -ldflags "-s -w -X dash.cha.sh/internal/buildinfo.Version=dev -X dash.cha.sh/internal/buildinfo.Commit=${GITHUB_SHA}" \
+            -o chadash ./cmd/chadash
+      - name: Smoke check
+        run: |
+          ./chadash version
+          ls -l chadash
+
+  image:
+    name: Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # Both platforms build without emulation: Bun runs on the runner's platform
+      # and Go cross-compiles. The result stays in the build cache; nothing is pushed.
+      - name: Build linux/amd64 and linux/arm64
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          provenance: false
+          build-args: |
+            VERSION=dev
+            COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Load linux/amd64 for the smoke test
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: chadash:ci
+          provenance: false
+          build-args: |
+            VERSION=dev
+            COMMIT=${{ github.sha }}
+          cache-from: type=gha
+      - name: Smoke test
+        # Runs the image the way deploy/compose.yaml does: read-only, no
+        # capabilities, a fresh /data volume. It must turn healthy and print a
+        # setup token.
+        run: |
+          user=$(docker image inspect -f '{{.Config.User}}' chadash:ci)
+          if [ "$user" != "65532:65532" ]; then
+            echo "::error::The image runs as '$user', not 65532:65532"
+            exit 1
+          fi
+          docker run --rm chadash:ci version
+          docker run -d --name chadash-smoke -p 127.0.0.1:3696:3696 \
+            --read-only --tmpfs /tmp:size=64m,mode=1777 \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            chadash:ci
+          healthy=
+          for _ in $(seq 30); do
+            if docker exec chadash-smoke /chadash healthcheck 2>/dev/null; then healthy=1; break; fi
+            sleep 1
+          done
+          logs=$(docker logs chadash-smoke 2>&1)
+          echo "$logs"
+          if [ -z "$healthy" ]; then
+            echo "::error::The hub never passed its healthcheck"
+            exit 1
+          fi
+          if ! grep -q 'setup_token=cds_' <<<"$logs"; then
+            echo "::error::No setup token in the first-run logs"
+            exit 1
+          fi
+          curl -fsS -o /dev/null http://127.0.0.1:3696/
+      - name: Image-size budget
+        run: |
+          bytes=$(docker save chadash:ci | gzip -6 | wc -c)
+          mb=$(awk -v b="$bytes" 'BEGIN { printf "%.1f", b / 1000000 }')
+          echo "Image: ${mb} MB gzip (budget ${IMAGE_BUDGET_MB} MB)" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$bytes" -gt $((IMAGE_BUDGET_MB * 1000000)) ]; then
+            echo "::error::The image is over the ${IMAGE_BUDGET_MB} MB budget"
+            exit 1
+          fi

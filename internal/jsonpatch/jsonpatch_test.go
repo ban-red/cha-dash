@@ -22,7 +22,7 @@ func TestCompact(t *testing.T) {
 		{Op: Replace, Path: "/b", Value: 1},
 		{Op: Replace, Path: "/a", Value: 2}, // add+replace → add(2)
 		{Op: Add, Path: "/c", Value: 1},
-		{Op: Remove, Path: "/c"},            // add+remove → nothing
+		{Op: Remove, Path: "/c"}, // add+remove → nothing
 		{Op: Remove, Path: "/d"},
 		{Op: Add, Path: "/d", Value: 9},     // remove+add → replace(9)
 		{Op: Replace, Path: "/b", Value: 3}, // replace+replace → replace(3)

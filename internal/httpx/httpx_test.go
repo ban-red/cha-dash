@@ -95,6 +95,18 @@ func TestDecodeJSON(t *testing.T) {
 			}
 		})
 	}
+
+	// A larger limit admits what the default refuses, and still has a bound.
+	big := `{"name":"` + strings.Repeat("a", MaxBodyBytes) + `"}`
+	for limit, want := range map[int64]int{1 << 20: http.StatusOK, MaxBodyBytes: http.StatusRequestEntityTooLarge} {
+		r := httptest.NewRequest("POST", "/", strings.NewReader(big))
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		var b body
+		if ok := DecodeJSONLimit(w, r, &b, limit); ok != (want == http.StatusOK) || (!ok && w.Code != want) {
+			t.Fatalf("limit %d: ok=%v status=%d", limit, ok, w.Code)
+		}
+	}
 }
 
 func TestMiddleware(t *testing.T) {

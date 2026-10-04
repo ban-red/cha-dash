@@ -148,6 +148,39 @@ func TestNewAppFirstBoot(t *testing.T) {
 	}
 }
 
+func TestNewAppDemo(t *testing.T) {
+	cfg := testConfig(t, t.TempDir())
+	cfg.Demo, cfg.DemoAt, cfg.DemoSeed = true, config.DefaultDemoAt, 1
+	var logs bytes.Buffer
+	a, err := newApp(t.Context(), cfg, slog.New(slog.NewTextHandler(&logs, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.close()
+	if a.demo == nil {
+		t.Fatal("demo mode without a driver")
+	}
+	if _, ok := a.graph.Get("app:chadash"); !ok {
+		t.Fatal("the Demo Home isn't in the graph")
+	}
+	if _, ok := a.graph.Get("chadash:hub"); ok {
+		t.Fatal("in demo mode the Demo Home's app:chadash stands for the hub")
+	}
+	// Demo mode is still a normal hub: first-run setup and its token apply.
+	for _, want := range []string{"demo mode", "sim_time=2026-10-03T14:05:00Z", "setup_token=cds_"} {
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("logs lack %q:\n%s", want, logs.String())
+		}
+	}
+	srv := httptest.NewServer(a.handler)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/api/setup")
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("setup status: %v %v", resp, err)
+	}
+	resp.Body.Close()
+}
+
 func TestNewAppExplicitKeyMissing(t *testing.T) {
 	cfg := testConfig(t, t.TempDir())
 	cfg.SecretKeyFile = filepath.Join(t.TempDir(), "missing.key")

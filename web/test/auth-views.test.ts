@@ -1,0 +1,94 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
+import SetupView from '../src/views/SetupView.vue';
+import LoginView from '../src/views/LoginView.vue';
+import { harness } from './harness';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  document.body.innerHTML = '';
+});
+
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+describe('first-run setup', () => {
+  it('checks the form before asking the hub', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { mountIn } = harness();
+    const w = mountIn(SetupView);
+    await w.find('#setup-token').setValue('cds_abc');
+    await w.find('#setup-user').setValue('owner');
+    await w.find('#setup-pass').setValue('too short');
+    await w.find('#setup-confirm').setValue('too short');
+    await w.find('form').trigger('submit');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(w.find('#setup-pass').attributes('aria-invalid')).toBe('true');
+    expect(w.find('#setup-pass-help').text()).toContain('3 to go');
+
+    await w.find('#setup-pass').setValue('correct horse battery');
+    await w.find('#setup-confirm').setValue('correct horse batterY');
+    await w.find('form').trigger('submit');
+    expect(w.find('#setup-confirm-help').text()).toBe("The two passwords don't match.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('creates the owner and signs in', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(201, { user: { id: 'u1', username: 'owner', role: 'owner' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { mountIn, session } = harness();
+    session.state.phase = 'setup';
+    const w = mountIn(SetupView);
+    await w.find('#setup-token').setValue(' cds_abc ');
+    await w.find('#setup-user').setValue('owner');
+    await w.find('#setup-pass').setValue('correct horse battery');
+    await w.find('#setup-confirm').setValue('correct horse battery');
+    await w.find('form').trigger('submit');
+    await flushPromises();
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ token: 'cds_abc', username: 'owner', password: 'correct horse battery' });
+    expect(session.state.phase).toBe('ready');
+  });
+
+  it('explains a wrong setup token', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(403, { error: { code: 'bad_setup_token', message: 'invalid setup token' } })));
+    const { mountIn } = harness();
+    const w = mountIn(SetupView);
+    await w.find('#setup-token').setValue('cds_wrong');
+    await w.find('#setup-user').setValue('owner');
+    await w.find('#setup-pass').setValue('correct horse battery');
+    await w.find('#setup-confirm').setValue('correct horse battery');
+    await w.find('form').trigger('submit');
+    await flushPromises();
+    expect(w.find('.form-error').text()).toBe("That setup token doesn't match. Copy it again from the hub's log.");
+  });
+});
+
+describe('sign-in', () => {
+  it('signs in', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(200, { user: { id: 'u1', username: 'owner', role: 'owner' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { mountIn, session } = harness();
+    session.state.phase = 'login';
+    const w = mountIn(LoginView);
+    await w.find('#login-user').setValue('owner');
+    await w.find('#login-pass').setValue('correct horse battery');
+    await w.find('form').trigger('submit');
+    await flushPromises();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/auth/login');
+    expect(session.state.phase).toBe('ready');
+  });
+
+  it('says so when the password is wrong, and clears it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(401, { error: { code: 'bad_credentials', message: 'invalid username or password' } })));
+    const { mountIn, session } = harness();
+    session.state.phase = 'login';
+    const w = mountIn(LoginView);
+    await w.find('#login-user').setValue('owner');
+    await w.find('#login-pass').setValue('nope nope nope');
+    await w.find('form').trigger('submit');
+    await flushPromises();
+    expect(w.find('.form-error').text()).toBe('That username and password don’t match.');
+    expect((w.find('#login-pass').element as HTMLInputElement).value).toBe('');
+    expect(session.state.phase).toBe('login');
+  });
+});

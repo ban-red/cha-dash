@@ -1,0 +1,36 @@
+{
+  "name": "@chadash/web",
+  "version": "0.0.0",
+  "description": "The Cha Dash web app: the front page, the Inbox and the realtime client, in Vue.",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@chadash/layout": "workspace:*",
+    "@chadash/layout-vue": "workspace:*",
+    "@chadash/tokens": "workspace:*",
+    "@fontsource-variable/doto": "5.3.0",
+    "@fontsource-variable/geist-mono": "5.3.0",
+    "@fontsource-variable/instrument-sans": "5.3.0",
+    "@fontsource-variable/newsreader": "5.3.0",
+    "@fontsource-variable/schibsted-grotesk": "5.3.0",
+    "@vueuse/core": "15.0.0",
+    "motion-v": "2.5.2",
+    "vue": "3.6.0-rc.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vue/test-utils": "2.5.1",
+    "happy-dom": "20.14.5",
+    "typescript": "6.0.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3",
+    "vue-tsc": "3.3.12"
+  }
+}

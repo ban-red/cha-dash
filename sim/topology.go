@@ -720,6 +720,7 @@ func (b *builder) pvedocker() {
 	}
 	cts := []ct{
 		{"chadash", "ghcr.io/ban-red/chadash:0.1", "chadash", "app:chadash", wave{base: 0.8, slow: 0.3, fast: 0.2}, wave{base: 62, slow: 3, fast: 0.5}, []string{"3696/tcp"}},
+		{"homepage", "ghcr.io/gethomepage/homepage:v1", "homepage", "", wave{base: 0.4, slow: 0.2, fast: 0.1}, wave{base: 120, slow: 4, fast: 1}, []string{"3000/tcp"}}, // the dashboard the Homepage importer reads
 		{"dockerproxy", "wollomatic/socket-proxy:1", "proxy", "", wave{base: 0.1, fast: 0.05}, wave{base: 11, fast: 0.5}, []string{"2375/tcp"}},
 		{"traefik", "traefik:v3", "proxy", "app:traefik", wave{base: 0.9, amp: 0.6, peak: 21, slow: 0.3, fast: 0.2}, wave{base: 85, slow: 4, fast: 1}, []string{"80/tcp", "443/tcp"}},
 		{"uptimekuma", "louislam/uptime-kuma:2", "uptimekuma", "app:uptimekuma", wave{base: 1.6, slow: 0.4, fast: 0.3}, wave{base: 160, slow: 6, fast: 1}, []string{"3001/tcp"}},

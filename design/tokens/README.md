@@ -7,7 +7,7 @@ design/tokens/
   themes/*.yaml              the six built-in theme documents
   schema/theme.schema.json   JSON Schema for theme documents (format 1)
   src/core.js                the generator core: pure, no imports, also runs in the browser
-  scripts/generate.ts        themes → dist/tokens.css + dist/tokens.json
+  scripts/generate.ts        themes → dist/tokens.css + dist/tokens.json + dist/grain-<hash>.svg
   scripts/inject.ts          inlines the core, tokens.css and themes into the prototype
   scripts/report.ts          prints the validator and contrast tables below
   dist/                      generated, committed
@@ -23,7 +23,9 @@ design/tokens/
 | `bun run typecheck` | `tsc --noEmit` with `checkJs` over the core, scripts and tests |
 | `bun run report` | Markdown tables of status-pair and text-contrast results |
 
-**Hand-off:** `web/` should consume `dist/tokens.css` (06 · Next steps 1.3 names `web/src/design/tokens.css`) and can import `src/core.js` for runtime theme generation and validation.
+**Hand-off:** `web/` imports `@chadash/tokens/tokens.css` and can import `src/core.js` for runtime theme generation and validation.
+
+**No `data:` URIs in `dist/`.** The hub serves the app under `default-src 'self'`, so `dist/tokens.css` (from `buildCssWithAssets`) references Paper's grain as a file, `grain-<content hash>.svg`, which bundlers resolve and ship. `buildCss` keeps the grain inline for pages without a CSP, such as the static prototype.
 
 ---
 
@@ -130,7 +132,7 @@ Script can use `spring(duration, bounce).state(t, v0)` for interruptible, veloci
 
 ES module imports don't load from `file://` in Chromium, so the prototype can't `import` the core.
 - `bun run inject` rewrites `export function x` to `function x`, wraps the file in an IIFE (`const ChaTokens = (() => { … })()`), and writes it between `/* @generated:core begin */` and `/* @generated:core end */` in `m0-v2.html`.
-- `dist/tokens.css` and the theme documents are injected the same way.
+- The tokens CSS (from `buildCss`, with the grain inline, since `file://` pages have no CSP) and the theme documents are injected the same way.
 - `test/inline.test.ts` fails if any inline block differs from its source. It also runs the inline copy in a VM and checks that it produces byte-identical CSS.
 
 ---

@@ -168,6 +168,7 @@ Tags indicate the target milestone. See [04 · Roadmap](04-roadmap.md).
   - Update proposals and unprotected resources. `v0.4`
   - New nodes awaiting approval. `v0.3`
 - **Homepage importer**: services.yaml, widgets and labels mapped to Cha Dash in under a minute. `v0.1`
+- **More importers**, each named after its source: Homarr and plain YAML. `v0.2`
 
 ### Home Graph and Atlas
 - A unified resource graph with identity resolution that merges the same container seen by Unraid *and* Docker *and* Traefik. `v0.1` (basic), `v0.3` (full)

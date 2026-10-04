@@ -7,10 +7,11 @@ import (
 
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/jsonpatch"
+	"dash.cha.sh/internal/livedoc"
 )
 
-// Source resolves topic names to feeds. The graph is the first source;
-// metrics and tasks will be others.
+// Source resolves topic names to feeds. GraphSource serves the Home Graph,
+// DocSource a live document (metrics, inbox), and Mux combines them.
 type Source interface {
 	// Open starts a feed for topic. The feed sends a non-blocking signal on
 	// notify (buffer 1, possibly shared) whenever it has updates.
@@ -81,3 +82,48 @@ func (f graphFeed) Drain() (uint64, []jsonpatch.Op, error) {
 }
 
 func (f graphFeed) Close() { f.w.Close() }
+
+// Mux routes each topic to the source registered under its name: the part
+// before the first ':', so "graph:kind/vm" goes to the "graph" source.
+type Mux map[string]Source
+
+// Open implements Source.
+func (m Mux) Open(topic string, notify chan<- struct{}) (Feed, error) {
+	name, _, _ := strings.Cut(topic, ":")
+	src, ok := m[name]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownTopic, topic)
+	}
+	return src.Open(topic, notify)
+}
+
+// DocSource serves a live document as a single topic. Patch paths are
+// relative to the document, like the graph's.
+type DocSource struct {
+	Doc   *livedoc.Doc
+	Topic string
+	// MaxPending bounds each feed's undelivered operations before it lags.
+	MaxPending int
+}
+
+// Open implements Source.
+func (s DocSource) Open(topic string, notify chan<- struct{}) (Feed, error) {
+	if topic != s.Topic {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownTopic, topic)
+	}
+	return docFeed{s.Doc.Watch(notify, s.MaxPending)}, nil
+}
+
+type docFeed struct{ w *livedoc.Watcher }
+
+func (f docFeed) Snapshot() (uint64, any) { return f.w.Snapshot() }
+
+func (f docFeed) Drain() (uint64, []jsonpatch.Op, error) {
+	seq, ops, err := f.w.Drain()
+	if errors.Is(err, livedoc.ErrLagged) {
+		return 0, nil, fmt.Errorf("%w: %w", ErrResync, err)
+	}
+	return seq, ops, err
+}
+
+func (f docFeed) Close() { f.w.Close() }

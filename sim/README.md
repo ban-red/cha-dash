@@ -33,7 +33,7 @@ A `Sim` is safe for concurrent use. Snapshots and events are deep copies, so cha
 
 ## Topology
 
-128 resources and 200 relations. Addresses are sanitized: `10.0.11.x`, `*.lab.example` and `*.family.example` only. A test enforces this.
+129 resources and 201 relations. Addresses are sanitized: `10.0.11.x`, `*.lab.example` and `*.family.example` only. A test enforces this.
 
 ```
 internet ── net:opnsense/wan ── net:opnsense (router · provides_network_for every host and camera)
@@ -44,7 +44,7 @@ pve:minig5          home · 16 GB            qemu/100 homeassistant ─ app:home
                                             lxc/101 frigate ─ app:frigate ──exposes──▶ camera driveway · side_deck · backyard
 pve:mars            cluster of 2
  ├ pve:mars-1       32 GB                   lxc/110 pvedocker ─ docker:pvedocker (socket proxy)
- │                                            chadash (this hub, self: true) · dockerproxy · traefik · uptimekuma · linkding
+ │                                            chadash (this hub, self: true) · homepage · dockerproxy · traefik · uptimekuma · linkding
  │                                            karakeep-web-1 ─depends_on─▶ karakeep-chrome-1, karakeep-meilisearch-1
  └ pve:mars-2       32 GB                   (no guests)
 pve:io              workstation · 64 GB     qemu/201 win-gaming (off) · qemu/202 iolinux · qemu/203 devbox (off)
@@ -209,10 +209,10 @@ go test ./sim -run TestSnapshots -update
   - Karakeep versions 0.30.2 → 0.31.0.
 - **Containers are the known set only:**
   - on jupiter: 11 containers, the fixture's plus mealie, immich, pbs and the socket proxy;
-  - on pvedocker: 8 containers.
+  - on pvedocker: 9 containers.
 
   The prototype's "24 containers" was a placeholder.
-- **No other dashboard product is named in the data.** The container that runs today's dashboard on pvedocker is modelled as `chadash`, the hub's likely home (`app:chadash` has `self: true`). That makes hub self-awareness show up in blast radii.
+- **The hub and the dashboard it replaces run side by side on pvedocker.** `chadash` is the hub (`app:chadash` has `self: true`, so hub self-awareness shows up in blast radii). `homepage` is the dashboard the **Homepage importer** reads during first run. Import sources are named after what they are; other importers (Homarr, plain YAML) work the same way.
 - **Tiers:**
   - Reconnect Plex is T0: a sign-in, nothing to undo.
   - Update the Karakeep integration is T1: it can be undone.

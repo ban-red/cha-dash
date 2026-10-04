@@ -511,6 +511,9 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
   - secrets as `${secret:…}` references
   - import shows a **visual and text diff** before applying
 - **Optional git sync** (v1.0).
+- **Importers, one per source**, each named after what it reads. They share one pipeline: parse the source, map it to a board plus integration instances, move every secret into the vault, show the diff preview, and turn leftovers into Inbox suggestions. Fixtures live in `testdata/importers/<source>/`.
+  - **Homepage** (v0.1), detailed below.
+  - **Homarr** and **plain YAML** (a simple list of links and services, for hand-written setups) are next, in v0.2.
 - **Homepage importer** (v0.1). Its acceptance test is [`testdata/importers/homepage/dogfood/`](../../testdata/importers/homepage/dogfood/README.md), a sanitized copy of the dogfood home's real config.
   - **What it maps:**
     - `services.yaml` groups → sections (column hints come from `settings.layout`); entries → tiles and checks; `widget` blocks → integration instances.

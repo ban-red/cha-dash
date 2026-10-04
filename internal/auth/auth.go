@@ -33,9 +33,12 @@ import (
 
 const (
 	CookieName = "chadash_session"
-	// SessionTTL is absolute: sessions don't slide. Re-signing in monthly is
-	// cheap once passkeys land.
+	// SessionTTL is an idle timeout: each use renews it, so a session in
+	// regular use never expires and one left unused for 30 days does.
 	SessionTTL = 30 * 24 * time.Hour
+	// renewEvery throttles renewal: expiry (and the cookie) moves forward at
+	// most once a day, so sliding costs one write per session per day.
+	renewEvery = 24 * time.Hour
 	// lastSeenEvery throttles session last_seen writes on the request path.
 	lastSeenEvery = 5 * time.Minute
 
@@ -276,14 +279,27 @@ func (s *Service) lookupSession(ctx context.Context, token string) (Session, Use
 	return sess, u, nil
 }
 
-func (s *Service) touchSession(ctx context.Context, sess Session) {
+// touchSession records a use of sess and slides its expiry forward once the
+// last renewal is more than renewEvery old. It reports whether it renewed, so
+// the caller can reissue the cookie with the new expiry.
+func (s *Service) touchSession(ctx context.Context, sess *Session) (renewed bool) {
 	now := s.now()
-	if now.Sub(sess.lastSeen) < lastSeenEvery {
-		return
+	switch {
+	case sess.ExpiresAt.Sub(now) < SessionTTL-renewEvery:
+		expires := now.Add(SessionTTL)
+		if _, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?`,
+			now.UnixMilli(), expires.UnixMilli(), sess.ID); err != nil {
+			s.log.Warn("could not renew session", "session", sess.ID, "err", err)
+			return false
+		}
+		sess.ExpiresAt, sess.lastSeen = expires, now
+		return true
+	case now.Sub(sess.lastSeen) >= lastSeenEvery:
+		if _, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, now.UnixMilli(), sess.ID); err != nil {
+			s.log.Warn("could not update session last_seen", "session", sess.ID, "err", err)
+		}
 	}
-	if _, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, now.UnixMilli(), sess.ID); err != nil {
-		s.log.Warn("could not update session last_seen", "session", sess.ID, "err", err)
-	}
+	return false
 }
 
 func (s *Service) deleteSession(ctx context.Context, token string) error {

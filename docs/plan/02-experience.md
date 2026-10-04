@@ -302,7 +302,7 @@ Each widget renders four variants plus a night tint.
 **Edit mode**
 - Enter it by long-pressing empty space, pressing `E`, or via ⌘K → "Edit layout".
 - Widgets **lift** slightly with a scale and soft shadow, instead of jiggling. Their content dims to about 60% and the unit grid fades in.
-- Drag anywhere on a widget. Neighbors reflow on `lift` springs, and the landing spot is projected from momentum.
+- Drag anywhere on a widget. The dragged tile lifts on the `lift` spring, neighbors reflow on the `move` spring (as in the Motion table), and the landing spot is projected from momentum ([`@chadash/layout-vue`](../../packages/layout-vue/README.md)).
 - A **single corner resize handle** snaps to supported sizes and shows a "4×2" label as it snaps.
 - Keyboard: arrows move, Shift+arrows resize, Enter picks up or drops, Esc reverts the current drag.
 

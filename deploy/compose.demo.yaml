@@ -1,0 +1,22 @@
+# Demo mode: Cha Dash runs the built-in Demo Home simulator, a made-up homelab
+# with scripted incidents, instead of reading anything real.
+#
+#   docker compose -f compose.yaml -f compose.demo.yaml up -d
+#   docker compose -f compose.yaml -f compose.demo.yaml logs chadash | grep setup
+#
+# It runs as its own Compose project with its own volume, so demo data never
+# mixes with a real install, and `down -v` on the demo leaves a real install
+# alone. Stop a real install first: both publish port 3696.
+
+name: chadash-demo
+
+services:
+  chadash:
+    environment:
+      CHADASH_DEMO: "1"
+      # CHADASH_DEMO_AT: "now"      # default 14:05 sim time, all six incidents open
+      # CHADASH_DEMO_SEED: "7"      # changes noise and IDs, not the topology or script
+
+  # The demo needs no Docker access. `--profile docker` would start it anyway.
+  socket-proxy:
+    profiles: [docker]

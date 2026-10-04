@@ -11,17 +11,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/config"
+	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/server"
 	"dash.cha.sh/internal/store"
+	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/internal/vault"
+	"dash.cha.sh/internal/webui"
 )
 
 func serve(ctx context.Context, args []string, getenv func(string) string, stderr io.Writer) int {
@@ -72,11 +77,20 @@ type app struct {
 	store   *store.Store
 	vault   *vault.Vault
 	graph   *graph.Graph
+	topics  *topics.Set
+	demo    *demo.Driver // nil outside demo mode
 	hub     *realtime.Hub
+
+	stop context.CancelFunc // ends the background work below
+	bg   sync.WaitGroup     // the demo driver or the inbox clock
 }
 
+// inboxClock is how often the inbox clock ticks outside demo mode, matching
+// the demo's sample interval.
+const inboxClock = 30 * time.Second
+
 func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, err error) {
-	log.Info("starting "+buildinfo.String(), "data_dir", cfg.DataDir)
+	log.Info("starting "+buildinfo.String(), "data_dir", cfg.DataDir, "web_app", webui.Embedded)
 
 	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
 		return nil, fmt.Errorf("data dir: %w", err)
@@ -113,9 +127,19 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 
 	g := graph.New()
-	// The hub knows about itself, so the graph is never empty and later the
-	// "this would take Cha Dash down" checks have a node to start from.
-	if _, err := g.Update(func(tx *graph.Tx) error {
+	tp := topics.New(g, time.Now())
+	var drv *demo.Driver
+	if cfg.Demo {
+		// The Demo Home owns the graph; its app:chadash (self: true) stands
+		// for the hub.
+		drv, err = demo.New(tp, demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, At: cfg.DemoAt, Log: log})
+		if err != nil {
+			return nil, err
+		}
+		log.Info("demo mode: running the Demo Home simulator", "seed", cfg.DemoSeed, "sim_time", drv.Now().Format(time.RFC3339))
+	} else if _, err := g.Update(func(tx *graph.Tx) error {
+		// The hub knows about itself, so the graph is never empty and later
+		// the "this would take Cha Dash down" checks have a node to start from.
 		return tx.Upsert(graph.Resource{
 			ID: "chadash:hub", Kind: "app", Name: "Cha Dash",
 			Attrs: map[string]any{"version": buildinfo.Version},
@@ -125,7 +149,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
-	hub := realtime.New(realtime.GraphSource{Graph: g}, realtime.Options{
+	hub := realtime.New(tp.Source(), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,
 		Log:            log,
@@ -135,17 +159,29 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Store:          st,
 		Auth:           authSvc,
 		Realtime:       hub,
-		Web:            nil, // step 3.8: the embedded SPA
+		Web:            webui.New(),
 		Proxies:        proxies,
 		AllowedOrigins: cfg.AllowedOrigins,
+		Demo:           drv,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &app{handler: h, store: st, vault: v, graph: g, hub: hub}, nil
+
+	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub}
+	bg, stop := context.WithCancel(ctx)
+	a.stop = stop
+	if drv != nil {
+		a.bg.Go(func() { drv.Run(bg) })
+	} else {
+		a.bg.Go(func() { tp.RunClock(bg, inboxClock, time.Now) })
+	}
+	return a, nil
 }
 
 func (a *app) close() error {
+	a.stop()
+	a.bg.Wait()
 	a.hub.Close()
 	return a.store.Close()
 }

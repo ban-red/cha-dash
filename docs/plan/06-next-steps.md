@@ -12,11 +12,12 @@
 >   - the hub skeleton;
 >   - the Demo Home simulator;
 >   - the node spike (4.6).
-> - **Wave 2 next:**
->   - the `web/` scaffold with the Vue renderer (2.3, 3.8);
->   - the Dockerfile and compose file (3.9);
->   - CI (3.10);
->   - wiring the simulator into the Home Graph.
+> - **Wave 2:**
+>   - ✅ demo mode wires the simulator into the Home Graph, with `metrics` and `inbox` topics, the boards/layout API and the embedded SPA;
+>   - ✅ the Dockerfile, compose files and CI (3.9, 3.10);
+>   - ✅ the Vue layout renderer, `packages/layout-vue` (2.3);
+>   - ✅ the `web/` app with edit mode (3.8): first-run setup, the front page in Direction A, the Inbox with hold-to-confirm fixes, six themes, drag/resize editing saved to the hub.
+> - **Next: the M0 demo, ▶ you run it** (`CHADASH_DEMO=1`, see CONTRIBUTING → Developing), then the M0 review.
 >
 > M0 is done when a live front page runs on Demo Home data in the chosen direction, the layout engine feels right, and decisions 12–17 have ADRs ([04 · Roadmap](04-roadmap.md#m0-foundations)).
 
@@ -56,7 +57,7 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 | 1.1 | ✅ **Direction A, very themeable** (decision 12). B becomes the built-in Paper theme | — | done |
 | 1.2 | ✅ **Prototype v2** in Direction A, **with the theme engine**: <ul><li>theme switcher: Instrument Dark/Light, OLED, Night, High Contrast, Paper</li><li>live base/accent/contrast editor that shows status-pair validation as you change it</li><li>surface (card/ruled), density and Briefing (sentence/headline) toggles</li><li>first-run and empty states</li><li>Inbox repairs flow</li><li>motion study (expand in place, reflow springs, hold ring, lens fade)</li><li>night and phone polish</li><li>the "simplified" wall detail level for 3 widgets</li></ul> | `design/prototypes/m0-v2.html` | You'd ship the look |
 | 1.3 | ✅ **Tokens v0 + theme schema**: the token document format (YAML/JSON) and a generator from base/accent/contrast. OKLCH 12-step scales per theme, type scale, spacing, radii and motion tokens, exported as CSS variables. Status pairs re-validated with the palette validator, and APCA checks on text | `design/tokens/` → `web/src/design/tokens.css` | Validator and contrast checks pass |
-| 1.4 | ✅ Seed the **Workbench** list (19 widgets, 80 size cells; **waiting on your agreement**): every v0.1 widget × size × state it must support | `docs/design/workbench.md` | Agreed list |
+| 1.4 | ✅ Seed the **Workbench** list (19 widgets, 80 size cells; agreed 2026-10-03): every v0.1 widget × size × state it must support | `docs/design/workbench.md` | Agreed list |
 
 ## Track 2: Layout engine spike (independent; can start now)
 
@@ -64,7 +65,7 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 |---|---|---|
 | 2.1 | ✅ **`packages/layout`** (pure TypeScript, framework-agnostic): <ul><li>model: sections; items with `supportedSizes`</li><li>operations: place, move, resize-to-size, remove, smart insert</li><li>dense Z-reflow; derived breakpoints (12 → 8 → 4 columns)</li><li>immutable history (undo/redo); serialization</li></ul> | package + API doc |
 | 2.2 | ✅ **Property tests** (fast-check, 9,400 runs per `bun test`): <ul><li>no overlaps; all items in bounds</li><li>derivation is deterministic</li><li>undo restores exactly</li><li>resizing only ever lands on supported sizes</li></ul> | green test suite |
-| 2.3 | **Vue 3.6 renderer** (note: the workspace resolved TypeScript 7, the native compiler; check `vue-tsc` works with it or pin 5.x/6.x in `web/`): pointer drag with momentum projection, Motion for Vue springs, a corner resize handle that snaps, keyboard move and resize, edit mode | `web/` demo route |
+| 2.3 | ✅ **Vue 3.6 renderer** ([`packages/layout-vue`](../../packages/layout-vue/README.md); vue-tsc needs TypeScript 6, pinned per package): pointer drag with momentum projection, Motion for Vue springs, a corner resize handle that snaps, keyboard move and resize, edit mode | `web/` demo route |
 | 2.4 | **One-day gridstack 14 comparison** on the same scenarios | ADR-0013 |
 | 2.5 | Feel check on a real phone: 60 fps drag | ▶ you run the dev server |
 
@@ -79,9 +80,9 @@ Four of these tracks can run **in parallel**: design, layout engine, hub and sim
 | 3.5 | ✅ **Vault**: XChaCha20-Poly1305 envelope encryption; key auto-generated on first boot or loaded from `CHADASH_SECRET_KEY_FILE` | `internal/vault` |
 | 3.6 | ✅ **Home Graph v0 + realtime**: an in-memory graph, and the WebSocket protocol (`hello` / `sub` / `snap` / `diff` / `ping`) from the architecture doc | `internal/graph`, `internal/realtime` |
 | 3.7 | ✅ **Demo Home simulator v0** ([`sim/`](../../sim/README.md)): the dogfood topology (5 PVE endpoints, Unraid with PBS, pvedocker, OPNsense, HA, Frigate) plus scripted incidents (PBS filling up, failed backup, memory pressure, Plex token revoked, Karakeep API change, OOM-killed qBittorrent). It also exports JSON snapshots so later prototypes use the same data | `sim/` |
-| 3.8 | **`web/` scaffold**: Vue 3.6 + Vite SPA embedded with `go:embed`; one live page subscribed to the simulator over the WebSocket | SPA |
-| 3.9 | **Ship shape**: multi-stage Dockerfile (scratch, non-root, `/data`), `deploy/compose.yaml` with the socket-proxy preset | ▶ you run `docker compose up -d` |
-| 3.10 | **CI**: go vet/test/govulncheck; bun lint/typecheck/test; image build (no push); bundle-size budget. Then turn on branch protection for `main` | `.github/workflows/ci.yml` |
+| 3.8 | ✅ **`web/` scaffold**: Vue 3.6 + Vite SPA embedded with `go:embed`; one live page subscribed to the simulator over the WebSocket | SPA |
+| 3.9 | ✅ **Ship shape** (written; first real build is CI's Image job): multi-stage Dockerfile (scratch, non-root, `/data`), `deploy/compose.yaml` with the socket-proxy preset | ▶ you run `docker compose up -d` |
+| 3.10 | ✅ **CI** (staticcheck, govulncheck, budgets: 150 kB initial JS gzip, 40 MB image): go vet/test/govulncheck; bun lint/typecheck/test; image build (no push); bundle-size budget. Then turn on branch protection for `main` | `.github/workflows/ci.yml` |
 
 ## Track 4: Plumbing spikes against your lab
 

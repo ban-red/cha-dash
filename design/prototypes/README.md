@@ -51,7 +51,7 @@ The bottom bar holds Moment, View, the six theme dots, Desktop/Phone and **Appea
 **Moments:**
 - **Today:** the real incidents. PBS 92% plus a failed verify and jupiter-nas memory 95% in Needs attention. Plex and Karakeep as Inbox repairs, not outages.
 - **All quiet:** healthy is quiet. Empty states: "Queue clear", "Nothing playing", Inbox zero.
-- **First run:** what the hub finds on its own host with nothing configured: 11 services through the socket proxy, setup cards, a locked tile that needs a key, empty weather. **Review import** brings in the rest of the home, and the page reflows into Today.
+- **First run:** what the hub finds on its own host with nothing configured: 11 services through the socket proxy, setup cards, a locked tile that needs a key, empty weather. **Review import** opens the import sheet with a source picker (Homepage, found on pvedocker; Homarr and plain YAML in v0.2), brings in the rest of the home, and the page reflows into Today.
 - **Hub offline:** a banner, every tile hatched with "as of", the cameras' last frame, actions disabled. **Retry now** reconnects.
 
 **Inbox repairs flow:**

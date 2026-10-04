@@ -1,0 +1,38 @@
+# Keeps the build context small and free of secrets. The Dockerfile copies
+# only what it needs; this file stops the rest from being sent at all.
+
+# Version control and tooling
+.git
+.github
+.claude
+.idea
+.vscode
+**/.DS_Store
+**/*.swp
+
+# Secrets and local data: never in an image
+.env*
+!.env.example
+**/*.key
+**/*.pem
+**/*.raw.yaml
+**/*.raw.json
+data
+**/*.db*
+
+# Dependencies and build output (the image builds its own)
+**/node_modules
+**/coverage
+internal/webui/dist
+web/dist
+dist
+bin
+chadash
+spikes/*/bin
+
+# Not needed to build the hub
+docs
+design/prototypes
+spikes
+testdata
+deploy

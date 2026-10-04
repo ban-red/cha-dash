@@ -2,7 +2,7 @@
   "name": "@chadash/layout",
   "version": "0.0.0",
   "description": "Framework-agnostic layout engine for Cha Dash boards: sections, sized widgets, dense Z-order reflow, derived breakpoints, history and serialization.",
-  "license": "AGPL-3.0-only",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "type": "module",
   "sideEffects": false,

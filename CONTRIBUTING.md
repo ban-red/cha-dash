@@ -1,6 +1,6 @@
 # Contributing to Cha Dash
 
-Thanks for your interest! Cha Dash is in its **planning phase**: there's no application code yet. The research and product plan live in [`docs/`](docs/).
+Thanks for your interest! Cha Dash is building its **M0 foundations**: the hub, the layout engine, the design tokens and the Demo Home simulator are in place, and the web app is on its way. The product plan lives in [`docs/plan/`](docs/plan/), and decisions are recorded in [`docs/adr/`](docs/adr/README.md).
 
 ## How to help right now
 
@@ -22,6 +22,59 @@ When code contributions open, expect a few house rules:
 - **Integrations ship with recorded fixtures and contract tests** ([architecture → integration framework](docs/plan/03-architecture.md#integration-framework)).
 - **Every widget is designed for all its sizes and states** (loading, live, stale, error, empty) ([experience doc](docs/plan/02-experience.md#widget-anatomy-and-states)).
 - **No third-party JavaScript in the app.** Integrations emit data, and our widgets render it.
+
+## Developing
+
+The hub is one Go binary with the Vue SPA embedded. JavaScript is development tooling only; nothing from it ships except the built SPA.
+
+**Prerequisites**
+- **Go.** `go.mod` pins Go 1.27.1. Any Go from 1.21 on downloads that toolchain by itself the first time you run a `go` command.
+- **Bun 1.4 or newer.** It is the package manager, workspace manager, script runner and test runner ([ADR-0019](docs/adr/0019-bun-for-javascript-tooling.md)). You don't need Node or pnpm.
+- **Docker**, only to build the image.
+
+**Install, test and typecheck**
+
+```sh
+bun install          # every JavaScript workspace: web/, packages/*, design/tokens
+bun run typecheck
+bun run test
+go test ./...        # needs no SPA build
+```
+
+After editing a theme in `design/tokens/themes/`, run `bun run generate` in `design/tokens`. CI fails when `dist/` is stale.
+
+**Running locally.** Two terminals. The hub runs on the Demo Home simulator, so you need no homelab:
+
+```sh
+# 1. the hub on :3696, with its database and vault key in ./data (git-ignored)
+CHADASH_DATA_DIR=./data go run ./cmd/chadash serve --demo
+
+# 2. the SPA with hot reload; its dev server proxies the API and WebSocket to :3696
+cd web && bun run dev
+```
+
+Open the address the dev server prints. On first run the hub logs a **setup token**; enter it in the browser to create the owner account. Delete `./data` to start over.
+
+**Building**
+
+```sh
+bun run build        # the SPA, into internal/webui/dist/
+CGO_ENABLED=0 go build -tags webui -trimpath -o chadash ./cmd/chadash
+docker build -t chadash:dev .        # the image, from the same steps
+```
+
+**`-tags webui` embeds the SPA** from `internal/webui/dist/`, so build the SPA first. Without the tag the hub serves a placeholder page, which is all `go test` and `go run` need.
+
+**CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same steps on every pull request:
+
+| Job | Checks |
+|---|---|
+| Go | gofmt, `go vet`, `go test -race`, staticcheck, govulncheck |
+| JavaScript | frozen `bun install`, typecheck, tests, design tokens up to date |
+| Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui` |
+| Image | amd64 and arm64 builds (no push), a smoke run, **image ≤ 40 MB compressed** |
+
+The budgets come from [03 · Architecture](docs/plan/03-architecture.md#performance-budgets-enforced-in-ci-where-possible). Raising one takes a reason in the pull request.
 
 ## Fixtures and privacy
 

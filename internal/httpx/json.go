@@ -9,7 +9,7 @@ import (
 )
 
 // MaxBodyBytes bounds JSON request bodies. API requests are small; layouts,
-// the largest, go through their own endpoint later with their own limit.
+// the largest, use DecodeJSONLimit with their own bound.
 const MaxBodyBytes = 64 << 10
 
 // WriteJSON writes v as a JSON response.
@@ -39,12 +39,17 @@ func Error(w http.ResponseWriter, status int, code, message string) {
 // error response and returns false. Requiring application/json also means a
 // cross-site form post can't reach the handler without a CORS preflight.
 func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	return DecodeJSONLimit(w, r, dst, MaxBodyBytes)
+}
+
+// DecodeJSONLimit is DecodeJSON with a body limit other than MaxBodyBytes.
+func DecodeJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
 	mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mt != "application/json" {
 		Error(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "request body must be application/json")
 		return false
 	}
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxBodyBytes))
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
 		var tooBig *http.MaxBytesError

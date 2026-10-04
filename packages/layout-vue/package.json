@@ -1,0 +1,39 @@
+{
+  "name": "@chadash/layout-vue",
+  "version": "0.0.0",
+  "description": "Vue 3.6 renderer for the Cha Dash layout engine: the board, pointer drag with momentum projection, spring reflow, the corner resize handle, keyboard editing and announcements.",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.vue",
+    "*.css"
+  ],
+  "exports": "./src/index.ts",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "vue": "^3.6.0-rc.10"
+  },
+  "dependencies": {
+    "@chadash/layout": "workspace:*",
+    "@vueuse/core": "^15.0.0",
+    "motion-v": "^2.5.2"
+  },
+  "devDependencies": {
+    "@chadash/tokens": "workspace:*",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "@vue/test-utils": "^2.5.1",
+    "happy-dom": "^20.14.5",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
+    "vue": "3.6.0-rc.10",
+    "vue-tsc": "^3.3.12"
+  }
+}

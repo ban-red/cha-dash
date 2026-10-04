@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cha Dash</title>
+</head>
+<body>
+<h1>Cha Dash</h1>
+<p>The hub is running, but the web app isn't embedded in this build.</p>
+<p>To build it in, run these at the repository root:</p>
+<pre>bun install
+bun run build
+go build -tags webui ./cmd/chadash</pre>
+<p>The API and the realtime socket work without it.</p>
+<p>First run? The setup token is in the hub's logs.</p>
+</body>
+</html>

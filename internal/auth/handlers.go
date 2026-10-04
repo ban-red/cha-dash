@@ -59,7 +59,9 @@ func (s *Service) Require(next http.Handler) http.Handler {
 			httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "sign in required")
 			return
 		}
-		s.touchSession(r.Context(), sess)
+		if s.touchSession(r.Context(), &sess) {
+			s.setCookie(w, r, c.Value, sess.ExpiresAt)
+		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, Identity{User: u, Session: sess})))
 	})
 }
@@ -71,17 +73,22 @@ func (s *Service) StartSession(w http.ResponseWriter, r *http.Request, u User, m
 	if err != nil {
 		return Session{}, err
 	}
+	s.setCookie(w, r, token, sess.ExpiresAt)
+	return sess, nil
+}
+
+// setCookie writes the session cookie; its lifetime tracks the session's expiry.
+func (s *Service) setCookie(w http.ResponseWriter, r *http.Request, token string, expires time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,
 		Value:    token,
 		Path:     "/",
-		Expires:  sess.ExpiresAt,
-		MaxAge:   int(SessionTTL / time.Second),
+		Expires:  expires,
+		MaxAge:   int(expires.Sub(s.now()) / time.Second),
 		HttpOnly: true,
 		Secure:   s.proxies.IsHTTPS(r),
 		SameSite: http.SameSiteLaxMode,
 	})
-	return sess, nil
 }
 
 func (s *Service) clearCookie(w http.ResponseWriter, r *http.Request) {

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
 import {
-  apca, buildCss, checkTheme, moreContrast, resolveTheme, separation, themeTokenNames, THRESHOLDS, wcag,
+  apca, buildCss, buildCssWithAssets, checkTheme, moreContrast, resolveTheme, separation, themeTokenNames, THRESHOLDS, wcag,
   globalTokens, validateThemeDoc, type ThemeDoc,
 } from '../src/core.js';
 import { generate } from '../scripts/generate.ts';
@@ -55,7 +55,19 @@ describe('generated output', () => {
     const a = generate(), b = generate();
     expect(a.css).toBe(b.css);
     expect(a.json).toBe(b.json);
-    expect(buildCss(docs)).toBe(a.css);
+    expect(buildCssWithAssets(docs).css).toBe(a.css);
+  });
+
+  test('ships no data: URIs; the grain is a file next to tokens.css', () => {
+    const out = generate();
+    expect(out.css).not.toContain('data:');
+    const names = Object.keys(out.assets);
+    expect(names.length).toBeGreaterThan(0);
+    for (const n of names) {
+      expect(out.css).toContain(`url("${n}")`);
+      expect(out.assets[n]).toStartWith('<svg');
+      expect(readFileSync(join(DIST_DIR, n), 'utf8')).toBe(out.assets[n]);
+    }
   });
 
   test('dist/ is up to date (run `bun run generate`)', () => {

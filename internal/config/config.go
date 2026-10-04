@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -48,7 +49,20 @@ type Config struct {
 	// state-changing requests and WebSockets, for proxies that rewrite Host.
 	// Same-origin requests are always allowed.
 	AllowedOrigins []string
+
+	// Demo runs the Demo Home simulator in place of a real home.
+	Demo bool
+	// DemoWallClock makes the simulated clock the real one
+	// (CHADASH_DEMO_AT=now). Otherwise the demo starts at DemoAt, a time of
+	// day on the simulator's own day, and runs in real time from there.
+	DemoWallClock bool
+	DemoAt        time.Duration
+	DemoSeed      int64
 }
+
+// DefaultDemoAt is when the demo day starts: 14:05, the moment all six of
+// the default script's incidents are open (sim.DefaultAllOpen).
+const DefaultDemoAt = 14*time.Hour + 5*time.Minute
 
 // KeyFile returns the vault key path and whether the operator set it explicitly.
 // The vault only auto-generates a key at the default path.
@@ -74,6 +88,9 @@ func (c Config) Logger(w io.Writer) *slog.Logger {
 // Loader binds the shared flags to a FlagSet. Call Config after fs.Parse.
 type Loader struct {
 	listen, dataDir, keyFile, level, format, proxies, origins string
+	demo                                                      bool
+	demoAt, demoSeed                                          string
+	envErrs                                                   []error // env values a flag default can't hold
 }
 
 // Bind registers the config flags on fs, defaulting each from the environment.
@@ -92,17 +109,45 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 	fs.StringVar(&l.format, "log-format", env("CHADASH_LOG_FORMAT", "text"), "text or json (env CHADASH_LOG_FORMAT)")
 	fs.StringVar(&l.proxies, "trusted-proxies", env("CHADASH_TRUSTED_PROXIES", ""), "comma-separated proxy IPs/CIDRs whose X-Forwarded-* headers are trusted (env CHADASH_TRUSTED_PROXIES)")
 	fs.StringVar(&l.origins, "allowed-origins", env("CHADASH_ALLOWED_ORIGINS", ""), "comma-separated extra origins, e.g. https://dash.example.com (env CHADASH_ALLOWED_ORIGINS)")
+
+	demo := false
+	if v := env("CHADASH_DEMO", ""); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			l.envErrs = append(l.envErrs, fmt.Errorf("CHADASH_DEMO %q: want 1, true, 0 or false", v))
+		}
+		demo = b
+	}
+	fs.BoolVar(&l.demo, "demo", demo, "run the Demo Home simulator instead of a real home (env CHADASH_DEMO)")
+	fs.StringVar(&l.demoAt, "demo-at", env("CHADASH_DEMO_AT", "14:05"), "demo start: a time of day (HH:MM[:SS], UTC) on the demo's day, or now to follow the real clock (env CHADASH_DEMO_AT)")
+	fs.StringVar(&l.demoSeed, "demo-seed", env("CHADASH_DEMO_SEED", "1"), "demo simulator seed (env CHADASH_DEMO_SEED)")
 	return l
 }
 
 // Config validates the parsed values.
 func (l *Loader) Config() (Config, error) {
-	var errs []error
+	errs := append([]error(nil), l.envErrs...)
 	c := Config{
 		Listen:        l.listen,
 		DataDir:       filepath.Clean(l.dataDir),
 		SecretKeyFile: l.keyFile,
 		LogFormat:     strings.ToLower(l.format),
+		Demo:          l.demo,
+	}
+
+	// The demo settings are checked even when demo mode is off, so a typo
+	// shows up before someone turns it on.
+	if strings.EqualFold(strings.TrimSpace(l.demoAt), "now") {
+		c.DemoWallClock = true
+	} else if at, err := parseTimeOfDay(l.demoAt); err != nil {
+		errs = append(errs, fmt.Errorf("demo start %q: want HH:MM, HH:MM:SS or now", l.demoAt))
+	} else {
+		c.DemoAt = at
+	}
+	if seed, err := strconv.ParseInt(strings.TrimSpace(l.demoSeed), 10, 64); err != nil {
+		errs = append(errs, fmt.Errorf("demo seed %q: want an integer", l.demoSeed))
+	} else {
+		c.DemoSeed = seed
 	}
 
 	if err := checkListen(l.listen); err != nil {
@@ -145,6 +190,20 @@ func checkListen(addr string) error {
 		return fmt.Errorf("listen address %q: bad port", addr)
 	}
 	return nil
+}
+
+// parseTimeOfDay reads HH:MM or HH:MM:SS as an offset from midnight.
+func parseTimeOfDay(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	layout := "15:04"
+	if strings.Count(s, ":") == 2 {
+		layout = "15:04:05"
+	}
+	t, err := time.Parse(layout, s)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute + time.Duration(t.Second())*time.Second, nil
 }
 
 func splitList(s string) []string {
