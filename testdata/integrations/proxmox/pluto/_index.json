@@ -1,0 +1,388 @@
+{
+  "instance": "pluto",
+  "captured_at": "2026-10-04T01:29Z",
+  "wall_ms": 20021.5,
+  "dropped_keys": {
+    "pem": 2
+  },
+  "requests": [
+    {
+      "path": "/version",
+      "file": "version.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 59.6,
+      "bytes": 72,
+      "wire_bytes": 72
+    },
+    {
+      "path": "/cluster/status",
+      "file": "cluster/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 6.3,
+      "bytes": 124,
+      "wire_bytes": 124
+    },
+    {
+      "path": "/nodes",
+      "file": "nodes.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 10.9,
+      "bytes": 337,
+      "wire_bytes": 337
+    },
+    {
+      "path": "/cluster/resources",
+      "file": "cluster/resources.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 3.1,
+      "bytes": 1809,
+      "wire_bytes": 691,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/tasks",
+      "file": "cluster/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 2.5,
+      "bytes": 5838,
+      "wire_bytes": 1143,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/backup",
+      "file": "cluster/backup.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 3.6,
+      "bytes": 395,
+      "wire_bytes": 395
+    },
+    {
+      "path": "/cluster/backup-info/not-backed-up",
+      "file": "cluster/backup-info/not-backed-up.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 6.9,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/cluster/ha/status/current",
+      "file": "cluster/ha/status/current.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 12.2,
+      "bytes": 83,
+      "wire_bytes": 83
+    },
+    {
+      "path": "/cluster/config/join",
+      "file": "cluster/config/join.json",
+      "status": 424,
+      "reason": "node is not in a cluster, no join info available!",
+      "ms": 2.9,
+      "bytes": 75,
+      "wire_bytes": 75
+    },
+    {
+      "path": "/cluster/metrics/export",
+      "file": "cluster/metrics/export.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 20.9,
+      "bytes": 4539,
+      "wire_bytes": 813,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/metrics/export?history=1\u0026start-time=1791076755",
+      "file": "cluster/metrics/export.history-10m.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 58.7,
+      "bytes": 272170,
+      "wire_bytes": 22445,
+      "encoding": "gzip",
+      "trimmed": "kept the first 3 of 79 timestamps: 2760 → 92 points"
+    },
+    {
+      "path": "/pools",
+      "file": "pools.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 12.4,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/storage",
+      "file": "storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 3.1,
+      "bytes": 1090,
+      "wire_bytes": 480,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/permissions",
+      "file": "access/permissions.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 2.6,
+      "bytes": 1043,
+      "wire_bytes": 218,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/permissions?userid=api@pam",
+      "file": "access/permissions.owner.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 4,
+      "bytes": 1043,
+      "wire_bytes": 197,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/users/api@pam/token/chadash",
+      "file": "access/token.json",
+      "status": 403,
+      "reason": "Permission check failed",
+      "ms": 2.2,
+      "bytes": 51,
+      "wire_bytes": 51
+    },
+    {
+      "path": "/access/users/api@pam",
+      "file": "access/user.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 10.6,
+      "bytes": 105,
+      "wire_bytes": 105
+    },
+    {
+      "path": "/access/roles",
+      "file": "access/roles.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 2.2,
+      "bytes": 3201,
+      "wire_bytes": 611,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/acl",
+      "file": "access/acl.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 2.2,
+      "bytes": 186,
+      "wire_bytes": 186
+    },
+    {
+      "path": "/nodes/pluto/status",
+      "file": "nodes/pluto/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 3.7,
+      "bytes": 1740,
+      "wire_bytes": 1062,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/pluto/tasks?limit=50\u0026source=all",
+      "file": "nodes/pluto/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 33,
+      "bytes": 12645,
+      "wire_bytes": 2530,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/pluto/storage",
+      "file": "nodes/pluto/storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 204.8,
+      "bytes": 898,
+      "wire_bytes": 898
+    },
+    {
+      "path": "/nodes/pluto/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/pluto/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 20.3,
+      "bytes": 27032,
+      "wire_bytes": 4829,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/pluto/rrddata?timeframe=day\u0026cf=AVERAGE",
+      "file": "nodes/pluto/rrddata.day.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 116.2,
+      "bytes": 638863,
+      "wire_bytes": 99791,
+      "encoding": "gzip",
+      "trimmed": "downsampled 1440 → 72 points (every 20th)"
+    },
+    {
+      "path": "/nodes/pluto/disks/list",
+      "file": "nodes/pluto/disks/list.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 261.8,
+      "bytes": 409,
+      "wire_bytes": 409
+    },
+    {
+      "path": "/nodes/pluto/apt/update",
+      "file": "nodes/pluto/apt/update.json",
+      "status": 403,
+      "reason": "Permission check failed (/nodes/pluto, Sys.Modify)",
+      "ms": 11.3,
+      "bytes": 78,
+      "wire_bytes": 78
+    },
+    {
+      "path": "/nodes/pluto/certificates/info",
+      "file": "nodes/pluto/certificates/info.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 11,
+      "bytes": 4945,
+      "wire_bytes": 3228,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/pluto/tasks/UPID:pluto:003F60DE:06BCCF25:6AC14EFA:vzdump:103:root@pam:/status",
+      "file": "nodes/pluto/tasks/vzdump-newest.status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 8,
+      "bytes": 231,
+      "wire_bytes": 231
+    },
+    {
+      "path": "/nodes/pluto/tasks/UPID:pluto:003F60DE:06BCCF25:6AC14EFA:vzdump:103:root@pam:/log?limit=1000",
+      "file": "nodes/pluto/tasks/vzdump-newest.log.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 13,
+      "bytes": 7736,
+      "wire_bytes": 1968,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/pluto/tasks/UPID:pluto:003D7632:06868C45:6AC0C412:vzdump::root@pam:/status",
+      "file": "nodes/pluto/tasks/vzdump-failed.status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 15.6,
+      "bytes": 375,
+      "wire_bytes": 375
+    },
+    {
+      "path": "/nodes/pluto/tasks/UPID:pluto:003D7632:06868C45:6AC0C412:vzdump::root@pam:/log?limit=1000",
+      "file": "nodes/pluto/tasks/vzdump-failed.log.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 13,
+      "bytes": 263,
+      "wire_bytes": 263
+    },
+    {
+      "path": "/nodes/pluto/storage/pbs-unraid-pluto/content",
+      "file": "nodes/pluto/storage/pbs-unraid-pluto/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 9006,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/pluto/storage/usb/content",
+      "file": "nodes/pluto/storage/usb/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 21.4,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/pluto/storage/local/content",
+      "file": "nodes/pluto/storage/local/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 23.2,
+      "bytes": 264,
+      "wire_bytes": 264
+    },
+    {
+      "path": "/nodes/pluto/storage/local-lvm/content",
+      "file": "nodes/pluto/storage/local-lvm/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 125.5,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/pluto/lxc/100/config",
+      "file": "nodes/pluto/lxc/100/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 10.4,
+      "bytes": 386,
+      "wire_bytes": 386
+    },
+    {
+      "path": "/nodes/pluto/lxc/100/interfaces",
+      "file": "nodes/pluto/lxc/100/interfaces.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 38.9,
+      "bytes": 692,
+      "wire_bytes": 692
+    },
+    {
+      "path": "/nodes/pluto/lxc/100/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/pluto/lxc/100/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 17.9,
+      "bytes": 20061,
+      "wire_bytes": 2724,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/pluto/qemu/103/config",
+      "file": "nodes/pluto/qemu/103/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 12.4,
+      "bytes": 644,
+      "wire_bytes": 644
+    },
+    {
+      "path": "/nodes/pluto/qemu/103/agent/network-get-interfaces",
+      "file": "nodes/pluto/qemu/103/agent/network-get-interfaces.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 8.5,
+      "bytes": 1952,
+      "wire_bytes": 436,
+      "encoding": "gzip"
+    }
+  ]
+}

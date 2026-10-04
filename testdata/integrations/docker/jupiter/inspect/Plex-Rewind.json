@@ -1,0 +1,230 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "node",
+    "server.js"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "node",
+      "server.js"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "docker-entrypoint.sh"
+    ],
+    "Env": [
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "NEXT_PUBLIC_SITE_URL=REDACTED",
+      "NEXTAUTH_SECRET=REDACTED",
+      "NEXTAUTH_URL=REDACTED",
+      "NEXT_PUBLIC_STATISTICS_START_DATE=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "PATH=REDACTED",
+      "NODE_VERSION=REDACTED",
+      "YARN_VERSION=REDACTED",
+      "NODE_ENV=REDACTED",
+      "BASE_DIR=REDACTED",
+      "NEXT_PUBLIC_VERSION_TAG=REDACTED",
+      "NEXT_TELEMETRY_DISABLED=REDACTED",
+      "PORT=REDACTED",
+      "HOSTNAME=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8383/tcp": {}
+    },
+    "Hostname": "34fa4253ea35",
+    "Image": "ghcr.io/raunot/plex-rewind:latest",
+    "Labels": {
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8383]/"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  },
+  "Created": "2025-12-06T18:34:33.105841293Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "34fa4253ea3524d322b2dc927c1d01e36d42fb3d7975037e1ddbf45cc4133f6b",
+      "LowerDir": "/var/lib/docker/overlay2/206118f6ee8b2da866e7d29d7b318698e1628217b072b7ff0eb9b5966ebb8115-init/diff:/var/lib/docker/overlay2/b7c103ffd4acea4f80b7b9f90c4c521470f3157853bd4f7e8e548b39c210f374/diff:/var/lib/docker/overlay2/dd236c1f13e39010dfdd0d091f85d2fe8045278f5f3cf28b7c22a679d3c04032/diff:/var/lib/docker/overlay2/a89bdb26f4d9db30502964d459db2054964559aca80c6a5e42296f5e979a0558/diff:/var/lib/docker/overlay2/7334ea639a75ab6e6cc3638a8f3af1f6a0521342f100b33ea0ac7fa919883a07/diff:/var/lib/docker/overlay2/f0ef31465bca7e1187fa7f2ddbde21461bd6629cca1195c3b91ea9147eb28627/diff:/var/lib/docker/overlay2/9d1086ce21b8ff028c557bdcfa1beba47e979465d335e8c6482688ceeb44c6fa/diff:/var/lib/docker/overlay2/f0d78b83bfeac8f80a6f9df9a6b99003b69d012f3bdfe019def5643aa20ab9b3/diff:/var/lib/docker/overlay2/32c96302c3a693a3c44803217c45180927ec3942ec2fa364b84eee95aa9ff151/diff:/var/lib/docker/overlay2/fbcf081edb9a0b973e61d864fca4e3abcb2d75605b89718d0284acf6ef78a6c9/diff:/var/lib/docker/overlay2/1330d9b85b336b50aac9b21977a2253b2305c5e4745ca0f5ac7c93cb8108c9f9/diff:/var/lib/docker/overlay2/592de6f96ad97022e2a92c33a4a4096bbaed66b0d57b9cde2db40e9c04a0b19b/diff",
+      "MergedDir": "/var/lib/docker/overlay2/206118f6ee8b2da866e7d29d7b318698e1628217b072b7ff0eb9b5966ebb8115/merged",
+      "UpperDir": "/var/lib/docker/overlay2/206118f6ee8b2da866e7d29d7b318698e1628217b072b7ff0eb9b5966ebb8115/diff",
+      "WorkDir": "/var/lib/docker/overlay2/206118f6ee8b2da866e7d29d7b318698e1628217b072b7ff0eb9b5966ebb8115/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/plex_rewind/config:/app/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8383/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8383"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "34fa4253ea3524d322b2dc927c1d01e36d42fb3d7975037e1ddbf45cc4133f6b",
+  "Image": "sha256:c35fd9ede9e4c63c3a7c02ae0ae2318e8b3078ce995ca6a09035be16042c6a20",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/app/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/plex_rewind/config",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/Plex-Rewind",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "docker-entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

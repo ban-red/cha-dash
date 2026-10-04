@@ -1,0 +1,234 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/entrypoint.sh"
+    ],
+    "Env": [
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "SSL_CERT_FILE=REDACTED",
+      "TZ=REDACTED",
+      "PATH=REDACTED",
+      "NVIDIA_VISIBLE_DEVICES=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "LD_LIBRARY_PATH=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8080/tcp": {}
+    },
+    "Hostname": "ce77fd167fd6",
+    "Image": "mikeah/prusaslicer-novnc",
+    "Labels": {
+      "authors": "vajonam, Michael Helfrich - helfrichmichael",
+      "maintainer": "NVIDIA CORPORATION \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "https://cdn.help.prusa3d.com/wp-content/uploads/PSlogo-1-300x300.jpg",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8080]",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.version": "22.04"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/configs/": {},
+      "/prints/": {}
+    },
+    "WorkingDir": "/slic3r"
+  },
+  "Created": "2025-01-10T20:28:24.532131963Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "ce77fd167fd60efef750c244916131e2d4a23ae642857a752f3baef4e3ee4054",
+      "LowerDir": "/var/lib/docker/overlay2/d4cd60c9012af97744106d833f3e115274f069fe101a683b7ad95cc8cd7ea577-init/diff:/var/lib/docker/overlay2/9e807bc6f59cb676fecc0c9446a7be8bdc9de3807de6d79c1274df531c63e850/diff:/var/lib/docker/overlay2/bd8d168bb18173e9bc91ebbfc7164048d5363d54f11ceacc652a0724da93d440/diff:/var/lib/docker/overlay2/f2a20fb4fcf57e2bd1ba7fea4a02a718db8d887af970240fec9d4c351f12fb08/diff:/var/lib/docker/overlay2/cd2324a7268e75d53a89c789cc3c99082645b52d9cfba0496e054f9bae20c666/diff:/var/lib/docker/overlay2/eb72ce1b903549c5ef2dc48a69d796b271f0f15ffce97fa08cc28fc6f121d2d3/diff:/var/lib/docker/overlay2/25b31457bf87a1f2f968448be293050d6faa6e2084bcc72a8014089304fdd377/diff:/var/lib/docker/overlay2/6a1d29ac040fc72bf4588337860bfa298e708ad3803fd36eadf5bacb97800ae5/diff:/var/lib/docker/overlay2/7ccf15fe41fecf9deb78280b479e1e0c1ed8893d9498f9a4a418083e1fe6f617/diff:/var/lib/docker/overlay2/47e81fd12c4104ccf165032ea6a9f2a6e36a86aedc60a196250c125c6ef90bed/diff:/var/lib/docker/overlay2/e8275b5051499b9095a080deaf815a49c68eb41193f4c2847347e99413b9fa94/diff:/var/lib/docker/overlay2/2845054708853d7120ce4a7409eecb5c1d134acf93fde12a52bbdc9df645c232/diff:/var/lib/docker/overlay2/d1454991a83f63558751cf433771de7d3ee20a6ff97ba6094fc41b19a49fcb52/diff:/var/lib/docker/overlay2/3a333e1935c5a1c1cd405bfb7ea8814816fcf7377fb9379d6d08e74c504caf25/diff:/var/lib/docker/overlay2/2f76adc8ac9134ae9db3a6a89c9ded855be167f1d483fdd2ab9d31402fd86756/diff:/var/lib/docker/overlay2/c5bf534a13a333db01ef571a19082e7a93193484a73eee6b45933ee04722ab52/diff:/var/lib/docker/overlay2/b4dc21920c646a2f03b44172bb6726e19986cd3b910e8b84a9a1f912e15e0105/diff:/var/lib/docker/overlay2/b979412e9fb453390508d8d37f576cbdd692f1110b033d296fe9709b2e6f1534/diff:/var/lib/docker/overlay2/9166f62654309fea16e45ac5da2df5d9c2829407387f1a06753e0063702c5877/diff:/var/lib/docker/overlay2/676ca1a32505039f90df0d85b75e85eb9ddcf17ab4fe4795ab277c9f6cada3e0/diff:/var/lib/docker/overlay2/c82d39870f6b3e3fa8689e15552539a1f0dfd2899cbb13ec721c544692f14c22/diff:/var/lib/docker/overlay2/f02a3d7fcab11b9d01d5a48a15448704d2e97f7ca867c169e8110b9423bb2813/diff:/var/lib/docker/overlay2/958b789116a466f10afec2f2f88f392f84d618dc3edd1be226d39a5c77f3de6e/diff:/var/lib/docker/overlay2/185b3fac0ea54a37f6133f0439c72a44333d5e34d7fcd4d7ab604cde702dd7f4/diff:/var/lib/docker/overlay2/f2180631db9a1cbad661ca1d90cabe47a34285defa484cc0de4c7c2b9f2bc0cd/diff:/var/lib/docker/overlay2/96ed196dd72dbfb4f43bce4ad8a6cb1f5418ef091ef80d2729d55c831f362183/diff:/var/lib/docker/overlay2/070d3aca7e9cdc2a7e960cbaf9414f88f7b31505e33742276f60364ee1145c7c/diff:/var/lib/docker/overlay2/09531f5d8dfec10b9d2a0b4430397f9617d96bd9e6e7512590d666dda9028a3d/diff:/var/lib/docker/overlay2/853d5f40e38830676ede7137f4eea84d4660ef36bedda9782e8aef61be7a6d98/diff:/var/lib/docker/overlay2/e91d8d113fbdd3aaf308256d1b75038ef6b644c588cc7a7ca6c90b74b1dec7b5/diff",
+      "MergedDir": "/var/lib/docker/overlay2/d4cd60c9012af97744106d833f3e115274f069fe101a683b7ad95cc8cd7ea577/merged",
+      "UpperDir": "/var/lib/docker/overlay2/d4cd60c9012af97744106d833f3e115274f069fe101a683b7ad95cc8cd7ea577/diff",
+      "WorkDir": "/var/lib/docker/overlay2/d4cd60c9012af97744106d833f3e115274f069fe101a683b7ad95cc8cd7ea577/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/prusaslicer:/configs/:rw",
+      "/mnt/user/archive_a/3D/:/prints/:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8180"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/ce77fd167fd60efef750c244916131e2d4a23ae642857a752f3baef4e3ee4054/hostname",
+  "HostsPath": "/var/lib/docker/containers/ce77fd167fd60efef750c244916131e2d4a23ae642857a752f3baef4e3ee4054/hosts",
+  "Id": "ce77fd167fd60efef750c244916131e2d4a23ae642857a752f3baef4e3ee4054",
+  "Image": "sha256:4be48b73c1ca82cf3787c82972df4697fd44e25f3478d9fe927a79ed1b520edc",
+  "LogPath": "/var/lib/docker/containers/ce77fd167fd60efef750c244916131e2d4a23ae642857a752f3baef4e3ee4054/ce77fd167fd60efef750c244916131e2d4a23ae642857a752f3baef4e3ee4054-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/configs",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/prusaslicer",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/prints",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/3D",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/prusaslicer-novnc",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "cc67d5489d903fd5a70dc66c85ebfbd2e01e044dfa2e8c70c38da5e86918c9a2"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/ce77fd167fd60efef750c244916131e2d4a23ae642857a752f3baef4e3ee4054/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2025-01-10T20:59:37.911922707Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2025-01-10T20:28:26.180935191Z",
+    "Status": "exited"
+  }
+}

@@ -1,0 +1,194 @@
+[
+  {
+    "contentType": "text/plain",
+    "group": "needed",
+    "method": "HEAD",
+    "path": "/_ping",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "text/plain",
+    "group": "needed",
+    "method": "GET",
+    "path": "/_ping",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "application/json",
+    "group": "needed",
+    "method": "GET",
+    "path": "/version",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "application/json",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/version",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "text/html",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/info",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "application/jsonl",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/events?since\u0026until (past 60s)",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "application/json",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/containers/json?all=1\u0026limit=1",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "application/json",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/containers/{id}/json",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "application/json",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/containers/{id}/stats?stream=false\u0026one-shot=true",
+    "rawExpect": "200",
+    "status": 200
+  },
+  {
+    "contentType": "text/html",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/images/json",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/images/{image}/json",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/networks",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/networks/{network}",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/volumes",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "needed",
+    "method": "GET",
+    "path": "/v{api}/volumes/{volume}",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "extra",
+    "method": "GET",
+    "path": "/v{api}/system/df?type=image",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "extra",
+    "method": "GET",
+    "path": "/v{api}/plugins",
+    "rawExpect": "200",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "blocked",
+    "method": "GET",
+    "path": "/v{api}/swarm",
+    "rawExpect": "503 (not a swarm manager)",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "blocked",
+    "method": "GET",
+    "path": "/v{api}/secrets",
+    "rawExpect": "503 (not a swarm manager)",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "blocked",
+    "method": "GET",
+    "path": "/v{api}/configs",
+    "rawExpect": "503 (not a swarm manager)",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "blocked",
+    "method": "GET",
+    "path": "/v{api}/services",
+    "rawExpect": "503 (not a swarm manager)",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "blocked",
+    "method": "GET",
+    "path": "/v{api}/tasks",
+    "rawExpect": "503 (not a swarm manager)",
+    "status": 403
+  },
+  {
+    "contentType": "text/html",
+    "group": "blocked",
+    "method": "GET",
+    "path": "/v{api}/nodes",
+    "rawExpect": "503 (not a swarm manager)",
+    "status": 403
+  },
+  {
+    "contentType": "application/json",
+    "group": "blocked",
+    "method": "GET",
+    "path": "/v{api}/containers/{id}/logs?stdout=0\u0026stderr=0\u0026tail=0",
+    "rawExpect": "400 (no stream chosen; never returns logs)",
+    "status": 400
+  }
+]

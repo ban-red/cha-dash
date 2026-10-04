@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "filename": "pve-root-ca.pem",
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:02",
+      "issuer": "/CN=Proxmox Virtual Environment/OU=00000000-0000-4000-8000-000000000001/O=PVE Cluster Manager CA",
+      "notafter": 1986160294,
+      "notbefore": 1670800294,
+      "public-key-bits": 4096,
+      "public-key-type": "rsaEncryption",
+      "san": [],
+      "subject": "/CN=Proxmox Virtual Environment/OU=00000000-0000-4000-8000-000000000001/O=PVE Cluster Manager CA"
+    },
+    {
+      "filename": "pve-ssl.pem",
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:01",
+      "issuer": "/CN=Proxmox Virtual Environment/OU=00000000-0000-4000-8000-000000000001/O=PVE Cluster Manager CA",
+      "notafter": 1820722395,
+      "notbefore": 1757650395,
+      "public-key-bits": 2048,
+      "public-key-type": "rsaEncryption",
+      "san": [
+        "127.0.0.1",
+        "0000:0000:0000:0000:0000:0000:0000:0001",
+        "localhost",
+        "10.0.11.180",
+        "pluto",
+        "pluto.lab.example"
+      ],
+      "subject": "/OU=PVE Cluster Node/O=Proxmox Virtual Environment/CN=pluto.lab.example"
+    }
+  ]
+}

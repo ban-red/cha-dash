@@ -1,0 +1,224 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/sbin/my_init"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "MAKE_BACKUP=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "SLEEPTIME=REDACTED",
+      "PATH=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED",
+      "LANG=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LC_ALL=REDACTED",
+      "CPU_CORES=REDACTED"
+    ],
+    "Hostname": "a9c233a786da",
+    "Image": "seanap/auto-m4b:latest",
+    "Labels": {
+      "Description": "Container to run m4b-tool as a deamon.",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/homelab-user/unraid-ca-templates/master/templates/images/m4b-icon.png",
+      "net.unraid.docker.managed": "dockerman"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {},
+      "/temp": {}
+    },
+    "WorkingDir": ""
+  },
+  "Created": "2025-01-10T20:18:20.622931536Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "a9c233a786da539535d8a84f73a16451cd65cd2e64af3a92f751a1f0606c8720",
+      "LowerDir": "/var/lib/docker/overlay2/edbef8b9e566ed82e85e7fc0627def5e86b0e3e3234d98f6e0e74142cc2bc804-init/diff:/var/lib/docker/overlay2/706bfcb1c2d43350890693e13bb09881b43e9ad4a1662f648553304c6e71165a/diff:/var/lib/docker/overlay2/5bb896ff5af49b75d14ffd2308e40183ff5594a14b7e5a0bf29fb7b4c72f0a41/diff:/var/lib/docker/overlay2/f28ca55e4d849e5db3fb3f603c5e7c5beace2dacfc20e5ec20a0081302578802/diff:/var/lib/docker/overlay2/ff77f155122d1366c7c17a6922166aeb25bd32a881d50314ffb0e53adcec42f5/diff:/var/lib/docker/overlay2/c3026f05e54890e1073d61c9939e22e724779f58f21b198d6b3fb701246ca221/diff:/var/lib/docker/overlay2/3cb681f77b81b55ac6261b50adaa6d76251d5f5d6746712cca58c850a5feb420/diff:/var/lib/docker/overlay2/3bcfe75063284a44676c12f50ad8411c03e0d6fca482b72807228f8b3f6605f2/diff:/var/lib/docker/overlay2/fa7cd4ab27758c99b10112f3ca6e6bd6844cab9f68c7f8ffb1f614cc2930db44/diff:/var/lib/docker/overlay2/97a2fafd05085065cb37fba5bea117664c251edc0ed830d859d828fa04e12971/diff:/var/lib/docker/overlay2/26067581b8d69bbb2b1d97f389b7d5195036e235e7a70c616f0dfdd0b01793b5/diff",
+      "MergedDir": "/var/lib/docker/overlay2/edbef8b9e566ed82e85e7fc0627def5e86b0e3e3234d98f6e0e74142cc2bc804/merged",
+      "UpperDir": "/var/lib/docker/overlay2/edbef8b9e566ed82e85e7fc0627def5e86b0e3e3234d98f6e0e74142cc2bc804/diff",
+      "WorkDir": "/var/lib/docker/overlay2/edbef8b9e566ed82e85e7fc0627def5e86b0e3e3234d98f6e0e74142cc2bc804/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/auto-m4b:/config:rw",
+      "/mnt/user/media/downloads/_auto-m4b:/temp:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 256,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {},
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/a9c233a786da539535d8a84f73a16451cd65cd2e64af3a92f751a1f0606c8720/hostname",
+  "HostsPath": "/var/lib/docker/containers/a9c233a786da539535d8a84f73a16451cd65cd2e64af3a92f751a1f0606c8720/hosts",
+  "Id": "a9c233a786da539535d8a84f73a16451cd65cd2e64af3a92f751a1f0606c8720",
+  "Image": "sha256:cc4aa067f86af902ec5c70963ac73b4210f4ff7db93ab068ab820a43c9a82c00",
+  "LogPath": "/var/lib/docker/containers/a9c233a786da539535d8a84f73a16451cd65cd2e64af3a92f751a1f0606c8720/a9c233a786da539535d8a84f73a16451cd65cd2e64af3a92f751a1f0606c8720-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/auto-m4b",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/temp",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/downloads/_auto-m4b",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/auto-m4b",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "cc67d5489d903fd5a70dc66c85ebfbd2e01e044dfa2e8c70c38da5e86918c9a2"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/sbin/my_init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/a9c233a786da539535d8a84f73a16451cd65cd2e64af3a92f751a1f0606c8720/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 2,
+    "FinishedAt": "2025-01-10T21:01:32.230688657Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2025-01-10T20:18:20.915529258Z",
+    "Status": "exited"
+  }
+}

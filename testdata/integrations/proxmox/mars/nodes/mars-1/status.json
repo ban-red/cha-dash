@@ -1,0 +1,57 @@
+{
+  "data": {
+    "boot-info": {
+      "mode": "efi",
+      "secureboot": 0
+    },
+    "cpu": 0,
+    "cpuinfo": {
+      "cores": 6,
+      "cpus": 12,
+      "family": "6",
+      "flags": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb pti ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_act_window hwp_epp vnmi md_clear flush_l1d arch_capabilities",
+      "hvm": "1",
+      "mhz": "4300.495",
+      "model": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+      "sockets": 1,
+      "user_hz": 100,
+      "vendor": "GenuineIntel"
+    },
+    "current-kernel": {
+      "machine": "x86_64",
+      "release": "6.17.9-1-pve",
+      "sysname": "Linux",
+      "version": "#1 SMP PREEMPT_DYNAMIC PMX 6.17.9-1 (2026-01-12T16:25Z)"
+    },
+    "idle": 0,
+    "ksm": {
+      "shared": 0
+    },
+    "kversion": "Linux 6.17.9-1-pve #1 SMP PREEMPT_DYNAMIC PMX 6.17.9-1 (2026-01-12T16:25Z)",
+    "loadavg": [
+      "0.40",
+      "0.49",
+      "0.43"
+    ],
+    "memory": {
+      "available": 11034288128,
+      "free": 4347478016,
+      "total": 16607170560,
+      "used": 5572882432
+    },
+    "pveversion": "pve-manager/9.1.5/80cf92a64bef6889",
+    "rootfs": {
+      "avail": 58944991232,
+      "free": 62622556160,
+      "total": 71474323456,
+      "used": 8851767296
+    },
+    "swap": {
+      "free": 3425968128,
+      "total": 8589930496,
+      "used": 5163962368
+    },
+    "uptime": 8041838,
+    "wait": 0
+  }
+}

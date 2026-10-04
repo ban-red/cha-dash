@@ -1,0 +1,9 @@
+# Raw (unsanitized) captures and anything derived from real values. Only the
+# sanitized fixtures under testdata/integrations/traefik/ are committed.
+raw/
+*.raw.json
+state*.json
+*.raw/
+leak-values*
+tofu-pins*.json
+bin/

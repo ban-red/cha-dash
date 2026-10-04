@@ -1,0 +1,50 @@
+[
+  {
+    "entryPoints": [
+      "spice-tls"
+    ],
+    "name": "io-spice-tls@file",
+    "priority": 21,
+    "provider": "file",
+    "rule": "HostSNI(`io.lab.example`)",
+    "service": "io-spice-tls",
+    "status": "enabled",
+    "tls": {
+      "passthrough": true
+    },
+    "using": [
+      "spice-tls"
+    ]
+  },
+  {
+    "entryPoints": [
+      "spice"
+    ],
+    "name": "io-spice@file",
+    "priority": -1,
+    "provider": "file",
+    "rule": "HostSNI(`*`)",
+    "service": "io-spice",
+    "status": "enabled",
+    "using": [
+      "spice"
+    ]
+  },
+  {
+    "entryPoints": [
+      "onedev-ssh"
+    ],
+    "name": "onedev-ssh@file",
+    "priority": 99,
+    "provider": "file",
+    "rule": "HostSNI(`*`)",
+    "service": "onedev-ssh",
+    "status": "enabled",
+    "tls": {
+      "passthrough": true
+    },
+    "using": [
+      "onedev-ssh"
+    ]
+  }
+]

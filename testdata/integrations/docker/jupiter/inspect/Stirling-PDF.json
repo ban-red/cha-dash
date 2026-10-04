@@ -1,0 +1,277 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/scripts/init.sh"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "tini",
+      "--",
+      "/scripts/init.sh"
+    ],
+    "Env": [
+      "HOST_HOSTNAME=REDACTED",
+      "APP_HOME_DESCRIPTION=REDACTED",
+      "ALLOW_GOOGLE_VISIBILITY=REDACTED",
+      "APP_NAVBAR_NAME=REDACTED",
+      "APP_ROOT_PATH=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "APP_LOCALE=REDACTED",
+      "APP_HOME_NAME=REDACTED",
+      "PATH=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED",
+      "LANG=REDACTED",
+      "LC_ALL=REDACTED",
+      "TESS_BASE_PATH=REDACTED",
+      "VERSION_TAG=REDACTED",
+      "JAVA_BASE_OPTS=REDACTED",
+      "JAVA_CUSTOM_OPTS=REDACTED",
+      "HOME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "UNO_PATH=REDACTED",
+      "LIBREOFFICE_BIN_PATH=REDACTED",
+      "STIRLING_TEMPFILES_DIRECTORY=REDACTED",
+      "TMPDIR=REDACTED",
+      "TEMP=REDACTED",
+      "TMP=REDACTED",
+      "QT_QPA_PLATFORM=REDACTED",
+      "QTWEBENGINE_CHROMIUM_FLAGS=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8080/tcp": {}
+    },
+    "Hostname": "96996b92e3a0",
+    "Image": "frooodle/s-pdf",
+    "Labels": {
+      "maintainer": "Stirling-Tools",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/b42n1/unraid-templates/main/logos/logo-stirling-pdf.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8080]/",
+      "org.opencontainers.image.authors": "Stirling-Tools",
+      "org.opencontainers.image.created": "2026-01-29T00:33:22.472Z",
+      "org.opencontainers.image.description": "#1 PDF Application on GitHub that lets you edit PDFs on any device anywhere",
+      "org.opencontainers.image.documentation": "https://docs.stirlingpdf.com",
+      "org.opencontainers.image.keywords": "PDF, manipulation, API, Spring Boot, React",
+      "org.opencontainers.image.licenses": "NOASSERTION",
+      "org.opencontainers.image.revision": "0b0db1793e252df8a0095b48b9ee2cfd57f6d2e4",
+      "org.opencontainers.image.source": "https://github.com/Stirling-Tools/Stirling-PDF",
+      "org.opencontainers.image.title": "Stirling-PDF",
+      "org.opencontainers.image.url": "https://github.com/Stirling-Tools/Stirling-PDF",
+      "org.opencontainers.image.vendor": "Stirling-Tools",
+      "org.opencontainers.image.version": "2.4.1"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "StopSignal": "SIGTERM",
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": ""
+  },
+  "Created": "2026-01-29T22:19:22.032830849Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "96996b92e3a016dd9f4db09472031f7064e810bb1b23875711b75992499952ea",
+      "LowerDir": "/var/lib/docker/overlay2/19c705ecdb915b7d4df3e8794e880113b8504194535a5b6b8d33ca710e600696-init/diff:/var/lib/docker/overlay2/e7cabd288cc2e6b60581a904e5e3ce722cb635d9e0023448f7dc7cb8ed513c04/diff:/var/lib/docker/overlay2/a6c39ebf6fff3083c4a28bcab1f73ebc9850836c75407affd12266ab390b65fa/diff:/var/lib/docker/overlay2/9a729a9fea1fa47a98142c769a87cb4892f76ea5530aa97d27506e5ae13167c7/diff:/var/lib/docker/overlay2/023a252b502c5b07bd0162df34ce7abedf76d0083893008f0eb7e4642f648e4a/diff:/var/lib/docker/overlay2/530d16b719db77b5db86e0b783babc91632c92a34a0da7761000ee58e1fe504a/diff:/var/lib/docker/overlay2/097e6dbf906477f979e08a4967e59d71fd69ba0dcbb5addda636026981f3eef7/diff:/var/lib/docker/overlay2/95cb3e9dfb5f7ce472b2410dc7b29ec4aa86cd364f3cc0a9e75d7d3f214bc852/diff:/var/lib/docker/overlay2/94e837a670751f6c6e2d55bfcc0ffd992827954420c00f9c63333b9a4aff944e/diff:/var/lib/docker/overlay2/71685d547c7099111d65ec4cfcf052922363b710d109ef4901db0ea8a9e8a24f/diff:/var/lib/docker/overlay2/51be5eed2fd86897e89cc70a50ecb30eda130c6323ff435c3d701fa0539a46a3/diff:/var/lib/docker/overlay2/24151d08ef654eb44d2cc08d6f5ff46003ff0817370e8bc0604bc3c6be5d2794/diff:/var/lib/docker/overlay2/178241cb002c67834cb9987680e88e31093be5c0cbcbe1b31d59b5cb0c89ccbd/diff:/var/lib/docker/overlay2/b49a67546c405334c0fdbd3c029613ef96a35859f11add91b0aaa1a81b261cdc/diff:/var/lib/docker/overlay2/95a51ae0b0fe1e0b4c163c0d0b2f386a0b60d264033a31dcd876fcdd8a27ca4e/diff:/var/lib/docker/overlay2/088d3ebd978ea5c6c02f517de2b549e0136e1682e6609ed8ad812919c5f7a501/diff",
+      "MergedDir": "/var/lib/docker/overlay2/19c705ecdb915b7d4df3e8794e880113b8504194535a5b6b8d33ca710e600696/merged",
+      "UpperDir": "/var/lib/docker/overlay2/19c705ecdb915b7d4df3e8794e880113b8504194535a5b6b8d33ca710e600696/diff",
+      "WorkDir": "/var/lib/docker/overlay2/19c705ecdb915b7d4df3e8794e880113b8504194535a5b6b8d33ca710e600696/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/stirling-pdf/ocr/:/usr/share/tesseract-ocr/4.00/tessdata:rw",
+      "/mnt/user/appdata/stirling-pdf/configs/:/configs:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8282"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/96996b92e3a016dd9f4db09472031f7064e810bb1b23875711b75992499952ea/hostname",
+  "HostsPath": "/var/lib/docker/containers/96996b92e3a016dd9f4db09472031f7064e810bb1b23875711b75992499952ea/hosts",
+  "Id": "96996b92e3a016dd9f4db09472031f7064e810bb1b23875711b75992499952ea",
+  "Image": "sha256:10615925e8ebedac76fd58c69187481b2f9e5baaa6a880fa73a80a849e4c7c77",
+  "LogPath": "/var/lib/docker/containers/96996b92e3a016dd9f4db09472031f7064e810bb1b23875711b75992499952ea/96996b92e3a016dd9f4db09472031f7064e810bb1b23875711b75992499952ea-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/configs",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/stirling-pdf/configs",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/usr/share/tesseract-ocr/4.00/tessdata",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/stirling-pdf/ocr",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/Stirling-PDF",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "c089470cc8a2755059e349cdaf6c3ccf508f86d7697574381396db0f35a805f0",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.17",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:21",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "8080/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8282"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8282"
+        }
+      ]
+    },
+    "SandboxID": "9e976b8e317330bfffcddff09631634bb73f5b65dd5bd0a5750ddfc2fc8fd451",
+    "SandboxKey": "/var/run/docker/netns/9e976b8e3173"
+  },
+  "Path": "tini",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/96996b92e3a016dd9f4db09472031f7064e810bb1b23875711b75992499952ea/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.873031954Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 42837,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:50.568689578Z",
+    "Status": "running"
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "_note": "Status, type and size only. No image, snapshot, thumbnail or clip bytes were stored; the spike counted them into io.Discard.",
+  "requests": [
+    {
+      "request": "GET /api/driveway/latest.jpg",
+      "status": 200,
+      "bytes": 79722,
+      "content_length": 79722,
+      "ms": 19,
+      "content_type": "image/jpeg",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Length": "79722",
+        "Content-Type": "image/jpeg",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/driveway/latest.jpg?height=180",
+      "status": 200,
+      "bytes": 8113,
+      "content_length": 8113,
+      "ms": 15,
+      "content_type": "image/jpeg",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Length": "8113",
+        "Content-Type": "image/jpeg",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/driveway/latest.webp?height=180",
+      "status": 200,
+      "bytes": 4894,
+      "content_length": 4894,
+      "ms": 34,
+      "content_type": "image/webp",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Length": "4894",
+        "Content-Type": "image/webp",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/events/1790990044.189975-n1qbkv/clip.mp4",
+      "status": 200,
+      "bytes": 5330416,
+      "content_length": -1,
+      "ms": 427,
+      "content_type": "video/mp4",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Type": "video/mp4",
+        "Server": "nginx/1.27.4",
+        "X-Cache-Status": "MISS"
+      }
+    },
+    {
+      "request": "GET /api/events/1790990044.189975-n1qbkv/snapshot.jpg",
+      "status": 200,
+      "bytes": 96584,
+      "content_length": 96584,
+      "ms": 104,
+      "content_type": "image/jpeg",
+      "headers": {
+        "Cache-Control": "private, max-age=31536000",
+        "Content-Length": "96584",
+        "Content-Type": "image/jpeg",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/events/1790990044.189975-n1qbkv/snapshot.jpg?crop=1\u0026height=180",
+      "status": 200,
+      "bytes": 7937,
+      "content_length": 7937,
+      "ms": 27,
+      "content_type": "image/jpeg",
+      "headers": {
+        "Cache-Control": "private, max-age=31536000",
+        "Content-Length": "7937",
+        "Content-Type": "image/jpeg",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/events/1790990044.189975-n1qbkv/thumbnail.jpg",
+      "status": 200,
+      "bytes": 7981,
+      "content_length": 7981,
+      "ms": 64,
+      "content_type": "image/jpeg",
+      "headers": {
+        "Cache-Control": "private, max-age=2592000",
+        "Content-Length": "7981",
+        "Content-Type": "image/jpeg",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/events/1790990044.189975-n1qbkv/thumbnail.webp",
+      "status": 200,
+      "bytes": 5774,
+      "content_length": 5774,
+      "ms": 13,
+      "content_type": "image/webp",
+      "headers": {
+        "Cache-Control": "private, max-age=2592000",
+        "Content-Length": "5774",
+        "Content-Type": "image/webp",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/backyard/latest.jpg",
+      "status": 200,
+      "bytes": 47948,
+      "content_length": 47948,
+      "ms": 16,
+      "content_type": "image/jpeg",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Length": "47948",
+        "Content-Type": "image/jpeg",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "GET /api/side_deck/latest.jpg",
+      "status": 200,
+      "bytes": 78882,
+      "content_length": 78882,
+      "ms": 29,
+      "content_type": "image/jpeg",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Length": "78882",
+        "Content-Type": "image/jpeg",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "HEAD /api/driveway/latest.jpg",
+      "status": 405,
+      "bytes": 0,
+      "content_length": 31,
+      "ms": 4,
+      "content_type": "application/json",
+      "headers": {
+        "Content-Length": "31",
+        "Content-Type": "application/json",
+        "Server": "nginx/1.27.4"
+      }
+    },
+    {
+      "request": "HEAD /api/events/1790990044.189975-n1qbkv/clip.mp4",
+      "status": 200,
+      "bytes": 0,
+      "content_length": -1,
+      "ms": 18,
+      "content_type": "video/mp4",
+      "headers": {
+        "Cache-Control": "no-store",
+        "Content-Type": "video/mp4",
+        "Server": "nginx/1.27.4",
+        "X-Cache-Status": "MISS"
+      }
+    }
+  ]
+}

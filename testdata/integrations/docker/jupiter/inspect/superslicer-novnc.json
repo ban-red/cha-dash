@@ -1,0 +1,231 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "-c",
+    "chown -R slic3r:slic3r /configs/ /home/slic3r/ /prints/ /dev/stdout \u0026\u0026 exec gosu slic3r supervisord"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "bash",
+      "-c",
+      "chown -R slic3r:slic3r /configs/ /home/slic3r/ /prints/ /dev/stdout \u0026\u0026 exec gosu slic3r supervisord"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "SSL_CERT_FILE=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "PATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8080/tcp": {}
+    },
+    "Hostname": "4e9ddc49e3ab",
+    "Image": "mikeah/superslicer-novnc",
+    "Labels": {
+      "net.unraid.docker.icon": "https://user-images.githubusercontent.com/22458343/85674332-9ed0bf00-b679-11ea-876f-ee5bb4e30a64.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8080]"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/configs/": {},
+      "/prints/": {}
+    },
+    "WorkingDir": "/slic3r"
+  },
+  "Created": "2025-01-10T20:31:08.504377479Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "4e9ddc49e3ab8ac3fe778f3ea2b60379d53973c4c05824dbcf9a6701d8aca74b",
+      "LowerDir": "/var/lib/docker/overlay2/735918f01b8441a60ec427f9ec86606021024669d3ad4fdb634ecd10a7ba60b5-init/diff:/var/lib/docker/overlay2/4188dc6b5d423a71cefba78e2fc970d7d8b039a757b8753dcf9ce1b4e3b1e303/diff:/var/lib/docker/overlay2/7da2751b697339a1df82e2ab3eae81532d3872317ec331e99a28ba4b92a73830/diff:/var/lib/docker/overlay2/0f57077a68aaeacacb0bcb61020f08ba0287752ec74068faedd82ff7c51227ca/diff:/var/lib/docker/overlay2/77d18ee98dd018e2da3f7462c51eb3680024306be485cde37cc6459ddc5b3c9c/diff:/var/lib/docker/overlay2/d41e5430d6cd57f35dfd67a224633345a243926b9d865671fe69d4e76f85a0ea/diff:/var/lib/docker/overlay2/c0e524babc8c1656cfdbb610c05a026a5593a67f3aececbc6bbd1ffd9b003fa1/diff:/var/lib/docker/overlay2/868a3d63245c803c370b4dff667b3e033d70a65b086afaa84568fcb9aaf059a9/diff:/var/lib/docker/overlay2/924b837a1198cb24e4bc681d208de2829da896bfc4b31deed974c401d8d8e9a9/diff:/var/lib/docker/overlay2/1323444f4233e6bb89a3a3efda69e8d857e7ea9669c33d9ec0985f6e7efff525/diff:/var/lib/docker/overlay2/71f7cf4126c93d15cba742b702bab9dab8db82348187e5e3bc4fb3fa888967fd/diff",
+      "MergedDir": "/var/lib/docker/overlay2/735918f01b8441a60ec427f9ec86606021024669d3ad4fdb634ecd10a7ba60b5/merged",
+      "UpperDir": "/var/lib/docker/overlay2/735918f01b8441a60ec427f9ec86606021024669d3ad4fdb634ecd10a7ba60b5/diff",
+      "WorkDir": "/var/lib/docker/overlay2/735918f01b8441a60ec427f9ec86606021024669d3ad4fdb634ecd10a7ba60b5/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/archive_a/3D/:/prints/:rw",
+      "/mnt/user/appdata/superslicer:/configs/:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6080"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "/var/lib/docker/containers/4e9ddc49e3ab8ac3fe778f3ea2b60379d53973c4c05824dbcf9a6701d8aca74b/hosts",
+  "Id": "4e9ddc49e3ab8ac3fe778f3ea2b60379d53973c4c05824dbcf9a6701d8aca74b",
+  "Image": "sha256:337363277a5e197676704871d15314bf32c7179999f8889c9418817bcbcf0231",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/configs",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/superslicer",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/prints",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/3D",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/superslicer-novnc",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "cc67d5489d903fd5a70dc66c85ebfbd2e01e044dfa2e8c70c38da5e86918c9a2"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "bash",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/4e9ddc49e3ab8ac3fe778f3ea2b60379d53973c4c05824dbcf9a6701d8aca74b/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "driver failed programming external connectivity on endpoint superslicer-novnc (9d5ec879098ec63653cda13720a20bd081f14402caf71fb1e561290ac68f7306): Bind for 0.0.0.0:6080 failed: port is already allocated",
+    "ExitCode": 128,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

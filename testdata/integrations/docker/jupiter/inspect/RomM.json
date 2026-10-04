@@ -1,0 +1,309 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "/init"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/init"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/docker-entrypoint.sh"
+    ],
+    "Env": [
+      "UMASK=REDACTED",
+      "HOST_OS=REDACTED",
+      "DB_USER=REDACTED",
+      "IGDB_CLIENT_ID=REDACTED",
+      "ROMM_AUTH_USERNAME=REDACTED",
+      "STEAMGRIDDB_API_KEY=REDACTED",
+      "HASHEOUS_API_PASSWORD=REDACTED",
+      "RETROACHIEVEMENTS_API_KEY=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "IGDB_CLIENT_SECRET=REDACTED",
+      "ROMM_AUTH_SECRET_KEY=REDACTED",
+      "SCREENSCRAPER_USER=REDACTED",
+      "SCREENSCRAPER_PASSWORD=REDACTED",
+      "HASHEOUS_API_ENABLED=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "DB_HOST=REDACTED",
+      "DB_PASSWD=REDACTED",
+      "DB_PORT=REDACTED",
+      "PLAYMATCH_API_ENABLED=REDACTED",
+      "TZ=REDACTED",
+      "DB_NAME=REDACTED",
+      "ROMM_AUTH_PASSWORD=REDACTED",
+      "LAUNCHBOX_API_ENABLED=REDACTED",
+      "PATH=REDACTED",
+      "PYTHONDONTWRITEBYTECODE=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED",
+      "PYTHONPATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "6379/tcp": {},
+      "8080/tcp": {}
+    },
+    "Hostname": "71062fba8bf7",
+    "Image": "rommapp/romm:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://github.com/Eurotimmy/unraid-templates/blob/main/RomM/RomM.png?raw=1",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8080]",
+      "org.opencontainers.image.created": "2026-01-27T14:58:08.968Z",
+      "org.opencontainers.image.description": "\"RomM (ROM Manager) allows you to scan, enrich, and browse your game collection with a clean and responsive interface. With support for multiple platforms, various naming schemes and custom tags, RomM is a must-have for anyone who plays on emulators.\"",
+      "org.opencontainers.image.licenses": "\"AGPLv3\"",
+      "org.opencontainers.image.revision": "cd56d3ae0f74806fdee9e8d8bf1c2badd760898b",
+      "org.opencontainers.image.source": "https://github.com/rommapp/romm",
+      "org.opencontainers.image.title": "\"rommapp/romm\"",
+      "org.opencontainers.image.url": "https://github.com/rommapp/romm",
+      "org.opencontainers.image.version": ""
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "99:100",
+    "Volumes": {
+      "/redis-data": {},
+      "/romm/assets": {},
+      "/romm/config": {},
+      "/romm/library": {},
+      "/romm/resources": {}
+    },
+    "WorkingDir": "/romm"
+  },
+  "Created": "2026-02-27T23:20:20.799579255Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "71062fba8bf7851078784878a09f697680decbcd06a11df75c25ce3843a42d12",
+      "LowerDir": "/var/lib/docker/overlay2/d0be80c824c54c3eaae441237c28b1bd46ce6dfdece81d0c72a45dbbd5a7331d-init/diff:/var/lib/docker/overlay2/44367b62029de38b74679d7ab9530c9ad1285f30210bd5a0dc6cc214c3d5e56b/diff:/var/lib/docker/overlay2/b7f183ea86ee6bee0788c3fbf75a3da1125f675fa2652bdedcebfbb19dd8d5f7/diff:/var/lib/docker/overlay2/174cf1a4d842af1034e1ce29da5862f6811de15c63139271e279dc1aa6648aff/diff:/var/lib/docker/overlay2/4edbc76b7933b9a3061432cdb55b2e10337f72e9d0c295dc33a27a0409db45bf/diff:/var/lib/docker/overlay2/f765b8de496bf3590bd243f041ac8f182d7f20baed1ac40fe110612e3459b5ff/diff",
+      "MergedDir": "/var/lib/docker/overlay2/d0be80c824c54c3eaae441237c28b1bd46ce6dfdece81d0c72a45dbbd5a7331d/merged",
+      "UpperDir": "/var/lib/docker/overlay2/d0be80c824c54c3eaae441237c28b1bd46ce6dfdece81d0c72a45dbbd5a7331d/diff",
+      "WorkDir": "/var/lib/docker/overlay2/d0be80c824c54c3eaae441237c28b1bd46ce6dfdece81d0c72a45dbbd5a7331d/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/romm/logs:/romm/logs:rw",
+      "/mnt/user/appdata/romm/resources:/romm/resources:rw",
+      "/mnt/user/appdata/romm/redis_data:/redis-data:rw",
+      "/mnt/user/appdata/romm/config:/romm/config:rw",
+      "/mnt/user/games/roms:/romm/library/roms:rw",
+      "/mnt/user/games/rommassets:/romm/assets:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8100"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/71062fba8bf7851078784878a09f697680decbcd06a11df75c25ce3843a42d12/hostname",
+  "HostsPath": "/var/lib/docker/containers/71062fba8bf7851078784878a09f697680decbcd06a11df75c25ce3843a42d12/hosts",
+  "Id": "71062fba8bf7851078784878a09f697680decbcd06a11df75c25ce3843a42d12",
+  "Image": "sha256:35d700ba47634b3e20fed617d932eadc8a4c144236962ec207298d72fb42a494",
+  "LogPath": "/var/lib/docker/containers/71062fba8bf7851078784878a09f697680decbcd06a11df75c25ce3843a42d12/71062fba8bf7851078784878a09f697680decbcd06a11df75c25ce3843a42d12-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/romm/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/romm/config",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/romm/library",
+      "Driver": "local",
+      "Mode": "",
+      "Name": "dca87d1bac20affb65bae4575e578d796b5eaddf8df512d19a626345a83a66f5",
+      "Propagation": "",
+      "RW": true,
+      "Source": "/var/lib/docker/volumes/dca87d1bac20affb65bae4575e578d796b5eaddf8df512d19a626345a83a66f5/_data",
+      "Type": "volume"
+    },
+    {
+      "Destination": "/romm/library/roms",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/games/roms",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/romm/logs",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/romm/logs",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/romm/resources",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/romm/resources",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/redis-data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/romm/redis_data",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/romm/assets",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/games/rommassets",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/RomM",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "50579f43cf59407de5fb23ece94d79319da61484985030fb93a18f4630c4717a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/docker-entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/71062fba8bf7851078784878a09f697680decbcd06a11df75c25ce3843a42d12/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-03-01T21:37:50.87688528Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-02-27T23:20:21.155330525Z",
+    "Status": "exited"
+  }
+}

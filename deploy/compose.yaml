@@ -61,8 +61,9 @@ services:
       - -allowGET=/(v1\.[0-9]+/)?containers/[a-zA-Z0-9][a-zA-Z0-9_.-]*/(json|stats)
       - -allowGET=/(v1\.[0-9]+/)?images/json
       - -allowGET=/(v1\.[0-9]+/)?images/[a-zA-Z0-9][a-zA-Z0-9_.:/@-]*/json
-      - -allowGET=/(v1\.[0-9]+/)?networks(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
-      - -allowGET=/(v1\.[0-9]+/)?volumes(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
+      # Not used by the hub today (spike 4.4); uncomment if a future integration needs them.
+      # - -allowGET=/(v1\.[0-9]+/)?networks(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
+      # - -allowGET=/(v1\.[0-9]+/)?volumes(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
       - -allowhealthcheck
       - -watchdoginterval=3600      # exit if the socket goes away (e.g. a Docker
       - -stoponwatchdog             # upgrade), so the restart policy reconnects it

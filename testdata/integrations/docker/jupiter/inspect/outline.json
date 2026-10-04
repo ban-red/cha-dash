@@ -1,0 +1,313 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "node",
+    "build/server/index.js"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "node",
+      "build/server/index.js"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "docker-entrypoint.sh"
+    ],
+    "Env": [
+      "OIDC_TOKEN_URI=REDACTED",
+      "OIDC_SCOPES=REDACTED",
+      "FILE_STORAGE_LOCAL_ROOT_DIR=REDACTED",
+      "LOG_LEVEL=REDACTED",
+      "DATABASE_URL=REDACTED",
+      "OIDC_CLIENT_ID=REDACTED",
+      "DEFAULT_LANGUAGE=REDACTED",
+      "OIDC_LOGOUT_URI=REDACTED",
+      "DATABASE_CONNECTION_POOL_MIN=REDACTED",
+      "WEB_CONCURRENCY=REDACTED",
+      "TZ=REDACTED",
+      "REDIS_URL=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "RATE_LIMITER_REQUESTS=REDACTED",
+      "OIDC_USERINFO_URI=REDACTED",
+      "NODE_ENV=REDACTED",
+      "RATE_LIMITER_DURATION_WINDOW=REDACTED",
+      "HOST_OS=REDACTED",
+      "SECRET_KEY=REDACTED",
+      "ENABLE_UPDATES=REDACTED",
+      "OIDC_DISPLAY_NAME=REDACTED",
+      "DATABASE_CONNECTION_POOL_MAX=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "UTILS_SECRET=REDACTED",
+      "PGSSLMODE=REDACTED",
+      "OIDC_CLIENT_SECRET=REDACTED",
+      "OIDC_AUTH_URI=REDACTED",
+      "FILE_STORAGE_UPLOAD_MAX_SIZE=REDACTED",
+      "RATE_LIMITER_ENABLED=REDACTED",
+      "URL=REDACTED",
+      "FILE_STORAGE=REDACTED",
+      "FORCE_HTTPS=REDACTED",
+      "PATH=REDACTED",
+      "NODE_VERSION=REDACTED",
+      "YARN_VERSION=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 60000000000,
+      "Test": [
+        "CMD-SHELL",
+        "wget -qO- \"http://localhost:${PORT:-3000}/_health\" | grep -q \"OK\" || exit 1"
+      ]
+    },
+    "Hostname": "9415abaa912f",
+    "Image": "outlinewiki/outline:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/A75G/docker-templates/master/templates/icons/outline.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]",
+      "org.opencontainers.image.created": "2026-05-04T01:42:32.424Z",
+      "org.opencontainers.image.description": "The fastest knowledge base for growing teams. Beautiful, realtime collaborative, feature packed, and markdown compatible.",
+      "org.opencontainers.image.licenses": "NOASSERTION",
+      "org.opencontainers.image.revision": "04a13de0e7df234141c3d0108a1b8d6cc986b24c",
+      "org.opencontainers.image.source": "https://github.com/outline/outline",
+      "org.opencontainers.image.title": "outline",
+      "org.opencontainers.image.url": "https://github.com/outline/outline",
+      "org.opencontainers.image.version": "1.7.1"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "nodejs",
+    "Volumes": {
+      "/var/lib/outline/data": {}
+    },
+    "WorkingDir": "/opt/outline"
+  },
+  "Created": "2026-05-11T19:19:10.099099894Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "9415abaa912f0397f3e7e0a77e97e0c6a296e4164ea59f29f48326d043af8863",
+      "LowerDir": "/var/lib/docker/overlay2/a0d54739fef29ccc97596c3dfb0e1470f042b842c06ee8a4147b6663b3eab926-init/diff:/var/lib/docker/overlay2/6de7002d9e453313b1d8011c79120830cffd3726704c8f4a0bb3d7bf451b8c07/diff:/var/lib/docker/overlay2/c6e9aecfb6d222807264dd872054609b13285a8593b648a53ba30a3f4eb220d3/diff:/var/lib/docker/overlay2/fde45745760d42d7ec4535b53fa466239d772bd9a0a6f9fb48edacc9b72f7db5/diff:/var/lib/docker/overlay2/b2f82990138f80d0244f221fd36f5968afed3e6070797bda2ece6677d009df63/diff:/var/lib/docker/overlay2/dd50e0f2ca14ddf296030a372fe6d83b25ea5ec24fd547036cf135a46469e930/diff:/var/lib/docker/overlay2/2b1136336f129a3b727f370fd8e30e024d30edb682da365dd01c3c8cac37fb52/diff:/var/lib/docker/overlay2/c8fa246c081561e6fb56a8dc4ebf287469e3063d9d51ef536739463ce843275f/diff:/var/lib/docker/overlay2/35b0c3dccfa8aab0925dd1b499060e6875f7bfd9e90133882e8f64381bdb2a86/diff:/var/lib/docker/overlay2/5ce8322ff8138cf41ffbdbe7aed17514ea9fe1f489b729d33301d4fd569c908f/diff:/var/lib/docker/overlay2/177f0f91127ce428883713b9dc5fc0a3202cacf8dd072c0f5997fcf0f64ce683/diff:/var/lib/docker/overlay2/547390862e54d0409b14119be7a3e271d202a0d649c03ec18ea47f90f9990eab/diff:/var/lib/docker/overlay2/4bc176d9ee5f6a70a8d2c256f468ed987aa67585502d28566df82a0947cda932/diff:/var/lib/docker/overlay2/bdd34ef70108aead4c91ba2c0fe891fe47d231b715fea66257194d8518d3b962/diff:/var/lib/docker/overlay2/4c58ce865303e8228589bf1708f4b7f7131eaf87131d82d2a7f1f151deb96fdb/diff:/var/lib/docker/overlay2/1dfaf27b970393d3750a4b9e6798771cf9d41c5d8d0eb4cc46f54b9fbb3a363d/diff",
+      "MergedDir": "/var/lib/docker/overlay2/a0d54739fef29ccc97596c3dfb0e1470f042b842c06ee8a4147b6663b3eab926/merged",
+      "UpperDir": "/var/lib/docker/overlay2/a0d54739fef29ccc97596c3dfb0e1470f042b842c06ee8a4147b6663b3eab926/diff",
+      "WorkDir": "/var/lib/docker/overlay2/a0d54739fef29ccc97596c3dfb0e1470f042b842c06ee8a4147b6663b3eab926/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/outline:/var/lib/outline/data:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/9415abaa912f0397f3e7e0a77e97e0c6a296e4164ea59f29f48326d043af8863/hostname",
+  "HostsPath": "/var/lib/docker/containers/9415abaa912f0397f3e7e0a77e97e0c6a296e4164ea59f29f48326d043af8863/hosts",
+  "Id": "9415abaa912f0397f3e7e0a77e97e0c6a296e4164ea59f29f48326d043af8863",
+  "Image": "sha256:00cd68c69f550bfed2b982e1a74eccfa31319cccf56aae8a8742a8e43573512b",
+  "LogPath": "/var/lib/docker/containers/9415abaa912f0397f3e7e0a77e97e0c6a296e4164ea59f29f48326d043af8863/9415abaa912f0397f3e7e0a77e97e0c6a296e4164ea59f29f48326d043af8863-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/var/lib/outline/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/outline",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/outline",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "d3ebcf7ca3b924d41ef6c60abb09a47362166e117a3a3a2ae5f092517e7b26ae",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.35",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:19",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "3000"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "3000"
+        }
+      ]
+    },
+    "SandboxID": "b68f1290539bbbadcf6f99e648c167ddd15cdfa3e6e5b4b7f04df28cf552a698",
+    "SandboxKey": "/var/run/docker/netns/b68f1290539b"
+  },
+  "Path": "docker-entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/9415abaa912f0397f3e7e0a77e97e0c6a296e4164ea59f29f48326d043af8863/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870484806Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T20:02:23.745522189-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:02:23.676775933-06:00"
+        },
+        {
+          "End": "2026-10-03T20:03:23.823869888-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:03:23.74682451-06:00"
+        },
+        {
+          "End": "2026-10-03T20:04:23.901245934-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:04:23.824183432-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:23.960827384-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:05:23.901592201-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:24.035701641-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:06:23.961409693-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 49696,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:55.104697014Z",
+    "Status": "running"
+  }
+}

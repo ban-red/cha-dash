@@ -1,0 +1,26 @@
+{
+  "data": {
+    "balloon": 0,
+    "bios": "ovmf",
+    "boot": "order=sata0",
+    "cores": 8,
+    "cpu": "host,flags=+aes",
+    "digest": "6fec4598b5ec1a7e95b7d23ca86f183787633986",
+    "efidisk0": "data:vm-101-disk-1,efitype=4m,pre-enrolled-keys=1,size=1M",
+    "hostpci0": "0000:0a:00,pcie=1",
+    "ide2": "none,media=cdrom",
+    "machine": "q35",
+    "memory": "32768",
+    "meta": "creation-qemu=10.0.2,ctime=1758004923",
+    "name": "vm-101",
+    "net0": "virtio=BC:24:11:00:00:3A,bridge=vmbr0,firewall=1",
+    "numa": 0,
+    "ostype": "l26",
+    "sata0": "data:vm-101-disk-0,backup=0,size=1907730M",
+    "scsihw": "virtio-scsi-single",
+    "smbios1": "uuid=00000000-0000-4000-8000-000000000012",
+    "sockets": 1,
+    "tpmstate0": "data:vm-101-disk-2,size=4M,version=v2.0",
+    "vmgenid": "00000000-0000-4000-8000-000000000013"
+  }
+}

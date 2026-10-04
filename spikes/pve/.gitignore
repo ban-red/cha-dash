@@ -1,0 +1,7 @@
+# Raw (unsanitized) captures and the TOFU pin store hold real hostnames, IPs and
+# certificate fingerprints. Never commit them; only sanitized fixtures belong in
+# testdata/integrations/proxmox/.
+raw/
+tofu.json
+*.raw.json
+bin/

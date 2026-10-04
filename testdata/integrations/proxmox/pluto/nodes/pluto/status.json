@@ -1,0 +1,55 @@
+{
+  "data": {
+    "boot-info": {
+      "mode": "efi",
+      "secureboot": 0
+    },
+    "cpu": 0,
+    "cpuinfo": {
+      "cores": 4,
+      "cpus": 4,
+      "flags": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize arch_lbr ibt flush_l1d arch_capabilities",
+      "hvm": "1",
+      "mhz": "700.000",
+      "model": "Intel(R) N100",
+      "sockets": 1,
+      "user_hz": 100
+    },
+    "current-kernel": {
+      "machine": "x86_64",
+      "release": "6.14.11-2-pve",
+      "sysname": "Linux",
+      "version": "#1 SMP PREEMPT_DYNAMIC PMX 6.14.11-2 (2025-09-12T09:46Z)"
+    },
+    "idle": 0,
+    "ksm": {
+      "shared": 4811972608
+    },
+    "kversion": "Linux 6.14.11-2-pve #1 SMP PREEMPT_DYNAMIC PMX 6.14.11-2 (2025-09-12T09:46Z)",
+    "loadavg": [
+      "0.34",
+      "0.26",
+      "0.25"
+    ],
+    "memory": {
+      "available": 3115036672,
+      "free": 297279488,
+      "total": 16497078272,
+      "used": 13382041600
+    },
+    "pveversion": "pve-manager/9.0.9/117b893e0e6a4fee",
+    "rootfs": {
+      "avail": 22325690368,
+      "free": 24466251776,
+      "total": 41489260544,
+      "used": 17023008768
+    },
+    "swap": {
+      "free": 8589406208,
+      "total": 8589930496,
+      "used": 524288
+    },
+    "uptime": 1154168,
+    "wait": 0
+  }
+}

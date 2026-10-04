@@ -1,0 +1,16 @@
+# Raw captures hold real camera names, zones and addresses. Never commit them;
+# only sanitized fixtures belong in testdata/integrations/frigate/.
+# Camera images, snapshots, clips and thumbnails are never written at all.
+raw/
+*.raw.json
+*.raw.txt
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.mp4
+*.m3u8
+*.ts
+*.pin
+*.needles
+bin/

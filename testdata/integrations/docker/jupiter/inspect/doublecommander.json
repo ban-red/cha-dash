@@ -1,0 +1,276 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "UMASK=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "DISPLAY=REDACTED",
+      "PERL5LIB=REDACTED",
+      "START_DOCKER=REDACTED",
+      "PULSE_RUNTIME_PATH=REDACTED",
+      "SELKIES_INTERPOSER=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "DISABLE_ZINK=REDACTED",
+      "DISABLE_DRI3=REDACTED",
+      "TITLE=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "NO_GAMEPAD=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "3001/tcp": {}
+    },
+    "Hostname": "4c829f86c696",
+    "Image": "lscr.io/linuxserver/doublecommander",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- 01e73353-ls290 Build-date:- 2026-01-02T16:33:05+00:00",
+      "maintainer": "thelamer",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/doublecommander-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "https://[IP]:[PORT:3001]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-01-02T16:33:05+00:00",
+      "org.opencontainers.image.description": "[Double Commander](https://doublecmd.sourceforge.io/) is a free cross platform open source file manager with two panels side by side. It is inspired by Total Commander and features some new ideas.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-doublecommander",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "7fbb2f925fd8efe4c38765131afa177019017523",
+      "org.opencontainers.image.revision": "7fbb2f925fd8efe4c38765131afa177019017523",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-doublecommander",
+      "org.opencontainers.image.title": "Doublecommander",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-doublecommander/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "01e73353-ls290"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-01-04T03:45:57.708249126Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "4c829f86c696b92363113f87cbd2b0bceeb29033b7a96f922fd4a315dbe718c2",
+      "LowerDir": "/var/lib/docker/overlay2/01c9a66cf9584200c860bcf68a9e2997ef191a781165c9723bff7ec16e384b16-init/diff:/var/lib/docker/overlay2/85e9043dba07540f5639327e523d1d8c19694506a636c1c0f3b67445bc811612/diff:/var/lib/docker/overlay2/1781abe67f873795ab7cee84bddf7f0d8be26a14ee982860cf3d8a7102ed9c7a/diff:/var/lib/docker/overlay2/2db83c2a5c104e82d60720df8f9926dadcfacfa1f69064d804bfd03c8c927758/diff:/var/lib/docker/overlay2/c6f0cdc1a4c81c67f8704c6da5a041a89f6a3c4db2b2023eca3d5bdc294243de/diff:/var/lib/docker/overlay2/bc4efce113af7aba7dbdd96c3e1633d2226920c5a63ca160fd14b09dfdb84324/diff:/var/lib/docker/overlay2/9350cf561f4c0ee266d871ab48821b153cbcdc5ca12606534f077c878089f99a/diff:/var/lib/docker/overlay2/d84c31c873c40a61c8639d432cd1a6b560ad5892d466e60561323d8a9cb5d2ce/diff:/var/lib/docker/overlay2/5044aa0033ab94239b2659f78fa0659e2c4a93ea50d5265fa5271c83f1a9bd55/diff:/var/lib/docker/overlay2/4b89c04530f82d8850f8823a0403e2da3b118b48021336d8bc3037c9e14f48d8/diff:/var/lib/docker/overlay2/05f27b1e7fdb62013f6f36a28a7862dafe7fbc90ad8ab583af398845ebca53fe/diff:/var/lib/docker/overlay2/9c6963c58598b81042be5f28b33ca12a213b308c07c5a92322c8ad0fca13adea/diff:/var/lib/docker/overlay2/12ec685562f4280e13653f37e294c650862871e9b7b194ee6685741e4cc9ed1e/diff:/var/lib/docker/overlay2/ff9b0e7a3f920e5fe7b582594c2318c8887355005026bf34de5c934581d3194c/diff",
+      "MergedDir": "/var/lib/docker/overlay2/01c9a66cf9584200c860bcf68a9e2997ef191a781165c9723bff7ec16e384b16/merged",
+      "UpperDir": "/var/lib/docker/overlay2/01c9a66cf9584200c860bcf68a9e2997ef191a781165c9723bff7ec16e384b16/diff",
+      "WorkDir": "/var/lib/docker/overlay2/01c9a66cf9584200c860bcf68a9e2997ef191a781165c9723bff7ec16e384b16/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/:/mnt/user/:rw",
+      "/mnt/disks/:/mnt/disks:rw",
+      "/mnt/user/appdata/doublecommander:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3202"
+        }
+      ],
+      "3001/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3201"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 1073741824,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/4c829f86c696b92363113f87cbd2b0bceeb29033b7a96f922fd4a315dbe718c2/hostname",
+  "HostsPath": "/var/lib/docker/containers/4c829f86c696b92363113f87cbd2b0bceeb29033b7a96f922fd4a315dbe718c2/hosts",
+  "Id": "4c829f86c696b92363113f87cbd2b0bceeb29033b7a96f922fd4a315dbe718c2",
+  "Image": "sha256:d1e6cd8e2accbec64bcd4e2e166286393d821312cf24ee2298ba6be34e227a92",
+  "LogPath": "/var/lib/docker/containers/4c829f86c696b92363113f87cbd2b0bceeb29033b7a96f922fd4a315dbe718c2/4c829f86c696b92363113f87cbd2b0bceeb29033b7a96f922fd4a315dbe718c2-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/mnt/disks",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/disks",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/mnt/user",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/doublecommander",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/doublecommander",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "965af62cd41727a1df3fa2a12e1e03e8b3a7f7150110a457b652b3f8627fcd3a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/4c829f86c696b92363113f87cbd2b0bceeb29033b7a96f922fd4a315dbe718c2/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-01-04T03:58:30.670448412Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-01-04T03:46:04.39956009Z",
+    "Status": "exited"
+  }
+}

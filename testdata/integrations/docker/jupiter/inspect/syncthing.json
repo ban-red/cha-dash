@@ -1,0 +1,329 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "PATH=REDACTED",
+      "PS1=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED"
+    ],
+    "ExposedPorts": {
+      "21027/udp": {},
+      "22000/tcp": {},
+      "22000/udp": {},
+      "8384/tcp": {}
+    },
+    "Hostname": "a5df66bb6173",
+    "Image": "lscr.io/linuxserver/syncthing",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v2.0.16-ls216 Build-date:- 2026-05-09T04:12:55+00:00",
+      "maintainer": "thelamer",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/syncthing-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8384]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-05-09T04:12:55+00:00",
+      "org.opencontainers.image.description": "[Syncthing](https://syncthing.net) replaces proprietary sync and cloud services with something open, trustworthy and decentralized. Your data is your data alone and you deserve to choose where it is stored, if it is shared with some third party and how it's transmitted over the Internet.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-syncthing",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "cfad4ea37d75f7a3887ce220fe8bfd1c09d6710f",
+      "org.opencontainers.image.revision": "cfad4ea37d75f7a3887ce220fe8bfd1c09d6710f",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-syncthing",
+      "org.opencontainers.image.title": "Syncthing",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-syncthing/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v2.0.16-ls216"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-05-11T19:18:07.384342901Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "a5df66bb6173a443b0f6797fac941f9ed60b53e2af2f515784ac90a3729da35d",
+      "LowerDir": "/var/lib/docker/overlay2/2b2d6ee02c0d69e887cb58abe67868117c607dbdb1289d95f9c3dce24d7ce6f9-init/diff:/var/lib/docker/overlay2/7adf445088e070313c51857ec0cfc71ff22300b70556a6ad6a0157efa6e90abb/diff:/var/lib/docker/overlay2/5f5f74b1d6c523cb3293f19662c0f0513b4b88b8db39ff797421c0867adec91e/diff:/var/lib/docker/overlay2/ba15fdfbc6125bd76053143b3be220d77495dac0311366baad121ea17f459bbc/diff:/var/lib/docker/overlay2/90dbff6005c996a5c3fa95750b2de29e19b7f99b2e7f397aa5c17ba0d513072d/diff:/var/lib/docker/overlay2/19fcbf203df45e7420e55c3b91de88cc258173098e1415801f5fe4c9282e5101/diff:/var/lib/docker/overlay2/fb509001c4ed40a90941a8db068259dac8d18697841a1b621333938da634b713/diff:/var/lib/docker/overlay2/32a273c85b59b68710319eca31fd16275c2ad9a97b9a0fcfe5d80603bf63bb2f/diff:/var/lib/docker/overlay2/ba6395c89c4be94f314bc82aa7fe9e79158c978f746bc26b3f676f1126ce81d8/diff:/var/lib/docker/overlay2/8a3af6c50b4e746bac66650671bfa578af722e64c67649c070bbc83c718bc8f8/diff:/var/lib/docker/overlay2/ee4a2ca4f396f8b8797fc097e56cd748e16c62577dca60a9df9fd92b463603e4/diff",
+      "MergedDir": "/var/lib/docker/overlay2/2b2d6ee02c0d69e887cb58abe67868117c607dbdb1289d95f9c3dce24d7ce6f9/merged",
+      "UpperDir": "/var/lib/docker/overlay2/2b2d6ee02c0d69e887cb58abe67868117c607dbdb1289d95f9c3dce24d7ce6f9/diff",
+      "WorkDir": "/var/lib/docker/overlay2/2b2d6ee02c0d69e887cb58abe67868117c607dbdb1289d95f9c3dce24d7ce6f9/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/general_backup/:/mnt/user/general_backup/:rw",
+      "/mnt/user/backup/syncthing:/mnt/user/backup/syncthing:rw",
+      "/mnt/user/media/_DEVICES_:/mnt/user/media/_DEVICES_:rw",
+      "/mnt/user/appdata/syncthing:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "21027/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "21027"
+        }
+      ],
+      "22000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "22000"
+        }
+      ],
+      "22000/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "22000"
+        }
+      ],
+      "8384/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8384"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/a5df66bb6173a443b0f6797fac941f9ed60b53e2af2f515784ac90a3729da35d/hostname",
+  "HostsPath": "/var/lib/docker/containers/a5df66bb6173a443b0f6797fac941f9ed60b53e2af2f515784ac90a3729da35d/hosts",
+  "Id": "a5df66bb6173a443b0f6797fac941f9ed60b53e2af2f515784ac90a3729da35d",
+  "Image": "sha256:8e5763b302846392993de7cdbaf4b2664d4302ef793255fad3e0b7d3dd544454",
+  "LogPath": "/var/lib/docker/containers/a5df66bb6173a443b0f6797fac941f9ed60b53e2af2f515784ac90a3729da35d/a5df66bb6173a443b0f6797fac941f9ed60b53e2af2f515784ac90a3729da35d-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/syncthing",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/mnt/user/backup/syncthing",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/backup/syncthing",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/mnt/user/general_backup",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/general_backup",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/mnt/user/media/_DEVICES_",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/_DEVICES_",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/syncthing",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "1a4b7426e384001bae699b7a9389d8358fedb5e45e6b0fe35c2661e6e9c99c60",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.33",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:1b",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "21027/udp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "21027"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "21027"
+        }
+      ],
+      "22000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "22000"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "22000"
+        }
+      ],
+      "22000/udp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "22000"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "22000"
+        }
+      ],
+      "8384/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8384"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8384"
+        }
+      ]
+    },
+    "SandboxID": "9e86c035c91dc2e0328af480d455d7b0b6e87570f3c1bd249683db009b6bbe4f",
+    "SandboxKey": "/var/run/docker/netns/9e86c035c91d"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/a5df66bb6173a443b0f6797fac941f9ed60b53e2af2f515784ac90a3729da35d/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.873317209Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 48928,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:54.522588494Z",
+    "Status": "running"
+  }
+}

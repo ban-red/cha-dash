@@ -1,0 +1,30 @@
+{
+  "data": {
+    "agent": "1",
+    "balloon": 0,
+    "bios": "ovmf",
+    "boot": "order=scsi0",
+    "cores": 8,
+    "cpu": "host,hidden=1",
+    "digest": "08d21015bf6049236de6ea804fa39a2f214bd8a4",
+    "efidisk0": "local-lvm:vm-100-disk-0,efitype=4m,ms-cert=2023k,pre-enrolled-keys=1,size=4M",
+    "hostpci0": "0000:01:00,pcie=1,x-vga=1",
+    "hostpci1": "0000:08:00,pcie=1",
+    "machine": "pc-q35-9.2+pve1",
+    "memory": "32768",
+    "meta": "creation-qemu=9.2.0,ctime=1749799743",
+    "name": "vm-100",
+    "net0": "e1000e=BC:24:11:00:00:39,bridge=vmbr0",
+    "numa": 0,
+    "ostype": "win11",
+    "protection": 1,
+    "scsi0": "/dev/disk/by-id/nvme-WD_BLACK_SN850X_HS_2000GB_FAKESERIAL0008,cache=writeback,size=1953514584K,ssd=1,backup=0",
+    "scsihw": "virtio-scsi-pci",
+    "smbios1": "uuid=00000000-0000-4000-8000-000000000010",
+    "sockets": 1,
+    "tablet": 0,
+    "tpmstate0": "local-lvm:vm-100-disk-1,size=4M,version=v2.0",
+    "vga": "none",
+    "vmgenid": "00000000-0000-4000-8000-000000000011"
+  }
+}

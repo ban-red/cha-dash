@@ -1,0 +1,13 @@
+{
+  "data": [
+    {
+      "n": 1,
+      "t": "INFO: notified via target `mail-to-root`"
+    },
+    {
+      "n": 2,
+      "t": "TASK ERROR: could not activate storage 'jupiter-pbs': jupiter-pbs: error fetching datastores - 500 Can't connect to jupiter.lab.example:8007 (No route to host)"
+    }
+  ],
+  "total": 2
+}

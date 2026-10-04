@@ -1,0 +1,185 @@
+{
+  "lan": {
+    "records": [
+      {
+        "address": "10.0.11.202",
+        "cumulative": "3.36 mb",
+        "cumulative_bytes": 3362800,
+        "cumulative_bytes_in": 3277000,
+        "cumulative_bytes_out": 85800,
+        "cumulative_in": "3.28 mb",
+        "cumulative_out": "85.8 kb",
+        "details": [
+          {
+            "address": "10.0.21.16",
+            "cumulative": "1.88MB",
+            "cumulative_bytes": 1880000,
+            "rate": "7.51Mb",
+            "rate_bits": 7510000,
+            "tags": [
+              "private"
+            ]
+          },
+          {
+            "address": "10.0.21.17",
+            "cumulative": "908KB",
+            "cumulative_bytes": 908000,
+            "rate": "3.55Mb",
+            "rate_bits": 3550000,
+            "tags": [
+              "private"
+            ]
+          },
+          {
+            "address": "10.0.21.18",
+            "cumulative": "489KB",
+            "cumulative_bytes": 489000,
+            "rate": "1.91Mb",
+            "rate_bits": 1910000,
+            "tags": [
+              "private"
+            ]
+          }
+        ],
+        "rate": "13.31 mb",
+        "rate_bits": 13313300,
+        "rate_bits_in": 12970000,
+        "rate_bits_out": 343300,
+        "rate_in": "12.97 mb",
+        "rate_out": "343.3 kb",
+        "rname": "client-202.lab.example",
+        "tags": [
+          "private"
+        ]
+      },
+      {
+        "address": "10.0.11.250",
+        "cumulative": "71.7 kb",
+        "cumulative_bytes": 71700,
+        "cumulative_bytes_in": 18270,
+        "cumulative_bytes_out": 53430,
+        "cumulative_in": "18.27 kb",
+        "cumulative_out": "53.43 kb",
+        "details": [
+          {
+            "address": "203.0.113.10",
+            "cumulative": "12.4KB",
+            "cumulative_bytes": 12400,
+            "rate": "49.4Kb",
+            "rate_bits": 49400,
+            "tags": []
+          },
+          {
+            "address": "203.0.113.11",
+            "cumulative": "5.87KB",
+            "cumulative_bytes": 5870,
+            "rate": "23.5Kb",
+            "rate_bits": 23500,
+            "tags": []
+          }
+        ],
+        "rate": "286.43 kb",
+        "rate_bits": 286430,
+        "rate_bits_in": 72900,
+        "rate_bits_out": 213530,
+        "rate_in": "72.9 kb",
+        "rate_out": "213.53 kb",
+        "rname": "client-250.lab.example",
+        "tags": [
+          "private"
+        ]
+      },
+      {
+        "address": "10.0.11.120",
+        "cumulative": "45.3 kb",
+        "cumulative_bytes": 45300,
+        "cumulative_bytes_in": 21300,
+        "cumulative_bytes_out": 24000,
+        "cumulative_in": "21.3 kb",
+        "cumulative_out": "24.0 kb",
+        "details": [
+          {
+            "address": "203.0.113.12",
+            "cumulative": "21.3KB",
+            "cumulative_bytes": 21300,
+            "rate": "85.0Kb",
+            "rate_bits": 85000,
+            "tags": []
+          }
+        ],
+        "rate": "181.1 kb",
+        "rate_bits": 181100,
+        "rate_bits_in": 85000,
+        "rate_bits_out": 96100,
+        "rate_in": "85.0 kb",
+        "rate_out": "96.1 kb",
+        "rname": "client-120.lab.example",
+        "tags": [
+          "private"
+        ]
+      },
+      {
+        "address": "10.0.11.20",
+        "cumulative": "41.6 kb",
+        "cumulative_bytes": 41603,
+        "cumulative_bytes_in": 39480,
+        "cumulative_bytes_out": 2123,
+        "cumulative_in": "39.48 kb",
+        "cumulative_out": "2.12 kb",
+        "details": [
+          {
+            "address": "10.0.21.44",
+            "cumulative": "31.6KB",
+            "cumulative_bytes": 31600,
+            "rate": "127Kb",
+            "rate_bits": 127000,
+            "tags": [
+              "private"
+            ]
+          },
+          {
+            "address": "10.0.21.202",
+            "cumulative": "3.85KB",
+            "cumulative_bytes": 3850,
+            "rate": "15.4Kb",
+            "rate_bits": 15400,
+            "tags": [
+              "private"
+            ]
+          },
+          {
+            "address": "10.0.21.225",
+            "cumulative": "2.22KB",
+            "cumulative_bytes": 2220,
+            "rate": "8.86Kb",
+            "rate_bits": 8860,
+            "tags": [
+              "private"
+            ]
+          },
+          {
+            "address": "10.0.21.235",
+            "cumulative": "1.81KB",
+            "cumulative_bytes": 1810,
+            "rate": "7.23Kb",
+            "rate_bits": 7230,
+            "tags": [
+              "private"
+            ]
+          }
+        ],
+        "rate": "166.87 kb",
+        "rate_bits": 166870,
+        "rate_bits_in": 158490,
+        "rate_bits_out": 8380,
+        "rate_in": "158.49 kb",
+        "rate_out": "8.38 kb",
+        "rname": "client-20.lab.example",
+        "tags": [
+          "private"
+        ]
+      }
+    ],
+    "status": "ok"
+  }
+}

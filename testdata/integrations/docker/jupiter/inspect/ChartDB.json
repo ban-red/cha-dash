@@ -1,0 +1,218 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/entrypoint.sh"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "NGINX_VERSION=REDACTED",
+      "PKG_RELEASE=REDACTED",
+      "DYNPKG_RELEASE=REDACTED",
+      "NJS_VERSION=REDACTED",
+      "NJS_RELEASE=REDACTED",
+      "ACME_VERSION=REDACTED"
+    ],
+    "ExposedPorts": {
+      "80/tcp": {}
+    },
+    "Hostname": "e565f0ec7afd",
+    "Image": "ghcr.io/chartdb/chartdb:latest",
+    "Labels": {
+      "maintainer": "NGINX Docker Maintainers \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/nwithan8/unraid_templates/master/images/chartdb-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:80]/",
+      "org.opencontainers.image.created": "2026-04-07T14:43:55.740Z",
+      "org.opencontainers.image.description": "Database diagrams editor that allows you to visualize and design your DB with a single query.",
+      "org.opencontainers.image.licenses": "AGPL-3.0",
+      "org.opencontainers.image.revision": "deed63abfb2dac53b3352b8f89b08cceca296685",
+      "org.opencontainers.image.source": "https://github.com/chartdb/chartdb",
+      "org.opencontainers.image.title": "chartdb",
+      "org.opencontainers.image.url": "https://github.com/chartdb/chartdb",
+      "org.opencontainers.image.version": "1.20.1"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "StopSignal": "SIGQUIT",
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-05-11T21:19:46.394770788Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "e565f0ec7afd0ac776b77b2998b179dec0f23a8b8bd2ae7627964081bbc86b7f",
+      "LowerDir": "/var/lib/docker/overlay2/6c5d4329c048d49d4a1f0c718b48a70ff28c371629391d7e8d9052ce8cc6a7b6-init/diff:/var/lib/docker/overlay2/399370d6ab2216d1d526faf2dd74504954fbb140fbb015c8131199f512b459d1/diff:/var/lib/docker/overlay2/e448e6895233a3a07fdc9a4e784e3901d1b14aa06d52b7e55d4e9d82f8496aa0/diff:/var/lib/docker/overlay2/636bac63c8959bd5dfb4168de58ee6ad05b1fcf54103d6ea9b5b1dcf7af7716e/diff:/var/lib/docker/overlay2/66039cd592e5b818cb70b1e16f4b2ec4d2c0c3705dda09d44a030af3841a9a99/diff:/var/lib/docker/overlay2/82fa4e9cc0e5cc93d6f393bce2743f01a61dc27e858827d74457a5ff83b7cbe9/diff:/var/lib/docker/overlay2/a6cf5c4a62bbaa1cc87029ce1f8107666c37bf9882729deec098b989d933fd76/diff:/var/lib/docker/overlay2/39034d0490dc53691624abd3cc6ca9dd244f0aa5157fc9f60af0d6ea65320182/diff:/var/lib/docker/overlay2/6353266a959c54c0e3369664d7959e8648fd7d12abb49214a625660b3f9bdd55/diff:/var/lib/docker/overlay2/468e9c6a495ab97430350f7034b16b0ad43366d85bcc06a690d18e4fe00463a9/diff:/var/lib/docker/overlay2/cf365ecf69882a042ce2d486e34436b18c6345f7fc9ef0f735ec9cc79122d4e4/diff:/var/lib/docker/overlay2/a994766f2e495e7c285c7253add188165a70cef9a24fcf388026be202927bff9/diff:/var/lib/docker/overlay2/ec0499c2273901e0d63b6c777887b71eba8e75f545ee51afadb0a38551680ec2/diff",
+      "MergedDir": "/var/lib/docker/overlay2/6c5d4329c048d49d4a1f0c718b48a70ff28c371629391d7e8d9052ce8cc6a7b6/merged",
+      "UpperDir": "/var/lib/docker/overlay2/6c5d4329c048d49d4a1f0c718b48a70ff28c371629391d7e8d9052ce8cc6a7b6/diff",
+      "WorkDir": "/var/lib/docker/overlay2/6c5d4329c048d49d4a1f0c718b48a70ff28c371629391d7e8d9052ce8cc6a7b6/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": null,
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "80/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "5450"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "e565f0ec7afd0ac776b77b2998b179dec0f23a8b8bd2ae7627964081bbc86b7f",
+  "Image": "sha256:6448fea486375c8a50611884cf37b97408b6090971624024b11e76c70d2ac768",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [],
+  "Name": "/ChartDB",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

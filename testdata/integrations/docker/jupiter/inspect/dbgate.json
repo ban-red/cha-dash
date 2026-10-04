@@ -1,0 +1,254 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "/home/dbgate-docker/entrypoint.sh"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/home/dbgate-docker/entrypoint.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "docker-entrypoint.sh"
+    ],
+    "Env": [
+      "LOGINS=REDACTED",
+      "OAUTH_CLIENT_SECRET=REDACTED",
+      "OAUTH_TOKEN=REDACTED",
+      "OAUTH_LOGOUT=REDACTED",
+      "OAUTH_LOGIN_FIELD=REDACTED",
+      "HOST_OS=REDACTED",
+      "LOGIN_PASSWORD_admin=REDACTED",
+      "LOGIN_PERMISSIONS_admin=REDACTED",
+      "OAUTH_AUTH=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "LOG_LEVEL=REDACTED",
+      "OAUTH_CLIENT_ID=REDACTED",
+      "OAUTH_SCOPE=REDACTED",
+      "TZ=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "WEB_ROOT=REDACTED",
+      "PATH=REDACTED",
+      "NODE_VERSION=REDACTED",
+      "YARN_VERSION=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Hostname": "35943b0e5260",
+    "Image": "dbgate/dbgate:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/dbgate/dbgate/master/app/icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]",
+      "org.opencontainers.image.source": "https://github.com/dbgate/dbgate"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/root/.dbgate": {}
+    },
+    "WorkingDir": "/home/dbgate-docker"
+  },
+  "Created": "2026-05-11T21:19:35.000929958Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "35943b0e5260bd92a80a4e8bf6a411680aeda543d90ef39367a6d82531e2f310",
+      "LowerDir": "/var/lib/docker/overlay2/93ca9508a4da3b0c201c9d1fa6f90bc52fb7d410f0aea5973e93d52b7c244e26-init/diff:/var/lib/docker/overlay2/b7d83777ae8a7c263a3b608d4a737764f8632f341518f0d5b92b458822e68f32/diff:/var/lib/docker/overlay2/cc21d58b724407475cb95d3b08a988aa00d08f2bdc2ed88bfb36f08b51a38ea1/diff:/var/lib/docker/overlay2/115f20fa5417a7576ff4b8a8d5293c5d421d9500f6ff1cd337e6a64deb4ee171/diff:/var/lib/docker/overlay2/b9742ad3689c9d7037f6886bc16862ddc7c01acb7c94789ec4829c5e183b9113/diff:/var/lib/docker/overlay2/8ae5dcd74ff97001a8390a09eed106a1e6662ef8b83182e76ef060023a94f241/diff:/var/lib/docker/overlay2/e69f7151cb37fe6c28a7588535ecad395685a2267b9bca6d534fc30420709080/diff:/var/lib/docker/overlay2/83db4220694cee426938cba04fecf5e2f4607fe29752ed81c4d2205990e12e03/diff:/var/lib/docker/overlay2/8e32d01f5ebb42a0ba26b32a5289f17c5d94cbed94ca6f8d55c94cd8d91af0c4/diff:/var/lib/docker/overlay2/0267d5a11764c6e045dcd828e0808c78e321ab987dfb637cf9b042c3392ba59f/diff:/var/lib/docker/overlay2/fc10b0ad6c38bcbdf35faf1add861a05e0930946a678f034d90db220ec0f6945/diff:/var/lib/docker/overlay2/79e2d324d962eecae401f3c35ab2a320948e094e36e0b05a4ceb6884d9ac6dc8/diff:/var/lib/docker/overlay2/407e9c3b3ceaf8f8d4389ef90e3e66e8c3d29469110355b281effeb0841359db/diff:/var/lib/docker/overlay2/5f00ac66b48a2012faded19d72a4dcaa1d7b68108e4a01d7ecad57a2f6bd90b3/diff",
+      "MergedDir": "/var/lib/docker/overlay2/93ca9508a4da3b0c201c9d1fa6f90bc52fb7d410f0aea5973e93d52b7c244e26/merged",
+      "UpperDir": "/var/lib/docker/overlay2/93ca9508a4da3b0c201c9d1fa6f90bc52fb7d410f0aea5973e93d52b7c244e26/diff",
+      "WorkDir": "/var/lib/docker/overlay2/93ca9508a4da3b0c201c9d1fa6f90bc52fb7d410f0aea5973e93d52b7c244e26/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/dbgate:/root/.dbgate:rw",
+      "/etc/localtime:/etc/localtime:ro"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3001"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/35943b0e5260bd92a80a4e8bf6a411680aeda543d90ef39367a6d82531e2f310/hostname",
+  "HostsPath": "/var/lib/docker/containers/35943b0e5260bd92a80a4e8bf6a411680aeda543d90ef39367a6d82531e2f310/hosts",
+  "Id": "35943b0e5260bd92a80a4e8bf6a411680aeda543d90ef39367a6d82531e2f310",
+  "Image": "sha256:f3e2fb2977138a20a9d7be1989cecdeb29c843395e26009858b4f93ff6fd3645",
+  "LogPath": "/var/lib/docker/containers/35943b0e5260bd92a80a4e8bf6a411680aeda543d90ef39367a6d82531e2f310/35943b0e5260bd92a80a4e8bf6a411680aeda543d90ef39367a6d82531e2f310-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/etc/localtime",
+      "Mode": "ro",
+      "Propagation": "rprivate",
+      "RW": false,
+      "Source": "/etc/localtime",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/root/.dbgate",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/dbgate",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/dbgate",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "74a054f68ec77ad1516c52ed4c6e90086934e8eb0f49196c781ad0357f3eae54",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.14",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:14",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "3001"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "3001"
+        }
+      ]
+    },
+    "SandboxID": "92cdc58cee0845773baf778aee384fc008162b4f245d880b476bb79ff892a988",
+    "SandboxKey": "/var/run/docker/netns/92cdc58cee08"
+  },
+  "Path": "docker-entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/35943b0e5260bd92a80a4e8bf6a411680aeda543d90ef39367a6d82531e2f310/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.87081794Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 41193,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:49.820590915Z",
+    "Status": "running"
+  }
+}

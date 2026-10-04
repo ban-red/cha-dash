@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-10-04T02:08:04Z",
+  "containers": 0,
+  "durations": {},
+  "error": "DNS: name not found",
+  "eventStats": {
+    "live": {
+      "byTypeAction": {},
+      "count": 0
+    },
+    "past": {
+      "byTypeAction": {},
+      "count": 0
+    }
+  },
+  "inspected": 0,
+  "liveEvents": 0,
+  "name": "pvedocker",
+  "pastEvents": 0,
+  "reachable": false,
+  "scheme": "tcp",
+  "statuses": {}
+}

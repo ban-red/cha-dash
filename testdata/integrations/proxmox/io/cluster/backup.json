@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "compress": "zstd",
+      "enabled": 1,
+      "fleecing": {
+        "enabled": 0
+      },
+      "id": "backup-77532a36-6067",
+      "mode": "snapshot",
+      "next-run": 1791111600,
+      "node": "io",
+      "notes-template": "{{guestname}}",
+      "notification-mode": "notification-system",
+      "repeat-missed": 0,
+      "schedule": "05:00",
+      "storage": "local",
+      "type": "vzdump",
+      "vmid": "100,200"
+    }
+  ]
+}

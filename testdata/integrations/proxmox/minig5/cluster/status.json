@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "id": "node/minig5",
+      "ip": "10.0.11.190",
+      "level": "",
+      "local": 1,
+      "name": "minig5",
+      "nodeid": 0,
+      "online": 1,
+      "type": "node"
+    }
+  ]
+}

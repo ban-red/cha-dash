@@ -1,0 +1,280 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "TA_URL=REDACTED",
+      "TZ=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PLEX_CLAIM=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "TA_API_KEY=REDACTED",
+      "HOST_OS=REDACTED",
+      "PLEX_UID=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PLEX_GID=REDACTED",
+      "VERSION=REDACTED",
+      "NVIDIA_VISIBLE_DEVICESaaa=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIESaaa=REDACTED",
+      "UMASK=REDACTED",
+      "DOCKER_MODS=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED",
+      "PLEX_DOWNLOAD=REDACTED",
+      "PLEX_ARCH=REDACTED",
+      "PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR=REDACTED",
+      "PLEX_MEDIA_SERVER_HOME=REDACTED",
+      "PLEX_MEDIA_SERVER_MAX_PLUGIN_PROCS=REDACTED",
+      "PLEX_MEDIA_SERVER_USER=REDACTED",
+      "PLEX_MEDIA_SERVER_INFO_VENDOR=REDACTED",
+      "PLEX_MEDIA_SERVER_INFO_DEVICE=REDACTED",
+      "TMPDIR=REDACTED",
+      "ATTACHED_DEVICES_PERMS=REDACTED"
+    ],
+    "ExposedPorts": {
+      "1900/udp": {},
+      "32400/tcp": {},
+      "32410/udp": {},
+      "32412/udp": {},
+      "32413/udp": {},
+      "32414/udp": {},
+      "32469/tcp": {},
+      "5353/udp": {},
+      "8324/tcp": {}
+    },
+    "Hostname": "Jupiter",
+    "Image": "lscr.io/linuxserver/plex:latest",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- 1.43.3.10896-cb3ebc72d-ls322 Build-date:- 2026-08-31T16:57:17+00:00",
+      "maintainer": "thelamer",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/plex-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:32400]/web/index.html",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-08-31T16:57:17+00:00",
+      "org.opencontainers.image.description": "[Plex](https://plex.tv) organizes video, music and photos from personal media libraries and streams them to smart TVs, streaming boxes and mobile devices. This container is packaged as a standalone Plex Media Server. Straightforward design and bulk actions mean getting things done faster.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-plex",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "3e57d9ea8a08e8214278d7cee12fb5ee14fef094",
+      "org.opencontainers.image.revision": "3e57d9ea8a08e8214278d7cee12fb5ee14fef094",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-plex",
+      "org.opencontainers.image.title": "Plex",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-plex/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "1.43.3.10896-cb3ebc72d-ls322"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-09-02T16:51:53.663728627Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "eb0448d517c77245d17101d5216f162a656d4ae1e79a004396a265fd6f1c697d",
+      "LowerDir": "/var/lib/docker/overlay2/947da5871756ff43ca8e7902344976f2570968c5c1af721d6b5c0624ccdce4bd-init/diff:/var/lib/docker/overlay2/26f2359c969b979bfd1eeb502930c87f2f07cf99f0927dba274f82f74ff23933/diff:/var/lib/docker/overlay2/711c6d1d22cb60db7a194133c034c36d7776870b1ecc904b4bc622107e99549b/diff:/var/lib/docker/overlay2/b0615e06f6c2393d80aebfb646e87754bebbbaf3c369431dc1b15c3e991d2021/diff:/var/lib/docker/overlay2/392901af801ef26806ef5aca4d7f8d9bd03bfd7e5e4a6468864ad97f091dd911/diff:/var/lib/docker/overlay2/50190fb8a9d39882b9e3f036b75aeb2c44aee3e74374bfbf6ea23b5d543c09a3/diff:/var/lib/docker/overlay2/73b8dd4350158016583582576caa67652f064e553c2750778c660d82b0b02f79/diff:/var/lib/docker/overlay2/fb70f0245c6932bdd71e882f29c28615aa714e4506c84b4352cd86d963d68815/diff:/var/lib/docker/overlay2/2d21ad0245af968de4f525d08e9da6a454a88d43adf4a214b2213aa59296fd1b/diff:/var/lib/docker/overlay2/baecc9d7a5e1379360e103b9284b0f8b846f0f2314cf610918cae9931583fd5a/diff:/var/lib/docker/overlay2/1d3cc8983c2da6498b51e61a33256839f44f6099b08f9f6b1fd06c702f673db7/diff:/var/lib/docker/overlay2/767adf9794ce38e444e7ed252aa3e58297f306b40b27240252c4c46d66f714c5/diff",
+      "MergedDir": "/var/lib/docker/overlay2/947da5871756ff43ca8e7902344976f2570968c5c1af721d6b5c0624ccdce4bd/merged",
+      "UpperDir": "/var/lib/docker/overlay2/947da5871756ff43ca8e7902344976f2570968c5c1af721d6b5c0624ccdce4bd/diff",
+      "WorkDir": "/var/lib/docker/overlay2/947da5871756ff43ca8e7902344976f2570968c5c1af721d6b5c0624ccdce4bd/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/media/audiobooks/:/media/Audiobooks:rw",
+      "/mnt/user/appdata/Plex:/config:rw",
+      "/dev/shm/:/transcode:rw",
+      "/mnt/user/archive_a/Media/:/media:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 512,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [
+      {
+        "CgroupPermissions": "rwm",
+        "PathInContainer": "/dev/dri",
+        "PathOnHost": "/dev/dri"
+      }
+    ],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "50m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": null,
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "host",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {},
+    "Privileged": true,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": null,
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": [
+      "label=disable"
+    ],
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/eb0448d517c77245d17101d5216f162a656d4ae1e79a004396a265fd6f1c697d/hostname",
+  "HostsPath": "/var/lib/docker/containers/eb0448d517c77245d17101d5216f162a656d4ae1e79a004396a265fd6f1c697d/hosts",
+  "Id": "eb0448d517c77245d17101d5216f162a656d4ae1e79a004396a265fd6f1c697d",
+  "Image": "sha256:3603c3471ab735f387c18754f3deae0483c4e937f82480e3043dd011cfc70c88",
+  "LogPath": "/var/lib/docker/containers/eb0448d517c77245d17101d5216f162a656d4ae1e79a004396a265fd6f1c697d/eb0448d517c77245d17101d5216f162a656d4ae1e79a004396a265fd6f1c697d-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/media",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/Media",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/media/Audiobooks",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/audiobooks",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/transcode",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/dev/shm",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/Plex",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/Plex-Current",
+  "NetworkSettings": {
+    "Networks": {
+      "host": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "43bb0684e1b515e3b62dcbfab50fe76f0fa6ef24fb56938d18fc56938d7695c0",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "0a3f7872e504d81ef60950d0ac3954174b25570e586b638ba2dd8a75afc4d7fb"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "2af9d8a1adf729e9b30b59b9e1d511f9713e92d4a0cc96855688369c0d10c9d9",
+    "SandboxKey": "/var/run/docker/netns/default"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/eb0448d517c77245d17101d5216f162a656d4ae1e79a004396a265fd6f1c697d/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-10-03T05:59:04.106955786Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 2525676,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-10-03T06:24:04.874546196Z",
+    "Status": "running"
+  }
+}

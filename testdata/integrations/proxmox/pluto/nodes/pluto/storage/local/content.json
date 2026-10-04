@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "content": "iso",
+      "ctime": 1757743953,
+      "format": "iso",
+      "size": 2192586752,
+      "volid": "local:iso/OPNsense-25.7-dvd-amd64.iso"
+    },
+    {
+      "content": "vztmpl",
+      "ctime": 1758406197,
+      "format": "tzst",
+      "size": 127947660,
+      "volid": "local:vztmpl/debian-13-standard_13.1-1_amd64.tar.zst"
+    }
+  ]
+}

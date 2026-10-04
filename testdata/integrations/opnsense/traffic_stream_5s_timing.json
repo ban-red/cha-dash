@@ -1,0 +1,49 @@
+{
+  "content_type": "text/event-stream;charset=UTF-8",
+  "events": [
+    {
+      "at_ms": 111,
+      "bytes": 934,
+      "event": "message"
+    },
+    {
+      "at_ms": 5121,
+      "bytes": 994,
+      "event": "message"
+    },
+    {
+      "at_ms": 10132,
+      "bytes": 1003,
+      "event": "message"
+    },
+    {
+      "at_ms": 15181,
+      "bytes": 993,
+      "event": "message"
+    },
+    {
+      "at_ms": 20197,
+      "bytes": 994,
+      "event": "message"
+    },
+    {
+      "at_ms": 25201,
+      "bytes": 995,
+      "event": "message"
+    },
+    {
+      "at_ms": 30218,
+      "bytes": 994,
+      "event": "message"
+    }
+  ],
+  "headers": {
+    "Cache-Control": "no-cache",
+    "Content-Type": "text/event-stream;charset=UTF-8",
+    "Server": "OPNsense"
+  },
+  "path": "/api/diagnostics/traffic/stream/5",
+  "status": 200,
+  "total_bytes": 7068,
+  "window": "32s"
+}

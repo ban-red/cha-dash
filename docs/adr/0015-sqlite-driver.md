@@ -1,6 +1,6 @@
 # ADR-0015 · SQLite driver: ncruces, with encryption at rest as an opt-in
 
-**Status:** proposed · **Date:** 2026-10-03 · **Roadmap:** [decision 15](../plan/04-roadmap.md#decisions) · **Evidence:** [spike 4.8 findings](../../spikes/sqlite-driver/README.md#findings)
+**Status:** accepted · **Date:** 2026-10-03 · **Roadmap:** [decision 15](../plan/04-roadmap.md#decisions) · **Evidence:** [spike 4.8 findings](../../spikes/sqlite-driver/README.md#findings)
 
 ## Context
 

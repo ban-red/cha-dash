@@ -1,0 +1,299 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "HOST_CONTAINERNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PATH=REDACTED",
+      "PS1=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED"
+    ],
+    "ExposedPorts": {
+      "6767/tcp": {}
+    },
+    "Hostname": "964ca1bc4bde",
+    "Image": "lscr.io/linuxserver/bazarr:latest",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v1.6.0-ls362 Build-date:- 2026-09-01T23:20:05+00:00",
+      "maintainer": "chbmb",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/bazarr-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:6767]/system/status",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-09-01T23:20:05+00:00",
+      "org.opencontainers.image.description": "[Bazarr](https://www.bazarr.media/) is a companion application to Sonarr and Radarr. It can manage and download subtitles based on your requirements. You define your preferences by TV show or movie and Bazarr takes care of everything for you.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-bazarr",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "cb704bd91221cd6389fb09c5593a19d41bb04c30",
+      "org.opencontainers.image.revision": "cb704bd91221cd6389fb09c5593a19d41bb04c30",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-bazarr",
+      "org.opencontainers.image.title": "Bazarr",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-bazarr/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v1.6.0-ls362"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-09-02T16:51:40.18052946Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "964ca1bc4bde5de45812d51a6a2580e109c89e86591a21aff903d59afb8f2bc2",
+      "LowerDir": "/var/lib/docker/overlay2/77e2375ad0506799b964638d7a13b1d9373b0d72cd1aac85164efc5b3d48e046-init/diff:/var/lib/docker/overlay2/f5d6fadc69a90fdb5979d44247071c185299694d09f327c090beb8362e8a24f4/diff:/var/lib/docker/overlay2/9e4bd3a3fe533c91f91393dc5ba1d473a06b71968901cdcbec49a4cbe4750d8a/diff:/var/lib/docker/overlay2/f15e0aa2b6ad9c1464e75fe2b8650f832faac1dbdeba1d498be67ee68535a166/diff:/var/lib/docker/overlay2/a3de314d3a43745dbb5bfe2a38faeb227d28e16e488ea775a85de88023fba769/diff:/var/lib/docker/overlay2/f57672366bdf0868dee0cba38064ecce5f606509666cc56620ef2dda688088b5/diff:/var/lib/docker/overlay2/e609492a966bb01faa4cf76d4b3f93f983818574592d179e1c9a4fcd10fad790/diff:/var/lib/docker/overlay2/18687c06af47b22bee3e73873ac51816828248137833b8e9a482db3d01ca1d60/diff:/var/lib/docker/overlay2/d73cf52ef2298c4596d9808cc948d4c61a0272ae726048cbc72f64accc3519ac/diff:/var/lib/docker/overlay2/0b1aec65cd4a04e0be64ac88f005b76f76a957f825535391c30cfd7de76cafcb/diff:/var/lib/docker/overlay2/6833cb2b06a4dc7d4023ec78fb30d82659c6b987c6297401d80438c1aee22b0e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/77e2375ad0506799b964638d7a13b1d9373b0d72cd1aac85164efc5b3d48e046/merged",
+      "UpperDir": "/var/lib/docker/overlay2/77e2375ad0506799b964638d7a13b1d9373b0d72cd1aac85164efc5b3d48e046/diff",
+      "WorkDir": "/var/lib/docker/overlay2/77e2375ad0506799b964638d7a13b1d9373b0d72cd1aac85164efc5b3d48e046/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/archive_a/Media/Movies/:/movies:rw",
+      "/mnt/user/archive_a/Media/TV Shows/:/tv:rw",
+      "/mnt/user/archive_a/Media/Movies Kids/:/movies-kids:rw",
+      "/mnt/user/appdata/bazarr:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "6767/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6767"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/964ca1bc4bde5de45812d51a6a2580e109c89e86591a21aff903d59afb8f2bc2/hostname",
+  "HostsPath": "/var/lib/docker/containers/964ca1bc4bde5de45812d51a6a2580e109c89e86591a21aff903d59afb8f2bc2/hosts",
+  "Id": "964ca1bc4bde5de45812d51a6a2580e109c89e86591a21aff903d59afb8f2bc2",
+  "Image": "sha256:ab73bed2ac01d6797f3fb369996503f63f422628bdd98f5d32a93e2cadb4a31d",
+  "LogPath": "/var/lib/docker/containers/964ca1bc4bde5de45812d51a6a2580e109c89e86591a21aff903d59afb8f2bc2/964ca1bc4bde5de45812d51a6a2580e109c89e86591a21aff903d59afb8f2bc2-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/tv",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/Media/TV Shows",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/bazarr",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/movies",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/Media/Movies",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/movies-kids",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/Media/Movies Kids",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/bazarr",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "8479e70742013f30a7a0b5401841007aa82dad1740047450f5db7e07664fcef7",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.26",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:05",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "6767/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "6767"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "6767"
+        }
+      ]
+    },
+    "SandboxID": "16216467b3b0c124118c5fc46d44b38779d277dfc59cd8f5a45f16b0bdd0d19e",
+    "SandboxKey": "/var/run/docker/netns/16216467b3b0"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/964ca1bc4bde5de45812d51a6a2580e109c89e86591a21aff903d59afb8f2bc2/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.873377528Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 46368,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:52.469900404Z",
+    "Status": "running"
+  }
+}

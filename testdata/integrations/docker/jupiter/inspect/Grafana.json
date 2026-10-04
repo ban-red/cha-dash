@@ -1,0 +1,223 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/run.sh"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "GF_SERVER_ROOT_URL=REDACTED",
+      "GF_SECURITY_ADMIN_PASSWORD=REDACTED",
+      "PATH=REDACTED",
+      "GF_PATHS_CONFIG=REDACTED",
+      "GF_PATHS_DATA=REDACTED",
+      "GF_PATHS_HOME=REDACTED",
+      "GF_PATHS_LOGS=REDACTED",
+      "GF_PATHS_PLUGINS=REDACTED",
+      "GF_PATHS_PROVISIONING=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Hostname": "7b32b3883dff",
+    "Image": "grafana/grafana:latest",
+    "Labels": {
+      "maintainer": "Grafana Labs \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "https://github.com/atribe/unRAID-docker/raw/master/icons/grafana.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]/",
+      "org.opencontainers.image.source": "https://github.com/grafana/grafana"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "99:100",
+    "Volumes": null,
+    "WorkingDir": "/usr/share/grafana"
+  },
+  "Created": "2026-05-11T21:19:12.740036572Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "7b32b3883dff7370af9af9a30563b427b8d3439241f5cafca07f2cc152a94979",
+      "LowerDir": "/var/lib/docker/overlay2/2f24775759743ded23175c918449e39a00c7bb30e1063dd1562d7f5a9b535bf7-init/diff:/var/lib/docker/overlay2/4585598dbf106494f1221a9e5f87e353f533fa1a02f6f185fd44c36037e0bc5f/diff:/var/lib/docker/overlay2/ffe6a0763e1fe276ec502d24f0e36218491f4fcaeb6e97638126a6f31c707968/diff:/var/lib/docker/overlay2/e44a8ef5ffd7e05fc3423823b61b5bdc1d80423276662f241ca22e30321656a9/diff:/var/lib/docker/overlay2/bde6be8858204ea999b7bffd553836c14107a7b5950fc658ca6aaecc8090dbdc/diff:/var/lib/docker/overlay2/6db7be0bb37aff33badfa1d4cf54aa37c206248bf28c80d180fe02ee335947e5/diff:/var/lib/docker/overlay2/68f95193bfaed0b838c3735da29f565101dbdd618d398f8bbbfb02e9f83f6809/diff:/var/lib/docker/overlay2/e6c50d2630b16b23fd48bb01f32c9d3555881156261b174b2911c4df470397ab/diff:/var/lib/docker/overlay2/0e58873e281d0df8db9a258ecd5643326058c3b4bd31c27eae1a7e8140de3e27/diff:/var/lib/docker/overlay2/19951cc57ad4dda6a94e5437d25af26835bcbb630afc5fec54f63087ba0b620c/diff:/var/lib/docker/overlay2/8d9d4284144fec6e26fb1f17187990ca32a369ddaa72a697376493ccd29a1ff6/diff:/var/lib/docker/overlay2/86fbb0bd88d7cc0a89848e8ff6f55cd3ce84806620033de656bb4b13588e7cca/diff:/var/lib/docker/overlay2/8cc8aa5be013d6d6bf2550089f831662fc52c8c0402437818c7c908b0aab57e1/diff:/var/lib/docker/overlay2/ec0499c2273901e0d63b6c777887b71eba8e75f545ee51afadb0a38551680ec2/diff",
+      "MergedDir": "/var/lib/docker/overlay2/2f24775759743ded23175c918449e39a00c7bb30e1063dd1562d7f5a9b535bf7/merged",
+      "UpperDir": "/var/lib/docker/overlay2/2f24775759743ded23175c918449e39a00c7bb30e1063dd1562d7f5a9b535bf7/diff",
+      "WorkDir": "/var/lib/docker/overlay2/2f24775759743ded23175c918449e39a00c7bb30e1063dd1562d7f5a9b535bf7/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/grafana:/var/lib/grafana:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "33000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "7b32b3883dff7370af9af9a30563b427b8d3439241f5cafca07f2cc152a94979",
+  "Image": "sha256:8fae9a0ada1fb2fa384d6099d50fc53ca4304f6574ee2bb13c73c632e3994a17",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/var/lib/grafana",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/grafana",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/Grafana",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/run.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

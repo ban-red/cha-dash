@@ -1,0 +1,303 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "DISPLAY=REDACTED",
+      "PERL5LIB=REDACTED",
+      "START_DOCKER=REDACTED",
+      "PULSE_RUNTIME_PATH=REDACTED",
+      "SELKIES_INTERPOSER=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "DISABLE_ZINK=REDACTED",
+      "DISABLE_DRI3=REDACTED",
+      "SELKIES_ENCODER=REDACTED",
+      "TITLE=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "NO_GAMEPAD=REDACTED",
+      "NO_FULL=REDACTED",
+      "PIXELFLUX_WAYLAND=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "3001/tcp": {}
+    },
+    "Hostname": "6fafe94592b2",
+    "Image": "lscr.io/linuxserver/rustdesk",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- 1.4.9-ls123 Build-date:- 2026-08-28T00:43:23+00:00",
+      "maintainer": "thelamer",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/rustdesk-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "https://[IP]:[PORT:3001]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-08-28T00:43:23+00:00",
+      "org.opencontainers.image.description": "[RustDesk](https://rustdesk.com/) is a full-featured open source remote control alternative for self-hosting and security with minimal configuration.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-rustdesk",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "05f963761cf1daf7d281bd271f5c623a90a830eb",
+      "org.opencontainers.image.revision": "05f963761cf1daf7d281bd271f5c623a90a830eb",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-rustdesk",
+      "org.opencontainers.image.title": "Rustdesk",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-rustdesk/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "1.4.9-ls123"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-09-09T19:38:30.589277759Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "6fafe94592b25bce05e9edc2122df4a3b12cf996e7223653d244e8c40bd593af",
+      "LowerDir": "/var/lib/docker/overlay2/5392f6edb989d748b548e53d96b730f403e479c7a0793259d502d4739988db58-init/diff:/var/lib/docker/overlay2/da7c1d4502c4620790a0ed4afd95d28478ab270293f26075c4063c31e8b91a7a/diff:/var/lib/docker/overlay2/507a03d70afb4da877db84f53c609fd6a163c06e33b2a0c09bd1e9dc11788882/diff:/var/lib/docker/overlay2/d38e963a6ff0f6a4b345b5aa2a44b732393769a198bfb24cb41e0d4ab35d50bf/diff:/var/lib/docker/overlay2/3fcafd1ad2eabb82709d879f7cfcfb16e070fe73021edbb5ebf6b50e9b3b9ef9/diff:/var/lib/docker/overlay2/7402a1ddd96408e9ce207cbe759651fbd85b267d67378944b4a70c219b694dfd/diff:/var/lib/docker/overlay2/a2b335949172aeb59686e22153be7e1ec425c2443d3e7eefd515ba381a42d671/diff:/var/lib/docker/overlay2/e549f263c4d8cbb7306b727d7dd20e4195c8930a4e6a08e8776bbbe00c839f54/diff:/var/lib/docker/overlay2/d7850494757a7626861b6a3c5f8b481f8fcf4d6c81355c5a3a608e63c43f8647/diff:/var/lib/docker/overlay2/1b67cac9e0ebcdcb3874d8fce346aa85b46bea6bed877a0c2351ef074eb3c7bf/diff:/var/lib/docker/overlay2/a530eabc838419504c2268bc737506af67555e208020d4c226c2771a1bf69ad3/diff:/var/lib/docker/overlay2/394e682c95c3a0566fcb5b0c2e7cae02aa594b322ecb8d0da11aa2341d20ef6a/diff:/var/lib/docker/overlay2/50d6f2f13922c5b8fb81571a23a37b877ff61edacd6d1f336d6698311902a9ed/diff:/var/lib/docker/overlay2/d436c4a7ee7e2bf098f8199326fe7fdbe1846469ccc826ab79bb07a90241e9d4/diff:/var/lib/docker/overlay2/e6b8de1ce565e83d1d467bc7276740a0916de77ab78a709a366904406f66f967/diff:/var/lib/docker/overlay2/8bbadc0caf64d1148b8d9fe1b479a2d80184da76759f1d857e2ee227b6047faa/diff:/var/lib/docker/overlay2/91a3e003789e06a33e5d89a8489571f4e8e2acc32058df92142278d296866c1b/diff:/var/lib/docker/overlay2/4400d54328596052c797c1b3ccd96da6e312a848c85bb7c36f9e435da2285f06/diff",
+      "MergedDir": "/var/lib/docker/overlay2/5392f6edb989d748b548e53d96b730f403e479c7a0793259d502d4739988db58/merged",
+      "UpperDir": "/var/lib/docker/overlay2/5392f6edb989d748b548e53d96b730f403e479c7a0793259d502d4739988db58/diff",
+      "WorkDir": "/var/lib/docker/overlay2/5392f6edb989d748b548e53d96b730f403e479c7a0793259d502d4739988db58/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/rustdesk:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3600"
+        }
+      ],
+      "3001/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3601"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 1073741824,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/6fafe94592b25bce05e9edc2122df4a3b12cf996e7223653d244e8c40bd593af/hostname",
+  "HostsPath": "/var/lib/docker/containers/6fafe94592b25bce05e9edc2122df4a3b12cf996e7223653d244e8c40bd593af/hosts",
+  "Id": "6fafe94592b25bce05e9edc2122df4a3b12cf996e7223653d244e8c40bd593af",
+  "Image": "sha256:5ecaf73a75a8a526be828c303a84d3a8c552b2cbced86fb1673cf0a8267c31cd",
+  "LogPath": "/var/lib/docker/containers/6fafe94592b25bce05e9edc2122df4a3b12cf996e7223653d244e8c40bd593af/6fafe94592b25bce05e9edc2122df4a3b12cf996e7223653d244e8c40bd593af-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/rustdesk",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/rustdesk",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "1bd29d05325d5dced7e447d399f01d5c798a01d8fd2179a907234572d6b81e55",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.37",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:02",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "3600"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "3600"
+        }
+      ],
+      "3001/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "3601"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "3601"
+        }
+      ]
+    },
+    "SandboxID": "943db7fcd7f112330c435ae5011f10fa5d8f802b6b8881dd2b71d5ad43f0a738",
+    "SandboxKey": "/var/run/docker/netns/943db7fcd7f1"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/6fafe94592b25bce05e9edc2122df4a3b12cf996e7223653d244e8c40bd593af/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 1166958,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-09T19:38:30.717521031Z",
+    "Status": "running"
+  }
+}

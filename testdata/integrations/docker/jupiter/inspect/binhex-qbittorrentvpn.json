@@ -1,0 +1,317 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/bin/bash",
+    "init.sh"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/bin/bash",
+      "init.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/usr/bin/dumb-init",
+      "--"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "VPN_PROV=REDACTED",
+      "LAN_NETWORK=REDACTED",
+      "VPN_OUTPUT_PORTS=REDACTED",
+      "UMASK=REDACTED",
+      "NAME_SERVERS=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "VPN_ENABLED=REDACTED",
+      "STRICT_PORT_FORWARD=REDACTED",
+      "WEBUI_PORT=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "VPN_USER=REDACTED",
+      "VPN_PASS=REDACTED",
+      "VPN_CLIENT=REDACTED",
+      "VPN_OPTIONS=REDACTED",
+      "ENABLE_PRIVOXY=REDACTED",
+      "VPN_INPUT_PORTS=REDACTED",
+      "DEBUG=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "LANG=REDACTED"
+    ],
+    "ExposedPorts": {
+      "6881/tcp": {},
+      "6881/udp": {},
+      "8112/tcp": {},
+      "8118/tcp": {}
+    },
+    "Hostname": "befc2a533160",
+    "Image": "binhex/arch-qbittorrentvpn:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/binhex/docker-templates/master/binhex/images/qbittorrent-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8112]/",
+      "org.opencontainers.image.authors": "binhex",
+      "org.opencontainers.image.created": "2026-07-14T13:55:14.297Z",
+      "org.opencontainers.image.description": "Docker build script for Arch Linux base with qBittorrent, Privoxy and OpenVPN",
+      "org.opencontainers.image.licenses": "GPL-3.0",
+      "org.opencontainers.image.revision": "02141c6d59f4394541d5dcd7613774f2731aacdf",
+      "org.opencontainers.image.source": "https://github.com/binhex/arch-qbittorrentvpn",
+      "org.opencontainers.image.title": "arch-qbittorrentvpn",
+      "org.opencontainers.image.url": "https://github.com/binhex/arch-qbittorrentvpn",
+      "org.opencontainers.image.version": "5.2.3-3-01"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-07-31T00:22:06.378365465Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "befc2a533160a745e78342ffb661ebea114fe3819596391020a0be3ed5e838c2",
+      "LowerDir": "/var/lib/docker/overlay2/9254da7927d5c51944aed5ba9f5c2bd8439c3cefd3af15181af3c217669c65b9-init/diff:/var/lib/docker/overlay2/2f0c0dd6abd6909a4cde7578bd3fb10a7ab0277c4b24ba5a58d02054ead1ab62/diff:/var/lib/docker/overlay2/370dcd73b67a28aafa40f9e3637b406363c79bf56f615bf5e39194a3525c73f0/diff:/var/lib/docker/overlay2/948e7fefd5fc0ee6c0ee676b2431fc23de5b92d22b02c20e907cc9fc70bd2385/diff:/var/lib/docker/overlay2/8ab0e4ed5f75b93d1f62a3ddae8b19f057217a3374b1e8636e14ce2af9c2563a/diff:/var/lib/docker/overlay2/42a1253b1fae60c5bd3e0c3697bca25d53f91203fb771f9969fd09660fed71f7/diff:/var/lib/docker/overlay2/6eb8115c77e1a7a355a7209b8206ff8b302531fe1ae6dc4720fbfbf7a862ffe8/diff:/var/lib/docker/overlay2/b4bc698c944811349d3e0dbd5f8a1458850dc2d008a29e927b81808339399804/diff:/var/lib/docker/overlay2/411af8b03c31e956c16026f4d24b19a6e43b55d72437fdb2e2e7f0c978fd57cd/diff:/var/lib/docker/overlay2/d445b63abe63ea7274706c4b11c904dea9fcd12ef7500c85e5c96b2f00894222/diff:/var/lib/docker/overlay2/fb11fdfaaf0b8def27e088171cd0f4529c254371b1a39abe32cafda906e5ac6e/diff:/var/lib/docker/overlay2/ec3b7748f9bfe3f00b53605a15b3e0b515b9edb80341cf16573687eb0ff0d9f5/diff:/var/lib/docker/overlay2/a63da6a0328b508262312651705f0a145833ae1fcb69ae1fb282cc1687c39359/diff:/var/lib/docker/overlay2/bc36a62c61d3c3bcaab841cefe9dfc4e9e8fbc565fd7c9a6b6361a0b7ecd95f3/diff:/var/lib/docker/overlay2/721d60ac37c1a2663cbc2891e1bea7d9613a0b977c543384648fb8a2315f84d0/diff:/var/lib/docker/overlay2/862c2d689fdce4cd69ced7a170ea262c8d4183a445ceb3a35232f09091681e69/diff:/var/lib/docker/overlay2/98334949ba4e763f8cd62bccc2205ecf6feee1d38fc7cb5c194617f296d642ad/diff:/var/lib/docker/overlay2/d06cadd3f89768bf2192567fe200c0a13bbfb582e9ce7d00d4d318721e4672dc/diff",
+      "MergedDir": "/var/lib/docker/overlay2/9254da7927d5c51944aed5ba9f5c2bd8439c3cefd3af15181af3c217669c65b9/merged",
+      "UpperDir": "/var/lib/docker/overlay2/9254da7927d5c51944aed5ba9f5c2bd8439c3cefd3af15181af3c217669c65b9/diff",
+      "WorkDir": "/var/lib/docker/overlay2/9254da7927d5c51944aed5ba9f5c2bd8439c3cefd3af15181af3c217669c65b9/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/binhex-qbittorrentvpn:/config:rw",
+      "/mnt/user/archive_a/:/data:rw",
+      "/mnt/user0/archive_a/Downloads/:/downloads-direct:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 512,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": null,
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "6881/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6881"
+        }
+      ],
+      "6881/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "6881"
+        }
+      ],
+      "8112/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8112"
+        }
+      ],
+      "8118/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8118"
+        }
+      ]
+    },
+    "Privileged": true,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": null,
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": [
+      "label=disable"
+    ],
+    "ShmSize": 67108864,
+    "Sysctls": {
+      "net.ipv4.conf.all.src_valid_mark": "1"
+    },
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/befc2a533160a745e78342ffb661ebea114fe3819596391020a0be3ed5e838c2/hostname",
+  "HostsPath": "/var/lib/docker/containers/befc2a533160a745e78342ffb661ebea114fe3819596391020a0be3ed5e838c2/hosts",
+  "Id": "befc2a533160a745e78342ffb661ebea114fe3819596391020a0be3ed5e838c2",
+  "Image": "sha256:d702ffe30c1271eb50caacd1c75ef6188a8ce4ff576d136eeeec35ac497c3771",
+  "LogPath": "/var/lib/docker/containers/befc2a533160a745e78342ffb661ebea114fe3819596391020a0be3ed5e838c2/befc2a533160a745e78342ffb661ebea114fe3819596391020a0be3ed5e838c2-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/binhex-qbittorrentvpn",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/downloads-direct",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user0/archive_a/Downloads",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/binhex-qbittorrentvpn",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "9bc8256f98ab46424dd16749de35a53f392cc772bf9dca41fd84071a3e3de2cf",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.9",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:0f",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "6881/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "6881"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "6881"
+        }
+      ],
+      "6881/udp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "6881"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "6881"
+        }
+      ],
+      "8112/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8112"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8112"
+        }
+      ],
+      "8118/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8118"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8118"
+        }
+      ]
+    },
+    "SandboxID": "466b681d4d227b08324a2139ec0fcece147bd744e7ff2e97724e19e9df2473d7",
+    "SandboxKey": "/var/run/docker/netns/466b681d4d22"
+  },
+  "Path": "/usr/bin/dumb-init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/befc2a533160a745e78342ffb661ebea114fe3819596391020a0be3ed5e838c2/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-10-03T06:00:03.862949302Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 2525142,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-10-03T06:24:04.342108117Z",
+    "Status": "running"
+  }
+}

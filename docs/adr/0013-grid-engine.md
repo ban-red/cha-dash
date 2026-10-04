@@ -1,6 +1,6 @@
 # ADR-0013 · Grid engine: build our own
 
-**Status:** proposed · **Date:** 2026-10-03 · **Roadmap:** [decision 13](../plan/04-roadmap.md#decisions) · **Evidence:** [spike 2.4 findings](../../spikes/grid-compare/README.md#findings)
+**Status:** accepted · **Date:** 2026-10-03 · **Roadmap:** [decision 13](../plan/04-roadmap.md#decisions) · **Evidence:** [spike 2.4 findings](../../spikes/grid-compare/README.md#findings)
 
 ## Context
 

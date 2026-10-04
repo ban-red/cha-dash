@@ -1,0 +1,214 @@
+{
+  "data": [
+    {
+      "hardware-address": "00:00:00:00:00:00",
+      "hwaddr": "00:00:00:00:00:00",
+      "inet": "127.0.0.1/8",
+      "inet6": "::1/128",
+      "ip-addresses": [
+        {
+          "ip-address": "127.0.0.1",
+          "ip-address-type": "inet",
+          "prefix": "8"
+        },
+        {
+          "ip-address": "::1",
+          "ip-address-type": "inet6",
+          "prefix": "128"
+        }
+      ],
+      "name": "lo"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:04",
+      "hwaddr": "BC:24:11:00:00:04",
+      "inet": "10.0.11.202/24",
+      "inet6": "fe80::be24:11ff:fe00:7/64",
+      "ip-addresses": [
+        {
+          "ip-address": "10.0.11.202",
+          "ip-address-type": "inet",
+          "prefix": "24"
+        },
+        {
+          "ip-address": "fd00:11::8",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        },
+        {
+          "ip-address": "fe80::be24:11ff:fe00:7",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "eth0"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:05",
+      "hwaddr": "BC:24:11:00:00:05",
+      "inet": "172.23.0.1/16",
+      "inet6": "fe80::be24:11ff:fe00:9/64",
+      "ip-addresses": [
+        {
+          "ip-address": "172.23.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        },
+        {
+          "ip-address": "fe80::be24:11ff:fe00:9",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "br-6d8c4d5dd2d4"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:06",
+      "hwaddr": "BC:24:11:00:00:06",
+      "inet": "172.22.0.1/16",
+      "inet6": "fe80::be24:11ff:fe00:a/64",
+      "ip-addresses": [
+        {
+          "ip-address": "172.22.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        },
+        {
+          "ip-address": "fe80::be24:11ff:fe00:a",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "br-92a76a8359ac"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:07",
+      "hwaddr": "BC:24:11:00:00:07",
+      "inet": "172.18.0.1/16",
+      "ip-addresses": [
+        {
+          "ip-address": "172.18.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        }
+      ],
+      "name": "br-a6fcc5fcd935"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:08",
+      "hwaddr": "BC:24:11:00:00:08",
+      "inet": "172.20.0.1/16",
+      "ip-addresses": [
+        {
+          "ip-address": "172.20.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        }
+      ],
+      "name": "br-1fcf04764c2e"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:09",
+      "hwaddr": "BC:24:11:00:00:09",
+      "inet": "172.17.0.1/16",
+      "ip-addresses": [
+        {
+          "ip-address": "172.17.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        }
+      ],
+      "name": "docker0"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:0A",
+      "hwaddr": "BC:24:11:00:00:0A",
+      "inet": "172.21.0.1/16",
+      "inet6": "fe80::be24:11ff:fe00:b/64",
+      "ip-addresses": [
+        {
+          "ip-address": "172.21.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        },
+        {
+          "ip-address": "fe80::be24:11ff:fe00:b",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "br-3e286ad46966"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:0B",
+      "hwaddr": "BC:24:11:00:00:0B",
+      "inet": "172.19.0.1/16",
+      "inet6": "fe80::be24:11ff:fe00:c/64",
+      "ip-addresses": [
+        {
+          "ip-address": "172.19.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        },
+        {
+          "ip-address": "fe80::be24:11ff:fe00:c",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "br-4fa2cb6014c7"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:0C",
+      "hwaddr": "BC:24:11:00:00:0C",
+      "inet6": "fe80::be24:11ff:fe00:d/64",
+      "ip-addresses": [
+        {
+          "ip-address": "fe80::be24:11ff:fe00:d",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "veth426c0af"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:0D",
+      "hwaddr": "BC:24:11:00:00:0D",
+      "inet6": "fe80::be24:11ff:fe00:e/64",
+      "ip-addresses": [
+        {
+          "ip-address": "fe80::be24:11ff:fe00:e",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "veth9121bd8"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:0E",
+      "hwaddr": "BC:24:11:00:00:0E",
+      "inet6": "fe80::be24:11ff:fe00:f/64",
+      "ip-addresses": [
+        {
+          "ip-address": "fe80::be24:11ff:fe00:f",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "veth7871406"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:0F",
+      "hwaddr": "BC:24:11:00:00:0F",
+      "inet6": "fe80::be24:11ff:fe00:10/64",
+      "ip-addresses": [
+        {
+          "ip-address": "fe80::be24:11ff:fe00:10",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "vetha6cc912"
+    }
+  ]
+}

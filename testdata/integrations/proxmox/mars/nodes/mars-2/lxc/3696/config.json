@@ -1,0 +1,17 @@
+{
+  "data": {
+    "arch": "amd64",
+    "cores": 2,
+    "digest": "375fa66fc0023a94f58a6cf994e6d667a7667fc6",
+    "features": "nesting=1,keyctl=1",
+    "hostname": "chadash-sandbox",
+    "memory": 2048,
+    "net0": "name=eth0,bridge=vmbr0,hwaddr=BC:24:11:00:00:35,ip=dhcp,ip6=auto,type=veth",
+    "onboot": 0,
+    "ostype": "debian",
+    "rootfs": "local-lvm:vm-3696-disk-0,size=16G",
+    "swap": 512,
+    "tags": "chadash;sandbox",
+    "unprivileged": 1
+  }
+}

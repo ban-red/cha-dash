@@ -1,0 +1,251 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "app.py"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "python3",
+      "app.py"
+    ],
+    "Env": [
+      "HOST_CONTAINERNAME=REDACTED",
+      "REDIS_BACKEND=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PGID=REDACTED",
+      "REDIS_HOST=REDACTED",
+      "REDIS_URL=REDACTED",
+      "PUID=REDACTED",
+      "REDIS_DB=REDACTED",
+      "HOST_OS=REDACTED",
+      "REDIS_PORT=REDACTED",
+      "EXPLICIT_FILTER=REDACTED",
+      "UMASK=REDACTED",
+      "CA_TS_FALLBACK_DIR=REDACTED",
+      "TZ=REDACTED",
+      "PATH=REDACTED",
+      "SSL_CERT_FILE=REDACTED",
+      "LANG=REDACTED",
+      "PYTHONPATH=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED",
+      "PYTHONUTF8=REDACTED",
+      "LC_ALL=REDACTED"
+    ],
+    "ExposedPorts": {
+      "7171/tcp": {}
+    },
+    "Hostname": "39c41d964383",
+    "Image": "lavaforge.org/spotizerr/spotizerr:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://avatars.githubusercontent.com/u/93692082?s=48\u0026v=4",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:7171]/",
+      "org.opencontainers.image.source": "https://github.com/Xoconoch/spotizerr"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "0",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  },
+  "Created": "2025-12-05T09:26:13.010554913Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "39c41d964383b95983a871990b6967990b455dccd49b44536d91a5e73b2d7a8e",
+      "LowerDir": "/var/lib/docker/overlay2/658dec32482b50bad6f51fd7728a3bea3aed7e38623e4c50c304bbffc77837cb-init/diff:/var/lib/docker/overlay2/79c60ac49909299dd905de5781bb4dc2e5511d0f4a018d2adc64b6eb37898e78/diff:/var/lib/docker/overlay2/7b7b9914ed355a734591ad122c74b7f74e92956e2cb564c2b403c61b17074988/diff:/var/lib/docker/overlay2/6f67813b5e1b3af9793a40c35d98377908761e9e97bb6005533d6af6a5ad6db3/diff:/var/lib/docker/overlay2/71bb47f163c9a3cdba8b5dff49be8eeb527f7b0ceae4d431562f373c129cd1bc/diff:/var/lib/docker/overlay2/ae6166eed282cdf6146c2e6954675a5d85db9ddca61cc2f02d628bf272519d2b/diff:/var/lib/docker/overlay2/8f20ada1e2f994b98f4b51ac44baec6afe3e4bb052748a4335bdb1f7fdb4052c/diff:/var/lib/docker/overlay2/42086b923244c7e35530bf1002ef168417adf3b9e9642ef378f3224554a3c921/diff:/var/lib/docker/overlay2/db933711aea1cb1bd09822803b99280ff6f3bf2488f83857d27effc27ee1251e/diff:/var/lib/docker/overlay2/051da37c426cdc7e57e902a0f3059f4b6c77514038adc8dfd30ebaece9830c03/diff:/var/lib/docker/overlay2/a878c192645f837e0e67c2e09ab3bb5b02e3bf0ff20e8edb2cc0abd84aa66e2e/diff:/var/lib/docker/overlay2/6c7dc1b2af3b39a9bc145e99ac60f30d3478aec402d4a010a2b027924d7fba2b/diff:/var/lib/docker/overlay2/d75d9acfee3c60dec97d1e8b650b11390d1fb7ac893fb796a57d0d56c1792894/diff:/var/lib/docker/overlay2/f63ba13e5adda8b2c94b556151d7d1b9a3b4f394e8ea03db2bee18832a46abf8/diff:/var/lib/docker/overlay2/de82da83ed6f10501b7b12311ca5637eba6360972e1c791ebb168c006336ab3d/diff:/var/lib/docker/overlay2/457b7d92b5209457960407d8300a03e3767dc155756ce5ad088fbcea1a02dde2/diff:/var/lib/docker/overlay2/f4352b07812afb9f15ea3d2cf8f45a56683f7d06d9553154af6f297d8736e231/diff:/var/lib/docker/overlay2/c0ec5209bdcc96fce4321f163c44cba453ec12ffab97729d5fa945a092be805c/diff:/var/lib/docker/overlay2/3b481bdf2f4417ee834dda62c6096d5dca26e8cd8886fffff1a15d75bbe84c74/diff:/var/lib/docker/overlay2/59fdacb4152a55d34aa60418e5b1680f80dd9b3ba7ce0381091d69254c60ae11/diff:/var/lib/docker/overlay2/e5dcb45ea23a00c616e9fc504df9dc1063cc30cc21835dd0962761f47c2a232e/diff:/var/lib/docker/overlay2/108b0f7435a05be5d5207bd967571d68ff9f7b7290c4c4520caa969d591f638d/diff:/var/lib/docker/overlay2/494fa65c7bce5753d2c0dd434a77eb99e88178b63ee34a07e9a44d1db8fe051b/diff:/var/lib/docker/overlay2/42798db5f64145181e1b25aba41d503a95c5c0dfdc1d15c1f1aa976eeb38e36f/diff:/var/lib/docker/overlay2/4bb17164cdf4e044f52eeff1c3ad48a609939239422949edc9942b71d066dbad/diff:/var/lib/docker/overlay2/311b6df4fb62121f3380e978661a345d015d0c6a6869b21b375a85c5e4427bca/diff:/var/lib/docker/overlay2/d8f61bbbd326cf1aceffff3165b51f6c748dc6e375d40a2d0f7bc910177921bf/diff:/var/lib/docker/overlay2/67b97501fc2f286ff4e8f97b9bd607a9eb154005949bd8741d1454488a75ecb9/diff:/var/lib/docker/overlay2/4ef9d09d43636830252bf19e0677a58e5b281a64ce404d8a07c9e37e13266603/diff:/var/lib/docker/overlay2/b693fcba3dbfd48bbe194d436d4fd575f85f768414e95aa10e2ee331ef9662c7/diff:/var/lib/docker/overlay2/961c8676040f06a34d12c2cea014ffe361d8f9420fe9dd7964219dec8228c734/diff:/var/lib/docker/overlay2/88f7cd80090cbd8e20105417530bf8ca003e14dbef8835a2383be6da2d87cc79/diff:/var/lib/docker/overlay2/4c82bd7bb8915eff468baa37577b0f1e909a462acd918413a67290c1d52a7971/diff:/var/lib/docker/overlay2/593b5a1784293ce1f0c91a069b391de22275dd4cf94aac6fdc20fd10bf31a16c/diff:/var/lib/docker/overlay2/27530fb4728dd1e1f1627b66d24c092e3bb237bfb709f7f62047d22a91d4186a/diff:/var/lib/docker/overlay2/9ffcf92a962b1bb31d0616acd2a59155b069a4a58fa1d451fb00d12cc817cd99/diff:/var/lib/docker/overlay2/a29c9f11b78983f48dd180fb9f6b8622dc1f80081c21d7d25e886d7b05659a10/diff:/var/lib/docker/overlay2/5d0937a30d0b412c015e33fcb80fcadb78b3cb86fcdeb080a581e96056009df8/diff:/var/lib/docker/overlay2/6147a8b45e75cafd0b7a829a9b87bc4c3f84617373b9e236eae0fd28c8741645/diff:/var/lib/docker/overlay2/a9f41d1f7c9e8d7c848f202a19bdd4c5cde83ffeeae11b1141f14f2d7f5e4178/diff:/var/lib/docker/overlay2/41ca21b461c317effbe3b918ab5651ab768ef90e2e48d680ad9097a56c6a7621/diff:/var/lib/docker/overlay2/d4a3afbc598ec399a98bbf1abef193029d61086afbfc505b063f348f79a97908/diff:/var/lib/docker/overlay2/f61ca00d7ffe4803f125ea830a5a5b42eb6c40e0bbbb14c61bb00c63c66ec352/diff:/var/lib/docker/overlay2/cf7260bfbed3de0b49549514de37282e93ff37ed35bcc585e298703e85896022/diff:/var/lib/docker/overlay2/a332e375cb072da26073fb0acf6b3b48d8ace6327f9f5075dc083ea9b2ddfaaf/diff:/var/lib/docker/overlay2/e82c9c77290338ca88f6a1faecc6b95b2a33eb11b610f88cfbc0976cd3efe6c0/diff:/var/lib/docker/overlay2/090803b23fffc8e658df43d6b9a04c97c859235229643f8c30b75f2a209856c3/diff:/var/lib/docker/overlay2/eb3bc85862e291aeb45db7ec67c9f8e774c6e93472f6858e5a85b4fe6673e439/diff:/var/lib/docker/overlay2/cccc01272c7f32b9913784dde13c2585be1f914c3590d42498972059825f2bb0/diff:/var/lib/docker/overlay2/d3b7001f6dbc47dd14a59d6dbcaeb9dff8dc1510244308c5f7fed544c7f78163/diff:/var/lib/docker/overlay2/e157955bb990051e71b3def76ab0d12c4087b752425f695b969ba220150b8af9/diff",
+      "MergedDir": "/var/lib/docker/overlay2/658dec32482b50bad6f51fd7728a3bea3aed7e38623e4c50c304bbffc77837cb/merged",
+      "UpperDir": "/var/lib/docker/overlay2/658dec32482b50bad6f51fd7728a3bea3aed7e38623e4c50c304bbffc77837cb/diff",
+      "WorkDir": "/var/lib/docker/overlay2/658dec32482b50bad6f51fd7728a3bea3aed7e38623e4c50c304bbffc77837cb/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/spotizerr/logs:/app/logs:rw",
+      "/mnt/user/appdata/spotizerr:/app/data:rw",
+      "/mnt/user/media/music:/app/downloads:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "7171/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "7171"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/39c41d964383b95983a871990b6967990b455dccd49b44536d91a5e73b2d7a8e/hostname",
+  "HostsPath": "/var/lib/docker/containers/39c41d964383b95983a871990b6967990b455dccd49b44536d91a5e73b2d7a8e/hosts",
+  "Id": "39c41d964383b95983a871990b6967990b455dccd49b44536d91a5e73b2d7a8e",
+  "Image": "sha256:165d1b27502d5bcc2f9b5708ad6fb012243a0bb233b74c8f3cf2d9ca5ceb141b",
+  "LogPath": "/var/lib/docker/containers/39c41d964383b95983a871990b6967990b455dccd49b44536d91a5e73b2d7a8e/39c41d964383b95983a871990b6967990b455dccd49b44536d91a5e73b2d7a8e-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/app/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/spotizerr",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/app/downloads",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/music",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/app/logs",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/spotizerr/logs",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/spotizerr",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "965af62cd41727a1df3fa2a12e1e03e8b3a7f7150110a457b652b3f8627fcd3a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "python3",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/39c41d964383b95983a871990b6967990b455dccd49b44536d91a5e73b2d7a8e/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 1,
+    "FinishedAt": "2025-12-05T09:26:15.364934522Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2025-12-05T09:26:13.259086954Z",
+    "Status": "exited"
+  }
+}

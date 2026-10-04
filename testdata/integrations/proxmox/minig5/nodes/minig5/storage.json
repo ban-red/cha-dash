@@ -1,0 +1,40 @@
+{
+  "data": [
+    {
+      "active": 1,
+      "avail": 79524032512,
+      "content": "iso,backup,vztmpl",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local",
+      "total": 100861726720,
+      "type": "dir",
+      "used": 16166957056,
+      "used_fraction": 0.160288323249519
+    },
+    {
+      "active": 1,
+      "avail": 164684694658,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local-lvm",
+      "total": 374538764288,
+      "type": "lvmthin",
+      "used": 209854069630,
+      "used_fraction": 0.560299999998488
+    },
+    {
+      "active": 1,
+      "avail": 3720782184448,
+      "content": "backup",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "jupiter-pbs",
+      "total": 45976621608960,
+      "type": "pbs",
+      "used": 42255839424512,
+      "used_fraction": 0.919072301220956
+    }
+  ]
+}

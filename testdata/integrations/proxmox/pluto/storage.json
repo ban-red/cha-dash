@@ -1,0 +1,50 @@
+{
+  "data": [
+    {
+      "content": "images,rootdir",
+      "digest": "543b88e4c1e6bf4e2e582634d59fc064f9fd8469",
+      "storage": "local-lvm",
+      "thinpool": "data",
+      "type": "lvmthin",
+      "vgname": "pve"
+    },
+    {
+      "content": "rootdir,images",
+      "digest": "543b88e4c1e6bf4e2e582634d59fc064f9fd8469",
+      "mountpoint": "/store-1",
+      "nodes": "pve",
+      "pool": "store-1",
+      "storage": "store-1",
+      "type": "zfspool"
+    },
+    {
+      "content": "iso,vztmpl,backup",
+      "digest": "543b88e4c1e6bf4e2e582634d59fc064f9fd8469",
+      "path": "/var/lib/vz",
+      "storage": "local",
+      "type": "dir"
+    },
+    {
+      "content": "backup",
+      "digest": "543b88e4c1e6bf4e2e582634d59fc064f9fd8469",
+      "path": "/mnt/usb",
+      "prune-backups": "keep-all=1",
+      "shared": 1,
+      "storage": "usb",
+      "type": "dir"
+    },
+    {
+      "content": "backup",
+      "datastore": "pluto.lab.example",
+      "digest": "543b88e4c1e6bf4e2e582634d59fc064f9fd8469",
+      "encryption-key": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:03",
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:04",
+      "prune-backups": "keep-all=1",
+      "server": "10.0.11.120",
+      "shared": 1,
+      "storage": "pbs-unraid-pluto",
+      "type": "pbs",
+      "username": "admin@pbs"
+    }
+  ]
+}

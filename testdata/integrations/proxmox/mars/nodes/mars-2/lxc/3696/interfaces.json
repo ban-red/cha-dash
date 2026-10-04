@@ -1,0 +1,92 @@
+{
+  "data": [
+    {
+      "hardware-address": "00:00:00:00:00:00",
+      "hwaddr": "00:00:00:00:00:00",
+      "inet": "127.0.0.1/8",
+      "inet6": "::1/128",
+      "ip-addresses": [
+        {
+          "ip-address": "127.0.0.1",
+          "ip-address-type": "inet",
+          "prefix": "8"
+        },
+        {
+          "ip-address": "::1",
+          "ip-address-type": "inet6",
+          "prefix": "128"
+        }
+      ],
+      "name": "lo"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:35",
+      "hwaddr": "BC:24:11:00:00:35",
+      "inet": "10.0.11.82/24",
+      "inet6": "fe80::be24:11ff:fe00:37/64",
+      "ip-addresses": [
+        {
+          "ip-address": "10.0.11.82",
+          "ip-address-type": "inet",
+          "prefix": "24"
+        },
+        {
+          "ip-address": "fd00:11::38",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        },
+        {
+          "ip-address": "fe80::be24:11ff:fe00:37",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "eth0"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:36",
+      "hwaddr": "BC:24:11:00:00:36",
+      "inet": "172.17.0.1/16",
+      "ip-addresses": [
+        {
+          "ip-address": "172.17.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        }
+      ],
+      "name": "docker0"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:37",
+      "hwaddr": "BC:24:11:00:00:37",
+      "inet": "172.18.0.1/16",
+      "inet6": "fe80::be24:11ff:fe00:39/64",
+      "ip-addresses": [
+        {
+          "ip-address": "172.18.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        },
+        {
+          "ip-address": "fe80::be24:11ff:fe00:39",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "br-5bbfe2d3e7f1"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:38",
+      "hwaddr": "BC:24:11:00:00:38",
+      "inet6": "fe80::be24:11ff:fe00:3a/64",
+      "ip-addresses": [
+        {
+          "ip-address": "fe80::be24:11ff:fe00:3a",
+          "ip-address-type": "inet6",
+          "prefix": "64"
+        }
+      ],
+      "name": "vethb6f499f"
+    }
+  ]
+}

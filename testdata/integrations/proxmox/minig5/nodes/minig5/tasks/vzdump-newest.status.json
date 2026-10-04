@@ -1,0 +1,14 @@
+{
+  "data": {
+    "exitstatus": "could not activate storage 'jupiter-pbs': jupiter-pbs: error fetching datastores - 500 Can't connect to jupiter.lab.example:8007 (No route to host)",
+    "id": "100",
+    "node": "minig5",
+    "pid": 3386377,
+    "pstart": 58363720,
+    "starttime": 1790506807,
+    "status": "stopped",
+    "type": "vzdump",
+    "upid": "UPID:minig5:0033AC09:037A8F48:6AB8F737:vzdump:100:root@pam:",
+    "user": "root@pam"
+  }
+}

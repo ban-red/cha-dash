@@ -1,0 +1,114 @@
+{
+  "content_type": "text/event-stream;charset=UTF-8",
+  "events": [
+    {
+      "at_ms": 213,
+      "bytes": 938,
+      "event": "message"
+    },
+    {
+      "at_ms": 1218,
+      "bytes": 980,
+      "event": "message"
+    },
+    {
+      "at_ms": 2228,
+      "bytes": 974,
+      "event": "message"
+    },
+    {
+      "at_ms": 3248,
+      "bytes": 973,
+      "event": "message"
+    },
+    {
+      "at_ms": 4260,
+      "bytes": 979,
+      "event": "message"
+    },
+    {
+      "at_ms": 5270,
+      "bytes": 977,
+      "event": "message"
+    },
+    {
+      "at_ms": 6278,
+      "bytes": 977,
+      "event": "message"
+    },
+    {
+      "at_ms": 7297,
+      "bytes": 974,
+      "event": "message"
+    },
+    {
+      "at_ms": 8308,
+      "bytes": 979,
+      "event": "message"
+    },
+    {
+      "at_ms": 9358,
+      "bytes": 984,
+      "event": "message"
+    },
+    {
+      "at_ms": 10368,
+      "bytes": 977,
+      "event": "message"
+    },
+    {
+      "at_ms": 11379,
+      "bytes": 976,
+      "event": "message"
+    },
+    {
+      "at_ms": 12421,
+      "bytes": 980,
+      "event": "message"
+    },
+    {
+      "at_ms": 13428,
+      "bytes": 974,
+      "event": "message"
+    },
+    {
+      "at_ms": 14464,
+      "bytes": 977,
+      "event": "message"
+    },
+    {
+      "at_ms": 15470,
+      "bytes": 982,
+      "event": "message"
+    },
+    {
+      "at_ms": 16483,
+      "bytes": 979,
+      "event": "message"
+    },
+    {
+      "at_ms": 17503,
+      "bytes": 976,
+      "event": "message"
+    },
+    {
+      "at_ms": 18520,
+      "bytes": 980,
+      "event": "message"
+    },
+    {
+      "at_ms": 19532,
+      "bytes": 986,
+      "event": "message"
+    }
+  ],
+  "headers": {
+    "Cache-Control": "no-cache",
+    "Content-Type": "text/event-stream;charset=UTF-8",
+    "Server": "OPNsense"
+  },
+  "path": "/api/diagnostics/traffic/stream/1",
+  "status": 200,
+  "total_bytes": 19982,
+  "window": "20s"
+}

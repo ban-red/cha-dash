@@ -1,0 +1,538 @@
+{
+  "data": {
+    "data": [
+      {
+        "id": "node/mars-1",
+        "metric": "uptime",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8041833
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "net_in",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 3158826273578
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "net_out",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 1511993004896
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "cpu_avg1",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.44
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "cpu_avg5",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.5
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "cpu_avg15",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.43
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "cpu_max",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 12
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "cpu_current",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.00970333253797821
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "cpu_iowait",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.00803308677324425
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "mem_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 16607170560
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "mem_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 5540229120
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "swap_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8589930496
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "swap_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 5170065408
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 71474323456
+      },
+      {
+        "id": "node/mars-1",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8851763200
+      },
+      {
+        "id": "lxc/101",
+        "metric": "cpu_current",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.0058917115411152
+      },
+      {
+        "id": "lxc/101",
+        "metric": "mem_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 2068910080
+      },
+      {
+        "id": "lxc/101",
+        "metric": "disk_read",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 679688294400
+      },
+      {
+        "id": "lxc/101",
+        "metric": "disk_write",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 326057660416
+      },
+      {
+        "id": "lxc/101",
+        "metric": "net_in",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 228039256652
+      },
+      {
+        "id": "lxc/101",
+        "metric": "net_out",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 191486573882
+      },
+      {
+        "id": "lxc/101",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 68208992256
+      },
+      {
+        "id": "lxc/101",
+        "metric": "uptime",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8041176
+      },
+      {
+        "id": "lxc/101",
+        "metric": "cpu_max",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8
+      },
+      {
+        "id": "lxc/101",
+        "metric": "mem_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 17179869184
+      },
+      {
+        "id": "lxc/101",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 105089261568
+      },
+      {
+        "id": "storage/mars-1/vm-disks",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 485280866304
+      },
+      {
+        "id": "storage/mars-1/vm-disks",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 80689029120
+      },
+      {
+        "id": "storage/mars-1/jupiter-pbs-pve.lab.example",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 45976621608960
+      },
+      {
+        "id": "storage/mars-1/jupiter-pbs-pve.lab.example",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 42255839424512
+      },
+      {
+        "id": "storage/mars-1/jupiter-pbs-mars",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 45976621608960
+      },
+      {
+        "id": "storage/mars-1/jupiter-pbs-mars",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 42255839424512
+      },
+      {
+        "id": "storage/mars-1/local",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 71474323456
+      },
+      {
+        "id": "storage/mars-1/local",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8851763200
+      },
+      {
+        "id": "storage/mars-1/isos-templates",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 404716781568
+      },
+      {
+        "id": "storage/mars-1/isos-templates",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 125829120
+      },
+      {
+        "id": "storage/mars-1/local-lvm",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 147920519168
+      },
+      {
+        "id": "storage/mars-1/local-lvm",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "uptime",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8041828
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "net_in",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 1334993469299
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "net_out",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 2916434204143
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "cpu_avg1",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.58
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "cpu_avg5",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.29
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "cpu_avg15",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.21
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "cpu_max",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 12
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "cpu_current",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.00659862748548302
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "cpu_iowait",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.0067745908850959
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "mem_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 16607170560
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "mem_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 5781581824
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "swap_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 8589930496
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "swap_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 28672
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 71474323456
+      },
+      {
+        "id": "node/mars-2",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 10375565312
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "cpu_current",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 0.00280412709317673
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "mem_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 149540864
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "disk_read",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 523501568
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "disk_write",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 1742704640
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "net_in",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 307798430
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "net_out",
+        "timestamp": 1791077388,
+        "type": "derive",
+        "value": 2373882
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 1513226240
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "uptime",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 12046
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "cpu_max",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 2
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "mem_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 2147483648
+      },
+      {
+        "id": "lxc/3696",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 16729894912
+      },
+      {
+        "id": "storage/mars-2/local-lvm",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 147920519168
+      },
+      {
+        "id": "storage/mars-2/local-lvm",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 2085679320
+      },
+      {
+        "id": "storage/mars-2/isos-templates",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 404716781568
+      },
+      {
+        "id": "storage/mars-2/isos-templates",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 125829120
+      },
+      {
+        "id": "storage/mars-2/vm-disks",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 485280866304
+      },
+      {
+        "id": "storage/mars-2/vm-disks",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 80689029120
+      },
+      {
+        "id": "storage/mars-2/jupiter-pbs-pve.lab.example",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 45976621608960
+      },
+      {
+        "id": "storage/mars-2/jupiter-pbs-pve.lab.example",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 42255839424512
+      },
+      {
+        "id": "storage/mars-2/local",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 71474323456
+      },
+      {
+        "id": "storage/mars-2/local",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 10375565312
+      },
+      {
+        "id": "storage/mars-2/jupiter-pbs-mars",
+        "metric": "disk_total",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 45976621608960
+      },
+      {
+        "id": "storage/mars-2/jupiter-pbs-mars",
+        "metric": "disk_used",
+        "timestamp": 1791077388,
+        "type": "gauge",
+        "value": 42255839424512
+      }
+    ]
+  }
+}

@@ -1,0 +1,488 @@
+{
+  "instance": "mars",
+  "captured_at": "2026-10-04T01:29Z",
+  "wall_ms": 17083.7,
+  "dropped_keys": {
+    "description": 1,
+    "lxc": 1,
+    "pem": 4
+  },
+  "requests": [
+    {
+      "path": "/version",
+      "file": "version.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 91.3,
+      "bytes": 72,
+      "wire_bytes": 72
+    },
+    {
+      "path": "/cluster/status",
+      "file": "cluster/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 229.3,
+      "bytes": 324,
+      "wire_bytes": 324
+    },
+    {
+      "path": "/nodes",
+      "file": "nodes.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 29.2,
+      "bytes": 668,
+      "wire_bytes": 668
+    },
+    {
+      "path": "/cluster/resources",
+      "file": "cluster/resources.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 14,
+      "bytes": 4062,
+      "wire_bytes": 1047,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/tasks",
+      "file": "cluster/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 6,
+      "bytes": 11462,
+      "wire_bytes": 2115,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/backup",
+      "file": "cluster/backup.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 25,
+      "bytes": 269,
+      "wire_bytes": 269
+    },
+    {
+      "path": "/cluster/backup-info/not-backed-up",
+      "file": "cluster/backup-info/not-backed-up.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 165.1,
+      "bytes": 62,
+      "wire_bytes": 62
+    },
+    {
+      "path": "/cluster/ha/status/current",
+      "file": "cluster/ha/status/current.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 35.3,
+      "bytes": 676,
+      "wire_bytes": 676
+    },
+    {
+      "path": "/cluster/config/join",
+      "file": "cluster/config/join.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 26.2,
+      "bytes": 701,
+      "wire_bytes": 701
+    },
+    {
+      "path": "/cluster/metrics/export",
+      "file": "cluster/metrics/export.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 281.5,
+      "bytes": 7864,
+      "wire_bytes": 1199,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/metrics/export?history=1\u0026start-time=1791076788",
+      "file": "cluster/metrics/export.history-10m.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 96.6,
+      "bytes": 470758,
+      "wire_bytes": 39234,
+      "encoding": "gzip",
+      "trimmed": "kept the first 3 of 61 timestamps: 4560 → 228 points"
+    },
+    {
+      "path": "/pools",
+      "file": "pools.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 7.7,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/storage",
+      "file": "storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 16,
+      "bytes": 1319,
+      "wire_bytes": 466,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/permissions",
+      "file": "access/permissions.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 8.2,
+      "bytes": 1043,
+      "wire_bytes": 207,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/permissions?userid=api@pam",
+      "file": "access/permissions.owner.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 4,
+      "bytes": 1043,
+      "wire_bytes": 207,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/users/api@pam/token/chadash",
+      "file": "access/token.json",
+      "status": 403,
+      "reason": "Permission check failed",
+      "ms": 26.7,
+      "bytes": 51,
+      "wire_bytes": 51
+    },
+    {
+      "path": "/access/users/api@pam",
+      "file": "access/user.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 19.7,
+      "bytes": 105,
+      "wire_bytes": 105
+    },
+    {
+      "path": "/access/roles",
+      "file": "access/roles.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 10.1,
+      "bytes": 3201,
+      "wire_bytes": 595,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/acl",
+      "file": "access/acl.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 6.5,
+      "bytes": 186,
+      "wire_bytes": 186
+    },
+    {
+      "path": "/nodes/mars-1/status",
+      "file": "nodes/mars-1/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 44.1,
+      "bytes": 1591,
+      "wire_bytes": 990,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-1/tasks?limit=50\u0026source=all",
+      "file": "nodes/mars-1/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 54.5,
+      "bytes": 13106,
+      "wire_bytes": 2597,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-1/storage",
+      "file": "nodes/mars-1/storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 712,
+      "bytes": 1159,
+      "wire_bytes": 456,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-1/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/mars-1/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 53.9,
+      "bytes": 28617,
+      "wire_bytes": 5693,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-1/rrddata?timeframe=day\u0026cf=AVERAGE",
+      "file": "nodes/mars-1/rrddata.day.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 90.2,
+      "bytes": 689110,
+      "wire_bytes": 124420,
+      "encoding": "gzip",
+      "trimmed": "downsampled 1440 → 72 points (every 20th)"
+    },
+    {
+      "path": "/nodes/mars-1/disks/list",
+      "file": "nodes/mars-1/disks/list.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 246.2,
+      "bytes": 757,
+      "wire_bytes": 757
+    },
+    {
+      "path": "/nodes/mars-1/apt/update",
+      "file": "nodes/mars-1/apt/update.json",
+      "status": 403,
+      "reason": "Permission check failed (/nodes/mars-1, Sys.Modify)",
+      "ms": 13.8,
+      "bytes": 79,
+      "wire_bytes": 79
+    },
+    {
+      "path": "/nodes/mars-1/certificates/info",
+      "file": "nodes/mars-1/certificates/info.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 33.7,
+      "bytes": 4952,
+      "wire_bytes": 3228,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-1/tasks/UPID:mars-1:000A1987:2F9C7C19:6AC0D928:vzdump:101:root@pam:/status",
+      "file": "nodes/mars-1/tasks/vzdump-newest.status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 25.2,
+      "bytes": 382,
+      "wire_bytes": 382
+    },
+    {
+      "path": "/nodes/mars-1/tasks/UPID:mars-1:000A1987:2F9C7C19:6AC0D928:vzdump:101:root@pam:/log?limit=1000",
+      "file": "nodes/mars-1/tasks/vzdump-newest.log.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 19.3,
+      "bytes": 254,
+      "wire_bytes": 254
+    },
+    {
+      "path": "/nodes/mars-2/status",
+      "file": "nodes/mars-2/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 39.9,
+      "bytes": 1587,
+      "wire_bytes": 992,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-2/tasks?limit=50\u0026source=all",
+      "file": "nodes/mars-2/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 12.4,
+      "bytes": 11466,
+      "wire_bytes": 2485,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-2/storage",
+      "file": "nodes/mars-2/storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 411.5,
+      "bytes": 1186,
+      "wire_bytes": 452,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-2/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/mars-2/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 21.4,
+      "bytes": 28251,
+      "wire_bytes": 5213,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-2/rrddata?timeframe=day\u0026cf=AVERAGE",
+      "file": "nodes/mars-2/rrddata.day.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 108.1,
+      "bytes": 677544,
+      "wire_bytes": 113551,
+      "encoding": "gzip",
+      "trimmed": "downsampled 1440 → 72 points (every 20th)"
+    },
+    {
+      "path": "/nodes/mars-2/disks/list",
+      "file": "nodes/mars-2/disks/list.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 229.1,
+      "bytes": 757,
+      "wire_bytes": 757
+    },
+    {
+      "path": "/nodes/mars-2/apt/update",
+      "file": "nodes/mars-2/apt/update.json",
+      "status": 403,
+      "reason": "Permission check failed (/nodes/mars-2, Sys.Modify)",
+      "ms": 8.2,
+      "bytes": 79,
+      "wire_bytes": 79
+    },
+    {
+      "path": "/nodes/mars-2/certificates/info",
+      "file": "nodes/mars-2/certificates/info.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 27.9,
+      "bytes": 4952,
+      "wire_bytes": 3236,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-1/storage/isos-templates/content",
+      "file": "nodes/mars-1/storage/isos-templates/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 54.2,
+      "bytes": 155,
+      "wire_bytes": 155
+    },
+    {
+      "path": "/nodes/mars-1/storage/vm-disks/content",
+      "file": "nodes/mars-1/storage/vm-disks/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 222.4,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/mars-1/storage/local/content",
+      "file": "nodes/mars-1/storage/local/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 27.5,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/mars-2/storage/local/content",
+      "file": "nodes/mars-2/storage/local/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 37.5,
+      "bytes": 146,
+      "wire_bytes": 146
+    },
+    {
+      "path": "/nodes/mars-1/storage/jupiter-pbs-mars/content",
+      "file": "nodes/mars-1/storage/jupiter-pbs-mars/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 208,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/mars-1/storage/local-lvm/content",
+      "file": "nodes/mars-1/storage/local-lvm/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 192.8,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/mars-2/storage/local-lvm/content",
+      "file": "nodes/mars-2/storage/local-lvm/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 181.6,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/mars-1/storage/jupiter-pbs-pve.lab.example/content",
+      "file": "nodes/mars-1/storage/jupiter-pbs-pve.lab.example/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 399.6,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/mars-1/lxc/101/config",
+      "file": "nodes/mars-1/lxc/101/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 37.2,
+      "bytes": 797,
+      "wire_bytes": 797
+    },
+    {
+      "path": "/nodes/mars-1/lxc/101/interfaces",
+      "file": "nodes/mars-1/lxc/101/interfaces.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 48.4,
+      "bytes": 9851,
+      "wire_bytes": 1897,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-1/lxc/101/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/mars-1/lxc/101/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 25.9,
+      "bytes": 22498,
+      "wire_bytes": 3996,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/mars-2/lxc/3696/config",
+      "file": "nodes/mars-2/lxc/3696/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 17,
+      "bytes": 460,
+      "wire_bytes": 460
+    },
+    {
+      "path": "/nodes/mars-2/lxc/3696/interfaces",
+      "file": "nodes/mars-2/lxc/3696/interfaces.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 24.6,
+      "bytes": 1436,
+      "wire_bytes": 411,
+      "encoding": "gzip"
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "whisper-asr-webservice"
+    ],
+    "Env": [
+      "ASR_MODEL=REDACTED",
+      "ASR_ENGINE=REDACTED",
+      "PATH=REDACTED",
+      "NVARCH=REDACTED",
+      "NVIDIA_REQUIRE_CUDA=REDACTED",
+      "NV_CUDA_CUDART_VERSION=REDACTED",
+      "CUDA_VERSION=REDACTED",
+      "LD_LIBRARY_PATH=REDACTED",
+      "NVIDIA_VISIBLE_DEVICES=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "PYTHON_VERSION=REDACTED",
+      "POETRY_VENV=REDACTED"
+    ],
+    "ExposedPorts": {
+      "9000/tcp": {}
+    },
+    "Hostname": "a857ab9136bc",
+    "Image": "onerahmet/openai-whisper-asr-webservice:latest-gpu",
+    "Labels": {
+      "com.docker.compose.config-hash": "373184f8188a0463bdf852fe2c2b5865c1d0713bb454437bfd2ff640cffc6a98",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:950c2ea0df6d98d0b811b48b7b588f7d7da6c39ad4658e822ba3a61328542f8a",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "ai",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/AI/docker-compose.yml,/boot/config/plugins/compose.manager/projects/AI/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/AI",
+      "com.docker.compose.service": "whisperasr",
+      "com.docker.compose.version": "2.40.3",
+      "maintainer": "NVIDIA CORPORATION \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.version": "22.04"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  },
+  "Created": "2026-05-12T21:21:15.684639546Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "a857ab9136bcd752e858a249451c962e9ae16237d9e68e4d42a1aab1e07b521c",
+      "LowerDir": "/var/lib/docker/overlay2/2639b10700b9fac7677e10004d9208f9aa51493ebf43532a96357ea1759eea9b-init/diff:/var/lib/docker/overlay2/a92d7c506b095220bd7482b1931c673bdfa29f03a67e46c80d69dc5bb1472a09/diff:/var/lib/docker/overlay2/80a4625d647ceb44bd52a4bbe54bc35532891f44493628423309acf16dd147a6/diff:/var/lib/docker/overlay2/30881db8e4171f1bc74d61825cd028991e5be79e0b78a21a18dd242c19f71404/diff:/var/lib/docker/overlay2/845001044022e2f57b441867801822428e244a2a00740c6c2cdcfb920d51eb25/diff:/var/lib/docker/overlay2/011376eec27cda918df9a1c4486f0ba434e9ffeb40603b70dfd91d1b8d19a982/diff:/var/lib/docker/overlay2/951ff504d4949fb67a00bd62e823cc1688dbb794bfef740868da456b4f493f04/diff:/var/lib/docker/overlay2/e1fad6eb29e801ab57bb517490270cd9d991101d73142f6b2f9508fb62a76ff8/diff:/var/lib/docker/overlay2/7d26bf22cbd7041db473d2f106f90282f9079a69118baf0f2f979ac4d9099e84/diff:/var/lib/docker/overlay2/fe35bb6215b88e462ea7de73a484b8857039fd94e4372ed42c62658027b4aa96/diff:/var/lib/docker/overlay2/5d6a9aa527dfa8f291c822c4348fa6111ef7067065d3757c915cab2f3c645806/diff:/var/lib/docker/overlay2/dd222d9610e3269c457c213180ccb60a0f0c11770055cba4c5b4f380e460b617/diff:/var/lib/docker/overlay2/a7d7dab722cf76efaa7e1f30bde57992acbe7ebbd593cfc688225607775aa82c/diff:/var/lib/docker/overlay2/871fe47c477edc96360f214ed623b503de01acd2bfe7fb0d693bee5b07fc1eb8/diff:/var/lib/docker/overlay2/58c88c3020da9f507964fde0fdfccebf1937cf206e80ccee95df84f63cc4483e/diff:/var/lib/docker/overlay2/415f86c0adc716b00b6067dfa80ecad3c0675f540609285118d9491fbbe971fe/diff",
+      "MergedDir": "/var/lib/docker/overlay2/2639b10700b9fac7677e10004d9208f9aa51493ebf43532a96357ea1759eea9b/merged",
+      "UpperDir": "/var/lib/docker/overlay2/2639b10700b9fac7677e10004d9208f9aa51493ebf43532a96357ea1759eea9b/diff",
+      "WorkDir": "/var/lib/docker/overlay2/2639b10700b9fac7677e10004d9208f9aa51493ebf43532a96357ea1759eea9b/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": null,
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": [
+      {
+        "Capabilities": [
+          [
+            "gpu"
+          ]
+        ],
+        "Count": 1,
+        "DeviceIDs": null,
+        "Driver": "nvidia",
+        "Options": null
+      }
+    ],
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "ai_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "9000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "55100"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "unless-stopped"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/a857ab9136bcd752e858a249451c962e9ae16237d9e68e4d42a1aab1e07b521c/hostname",
+  "HostsPath": "/var/lib/docker/containers/a857ab9136bcd752e858a249451c962e9ae16237d9e68e4d42a1aab1e07b521c/hosts",
+  "Id": "a857ab9136bcd752e858a249451c962e9ae16237d9e68e4d42a1aab1e07b521c",
+  "Image": "sha256:950c2ea0df6d98d0b811b48b7b588f7d7da6c39ad4658e822ba3a61328542f8a",
+  "LogPath": "/var/lib/docker/containers/a857ab9136bcd752e858a249451c962e9ae16237d9e68e4d42a1aab1e07b521c/a857ab9136bcd752e858a249451c962e9ae16237d9e68e4d42a1aab1e07b521c-json.log",
+  "MountLabel": "",
+  "Mounts": [],
+  "Name": "/ai-whisperasr-1",
+  "NetworkSettings": {
+    "Networks": {
+      "ai_default": {
+        "Aliases": [
+          "ai-whisperasr-1",
+          "whisperasr"
+        ],
+        "DNSNames": [
+          "ai-whisperasr-1",
+          "whisperasr",
+          "a857ab9136bc"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "19339b3913a23ae263c1ccd3b6138efd34ce5e7a0875b50b8464efeed6629c4a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "whisper-asr-webservice",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/a857ab9136bcd752e858a249451c962e9ae16237d9e68e4d42a1aab1e07b521c/resolv.conf",
+  "RestartCount": 1,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-07-29T18:55:22.27732684Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-07-10T06:03:24.330297352Z",
+    "Status": "exited"
+  }
+}

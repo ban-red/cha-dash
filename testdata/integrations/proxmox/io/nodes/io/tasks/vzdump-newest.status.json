@@ -1,0 +1,14 @@
+{
+  "data": {
+    "exitstatus": "job errors",
+    "id": "",
+    "node": "io",
+    "pid": 417235,
+    "pstart": 84459945,
+    "starttime": 1791025200,
+    "status": "stopped",
+    "type": "vzdump",
+    "upid": "UPID:io:00065DD3:0508C1A9:6AC0E030:vzdump::root@pam:",
+    "user": "root@pam"
+  }
+}

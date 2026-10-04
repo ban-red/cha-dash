@@ -1,0 +1,9 @@
+{
+  "allowed_cameras": [
+    "backyard",
+    "side_deck",
+    "driveway"
+  ],
+  "role": "admin",
+  "username": "anonymous"
+}

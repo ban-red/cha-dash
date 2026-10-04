@@ -1,0 +1,72 @@
+{
+  "data": [
+    {
+      "by_id_link": "/dev/disk/by-id/nvme-WD_BLACK_SN850X_HS_2000GB_FAKESERIAL0008",
+      "devpath": "/dev/nvme0n1",
+      "gpt": 1,
+      "health": "PASSED",
+      "model": "WD_BLACK SN850X HS 2000GB",
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0008",
+      "size": 2000398934016,
+      "type": "nvme",
+      "used": "EFI",
+      "vendor": "unknown",
+      "wearout": 99,
+      "wwn": "0x5000000000000005"
+    },
+    {
+      "by_id_link": "/dev/disk/by-id/nvme-0x5000000000000006",
+      "devpath": "/dev/nvme1n1",
+      "gpt": 1,
+      "health": "PASSED",
+      "model": "Fanxiang S880 2TB",
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0009",
+      "size": 2000398934016,
+      "type": "nvme",
+      "used": "EFI",
+      "vendor": "unknown",
+      "wearout": 99,
+      "wwn": "0x5000000000000006"
+    },
+    {
+      "by_id_link": "/dev/disk/by-id/nvme-ORICO_FAKESERIAL0010_1",
+      "devpath": "/dev/nvme2n1",
+      "gpt": 1,
+      "health": "PASSED",
+      "model": "ORICO",
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0010",
+      "size": 4096805658624,
+      "type": "nvme",
+      "used": "ZFS",
+      "vendor": "unknown",
+      "wearout": 100,
+      "wwn": "0x5000000000000007"
+    },
+    {
+      "by_id_link": "/dev/disk/by-id/nvme-Lexar_SSD_EQ790_2TB_FAKESERIAL0011_1",
+      "devpath": "/dev/nvme3n1",
+      "gpt": 1,
+      "health": "PASSED",
+      "model": "Lexar SSD EQ790 2TB",
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0011",
+      "size": 2000398934016,
+      "type": "nvme",
+      "used": "BIOS boot",
+      "vendor": "unknown",
+      "wearout": 100,
+      "wwn": "0x5000000000000008"
+    }
+  ]
+}

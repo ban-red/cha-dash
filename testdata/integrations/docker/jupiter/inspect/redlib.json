@@ -1,0 +1,262 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "redlib"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "REDLIB_SFW_ONLY=REDACTED",
+      "REDLIB_DEFAULT_THEME=REDACTED",
+      "REDLIB_DEFAULT_LAYOUT=REDACTED",
+      "REDLIB_DEFAULT_SHOW_NSFW=REDACTED",
+      "TZ=REDACTED",
+      "REDLIB_DEFAULT_WIDE=REDACTED",
+      "PATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8080/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 60000000000,
+      "Test": [
+        "CMD-SHELL",
+        "wget --spider -q http://localhost:8080/settings || exit 1"
+      ],
+      "Timeout": 3000000000
+    },
+    "Hostname": "b6dda3d1c9c5",
+    "Image": "ghcr.io/cycneuramus/containers:redlib",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/Joshndroid/joshndroid-unraid-docker-templates/main/icons/redlib.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8080]/"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "redlib",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-02-23T21:36:41.447835088Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "b6dda3d1c9c5930f19181edfe199f073df00d99b5bb778bf818cd99584d729a6",
+      "LowerDir": "/var/lib/docker/overlay2/0f6fcad66c507a267e5cee6ff61ae6e8684d4d26801f702c927ebdf4b4bb0215-init/diff:/var/lib/docker/overlay2/274ef04eb32174ba3f13024d7e00fcf4ef237240bd7afb1bad32b8774cbc6799/diff:/var/lib/docker/overlay2/c4388c1a12ff40fc915c02d0153e13dfa2e019407b13091a1f351a5e0efd0997/diff:/var/lib/docker/overlay2/84ed28cb28d5c9a663dc93cc83f3ada1b8743cdbcc925af3c57477ced376139d/diff:/var/lib/docker/overlay2/592de6f96ad97022e2a92c33a4a4096bbaed66b0d57b9cde2db40e9c04a0b19b/diff",
+      "MergedDir": "/var/lib/docker/overlay2/0f6fcad66c507a267e5cee6ff61ae6e8684d4d26801f702c927ebdf4b4bb0215/merged",
+      "UpperDir": "/var/lib/docker/overlay2/0f6fcad66c507a267e5cee6ff61ae6e8684d4d26801f702c927ebdf4b4bb0215/diff",
+      "WorkDir": "/var/lib/docker/overlay2/0f6fcad66c507a267e5cee6ff61ae6e8684d4d26801f702c927ebdf4b4bb0215/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": null,
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8380"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "unless-stopped"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/b6dda3d1c9c5930f19181edfe199f073df00d99b5bb778bf818cd99584d729a6/hostname",
+  "HostsPath": "/var/lib/docker/containers/b6dda3d1c9c5930f19181edfe199f073df00d99b5bb778bf818cd99584d729a6/hosts",
+  "Id": "b6dda3d1c9c5930f19181edfe199f073df00d99b5bb778bf818cd99584d729a6",
+  "Image": "sha256:d9d7b78f5d501cd9603b54c7b854303be34e69c6a2bb88498c93ca781c390ee2",
+  "LogPath": "/var/lib/docker/containers/b6dda3d1c9c5930f19181edfe199f073df00d99b5bb778bf818cd99584d729a6/b6dda3d1c9c5930f19181edfe199f073df00d99b5bb778bf818cd99584d729a6-json.log",
+  "MountLabel": "",
+  "Mounts": [],
+  "Name": "/redlib",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "efd3b26f5f46643983990c663eae6462953ba23337d6d637b8dab2e0825a99fc",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.3",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:1f",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "8080/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8380"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8380"
+        }
+      ]
+    },
+    "SandboxID": "bc42f2b5de6a4987680ce472c702650bc58a7e548ba30171e5825a4548af8f19",
+    "SandboxKey": "/var/run/docker/netns/bc42f2b5de6a"
+  },
+  "Path": "redlib",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/b6dda3d1c9c5930f19181edfe199f073df00d99b5bb778bf818cd99584d729a6/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870304516Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T20:02:12.195054662-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:02:12.146264318-06:00"
+        },
+        {
+          "End": "2026-10-03T20:03:12.259562901-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:03:12.196133596-06:00"
+        },
+        {
+          "End": "2026-10-03T20:04:12.306614047-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:04:12.260427023-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:12.37593993-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:05:12.307827281-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:12.450270222-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:06:12.376971891-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 29897,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:41.344055203Z",
+    "Status": "running"
+  }
+}

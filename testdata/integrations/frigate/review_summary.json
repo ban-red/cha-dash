@@ -1,0 +1,50 @@
+{
+  "2026-09-27": {
+    "day": "2026-09-27",
+    "reviewed_alert": 0,
+    "reviewed_detection": 0,
+    "total_alert": 2,
+    "total_detection": 0
+  },
+  "2026-09-28": {
+    "day": "2026-09-28",
+    "reviewed_alert": 0,
+    "reviewed_detection": 0,
+    "total_alert": 1,
+    "total_detection": 0
+  },
+  "2026-09-29": {
+    "day": "2026-09-29",
+    "reviewed_alert": 0,
+    "reviewed_detection": 0,
+    "total_alert": 2,
+    "total_detection": 0
+  },
+  "2026-09-30": {
+    "day": "2026-09-30",
+    "reviewed_alert": 0,
+    "reviewed_detection": 0,
+    "total_alert": 4,
+    "total_detection": 0
+  },
+  "2026-10-01": {
+    "day": "2026-10-01",
+    "reviewed_alert": 0,
+    "reviewed_detection": 0,
+    "total_alert": 5,
+    "total_detection": 0
+  },
+  "2026-10-03": {
+    "day": "2026-10-03",
+    "reviewed_alert": 0,
+    "reviewed_detection": 0,
+    "total_alert": 3,
+    "total_detection": 0
+  },
+  "last24Hours": {
+    "reviewed_alert": null,
+    "reviewed_detection": null,
+    "total_alert": null,
+    "total_detection": null
+  }
+}

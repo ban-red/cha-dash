@@ -1,0 +1,344 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/bin/bash",
+    "init.sh"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/bin/bash",
+      "init.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/usr/bin/dumb-init",
+      "--"
+    ],
+    "Env": [
+      "UMASK=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "VIRTUAL_HOST_MULTIPORTS=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "LANG=REDACTED"
+    ],
+    "ExposedPorts": {
+      "7878/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 120000000000,
+      "Retries": 3,
+      "StartPeriod": 120000000000,
+      "Test": [
+        "CMD-SHELL",
+        "/usr/local/bin/system/scripts/docker/healthcheck.sh || exit 1"
+      ],
+      "Timeout": 120000000000
+    },
+    "Hostname": "34074a5a682d",
+    "Image": "binhex/arch-radarr",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/binhex/docker-templates/master/binhex/images/radarr-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:7878]/",
+      "org.opencontainers.image.authors": "binhex",
+      "org.opencontainers.image.source": "https://github.com/binhex/arch-radarr"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-07-31T00:23:05.127334092Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "34074a5a682d2e4db7dcbb3d6eb30138d9295bc7f865e3e768e736701c41046d",
+      "LowerDir": "/var/lib/docker/overlay2/d7a674ffc50fa6941f655e4e983996b6b0646658f46cf6a9f2ca3b34c45f043b-init/diff:/var/lib/docker/overlay2/a6e267b6c5b1c79f61a63a767dcf5c28367dc0a2b84511e25f6894c36585ec8a/diff:/var/lib/docker/overlay2/e1dd4aaecdcbb03a931ff692e69fe6bbc79dd1ff227f78e1a9d0e4408cb5340e/diff:/var/lib/docker/overlay2/01f96ecabf0118fe30be75d945c76e68ed5c98994d52920aa8970c0eb3445a50/diff:/var/lib/docker/overlay2/0705c6878a2a2e684e1f79aae28ed1dd0d90161a656b954d52979a860ee0ee49/diff:/var/lib/docker/overlay2/ec3b7748f9bfe3f00b53605a15b3e0b515b9edb80341cf16573687eb0ff0d9f5/diff:/var/lib/docker/overlay2/a63da6a0328b508262312651705f0a145833ae1fcb69ae1fb282cc1687c39359/diff:/var/lib/docker/overlay2/bc36a62c61d3c3bcaab841cefe9dfc4e9e8fbc565fd7c9a6b6361a0b7ecd95f3/diff:/var/lib/docker/overlay2/721d60ac37c1a2663cbc2891e1bea7d9613a0b977c543384648fb8a2315f84d0/diff:/var/lib/docker/overlay2/862c2d689fdce4cd69ced7a170ea262c8d4183a445ceb3a35232f09091681e69/diff:/var/lib/docker/overlay2/98334949ba4e763f8cd62bccc2205ecf6feee1d38fc7cb5c194617f296d642ad/diff:/var/lib/docker/overlay2/d06cadd3f89768bf2192567fe200c0a13bbfb582e9ce7d00d4d318721e4672dc/diff",
+      "MergedDir": "/var/lib/docker/overlay2/d7a674ffc50fa6941f655e4e983996b6b0646658f46cf6a9f2ca3b34c45f043b/merged",
+      "UpperDir": "/var/lib/docker/overlay2/d7a674ffc50fa6941f655e4e983996b6b0646658f46cf6a9f2ca3b34c45f043b/diff",
+      "WorkDir": "/var/lib/docker/overlay2/d7a674ffc50fa6941f655e4e983996b6b0646658f46cf6a9f2ca3b34c45f043b/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user0/archive_a/Media/:/media-direct:rw",
+      "/mnt/user/appdata/binhex-radarr:/config:rw",
+      "/mnt/user/archive_a/:/data:rw",
+      "/mnt/user/archive_a/Media/:/media:rw",
+      "/mnt/user0/archive_a/Downloads/:/downloads-direct:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "7878/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "17878"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/34074a5a682d2e4db7dcbb3d6eb30138d9295bc7f865e3e768e736701c41046d/hostname",
+  "HostsPath": "/var/lib/docker/containers/34074a5a682d2e4db7dcbb3d6eb30138d9295bc7f865e3e768e736701c41046d/hosts",
+  "Id": "34074a5a682d2e4db7dcbb3d6eb30138d9295bc7f865e3e768e736701c41046d",
+  "Image": "sha256:0d9571781df63371ed0e33a1801654ae6f6f357ee2881c523095f141463aaf9b",
+  "LogPath": "/var/lib/docker/containers/34074a5a682d2e4db7dcbb3d6eb30138d9295bc7f865e3e768e736701c41046d/34074a5a682d2e4db7dcbb3d6eb30138d9295bc7f865e3e768e736701c41046d-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/binhex-radarr",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/downloads-direct",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user0/archive_a/Downloads",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/media",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/Media",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/media-direct",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user0/archive_a/Media",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/radarr",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "92bc3da482cfb624672e623372ea7ef5f4246c7358441201447d233710f6942c",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.23",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:0b",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "7878/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "17878"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "17878"
+        }
+      ]
+    },
+    "SandboxID": "47a6f188d0a8a59102d4f36cacf4cfa14ce80bc91460aef2501d69898ca34bc5",
+    "SandboxKey": "/var/run/docker/netns/47a6f188d0a8"
+  },
+  "Path": "/usr/bin/dumb-init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/34074a5a682d2e4db7dcbb3d6eb30138d9295bc7f865e3e768e736701c41046d/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.87042376Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T19:58:11.94035387-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T19:58:11.834714021-06:00"
+        },
+        {
+          "End": "2026-10-03T20:00:12.036991791-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:00:11.941414942-06:00"
+        },
+        {
+          "End": "2026-10-03T20:02:12.136863483-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:02:12.037757803-06:00"
+        },
+        {
+          "End": "2026-10-03T20:04:12.19280224-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:04:12.137102754-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:12.271020294-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:06:12.193393225-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 45422,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:51.845554612Z",
+    "Status": "running"
+  }
+}

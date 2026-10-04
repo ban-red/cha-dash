@@ -1,0 +1,420 @@
+[
+  {
+    "camera": "side_deck",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790990044.189975-n1qbkv",
+        "1790989925.427797-pjvr5e"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790989925.81009,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790990050.598283,
+    "has_been_reviewed": false,
+    "id": "1790989925.626909-9dp1hz",
+    "severity": "alert",
+    "start_time": 1790989925.626909,
+    "thumb_path": "/media/frigate/clips/review/thumb-side_deck-1790989925.626909-9dp1hz.webp"
+  },
+  {
+    "camera": "driveway",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790989836.632026-bto7xe"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790989837.039441,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790989836.84336,
+    "has_been_reviewed": false,
+    "id": "1790989836.84336-q4ddmi",
+    "severity": "alert",
+    "start_time": 1790989836.84336,
+    "thumb_path": "/media/frigate/clips/review/thumb-driveway-1790989836.84336-q4ddmi.webp"
+  },
+  {
+    "camera": "driveway",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790986752.388527-azflyp",
+        "1790986781.449676-8ahmz5",
+        "1790986756.315003-fhzjlc"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790986753.369426,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790986783.107273,
+    "has_been_reviewed": false,
+    "id": "1790986753.183602-447er9",
+    "severity": "alert",
+    "start_time": 1790986753.183602,
+    "thumb_path": "/media/frigate/clips/review/thumb-driveway-1790986753.183602-447er9.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790877470.307284-swdlck"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790877470.740886,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790877470.90462,
+    "has_been_reviewed": false,
+    "id": "1790877470.516122-68kwyp",
+    "severity": "alert",
+    "start_time": 1790877470.516122,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790877470.516122-68kwyp.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790873527.916269-7mki7y"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790873528.339909,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790873533.308927,
+    "has_been_reviewed": false,
+    "id": "1790873528.096393-yvmj57",
+    "severity": "alert",
+    "start_time": 1790873528.096393,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790873528.096393-yvmj57.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790814446.311251-nrx1sl"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790814446.745181,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790814451.708313,
+    "has_been_reviewed": false,
+    "id": "1790814446.50261-8nv1dz",
+    "severity": "alert",
+    "start_time": 1790814446.50261,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790814446.50261-8nv1dz.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790814347.454048-82hfzh"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790814347.921452,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790814350.906516,
+    "has_been_reviewed": false,
+    "id": "1790814347.663992-kylfyb",
+    "severity": "alert",
+    "start_time": 1790814347.663992,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790814347.663992-kylfyb.webp"
+  },
+  {
+    "camera": "side_deck",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790813241.688028-qkdf3s",
+        "1790813235.86381-g1tvm4",
+        "1790813245.672147-dg09nh"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790813236.249624,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790813248.086344,
+    "has_been_reviewed": false,
+    "id": "1790813236.023154-5bv9kr",
+    "severity": "alert",
+    "start_time": 1790813236.023154,
+    "thumb_path": "/media/frigate/clips/review/thumb-side_deck-1790813236.023154-5bv9kr.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790793042.030673-mdp2ud"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790793042.415427,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790793061.829726,
+    "has_been_reviewed": false,
+    "id": "1790793042.191676-wrj9pw",
+    "severity": "alert",
+    "start_time": 1790793042.191676,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790793042.191676-wrj9pw.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790792815.371975-whwc2c"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790792815.822123,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790792846.225192,
+    "has_been_reviewed": false,
+    "id": "1790792815.579155-yyq3h1",
+    "severity": "alert",
+    "start_time": 1790792815.579155,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790792815.579155-yyq3h1.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790791360.176626-biir8z"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790791360.60728,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790791376.116464,
+    "has_been_reviewed": false,
+    "id": "1790791360.392204-c22jc7",
+    "severity": "alert",
+    "start_time": 1790791360.392204,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790791360.392204-c22jc7.webp"
+  },
+  {
+    "camera": "driveway",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790741116.911089-bq3jbt",
+        "1790741086.943846-c0irno"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790741088.577045,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790741128.098358,
+    "has_been_reviewed": false,
+    "id": "1790741088.334486-gqpy28",
+    "severity": "alert",
+    "start_time": 1790741088.334486,
+    "thumb_path": "/media/frigate/clips/review/thumb-driveway-1790741088.334486-gqpy28.webp"
+  },
+  {
+    "camera": "driveway",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790708914.596786-yu2cnc"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790708915.214457,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790708919.1518,
+    "has_been_reviewed": false,
+    "id": "1790708914.848329-3gzn5m",
+    "severity": "alert",
+    "start_time": 1790708914.848329,
+    "thumb_path": "/media/frigate/clips/review/thumb-driveway-1790708914.848329-3gzn5m.webp"
+  },
+  {
+    "camera": "driveway",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790707904.434772-o5k7h1"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790707905.688936,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790707914.449031,
+    "has_been_reviewed": false,
+    "id": "1790707905.411655-9fy6g2",
+    "severity": "alert",
+    "start_time": 1790707905.411655,
+    "thumb_path": "/media/frigate/clips/review/thumb-driveway-1790707905.411655-9fy6g2.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790623395.636036-68j7q4"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790623396.910352,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790623405.428453,
+    "has_been_reviewed": false,
+    "id": "1790623396.660147-rtzkak",
+    "severity": "alert",
+    "start_time": 1790623396.660147,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790623396.660147-rtzkak.webp"
+  },
+  {
+    "camera": "backyard",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790534578.120883-ay6sl5",
+        "1790534570.348741-m8vmpb",
+        "1790534582.740609-kscahi"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790534570.757093,
+      "verified_objects": [],
+      "zones": [
+        "walkway"
+      ]
+    },
+    "end_time": 1790534588.732883,
+    "has_been_reviewed": false,
+    "id": "1790534570.520842-hg5gt6",
+    "severity": "alert",
+    "start_time": 1790534570.520842,
+    "thumb_path": "/media/frigate/clips/review/thumb-backyard-1790534570.520842-hg5gt6.webp"
+  },
+  {
+    "camera": "side_deck",
+    "data": {
+      "audio": [],
+      "detections": [
+        "1790527771.52696-r9cc1u",
+        "1790527751.783781-husm2p"
+      ],
+      "metadata": null,
+      "objects": [
+        "person"
+      ],
+      "sub_labels": [],
+      "thumb_time": 1790527752.158609,
+      "verified_objects": [],
+      "zones": []
+    },
+    "end_time": 1790527773.730084,
+    "has_been_reviewed": false,
+    "id": "1790527752.021095-2l3xnr",
+    "severity": "alert",
+    "start_time": 1790527752.021095,
+    "thumb_path": "/media/frigate/clips/review/thumb-side_deck-1790527752.021095-2l3xnr.webp"
+  }
+]

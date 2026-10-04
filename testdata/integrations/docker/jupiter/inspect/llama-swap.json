@@ -1,0 +1,356 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "-config",
+    "/app/config.yaml",
+    "--config",
+    "/app/config.yaml",
+    "--listen",
+    "0.0.0.0:8080"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "--config",
+      "/app/config.yaml",
+      "--listen",
+      "0.0.0.0:8080"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/app/llama-swap",
+      "-config",
+      "/app/config.yaml"
+    ],
+    "Env": [
+      "PATH=REDACTED",
+      "NVARCH=REDACTED",
+      "NVIDIA_REQUIRE_CUDA=REDACTED",
+      "NV_CUDA_CUDART_VERSION=REDACTED",
+      "CUDA_VERSION=REDACTED",
+      "LD_LIBRARY_PATH=REDACTED",
+      "NVIDIA_VISIBLE_DEVICES=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "NV_CUDA_LIB_VERSION=REDACTED",
+      "NV_NVTX_VERSION=REDACTED",
+      "NV_LIBNPP_VERSION=REDACTED",
+      "NV_LIBNPP_PACKAGE=REDACTED",
+      "NV_LIBCUSPARSE_VERSION=REDACTED",
+      "NV_LIBCUBLAS_PACKAGE_NAME=REDACTED",
+      "NV_LIBCUBLAS_VERSION=REDACTED",
+      "NV_LIBCUBLAS_PACKAGE=REDACTED",
+      "NV_LIBNCCL_PACKAGE_NAME=REDACTED",
+      "NV_LIBNCCL_PACKAGE_VERSION=REDACTED",
+      "NCCL_VERSION=REDACTED",
+      "NV_LIBNCCL_PACKAGE=REDACTED",
+      "NVIDIA_PRODUCT_NAME=REDACTED",
+      "LLAMA_ARG_HOST=REDACTED",
+      "HOME=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8080/tcp": {}
+    },
+    "Healthcheck": {
+      "Test": [
+        "CMD-SHELL",
+        "curl -f http://localhost:8080/ || exit 1"
+      ]
+    },
+    "Hostname": "b4d05c0372b3",
+    "Image": "ghcr.io/mostlygeek/llama-swap:cuda",
+    "Labels": {
+      "com.docker.compose.config-hash": "53e731ad47142f8df4179d347af78642341cbecf6a389203ee4b7acf18ea542e",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:b93b3aa01eb2a03e002dd9b3836f15ba048563e759c3717f3c1cc108228ae5d3",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "ai",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/AI/docker-compose.yml,/boot/config/plugins/compose.manager/projects/AI/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/AI",
+      "com.docker.compose.replace": "llama-swap",
+      "com.docker.compose.service": "llama-swap",
+      "com.docker.compose.version": "2.40.3",
+      "maintainer": "NVIDIA CORPORATION \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.created": "2026-07-28T05:21:43Z",
+      "org.opencontainers.image.description": "LLM inference in C/C++",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.revision": "91f8c9c5fb038c086e13e9cd823c29b33b07ba54",
+      "org.opencontainers.image.source": "https://github.com/ggml-org/llama.cpp",
+      "org.opencontainers.image.title": "llama.cpp",
+      "org.opencontainers.image.url": "https://github.com/ggml-org/llama.cpp",
+      "org.opencontainers.image.version": "b10156"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "0:0",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  },
+  "Created": "2026-07-29T18:49:59.30791865Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "b4d05c0372b325851e571f20a391c311764b8108374049275b43e927a25d323d",
+      "LowerDir": "/var/lib/docker/overlay2/c596440abbb111c228947b277f43adc8838f130170ef7ba5440e0af393a65824-init/diff:/var/lib/docker/overlay2/63b7db26ce6fac531f6db926c4865d35d170ad845c281ee33231849108891870/diff:/var/lib/docker/overlay2/294705ca5fd318a78d3e408396a3738eb88998189953f1b206cf86b148e08c33/diff:/var/lib/docker/overlay2/9747d31548bfdbe48050eeaa5575eac8ab5702b21d3dedaf7b1da33ecc0561ed/diff:/var/lib/docker/overlay2/f57a3c81fbc04fd251e427a7dc203004421d3d93feb29e1cca24fd2635c0d82e/diff:/var/lib/docker/overlay2/af7aa4de3e8443ac7247a3e18507baddf156bff71423e4ca150a5b5b8143b406/diff:/var/lib/docker/overlay2/7f830b686cb71b76658832ef4e84397d8cd7f3eb13e4a3ea109e85d5b2b01416/diff:/var/lib/docker/overlay2/2d5c61d13dba275b35aff548c72a5c8904f74ca4885d8deafee723fe5cc7506b/diff:/var/lib/docker/overlay2/3317d8d1784c92a303fbda2f39ddb0fd64dc588f8c4f4234c1905e86ac2f7b27/diff:/var/lib/docker/overlay2/28a3e03e46a242bc6e715275146cfed587e371810914a62b969100269194c2b7/diff:/var/lib/docker/overlay2/b2e11595fb1156dbaed20f98a77374b219e0b5deac471f4ff764d982413af68f/diff:/var/lib/docker/overlay2/c80abf1b7a2dcdd428dfa990d5f3e5889f2d9f614756e1ad227ff908185d75ca/diff:/var/lib/docker/overlay2/7c7d918343c4368abe1c7c056512efacc13f314e4e168b430ea0bed84fa91dc0/diff:/var/lib/docker/overlay2/4f625fde8ac4648d36ba6e9fd7d985ea46937c5608b0ffb56f6006881ad0f300/diff:/var/lib/docker/overlay2/7f1ff5c18b959069523dcec3b1f6eac4b8c33ff648bafffbd9e736a54a818fdd/diff:/var/lib/docker/overlay2/9e5d27300f6fb36d3f365dea181ded81c92200b5766bd3dce8dee6557df0b31d/diff:/var/lib/docker/overlay2/2f4aebdbb73be8320cf6ed4b8a0f7c951b95ddb19e7a44a9b69ec7ee38f69524/diff:/var/lib/docker/overlay2/8dc6686da1dec414e211750c685bcf7ec3dadef80f4dd133193af27668480ae1/diff:/var/lib/docker/overlay2/78cebb2285447d11b36fc277b7948050b3ed4db57a80b9be8515e3439c3d7042/diff:/var/lib/docker/overlay2/5404b733cadb34caf93e122d70b09ef4c70d1b12af53e7bcbe6e82c3a016201d/diff",
+      "MergedDir": "/var/lib/docker/overlay2/c596440abbb111c228947b277f43adc8838f130170ef7ba5440e0af393a65824/merged",
+      "UpperDir": "/var/lib/docker/overlay2/c596440abbb111c228947b277f43adc8838f130170ef7ba5440e0af393a65824/diff",
+      "WorkDir": "/var/lib/docker/overlay2/c596440abbb111c228947b277f43adc8838f130170ef7ba5440e0af393a65824/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/AI/llama-swap/config.yaml:/app/config.yaml:rw",
+      "/mnt/user/appdata/AI/koboldcpp/models:/models:rw"
+    ],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": [
+      {
+        "Capabilities": [
+          [
+            "gpu"
+          ]
+        ],
+        "Count": -1,
+        "DeviceIDs": null,
+        "Driver": "nvidia",
+        "Options": null
+      }
+    ],
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "ai_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "55001"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "unless-stopped"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/b4d05c0372b325851e571f20a391c311764b8108374049275b43e927a25d323d/hostname",
+  "HostsPath": "/var/lib/docker/containers/b4d05c0372b325851e571f20a391c311764b8108374049275b43e927a25d323d/hosts",
+  "Id": "b4d05c0372b325851e571f20a391c311764b8108374049275b43e927a25d323d",
+  "Image": "sha256:b93b3aa01eb2a03e002dd9b3836f15ba048563e759c3717f3c1cc108228ae5d3",
+  "LogPath": "/var/lib/docker/containers/b4d05c0372b325851e571f20a391c311764b8108374049275b43e927a25d323d/b4d05c0372b325851e571f20a391c311764b8108374049275b43e927a25d323d-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/app/config.yaml",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/AI/llama-swap/config.yaml",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/models",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/AI/koboldcpp/models",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/llama-swap",
+  "NetworkSettings": {
+    "Networks": {
+      "ai_default": {
+        "Aliases": [
+          "llama-swap",
+          "llama-swap"
+        ],
+        "DNSNames": [
+          "llama-swap",
+          "b4d05c0372b3"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "19339b3913a23ae263c1ccd3b6138efd34ce5e7a0875b50b8464efeed6629c4a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/app/llama-swap",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/b4d05c0372b325851e571f20a391c311764b8108374049275b43e927a25d323d/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-07-29T19:11:54.356001201Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-07-29T13:09:35.909541015-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-07-29T13:09:35.840301802-06:00"
+        },
+        {
+          "End": "2026-07-29T13:10:05.959662521-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-07-29T13:10:05.910080634-06:00"
+        },
+        {
+          "End": "2026-07-29T13:10:36.015691987-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-07-29T13:10:35.960764304-06:00"
+        },
+        {
+          "End": "2026-07-29T13:11:06.080127578-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-07-29T13:11:06.016616636-06:00"
+        },
+        {
+          "End": "2026-07-29T13:11:36.140733552-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-07-29T13:11:36.081235385-06:00"
+        }
+      ],
+      "Status": "unhealthy"
+    },
+    "OOMKilled": true,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-07-29T18:58:31.790242802Z",
+    "Status": "exited"
+  }
+}

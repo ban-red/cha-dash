@@ -1,0 +1,1683 @@
+[
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "adguard@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 19,
+    "provider": "file",
+    "rule": "Host(`adg.lab.example`)",
+    "service": "adguard",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "onedev-ssh",
+      "spice",
+      "spice-tls",
+      "web"
+    ],
+    "middlewares": [
+      "auth@file"
+    ],
+    "name": "api@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 74,
+    "provider": "file",
+    "rule": "(Host(`traefik.home1.lan`) || Host(`traefik.lab.example`)) \u0026\u0026 PathPrefix(`/api`)",
+    "service": "api@internal",
+    "status": "enabled",
+    "using": [
+      "onedev-ssh",
+      "spice",
+      "spice-tls",
+      "web"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "audiobookshelf@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 26,
+    "provider": "file",
+    "rule": "Host(`audiobooks.lab.example`)",
+    "service": "audiobookshelf",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "authelia@docker",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 24,
+    "provider": "docker",
+    "rule": "Host(`authelia.lab.example`)",
+    "service": "authelia-apps",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "domains": [
+        {
+          "main": "lab.example",
+          "sans": [
+            "*.lab.example"
+          ]
+        }
+      ],
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file",
+      "authelia@docker"
+    ],
+    "name": "bazarr@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 999,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/bazarr`)",
+    "service": "bazarr",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "booklore@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`books.lab.example`)",
+    "service": "booklore",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "coder@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 58,
+    "provider": "file",
+    "rule": "Host(`code.lab.example`) || HostRegexp(`^.+\\.code\\.lab\\.example$`)",
+    "service": "coder",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "dbgate@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 18,
+    "provider": "file",
+    "rule": "Host(`db.lab.example`)",
+    "service": "dbgate",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "donetick@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 20,
+    "provider": "file",
+    "rule": "Host(`todo.lab.example`)",
+    "service": "donetick",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "erebor@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 22,
+    "provider": "file",
+    "rule": "Host(`erebor.lab.example`)",
+    "service": "erebor",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "europa-kasm@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 22,
+    "provider": "file",
+    "rule": "Host(`europa.lab.example`)",
+    "service": "europa-kasm",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "go-link@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 18,
+    "provider": "file",
+    "rule": "Host(`go.lab.example`)",
+    "service": "go-link",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "web"
+    ],
+    "name": "homeassistant-local@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 18,
+    "provider": "file",
+    "rule": "Host(`host1.local`)",
+    "service": "homeassistant",
+    "status": "enabled",
+    "tls": {
+      "options": "default"
+    },
+    "using": [
+      "web"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "code-server-headers@file",
+      "redirect-to-https@file"
+    ],
+    "name": "homeassistant@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 20,
+    "provider": "file",
+    "rule": "Host(`home.lab.example`)",
+    "service": "homeassistant",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "homepage@docker",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 20,
+    "provider": "docker",
+    "rule": "Host(`dash.lab.example`)",
+    "service": "homepage",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "domains": [
+        {
+          "main": "lab.example",
+          "sans": [
+            "*.lab.example"
+          ]
+        }
+      ],
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "immich@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 22,
+    "provider": "file",
+    "rule": "Host(`photos.lab.example`)",
+    "service": "immich",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "ittools@docker",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "docker",
+    "rule": "Host(`tools.lab.example`)",
+    "service": "ittools",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "domains": [
+        {
+          "main": "lab.example",
+          "sans": [
+            "*.lab.example"
+          ]
+        }
+      ],
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file",
+      "authelia@docker"
+    ],
+    "name": "jackett@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 999,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/jackett`)",
+    "service": "jackett",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "jellyfinone@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 27,
+    "provider": "file",
+    "rule": "Host(`jellyfinone.lab.example`)",
+    "service": "jellyfinone",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "jupiter@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 998,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/`)",
+    "service": "jupiter",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "jupiter_base@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 997,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 Path(`/`)",
+    "service": "jupiter",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "linkding@docker",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "docker",
+    "rule": "Host(`links.lab.example`)",
+    "service": "linkding",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "domains": [
+        {
+          "main": "lab.example",
+          "sans": [
+            "*.lab.example"
+          ]
+        }
+      ],
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "authelia@docker"
+    ],
+    "name": "manga@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`manga.lab.example`)",
+    "service": "manga",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "nextcloud@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`cloud.lab.example`)",
+    "service": "nextcloud",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "omada@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`omada.lab.example`)",
+    "service": "omada",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "omv@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 19,
+    "provider": "file",
+    "rule": "Host(`omv.lab.example`)",
+    "service": "omv",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "onedev@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 22,
+    "provider": "file",
+    "rule": "Host(`onedev.lab.example`)",
+    "service": "onedev",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "opnsense-2@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 24,
+    "provider": "file",
+    "rule": "Host(`opnsense.lab.example`)",
+    "service": "opnsense",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "opnsense@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 22,
+    "provider": "file",
+    "rule": "Host(`router.lab.example`)",
+    "service": "opnsense",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "web"
+    ],
+    "name": "host2-local@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`host2.local`)",
+    "service": "outline",
+    "status": "enabled",
+    "tls": {
+      "options": "default"
+    },
+    "using": [
+      "web"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "outline@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 20,
+    "provider": "file",
+    "rule": "Host(`docs.lab.example`)",
+    "service": "outline",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pairdrop@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 20,
+    "provider": "file",
+    "rule": "Host(`drop.lab.example`)",
+    "service": "pairdrop",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "paperless@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 51,
+    "provider": "file",
+    "rule": "Host(`paperless.lab.example`) || Host(`papers.lab.example`)",
+    "service": "paperless",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "web"
+    ],
+    "name": "paste@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 19,
+    "provider": "file",
+    "rule": "Host(`host3.local`)",
+    "service": "paste",
+    "status": "enabled",
+    "tls": {
+      "options": "default"
+    },
+    "using": [
+      "web"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pdf@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 19,
+    "provider": "file",
+    "rule": "Host(`pdf.lab.example`)",
+    "service": "pdf",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "picsur@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 19,
+    "provider": "file",
+    "rule": "Host(`img.lab.example`)",
+    "service": "picsur",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pikvm-wifi@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 26,
+    "provider": "file",
+    "rule": "Host(`pikvm-wifi.lab.example`)",
+    "service": "pikvm-wifi",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pikvm@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`pikvm.lab.example`)",
+    "service": "pikvm",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pingvin-share@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`share.lab.example`)",
+    "service": "pingvin-share",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "web"
+    ],
+    "middlewares": [
+      "redirect-plex@file"
+    ],
+    "name": "plex-rewrite@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 19,
+    "provider": "file",
+    "rule": "Host(`app.plex.tv`)",
+    "service": "noop@internal",
+    "status": "enabled",
+    "tls": {
+      "options": "default"
+    },
+    "using": [
+      "web"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "plex@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 20,
+    "provider": "file",
+    "rule": "Host(`plex.lab.example`)",
+    "service": "plex",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file",
+      "authelia@docker"
+    ],
+    "name": "prowlarr@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 999,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/prowlarr`)",
+    "service": "prowlarr",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "web"
+    ],
+    "name": "prusapi@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`host4.local`)",
+    "service": "prusapi",
+    "status": "enabled",
+    "tls": {
+      "options": "default"
+    },
+    "using": [
+      "web"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pve-io@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 18,
+    "provider": "file",
+    "rule": "Host(`io.lab.example`)",
+    "service": "pveio",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pve-mini-g5@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 27,
+    "provider": "file",
+    "rule": "Host(`pve-mini-g5.lab.example`)",
+    "service": "pve-mini-g5",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pve-pluto@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 21,
+    "provider": "file",
+    "rule": "Host(`pluto.lab.example`)",
+    "service": "pve-pluto",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pve-router@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 19,
+    "provider": "file",
+    "rule": "Host(`pve.lab.example`)",
+    "service": "pve-router",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "pvedocker@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 25,
+    "provider": "file",
+    "rule": "Host(`pvedocker.lab.example`)",
+    "service": "pvedocker",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "qbittorent@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 51,
+    "provider": "file",
+    "rule": "Host(`torrents.lab.example`) || Host(`torrent.lab.example`)",
+    "service": "qbittorent",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file",
+      "authelia@docker"
+    ],
+    "name": "radarr@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 999,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/radarr`)",
+    "service": "radarr",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file",
+      "authelia@docker"
+    ],
+    "name": "radarrhd@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 999,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/radarrhd`)",
+    "service": "radarrhd",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "reddit@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 43,
+    "provider": "file",
+    "rule": "Host(`reddit.lab.example`) || Host(`r.lab.example`)",
+    "service": "reddit",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "romm@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 20,
+    "provider": "file",
+    "rule": "Host(`roms.lab.example`)",
+    "service": "romm",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file",
+      "authelia@docker"
+    ],
+    "name": "sonarr@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 999,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/sonarr`)",
+    "service": "sonarr",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file",
+      "authelia@docker"
+    ],
+    "name": "tautulli@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 999,
+    "provider": "file",
+    "rule": "Host(`jupiter.lab.example`) \u0026\u0026 PathPrefix(`/tautulli`)",
+    "service": "tautulli",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "web"
+    ],
+    "name": "traefik-local@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 23,
+    "provider": "file",
+    "rule": "Host(`traefik.home1.lan`)",
+    "service": "api@internal",
+    "status": "enabled",
+    "using": [
+      "web"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "traefik@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 23,
+    "provider": "file",
+    "rule": "Host(`traefik.lab.example`)",
+    "service": "api@internal",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "tubearchivist@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 29,
+    "provider": "file",
+    "rule": "Host(`tubearchivist.lab.example`)",
+    "service": "tubearchivist",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "uptimekuma@docker",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 22,
+    "provider": "docker",
+    "rule": "Host(`uptime.lab.example`)",
+    "service": "uptimekuma",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "domains": [
+        {
+          "main": "lab.example",
+          "sans": [
+            "*.lab.example"
+          ]
+        }
+      ],
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "auth@file"
+    ],
+    "name": "websecure-api@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 74,
+    "provider": "file",
+    "rule": "(Host(`traefik.home1.lan`) || Host(`traefik.lab.example`)) \u0026\u0026 PathPrefix(`/api`)",
+    "service": "api@internal",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "domains": [
+        {
+          "main": "lab.example",
+          "sans": [
+            "*.lab.example"
+          ]
+        }
+      ],
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "middlewares": [
+      "redirect-to-https@file"
+    ],
+    "name": "zigbee@file",
+    "observability": {
+      "accessLogs": true,
+      "metrics": true,
+      "traceVerbosity": "minimal",
+      "tracing": true
+    },
+    "priority": 22,
+    "provider": "file",
+    "rule": "Host(`zigbee.lab.example`)",
+    "service": "zigbee",
+    "status": "enabled",
+    "tls": {
+      "certResolver": "cloudflare",
+      "options": "default"
+    },
+    "using": [
+      "websecure"
+    ]
+  }
+]

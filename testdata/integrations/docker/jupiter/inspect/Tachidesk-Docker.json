@@ -1,0 +1,276 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/home/suwayomi/startup_script.sh"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/home/suwayomi/startup_script.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "tini",
+      "--"
+    ],
+    "Env": [
+      "SOCKS_PROXY_ENABLED=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "FLARESOLVERR_URL=REDACTED",
+      "BASIC_AUTH_ENABLED=REDACTED",
+      "DEBUG=REDACTED",
+      "SOCKS_PROXY_HOST=REDACTED",
+      "TZ=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "BASIC_AUTH_PASSWORD=REDACTED",
+      "BASIC_AUTH_USERNAME=REDACTED",
+      "SOCKS_PROXY_PORT=REDACTED",
+      "FLARESOLVERR_ENABLED=REDACTED",
+      "PATH=REDACTED",
+      "JAVA_HOME=REDACTED",
+      "LANG=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LC_ALL=REDACTED",
+      "JAVA_VERSION=REDACTED",
+      "HOME=REDACTED"
+    ],
+    "ExposedPorts": {
+      "4567/tcp": {}
+    },
+    "Hostname": "74df42478bd5",
+    "Image": "ghcr.io/suwayomi/tachidesk:preview",
+    "Labels": {
+      "download_url": "https://github.com/Suwayomi/Suwayomi-Server-preview/releases/download/v2.1.2078/Suwayomi-Server-v2.1.2078.jar",
+      "maintainer": "suwayomi",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/Suwayomi/Tachidesk-Server/master/server/src/main/resources/icon/faviconlogo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:4567]",
+      "org.opencontainers.image.authors": "https://github.com/suwayomi",
+      "org.opencontainers.image.created": "2026-02-14",
+      "org.opencontainers.image.description": "This image is used to start suwayomi server in a container",
+      "org.opencontainers.image.licenses": "MPL-2.0",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.source": "https://github.com/suwayomi/docker-tachidesk",
+      "org.opencontainers.image.title": "Suwayomi Docker",
+      "org.opencontainers.image.url": "https://github.com/suwayomi/docker-tachidesk/pkgs/container/tachidesk",
+      "org.opencontainers.image.vendor": "suwayomi",
+      "org.opencontainers.image.version": "v2.1.2078",
+      "tachidesk.docker_commit": "441",
+      "tachidesk.filename": "Suwayomi-Server-v2.1.2078.jar",
+      "tachidesk.release_tag": "v2.1.2078"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "99:100",
+    "Volumes": null,
+    "WorkingDir": "/home/suwayomi"
+  },
+  "Created": "2026-02-17T18:26:03.965918152Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "74df42478bd5dc292f1feed8a16dfb68b0c19e7b65c3ae12268b8113954e31ff",
+      "LowerDir": "/var/lib/docker/overlay2/269720861af563b256b0d6e598917d16c2838199f8b6dd350574324aa110d759-init/diff:/var/lib/docker/overlay2/e1bb3cee802739c5adbf1080479490f383d9bc03dbfd108f2f6f9e8d8a67ccc9/diff:/var/lib/docker/overlay2/bf0b6d334ae86d14bd7a2e2997da88a9d7e5f2301036346b93725b52758c86e1/diff:/var/lib/docker/overlay2/fc985bd55a671d87b09a580ac410326e2b6b40c05fbbe7440647c65b5f1797ed/diff:/var/lib/docker/overlay2/76fed2d03d0c28e3759be92b173b46c20c537df47624ff6789d38638095b4c3e/diff:/var/lib/docker/overlay2/be73d565eb52775ceda8329d06b2d0969260395c2a087ed78b19ee883af66bbb/diff:/var/lib/docker/overlay2/dfe14cea69610773967597877a758237e51501507da8166d5ac934134a6a1456/diff:/var/lib/docker/overlay2/e45e2a2972c2e43fa0a64f5acbd05ea05b910efe71327f900aeaed514ba4f7bf/diff:/var/lib/docker/overlay2/c1bb312c1cab526feedcc5de12f4b17a2c18eddb8e7142c3546c80fc93f0f968/diff:/var/lib/docker/overlay2/48d609f997b5052204dbf3bfe16e70a7e5ab354674c4d5e9c4bb0c987552d43d/diff:/var/lib/docker/overlay2/7f246e59dd4d51dd23002f021ce6d8eb65606ed1830462ceedaefe82bfcadde4/diff:/var/lib/docker/overlay2/5c1c77f9d796233bceab22ae4b84d3d980664f7306b6fa10794caee78918cfd7/diff:/var/lib/docker/overlay2/aff08f2e58cc19c2e35cb666649e31fd3ddc64aa02ae3539c7f9510cd90ec225/diff:/var/lib/docker/overlay2/420d0cb3606d626def7a3eb4557b45dc7cd265dfffc761c40d6f5912edcdf863/diff:/var/lib/docker/overlay2/0014c784e18d51ecaf2d272918ddec197104d0e2d59dd213a247dbc9b874f289/diff",
+      "MergedDir": "/var/lib/docker/overlay2/269720861af563b256b0d6e598917d16c2838199f8b6dd350574324aa110d759/merged",
+      "UpperDir": "/var/lib/docker/overlay2/269720861af563b256b0d6e598917d16c2838199f8b6dd350574324aa110d759/diff",
+      "WorkDir": "/var/lib/docker/overlay2/269720861af563b256b0d6e598917d16c2838199f8b6dd350574324aa110d759/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/Tachidesk-Docker:/home/suwayomi/.local/share/Tachidesk:rw",
+      "/mnt/user/media/apps/suwayomi:/home/suwayomi/.local/share/Tachidesk/downloads:rw",
+      "/mnt/user/media/mango/:/home/suwayomi/.local/share/Tachidesk/local:rw",
+      "/mnt/user/media/apps/suwayomi/tmp:/tmp/Tachidesk:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "4567/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "4567"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/74df42478bd5dc292f1feed8a16dfb68b0c19e7b65c3ae12268b8113954e31ff/hostname",
+  "HostsPath": "/var/lib/docker/containers/74df42478bd5dc292f1feed8a16dfb68b0c19e7b65c3ae12268b8113954e31ff/hosts",
+  "Id": "74df42478bd5dc292f1feed8a16dfb68b0c19e7b65c3ae12268b8113954e31ff",
+  "Image": "sha256:c236a176566be4cf143ab9f6eafb93308d6e560dd62a840df3f7d7973db957a6",
+  "LogPath": "/var/lib/docker/containers/74df42478bd5dc292f1feed8a16dfb68b0c19e7b65c3ae12268b8113954e31ff/74df42478bd5dc292f1feed8a16dfb68b0c19e7b65c3ae12268b8113954e31ff-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/home/suwayomi/.local/share/Tachidesk",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/Tachidesk-Docker",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/home/suwayomi/.local/share/Tachidesk/downloads",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/apps/suwayomi",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/home/suwayomi/.local/share/Tachidesk/local",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/mango",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/tmp/Tachidesk",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/apps/suwayomi/tmp",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/Tachidesk-Docker",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "26c4e452711e7b9b0093ae93ad7d3ebb0fc5827f9fa3559a70195bd76a2818b1"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "tini",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/74df42478bd5dc292f1feed8a16dfb68b0c19e7b65c3ae12268b8113954e31ff/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 143,
+    "FinishedAt": "2026-03-12T18:30:19.848139521Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-03-12T17:30:00.127051448Z",
+    "Status": "exited"
+  }
+}

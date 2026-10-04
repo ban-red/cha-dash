@@ -1,0 +1,173 @@
+{
+  "data": [
+    {
+      "n": 1,
+      "t": "INFO: starting new backup job: vzdump 100 200 --compress zstd --notification-mode notification-system --fleecing 0 --storage local --notes-template '{{guestname}}' --quiet 1 --mode snapshot --node io"
+    },
+    {
+      "n": 2,
+      "t": "INFO: Starting Backup of VM 100 (qemu)"
+    },
+    {
+      "n": 3,
+      "t": "INFO: Backup started at 2026-10-03 05:00:00"
+    },
+    {
+      "n": 4,
+      "t": "INFO: status = stopped"
+    },
+    {
+      "n": 5,
+      "t": "INFO: backup mode: stop"
+    },
+    {
+      "n": 6,
+      "t": "INFO: ionice priority: 7"
+    },
+    {
+      "n": 7,
+      "t": "INFO: VM Name: vm-100"
+    },
+    {
+      "n": 8,
+      "t": "INFO: exclude disk 'scsi0' '/dev/disk/by-id/nvme-WD_BLACK_SN850X_HS_2000GB_FAKESERIAL0008' (backup=no)"
+    },
+    {
+      "n": 9,
+      "t": "INFO: include disk 'efidisk0' 'local-lvm:vm-100-disk-0' 4M"
+    },
+    {
+      "n": 10,
+      "t": "INFO: include disk 'tpmstate0' 'local-lvm:vm-100-disk-1' 4M"
+    },
+    {
+      "n": 11,
+      "t": "INFO: creating vzdump archive '/var/lib/vz/dump/vzdump-qemu-100-2026_10_03-05_00_00.vma.zst'"
+    },
+    {
+      "n": 12,
+      "t": "INFO: starting kvm to execute backup task"
+    },
+    {
+      "n": 13,
+      "t": "ERROR: PCI device '0000:01:00.0' already in use by VMID '200'"
+    },
+    {
+      "n": 14,
+      "t": "INFO: aborting backup job"
+    },
+    {
+      "n": 15,
+      "t": "ERROR: VM 100 not running"
+    },
+    {
+      "n": 16,
+      "t": "VM 100 not running"
+    },
+    {
+      "n": 17,
+      "t": "ERROR: Backup of VM 100 failed - PCI device '0000:01:00.0' already in use by VMID '200'"
+    },
+    {
+      "n": 18,
+      "t": "INFO: Failed at 2026-10-03 05:00:00"
+    },
+    {
+      "n": 19,
+      "t": "INFO: Starting Backup of VM 200 (qemu)"
+    },
+    {
+      "n": 20,
+      "t": "INFO: Backup started at 2026-10-03 05:00:00"
+    },
+    {
+      "n": 21,
+      "t": "INFO: status = running"
+    },
+    {
+      "n": 22,
+      "t": "INFO: VM Name: iolinux"
+    },
+    {
+      "n": 23,
+      "t": "INFO: exclude disk 'scsi0' '/dev/disk/by-id/nvme-Fanxiang_S880_2TB_FAKESERIAL0009' (backup=no)"
+    },
+    {
+      "n": 24,
+      "t": "INFO: include disk 'efidisk0' 'local-lvm:vm-200-disk-0' 4M"
+    },
+    {
+      "n": 25,
+      "t": "INFO: backup mode: snapshot"
+    },
+    {
+      "n": 26,
+      "t": "INFO: ionice priority: 7"
+    },
+    {
+      "n": 27,
+      "t": "INFO: creating vzdump archive '/var/lib/vz/dump/vzdump-qemu-200-2026_10_03-05_00_00.vma.zst'"
+    },
+    {
+      "n": 28,
+      "t": "INFO: issuing guest-agent 'fs-freeze' command"
+    },
+    {
+      "n": 29,
+      "t": "INFO: starting backup via QMP command"
+    },
+    {
+      "n": 30,
+      "t": "INFO: issuing guest-agent 'fs-thaw' command"
+    },
+    {
+      "n": 31,
+      "t": "INFO: started backup task '00000000-0000-4000-8000-000000000016'"
+    },
+    {
+      "n": 32,
+      "t": "INFO: resuming VM again"
+    },
+    {
+      "n": 33,
+      "t": "INFO: 100% (528.0 KiB of 528.0 KiB) in 0s, read: 528.0 KiB/s, write: 480.0 KiB/s"
+    },
+    {
+      "n": 34,
+      "t": "INFO: backup is sparse: 48.00 KiB (9%) total zero data"
+    },
+    {
+      "n": 35,
+      "t": "INFO: transferred 528.00 KiB in \u003c1 seconds"
+    },
+    {
+      "n": 36,
+      "t": "INFO: archive file size: 21KB"
+    },
+    {
+      "n": 37,
+      "t": "INFO: adding notes to backup"
+    },
+    {
+      "n": 38,
+      "t": "INFO: Finished Backup of VM 200 (00:00:01)"
+    },
+    {
+      "n": 39,
+      "t": "INFO: Backup finished at 2026-10-03 05:00:01"
+    },
+    {
+      "n": 40,
+      "t": "INFO: Backup job finished with errors"
+    },
+    {
+      "n": 41,
+      "t": "INFO: notified via target `mail-to-root`"
+    },
+    {
+      "n": 42,
+      "t": "TASK ERROR: job errors"
+    }
+  ],
+  "total": 42
+}

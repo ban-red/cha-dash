@@ -1,0 +1,268 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "UMASK=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "DARK_MODE=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "DISPLAY=REDACTED",
+      "PERL5LIB=REDACTED",
+      "START_DOCKER=REDACTED",
+      "PULSE_RUNTIME_PATH=REDACTED",
+      "SELKIES_INTERPOSER=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "DISABLE_ZINK=REDACTED",
+      "DISABLE_DRI3=REDACTED",
+      "TITLE=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "SSL_CERT_FILE=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "3001/tcp": {}
+    },
+    "Hostname": "2a12dec59d83",
+    "Image": "lscr.io/linuxserver/bambustudio",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v02.04.00.70-ls123 Build-date:- 2025-12-06T05:40:44+00:00",
+      "maintainer": "thelamer",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/bambustudio-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "https://[IP]:[PORT:3001]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2025-12-06T05:40:44+00:00",
+      "org.opencontainers.image.description": "[Bambu Studio](https://bambulab.com/en/download/studio) is an open-source, cutting-edge, feature-rich slicing software. It contains project-based workflows, systematically optimized slicing algorithms, and an easy-to-use graphical interface, bringing users an incredibly smooth printing experience.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-bambustudio",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "e04a4ab7405b28e4c7a5efeda25beaa44a8adb89",
+      "org.opencontainers.image.revision": "e04a4ab7405b28e4c7a5efeda25beaa44a8adb89",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-bambustudio",
+      "org.opencontainers.image.title": "Bambustudio",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-bambustudio/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v02.04.00.70-ls123"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2025-12-06T18:35:24.06623466Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "2a12dec59d836ff12549a5b4fa1c08464bec535de4c90096db7b5a6682e6bfba",
+      "LowerDir": "/var/lib/docker/overlay2/2b3e974024f88d64ca2b833040b3b110b3dbcd0048fba6779ecc5df69dcf3c88-init/diff:/var/lib/docker/overlay2/7c24bd4b5220eed1bcdd883172b4c84c32eeec7619f711962cdfadf5b838e5d7/diff:/var/lib/docker/overlay2/e78dd85ee3f8e3422e09daf04fa3d4fb01a0d52ab2b9c82accb4241e9d1c1575/diff:/var/lib/docker/overlay2/67495829432358d8c56fff80f10fd75a00a5fcf2a710e75dc6fd3f02f17151a5/diff:/var/lib/docker/overlay2/90b9a53ac52ad214aec3f6ef56afe6da37ef45d32bb5eaabf52b3fc92d587013/diff:/var/lib/docker/overlay2/1ad3c4cc5a987d7d94900fc541923d048dfcebadc1b6888110f33034a5cb9fed/diff:/var/lib/docker/overlay2/6c7733f1df01caf7ce14a9e2a9095a8a4e22be885e7d2d60ba90aaf2ddeeaa0c/diff:/var/lib/docker/overlay2/3c7ad8f014304564c2a2054ac9bcce8ef695973fc7bf963161957ebebf4fe5e5/diff:/var/lib/docker/overlay2/e55b3820fb3dcfb9f6d1a06019b749f9bc76b98e18b522c21c4d864cefaf2f6e/diff:/var/lib/docker/overlay2/72e4d73f7ac1808579766c13bef97b1922eed70175e52d8a3a578ff0c974eb68/diff:/var/lib/docker/overlay2/b707b43e3af76cc52e9c1da795c37391b1bbf794fcfd92afcbae438562817985/diff:/var/lib/docker/overlay2/fce603c8e21ee4746862882c1f39e5f807dd3bb09dbd4dada75472f05f489dbc/diff:/var/lib/docker/overlay2/beb1e6bb88c06654381c8279f2b8367a1fbdbaa9c9d61c0e493712f0bc5c182e/diff:/var/lib/docker/overlay2/26180d13d9b50035ff7e184ad1111f3d1fde4f33ddf4f4039c39a2ffa27695a5/diff:/var/lib/docker/overlay2/6af21114620853aaa72cca44d873214ebdd06798fa61dadc745c8307482c1d03/diff",
+      "MergedDir": "/var/lib/docker/overlay2/2b3e974024f88d64ca2b833040b3b110b3dbcd0048fba6779ecc5df69dcf3c88/merged",
+      "UpperDir": "/var/lib/docker/overlay2/2b3e974024f88d64ca2b833040b3b110b3dbcd0048fba6779ecc5df69dcf3c88/diff",
+      "WorkDir": "/var/lib/docker/overlay2/2b3e974024f88d64ca2b833040b3b110b3dbcd0048fba6779ecc5df69dcf3c88/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/archive_a/3D/:/3d:rw",
+      "/mnt/user/appdata/bambustudio:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6682"
+        }
+      ],
+      "3001/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6683"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 1073741824,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "2a12dec59d836ff12549a5b4fa1c08464bec535de4c90096db7b5a6682e6bfba",
+  "Image": "sha256:1e04db2c48e125cc302b5e9ee7b1f4bea1b6c66dd4f4802c5ca1a683ae1212b5",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/3d",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/3D",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/bambustudio",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/bambustudio",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

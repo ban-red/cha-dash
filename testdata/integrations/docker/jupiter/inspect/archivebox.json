@@ -1,0 +1,255 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/app/bin/docker_entrypoint.sh",
+    "server",
+    "--quick-init",
+    "0.0.0.0:8000"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "server",
+      "--quick-init",
+      "0.0.0.0:8000"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "dumb-init",
+      "--",
+      "/app/bin/docker_entrypoint.sh"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "LANG=REDACTED",
+      "GPG_KEY=REDACTED",
+      "PYTHON_VERSION=REDACTED",
+      "PYTHON_SHA256=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LC_ALL=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED",
+      "APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=REDACTED",
+      "PYTHONIOENCODING=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED",
+      "PIP_DISABLE_PIP_VERSION_CHECK=REDACTED",
+      "npm_config_loglevel=REDACTED",
+      "NODE_VERSION=REDACTED",
+      "ARCHIVEBOX_USER=REDACTED",
+      "DEFAULT_PUID=REDACTED",
+      "DEFAULT_PGID=REDACTED",
+      "CODE_DIR=REDACTED",
+      "DATA_DIR=REDACTED",
+      "GLOBAL_VENV=REDACTED",
+      "PLAYWRIGHT_BROWSERS_PATH=REDACTED",
+      "APP_VENV=REDACTED",
+      "NODE_MODULES=REDACTED",
+      "IN_DOCKER=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8000/tcp": {}
+    },
+    "Hostname": "19a858c0452e",
+    "Image": "archivebox/archivebox:latest",
+    "Labels": {
+      "description": "All-in-one personal internet archiving container",
+      "documentation": "https://github.com/ArchiveBox/ArchiveBox/wiki/Docker#docker",
+      "homepage": "https://github.com/ArchiveBox/ArchiveBox",
+      "maintainer": "Nick Sweeting \u003credacted@example.com\u003e",
+      "name": "archivebox",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/A75G/docker-templates/master/templates/icons/archivebox.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8000]/"
+    },
+    "OpenStdin": true,
+    "StdinOnce": false,
+    "Tty": true,
+    "User": "",
+    "Volumes": {
+      "/data": {}
+    },
+    "WorkingDir": "/data"
+  },
+  "Created": "2025-01-10T20:17:56.521018177Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "19a858c0452e8042e24098aa1733697a16c843dc7cd23245f0307b2dfe206765",
+      "LowerDir": "/var/lib/docker/overlay2/6f01b70fc85d03d3a11517975c38e730e91ed268663816482f38cfe9ca020c87-init/diff:/var/lib/docker/overlay2/6283391875d4b750ee4b29c454c3502204e61f21e9ce55d4b449d7da41e03b60/diff:/var/lib/docker/overlay2/889ecf96cfe91db0f1c2a4a25b010a47ecf4ce725fab51cc2b2b51f7d732e64a/diff:/var/lib/docker/overlay2/91f85edd05e361aa650ee7855b13daab802b89bcb5b524e3da9533c7eb5437f3/diff:/var/lib/docker/overlay2/b2e0f186a187360e700e1cb75f51590ea124dbf935b08ae9941deb9336df577e/diff:/var/lib/docker/overlay2/148dcd0acdc3159ff93a513ac06f2a1a3df22e289c7e418c34e5b31ce539a66e/diff:/var/lib/docker/overlay2/561ed47bfd1d742e43c3f6f7ca26194e01a481dd3bbb57cbd8835e7f9c4a829a/diff:/var/lib/docker/overlay2/89b51c646819e5dba24319e253ba3bfef2463342d54bcdf472c8e4cadd5c51e2/diff:/var/lib/docker/overlay2/0dd7e17d5bf0941d225c40f0e2b1385b9b680e41ed0e7ab8d2a26cc012061789/diff:/var/lib/docker/overlay2/94da89dae5b93d6d80e060e7c264fe16659716aaf7e242549ff7b4c7b5b79845/diff:/var/lib/docker/overlay2/6268764d8a156739d8231ee233c565e7023baea1fd382ac6b4dd76c80eebacc4/diff:/var/lib/docker/overlay2/44982e901f70aa694eae2aca99f3eb7a93831b6fff3a538d9783049acc781cc9/diff:/var/lib/docker/overlay2/96e25cad2d44d2ec6deb609731ec869946c3406e4a3861d4c35dff5f4186d6eb/diff:/var/lib/docker/overlay2/bb3932d9f03b76369cbe837dd66dc36129501dadcf2ab85032c96a3cf5300018/diff:/var/lib/docker/overlay2/073c52de3be8574ddcaf42161ab4fc339d71800c0d29e47ed29789490aed4fd6/diff:/var/lib/docker/overlay2/2341dc8a07d04345a8b67d681ab81a10f158864ce948b8f1db33c5e5ffbffdb3/diff:/var/lib/docker/overlay2/e70d4bed0fb3d04cc424d12a14e8825dbd0d35b94f1f6e303e4540744bed92ad/diff:/var/lib/docker/overlay2/6e5b2a5617084144157d065e709d697ac43582907502a286131d422e3ba6ca54/diff:/var/lib/docker/overlay2/205bf60f6ffb92705f3158747a85022d34dba716555eb65309b67b00e211a313/diff:/var/lib/docker/overlay2/d681069f456b08ed2a8c73028902862da2ff6a575603de50739433a24aab8293/diff:/var/lib/docker/overlay2/9461c90eeffd8366ae03218e020f40347edecdc44c6ef5b8b1564a16a547bd2d/diff:/var/lib/docker/overlay2/6ea265ed46cbfea307e5a27e8e90e9dccfbc406a6cda8f901a79227eb6e9c3ce/diff:/var/lib/docker/overlay2/fdace38c54af440779e31118f5b36af6745d3015cf96cd9b2c13f81b85247770/diff:/var/lib/docker/overlay2/567fc1e20780e042869497ff7103b4ec37d77f89bde1eaf252d9851b3892d406/diff:/var/lib/docker/overlay2/cf0aa8d8106c74dd8ce670e016bd70c6babdb2d1c23e3a68208f6a4d82ae271a/diff:/var/lib/docker/overlay2/dffc6569fdc3bf815ea32e6e676a3cbd1878aa213ec0b8945bb35e0012a8fe9f/diff:/var/lib/docker/overlay2/8c9a27f6e0cd379755bf932391b32bb2b2a0ab312d9e4e96b609a01c58111778/diff",
+      "MergedDir": "/var/lib/docker/overlay2/6f01b70fc85d03d3a11517975c38e730e91ed268663816482f38cfe9ca020c87/merged",
+      "UpperDir": "/var/lib/docker/overlay2/6f01b70fc85d03d3a11517975c38e730e91ed268663816482f38cfe9ca020c87/diff",
+      "WorkDir": "/var/lib/docker/overlay2/6f01b70fc85d03d3a11517975c38e730e91ed268663816482f38cfe9ca020c87/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/archivebox/:/data:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8400"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/19a858c0452e8042e24098aa1733697a16c843dc7cd23245f0307b2dfe206765/hostname",
+  "HostsPath": "/var/lib/docker/containers/19a858c0452e8042e24098aa1733697a16c843dc7cd23245f0307b2dfe206765/hosts",
+  "Id": "19a858c0452e8042e24098aa1733697a16c843dc7cd23245f0307b2dfe206765",
+  "Image": "sha256:182d36f276a4b0934de9a51d68adb6d5efc08a50ea644a268a6b1816629e9ef7",
+  "LogPath": "/var/lib/docker/containers/19a858c0452e8042e24098aa1733697a16c843dc7cd23245f0307b2dfe206765/19a858c0452e8042e24098aa1733697a16c843dc7cd23245f0307b2dfe206765-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/archivebox",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/archivebox",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "8198a3979e3430fe1508c8d664df1229277e27b234683bbeaac43a030a1621fd"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "dumb-init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/19a858c0452e8042e24098aa1733697a16c843dc7cd23245f0307b2dfe206765/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2025-05-08T18:19:37.272953355Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2025-05-05T10:05:18.058592572Z",
+    "Status": "exited"
+  }
+}

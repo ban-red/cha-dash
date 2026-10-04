@@ -1,0 +1,42 @@
+{
+  "data": [
+    {
+      "by_id_link": "/dev/disk/by-id/nvme-APPLE_SSD_AP0256M_FAKESERIAL0004",
+      "devpath": "/dev/nvme0n1",
+      "gpt": 1,
+      "health": "PASSED",
+      "model": "APPLE SSD AP0256M",
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0004",
+      "size": 251000193024,
+      "type": "nvme",
+      "used": "EFI",
+      "vendor": "unknown",
+      "wearout": 78,
+      "wwn": "0x5000000000000003"
+    },
+    {
+      "bluestore": 1,
+      "by_id_link": "/dev/disk/by-id/ata-NetacPortableSSD_FAKESERIAL0005",
+      "devpath": "/dev/sda",
+      "gpt": 0,
+      "health": "UNKNOWN",
+      "model": "NetacPortableSSD",
+      "osdencrypted": 0,
+      "osdid": "0",
+      "osdid-list": [
+        "0"
+      ],
+      "rpm": "0",
+      "serial": "FAKESERIAL0005",
+      "size": 512110190592,
+      "type": "hdd",
+      "used": "LVM",
+      "vendor": "        ",
+      "wearout": "N/A",
+      "wwn": "unknown"
+    }
+  ]
+}

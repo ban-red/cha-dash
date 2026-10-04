@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "id": "node/jupiter-nas",
+      "ip": "10.0.11.199",
+      "level": "",
+      "local": 1,
+      "name": "jupiter-nas",
+      "nodeid": 0,
+      "online": 1,
+      "type": "node"
+    }
+  ]
+}

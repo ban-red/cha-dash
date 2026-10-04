@@ -1,0 +1,278 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "-c",
+    "/opt/koboldcpp/docker-helper.sh"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "/bin/sh",
+      "-c",
+      "/opt/koboldcpp/docker-helper.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "KCPP_ARGS=REDACTED",
+      "KCPP_DONT_REMOVE_MODELS=REDACTED",
+      "KCPP_DONT_TUNNEL=REDACTED",
+      "PATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "5001/tcp": {}
+    },
+    "Hostname": "bc6c2a25d923",
+    "Image": "koboldai/koboldcpp:latest",
+    "Labels": {
+      "com.docker.compose.config-hash": "525a8bc71f73161ffc39b5817735ad508cd2e3096c704e37c797a00a41055733",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:c3d9b70046a1b781453d08aecfb2c6b70a4ed7a8fa4faf96f743d57ca207f242",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "ai",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/AI/docker-compose.yml,/boot/config/plugins/compose.manager/projects/AI/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/AI",
+      "com.docker.compose.replace": "koboldcpp",
+      "com.docker.compose.service": "koboldcpp",
+      "com.docker.compose.version": "2.40.3",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.version": "24.04"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/opt/koboldcpp"
+  },
+  "Created": "2026-07-28T19:03:16.292550357Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "bc6c2a25d9239a93dde7161024c1a091bb8551dbca32bfdbb1d3443d240da023",
+      "LowerDir": "/var/lib/docker/overlay2/4b41576c64f8ef7818f75f6a43c72abf77efbcd635f9ad65cae3ea08cff7fd3b-init/diff:/var/lib/docker/overlay2/f51fd4d705ad39ad83f3d69887260ec213328c82d9a18eb69eb2c5b3b56a7796/diff:/var/lib/docker/overlay2/00a8d5a1cb9eb00325a40577ae4a4154c7b0749eee18afc790a48cf4e07cd66f/diff:/var/lib/docker/overlay2/8357a34a560bb73bd2df481ea7b4957a6a0e80de86454362b6aa68f45cbc9b78/diff:/var/lib/docker/overlay2/f42a46f773e10dfceb15be648fa20c0d7266ad54ceeec5667d1da62cf03050b1/diff:/var/lib/docker/overlay2/720cdb70881aa7abf828acfab6e2faaa87a254ff530dda60f154b12422ba387c/diff:/var/lib/docker/overlay2/2617f8dd27c3cc3004e7b71241f41c7b790642b2333b5feb5f4c3ac4b890252b/diff:/var/lib/docker/overlay2/695a4270343641ba049648e4f33d970f8840087ad522863c212b5b144039f6c9/diff:/var/lib/docker/overlay2/5c6bbcc6f6a8ea74e2e587851715c071778a97d6065dad46a755d52bcc9267aa/diff",
+      "MergedDir": "/var/lib/docker/overlay2/4b41576c64f8ef7818f75f6a43c72abf77efbcd635f9ad65cae3ea08cff7fd3b/merged",
+      "UpperDir": "/var/lib/docker/overlay2/4b41576c64f8ef7818f75f6a43c72abf77efbcd635f9ad65cae3ea08cff7fd3b/diff",
+      "WorkDir": "/var/lib/docker/overlay2/4b41576c64f8ef7818f75f6a43c72abf77efbcd635f9ad65cae3ea08cff7fd3b/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/AI/koboldcpp/data:/workspace:rw",
+      "/mnt/user/appdata/AI/koboldcpp/models:/workspace/models:rw"
+    ],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": [
+      {
+        "Capabilities": [
+          [
+            "gpu"
+          ]
+        ],
+        "Count": 1,
+        "DeviceIDs": null,
+        "Driver": "nvidia",
+        "Options": null
+      }
+    ],
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "ai_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "5001/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "55001"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/bc6c2a25d9239a93dde7161024c1a091bb8551dbca32bfdbb1d3443d240da023/hostname",
+  "HostsPath": "/var/lib/docker/containers/bc6c2a25d9239a93dde7161024c1a091bb8551dbca32bfdbb1d3443d240da023/hosts",
+  "Id": "bc6c2a25d9239a93dde7161024c1a091bb8551dbca32bfdbb1d3443d240da023",
+  "Image": "sha256:c3d9b70046a1b781453d08aecfb2c6b70a4ed7a8fa4faf96f743d57ca207f242",
+  "LogPath": "/var/lib/docker/containers/bc6c2a25d9239a93dde7161024c1a091bb8551dbca32bfdbb1d3443d240da023/bc6c2a25d9239a93dde7161024c1a091bb8551dbca32bfdbb1d3443d240da023-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/workspace",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/AI/koboldcpp/data",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/workspace/models",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/AI/koboldcpp/models",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/koboldcpp",
+  "NetworkSettings": {
+    "Networks": {
+      "ai_default": {
+        "Aliases": [
+          "koboldcpp",
+          "koboldcpp"
+        ],
+        "DNSNames": [
+          "koboldcpp",
+          "bc6c2a25d923"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "19339b3913a23ae263c1ccd3b6138efd34ce5e7a0875b50b8464efeed6629c4a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/bin/sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/bc6c2a25d9239a93dde7161024c1a091bb8551dbca32bfdbb1d3443d240da023/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-07-28T19:06:54.311077499Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-07-28T19:03:26.646117793Z",
+    "Status": "exited"
+  }
+}

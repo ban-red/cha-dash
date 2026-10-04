@@ -1,0 +1,37 @@
+{
+  "data": {
+    "config_digest": "844976526690fb66d5b10df879afaafff73d1960",
+    "nodelist": [
+      {
+        "name": "mars-2",
+        "nodeid": "2",
+        "pve_addr": "10.0.11.188",
+        "pve_fp": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:07",
+        "quorum_votes": "1",
+        "ring0_addr": "10.0.11.188"
+      },
+      {
+        "name": "mars-1",
+        "nodeid": "1",
+        "pve_addr": "10.0.11.189",
+        "pve_fp": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:08",
+        "quorum_votes": "1",
+        "ring0_addr": "10.0.11.189"
+      }
+    ],
+    "preferred_node": "mars-1",
+    "totem": {
+      "cluster_name": "mars",
+      "config_version": "3",
+      "interface": {
+        "0": {
+          "linknumber": "0"
+        }
+      },
+      "ip_version": "ipv4-6",
+      "link_mode": "passive",
+      "secauth": "on",
+      "version": "2"
+    }
+  }
+}

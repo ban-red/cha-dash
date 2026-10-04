@@ -1,0 +1,234 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/entrypoint.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "OPTIONS=REDACTED",
+      "PATH=REDACTED",
+      "DATA_DIRECTORY=REDACTED",
+      "PASSWORD_FILE=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8000/tcp": {}
+    },
+    "Hostname": "a51178328374",
+    "Image": "restic/rest-server",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/jorgenman/unraid-templates/main/jorgenman/images/restic-rest-server-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "org.opencontainers.image.created": "2025-05-31T20:27:49Z",
+      "org.opencontainers.image.licenses": "BSD-2-Clause",
+      "org.opencontainers.image.revision": "ad130de02124c445300f149fa4f8e826dfdd0e3f",
+      "org.opencontainers.image.source": "https://github.com/restic/rest-server",
+      "org.opencontainers.image.title": "rest-server",
+      "org.opencontainers.image.version": "0.14.0"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/data": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2025-06-18T18:30:02.529113476Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "a51178328374c6b3ad68e3de90e64d7b606706b65e2fbd404aa42fd2d2bc41e3",
+      "LowerDir": "/var/lib/docker/overlay2/582648aac9f5585105e7fc194b3b485a86b0099a090caa13813b77eb9a07b081-init/diff:/var/lib/docker/overlay2/70a07879c8b55472155a67d4573d1fdaf14c1a8abd526609ceaf21f82bdecd4b/diff:/var/lib/docker/overlay2/6905ad2e4756d667b3f34d8b681d69b8b6dddcadfeb81213df866d1817d623ec/diff:/var/lib/docker/overlay2/baeaf0352453098d3573de59416cfabcb2b43bfeaf87f8d241c9a164e5fefa6c/diff:/var/lib/docker/overlay2/2b3892b4fd0fb5889e9bad92ed9e7c958bdf3ff2c8d31126d9a2375aaafeca45/diff:/var/lib/docker/overlay2/6f319743a906dc53d704215d55308347ca3e49a8074db7261c3f69ce37e6cdd8/diff:/var/lib/docker/overlay2/e566de32c6ab2ff081817b5e2f3e93c5d415741acc9ce35f5fb04634fcc8173c/diff",
+      "MergedDir": "/var/lib/docker/overlay2/582648aac9f5585105e7fc194b3b485a86b0099a090caa13813b77eb9a07b081/merged",
+      "UpperDir": "/var/lib/docker/overlay2/582648aac9f5585105e7fc194b3b485a86b0099a090caa13813b77eb9a07b081/diff",
+      "WorkDir": "/var/lib/docker/overlay2/582648aac9f5585105e7fc194b3b485a86b0099a090caa13813b77eb9a07b081/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/backup/restic:/data:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8200"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/a51178328374c6b3ad68e3de90e64d7b606706b65e2fbd404aa42fd2d2bc41e3/hostname",
+  "HostsPath": "/var/lib/docker/containers/a51178328374c6b3ad68e3de90e64d7b606706b65e2fbd404aa42fd2d2bc41e3/hosts",
+  "Id": "a51178328374c6b3ad68e3de90e64d7b606706b65e2fbd404aa42fd2d2bc41e3",
+  "Image": "sha256:36709b59a910a3650f766f23f0f26b343eb1b1aae0432439f203ca211a559640",
+  "LogPath": "/var/lib/docker/containers/a51178328374c6b3ad68e3de90e64d7b606706b65e2fbd404aa42fd2d2bc41e3/a51178328374c6b3ad68e3de90e64d7b606706b65e2fbd404aa42fd2d2bc41e3-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/backup/restic",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/restic-rest-server",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "11bae2321ce7229470231cc805e5603728763f5ba1709c8ac7700b131b0a8d8e",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.31",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:29",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "8000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8200"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8200"
+        }
+      ]
+    },
+    "SandboxID": "76619d2c2113b1518e2625bfd8beb9e9134b988abc8fbc334f3b83690c2aa5cb",
+    "SandboxKey": "/var/run/docker/netns/76619d2c2113"
+  },
+  "Path": "/entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/a51178328374c6b3ad68e3de90e64d7b606706b65e2fbd404aa42fd2d2bc41e3/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.871015638Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 48399,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:54.046589237Z",
+    "Status": "running"
+  }
+}

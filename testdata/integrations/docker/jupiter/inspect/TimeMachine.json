@@ -1,0 +1,234 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "s6-svscan",
+    "/etc/s6"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "s6-svscan",
+      "/etc/s6"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/entrypoint.sh"
+    ],
+    "Env": [
+      "TM_GROUPNAME=REDACTED",
+      "TM_UID=REDACTED",
+      "SMB_NFS_ACES=REDACTED",
+      "HOST_OS=REDACTED",
+      "TM_USERNAME=REDACTED",
+      "PASSWORD=REDACTED",
+      "EXTERNAL_CONF=REDACTED",
+      "HIDE_SHARES=REDACTED",
+      "WORKGROUP=REDACTED",
+      "SHARE_NAME=REDACTED",
+      "SET_PERMISSIONS=REDACTED",
+      "SMB_METADATA=REDACTED",
+      "SMB_PORT=REDACTED",
+      "TZ=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "ADVERTISED_HOSTNAME=REDACTED",
+      "CUSTOM_SMB_CONF=REDACTED",
+      "DEBUG_LEVEL=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "VOLUME_SIZE_LIMIT=REDACTED",
+      "MIMIC_MODEL=REDACTED",
+      "CUSTOM_USER=REDACTED",
+      "SMB_INHERIT_PERMISSIONS=REDACTED",
+      "SMB_VFS_OBJECTS=REDACTED",
+      "TM_GID=REDACTED",
+      "PATH=REDACTED"
+    ],
+    "Hostname": "timemachine",
+    "Image": "mbentley/timemachine",
+    "Labels": {
+      "maintainer": "Matt Bentley \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "https://upload.wikimedia.org/wikipedia/de/f/f4/Time_Machine_%28Apple%29_Logo.png",
+      "net.unraid.docker.managed": "dockerman"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-05-11T19:19:44.56151578Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "f8110eb55da4b4394ce260ad7fe59899cdc161138876da4a290e73a62d9e56bb",
+      "LowerDir": "/var/lib/docker/overlay2/ec471462228747aa7ace89c05f0a3eef68f83c9a369bf72b12f141c6f1e11e95-init/diff:/var/lib/docker/overlay2/ca554d7ad7914f42fd6486eae4c767bdedb843f56784a1a933ea29315985f56d/diff:/var/lib/docker/overlay2/b569d4a44e7fc8f4295740e22c3ec7e9ecd5cdca413e4edb19d11a3f9c1076ca/diff:/var/lib/docker/overlay2/0067c10c98de6eeee9315c2cf3c73d4ca6986d9021cb08e0ef9f4bd7ac6723ed/diff:/var/lib/docker/overlay2/c1ae343d76cf40f845d0c62f98d4a61080b74dd421d51a6109820a3f6de53dc0/diff",
+      "MergedDir": "/var/lib/docker/overlay2/ec471462228747aa7ace89c05f0a3eef68f83c9a369bf72b12f141c6f1e11e95/merged",
+      "UpperDir": "/var/lib/docker/overlay2/ec471462228747aa7ace89c05f0a3eef68f83c9a369bf72b12f141c6f1e11e95/diff",
+      "WorkDir": "/var/lib/docker/overlay2/ec471462228747aa7ace89c05f0a3eef68f83c9a369bf72b12f141c6f1e11e95/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/timemachine/:/opt/timemachine:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "br0",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {},
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/f8110eb55da4b4394ce260ad7fe59899cdc161138876da4a290e73a62d9e56bb/hostname",
+  "HostsPath": "/var/lib/docker/containers/f8110eb55da4b4394ce260ad7fe59899cdc161138876da4a290e73a62d9e56bb/hosts",
+  "Id": "f8110eb55da4b4394ce260ad7fe59899cdc161138876da4a290e73a62d9e56bb",
+  "Image": "sha256:5d896aa6d873fe6f83b5cfb6c5d0dd873627d15fbeb468e13fc61099b937a90b",
+  "LogPath": "/var/lib/docker/containers/f8110eb55da4b4394ce260ad7fe59899cdc161138876da4a290e73a62d9e56bb/f8110eb55da4b4394ce260ad7fe59899cdc161138876da4a290e73a62d9e56bb-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/opt/timemachine",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/timemachine",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/TimeMachine",
+  "NetworkSettings": {
+    "Networks": {
+      "br0": {
+        "Aliases": [],
+        "DNSNames": [
+          "TimeMachine",
+          "f8110eb55da4",
+          "timemachine"
+        ],
+        "DriverOpts": {},
+        "EndpointID": "28f18981f3716f1c1e2b48907fa55274e9a4e57eff674d6e1918cd1b4442f8e1",
+        "Gateway": "10.0.11.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": {},
+        "IPAddress": "10.0.11.2",
+        "IPPrefixLen": 24,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "e9b4d1f323a561ed5b703b1d7015d465a1a0e993e99774a407cf855725888417"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "4ce67bc607d41ccd9d3775b2cb2ad04814d1c1ded92be1daec9e90d4634d557e",
+    "SandboxKey": "/var/run/docker/netns/4ce67bc607d4"
+  },
+  "Path": "/entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/f8110eb55da4b4394ce260ad7fe59899cdc161138876da4a290e73a62d9e56bb/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-10-03T06:00:04.32623557Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 2525541,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-10-03T06:24:04.712126201Z",
+    "Status": "running"
+  }
+}

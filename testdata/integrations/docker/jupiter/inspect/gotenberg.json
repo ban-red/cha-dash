@@ -1,0 +1,241 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "gotenberg",
+    "--chromium-disable-javascript=true",
+    "--chromium-allow-list=file:///tmp/.*"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "gotenberg",
+      "--chromium-disable-javascript=true",
+      "--chromium-allow-list=file:///tmp/.*"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/usr/bin/tini",
+      "--"
+    ],
+    "Env": [
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "TZ=REDACTED",
+      "PATH=REDACTED",
+      "LANG=REDACTED",
+      "LC_ALL=REDACTED",
+      "PDFTK_BIN_PATH=REDACTED",
+      "QPDF_BIN_PATH=REDACTED",
+      "EXIFTOOL_BIN_PATH=REDACTED",
+      "PDFCPU_BIN_PATH=REDACTED",
+      "OTEL_TRACES_EXPORTER=REDACTED",
+      "OTEL_METRICS_EXPORTER=REDACTED",
+      "OTEL_LOGS_EXPORTER=REDACTED",
+      "CHROMIUM_BIN_PATH=REDACTED",
+      "CHROMIUM_HYPHEN_DATA_DIR_PATH=REDACTED",
+      "LIBREOFFICE_BIN_PATH=REDACTED",
+      "UNOCONVERTER_BIN_PATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Hostname": "eed27b9ef1b3",
+    "Image": "gotenberg/gotenberg",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/sgraaf/Unraid-Docker-Templates/main/gotenberg/icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "org.opencontainers.image.authors": "Julien Neuhart \u003credacted@example.com\u003e",
+      "org.opencontainers.image.description": "A Docker-based API for converting documents to PDF.",
+      "org.opencontainers.image.documentation": "https://gotenberg.dev",
+      "org.opencontainers.image.source": "https://github.com/gotenberg/gotenberg",
+      "org.opencontainers.image.title": "Gotenberg",
+      "org.opencontainers.image.version": "8.32.0"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "gotenberg",
+    "Volumes": null,
+    "WorkingDir": "/home/gotenberg"
+  },
+  "Created": "2026-05-11T19:19:40.20936926Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "eed27b9ef1b3dc279b0defb1e983c3c5fc2894d8a1da7afa71b6ae1af910e17c",
+      "LowerDir": "/var/lib/docker/overlay2/460ec222d855d6c2141023e095bd6866830d0afe4c6a35af2324d8269e7d4661-init/diff:/var/lib/docker/overlay2/fcfd88081b98d8f2fe2a67c19e281b4180301c21ae7d2ebd51f334a2cd4d60d7/diff:/var/lib/docker/overlay2/d5b92bdf50ced0fbb98f46e5735595f0b4b90d8b7ecc24df21ad821261e73d51/diff:/var/lib/docker/overlay2/d5fbe7434a7a5558e4894a12286210fb919d465f5d9f9e62f14b99c21b3ee9fe/diff:/var/lib/docker/overlay2/8bb4e4b8b9cafa37c552ebbc3bc88e404b68610f8725712e814618fe244a864e/diff:/var/lib/docker/overlay2/7f88503ac725114f778d4049f535cc7d5c178f8c4302dd401b4be1640b9c68df/diff:/var/lib/docker/overlay2/f0a61847a5ae88fb5920c039d586da83ffbb1c00a51d635977df33d86687dd41/diff:/var/lib/docker/overlay2/6e97c75d185cda3347f672a00402729238d97a84bfacb2b5b845129114866e73/diff:/var/lib/docker/overlay2/3495ca9e9c8a0df23d5d8c731ced03974034e600f64f4bb5ddbc73ec4184c3f6/diff:/var/lib/docker/overlay2/c13e7cc3c19db836c353890ea68215b704ef6b0731bf2793208e00c0383bf78b/diff:/var/lib/docker/overlay2/6a2adf35175ee060b9898df4efba9943ccd358b9acb05756fd92e39af8314d68/diff:/var/lib/docker/overlay2/2b9229e0c640c4efffdb04a48e4be697787d043e8cf7b4442e1de3285c4a8539/diff:/var/lib/docker/overlay2/65ed270720bdf685758efbdca63b7501e6ee242c5b03473202928e768cb3036c/diff:/var/lib/docker/overlay2/38cd277e08de8a5f300d3de455ee25c07e6956c5a5522e8a992545d3e7a066da/diff:/var/lib/docker/overlay2/b5d47a07389563df35fa3c5d118df656579680281cbfa3cc4159c52500405990/diff:/var/lib/docker/overlay2/bcb0536a34ef06907e2286c7ee413f16da2d2bd4f99db8fb6a75b1126e992c8e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/460ec222d855d6c2141023e095bd6866830d0afe4c6a35af2324d8269e7d4661/merged",
+      "UpperDir": "/var/lib/docker/overlay2/460ec222d855d6c2141023e095bd6866830d0afe4c6a35af2324d8269e7d4661/diff",
+      "WorkDir": "/var/lib/docker/overlay2/460ec222d855d6c2141023e095bd6866830d0afe4c6a35af2324d8269e7d4661/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": null,
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "13000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "unless-stopped"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/eed27b9ef1b3dc279b0defb1e983c3c5fc2894d8a1da7afa71b6ae1af910e17c/hostname",
+  "HostsPath": "/var/lib/docker/containers/eed27b9ef1b3dc279b0defb1e983c3c5fc2894d8a1da7afa71b6ae1af910e17c/hosts",
+  "Id": "eed27b9ef1b3dc279b0defb1e983c3c5fc2894d8a1da7afa71b6ae1af910e17c",
+  "Image": "sha256:a94da0e84c8126bd5c90d423aadd933181ca2d8e4f80725119aa3418d72a1d45",
+  "LogPath": "/var/lib/docker/containers/eed27b9ef1b3dc279b0defb1e983c3c5fc2894d8a1da7afa71b6ae1af910e17c/eed27b9ef1b3dc279b0defb1e983c3c5fc2894d8a1da7afa71b6ae1af910e17c-json.log",
+  "MountLabel": "",
+  "Mounts": [],
+  "Name": "/gotenberg",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "e5e755a8015195eac4c4adb65202d5ed631a4fa0c93731477da32fe46b2256d7",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.4",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:18",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "13000"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "13000"
+        }
+      ]
+    },
+    "SandboxID": "e4b22445849ddb652750710dfc61da91aaceaabfe40cd1875e073876b9412a28",
+    "SandboxKey": "/var/run/docker/netns/e4b22445849d"
+  },
+  "Path": "/usr/bin/tini",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/eed27b9ef1b3dc279b0defb1e983c3c5fc2894d8a1da7afa71b6ae1af910e17c/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870448914Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 30205,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:41.405018711Z",
+    "Status": "running"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "data": [
+    {
+      "content": "rootdir,images",
+      "digest": "f82fb7103efb7f787b4310bfcf033a04c893382d",
+      "krbd": 0,
+      "pool": "vm-disks",
+      "shared": 1,
+      "storage": "vm-disks",
+      "type": "rbd"
+    },
+    {
+      "content": "iso,vztmpl",
+      "digest": "f82fb7103efb7f787b4310bfcf033a04c893382d",
+      "fs-name": "isos-templates",
+      "path": "/mnt/pve/isos-templates",
+      "shared": 1,
+      "storage": "isos-templates",
+      "type": "cephfs"
+    },
+    {
+      "content": "backup",
+      "datastore": "pve.lab.example",
+      "digest": "f82fb7103efb7f787b4310bfcf033a04c893382d",
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:04",
+      "prune-backups": "keep-all=1",
+      "server": "10.0.11.120",
+      "shared": 1,
+      "storage": "jupiter-pbs-pve.lab.example",
+      "type": "pbs",
+      "username": "admin@pbs"
+    },
+    {
+      "content": "vztmpl,iso,backup",
+      "digest": "f82fb7103efb7f787b4310bfcf033a04c893382d",
+      "path": "/var/lib/vz",
+      "storage": "local",
+      "type": "dir"
+    },
+    {
+      "content": "backup",
+      "datastore": "mars",
+      "digest": "f82fb7103efb7f787b4310bfcf033a04c893382d",
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:04",
+      "prune-backups": "keep-all=1",
+      "server": "10.0.11.120",
+      "shared": 1,
+      "storage": "jupiter-pbs-mars",
+      "type": "pbs",
+      "username": "admin@pbs"
+    },
+    {
+      "content": "images,rootdir",
+      "digest": "f82fb7103efb7f787b4310bfcf033a04c893382d",
+      "storage": "local-lvm",
+      "thinpool": "data",
+      "type": "lvmthin",
+      "vgname": "pve"
+    }
+  ]
+}

@@ -1,0 +1,357 @@
+{
+  "data": [
+    {
+      "n": 1,
+      "t": "INFO: starting new backup job: vzdump 103 --mode snapshot --storage usb --remove 0 --notes-template '{{guestname}}' --notification-mode notification-system --node pluto --compress zstd"
+    },
+    {
+      "n": 2,
+      "t": "INFO: Starting Backup of VM 103 (qemu)"
+    },
+    {
+      "n": 3,
+      "t": "INFO: Backup started at 2026-10-03 12:52:42"
+    },
+    {
+      "n": 4,
+      "t": "INFO: status = running"
+    },
+    {
+      "n": 5,
+      "t": "INFO: VM Name: OPNsense"
+    },
+    {
+      "n": 6,
+      "t": "INFO: include disk 'virtio0' 'local-lvm:vm-103-disk-1' 32G"
+    },
+    {
+      "n": 7,
+      "t": "INFO: backup mode: snapshot"
+    },
+    {
+      "n": 8,
+      "t": "INFO: ionice priority: 7"
+    },
+    {
+      "n": 9,
+      "t": "INFO: creating vzdump archive '/mnt/usb/dump/vzdump-qemu-103-2026_10_03-12_52_42.vma.zst'"
+    },
+    {
+      "n": 10,
+      "t": "INFO: issuing guest-agent 'fs-freeze' command"
+    },
+    {
+      "n": 11,
+      "t": "INFO: issuing guest-agent 'fs-thaw' command"
+    },
+    {
+      "n": 12,
+      "t": "INFO: started backup task '00000000-0000-4000-8000-000000000004'"
+    },
+    {
+      "n": 13,
+      "t": "INFO: resuming VM again"
+    },
+    {
+      "n": 14,
+      "t": "INFO:  26% (8.5 GiB of 32.0 GiB) in 3s, read: 2.8 GiB/s, write: 93.6 MiB/s"
+    },
+    {
+      "n": 15,
+      "t": "INFO:  28% (9.0 GiB of 32.0 GiB) in 6s, read: 171.6 MiB/s, write: 171.6 MiB/s"
+    },
+    {
+      "n": 16,
+      "t": "INFO:  29% (9.5 GiB of 32.0 GiB) in 9s, read: 172.8 MiB/s, write: 172.8 MiB/s"
+    },
+    {
+      "n": 17,
+      "t": "INFO:  31% (10.2 GiB of 32.0 GiB) in 12s, read: 213.9 MiB/s, write: 213.9 MiB/s"
+    },
+    {
+      "n": 18,
+      "t": "INFO:  33% (10.6 GiB of 32.0 GiB) in 15s, read: 143.8 MiB/s, write: 143.8 MiB/s"
+    },
+    {
+      "n": 19,
+      "t": "INFO:  34% (11.2 GiB of 32.0 GiB) in 18s, read: 201.8 MiB/s, write: 201.8 MiB/s"
+    },
+    {
+      "n": 20,
+      "t": "INFO:  36% (11.6 GiB of 32.0 GiB) in 21s, read: 141.4 MiB/s, write: 141.4 MiB/s"
+    },
+    {
+      "n": 21,
+      "t": "INFO:  37% (12.1 GiB of 32.0 GiB) in 24s, read: 165.5 MiB/s, write: 165.5 MiB/s"
+    },
+    {
+      "n": 22,
+      "t": "INFO:  39% (12.5 GiB of 32.0 GiB) in 27s, read: 152.2 MiB/s, write: 152.1 MiB/s"
+    },
+    {
+      "n": 23,
+      "t": "INFO:  40% (12.9 GiB of 32.0 GiB) in 30s, read: 128.2 MiB/s, write: 128.2 MiB/s"
+    },
+    {
+      "n": 24,
+      "t": "INFO:  41% (13.4 GiB of 32.0 GiB) in 33s, read: 164.8 MiB/s, write: 164.8 MiB/s"
+    },
+    {
+      "n": 25,
+      "t": "INFO:  43% (13.8 GiB of 32.0 GiB) in 36s, read: 135.0 MiB/s, write: 135.0 MiB/s"
+    },
+    {
+      "n": 26,
+      "t": "INFO:  44% (14.2 GiB of 32.0 GiB) in 40s, read: 98.2 MiB/s, write: 98.2 MiB/s"
+    },
+    {
+      "n": 27,
+      "t": "INFO:  45% (14.6 GiB of 32.0 GiB) in 43s, read: 134.7 MiB/s, write: 134.7 MiB/s"
+    },
+    {
+      "n": 28,
+      "t": "INFO:  47% (15.1 GiB of 32.0 GiB) in 46s, read: 201.8 MiB/s, write: 201.8 MiB/s"
+    },
+    {
+      "n": 29,
+      "t": "INFO:  49% (15.7 GiB of 32.0 GiB) in 49s, read: 200.6 MiB/s, write: 200.6 MiB/s"
+    },
+    {
+      "n": 30,
+      "t": "INFO:  50% (16.2 GiB of 32.0 GiB) in 52s, read: 158.4 MiB/s, write: 158.3 MiB/s"
+    },
+    {
+      "n": 31,
+      "t": "INFO:  51% (16.3 GiB of 32.0 GiB) in 55s, read: 48.3 MiB/s, write: 48.3 MiB/s"
+    },
+    {
+      "n": 32,
+      "t": "INFO:  52% (16.7 GiB of 32.0 GiB) in 58s, read: 125.7 MiB/s, write: 125.7 MiB/s"
+    },
+    {
+      "n": 33,
+      "t": "INFO:  53% (17.0 GiB of 32.0 GiB) in 1m 1s, read: 91.8 MiB/s, write: 91.8 MiB/s"
+    },
+    {
+      "n": 34,
+      "t": "INFO:  54% (17.3 GiB of 32.0 GiB) in 1m 4s, read: 126.1 MiB/s, write: 126.1 MiB/s"
+    },
+    {
+      "n": 35,
+      "t": "INFO:  55% (17.7 GiB of 32.0 GiB) in 1m 7s, read: 119.8 MiB/s, write: 119.8 MiB/s"
+    },
+    {
+      "n": 36,
+      "t": "INFO:  56% (18.0 GiB of 32.0 GiB) in 1m 12s, read: 65.4 MiB/s, write: 65.4 MiB/s"
+    },
+    {
+      "n": 37,
+      "t": "INFO:  57% (18.4 GiB of 32.0 GiB) in 1m 15s, read: 129.6 MiB/s, write: 129.6 MiB/s"
+    },
+    {
+      "n": 38,
+      "t": "INFO:  58% (18.7 GiB of 32.0 GiB) in 1m 18s, read: 110.0 MiB/s, write: 109.9 MiB/s"
+    },
+    {
+      "n": 39,
+      "t": "INFO:  59% (18.9 GiB of 32.0 GiB) in 1m 21s, read: 77.3 MiB/s, write: 77.3 MiB/s"
+    },
+    {
+      "n": 40,
+      "t": "INFO:  60% (19.3 GiB of 32.0 GiB) in 1m 24s, read: 119.6 MiB/s, write: 119.6 MiB/s"
+    },
+    {
+      "n": 41,
+      "t": "INFO:  61% (19.6 GiB of 32.0 GiB) in 1m 27s, read: 120.3 MiB/s, write: 120.3 MiB/s"
+    },
+    {
+      "n": 42,
+      "t": "INFO:  62% (20.0 GiB of 32.0 GiB) in 1m 30s, read: 122.5 MiB/s, write: 122.5 MiB/s"
+    },
+    {
+      "n": 43,
+      "t": "INFO:  63% (20.4 GiB of 32.0 GiB) in 1m 33s, read: 119.6 MiB/s, write: 119.6 MiB/s"
+    },
+    {
+      "n": 44,
+      "t": "INFO:  64% (20.7 GiB of 32.0 GiB) in 1m 36s, read: 118.4 MiB/s, write: 118.4 MiB/s"
+    },
+    {
+      "n": 45,
+      "t": "INFO:  65% (21.1 GiB of 32.0 GiB) in 1m 39s, read: 132.9 MiB/s, write: 132.9 MiB/s"
+    },
+    {
+      "n": 46,
+      "t": "INFO:  66% (21.4 GiB of 32.0 GiB) in 1m 42s, read: 93.5 MiB/s, write: 93.5 MiB/s"
+    },
+    {
+      "n": 47,
+      "t": "INFO:  67% (21.6 GiB of 32.0 GiB) in 1m 45s, read: 70.3 MiB/s, write: 70.3 MiB/s"
+    },
+    {
+      "n": 48,
+      "t": "INFO:  68% (21.9 GiB of 32.0 GiB) in 1m 48s, read: 98.3 MiB/s, write: 98.3 MiB/s"
+    },
+    {
+      "n": 49,
+      "t": "INFO:  69% (22.1 GiB of 32.0 GiB) in 1m 51s, read: 87.3 MiB/s, write: 87.3 MiB/s"
+    },
+    {
+      "n": 50,
+      "t": "INFO:  70% (22.5 GiB of 32.0 GiB) in 1m 54s, read: 121.3 MiB/s, write: 121.3 MiB/s"
+    },
+    {
+      "n": 51,
+      "t": "INFO:  71% (22.8 GiB of 32.0 GiB) in 1m 57s, read: 126.1 MiB/s, write: 126.1 MiB/s"
+    },
+    {
+      "n": 52,
+      "t": "INFO:  72% (23.3 GiB of 32.0 GiB) in 2m, read: 139.9 MiB/s, write: 139.9 MiB/s"
+    },
+    {
+      "n": 53,
+      "t": "INFO:  73% (23.5 GiB of 32.0 GiB) in 2m 3s, read: 70.7 MiB/s, write: 70.6 MiB/s"
+    },
+    {
+      "n": 54,
+      "t": "INFO:  74% (23.8 GiB of 32.0 GiB) in 2m 6s, read: 117.8 MiB/s, write: 117.7 MiB/s"
+    },
+    {
+      "n": 55,
+      "t": "INFO:  75% (24.2 GiB of 32.0 GiB) in 2m 9s, read: 141.4 MiB/s, write: 141.4 MiB/s"
+    },
+    {
+      "n": 56,
+      "t": "INFO:  76% (24.6 GiB of 32.0 GiB) in 2m 12s, read: 122.3 MiB/s, write: 122.2 MiB/s"
+    },
+    {
+      "n": 57,
+      "t": "INFO:  78% (25.0 GiB of 32.0 GiB) in 2m 15s, read: 147.4 MiB/s, write: 147.3 MiB/s"
+    },
+    {
+      "n": 58,
+      "t": "INFO:  79% (25.3 GiB of 32.0 GiB) in 2m 18s, read: 108.8 MiB/s, write: 108.7 MiB/s"
+    },
+    {
+      "n": 59,
+      "t": "INFO:  80% (25.6 GiB of 32.0 GiB) in 2m 22s, read: 72.2 MiB/s, write: 72.2 MiB/s"
+    },
+    {
+      "n": 60,
+      "t": "INFO:  81% (26.1 GiB of 32.0 GiB) in 2m 25s, read: 151.5 MiB/s, write: 151.5 MiB/s"
+    },
+    {
+      "n": 61,
+      "t": "INFO:  82% (26.4 GiB of 32.0 GiB) in 2m 28s, read: 131.5 MiB/s, write: 131.5 MiB/s"
+    },
+    {
+      "n": 62,
+      "t": "INFO:  83% (26.7 GiB of 32.0 GiB) in 2m 31s, read: 100.7 MiB/s, write: 100.6 MiB/s"
+    },
+    {
+      "n": 63,
+      "t": "INFO:  84% (27.1 GiB of 32.0 GiB) in 2m 34s, read: 109.0 MiB/s, write: 109.0 MiB/s"
+    },
+    {
+      "n": 64,
+      "t": "INFO:  85% (27.3 GiB of 32.0 GiB) in 2m 37s, read: 91.7 MiB/s, write: 91.7 MiB/s"
+    },
+    {
+      "n": 65,
+      "t": "INFO:  86% (27.6 GiB of 32.0 GiB) in 2m 40s, read: 106.5 MiB/s, write: 106.4 MiB/s"
+    },
+    {
+      "n": 66,
+      "t": "INFO:  87% (28.1 GiB of 32.0 GiB) in 2m 43s, read: 160.3 MiB/s, write: 160.3 MiB/s"
+    },
+    {
+      "n": 67,
+      "t": "INFO:  88% (28.4 GiB of 32.0 GiB) in 2m 46s, read: 101.2 MiB/s, write: 101.1 MiB/s"
+    },
+    {
+      "n": 68,
+      "t": "INFO:  89% (28.7 GiB of 32.0 GiB) in 2m 49s, read: 104.2 MiB/s, write: 104.2 MiB/s"
+    },
+    {
+      "n": 69,
+      "t": "INFO:  90% (28.9 GiB of 32.0 GiB) in 2m 52s, read: 59.7 MiB/s, write: 59.7 MiB/s"
+    },
+    {
+      "n": 70,
+      "t": "INFO:  91% (29.1 GiB of 32.0 GiB) in 2m 56s, read: 65.8 MiB/s, write: 65.7 MiB/s"
+    },
+    {
+      "n": 71,
+      "t": "INFO:  92% (29.5 GiB of 32.0 GiB) in 3m, read: 85.2 MiB/s, write: 85.2 MiB/s"
+    },
+    {
+      "n": 72,
+      "t": "INFO:  93% (29.9 GiB of 32.0 GiB) in 3m 3s, read: 132.4 MiB/s, write: 132.4 MiB/s"
+    },
+    {
+      "n": 73,
+      "t": "INFO:  94% (30.2 GiB of 32.0 GiB) in 3m 6s, read: 108.1 MiB/s, write: 108.1 MiB/s"
+    },
+    {
+      "n": 74,
+      "t": "INFO:  95% (30.5 GiB of 32.0 GiB) in 3m 10s, read: 79.9 MiB/s, write: 79.9 MiB/s"
+    },
+    {
+      "n": 75,
+      "t": "INFO:  96% (30.8 GiB of 32.0 GiB) in 3m 14s, read: 85.8 MiB/s, write: 85.7 MiB/s"
+    },
+    {
+      "n": 76,
+      "t": "INFO:  97% (31.2 GiB of 32.0 GiB) in 3m 17s, read: 118.0 MiB/s, write: 118.0 MiB/s"
+    },
+    {
+      "n": 77,
+      "t": "INFO:  98% (31.4 GiB of 32.0 GiB) in 3m 20s, read: 84.0 MiB/s, write: 84.0 MiB/s"
+    },
+    {
+      "n": 78,
+      "t": "INFO:  99% (31.7 GiB of 32.0 GiB) in 3m 23s, read: 107.3 MiB/s, write: 107.3 MiB/s"
+    },
+    {
+      "n": 79,
+      "t": "INFO: 100% (32.0 GiB of 32.0 GiB) in 3m 24s, read: 277.8 MiB/s, write: 31.0 MiB/s"
+    },
+    {
+      "n": 80,
+      "t": "INFO: backup is sparse: 8.50 GiB (26%) total zero data"
+    },
+    {
+      "n": 81,
+      "t": "INFO: transferred 32.00 GiB in 204 seconds (160.6 MiB/s)"
+    },
+    {
+      "n": 82,
+      "t": "INFO: archive file size: 9.19GB"
+    },
+    {
+      "n": 83,
+      "t": "INFO: adding notes to backup"
+    },
+    {
+      "n": 84,
+      "t": "INFO: Finished Backup of VM 103 (00:03:24)"
+    },
+    {
+      "n": 85,
+      "t": "INFO: Backup finished at 2026-10-03 12:56:06"
+    },
+    {
+      "n": 86,
+      "t": "INFO: Backup job finished successfully"
+    },
+    {
+      "n": 87,
+      "t": "INFO: notified via target `mail-to-root`"
+    },
+    {
+      "n": 88,
+      "t": "TASK OK"
+    }
+  ],
+  "total": 88
+}

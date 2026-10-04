@@ -1,0 +1,17 @@
+{
+  "driveway": {
+    "bandwidth": 4526.06,
+    "usage": 7150.29,
+    "usage_percent": 0.7624812586508788
+  },
+  "backyard": {
+    "bandwidth": 1815.51,
+    "usage": 17343.66,
+    "usage_percent": 1.8494656449476736
+  },
+  "side_deck": {
+    "bandwidth": 1813.18,
+    "usage": 4617.64,
+    "usage_percent": 0.4924085539462937
+  }
+}

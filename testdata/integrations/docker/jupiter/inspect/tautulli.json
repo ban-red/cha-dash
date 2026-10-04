@@ -1,0 +1,273 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "PS1=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "TAUTULLI_DOCKER=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8181/tcp": {}
+    },
+    "Hostname": "a00eae948649",
+    "Image": "lscr.io/linuxserver/tautulli:latest",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v2.18.1-ls242 Build-date:- 2026-08-28T05:30:05+00:00",
+      "maintainer": "nemchik,thelamer",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/tautulli-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8181]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-08-28T05:30:05+00:00",
+      "org.opencontainers.image.description": "[Tautulli](http://tautulli.com) is a python based web application for monitoring, analytics and notifications for Plex Media Server.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-tautulli",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "d0963a4ea68bbcb737ff8c3de3835ccd950f2589",
+      "org.opencontainers.image.revision": "d0963a4ea68bbcb737ff8c3de3835ccd950f2589",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-tautulli",
+      "org.opencontainers.image.title": "Tautulli",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-tautulli/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v2.18.1-ls242"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-09-02T16:52:04.226921863Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "a00eae948649dcffda6246758a205b5e88a298089e2e7e7723aeed7e11d488ac",
+      "LowerDir": "/var/lib/docker/overlay2/bc24a9f635e294de8bf5459539325dc7dbf373f737fbd70e075061dd2862772a-init/diff:/var/lib/docker/overlay2/31905980fcc5b613f3ff1040838868b705d96683bce41b1b4bc341180dd4195c/diff:/var/lib/docker/overlay2/09f8997e9a34d1c9c6e0f3ca418eada726f27da90618757ccd3c8f274cbeb7bd/diff:/var/lib/docker/overlay2/a880b80ed02dbe130e294664da0e2f004006f30a289100d48e7f235f1184cdbd/diff:/var/lib/docker/overlay2/667982ba2fa7c5218d6935b2d49917de95c7fb9483b0c625e3db569fc150d206/diff:/var/lib/docker/overlay2/22ad37ba96cb1e1d699e87248172539f53a21617a02508b1d113d5bd0b1d0609/diff:/var/lib/docker/overlay2/58a01e60ffc5c989e3844640ab792c6e13cb3e672ee7f090907bc775d0fc00ea/diff:/var/lib/docker/overlay2/26ca1bbe79c8348b3bfacf56b1ef48c8dcdde17afc98daeeea34dc20e5a51c8d/diff:/var/lib/docker/overlay2/728a70a15a8b6263a977e1a92d1204b874046cd24a565d1d8cc7c19423758db9/diff:/var/lib/docker/overlay2/0f50d0632d28ccfdfef22afb47a084155b8bd7e5b99a6a9d8df0d13031f57c4a/diff",
+      "MergedDir": "/var/lib/docker/overlay2/bc24a9f635e294de8bf5459539325dc7dbf373f737fbd70e075061dd2862772a/merged",
+      "UpperDir": "/var/lib/docker/overlay2/bc24a9f635e294de8bf5459539325dc7dbf373f737fbd70e075061dd2862772a/diff",
+      "WorkDir": "/var/lib/docker/overlay2/bc24a9f635e294de8bf5459539325dc7dbf373f737fbd70e075061dd2862772a/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/tautulli:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8181/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8181"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/a00eae948649dcffda6246758a205b5e88a298089e2e7e7723aeed7e11d488ac/hostname",
+  "HostsPath": "/var/lib/docker/containers/a00eae948649dcffda6246758a205b5e88a298089e2e7e7723aeed7e11d488ac/hosts",
+  "Id": "a00eae948649dcffda6246758a205b5e88a298089e2e7e7723aeed7e11d488ac",
+  "Image": "sha256:ddf6d121c66d6663417a4ba19c03b75ac000d2ffc7e007edb222c7674e4f99e8",
+  "LogPath": "/var/lib/docker/containers/a00eae948649dcffda6246758a205b5e88a298089e2e7e7723aeed7e11d488ac/a00eae948649dcffda6246758a205b5e88a298089e2e7e7723aeed7e11d488ac-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/tautulli",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/tautulli",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "19cb7741b91823d82436ab1237066dc8cdd5564b7479d4926de84fbcd58aa901",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.28",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:04",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "8181/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8181"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8181"
+        }
+      ]
+    },
+    "SandboxID": "c66952561d005410a4d79342dc761c58b46cf1c1dda13ee62424e8773c53e8e4",
+    "SandboxKey": "/var/run/docker/netns/c66952561d00"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/a00eae948649dcffda6246758a205b5e88a298089e2e7e7723aeed7e11d488ac/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870337439Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 47232,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:53.142381134Z",
+    "Status": "running"
+  }
+}

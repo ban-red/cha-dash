@@ -1,0 +1,253 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "DOCKER_MODS=REDACTED",
+      "OAUTHLIB_RELAX_TOKEN_SCOPE=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "QTWEBENGINE_CHROMIUM_FLAGS=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8083/tcp": {}
+    },
+    "Hostname": "ffc76748d2dc",
+    "Image": "lscr.io/linuxserver/calibre-web:latest",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- 0.6.25-ls364 Build-date:- 2026-01-04T02:48:49+00:00",
+      "maintainer": "notdriz",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/calibre-web-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8083]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-01-04T02:48:49+00:00",
+      "org.opencontainers.image.description": "[Calibre-web](https://github.com/janeczku/calibre-web) is a web app providing a clean interface for browsing, reading and downloading eBooks using an existing Calibre database.   It is also possible to integrate google drive and edit metadata and your calibre library through the app itself.    This software is a fork of library and licensed under the GPL v3 License.  ",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-calibre-web",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "1dbfda70cacc3269235f50f7ec6d45f8ad97f7ec",
+      "org.opencontainers.image.revision": "1dbfda70cacc3269235f50f7ec6d45f8ad97f7ec",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-calibre-web",
+      "org.opencontainers.image.title": "Calibre-web",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-calibre-web/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "0.6.25-ls364"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-01-07T19:58:14.589391027Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "ffc76748d2dc6036a72dd1ea1cf8f3508a6840c5f001387903b381130a3a9208",
+      "LowerDir": "/var/lib/docker/overlay2/7a7bcbdc6856d98947823a0cb7ac59faade2f97a357fffaf9517154a76b180e4-init/diff:/var/lib/docker/overlay2/62df75c403e92ae4246069d601595f1a3cb8931343aa66e2d0886e9f89dac396/diff:/var/lib/docker/overlay2/b6f814572d3de72611463f2705eef321b54afe7ed86d84f90d3b186188bc2c28/diff:/var/lib/docker/overlay2/9adae93d8b29c2229ef2f9f9172cb52f8f4107862aaf6982f7ce013423683963/diff:/var/lib/docker/overlay2/0efb5bbb0dd910ccff0a728d6aec7d516cee993843856e9dceaf4a4a2e1a3760/diff:/var/lib/docker/overlay2/23ebfe8338d744aa61e8f3270fd7d8e92e4302d88984d788737b6919d754cecc/diff:/var/lib/docker/overlay2/428e52c305807c90fa1b282288ac8abf44e6aea1391fa40ba29f63ec1cfe3679/diff:/var/lib/docker/overlay2/e2014fb20473224cc19d79b31cc3092756f5c5adc4cf9bcd8bee8ffda7eb9571/diff:/var/lib/docker/overlay2/504bca21841ec024fd837e41c5357b12145ca041e0130baca2b3a89856425871/diff:/var/lib/docker/overlay2/4d4266ecd27200bf7fcf0123192a0f2d5ccac693cfc57b46d3051fb6c0f9fcab/diff:/var/lib/docker/overlay2/446d95f6ef1c90f9b223a63eaa8a7ecaef34fcb53572c82143ab54075cd42953/diff:/var/lib/docker/overlay2/d4e38f32d9bb8ad4715cb736edd36870919fc71cb61abc8d08842d6ef3d112ba/diff",
+      "MergedDir": "/var/lib/docker/overlay2/7a7bcbdc6856d98947823a0cb7ac59faade2f97a357fffaf9517154a76b180e4/merged",
+      "UpperDir": "/var/lib/docker/overlay2/7a7bcbdc6856d98947823a0cb7ac59faade2f97a357fffaf9517154a76b180e4/diff",
+      "WorkDir": "/var/lib/docker/overlay2/7a7bcbdc6856d98947823a0cb7ac59faade2f97a357fffaf9517154a76b180e4/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/media/books/calibre/:/books:rw",
+      "/mnt/user/appdata/calibre-web:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8083/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8184"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "ffc76748d2dc6036a72dd1ea1cf8f3508a6840c5f001387903b381130a3a9208",
+  "Image": "sha256:8aa6f79952fac23090764dd4c056d392390e65f4940e3f12d3fc9749c45d78ba",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/books",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books/calibre",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/calibre-web",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/calibre-web",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "data": {
+    "enable": 1,
+    "expire": 0,
+    "groups": [
+      "api-ro-users"
+    ],
+    "tokens": {
+      "chadash": {
+        "expire": 0,
+        "privsep": 1
+      }
+    }
+  }
+}

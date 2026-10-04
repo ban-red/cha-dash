@@ -1,0 +1,39 @@
+{
+  "authStatus": 200,
+  "capturedAt": "2026-10-04T01:41:37Z",
+  "dashboardPath": 404,
+  "endpoints": {
+    "/api/entrypoints": 200,
+    "/api/http/middlewares": 200,
+    "/api/http/routers": 200,
+    "/api/http/services": 200,
+    "/api/overview": 200,
+    "/api/tcp/middlewares": 200,
+    "/api/tcp/routers": 200,
+    "/api/tcp/services": 200,
+    "/api/udp/routers": 200,
+    "/api/udp/services": 200,
+    "/api/version": 200
+  },
+  "pages": {
+    "/api/entrypoints": 1,
+    "/api/http/middlewares": 1,
+    "/api/http/routers": 1,
+    "/api/http/services": 1,
+    "/api/overview": 1,
+    "/api/tcp/middlewares": 1,
+    "/api/tcp/routers": 1,
+    "/api/tcp/services": 1,
+    "/api/udp/routers": 1,
+    "/api/udp/services": 1,
+    "/api/version": 1
+  },
+  "responseHeader": {
+    "Content-Type": "application/json; charset=UTF-8"
+  },
+  "scheme": "http",
+  "tlsPinned": false,
+  "tlsVerified": false,
+  "unauthRawdata": 401,
+  "unauthStatus": 401
+}

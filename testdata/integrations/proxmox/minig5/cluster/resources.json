@@ -1,0 +1,103 @@
+{
+  "data": [
+    {
+      "cpu": 0.200641524117811,
+      "disk": 0,
+      "diskread": 130939578880,
+      "diskwrite": 347965177344,
+      "id": "qemu/100",
+      "maxcpu": 4,
+      "maxdisk": 137438953472,
+      "maxmem": 8589934592,
+      "mem": 8065916928,
+      "name": "haos",
+      "netin": 97800974974,
+      "netout": 62736372359,
+      "node": "minig5",
+      "status": "running",
+      "tags": "tag-1",
+      "template": 0,
+      "type": "qemu",
+      "uptime": 1154187,
+      "vmid": 100
+    },
+    {
+      "cpu": 0.16139767534039,
+      "disk": 118946959360,
+      "diskread": 20314537984,
+      "diskwrite": 78540271616,
+      "id": "lxc/200",
+      "maxcpu": 4,
+      "maxdisk": 210241560576,
+      "maxmem": 8589934592,
+      "mem": 1263144960,
+      "name": "ct-200",
+      "netin": 3291700554824,
+      "netout": 104457815494,
+      "node": "minig5",
+      "status": "running",
+      "template": 0,
+      "type": "lxc",
+      "uptime": 1154081,
+      "vmid": 200
+    },
+    {
+      "cgroup-mode": 2,
+      "cpu": 0.372749930767101,
+      "disk": 16166952960,
+      "id": "node/minig5",
+      "level": "",
+      "maxcpu": 4,
+      "maxdisk": 100861726720,
+      "maxmem": 16536457216,
+      "mem": 10892435456,
+      "node": "minig5",
+      "status": "online",
+      "type": "node",
+      "uptime": 1154199
+    },
+    {
+      "content": "backup",
+      "disk": 42255839424512,
+      "id": "storage/minig5/jupiter-pbs",
+      "maxdisk": 45976621608960,
+      "node": "minig5",
+      "plugintype": "pbs",
+      "shared": 1,
+      "status": "available",
+      "storage": "jupiter-pbs",
+      "type": "storage"
+    },
+    {
+      "content": "images,rootdir",
+      "disk": 209854069630,
+      "id": "storage/minig5/local-lvm",
+      "maxdisk": 374538764288,
+      "node": "minig5",
+      "plugintype": "lvmthin",
+      "shared": 0,
+      "status": "available",
+      "storage": "local-lvm",
+      "type": "storage"
+    },
+    {
+      "content": "backup,iso,vztmpl",
+      "disk": 16166952960,
+      "id": "storage/minig5/local",
+      "maxdisk": 100861726720,
+      "node": "minig5",
+      "plugintype": "dir",
+      "shared": 0,
+      "status": "available",
+      "storage": "local",
+      "type": "storage"
+    },
+    {
+      "id": "sdn/minig5/localnetwork",
+      "node": "minig5",
+      "sdn": "localnetwork",
+      "status": "ok",
+      "type": "sdn"
+    }
+  ]
+}

@@ -118,7 +118,7 @@ Cockpit and the native PVE and Unraid UIs are **deep links**, not integrations.
 - **Credential hygiene the hints should catch, without ever showing values:**
   - one password reused for the Traefik dashboard and qBittorrent;
   - credentials sent over plain `http://` (the OPNsense API and the Traefik dashboard URL);
-  - (Checked: both Docker endpoints are socket-proxy containers. The importer's read-only probe should classify them as filtering proxies and raise **no** notice. It's still a useful test of the probe's false-positive rate.)
+  - **jupiter's socket proxy is too open.** [Spike 4.4](../../spikes/docker-proxy/README.md) found a coarse filtering proxy on `:2375`, published to the whole LAN: it allows every read under `/containers/`, so anyone on the network can read each container's environment (58 secret-looking keys across 29 containers), plus logs and files inside containers. The probe should raise the **warning** tier. pvedocker's proxy still needs probing from the hub's own host.
 - **Weather provider keys are placeholders** and there's no `widgets.yaml`, so clock and weather start fresh.
 
 ### Importer acceptance test
@@ -129,6 +129,16 @@ This is now a real fixture: [`testdata/importers/homepage/dogfood/`](../../testd
 - label-only services found through discovery;
 - the hygiene hints above raised;
 - re-importing produces no changes.
+
+### What the Proxmox spike found (4.1, read-only)
+[Spike 4.1](../../spikes/pve/README.md) read all five PVE endpoints with the read-only tokens. The fleet is **mixed 8.4 and 9.x**, so the integration needs version adapters from day one. The data shows problems the current page hides:
+- **PBS outages hit two nodes on the same nights.** pluto's and mars's backup jobs both failed on 12 of the last 21 nights with "no route to host" to PBS on jupiter. minig5's weekly run failed the same way.
+- **io's backup has failed every recorded night.** Two VMs pass through the same GPU. The job also targets the node's own disk, and one VM is in no job at all.
+- **jupiter-nas's VM is in `internal-error`, not stopped,** and holds 21 GB of the host's 33.5 GB: that's the 95% memory. jupiter-nas has no backup job.
+- **minig5 backs up weekly only,** the Frigate LXC isn't covered, and `apt-get update` fails.
+- **mars runs HA on Ceph with two nodes and no QDevice,** so it can't fail over if a node dies.
+
+These are exactly the Inbox's job, and they belong in the Demo Home's script next.
 
 ### Demo Home simulator
 Seed it from **the shape of this home**: 5 PVE endpoints, one of them a cluster; Unraid with PBS in a container; a Docker LXC; a router VM; HA and Frigate. Include the incidents above as scripted scenarios:

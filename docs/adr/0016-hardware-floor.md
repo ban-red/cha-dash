@@ -1,6 +1,6 @@
 # ADR-0016 · Hardware floor: amd64 and arm64 fully supported, armv7 best-effort
 
-**Status:** proposed · **Date:** 2026-10-03 · **Roadmap:** [decision 16](../plan/04-roadmap.md#decisions) · **Evidence:** [footprint spike](../../spikes/footprint/README.md)
+**Status:** accepted · **Date:** 2026-10-03 · **Roadmap:** [decision 16](../plan/04-roadmap.md#decisions) · **Evidence:** [footprint spike](../../spikes/footprint/README.md)
 
 ## Context
 

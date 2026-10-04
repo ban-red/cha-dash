@@ -1,0 +1,21 @@
+{
+  "data": [
+    {
+      "by_id_link": "/dev/disk/by-id/nvme-ShiJi_128GB_M.2-NVMe_FAKESERIAL0001_1",
+      "devpath": "/dev/nvme0n1",
+      "gpt": 1,
+      "health": "PASSED",
+      "model": "ShiJi 128GB M.2-NVMe",
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0001",
+      "size": 128035676160,
+      "type": "nvme",
+      "used": "BIOS boot",
+      "vendor": "unknown",
+      "wearout": 82,
+      "wwn": "0x5000000000000001"
+    }
+  ]
+}

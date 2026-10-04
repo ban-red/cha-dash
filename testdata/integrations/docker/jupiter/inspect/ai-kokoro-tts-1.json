@@ -1,0 +1,289 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "./entrypoint.sh"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "./entrypoint.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/opt/nvidia/nvidia_entrypoint.sh"
+    ],
+    "Env": [
+      "USE_GPU=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED",
+      "PATH=REDACTED",
+      "NVARCH=REDACTED",
+      "NVIDIA_REQUIRE_CUDA=REDACTED",
+      "NV_CUDA_CUDART_VERSION=REDACTED",
+      "CUDA_VERSION=REDACTED",
+      "LD_LIBRARY_PATH=REDACTED",
+      "NVIDIA_VISIBLE_DEVICES=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "NV_CUDA_LIB_VERSION=REDACTED",
+      "NV_NVTX_VERSION=REDACTED",
+      "NV_LIBNPP_VERSION=REDACTED",
+      "NV_LIBNPP_PACKAGE=REDACTED",
+      "NV_LIBCUSPARSE_VERSION=REDACTED",
+      "NV_LIBCUBLAS_PACKAGE_NAME=REDACTED",
+      "NV_LIBCUBLAS_VERSION=REDACTED",
+      "NV_LIBCUBLAS_PACKAGE=REDACTED",
+      "NV_LIBNCCL_PACKAGE_NAME=REDACTED",
+      "NV_LIBNCCL_PACKAGE_VERSION=REDACTED",
+      "NCCL_VERSION=REDACTED",
+      "NV_LIBNCCL_PACKAGE=REDACTED",
+      "NVIDIA_PRODUCT_NAME=REDACTED",
+      "NV_CUDNN_VERSION=REDACTED",
+      "NV_CUDNN_PACKAGE_NAME=REDACTED",
+      "NV_CUDNN_PACKAGE=REDACTED",
+      "PYTHONPATH=REDACTED",
+      "UV_LINK_MODE=REDACTED",
+      "PHONEMIZER_ESPEAK_PATH=REDACTED",
+      "PHONEMIZER_ESPEAK_DATA=REDACTED",
+      "ESPEAK_DATA_PATH=REDACTED",
+      "DEVICE=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8880/tcp": {}
+    },
+    "Hostname": "d9d642ebe03f",
+    "Image": "ghcr.io/remsky/kokoro-fastapi-gpu:latest",
+    "Labels": {
+      "com.docker.compose.config-hash": "6348fefdd8d7fc6e8dfed137ced1377d05a9321350b8ccb36e63497b54a88379",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:14e01d626627168dfc9ae1dced863d31c6a1ee4011dfb0089fe64f92493d6e30",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "ai",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/AI/docker-compose.yml,/boot/config/plugins/compose.manager/projects/AI/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/AI",
+      "com.docker.compose.replace": "kokoro-tts-1",
+      "com.docker.compose.service": "kokoro-tts",
+      "com.docker.compose.version": "2.40.3",
+      "com.nvidia.cudnn.version": "203.0.113.1-1",
+      "maintainer": "NVIDIA CORPORATION \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.version": "24.04"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "appuser",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  },
+  "Created": "2026-05-21T23:32:26.933348022Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "d9d642ebe03f5ffaab553f5285f401e29b19d7e149a1c9f825478844e89a12ff",
+      "LowerDir": "/var/lib/docker/overlay2/d35a738ff414dd3d7b4f0ac3a4a8b476162adea07e06018f65fe0479a02ef591-init/diff:/var/lib/docker/overlay2/f18b00f5bc18f7025b108dd7319c576a255aa9874c4f092911e8ddf98d2d5eb1/diff:/var/lib/docker/overlay2/ab5a049b4fcfef2ef92ef16d4d843dee4944f80e4ad69d1d3baa0595dc075613/diff:/var/lib/docker/overlay2/852bff80e489b009bc7834b9a00a4c8a1bfca19db768f0eec383e6012d903609/diff:/var/lib/docker/overlay2/b88692b7e68526ad5c902778c5338dcf6e481135e82ef44b1ea21ec4b510e175/diff:/var/lib/docker/overlay2/87a853198631202e49c95bcf53cc837d134a12efd9d1626fe68ceaed357fb104/diff:/var/lib/docker/overlay2/9f89a9b6460c4f3f626d610bcae30964bf439ce19e0a1e5e2c2fcc3e4d58e284/diff:/var/lib/docker/overlay2/77ab457ce3cffcd7d1a71178e53aadd1441bcac03fe60be6cd5ed5cf25ed5cf1/diff:/var/lib/docker/overlay2/9009faf18212c201f89fac4baf33ab2b1b29d23c0c1eafa820017c43f86faafd/diff:/var/lib/docker/overlay2/046bac01c4000a689012d3bd70f113ca1b661633ea1517d08e52ccf4a72b206e/diff:/var/lib/docker/overlay2/8382e3b81460a2b5f5602c6cf9f35c145665b722506f09ddd23dabffa5d8a5bc/diff:/var/lib/docker/overlay2/ae8385b322d81fcf683901410ee16a182ca57f9bbf05fe949d206eefd47b3d34/diff:/var/lib/docker/overlay2/023f2a497dfe79ac4f5b44b59d140a8fd49f457c5e8d73ad81f5897edcb1f153/diff:/var/lib/docker/overlay2/4434a3e6da4324f779d5cab4c16b186048656e74d87a2eb1f40a3bf6aad508bf/diff:/var/lib/docker/overlay2/fecae5be4ffdf45e50528e9bceea211484b7e7d5c76bc7a3eb1199840fdf66ce/diff:/var/lib/docker/overlay2/26ae2df7cf6322055c00052de2f817c4804363fcab483c08abe04cbf299d1962/diff:/var/lib/docker/overlay2/eec38181d4ce0dcb539b159f96f28d162448014c7b0e460eb07a26b26f5bd2ca/diff:/var/lib/docker/overlay2/1965d95b4ed93da3da5769d505893e1815dfc94a416165b40442dc68fe01f88d/diff:/var/lib/docker/overlay2/2612f48aea4cdb0a07600c070956730ce65a6507c3f609b84294bb65c3a33f55/diff:/var/lib/docker/overlay2/1257c404c5c5cfb38023b5e6ac15a03176dd1277757b1c60ec73cfde60d287f5/diff:/var/lib/docker/overlay2/5937a544afe5206262e74edb7c1d6ddec018fdea71ee3b3bef10bcc6ebcdd991/diff:/var/lib/docker/overlay2/082e29f8cc515150e0bf99cfb8a877da96ee71d6ead291f7f3d49389e331bc23/diff:/var/lib/docker/overlay2/806875abb31a5323c403672ee64dfcc9d7f908da01ccfa16e45f83a48cb5a26e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/d35a738ff414dd3d7b4f0ac3a4a8b476162adea07e06018f65fe0479a02ef591/merged",
+      "UpperDir": "/var/lib/docker/overlay2/d35a738ff414dd3d7b4f0ac3a4a8b476162adea07e06018f65fe0479a02ef591/diff",
+      "WorkDir": "/var/lib/docker/overlay2/d35a738ff414dd3d7b4f0ac3a4a8b476162adea07e06018f65fe0479a02ef591/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": null,
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": [
+      {
+        "Capabilities": [
+          [
+            "gpu"
+          ]
+        ],
+        "Count": -1,
+        "DeviceIDs": null,
+        "Driver": "nvidia",
+        "Options": null
+      }
+    ],
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 4294967296,
+    "MemoryReservation": 0,
+    "MemorySwap": -1,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "ai_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "8880/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "55002"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/d9d642ebe03f5ffaab553f5285f401e29b19d7e149a1c9f825478844e89a12ff/hostname",
+  "HostsPath": "/var/lib/docker/containers/d9d642ebe03f5ffaab553f5285f401e29b19d7e149a1c9f825478844e89a12ff/hosts",
+  "Id": "d9d642ebe03f5ffaab553f5285f401e29b19d7e149a1c9f825478844e89a12ff",
+  "Image": "sha256:14e01d626627168dfc9ae1dced863d31c6a1ee4011dfb0089fe64f92493d6e30",
+  "LogPath": "/var/lib/docker/containers/d9d642ebe03f5ffaab553f5285f401e29b19d7e149a1c9f825478844e89a12ff/d9d642ebe03f5ffaab553f5285f401e29b19d7e149a1c9f825478844e89a12ff-json.log",
+  "MountLabel": "",
+  "Mounts": [],
+  "Name": "/ai-kokoro-tts-1",
+  "NetworkSettings": {
+    "Networks": {
+      "ai_default": {
+        "Aliases": [
+          "ai-kokoro-tts-1",
+          "kokoro-tts"
+        ],
+        "DNSNames": [
+          "ai-kokoro-tts-1",
+          "kokoro-tts",
+          "d9d642ebe03f"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "19339b3913a23ae263c1ccd3b6138efd34ce5e7a0875b50b8464efeed6629c4a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/opt/nvidia/nvidia_entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/d9d642ebe03f5ffaab553f5285f401e29b19d7e149a1c9f825478844e89a12ff/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2026-05-22T20:30:39.070365453Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-05-21T23:32:27.672816651Z",
+    "Status": "exited"
+  }
+}

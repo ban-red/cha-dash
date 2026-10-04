@@ -1,0 +1,206 @@
+[
+  {
+    "request": "GET /api/config",
+    "status": 200,
+    "bytes": 42584,
+    "content_length": 42584,
+    "ms": 19,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "42584",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/events/summary",
+    "status": 200,
+    "bytes": 161462,
+    "content_length": 161462,
+    "ms": 42,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "161462",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/events?limit=25\u0026include_thumbnails=0",
+    "status": 200,
+    "bytes": 22335,
+    "content_length": 22335,
+    "ms": 12,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "22335",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/labels",
+    "status": 200,
+    "bytes": 10,
+    "content_length": 10,
+    "ms": 12,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "10",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/profile",
+    "status": 200,
+    "bytes": 99,
+    "content_length": 99,
+    "ms": 27,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "99",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/recordings/storage",
+    "status": 200,
+    "bytes": 261,
+    "content_length": 261,
+    "ms": 18,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "261",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/review/summary",
+    "status": 200,
+    "bytes": 779,
+    "content_length": 779,
+    "ms": 14,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "779",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/review?limit=25",
+    "status": 200,
+    "bytes": 2,
+    "content_length": 2,
+    "ms": 24,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "2",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/review?limit=25\u0026after=1790474364",
+    "status": 200,
+    "bytes": 7649,
+    "content_length": 7649,
+    "ms": 23,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "7649",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/stats",
+    "status": 200,
+    "bytes": 9753,
+    "content_length": 9753,
+    "ms": 10,
+    "content_type": "application/json",
+    "headers": {
+      "Content-Length": "9753",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4"
+    }
+  },
+  {
+    "request": "GET /api/stats/history",
+    "status": 200,
+    "bytes": 780357,
+    "content_length": 780357,
+    "ms": 51,
+    "content_type": "application/json",
+    "headers": {
+      "Content-Length": "780357",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4"
+    }
+  },
+  {
+    "request": "GET /api/sub_labels",
+    "status": 200,
+    "bytes": 2,
+    "content_length": 2,
+    "ms": 9,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "2",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/timeline?limit=25",
+    "status": 200,
+    "bytes": 7398,
+    "content_length": 7398,
+    "ms": 13,
+    "content_type": "application/json",
+    "headers": {
+      "Cache-Control": "no-store",
+      "Content-Length": "7398",
+      "Content-Type": "application/json",
+      "Server": "nginx/1.27.4",
+      "X-Cache-Status": "MISS"
+    }
+  },
+  {
+    "request": "GET /api/version",
+    "status": 200,
+    "bytes": 14,
+    "content_length": 14,
+    "ms": 8,
+    "content_type": "text/plain; charset=utf-8",
+    "headers": {
+      "Content-Length": "14",
+      "Content-Type": "text/plain; charset=utf-8",
+      "Server": "nginx/1.27.4"
+    }
+  }
+]

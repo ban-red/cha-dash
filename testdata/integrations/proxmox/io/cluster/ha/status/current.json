@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "id": "quorum",
+      "node": "io",
+      "quorate": 1,
+      "status": "OK",
+      "type": "quorum"
+    },
+    {
+      "armed-state": "standby",
+      "id": "fencing",
+      "node": "io",
+      "status": "standby (CRM watchdog standby)",
+      "type": "fencing"
+    }
+  ]
+}

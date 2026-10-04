@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "id": "node/pluto",
+      "ip": "10.0.11.180",
+      "level": "",
+      "local": 1,
+      "name": "pluto",
+      "nodeid": 0,
+      "online": 1,
+      "type": "node"
+    }
+  ]
+}

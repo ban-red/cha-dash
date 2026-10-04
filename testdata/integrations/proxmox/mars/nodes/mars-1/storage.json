@@ -1,0 +1,76 @@
+{
+  "data": [
+    {
+      "active": 1,
+      "avail": 147920519168,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local-lvm",
+      "total": 147920519168,
+      "type": "lvmthin",
+      "used": 0,
+      "used_fraction": 0
+    },
+    {
+      "active": 1,
+      "avail": 3720782184448,
+      "content": "backup",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "jupiter-pbs-pve.lab.example",
+      "total": 45976621608960,
+      "type": "pbs",
+      "used": 42255839424512,
+      "used_fraction": 0.919072301220956
+    },
+    {
+      "active": 1,
+      "avail": 58944991232,
+      "content": "vztmpl,backup,iso",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local",
+      "total": 71474323456,
+      "type": "dir",
+      "used": 8851767296,
+      "used_fraction": 0.123845415640054
+    },
+    {
+      "active": 1,
+      "avail": 404590952448,
+      "content": "vztmpl,iso",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "isos-templates",
+      "total": 404716781568,
+      "type": "cephfs",
+      "used": 125829120,
+      "used_fraction": 0.000310906603656262
+    },
+    {
+      "active": 1,
+      "avail": 404591837184,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "vm-disks",
+      "total": 485280866304,
+      "type": "rbd",
+      "used": 80689029120,
+      "used_fraction": 0.166272842641715
+    },
+    {
+      "active": 1,
+      "avail": 3720782184448,
+      "content": "backup",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "jupiter-pbs-mars",
+      "total": 45976621608960,
+      "type": "pbs",
+      "used": 42255839424512,
+      "used_fraction": 0.919072301220956
+    }
+  ]
+}

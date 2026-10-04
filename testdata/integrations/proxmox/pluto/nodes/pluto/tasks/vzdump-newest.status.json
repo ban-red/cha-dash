@@ -1,0 +1,14 @@
+{
+  "data": {
+    "exitstatus": "OK",
+    "id": "103",
+    "node": "pluto",
+    "pid": 4153566,
+    "pstart": 113037093,
+    "starttime": 1791053562,
+    "status": "stopped",
+    "type": "vzdump",
+    "upid": "UPID:pluto:003F60DE:06BCCF25:6AC14EFA:vzdump:103:root@pam:",
+    "user": "root@pam"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "data": [
+    {
+      "content": "backup",
+      "datastore": "mini-g5",
+      "digest": "2c567bd277664d4f07164c8b3ddb5b7bab2b90fc",
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:04",
+      "prune-backups": "keep-all=1",
+      "server": "jupiter.lab.example",
+      "shared": 1,
+      "storage": "jupiter-pbs",
+      "type": "pbs",
+      "username": "admin@pbs"
+    },
+    {
+      "content": "images,rootdir",
+      "digest": "2c567bd277664d4f07164c8b3ddb5b7bab2b90fc",
+      "storage": "local-lvm",
+      "thinpool": "data",
+      "type": "lvmthin",
+      "vgname": "pve"
+    },
+    {
+      "content": "backup,iso,vztmpl",
+      "digest": "2c567bd277664d4f07164c8b3ddb5b7bab2b90fc",
+      "path": "/var/lib/vz",
+      "storage": "local",
+      "type": "dir"
+    }
+  ]
+}

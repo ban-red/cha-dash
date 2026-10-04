@@ -1,0 +1,307 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/bin/bash",
+    "init.sh"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/bin/bash",
+      "init.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/usr/bin/dumb-init",
+      "--"
+    ],
+    "Env": [
+      "UMASK=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "LANG=REDACTED"
+    ],
+    "ExposedPorts": {
+      "9696/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 120000000000,
+      "Retries": 3,
+      "StartPeriod": 120000000000,
+      "Test": [
+        "CMD-SHELL",
+        "/usr/local/bin/system/scripts/docker/healthcheck.sh || exit 1"
+      ],
+      "Timeout": 120000000000
+    },
+    "Hostname": "a952e91bc6ea",
+    "Image": "binhex/arch-prowlarr",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/binhex/docker-templates/master/binhex/images/prowlarr-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:9696]/",
+      "org.opencontainers.image.authors": "binhex",
+      "org.opencontainers.image.source": "https://github.com/binhex/arch-prowlarr"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-07-31T00:22:21.299704827Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "a952e91bc6ea5a71a952b995a77379ad791cf52150b96f57a58642baefd85e02",
+      "LowerDir": "/var/lib/docker/overlay2/634aaebc16b28ef4fd82ecea70f50af5a1251b5d67c20df6d9f80f2e9dc40d13-init/diff:/var/lib/docker/overlay2/9b364e0cf8692dcb38171b7f0b7afd49554a526414467d7784daa45783a5ab16/diff:/var/lib/docker/overlay2/d08bf1a65fe9fa572b09426f17e8d39a18a9bbecdf57aebfbe0c15c1d7c0a64e/diff:/var/lib/docker/overlay2/f7f968ac9784d061e8330fedb4a456dd55503da1677000eebd6c88f44f88055d/diff:/var/lib/docker/overlay2/2db6380c1986da935bc5a99f0bca0d04e4967a6f66d7d204a19796c1af1b1883/diff:/var/lib/docker/overlay2/ec3b7748f9bfe3f00b53605a15b3e0b515b9edb80341cf16573687eb0ff0d9f5/diff:/var/lib/docker/overlay2/a63da6a0328b508262312651705f0a145833ae1fcb69ae1fb282cc1687c39359/diff:/var/lib/docker/overlay2/bc36a62c61d3c3bcaab841cefe9dfc4e9e8fbc565fd7c9a6b6361a0b7ecd95f3/diff:/var/lib/docker/overlay2/721d60ac37c1a2663cbc2891e1bea7d9613a0b977c543384648fb8a2315f84d0/diff:/var/lib/docker/overlay2/862c2d689fdce4cd69ced7a170ea262c8d4183a445ceb3a35232f09091681e69/diff:/var/lib/docker/overlay2/98334949ba4e763f8cd62bccc2205ecf6feee1d38fc7cb5c194617f296d642ad/diff:/var/lib/docker/overlay2/d06cadd3f89768bf2192567fe200c0a13bbfb582e9ce7d00d4d318721e4672dc/diff",
+      "MergedDir": "/var/lib/docker/overlay2/634aaebc16b28ef4fd82ecea70f50af5a1251b5d67c20df6d9f80f2e9dc40d13/merged",
+      "UpperDir": "/var/lib/docker/overlay2/634aaebc16b28ef4fd82ecea70f50af5a1251b5d67c20df6d9f80f2e9dc40d13/diff",
+      "WorkDir": "/var/lib/docker/overlay2/634aaebc16b28ef4fd82ecea70f50af5a1251b5d67c20df6d9f80f2e9dc40d13/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/binhex-prowlarr:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "9696/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "9696"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/a952e91bc6ea5a71a952b995a77379ad791cf52150b96f57a58642baefd85e02/hostname",
+  "HostsPath": "/var/lib/docker/containers/a952e91bc6ea5a71a952b995a77379ad791cf52150b96f57a58642baefd85e02/hosts",
+  "Id": "a952e91bc6ea5a71a952b995a77379ad791cf52150b96f57a58642baefd85e02",
+  "Image": "sha256:af5a9a81aa5a46fc0a59f9cc13c79fdd53b4f3b80877848592ed857dc8995a47",
+  "LogPath": "/var/lib/docker/containers/a952e91bc6ea5a71a952b995a77379ad791cf52150b96f57a58642baefd85e02/a952e91bc6ea5a71a952b995a77379ad791cf52150b96f57a58642baefd85e02-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/binhex-prowlarr",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/binhex-prowlarr",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "24f51dc935c8d66d52a558634bc73ea936690e8cece50479f7a0f39a4fd02e7e",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.20",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:0e",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "9696/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "9696"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "9696"
+        }
+      ]
+    },
+    "SandboxID": "911c5b946da263ef4a0d1136c1a8bd449683dcd3f5168cbeb426348c11c77e3e",
+    "SandboxKey": "/var/run/docker/netns/911c5b946da2"
+  },
+  "Path": "/usr/bin/dumb-init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/a952e91bc6ea5a71a952b995a77379ad791cf52150b96f57a58642baefd85e02/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.87041097Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T19:58:11.946069743-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T19:58:11.861199682-06:00"
+        },
+        {
+          "End": "2026-10-03T20:00:12.046208233-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:00:11.946484465-06:00"
+        },
+        {
+          "End": "2026-10-03T20:02:12.126025544-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:02:12.046734662-06:00"
+        },
+        {
+          "End": "2026-10-03T20:04:12.190830023-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:04:12.126915711-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:12.282183626-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:06:12.191299326-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 44505,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:51.280812903Z",
+    "Status": "running"
+  }
+}

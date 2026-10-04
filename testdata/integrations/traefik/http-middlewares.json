@@ -1,0 +1,166 @@
+[
+  {
+    "basicAuth": {
+      "users": [
+        "admin:$2a$12$y2YG5FK040I/6imdXl7.1.mbSllq/6AcSI8mTvQ.eucH4OGLrFNP3",
+        "admin:$2a$12$x4.pXk9aSxgSEfO0cNKJ1mm/MjR9vq8Sdc0vdO7Sy70M4BU4ijer9"
+      ]
+    },
+    "name": "auth@file",
+    "provider": "file",
+    "status": "enabled",
+    "type": "basicauth",
+    "usedBy": [
+      "api@file",
+      "websecure-api@file"
+    ]
+  },
+  {
+    "forwardAuth": {
+      "address": "http://authelia:9091/api/verify?rd=https://authelia.lab.example",
+      "authResponseHeaders": [
+        "Remote-User",
+        "Remote-Groups",
+        "Remote-Name",
+        "Remote-Email"
+      ],
+      "maxBodySize": -1,
+      "trustForwardHeader": true
+    },
+    "name": "authelia@docker",
+    "provider": "docker",
+    "status": "enabled",
+    "type": "forwardauth",
+    "usedBy": [
+      "bazarr@file",
+      "jackett@file",
+      "manga@file",
+      "prowlarr@file",
+      "radarr@file",
+      "radarrhd@file",
+      "sonarr@file",
+      "tautulli@file"
+    ]
+  },
+  {
+    "headers": {
+      "browserXssFilter": true,
+      "contentTypeNosniff": true,
+      "customRequestHeaders": {
+        "X-Forwarded-Proto": "https"
+      },
+      "forceSTSHeader": true,
+      "stsSeconds": 31536000
+    },
+    "name": "code-server-headers@file",
+    "provider": "file",
+    "status": "enabled",
+    "type": "headers",
+    "usedBy": [
+      "homeassistant@file"
+    ]
+  },
+  {
+    "name": "redirect-plex@file",
+    "provider": "file",
+    "redirectRegex": {
+      "permanent": true,
+      "regex": "http://app.plex.tv",
+      "replacement": "https://plex.lab.example"
+    },
+    "status": "enabled",
+    "type": "redirectregex",
+    "usedBy": [
+      "plex-rewrite@file"
+    ]
+  },
+  {
+    "name": "redirect-to-https@file",
+    "provider": "file",
+    "redirectScheme": {
+      "permanent": true,
+      "scheme": "https"
+    },
+    "status": "enabled",
+    "type": "redirectscheme",
+    "usedBy": [
+      "adguard@file",
+      "audiobookshelf@file",
+      "authelia@docker",
+      "bazarr@file",
+      "booklore@file",
+      "coder@file",
+      "dbgate@file",
+      "donetick@file",
+      "erebor@file",
+      "europa-kasm@file",
+      "go-link@file",
+      "homeassistant@file",
+      "homepage@docker",
+      "immich@file",
+      "ittools@docker",
+      "jackett@file",
+      "jellyfinone@file",
+      "jupiter@file",
+      "jupiter_base@file",
+      "linkding@docker",
+      "nextcloud@file",
+      "omada@file",
+      "omv@file",
+      "onedev@file",
+      "opnsense-2@file",
+      "opnsense@file",
+      "outline@file",
+      "pairdrop@file",
+      "paperless@file",
+      "pdf@file",
+      "picsur@file",
+      "pikvm-wifi@file",
+      "pikvm@file",
+      "pingvin-share@file",
+      "plex@file",
+      "prowlarr@file",
+      "pve-io@file",
+      "pve-mini-g5@file",
+      "pve-pluto@file",
+      "pve-router@file",
+      "pvedocker@file",
+      "qbittorent@file",
+      "radarr@file",
+      "radarrhd@file",
+      "reddit@file",
+      "romm@file",
+      "sonarr@file",
+      "tautulli@file",
+      "traefik@file",
+      "tubearchivist@file",
+      "uptimekuma@docker",
+      "zigbee@file"
+    ]
+  },
+  {
+    "name": "strip-all-prefixes@file",
+    "provider": "file",
+    "status": "enabled",
+    "stripPrefix": {
+      "prefixes": [
+        "/"
+      ]
+    },
+    "type": "stripprefix"
+  },
+  {
+    "name": "strip-jupiter-prefixes@file",
+    "provider": "file",
+    "status": "enabled",
+    "stripPrefix": {
+      "prefixes": [
+        "/sonarr",
+        "/radarr",
+        "/bazarr",
+        "/tautulli"
+      ]
+    },
+    "type": "stripprefix"
+  }
+]

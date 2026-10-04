@@ -1,0 +1,226 @@
+{
+  "dial_ms": 10,
+  "messages": [
+    {
+      "at_ms": 18,
+      "bytes": 1187,
+      "payload": {
+        "driveway": {
+          "config": {
+            "alerts": true,
+            "audio": false,
+            "audio_transcription": false,
+            "autotracking": false,
+            "detect": true,
+            "detections": true,
+            "enabled": true,
+            "notifications": false,
+            "notifications_suspended": 0,
+            "object_descriptions": false,
+            "record": true,
+            "review_descriptions": false,
+            "snapshots": true
+          },
+          "motion": false,
+          "objects": []
+        },
+        "backyard": {
+          "config": {
+            "alerts": true,
+            "audio": false,
+            "audio_transcription": false,
+            "autotracking": false,
+            "detect": true,
+            "detections": true,
+            "enabled": true,
+            "notifications": false,
+            "notifications_suspended": 0,
+            "object_descriptions": false,
+            "record": true,
+            "review_descriptions": false,
+            "snapshots": true
+          },
+          "motion": false,
+          "objects": []
+        },
+        "side_deck": {
+          "config": {
+            "alerts": true,
+            "audio": false,
+            "audio_transcription": false,
+            "autotracking": false,
+            "detect": true,
+            "detections": true,
+            "enabled": true,
+            "notifications": false,
+            "notifications_suspended": 0,
+            "object_descriptions": false,
+            "record": true,
+            "review_descriptions": false,
+            "snapshots": true
+          },
+          "motion": false,
+          "objects": []
+        }
+      },
+      "topic": "camera_activity",
+      "type": "text"
+    },
+    {
+      "at_ms": 60,
+      "bytes": 41,
+      "payload": {},
+      "topic": "model_state",
+      "type": "text"
+    },
+    {
+      "at_ms": 60,
+      "bytes": 57,
+      "payload": {},
+      "topic": "embeddings_reindex_progress",
+      "type": "text"
+    },
+    {
+      "at_ms": 60,
+      "bytes": 261,
+      "payload": {
+        "driveway": {
+          "height": 262,
+          "width": 465,
+          "x": 0,
+          "y": 0
+        },
+        "backyard": {
+          "height": 262,
+          "width": 349,
+          "x": 465,
+          "y": 0
+        },
+        "side_deck": {
+          "height": 262,
+          "width": 465,
+          "x": 814,
+          "y": 0
+        }
+      },
+      "topic": "birdseye_layout",
+      "type": "text"
+    },
+    {
+      "at_ms": 60,
+      "bytes": 46,
+      "payload": {},
+      "topic": "audio_detections",
+      "type": "text"
+    },
+    {
+      "at_ms": 60,
+      "bytes": 45,
+      "payload": "none",
+      "topic": "profile/state",
+      "type": "text"
+    },
+    {
+      "at_ms": 4978,
+      "bytes": 56,
+      "payload": "online",
+      "topic": "driveway/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 4982,
+      "bytes": 62,
+      "payload": "online",
+      "topic": "backyard/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 6962,
+      "bytes": 46,
+      "payload": "ON",
+      "topic": "side_deck/motion",
+      "type": "text"
+    },
+    {
+      "at_ms": 7504,
+      "bytes": 57,
+      "payload": "online",
+      "topic": "side_deck/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 15000,
+      "bytes": 56,
+      "payload": "online",
+      "topic": "driveway/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 15001,
+      "bytes": 62,
+      "payload": "online",
+      "topic": "backyard/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 17527,
+      "bytes": 57,
+      "payload": "online",
+      "topic": "side_deck/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 25022,
+      "bytes": 56,
+      "payload": "online",
+      "topic": "driveway/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 25024,
+      "bytes": 62,
+      "payload": "online",
+      "topic": "backyard/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 27547,
+      "bytes": 57,
+      "payload": "online",
+      "topic": "side_deck/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 35048,
+      "bytes": 56,
+      "payload": "online",
+      "topic": "driveway/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 35048,
+      "bytes": 62,
+      "payload": "online",
+      "topic": "backyard/status/detect",
+      "type": "text"
+    },
+    {
+      "at_ms": 37208,
+      "bytes": 47,
+      "payload": "OFF",
+      "topic": "side_deck/motion",
+      "type": "text"
+    },
+    {
+      "at_ms": 37564,
+      "bytes": 57,
+      "payload": "online",
+      "topic": "side_deck/status/detect",
+      "type": "text"
+    }
+  ],
+  "onconnect_sent": true,
+  "path": "/ws",
+  "status": 101,
+  "window": "45s"
+}

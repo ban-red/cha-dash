@@ -1,0 +1,1296 @@
+[
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.1:81"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "adguard@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.1:81": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "adguard@file"
+    ]
+  },
+  {
+    "name": "api@internal",
+    "provider": "internal",
+    "status": "enabled",
+    "usedBy": [
+      "api@file",
+      "traefik-local@file",
+      "traefik@file",
+      "websecure-api@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:61080"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "audiobookshelf@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:61080": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "audiobookshelf@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.106.0.4:9091"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "authelia-apps@docker",
+    "provider": "docker",
+    "serverStatus": {
+      "http://10.106.0.4:9091": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "authelia@docker"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:6767"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "bazarr@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:6767": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "bazarr@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:6060"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "booklore@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:6060": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "booklore@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:7080"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "coder@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:7080": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "coder@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8183"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "cwa@file",
+    "provider": "file",
+    "status": "enabled",
+    "type": "loadbalancer"
+  },
+  {
+    "name": "dashboard@internal",
+    "provider": "internal",
+    "status": "enabled"
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:3001"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "dbgate@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:3001": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "dbgate@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.201:2021"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "donetick@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.201:2021": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "donetick@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.44:8006"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "erebor@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.44:8006": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "erebor@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.181"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "europa-kasm@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.181": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "europa-kasm@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://go.lab3.example"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "go-link@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://go.lab3.example": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "go-link@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.20:8123"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "homeassistant@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.20:8123": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "homeassistant-local@file",
+      "homeassistant@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.106.0.6:3000"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "homepage@docker",
+    "provider": "docker",
+    "serverStatus": {
+      "http://10.106.0.6:3000": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "homepage@docker"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:2283"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "immich@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:2283": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "immich@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.106.0.9:80"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "ittools@docker",
+    "provider": "docker",
+    "serverStatus": {
+      "http://10.106.0.9:80": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "ittools@docker"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:9117"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "jackett@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:9117": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "jackett@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.202:8096"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "jellyfinone@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.202:8096": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "jellyfinone@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:80"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "jupiter@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:80": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "jupiter@file",
+      "jupiter_base@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.106.0.5:9090"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "linkding@docker",
+    "provider": "docker",
+    "serverStatus": {
+      "http://10.106.0.5:9090": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "linkding@docker"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:4567"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "manga@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:4567": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "manga@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8688"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "nextcloud@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8688": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "nextcloud@file"
+    ]
+  },
+  {
+    "name": "noop@internal",
+    "provider": "internal",
+    "status": "enabled",
+    "usedBy": [
+      "plex-rewrite@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.201:18043"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "omada@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.201:18043": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "omada@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.203:80"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "omv@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.203:80": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "omv@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:6610"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "onedev@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:6610": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "onedev@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.1:80"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "opnsense@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.1:80": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "opnsense-2@file",
+      "opnsense@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:3000"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "outline@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:3000": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "host2-local@file",
+      "outline@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:3300"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pairdrop@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:3300": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pairdrop@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8000"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "paperless@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8000": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "paperless@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:50009"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "paste@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:50009": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "paste@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8282"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pdf@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8282": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pdf@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8187"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "picsur@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8187": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "picsur@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.12.36"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pikvm-wifi@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.12.36": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pikvm-wifi@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.220"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pikvm@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.220": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pikvm@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:3301"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pingvin-share@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:3301": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pingvin-share@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:32400"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "plex@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:32400": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "plex@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:9696"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "prowlarr@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:9696": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "prowlarr@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.220:8810"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "prusapi@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.220:8810": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "prusapi@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.190:8006"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pve-mini-g5@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.190:8006": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pve-mini-g5@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.180:8006"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pve-pluto@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.180:8006": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pve-pluto@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.200:8006"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pve-router@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.200:8006": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pve-router@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.201"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pvedocker@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.201": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pvedocker@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "https://10.0.11.246:8006"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "pveio@file",
+    "provider": "file",
+    "serverStatus": {
+      "https://10.0.11.246:8006": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "pve-io@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8112"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "qbittorent@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8112": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "qbittorent@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:7780/radarr"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "radarr@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:7780/radarr": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "radarr@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:7780/radarrhd"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "radarrhd@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:7780/radarrhd": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "radarrhd@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8380"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "reddit@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8380": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "reddit@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8100"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "romm@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8100": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "romm@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:7780/sonarr"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "sonarr@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:7780/sonarr": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "sonarr@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:8181"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "tautulli@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:8181": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "tautulli@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.0.11.120:18000"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "tubearchivist@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://10.0.11.120:18000": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "tubearchivist@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://10.106.0.7:3001"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "uptimekuma@docker",
+    "provider": "docker",
+    "serverStatus": {
+      "http://10.106.0.7:3001": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "uptimekuma@docker"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "passHostHeader": true,
+      "responseForwarding": {
+        "flushInterval": "100ms"
+      },
+      "servers": [
+        {
+          "url": "http://home2.lan:8080"
+        }
+      ],
+      "strategy": "wrr"
+    },
+    "name": "zigbee@file",
+    "provider": "file",
+    "serverStatus": {
+      "http://home2.lan:8080": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "zigbee@file"
+    ]
+  }
+]

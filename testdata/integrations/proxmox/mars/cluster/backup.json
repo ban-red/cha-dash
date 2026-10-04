@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "enabled": 1,
+      "fleecing": {
+        "enabled": 0
+      },
+      "id": "backup-b2d4cc5b-11c0",
+      "mode": "snapshot",
+      "next-run": 1791109800,
+      "notes-template": "{{guestname}}",
+      "notification-mode": "notification-system",
+      "schedule": "04:30",
+      "storage": "jupiter-pbs-mars",
+      "type": "vzdump",
+      "vmid": "101"
+    }
+  ]
+}

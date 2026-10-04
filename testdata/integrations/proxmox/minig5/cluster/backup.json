@@ -1,0 +1,23 @@
+{
+  "data": [
+    {
+      "enabled": 1,
+      "fleecing": {
+        "enabled": "0"
+      },
+      "id": "backup-d22893c3-d0bb",
+      "mode": "snapshot",
+      "next-run": 1791111600,
+      "node": "minig5",
+      "notes-template": "{{guestname}}",
+      "prune-backups": {
+        "keep-monthly": "6",
+        "keep-weekly": "12"
+      },
+      "schedule": "sun 05:00",
+      "storage": "jupiter-pbs",
+      "type": "vzdump",
+      "vmid": "100"
+    }
+  ]
+}

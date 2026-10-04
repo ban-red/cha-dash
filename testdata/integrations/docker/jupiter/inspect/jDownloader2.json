@@ -1,0 +1,319 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "/init"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "USER_ID=REDACTED",
+      "GROUP_ID=REDACTED",
+      "CUSTOM_RES_W=REDACTED",
+      "TZ=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "UMASK=REDACTED",
+      "CUSTOM_RES_H=REDACTED",
+      "PATH=REDACTED",
+      "ENV=REDACTED",
+      "SUP_GROUP_IDS=REDACTED",
+      "LANG=REDACTED",
+      "KEEP_APP_RUNNING=REDACTED",
+      "APP_NICENESS=REDACTED",
+      "INSTALL_PACKAGES=REDACTED",
+      "PACKAGES_MIRROR=REDACTED",
+      "CONTAINER_DEBUG=REDACTED",
+      "DISPLAY_WIDTH=REDACTED",
+      "DISPLAY_HEIGHT=REDACTED",
+      "DARK_MODE=REDACTED",
+      "SECURE_CONNECTION=REDACTED",
+      "SECURE_CONNECTION_VNC_METHOD=REDACTED",
+      "SECURE_CONNECTION_CERTS_CHECK_INTERVAL=REDACTED",
+      "WEB_LOCALHOST_ONLY=REDACTED",
+      "VNC_LOCALHOST_ONLY=REDACTED",
+      "WEB_LISTENING_PORT=REDACTED",
+      "VNC_LISTENING_PORT=REDACTED",
+      "VNC_PASSWORD=REDACTED",
+      "ENABLE_CJK_FONT=REDACTED",
+      "WEB_AUDIO=REDACTED",
+      "WEB_HOST_CLIPBOARD_SYNC=REDACTED",
+      "WEB_AUTHENTICATION=REDACTED",
+      "WEB_AUTHENTICATION_ALLOW_INSECURE=REDACTED",
+      "WEB_AUTHENTICATION_TOKEN_VALIDITY_TIME=REDACTED",
+      "WEB_AUTHENTICATION_USERNAME=REDACTED",
+      "WEB_AUTHENTICATION_PASSWORD=REDACTED",
+      "WEB_FILE_MANAGER=REDACTED",
+      "WEB_FILE_MANAGER_ALLOWED_PATHS=REDACTED",
+      "WEB_FILE_MANAGER_DENIED_PATHS=REDACTED",
+      "WEB_NOTIFICATION=REDACTED",
+      "WEB_TERMINAL=REDACTED",
+      "WEB_TERMINAL_SHELL_PATH=REDACTED",
+      "MYJDOWNLOADER_EMAIL=REDACTED",
+      "MYJDOWNLOADER_PASSWORD=REDACTED",
+      "MYJDOWNLOADER_DEVICE_NAME=REDACTED",
+      "JDOWNLOADER_HEADLESS=REDACTED",
+      "JDOWNLOADER_MAX_MEM=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3129/tcp": {},
+      "5800/tcp": {},
+      "5900/tcp": {}
+    },
+    "Hostname": "2770e2c24295",
+    "Image": "jlesage/jdownloader-2:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/ich777/docker-templates/master/ich777/images/jdownloader.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:7280]/vnc.html?autoconnect=true",
+      "org.label-schema.description": "Docker container for JDownloader 2",
+      "org.label-schema.name": "jdownloader-2",
+      "org.label-schema.schema-version": "1.0",
+      "org.label-schema.vcs-url": "https://github.com/jlesage/docker-jdownloader-2",
+      "org.label-schema.version": "26.08.2"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {},
+      "/output": {}
+    },
+    "WorkingDir": "/tmp"
+  },
+  "Created": "2026-08-27T21:08:30.764411318Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "2770e2c242952aab11e8198014409dbd4b3c4f7fc88746f005d53cb5b596e374",
+      "LowerDir": "/var/lib/docker/overlay2/846411be1bb3a17b0fe471cf4bb99fe7d8ded0b5bcc38038c64f10590326a902-init/diff:/var/lib/docker/overlay2/66aa89ad75d2f31a2c4f5044a549dcd24008de6907e96f957221ffa05e5da235/diff:/var/lib/docker/overlay2/0a2780e2ac8bfce97acaaee753a8f12819c551ef45d026f5bebf73e5c36f42db/diff:/var/lib/docker/overlay2/3fb544580b713faa956980a3b961a97ad112c0216051c22bd5e60c0db3763dd3/diff:/var/lib/docker/overlay2/5f98c88e4119441887a8f0422981afb1d5a4c1f976687cbe3837b823c2df3ca4/diff:/var/lib/docker/overlay2/924c7569a8d5f2be580dbc2bd7b6e663726e957e2738a8853d4219981a8e3e0a/diff:/var/lib/docker/overlay2/a8303aa87c42dc5eeecf537af8e41bd54191920c341f6f530a7395fe94805454/diff:/var/lib/docker/overlay2/90104d98cfc04fdc10279b2c9c31cc73b7edc2a4e5b7b1de74367ad8acea312c/diff:/var/lib/docker/overlay2/44f8327e1adf2bb549ce568fc46b32d0de04711f6c9889f1d9fd746888c5276e/diff:/var/lib/docker/overlay2/a00a2a70f753ac36b603553de6c25b923e4841d11ef2587e49f5bd76ef37cd5e/diff:/var/lib/docker/overlay2/b8e3a955b65cfc9e23cf0c0ffac099758e7e54eb2acd2186885e99f8a42de4dd/diff",
+      "MergedDir": "/var/lib/docker/overlay2/846411be1bb3a17b0fe471cf4bb99fe7d8ded0b5bcc38038c64f10590326a902/merged",
+      "UpperDir": "/var/lib/docker/overlay2/846411be1bb3a17b0fe471cf4bb99fe7d8ded0b5bcc38038c64f10590326a902/diff",
+      "WorkDir": "/var/lib/docker/overlay2/846411be1bb3a17b0fe471cf4bb99fe7d8ded0b5bcc38038c64f10590326a902/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/jdownloader2/:/config:rw",
+      "/mnt/user/archive_a/Downloads/jdownloader:/mnt/jDownloader:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "5800/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "7280"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "unless-stopped"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/2770e2c242952aab11e8198014409dbd4b3c4f7fc88746f005d53cb5b596e374/hostname",
+  "HostsPath": "/var/lib/docker/containers/2770e2c242952aab11e8198014409dbd4b3c4f7fc88746f005d53cb5b596e374/hosts",
+  "Id": "2770e2c242952aab11e8198014409dbd4b3c4f7fc88746f005d53cb5b596e374",
+  "Image": "sha256:abee7751715069f6b7d9cb261a42f95f10a08dc709267a5b2b2a20fcab3887d6",
+  "LogPath": "/var/lib/docker/containers/2770e2c242952aab11e8198014409dbd4b3c4f7fc88746f005d53cb5b596e374/2770e2c242952aab11e8198014409dbd4b3c4f7fc88746f005d53cb5b596e374-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/jdownloader2",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/mnt/jDownloader",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/Downloads/jdownloader",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/output",
+      "Driver": "local",
+      "Mode": "",
+      "Name": "a76d0ee90377c7ced0c5016076d7a9b01a0d96a5b327a251727bb58e836832cf",
+      "Propagation": "",
+      "RW": true,
+      "Source": "/var/lib/docker/volumes/a76d0ee90377c7ced0c5016076d7a9b01a0d96a5b327a251727bb58e836832cf/_data",
+      "Type": "volume"
+    }
+  ],
+  "Name": "/jDownloader2",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "39f2514cb43bbee34d768ce2db7568a7a71a8315c9930ea1ab6f642dc5327f8d",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.7",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:06",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3129/tcp": null,
+      "5800/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "7280"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "7280"
+        }
+      ],
+      "5900/tcp": null
+    },
+    "SandboxID": "bbe625ec26de49ea1aaa98dbf63d5e312da71b39f2e820c0e42a867184da443d",
+    "SandboxKey": "/var/run/docker/netns/bbe625ec26de"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/2770e2c242952aab11e8198014409dbd4b3c4f7fc88746f005d53cb5b596e374/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.873293534Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 30153,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:41.399342255Z",
+    "Status": "running"
+  }
+}

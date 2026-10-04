@@ -1,0 +1,11 @@
+{
+  "data": [
+    {
+      "id": "quorum",
+      "node": "minig5",
+      "quorate": 1,
+      "status": "OK",
+      "type": "quorum"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # ADR-0017 · AI agents propose; people approve
 
-**Status:** proposed · **Date:** 2026-10-03 · **Roadmap:** [decision 17](../plan/04-roadmap.md#decisions)
+**Status:** accepted · **Date:** 2026-10-03 · **Roadmap:** [decision 17](../plan/04-roadmap.md#decisions)
 
 ## Context
 

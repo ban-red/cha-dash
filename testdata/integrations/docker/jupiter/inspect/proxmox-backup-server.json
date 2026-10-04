@@ -1,0 +1,259 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "/runit"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "runsvdir",
+      "/runit"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED"
+    ],
+    "Hostname": "Jupiter",
+    "Image": "ayufan/proxmox-backup-server:latest",
+    "Labels": {
+      "homepage.group": "Backup",
+      "homepage.href": "https://10.0.11.120:8007",
+      "homepage.icon": "/icons/proxmoxbackupserver.png",
+      "homepage.name": "Proxmox Backup Server (Jupiter)",
+      "homepage.widget.password": "16303553-5814-2fe9-9617-761086859274",
+      "homepage.widget.type": "proxmoxbackupserver",
+      "homepage.widget.url": "https://10.0.11.120:8007",
+      "homepage.widget.username": "admin",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/devzwf/unraid-docker-templates/main/images/pbs-logo.jpg",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "https://[IP]:[PORT:8007]"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/etc/proxmox-backup": {},
+      "/var/lib/proxmox-backup": {},
+      "/var/log/proxmox-backup": {}
+    },
+    "WorkingDir": ""
+  },
+  "Created": "2025-11-05T20:05:25.143473395Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "db92f85c3b8830383aef6e8b9c90bc0345719c5232e3e4f627ae6b81f6e834c9",
+      "LowerDir": "/var/lib/docker/overlay2/dd53733de23ac9976092dca233ac4ed4776c37522da3ed775061b2b1c4b89300-init/diff:/var/lib/docker/overlay2/0f5a385102931dab670aa0b559b1f507cc6da63bb4210cd12cf864c693827fdb/diff:/var/lib/docker/overlay2/44cd9a992d92984dc9a33f357d2882b04be8a4e0bdff17c6d6e67b7009011ac3/diff:/var/lib/docker/overlay2/199f60d074a4a4a0af2487522f995be0e0dbd433146bffd9d79ab300543f121d/diff:/var/lib/docker/overlay2/52bd255b87afdd947fc3182c004bdf1602590f25519044ce547c7c74928300ef/diff:/var/lib/docker/overlay2/4bed339c7e29f47afb2c18b92365ca5bd18c219c5628d0fbc57cfc864f88cdbc/diff",
+      "MergedDir": "/var/lib/docker/overlay2/dd53733de23ac9976092dca233ac4ed4776c37522da3ed775061b2b1c4b89300/merged",
+      "UpperDir": "/var/lib/docker/overlay2/dd53733de23ac9976092dca233ac4ed4776c37522da3ed775061b2b1c4b89300/diff",
+      "WorkDir": "/var/lib/docker/overlay2/dd53733de23ac9976092dca233ac4ed4776c37522da3ed775061b2b1c4b89300/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/pbs/etc:/etc/proxmox-backup:rw",
+      "/mnt/user/appdata/pbs/logs:/var/log/proxmox-backup:rw",
+      "/mnt/user/appdata/pbs/lib:/var/lib/proxmox-backup:rw",
+      "/mnt/user/backup/pve:/backups:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 2147483648,
+    "MemoryReservation": 0,
+    "MemorySwap": -1,
+    "MemorySwappiness": null,
+    "Mounts": [
+      {
+        "Target": "/run",
+        "Type": "tmpfs"
+      }
+    ],
+    "NanoCpus": 0,
+    "NetworkMode": "host",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {},
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "unless-stopped"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/db92f85c3b8830383aef6e8b9c90bc0345719c5232e3e4f627ae6b81f6e834c9/hostname",
+  "HostsPath": "/var/lib/docker/containers/db92f85c3b8830383aef6e8b9c90bc0345719c5232e3e4f627ae6b81f6e834c9/hosts",
+  "Id": "db92f85c3b8830383aef6e8b9c90bc0345719c5232e3e4f627ae6b81f6e834c9",
+  "Image": "sha256:51f5b9199787f92e2f65a8c5ec3400213ccbe4c3d961e95c880788c9e3bff571",
+  "LogPath": "/var/lib/docker/containers/db92f85c3b8830383aef6e8b9c90bc0345719c5232e3e4f627ae6b81f6e834c9/db92f85c3b8830383aef6e8b9c90bc0345719c5232e3e4f627ae6b81f6e834c9-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/backups",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/backup/pve",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/etc/proxmox-backup",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/pbs/etc",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/run",
+      "Mode": "",
+      "Propagation": "",
+      "RW": true,
+      "Source": "",
+      "Type": "tmpfs"
+    },
+    {
+      "Destination": "/var/lib/proxmox-backup",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/pbs/lib",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/var/log/proxmox-backup",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/pbs/logs",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/proxmox-backup-server",
+  "NetworkSettings": {
+    "Networks": {
+      "host": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "309e02499dab4aea2c9d465de56c5d39864cbaa1d880a1bcaa70ed9c086a02b7",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "0a3f7872e504d81ef60950d0ac3954174b25570e586b638ba2dd8a75afc4d7fb"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "fde14de2619a88c3769958b6c743218f775bb00c3fdacec8ec7464a0c5e66394",
+    "SandboxKey": "/var/run/docker/netns/default"
+  },
+  "Path": "runsvdir",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/db92f85c3b8830383aef6e8b9c90bc0345719c5232e3e4f627ae6b81f6e834c9/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870449036Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 30037,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:41.377814438Z",
+    "Status": "running"
+  }
+}

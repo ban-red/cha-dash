@@ -1,0 +1,300 @@
+{
+  "data": {
+    "data": [
+      {
+        "id": "node/minig5",
+        "metric": "uptime",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 1154199
+      },
+      {
+        "id": "node/minig5",
+        "metric": "net_in",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 3406109381900
+      },
+      {
+        "id": "node/minig5",
+        "metric": "net_out",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 167012367347
+      },
+      {
+        "id": "node/minig5",
+        "metric": "cpu_avg1",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 1.66
+      },
+      {
+        "id": "node/minig5",
+        "metric": "cpu_avg5",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 1.88
+      },
+      {
+        "id": "node/minig5",
+        "metric": "cpu_avg15",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 1.88
+      },
+      {
+        "id": "node/minig5",
+        "metric": "cpu_max",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 4
+      },
+      {
+        "id": "node/minig5",
+        "metric": "cpu_current",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 0.372749930767101
+      },
+      {
+        "id": "node/minig5",
+        "metric": "cpu_iowait",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 0.0096926059263362
+      },
+      {
+        "id": "node/minig5",
+        "metric": "mem_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 16536457216
+      },
+      {
+        "id": "node/minig5",
+        "metric": "mem_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 10892435456
+      },
+      {
+        "id": "node/minig5",
+        "metric": "swap_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 8589930496
+      },
+      {
+        "id": "node/minig5",
+        "metric": "swap_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 2253127680
+      },
+      {
+        "id": "node/minig5",
+        "metric": "disk_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 100861726720
+      },
+      {
+        "id": "node/minig5",
+        "metric": "disk_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 16166952960
+      },
+      {
+        "id": "qemu/100",
+        "metric": "cpu_current",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 0.200641524117811
+      },
+      {
+        "id": "qemu/100",
+        "metric": "mem_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 8065916928
+      },
+      {
+        "id": "qemu/100",
+        "metric": "disk_read",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 130939578880
+      },
+      {
+        "id": "qemu/100",
+        "metric": "disk_write",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 347965177344
+      },
+      {
+        "id": "qemu/100",
+        "metric": "net_in",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 97800974974
+      },
+      {
+        "id": "qemu/100",
+        "metric": "net_out",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 62736372359
+      },
+      {
+        "id": "qemu/100",
+        "metric": "uptime",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 1154187
+      },
+      {
+        "id": "qemu/100",
+        "metric": "cpu_max",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 4
+      },
+      {
+        "id": "qemu/100",
+        "metric": "mem_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 8589934592
+      },
+      {
+        "id": "qemu/100",
+        "metric": "disk_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 137438953472
+      },
+      {
+        "id": "lxc/200",
+        "metric": "cpu_current",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 0.16139767534039
+      },
+      {
+        "id": "lxc/200",
+        "metric": "mem_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 1263144960
+      },
+      {
+        "id": "lxc/200",
+        "metric": "disk_read",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 20314537984
+      },
+      {
+        "id": "lxc/200",
+        "metric": "disk_write",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 78540271616
+      },
+      {
+        "id": "lxc/200",
+        "metric": "net_in",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 3291700554824
+      },
+      {
+        "id": "lxc/200",
+        "metric": "net_out",
+        "timestamp": 1791077369,
+        "type": "derive",
+        "value": 104457815494
+      },
+      {
+        "id": "lxc/200",
+        "metric": "disk_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 118946959360
+      },
+      {
+        "id": "lxc/200",
+        "metric": "uptime",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 1154081
+      },
+      {
+        "id": "lxc/200",
+        "metric": "cpu_max",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 4
+      },
+      {
+        "id": "lxc/200",
+        "metric": "mem_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 8589934592
+      },
+      {
+        "id": "lxc/200",
+        "metric": "disk_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 210241560576
+      },
+      {
+        "id": "storage/minig5/jupiter-pbs",
+        "metric": "disk_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 45976621608960
+      },
+      {
+        "id": "storage/minig5/jupiter-pbs",
+        "metric": "disk_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 42255839424512
+      },
+      {
+        "id": "storage/minig5/local-lvm",
+        "metric": "disk_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 374538764288
+      },
+      {
+        "id": "storage/minig5/local-lvm",
+        "metric": "disk_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 209854069630
+      },
+      {
+        "id": "storage/minig5/local",
+        "metric": "disk_total",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 100861726720
+      },
+      {
+        "id": "storage/minig5/local",
+        "metric": "disk_used",
+        "timestamp": 1791077369,
+        "type": "gauge",
+        "value": 16166952960
+      }
+    ]
+  }
+}

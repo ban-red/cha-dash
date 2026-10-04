@@ -1,0 +1,346 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "postgres",
+    "-c",
+    "config_file=/etc/postgresql/postgresql.conf"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "postgres",
+      "-c",
+      "config_file=/etc/postgresql/postgresql.conf"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/usr/local/bin/immich-docker-entrypoint.sh"
+    ],
+    "Env": [
+      "POSTGRES_DB=REDACTED",
+      "DB_HOSTNAME=REDACTED",
+      "JWT_SECRET=REDACTED",
+      "PUBLIC_LOGIN_PAGE_MESSAGE=REDACTED",
+      "LOG_LEVEL=REDACTED",
+      "DB_DATABASE_NAME=REDACTED",
+      "UPLOAD_LOCATION=REDACTED",
+      "IMMICH_WEB_URL=REDACTED",
+      "POSTGRES_USER=REDACTED",
+      "DB_USERNAME=REDACTED",
+      "POSTGRES_PASSWORD=REDACTED",
+      "DB_PASSWORD=REDACTED",
+      "POSTGRES_INITDB_ARGS=REDACTED",
+      "IMMICH_SERVER_URL=REDACTED",
+      "REDIS_HOSTNAME=REDACTED",
+      "IMMICH_VERSION=REDACTED",
+      "PATH=REDACTED",
+      "GOSU_VERSION=REDACTED",
+      "LANG=REDACTED",
+      "PG_MAJOR=REDACTED",
+      "PG_VERSION=REDACTED",
+      "PGDATA=REDACTED",
+      "DB_STORAGE_TYPE=REDACTED"
+    ],
+    "ExposedPorts": {
+      "5432/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 300000000000,
+      "StartInterval": 5000000000,
+      "StartPeriod": 300000000000,
+      "Test": [
+        "CMD-SHELL",
+        "/usr/local/bin/healthcheck.sh"
+      ]
+    },
+    "Hostname": "be3a4c55dc40",
+    "Image": "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0",
+    "Labels": {
+      "com.docker.compose.config-hash": "e0b43881472f3c04ce27ac8cc6a37e8e6dad018bc0bfb7121e8338949736274b",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:7944da379292c2a46f9c96bfeac18099cb341499263dca96dc62011c6ea62f89",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "immich",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/Immich/docker-compose.yml,/boot/config/plugins/compose.manager/projects/Immich/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/Immich",
+      "com.docker.compose.replace": "immich_postgres",
+      "com.docker.compose.service": "database",
+      "com.docker.compose.version": "2.40.3",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.created": "2025-10-07T12:08:54.320Z",
+      "org.opencontainers.image.description": "Base images for Immich containers",
+      "org.opencontainers.image.licenses": "AGPL-3.0",
+      "org.opencontainers.image.revision": "c5095615488fa07469b5df48a3c3e5cebeed7296",
+      "org.opencontainers.image.source": "https://github.com/immich-app/base-images",
+      "org.opencontainers.image.title": "base-images",
+      "org.opencontainers.image.url": "https://github.com/immich-app/base-images",
+      "org.opencontainers.image.version": "14-vectorchord0.4.3-pgvector0.8.1-pgvectors0.2.0"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "StopSignal": "SIGINT",
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/var/lib/postgresql/data": {}
+    },
+    "WorkingDir": ""
+  },
+  "Created": "2026-07-28T18:18:42.332701853Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "be3a4c55dc40bc9972d8561364bbc1782ae2f30b614109e1dda04d0fea5c69ad",
+      "LowerDir": "/var/lib/docker/overlay2/58570b6e09ed67b9d4f01a8999fc06b8a1cac6d56a37e8e9267ffee293b18e36-init/diff:/var/lib/docker/overlay2/637e787ac612aa8e38708c14e44ec150ed2a67cf0832a309431e82b9e99baee0/diff:/var/lib/docker/overlay2/233fc122448308a67d602c7eb98f91adfd21359958f229d6ab3e002cc2dc1a03/diff:/var/lib/docker/overlay2/0e511110f5c9094dce4a5c044acc826c81b348ef150225696e3fd1ae3c141a9a/diff:/var/lib/docker/overlay2/ad5b6cb1db44e1446dc0e5bade1699a88ade8cd9b0ebf05d604adb04b20576b2/diff:/var/lib/docker/overlay2/39e7d9f326039b14abae2134c00caa3b26de34640b46f224eca31220e421a8f6/diff:/var/lib/docker/overlay2/87ffff6b09a5e943c46c274d0286ec3fc106d4f2e21f7ee84cbdb5a23f4dcc61/diff:/var/lib/docker/overlay2/845ad4f725263c511c7cf246303feea46341e563884870437a18a79b5d40ac19/diff:/var/lib/docker/overlay2/7b1b619de465ed4cacf0fe6e14c6cdb8aa5ced37e9463ad6b98f4b51fa7f1636/diff:/var/lib/docker/overlay2/d3dfdeb51bccd2fb5b5873a08eb76f415b7458f876326ac96661444b9b2a72f8/diff:/var/lib/docker/overlay2/f8eeb461c31e8615dfd622dd6741948d7df2966cc090438abf6c10a1253edd4c/diff:/var/lib/docker/overlay2/55fc1346e3580e51bc8ab23ba26dd3dcdd31ea18ac63260ac53f72d66ea211f5/diff:/var/lib/docker/overlay2/076cdc433340372675f871117e9d1a92c413052efc21cc5fafd38f72c887b1d2/diff:/var/lib/docker/overlay2/2445d85d76a47257e5142640483a13570fba3653dd143492a3fc1dd51d27261c/diff:/var/lib/docker/overlay2/57a463bfd84d4857c91c735114d0fbd065285f57286df29710b1fdb1efce6e82/diff:/var/lib/docker/overlay2/97bd79a2f9c0ae3c1d2c9022d32907da48805c3398c8bebcff128ba45099603b/diff:/var/lib/docker/overlay2/8739aeadb43b1a0a4d03a90575d3163b1e56de27b01cdfa556b7c190d86f83ac/diff:/var/lib/docker/overlay2/c86956ee6dca01ca26d2d9687dd19e1198fc1f76be739f5a1e009c9f1862c30f/diff:/var/lib/docker/overlay2/b82147354956a5f9a84b4648cc1a7327e14ee16fce19a9481687383c8ff264e5/diff:/var/lib/docker/overlay2/e9dabe86ca63ebae0cb1f3ceb40328c96b9c0f8fdf7b84fa8b66c0306f978dd5/diff:/var/lib/docker/overlay2/dd7b1bff7555ca3aaa57b1e0bf463712848433f8023722b01c79bf4016a4525c/diff:/var/lib/docker/overlay2/1cfa1da0c9c0e528b1b244735a4ddfd607b1201d0a13bac78ac2306e41181bac/diff",
+      "MergedDir": "/var/lib/docker/overlay2/58570b6e09ed67b9d4f01a8999fc06b8a1cac6d56a37e8e9267ffee293b18e36/merged",
+      "UpperDir": "/var/lib/docker/overlay2/58570b6e09ed67b9d4f01a8999fc06b8a1cac6d56a37e8e9267ffee293b18e36/diff",
+      "WorkDir": "/var/lib/docker/overlay2/58570b6e09ed67b9d4f01a8999fc06b8a1cac6d56a37e8e9267ffee293b18e36/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/immich/pgdata:/var/lib/postgresql/data:rw"
+    ],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "immich_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "5432/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "5932"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "always"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 134217728,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/be3a4c55dc40bc9972d8561364bbc1782ae2f30b614109e1dda04d0fea5c69ad/hostname",
+  "HostsPath": "/var/lib/docker/containers/be3a4c55dc40bc9972d8561364bbc1782ae2f30b614109e1dda04d0fea5c69ad/hosts",
+  "Id": "be3a4c55dc40bc9972d8561364bbc1782ae2f30b614109e1dda04d0fea5c69ad",
+  "Image": "sha256:7944da379292c2a46f9c96bfeac18099cb341499263dca96dc62011c6ea62f89",
+  "LogPath": "/var/lib/docker/containers/be3a4c55dc40bc9972d8561364bbc1782ae2f30b614109e1dda04d0fea5c69ad/be3a4c55dc40bc9972d8561364bbc1782ae2f30b614109e1dda04d0fea5c69ad-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/var/lib/postgresql/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/immich/pgdata",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/immich_postgres",
+  "NetworkSettings": {
+    "Networks": {
+      "immich_default": {
+        "Aliases": [
+          "immich_postgres",
+          "database"
+        ],
+        "DNSNames": [
+          "immich_postgres",
+          "database",
+          "be3a4c55dc40"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "e3b63423ccb8bd9eba09fe4c4ae64c68df6c980e0d386787e90ddf5b0dbc8e25",
+        "Gateway": "10.103.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.103.0.3",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:11",
+        "NetworkID": "d5c03cbe3df1b2b3a42a7ab8d060211bb6551da15b277ab36840b8f4a48fe59e"
+      }
+    },
+    "Ports": {
+      "5432/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "5932"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "5932"
+        }
+      ]
+    },
+    "SandboxID": "1da130ec800bb78149bae9ebf017922a5f8a5c03e4fcc749d13278dfb3b695db",
+    "SandboxKey": "/var/run/docker/netns/1da130ec800b"
+  },
+  "Path": "/usr/local/bin/immich-docker-entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/be3a4c55dc40bc9972d8561364bbc1782ae2f30b614109e1dda04d0fea5c69ad/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.87086184Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T19:45:49.65396539-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T19:45:49.426722034-06:00"
+        },
+        {
+          "End": "2026-10-03T19:50:49.814684932-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T19:50:49.655751295-06:00"
+        },
+        {
+          "End": "2026-10-03T19:55:50.012957376-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T19:55:49.815897832-06:00"
+        },
+        {
+          "End": "2026-10-03T20:00:50.166024153-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:00:50.014457986-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:50.34058707-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:05:50.166730293-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 30042,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:41.383148232Z",
+    "Status": "running"
+  }
+}

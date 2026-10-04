@@ -69,7 +69,7 @@ The fixture contains no real secret, domain or public IP.
 - `my-docker` → socket-proxy endpoint `tcp://dockerproxy:2375`. It's on pvedocker, on the same compose network as Homepage today.
 - `my-unraid` → socket-proxy endpoint `tcp://10.0.11.120:2375`, which is jupiter. **The owner confirmed it's a socket-proxy container.**
   - The importer runs a **safe, read-only probe**: does the endpoint behave like a filtering proxy or like a raw Docker API?
-  - **Expected: both endpoints are classified as filtering proxies, so no security notice appears.** If either looked like a raw API, the notice would be "anyone on the LAN would have root on this host."
+  - **Expected: jupiter (`my-unraid`) is a coarse filtering proxy and raises the warning tier:** its container reads are open, so env, logs and files are exposed to the LAN ([spike 4.4](../../../../spikes/docker-proxy/README.md)). `my-docker` is only reachable from pvedocker's compose network, so it's probed from the hub there. A raw API would raise the critical tier: "anyone on the LAN would have root on this host."
   - It never probes write endpoints.
 - `server` + `container` pairs become explicit **runs-as relations**. Container names don't match app names, which is exactly why these explicit links matter:
 

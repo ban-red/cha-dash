@@ -1,0 +1,148 @@
+{
+  "data": {
+    "result": [
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "ip-addresses": [
+          {
+            "ip-address": "10.0.11.1",
+            "ip-address-type": "ipv4",
+            "prefix": 24
+          },
+          {
+            "ip-address": "fe80::be24:11ff:fe00:3",
+            "ip-address-type": "ipv6",
+            "prefix": 64
+          },
+          {
+            "ip-address": "fd00:11::4",
+            "ip-address-type": "ipv6",
+            "prefix": 64
+          }
+        ],
+        "name": "vtnet0"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:03",
+        "ip-addresses": [
+          {
+            "ip-address": "fe80::be24:11ff:fe00:5",
+            "ip-address-type": "ipv6",
+            "prefix": 64
+          },
+          {
+            "ip-address": "10.0.20.117",
+            "ip-address-type": "ipv4",
+            "prefix": 22
+          }
+        ],
+        "name": "vtnet1"
+      },
+      {
+        "hardware-address": "00:00:00:00:00:00",
+        "ip-addresses": [
+          {
+            "ip-address": "::1",
+            "ip-address-type": "ipv6",
+            "prefix": 128
+          },
+          {
+            "ip-address": "fe80::1",
+            "ip-address-type": "ipv6",
+            "prefix": 64
+          },
+          {
+            "ip-address": "127.0.0.1",
+            "ip-address-type": "ipv4",
+            "prefix": 8
+          }
+        ],
+        "name": "lo0"
+      },
+      {
+        "hardware-address": "00:00:00:00:00:00",
+        "name": "enc0"
+      },
+      {
+        "hardware-address": "00:00:00:00:00:00",
+        "name": "pfsync0"
+      },
+      {
+        "hardware-address": "00:00:00:00:00:00",
+        "name": "pflog0"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "ip-addresses": [
+          {
+            "ip-address": "10.0.24.1",
+            "ip-address-type": "ipv4",
+            "prefix": 24
+          }
+        ],
+        "name": "vlan0.100"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "name": "vlan0.101"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "name": "vlan00"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "ip-addresses": [
+          {
+            "ip-address": "10.0.28.1",
+            "ip-address-type": "ipv4",
+            "prefix": 24
+          }
+        ],
+        "name": "vlan01"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "ip-addresses": [
+          {
+            "ip-address": "10.0.32.1",
+            "ip-address-type": "ipv4",
+            "prefix": 24
+          }
+        ],
+        "name": "vlan02"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "ip-addresses": [
+          {
+            "ip-address": "10.0.36.1",
+            "ip-address-type": "ipv4",
+            "prefix": 24
+          }
+        ],
+        "name": "vlan03"
+      },
+      {
+        "hardware-address": "BC:24:11:00:00:02",
+        "name": "vlan04"
+      },
+      {
+        "hardware-address": "00:00:00:00:00:00",
+        "ip-addresses": [
+          {
+            "ip-address": "10.0.40.75",
+            "ip-address-type": "ipv4",
+            "prefix": 32
+          },
+          {
+            "ip-address": "fd00:11::6",
+            "ip-address-type": "ipv6",
+            "prefix": 48
+          }
+        ],
+        "name": "tailscale0"
+      }
+    ]
+  }
+}

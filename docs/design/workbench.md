@@ -394,6 +394,8 @@ The network core. Its states outrank everything else because everything depends 
 | Wide | ↓ now, throughput sparkline, 30-day ↓/↑ totals, CPU |
 | Large | Wide plus gateways, interfaces and top clients (v0.3) |
 
+OPNsense only reports since-boot counters, so the hub accumulates the 30-day totals itself. Live throughput comes from its SSE stream, opened only while the tile is on screen (each stream holds a worker on the router). CPU needs *Lobby: Dashboard*, and gateway-based Attention/Down needs *System: Gateways*; without them the tile shows Permission-limited for that part ([spike 4.5](../../spikes/opnsense/README.md)).
+
 | State | Treatment |
 |---|---|
 | Loading | Skeleton |

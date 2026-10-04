@@ -1,0 +1,319 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "PIXELFLUX_WAYLAND=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "DISPLAY=REDACTED",
+      "PERL5LIB=REDACTED",
+      "START_DOCKER=REDACTED",
+      "PULSE_RUNTIME_PATH=REDACTED",
+      "SELKIES_INTERPOSER=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "DISABLE_ZINK=REDACTED",
+      "DISABLE_DRI3=REDACTED",
+      "SELKIES_ENCODER=REDACTED",
+      "TITLE=REDACTED",
+      "SSL_CERT_FILE=REDACTED",
+      "NO_GAMEPAD=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "3001/tcp": {}
+    },
+    "Hostname": "34b56e8ef418",
+    "Image": "ghcr.io/homelab-user/docker-orcaslicer-snapmaker:latest",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v2.3.4 Build-date:- 2026-07-01T18:34:01Z",
+      "com.docker.compose.config-hash": "8b6ff355cc93593e0f48996b1b5fd41f3d4df6001e66d93dade4b6ffa324f324",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:eaf65cb359dfe813f8287b27b52c55a2e8815e7f73f25be6cbd1c7d297762896",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "misc",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/Misc/docker-compose.yml,/boot/config/plugins/compose.manager/projects/Misc/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/Misc",
+      "com.docker.compose.replace": "orcaslicer-snapmaker",
+      "com.docker.compose.service": "orcaslicer-snapmaker",
+      "com.docker.compose.version": "2.40.3",
+      "maintainer": "thelamer",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-07-01T18:34:09.449Z",
+      "org.opencontainers.image.description": "Snapmaker Orca containerized desktop slicer",
+      "org.opencontainers.image.documentation": "https://github.com/homelab-user/docker-orcaslicer-snapmaker",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "1f437bb730358ccf7ae1285de94894f29d545389",
+      "org.opencontainers.image.revision": "2e936e21193dc302d0414449b8e2dcbeef2313e9",
+      "org.opencontainers.image.source": "https://github.com/homelab-user/docker-orcaslicer-snapmaker",
+      "org.opencontainers.image.title": "Snapmaker Orca",
+      "org.opencontainers.image.url": "https://github.com/homelab-user/docker-orcaslicer-snapmaker/pkgs/container/docker-orcaslicer-snapmaker",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v2.3.4"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-07-01T18:45:14.01402493Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "34b56e8ef4183ce1574fc2d8f16ef74d67cb49aabcf494c83785ca90c58ada44",
+      "LowerDir": "/var/lib/docker/overlay2/e694e23a5cb1f3c44c3b802885f42698ff2868e8c249ef66b1f109a7fcbc5648-init/diff:/var/lib/docker/overlay2/2eeb38a737cc7e1916396fee5ec09fec2b0c49fa21ea81f4118dc7ae52808269/diff:/var/lib/docker/overlay2/384e3e05f72bae2dbdc48d07ef7c23469c2cade6cfb03fd688a14934493c38a5/diff:/var/lib/docker/overlay2/ecca2d5308a69b8a82ba20c839c20648fbf8276e8b9404bae66588f3993826c5/diff:/var/lib/docker/overlay2/fa82b45c84f694cfbbcf46612b25b84d84b9d873a9106874b6d7d7d01573717b/diff:/var/lib/docker/overlay2/fb4ceae6ec56d211d6639f3241cff7a0d20a2fec359762adb536faae1459fd8f/diff:/var/lib/docker/overlay2/bfa1375c267fcbcbdbc65d03b32f93d714f15a1cc3c8786ea0ad720801ba7d29/diff:/var/lib/docker/overlay2/d8d32081287ab360bb6b4e8f34b1cf1589a6653fb58b307f4bbbcb6972246b40/diff:/var/lib/docker/overlay2/07b83e598dd67883fef2e7e1a7fa07a29937bd257dd037e6077d155f0389f98d/diff:/var/lib/docker/overlay2/6e82d60e53f37965e533fefff1b044e2e81859c4442180297703b50a4c50d5ec/diff:/var/lib/docker/overlay2/c9bcd80846509efb44cdb25ad01a1067510a27b665232606e83f82bd05456dc6/diff:/var/lib/docker/overlay2/6f61da5e7bcd6c72e2e1534c904732be6a15a35ce1fbc51cb03a67d1b98756a3/diff:/var/lib/docker/overlay2/84013874bdc446f52d5119573b0c6d71cf1145b90475885029e2f5b13769d812/diff:/var/lib/docker/overlay2/5396f5d9ae9462d65963dee3404a8548353612a6f01ed42915139ff5b7bec273/diff:/var/lib/docker/overlay2/6925d00597cd27194a9a60253f0477cae1dd6864aed5ff10676c7d75a2fa12ac/diff:/var/lib/docker/overlay2/31afe8647600a216b0efd051a0c6355d584a14a01f1732f212e20b8f1f1151b0/diff:/var/lib/docker/overlay2/6b4201b34f3c2d54ae5551b96e9def5a06ad2e8f777f85b85af82456be85d1ce/diff",
+      "MergedDir": "/var/lib/docker/overlay2/e694e23a5cb1f3c44c3b802885f42698ff2868e8c249ef66b1f109a7fcbc5648/merged",
+      "UpperDir": "/var/lib/docker/overlay2/e694e23a5cb1f3c44c3b802885f42698ff2868e8c249ef66b1f109a7fcbc5648/diff",
+      "WorkDir": "/var/lib/docker/overlay2/e694e23a5cb1f3c44c3b802885f42698ff2868e8c249ef66b1f109a7fcbc5648/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/orcaslicer-snapmaker:/config:rw",
+      "/mnt/user/archive_a/3D:/3d:rw"
+    ],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": [
+      {
+        "Capabilities": [
+          [
+            "compute",
+            "video",
+            "graphics",
+            "utility"
+          ]
+        ],
+        "Count": 1,
+        "DeviceIDs": null,
+        "Driver": "nvidia",
+        "Options": null
+      }
+    ],
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "misc_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6780"
+        }
+      ],
+      "3001/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6781"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 1073741824,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/34b56e8ef4183ce1574fc2d8f16ef74d67cb49aabcf494c83785ca90c58ada44/hostname",
+  "HostsPath": "/var/lib/docker/containers/34b56e8ef4183ce1574fc2d8f16ef74d67cb49aabcf494c83785ca90c58ada44/hosts",
+  "Id": "34b56e8ef4183ce1574fc2d8f16ef74d67cb49aabcf494c83785ca90c58ada44",
+  "Image": "sha256:eaf65cb359dfe813f8287b27b52c55a2e8815e7f73f25be6cbd1c7d297762896",
+  "LogPath": "/var/lib/docker/containers/34b56e8ef4183ce1574fc2d8f16ef74d67cb49aabcf494c83785ca90c58ada44/34b56e8ef4183ce1574fc2d8f16ef74d67cb49aabcf494c83785ca90c58ada44-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/3d",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/3D",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/orcaslicer-snapmaker",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/orcaslicer-snapmaker",
+  "NetworkSettings": {
+    "Networks": {
+      "misc_default": {
+        "Aliases": [
+          "orcaslicer-snapmaker",
+          "orcaslicer-snapmaker"
+        ],
+        "DNSNames": [
+          "orcaslicer-snapmaker",
+          "34b56e8ef418"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "40392c4dc21292e96d281c7347ceb8669d51c8e164d65f146b6288e29b7edcda"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/34b56e8ef4183ce1574fc2d8f16ef74d67cb49aabcf494c83785ca90c58ada44/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2026-07-04T18:13:44.362981565Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-07-03T03:59:26.059105267Z",
+    "Status": "exited"
+  }
+}

@@ -1,0 +1,360 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "python",
+    "-m",
+    "immich_ml"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "python",
+      "-m",
+      "immich_ml"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "tini",
+      "--"
+    ],
+    "Env": [
+      "IMMICH_VERSION=REDACTED",
+      "DB_USERNAME=REDACTED",
+      "PUBLIC_LOGIN_PAGE_MESSAGE=REDACTED",
+      "DB_DATABASE_NAME=REDACTED",
+      "IMMICH_WEB_URL=REDACTED",
+      "JWT_SECRET=REDACTED",
+      "NODE_ENV=REDACTED",
+      "LOG_LEVEL=REDACTED",
+      "IMMICH_SERVER_URL=REDACTED",
+      "DB_HOSTNAME=REDACTED",
+      "DB_PASSWORD=REDACTED",
+      "REDIS_HOSTNAME=REDACTED",
+      "UPLOAD_LOCATION=REDACTED",
+      "PATH=REDACTED",
+      "LANG=REDACTED",
+      "GPG_KEY=REDACTED",
+      "PYTHON_VERSION=REDACTED",
+      "PYTHON_SHA256=REDACTED",
+      "LD_PRELOAD=REDACTED",
+      "MACHINE_LEARNING_MODEL_ARENA=REDACTED",
+      "TRANSFORMERS_CACHE=REDACTED",
+      "PYTHONDONTWRITEBYTECODE=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED",
+      "PYTHONPATH=REDACTED",
+      "DEVICE=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "MACHINE_LEARNING_CACHE_FOLDER=REDACTED",
+      "IMMICH_BUILD=REDACTED",
+      "IMMICH_BUILD_URL=REDACTED",
+      "IMMICH_BUILD_IMAGE=REDACTED",
+      "IMMICH_BUILD_IMAGE_URL=REDACTED",
+      "IMMICH_REPOSITORY=REDACTED",
+      "IMMICH_REPOSITORY_URL=REDACTED",
+      "IMMICH_SOURCE_REF=REDACTED",
+      "IMMICH_SOURCE_COMMIT=REDACTED",
+      "IMMICH_SOURCE_URL=REDACTED"
+    ],
+    "Healthcheck": {
+      "Test": [
+        "CMD-SHELL",
+        "python3 healthcheck.py"
+      ]
+    },
+    "Hostname": "68a1f1d0ac5d",
+    "Image": "ghcr.io/immich-app/immich-machine-learning:v3",
+    "Labels": {
+      "com.docker.compose.config-hash": "ac75665c27b0fe675c019b6a02f52660bace5e2faed74c6c3d1857c3f4fd4059",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:23e5499db8cd86173ef1c1775e5212eecc85acf7b022769a10ea0a3460ec8dd0",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "immich",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/Immich/docker-compose.yml,/boot/config/plugins/compose.manager/projects/Immich/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/Immich",
+      "com.docker.compose.replace": "immich_machine_learning",
+      "com.docker.compose.service": "immich-machine-learning",
+      "com.docker.compose.version": "2.40.3",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.created": "2026-07-15T14:34:59.183Z",
+      "org.opencontainers.image.description": "High performance self-hosted photo and video management solution.",
+      "org.opencontainers.image.licenses": "AGPL-3.0",
+      "org.opencontainers.image.revision": "cd308ad93093735135f99d85ce6980c8e93df231",
+      "org.opencontainers.image.source": "https://github.com/immich-app/immich",
+      "org.opencontainers.image.title": "immich",
+      "org.opencontainers.image.url": "https://github.com/immich-app/immich",
+      "org.opencontainers.image.version": "v3.0.3"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/usr/src"
+  },
+  "Created": "2026-07-28T18:18:42.332626919Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "68a1f1d0ac5df15b3c31ad4fe74b5fe1d404a2f28efd9cb733fcb1a87cb96054",
+      "LowerDir": "/var/lib/docker/overlay2/75865bef471f5ef61f700a7368eda0ad414b5706089c89fed2db9da69eee7b3e-init/diff:/var/lib/docker/overlay2/dcbd1e66c0559c827dcca653ece334326084bc66fa55dfd4b8229548e3853404/diff:/var/lib/docker/overlay2/b9c2710b7e2d2ecb5fa1b48137bebd6df80a366c9c5ea0a3bf1e843aff6c0337/diff:/var/lib/docker/overlay2/3bab1db929d71e091f440464d3cf7faf103b8385bed452950d757d0a40bfbfac/diff:/var/lib/docker/overlay2/f3383fa3e154da6fad9a93bf760614bf784e44c855b5c237e8d36b41ec5f5483/diff:/var/lib/docker/overlay2/bd76c4e4475559825e1f0b053a04d33dd7edee24ff1655c9b98d739f8d774bd9/diff:/var/lib/docker/overlay2/cedac8711a47dbbc1ca731f61485c68f505a64597f871482fbc582c318c5ff88/diff:/var/lib/docker/overlay2/1514d91a795ac4db11872af348658d78e6f62ef5855cb918b35d27b5b62cdae5/diff:/var/lib/docker/overlay2/b25b7c55da153fbfd024386459ef53013c9842b75caee069dc7f1fd1169c8c46/diff:/var/lib/docker/overlay2/9d6f1abfc77b1acafa7128e9d6c4fdda2059c9e6035ed76ed054ceb97bd5ed00/diff:/var/lib/docker/overlay2/e46ab4f3b267797f30676cb1026bef195768bf1e6770e66ce08a6bbd6e606e92/diff:/var/lib/docker/overlay2/2f019731fda60ab4f569741204f9264591ad98c639ba444b130c195af83b883f/diff",
+      "MergedDir": "/var/lib/docker/overlay2/75865bef471f5ef61f700a7368eda0ad414b5706089c89fed2db9da69eee7b3e/merged",
+      "UpperDir": "/var/lib/docker/overlay2/75865bef471f5ef61f700a7368eda0ad414b5706089c89fed2db9da69eee7b3e/diff",
+      "WorkDir": "/var/lib/docker/overlay2/75865bef471f5ef61f700a7368eda0ad414b5706089c89fed2db9da69eee7b3e/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/dev/bus/usb:/dev/bus/usb:rw",
+      "/mnt/user/images/immich:/usr/src/app/upload:rw",
+      "/mnt/user/appdata/immich/model-cache:/cache:rw"
+    ],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": [
+      "c 189:* rmw"
+    ],
+    "DeviceRequests": null,
+    "Devices": [
+      {
+        "CgroupPermissions": "rwm",
+        "PathInContainer": "/dev/dri",
+        "PathOnHost": "/dev/dri"
+      }
+    ],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "immich_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {},
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "always"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/68a1f1d0ac5df15b3c31ad4fe74b5fe1d404a2f28efd9cb733fcb1a87cb96054/hostname",
+  "HostsPath": "/var/lib/docker/containers/68a1f1d0ac5df15b3c31ad4fe74b5fe1d404a2f28efd9cb733fcb1a87cb96054/hosts",
+  "Id": "68a1f1d0ac5df15b3c31ad4fe74b5fe1d404a2f28efd9cb733fcb1a87cb96054",
+  "Image": "sha256:23e5499db8cd86173ef1c1775e5212eecc85acf7b022769a10ea0a3460ec8dd0",
+  "LogPath": "/var/lib/docker/containers/68a1f1d0ac5df15b3c31ad4fe74b5fe1d404a2f28efd9cb733fcb1a87cb96054/68a1f1d0ac5df15b3c31ad4fe74b5fe1d404a2f28efd9cb733fcb1a87cb96054-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/usr/src/app/upload",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/images/immich",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/cache",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/immich/model-cache",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/dev/bus/usb",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/dev/bus/usb",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/immich_machine_learning",
+  "NetworkSettings": {
+    "Networks": {
+      "immich_default": {
+        "Aliases": [
+          "immich_machine_learning",
+          "immich-machine-learning"
+        ],
+        "DNSNames": [
+          "immich_machine_learning",
+          "immich-machine-learning",
+          "68a1f1d0ac5d"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "fa806abd6bead791c1d7484b739444ec70ddae761bd1ce946921695ceea23d7a",
+        "Gateway": "10.103.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.103.0.4",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:12",
+        "NetworkID": "d5c03cbe3df1b2b3a42a7ab8d060211bb6551da15b277ab36840b8f4a48fe59e"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "b74d14b67765a67b358bf2d04db00bc6c0d3741c39b3923955b302b0fe4d2428",
+    "SandboxKey": "/var/run/docker/netns/b74d14b67765"
+  },
+  "Path": "tini",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/68a1f1d0ac5df15b3c31ad4fe74b5fe1d404a2f28efd9cb733fcb1a87cb96054/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.87039881Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T20:04:25.16877348-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:04:24.79079543-06:00"
+        },
+        {
+          "End": "2026-10-03T20:04:55.524542343-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:04:55.169196538-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:25.892171888-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:05:25.525805882-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:56.2392162-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:05:55.893585281-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:26.581679638-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:06:26.239776478-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 30078,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:41.394235271Z",
+    "Status": "running"
+  }
+}

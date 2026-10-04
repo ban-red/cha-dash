@@ -1,6 +1,6 @@
 # ADR-0014 · Nodes and the hub speak mutual TLS inside the WebSocket, pinned by key
 
-**Status:** proposed · **Date:** 2026-10-03 · **Roadmap:** [decision 14](../plan/04-roadmap.md#decisions) · **Evidence:** [spike 4.7 findings](../../spikes/node-transport/README.md#findings)
+**Status:** accepted · **Date:** 2026-10-03 · **Roadmap:** [decision 14](../plan/04-roadmap.md#decisions) · **Evidence:** [spike 4.7 findings](../../spikes/node-transport/README.md#findings)
 
 ## Context
 

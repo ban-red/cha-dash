@@ -1,0 +1,294 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "node",
+    "index.js"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "node",
+      "index.js"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "tini",
+      "--"
+    ],
+    "Env": [
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "TZ=REDACTED",
+      "PATH=REDACTED",
+      "NODE_VERSION=REDACTED",
+      "YARN_VERSION=REDACTED",
+      "PORT=REDACTED",
+      "NODE_ENV=REDACTED",
+      "CONFIG_PATH=REDACTED",
+      "METADATA_PATH=REDACTED",
+      "SOURCE=REDACTED",
+      "NUSQLITE3_DIR=REDACTED",
+      "NUSQLITE3_PATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "80/tcp": {}
+    },
+    "Hostname": "6dc7f36c3b0d",
+    "Image": "ghcr.io/advplyr/audiobookshelf",
+    "Labels": {
+      "net.unraid.docker.icon": "https://github.com/advplyr/audiobookshelf/raw/master/client/static/Logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:80]",
+      "org.opencontainers.image.created": "2025-12-23T23:15:41.679Z",
+      "org.opencontainers.image.description": "Self-hosted audiobook and podcast server",
+      "org.opencontainers.image.licenses": "GPL-3.0",
+      "org.opencontainers.image.revision": "e5c0a9d22c5148a4c1d6c2fee20c9669578eb1e3",
+      "org.opencontainers.image.source": "https://github.com/advplyr/audiobookshelf",
+      "org.opencontainers.image.title": "audiobookshelf",
+      "org.opencontainers.image.url": "https://github.com/advplyr/audiobookshelf",
+      "org.opencontainers.image.version": "2.32.1"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  },
+  "Created": "2026-01-07T19:58:27.540588624Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "6dc7f36c3b0d9514fd08649b244317e0f4fdc1e1c1667640494cf848cfeee4ee",
+      "LowerDir": "/var/lib/docker/overlay2/1614f63c588c32f2060a26a9981480ac25e7791c4b2d4574993f416edbca4fc5-init/diff:/var/lib/docker/overlay2/f159e08dca17cb24db5c47687e8d5e5001894a4bb3d211400a0b29ca2acdc5bc/diff:/var/lib/docker/overlay2/f31933f5b7155dbef17f80bcf389802a5063afd29c7141cbb7590644873b8aef/diff:/var/lib/docker/overlay2/d6d8f4d2109d6665d5ce4d6bf1af90382260a04a54eb39e378ab4282b8fe6589/diff:/var/lib/docker/overlay2/80a4592c32d4ae12bc7f98efc95ec0b6b07673a2e0dc1de51c4ed34e590aca41/diff:/var/lib/docker/overlay2/8cf3f616f735cb5472318d9e63a79ac8678fc50760b4f008d1ca6666137d0dd8/diff:/var/lib/docker/overlay2/0134e1771c38002c8ec2ae2607ec3e05b9d79a7329a5f9cd23c170a050c79cba/diff:/var/lib/docker/overlay2/11f0ff79126e23ba6314499d08918e384239214cbe4ede763d4519ae9ed39bac/diff:/var/lib/docker/overlay2/94e11ce0cb35750a83663e3b78b2204d0bb7919a1a69a57bb32df79ef70eedcd/diff:/var/lib/docker/overlay2/164186c9da27bf9ffd0c7f604c4d6bb5a0d289afda2b95121034991a2c6cee39/diff",
+      "MergedDir": "/var/lib/docker/overlay2/1614f63c588c32f2060a26a9981480ac25e7791c4b2d4574993f416edbca4fc5/merged",
+      "UpperDir": "/var/lib/docker/overlay2/1614f63c588c32f2060a26a9981480ac25e7791c4b2d4574993f416edbca4fc5/diff",
+      "WorkDir": "/var/lib/docker/overlay2/1614f63c588c32f2060a26a9981480ac25e7791c4b2d4574993f416edbca4fc5/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/media/books/all/:/books:rw",
+      "/mnt/user/media/podcasts:/podcasts:rw",
+      "/mnt/user/media/books/light_novels:/light_novels:rw",
+      "/mnt/user/media/audiobooks:/audiobooks:rw",
+      "/mnt/user/appdata/audiobookshelf:/config:rw",
+      "/mnt/user/appdata/audiobookshelf/metadata/:/metadata:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "80/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "61080"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/6dc7f36c3b0d9514fd08649b244317e0f4fdc1e1c1667640494cf848cfeee4ee/hostname",
+  "HostsPath": "/var/lib/docker/containers/6dc7f36c3b0d9514fd08649b244317e0f4fdc1e1c1667640494cf848cfeee4ee/hosts",
+  "Id": "6dc7f36c3b0d9514fd08649b244317e0f4fdc1e1c1667640494cf848cfeee4ee",
+  "Image": "sha256:07dd93892ba6925ee5a327538d0be750a74d4d3af71b23a1aa666491dba5525f",
+  "LogPath": "/var/lib/docker/containers/6dc7f36c3b0d9514fd08649b244317e0f4fdc1e1c1667640494cf848cfeee4ee/6dc7f36c3b0d9514fd08649b244317e0f4fdc1e1c1667640494cf848cfeee4ee-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/audiobooks",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/audiobooks",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/books",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books/all",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/audiobookshelf",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/light_novels",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books/light_novels",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/metadata",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/audiobookshelf/metadata",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/podcasts",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/podcasts",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/audiobookshelf",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "d5a435b422943fba24f56901815b7d5fb4c18c0e66482e6bc0cc0b61b5d6c78c",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.29",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:22",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "80/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "61080"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "61080"
+        }
+      ]
+    },
+    "SandboxID": "b521bfb1b72d1be0a107ca35ecc415692892b2856c43031f110ec786f0c55b62",
+    "SandboxKey": "/var/run/docker/netns/b521bfb1b72d"
+  },
+  "Path": "tini",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/6dc7f36c3b0d9514fd08649b244317e0f4fdc1e1c1667640494cf848cfeee4ee/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870355181Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 47462,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:53.416859268Z",
+    "Status": "running"
+  }
+}

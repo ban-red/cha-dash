@@ -1,0 +1,293 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "PASSWORD=REDACTED",
+      "CLI_ARGS=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "UMASK=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "DISPLAY=REDACTED",
+      "PERL5LIB=REDACTED",
+      "START_DOCKER=REDACTED",
+      "PULSE_RUNTIME_PATH=REDACTED",
+      "SELKIES_INTERPOSER=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "DISABLE_ZINK=REDACTED",
+      "DISABLE_DRI3=REDACTED",
+      "TITLE=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "CUSTOM_PORT=REDACTED",
+      "CUSTOM_HTTPS_PORT=REDACTED",
+      "QTWEBENGINE_DISABLE_SANDBOX=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "3001/tcp": {},
+      "8080/tcp": {},
+      "8081/tcp": {}
+    },
+    "Hostname": "f373f9f9c120",
+    "Image": "lscr.io/linuxserver/calibre:latest",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v8.16.2-ls379 Build-date:- 2026-01-07T06:58:19+00:00",
+      "maintainer": "aptalca",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/calibre-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8080]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-01-07T06:58:19+00:00",
+      "org.opencontainers.image.description": "[Calibre](https://calibre-ebook.com/) is a powerful and easy to use e-book manager. Users say it's outstanding and a must-have. It'll allow you to do nearly everything and it takes things a step beyond normal e-book software. It's also completely free and open source and great for both casual users and computer experts.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-calibre",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "560c1dea67b774d915674233d92eaef10ef4bc85",
+      "org.opencontainers.image.revision": "560c1dea67b774d915674233d92eaef10ef4bc85",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-calibre",
+      "org.opencontainers.image.title": "Calibre",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-calibre/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v8.16.2-ls379"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-01-07T19:57:51.431289077Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "f373f9f9c12062d630d6773d293aeff0178a44b837c041b9fd0c88851b43c49c",
+      "LowerDir": "/var/lib/docker/overlay2/43744cf15c67583d94a0886de433c6d6c374d340129e60e100de79db654eed54-init/diff:/var/lib/docker/overlay2/10bc125ff741ca9a0612aa7eb4cb1620fb4cd977d1bb6707c2abafd026fdbfd8/diff:/var/lib/docker/overlay2/8ba9c225029dbd0d174a3430e6a67064db7bcf435d271356b0d34bad357f8b41/diff:/var/lib/docker/overlay2/c78bdc76e78d105eb0e1baa61bc3bdd64d14144d6e77a15c2c6eccdcfec6f40c/diff:/var/lib/docker/overlay2/78beeac37a816cfdbe60a93d9e781e5238cb33f7579a1f252b2d53682ef30ab3/diff:/var/lib/docker/overlay2/105ba852464cb6b0a67bf489cc9f10aaa2dbf7b9cf60a33321b40437e20b29ee/diff:/var/lib/docker/overlay2/f7ee6285f66dc494e023f21359c4c246e45f83243a7a2de901e90df0d3d312de/diff:/var/lib/docker/overlay2/0efb5bbb0dd910ccff0a728d6aec7d516cee993843856e9dceaf4a4a2e1a3760/diff:/var/lib/docker/overlay2/23ebfe8338d744aa61e8f3270fd7d8e92e4302d88984d788737b6919d754cecc/diff:/var/lib/docker/overlay2/428e52c305807c90fa1b282288ac8abf44e6aea1391fa40ba29f63ec1cfe3679/diff:/var/lib/docker/overlay2/e2014fb20473224cc19d79b31cc3092756f5c5adc4cf9bcd8bee8ffda7eb9571/diff:/var/lib/docker/overlay2/504bca21841ec024fd837e41c5357b12145ca041e0130baca2b3a89856425871/diff:/var/lib/docker/overlay2/4d4266ecd27200bf7fcf0123192a0f2d5ccac693cfc57b46d3051fb6c0f9fcab/diff:/var/lib/docker/overlay2/446d95f6ef1c90f9b223a63eaa8a7ecaef34fcb53572c82143ab54075cd42953/diff:/var/lib/docker/overlay2/d4e38f32d9bb8ad4715cb736edd36870919fc71cb61abc8d08842d6ef3d112ba/diff",
+      "MergedDir": "/var/lib/docker/overlay2/43744cf15c67583d94a0886de433c6d6c374d340129e60e100de79db654eed54/merged",
+      "UpperDir": "/var/lib/docker/overlay2/43744cf15c67583d94a0886de433c6d6c374d340129e60e100de79db654eed54/diff",
+      "WorkDir": "/var/lib/docker/overlay2/43744cf15c67583d94a0886de433c6d6c374d340129e60e100de79db654eed54/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/media/:/media:rw",
+      "/mnt/user/media/books/all/:/books:rw",
+      "/mnt/user/media/books/calibre/Calibre Library:/config/Calibre Library:rw",
+      "/mnt/user/appdata/calibre:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8280"
+        }
+      ],
+      "8081/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8281"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": [
+      "seccomp=unconfined"
+    ],
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "f373f9f9c12062d630d6773d293aeff0178a44b837c041b9fd0c88851b43c49c",
+  "Image": "sha256:2641941dc4fee61b8fb2dcdc40a7e80d1f894ea4b0324e7e27a6b0361c559bb5",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/books",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books/all",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/calibre",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config/Calibre Library",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books/calibre/Calibre Library",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/media",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/calibre",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

@@ -1,0 +1,395 @@
+[
+  {
+    "path": "/api/core/firmware/running",
+    "status": 403,
+    "bytes": 36,
+    "ms": 40,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "System: Firmware",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/core/firmware/status",
+    "status": 403,
+    "bytes": 36,
+    "ms": 44,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "System: Firmware",
+    "note": "GET only reads the cached product/check result; POST would run a probe",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/core/menu/tree",
+    "status": 200,
+    "bytes": 1729,
+    "ms": 47,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "(none listed)",
+    "note": "menu filtered by the caller's ACL: a privilege fingerprint",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/core/service/search",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Status: Services",
+    "note": "no isPost check; the same privilege also grants start/stop/restart",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/core/system/status",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "System: Status",
+    "note": "system status messages (the bell icon)",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/activity/get_activity",
+    "status": 200,
+    "bytes": 72867,
+    "ms": 2120,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Diagnostics: System Activity",
+    "note": "top(1): CPU/mem headers plus the full process list",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/cpu_usage/get_cpu_type",
+    "status": 403,
+    "bytes": 36,
+    "ms": 41,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/firewall/list_rule_ids",
+    "status": 403,
+    "bytes": 36,
+    "ms": 38,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Diagnostics: Firewall sessions",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/firewall/pf_states",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "note": "state table size: current and limit only",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/firewall/pf_statistics/info",
+    "status": 403,
+    "bytes": 36,
+    "ms": 40,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Diagnostics: Firewall statistics",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/interface/get_arp",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Diagnostics: ARP Table",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/interface/get_interface_names",
+    "status": 403,
+    "bytes": 36,
+    "ms": 42,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Diagnostics: Logs: Firewall: Live View",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/interface/get_interface_statistics",
+    "status": 403,
+    "bytes": 36,
+    "ms": 41,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Diagnostics: Netstat",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/system/system_disk",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/system/system_information",
+    "status": 403,
+    "bytes": 36,
+    "ms": 38,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "note": "name, versions, updates",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/system/system_mbuf",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/system/system_resources",
+    "status": 403,
+    "bytes": 36,
+    "ms": 44,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "note": "memory",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/system/system_swap",
+    "status": 403,
+    "bytes": 36,
+    "ms": 40,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/system/system_temperature",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/system/system_time",
+    "status": 403,
+    "bytes": 36,
+    "ms": 40,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Lobby: Dashboard",
+    "note": "uptime, boottime, loadavg",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/systemhealth/get_rrd_list",
+    "status": 403,
+    "bytes": 36,
+    "ms": 38,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Diagnostics: System Health",
+    "note": "RRD history: could backfill the sparkline",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/traffic/interface",
+    "status": 200,
+    "bytes": 5840,
+    "ms": 115,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Reporting: Traffic",
+    "note": "byte/packet counters per interface",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/diagnostics/traffic/top/lan",
+    "status": 200,
+    "bytes": 2765,
+    "ms": 2811,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Reporting: Traffic",
+    "note": "iftop for 2 s on the interface, plus reverse DNS",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/dnsmasq/leases/search",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Services: Dnsmasq DNS/DHCP: Settings",
+    "note": "no isPost check",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/interfaces/overview/interfaces_info",
+    "status": 403,
+    "bytes": 36,
+    "ms": 39,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Status: Interfaces",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/kea/leases4/search",
+    "status": 403,
+    "bytes": 36,
+    "ms": 40,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "Services: DHCP: Kea(v4)",
+    "note": "no isPost check; GET returns the first page",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  },
+  {
+    "path": "/api/routes/gateway/status",
+    "status": 403,
+    "bytes": 36,
+    "ms": 41,
+    "content_type": "application/json; charset=UTF-8",
+    "privilege": "System: Gateways",
+    "note": "dpinger: loss, delay, stddev, status",
+    "headers": {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json; charset=UTF-8",
+      "Server": "OPNsense",
+      "Set-Cookie": "PHPSESSID=<value not recorded>"
+    }
+  }
+]

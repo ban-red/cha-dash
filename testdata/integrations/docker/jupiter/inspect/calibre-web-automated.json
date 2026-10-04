@@ -1,0 +1,263 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "DOCKER_MODS=REDACTED",
+      "UMASK=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8083/tcp": {}
+    },
+    "Hostname": "c93e23ea040a",
+    "Image": "crocodilestick/calibre-web-automated:latest",
+    "Labels": {
+      "CW-base-version": "0.6.24",
+      "build_date": "2025-08-12T07:52:40Z",
+      "build_version": "Version:- V3.1.4",
+      "maintainer": "CrocodileStick",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/JPDVM2014/icons/35eb799864f41502e741075abfc6457ba0edefd6/calibre-web-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8083]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2025-07-29T23:37:16+00:00",
+      "org.opencontainers.image.description": "baseimage-ubuntu image by linuxserver.io",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-baseimage-ubuntu",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "a43054a951bd4a311f140175a70a00133d8586d3",
+      "org.opencontainers.image.revision": "a43054a951bd4a311f140175a70a00133d8586d3",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-baseimage-ubuntu",
+      "org.opencontainers.image.title": "Baseimage-ubuntu",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-baseimage-ubuntu/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "4de2673c-ls144"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/calibre-library": {},
+      "/config": {},
+      "/cwa-book-ingest": {}
+    },
+    "WorkingDir": "/config"
+  },
+  "Created": "2025-08-24T19:03:19.133059858Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "c93e23ea040a804b8b3e293e0c28213b5f6d0c567d5ac3f5b321a775ab766ed9",
+      "LowerDir": "/var/lib/docker/overlay2/6ec61a71c4fe782a1e7b8bfc3a137acd10ab82f28ba33f5c601be1adab65b7bf-init/diff:/var/lib/docker/overlay2/c6973715bb340be33c95df7c7eec81ec4efbf90e9fce22233bc4c3d75d825078/diff:/var/lib/docker/overlay2/d628eb5a26078686932786922c05ba753843a3a91bf0fef52728202505b48f45/diff:/var/lib/docker/overlay2/b6a268ba5e95f6bc5c1145ec5d96cf2c0e94044b8c52df6252e2483acb5a9b9b/diff:/var/lib/docker/overlay2/ddba5fda89f0d3b2dd3dfa38fd9d3ab8e65d22b9c76b5a96733189affe9d9591/diff:/var/lib/docker/overlay2/faa11b93e25341827e14f5c26bc46f211ccc61b73954d6df8b414c2d9f8f0da7/diff:/var/lib/docker/overlay2/e0e2652c0dfbd4e0452a2d9518231a3e7a0c59256f7024a89f66a24a711fca7e/diff:/var/lib/docker/overlay2/305f20ef80b3eefb33b679c0570ba34b48f94ee04c805311a9bff5f7f5a1052b/diff:/var/lib/docker/overlay2/dc2006feb6e58ee0f0a8c7a2bc7638a216226459093587331eedf627dbf71b69/diff:/var/lib/docker/overlay2/3ed5eb8f9cff9c5b300ec9a9f8d5a7cbd8828293e5c2ef3af7f3a6e2b2d5c538/diff:/var/lib/docker/overlay2/78885430350bfcb4d71589531329bc8f9621b2ca8a64daad44cb4a59ff38bbd8/diff:/var/lib/docker/overlay2/35e343878f45d9582380543fe1a9364bf4832c6a08ecbf3ba6f0d56e77898788/diff:/var/lib/docker/overlay2/d2e80bb88b9366bbab5bf654f77afc214343f7800f0dbc176f4fff74c1eec45b/diff",
+      "MergedDir": "/var/lib/docker/overlay2/6ec61a71c4fe782a1e7b8bfc3a137acd10ab82f28ba33f5c601be1adab65b7bf/merged",
+      "UpperDir": "/var/lib/docker/overlay2/6ec61a71c4fe782a1e7b8bfc3a137acd10ab82f28ba33f5c601be1adab65b7bf/diff",
+      "WorkDir": "/var/lib/docker/overlay2/6ec61a71c4fe782a1e7b8bfc3a137acd10ab82f28ba33f5c601be1adab65b7bf/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/calibre-web-automated:/config:rw",
+      "/mnt/user/media/books/cwa_book_ingest/:/cwa-book-ingest:rw",
+      "/mnt/user/media/books/all:/calibre-library:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8083/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8183"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "c93e23ea040a804b8b3e293e0c28213b5f6d0c567d5ac3f5b321a775ab766ed9",
+  "Image": "sha256:6f4feb77b881f829c8880d56dc868e968ed42455593039ef489574f20052816e",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/calibre-web-automated",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/cwa-book-ingest",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books/cwa_book_ingest",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/calibre-library",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books/all",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/calibre-web-automated",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

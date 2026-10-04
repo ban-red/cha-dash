@@ -90,11 +90,11 @@ All **read-only**, time-boxed, throwaway code. Each produces notes plus **saniti
 
 | # | Spike | Against | Also settles |
 |---|---|---|---|
-| 4.1 | PVE multi-instance + cluster: `/cluster/resources`, tasks, check that privilege separation is in effect | your 5 PVE endpoints | — |
+| 4.1 | ✅ ([findings](../../spikes/pve/README.md), [fixtures](../../testdata/integrations/proxmox/README.md)) PVE multi-instance + cluster: `/cluster/resources`, tasks, check that privilege separation is in effect | your 5 PVE endpoints | — |
 | 4.2 | Unraid: GraphQL introspection, subscriptions, `ApiKeyAuthorize` consent flow | jupiter | — |
-| 4.3 | Traefik routers, including path-based ones (`/sonarr`) → service URL correlation | pvedocker Traefik | — |
-| 4.4 | Docker through the socket proxy: list, inspect (with env redaction), events, and a proxy-vs-raw probe | both proxies | — |
-| 4.5 | OPNsense SSE traffic stream; Frigate events and snapshots | router, minig5 | — |
+| 4.3 | ✅ ([findings](../../spikes/traefik/README.md)) Traefik routers, including path-based ones (`/sonarr`) → service URL correlation | pvedocker Traefik | — |
+| 4.4 | ✅ ([findings](../../spikes/docker-proxy/README.md)) Docker through the socket proxy: list, inspect (with env redaction), events, and a proxy-vs-raw probe | both proxies | — |
+| 4.5 | ✅ OPNsense SSE traffic stream; Frigate events and snapshots ([OPNsense](../../spikes/opnsense/README.md), [Frigate](../../spikes/frigate/README.md): SSE confirmed; the Homepage key is already least-privilege) | router, minig5 | — |
 | 4.6 | ✅ **Node prototype**: Compose SDK + go-git deploy → diff → health gate → rollback. All 8 checks pass; verdict: build the node on the SDK. [Findings](../../spikes/node-compose/README.md#findings) | sandbox LXC on mars-2 via [`spikes/node-sandbox/sandbox.sh`](../../spikes/node-sandbox/README.md) | node size + memory → ADR-0016 |
 | 4.7 | ✅ Node transport: mTLS vs Noise (ergonomics, rotation, code size) ([findings](../../spikes/node-transport/README.md)) | local | ADR-0014 (proposed) |
 | 4.8 | ✅ SQLite driver: modernc vs ncruces (encryption cost, performance) ([findings](../../spikes/sqlite-driver/README.md)) | local | ADR-0015 (proposed) |

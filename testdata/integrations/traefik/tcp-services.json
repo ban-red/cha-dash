@@ -1,0 +1,59 @@
+[
+  {
+    "loadBalancer": {
+      "servers": [
+        {
+          "address": "10.0.11.246:61000"
+        }
+      ]
+    },
+    "name": "io-spice-tls@file",
+    "provider": "file",
+    "serverStatus": {
+      "10.0.11.246:61000": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "io-spice-tls@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "servers": [
+        {
+          "address": "10.0.11.246:3128"
+        }
+      ]
+    },
+    "name": "io-spice@file",
+    "provider": "file",
+    "serverStatus": {
+      "10.0.11.246:3128": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "io-spice@file"
+    ]
+  },
+  {
+    "loadBalancer": {
+      "servers": [
+        {
+          "address": "10.0.11.120:6611"
+        }
+      ]
+    },
+    "name": "onedev-ssh@file",
+    "provider": "file",
+    "serverStatus": {
+      "10.0.11.120:6611": "UP"
+    },
+    "status": "enabled",
+    "type": "loadbalancer",
+    "usedBy": [
+      "onedev-ssh@file"
+    ]
+  }
+]

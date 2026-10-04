@@ -1,0 +1,280 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/bin/bash",
+    "init.sh"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "/bin/bash",
+      "init.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/usr/bin/dumb-init",
+      "--"
+    ],
+    "Env": [
+      "TEMP_FOLDER=REDACTED",
+      "WEBPAGE_TITLE=REDACTED",
+      "VNC_PASSWORD=REDACTED",
+      "UMASK=REDACTED",
+      "PUID=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PGID=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "LANG=REDACTED"
+    ],
+    "ExposedPorts": {
+      "6080/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 120000000000,
+      "Retries": 3,
+      "StartPeriod": 120000000000,
+      "Test": [
+        "CMD-SHELL",
+        "/usr/local/bin/system/scripts/docker/healthcheck.sh || exit 1"
+      ],
+      "Timeout": 120000000000
+    },
+    "Hostname": "42b75941b88f",
+    "Image": "binhex/arch-krusader",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/binhex/docker-templates/master/binhex/images/krusader-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:6080]/vnc.html?resize=remote\u0026host=[IP]\u0026port=[PORT:6080]\u0026autoconnect=1",
+      "org.opencontainers.image.authors": "binhex",
+      "org.opencontainers.image.source": "https://github.com/binhex/arch-krusader"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-08-27T21:29:40.529160615Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "42b75941b88f553a29523fb86bab2b0a9ea2fc54b1cc2ff2e1bd1ff69ab7fd09",
+      "LowerDir": "/var/lib/docker/overlay2/6574469dea61d049a20e81b09133bf4c3987bf3bf50de1010dbcd17e4c85a96e-init/diff:/var/lib/docker/overlay2/f43aa212392816e21f782720a745ef785eef67a7a608e60b488e04838eb131ab/diff:/var/lib/docker/overlay2/148922645663466478bfbac654a186d34da9d6e8445461631aea34e4c14146b5/diff:/var/lib/docker/overlay2/2275f13fa0645b2ed23d0988969a58e2dc2bfaf5f26c0e171621ee1c2fe018ca/diff:/var/lib/docker/overlay2/e0799d9a1514f64623bf94fd615a841fd07dd6a85335e10d29d81eedd65b7865/diff:/var/lib/docker/overlay2/b8f6e3d6eaf9679dedd850c875be43885a003433918c4fe9ba9a5424bffd5c0e/diff:/var/lib/docker/overlay2/9e77decddede070b2530c8800d8b27b0045ba038e084234ac3b7bd47f3d7c9c8/diff:/var/lib/docker/overlay2/0a323693583c6750ff837580be15885d24cf3faf7a0e0d1372122f9c6f60b846/diff:/var/lib/docker/overlay2/a95e1a913531c46c39818ae8ec0c3f849733b6e5ea660ea09425240040036dd4/diff:/var/lib/docker/overlay2/8ae0a1c4670716c2f0d43f6a0d46ebd87b770a7175a7f41ff074e5105a9cf0bc/diff:/var/lib/docker/overlay2/08cfee9d27d940a6e3a356c2580f4e1b047b4105019212d08b4f9cbe9e347511/diff:/var/lib/docker/overlay2/91de3bf1aeae7e7849c7601f58450fb31d211d47e3d4813c022c1f2f67a3d753/diff:/var/lib/docker/overlay2/f204b2bad5c927f635ff92f964509c611e41237508094753f56199bfe8a72dbc/diff:/var/lib/docker/overlay2/483f0b7dfa7f771f7b17de8827b7f3390eb2159a7dda2bffc74f85107dd6b5c0/diff:/var/lib/docker/overlay2/6b893330b53586b66cccbc0724083c922a4bb5f50ef071f71f48d49b8882b5e8/diff:/var/lib/docker/overlay2/b5ac9ba1e76068deb96b33dc6af11d7b0df754ca68512ec3cb6adcb86686a962/diff",
+      "MergedDir": "/var/lib/docker/overlay2/6574469dea61d049a20e81b09133bf4c3987bf3bf50de1010dbcd17e4c85a96e/merged",
+      "UpperDir": "/var/lib/docker/overlay2/6574469dea61d049a20e81b09133bf4c3987bf3bf50de1010dbcd17e4c85a96e/diff",
+      "WorkDir": "/var/lib/docker/overlay2/6574469dea61d049a20e81b09133bf4c3987bf3bf50de1010dbcd17e4c85a96e/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/:/1_unraid_shares:rw",
+      "/mnt/disks/:/2_unraid_unassigned:rw",
+      "/mnt/remotes/:/3_unraid_remotes:rw",
+      "/mnt/user0/:/4_unraid_shares_nocache:rw",
+      "/mnt/user/appdata/binhex-krusader:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": null,
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "6080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6080"
+        }
+      ]
+    },
+    "Privileged": true,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": null,
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": [
+      "label=disable"
+    ],
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/42b75941b88f553a29523fb86bab2b0a9ea2fc54b1cc2ff2e1bd1ff69ab7fd09/hostname",
+  "HostsPath": "/var/lib/docker/containers/42b75941b88f553a29523fb86bab2b0a9ea2fc54b1cc2ff2e1bd1ff69ab7fd09/hosts",
+  "Id": "42b75941b88f553a29523fb86bab2b0a9ea2fc54b1cc2ff2e1bd1ff69ab7fd09",
+  "Image": "sha256:38468b2abffa63b9d57b7fa1cc4e432dcef77584a566a68a25d0f1d5edf3dbf1",
+  "LogPath": "/var/lib/docker/containers/42b75941b88f553a29523fb86bab2b0a9ea2fc54b1cc2ff2e1bd1ff69ab7fd09/42b75941b88f553a29523fb86bab2b0a9ea2fc54b1cc2ff2e1bd1ff69ab7fd09-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/1_unraid_shares",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/2_unraid_unassigned",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/disks",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/3_unraid_remotes",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/remotes",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/4_unraid_shares_nocache",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user0",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/binhex-krusader",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/binhex-krusader",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "b497dcd67839addf1f827cb5699d388333e9b97f244d07ee58a7d5ef866c76ea"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/usr/bin/dumb-init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/42b75941b88f553a29523fb86bab2b0a9ea2fc54b1cc2ff2e1bd1ff69ab7fd09/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2026-09-05T22:11:30.870738813Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-08-27T15:30:03.317287871-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-08-27T15:30:03.23917722-06:00"
+        },
+        {
+          "End": "2026-08-27T15:31:38.392632038-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-08-27T15:31:38.341668367-06:00"
+        }
+      ],
+      "Status": "starting"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-08-27T21:33:03.312797813Z",
+    "Status": "exited"
+  }
+}

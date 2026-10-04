@@ -1,0 +1,7 @@
+# Raw (unsanitized) captures and anything derived from real values. Only the
+# sanitized fixtures under testdata/integrations/docker/ are committed.
+raw/
+*.raw.json
+state*.json
+leak-values*
+bin/

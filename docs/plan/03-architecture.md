@@ -83,7 +83,8 @@ The main way to self-host Cha Dash is `docker compose up -d`. Every install doc 
 - **No required environment variables.** On first boot the hub generates its vault key and prints a **setup token** to the logs.
 - **One persistent volume** (`/data`).
 - A **healthcheck** built into the binary, because scratch images have no curl.
-- Pinned, signed, multi-arch images (amd64 and arm64; armv7 best-effort).
+- Pinned, signed, multi-arch images: amd64 and arm64 fully supported, armv7 best-effort ([ADR-0016](../adr/0016-hardware-floor.md)).
+- **512 MB of RAM** for a host running the hub, its local node, the OS and Docker; 1 GB if it runs other things too.
 
 ```yaml
 # compose.yaml — Cha Dash hub (illustrative; the real file ships in deploy/ with pinned versions)
@@ -426,7 +427,7 @@ type ActionDef struct {
 1. **Resolve:** target and params, validated against the schema.
 2. **Authorize:** check role, scope and resource qualifiers. Require step-up auth if the tier calls for it.
 3. **Plan:** steps, blast radius and diff.
-4. **Approve:** the confirmation UX for the tier, or approval from another device for API- or AI-originated plans.
+4. **Approve:** the confirmation UX for the tier, or approval from another device for API- or AI-originated plans. Every plan records its **originator** (a user session, an API token or an agent token). An agent's plan waits as `awaiting_approval`; a human approves it in a session (a passkey from T2 up), and the approval is bound to that exact plan. Agents can never approve, propose T4, see secrets or change configuration ([ADR-0017](../adr/0017-ai-and-mcp.md)).
 5. **Execute:** per-resource locks, idempotency keys, a streamed Task, and timeouts.
 6. **Verify:** post-conditions, with auto-rollback where one is defined.
 7. **Audit:** append-only and never optional.
@@ -451,7 +452,7 @@ Every surface goes through this engine: tile buttons, ⌘K, the REST API, mobile
 **Transport:**
 - One persistent outbound WSS connection that multiplexes RPC, metrics, logs, exec and deploy progress.
 - Optional direct mode (the hub dials the node) for air-gapped LANs.
-- Mutual auth: TLS 1.3 *inside* the WebSocket, each side identified by an Ed25519 key pinned at enrollment, no CA. It works behind TLS-terminating proxies. Proposed in [ADR-0014](../adr/0014-node-transport.md).
+- Mutual auth: TLS 1.3 *inside* the WebSocket, each side identified by an Ed25519 key pinned at enrollment, no CA. It works behind TLS-terminating proxies ([ADR-0014](../adr/0014-node-transport.md)).
 - **No shared default certificates, ever.**
 
 **Local policy.** The hub can't exceed it:
@@ -479,14 +480,14 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
   - host metrics
   - SMART, sensors, NUT (later)
   - relay
-- **Footprint target:** binary ≤ 40 MB, revised after spike 4.6 measured 31 MB with the Compose SDK linked ([ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md)). The idle-RSS target is set once a long-running node is measured; one-shot commands peaked at ~35 MB.
+- **Footprint target:** binary ≤ 40 MB, revised after spike 4.6 measured 31 MB with the Compose SDK linked ([ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md)). Idle RSS ≤ 40 MB ([ADR-0016](../adr/0016-hardware-floor.md); 33 MB measured with the Compose SDK initialized, to confirm against a real daemon).
 - **On Unraid** (optional, v0.3+): the node runs as a Community Apps container *alongside* the Unraid API. It adds what the API lacks: host metrics, per-container stats as numbers, logs, opt-in exec, SMART detail and registry update checks. Lifecycle for Unraid-managed containers still goes through the Unraid API, so Unraid stays the source of truth.
 
 ---
 
 ## Storage
 
-**SQLite in WAL mode**, pure Go: `modernc.org/sqlite` today; [ADR-0015](../adr/0015-sqlite-driver.md) proposes `ncruces/go-sqlite3`, with optional Adiantum encryption at rest keyed from the vault's key. One writer plus a read pool. goose for migrations.
+**SQLite in WAL mode**, pure Go with `ncruces/go-sqlite3` ([ADR-0015](../adr/0015-sqlite-driver.md)). Adiantum encryption at rest is an opt-in, keyed from the vault's key; it's off by default because a lost key would lose the whole database. One writer plus a read pool. goose for migrations.
 
 | Area | Contents | Retention |
 |---|---|---|
@@ -546,8 +547,10 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 - **The hub never has Docker write access.** Only nodes do, and only within local policy.
 - **Secrets never reach the browser.** Container inspect output has env vars redacted on the server or node.
 - **Least-privilege onboarding.** The wizard generates exact token recipes:
-  - **PVE:** `PVEAuditor` for read; `VM.PowerMgmt` and `VM.Snapshot` added for control, on a privilege-separated token. Generated per PVE instance; there are five on the dogfood home.
+  - **PVE:** `PVEAuditor` for read; `VM.PowerMgmt` and `VM.Snapshot` added for control, on a privilege-separated token. Generated per PVE instance; there are five on the dogfood home. With privilege separation, a token's rights are the *intersection* of its own ACL and its user's, so the recipe grants both. PVEAuditor differs by version (7 privileges on 9.x, 6 on 8.4), and it can't list backup volumes or read pending updates: read-only backup state comes from vzdump tasks or a PBS integration ([spike 4.1](../../spikes/pve/README.md)).
   - **Unraid:** the consent flow.
+  - **OPNsense:** a dedicated user with *Reporting: Traffic* and *Lobby: Dashboard*. Gateway status needs *System: Gateways*, which can also edit gateways, so it's an opt-in labelled as write-capable. Never *Status: Services*, *Status: Interfaces*, *System: Firmware* or the DHCP privileges, which all grant writes ([spike 4.5](../../spikes/opnsense/README.md)).
+  - **Frigate:** the authenticated port with a viewer user; the internal port answers as an anonymous admin, which earns an Inbox hint ([spike 4.5](../../spikes/frigate/README.md)).
   - **TrueNAS:** `auth.login_ex`.
   - **Tailscale:** OAuth scopes.
 - **Separate read and control credentials** wherever the upstream API supports it. Keys that are admin-equivalent are labeled that way.
@@ -555,7 +558,12 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
   - **Reused secrets.** The vault compares secrets by keyed hash, so it can say "the same password is used for Traefik and qBittorrent".
   - **Credentials sent over plain `http://`.**
   - **Read-only tokens** that could be upgraded when you want control.
-  - **Docker endpoints that look like a raw API instead of a filtering proxy.** Detected with a safe, read-only probe; Cha Dash never probes write endpoints.
+  - **Docker endpoints, in three tiers** (from [spike 4.4](../../spikes/docker-proxy/README.md)), detected with a safe, read-only GET probe; Cha Dash never probes write endpoints:
+    - **critical:** system or swarm endpoints answer, so it's a raw Docker API (root on the host);
+    - **warning:** those are refused but container logs aren't, so it's a coarse proxy that exposes env, logs and files;
+    - **none:** a path-anchored proxy like our compose preset.
+  - **Secrets in container labels**, and **containers that mount the Docker socket** read-write.
+  - **A Traefik dashboard open without auth**, or its API reached over plain `http://`. Traefik's API also returns basic-auth password hashes, so the hub never stores or shows middleware configs raw.
 
 ### Threat model (summary; full version in `SECURITY.md`)
 
@@ -582,7 +590,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Proxmox / PBS | Thin in-house client generated from `apidoc.js` | Keeps pace with 9.x privilege changes | go-proxmox |
 | Expressions | gjson + expr-lang (or CEL) | Pure and always terminates | JS sandbox |
 | Realtime | `coder/websocket` + SSE fallback | Maintained; avoids the HTTP/1.1 connection cap | gorilla/websocket (stale) |
-| Storage | SQLite WAL (modernc or ncruces), goose, sqlc | Zero-ops | Postgres (later, maybe) |
+| Storage | SQLite WAL (ncruces), goose, sqlc | Zero-ops | Postgres (later, maybe) |
 | **Frontend** ✅ | **Vue 3.6** (RC now; move to stable at release) + **Vite** (latest), a plain SPA with no SSR or Nuxt, embedded with `go:embed`. `<script setup lang="ts">` and the Composition API | Owner's choice. Large contributor pool. Go with an embedded Vue SPA is a well-proven pairing. Vue gets Motion's layout animations, which Svelte doesn't | Svelte 5 (the earlier recommendation), React 19 |
 | Vapor mode | **Opt-in per component, measured, not assumed.** Candidates: hot widget internals (rolling numerals, sparklines, grid cells) once Vapor is stable | Fine-grained updates for high-frequency data without rewriting the app | — |
 | State | Pinia. The graph store is fed by WS diffs and holds large data in `shallowRef` / `markRaw` | Predictable; avoids deep reactivity on a big graph | — |
@@ -591,7 +599,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Motion | **Motion for Vue** (springs, layout animations, gestures); Vue `<Transition>` / `<TransitionGroup>` (FLIP moves); View Transitions API for expand-in-place; `prefers-reduced-motion` honored everywhere | Interruptible spring physics, which is the "Apple feel" | @vueuse/motion |
 | Utilities | **VueUse**: wake lock, media queries, reduced motion, intersection, idle | Kiosk and PWA needs covered | — |
 | Styling | Tailwind 4 + our token layer (OKLCH CSS variables) | Tokens are the design system | UnoCSS |
-| Grid | **Our own layout engine**: a framework-agnostic TS package (packing, collision, Z-reflow, snapping to supported sizes, derived breakpoints) rendered by Vue with Motion. Proposed in [ADR-0013](../adr/0013-grid-engine.md) after the gridstack 14 comparison | The layout engine *is* how the product feels | gridstack 14, dnd-kit/dom (pre-1.0) |
+| Grid | **Our own layout engine**: a framework-agnostic TS package (packing, collision, Z-reflow, snapping to supported sizes, derived breakpoints) rendered by Vue with Motion. Decided in [ADR-0013](../adr/0013-grid-engine.md) after the gridstack 14 comparison | The layout engine *is* how the product feels | gridstack 14, dnd-kit/dom (pre-1.0) |
 | Charts | Hand-rolled SVG/canvas sparklines and bars; uPlot for detailed time series | Tiny, fast, on-brand | ECharts (heavy) |
 | API client | `openapi-typescript` + `openapi-fetch`, generated from the hub's OpenAPI | One typed source of truth | — |
 | PWA | `vite-plugin-pwa` (Workbox), CSP-compatible | Offline shell, last-known snapshot, Web Push | — |
@@ -608,7 +616,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 |---|---|
 | Hub image | ≤ 40 MB compressed |
 | Hub idle RSS | ≤ 60 MB with no integrations · ≤ 120 MB with the full dogfood home (~25 integration instances, ~300 resources) |
-| Node | ≤ 40 MB binary · idle RSS set after measuring a long-running node (one-shot commands: ~35 MB peak) |
+| Node | ≤ 40 MB binary · ≤ 40 MB RSS idle ([ADR-0016](../adr/0016-hardware-floor.md)) |
 | First meaningful paint on LAN | ≤ 300 ms, with real last-known values |
 | JS bundle (initial) | ≤ 150 KB gzipped |
 | Interaction | 60 fps drag and resize on a mid-range phone; input-to-feedback ≤ 50 ms |

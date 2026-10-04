@@ -1,0 +1,328 @@
+{
+  "data": {
+    "data": [
+      {
+        "id": "node/pluto",
+        "metric": "uptime",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 1154159
+      },
+      {
+        "id": "node/pluto",
+        "metric": "net_in",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 4865405820319
+      },
+      {
+        "id": "node/pluto",
+        "metric": "net_out",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 4869486068788
+      },
+      {
+        "id": "node/pluto",
+        "metric": "cpu_avg1",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 0.21
+      },
+      {
+        "id": "node/pluto",
+        "metric": "cpu_avg5",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 0.23
+      },
+      {
+        "id": "node/pluto",
+        "metric": "cpu_avg15",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 0.25
+      },
+      {
+        "id": "node/pluto",
+        "metric": "cpu_max",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 4
+      },
+      {
+        "id": "node/pluto",
+        "metric": "cpu_current",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 0.0754074434444174
+      },
+      {
+        "id": "node/pluto",
+        "metric": "cpu_iowait",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 0
+      },
+      {
+        "id": "node/pluto",
+        "metric": "mem_total",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 16497078272
+      },
+      {
+        "id": "node/pluto",
+        "metric": "mem_used",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 13387436032
+      },
+      {
+        "id": "node/pluto",
+        "metric": "swap_total",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 8589930496
+      },
+      {
+        "id": "node/pluto",
+        "metric": "swap_used",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 524288
+      },
+      {
+        "id": "node/pluto",
+        "metric": "disk_total",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 41489260544
+      },
+      {
+        "id": "node/pluto",
+        "metric": "disk_used",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 17023004672
+      },
+      {
+        "id": "qemu/103",
+        "metric": "cpu_current",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 0.0611465704505312
+      },
+      {
+        "id": "qemu/103",
+        "metric": "mem_used",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 11225206784
+      },
+      {
+        "id": "qemu/103",
+        "metric": "disk_read",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 11952554486
+      },
+      {
+        "id": "qemu/103",
+        "metric": "disk_write",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 50757623808
+      },
+      {
+        "id": "qemu/103",
+        "metric": "net_in",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 4870636627362
+      },
+      {
+        "id": "qemu/103",
+        "metric": "net_out",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 4859227773025
+      },
+      {
+        "id": "qemu/103",
+        "metric": "uptime",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 1154128
+      },
+      {
+        "id": "qemu/103",
+        "metric": "cpu_max",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 4
+      },
+      {
+        "id": "qemu/103",
+        "metric": "mem_total",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 17179869184
+      },
+      {
+        "id": "qemu/103",
+        "metric": "disk_total",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 34359738368
+      },
+      {
+        "id": "lxc/100",
+        "metric": "cpu_current",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 0
+      },
+      {
+        "id": "lxc/100",
+        "metric": "mem_used",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 30953472
+      },
+      {
+        "id": "lxc/100",
+        "metric": "disk_read",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 133095424
+      },
+      {
+        "id": "lxc/100",
+        "metric": "disk_write",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 105304064
+      },
+      {
+        "id": "lxc/100",
+        "metric": "net_in",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 15589669774
+      },
+      {
+        "id": "lxc/100",
+        "metric": "net_out",
+        "timestamp": 1791077351,
+        "type": "derive",
+        "value": 29428879
+      },
+      {
+        "id": "lxc/100",
+        "metric": "disk_used",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 808751104
+      },
+      {
+        "id": "lxc/100",
+        "metric": "uptime",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 1154079
+      },
+      {
+        "id": "lxc/100",
+        "metric": "cpu_max",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 1
+      },
+      {
+        "id": "lxc/100",
+        "metric": "mem_total",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 536870912
+      },
+      {
+        "id": "lxc/100",
+        "metric": "disk_total",
+        "timestamp": 1791077351,
+        "type": "gauge",
+        "value": 8350298112
+      },
+      {
+        "id": "storage/pluto/usb",
+        "metric": "disk_total",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 41489260544
+      },
+      {
+        "id": "storage/pluto/usb",
+        "metric": "disk_used",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 17023004672
+      },
+      {
+        "id": "storage/pluto/pbs-unraid-pluto",
+        "metric": "disk_total",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 45976621608960
+      },
+      {
+        "id": "storage/pluto/pbs-unraid-pluto",
+        "metric": "disk_used",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 42255839424512
+      },
+      {
+        "id": "storage/pluto/local",
+        "metric": "disk_total",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 41489260544
+      },
+      {
+        "id": "storage/pluto/local",
+        "metric": "disk_used",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 17023004672
+      },
+      {
+        "id": "storage/pluto/store-1",
+        "metric": "disk_total",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 0
+      },
+      {
+        "id": "storage/pluto/store-1",
+        "metric": "disk_used",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 0
+      },
+      {
+        "id": "storage/pluto/local-lvm",
+        "metric": "disk_total",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 57902366720
+      },
+      {
+        "id": "storage/pluto/local-lvm",
+        "metric": "disk_used",
+        "timestamp": 1791077352,
+        "type": "gauge",
+        "value": 26432430407
+      }
+    ]
+  }
+}

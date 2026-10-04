@@ -1,0 +1,9 @@
+# Raw captures hold real addresses, MACs and hostnames. Never commit them;
+# only sanitized fixtures belong in testdata/integrations/opnsense/.
+raw/
+*.raw.json
+*.raw.txt
+# TOFU certificate pins and leak-check needle lists stay local.
+*.pin
+*.needles
+bin/

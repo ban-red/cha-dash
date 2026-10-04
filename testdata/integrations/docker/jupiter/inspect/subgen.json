@@ -1,0 +1,279 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "python3",
+    "launcher.py"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "python3",
+      "launcher.py"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/entrypoint.sh"
+    ],
+    "Env": [
+      "WEBHOOKPORT=REDACTED",
+      "WORD_LEVEL_HIGHLIGHT=REDACTED",
+      "USE_PATH_MAPPING=REDACTED",
+      "UPDATE=REDACTED",
+      "MODEL_PATH=REDACTED",
+      "CLEAR_VRAM_ON_COMPLETE=REDACTED",
+      "NAMESUBLANG=REDACTED",
+      "CONCURRENT_TRANSCRIPTIONS=REDACTED",
+      "WHISPER_MODEL=REDACTED",
+      "APPEND=REDACTED",
+      "USE_MODEL_PROMPT=REDACTED",
+      "TRANSCRIBE_DEVICE=REDACTED",
+      "CUSTOM_REGROUP=REDACTED",
+      "DEBUG=REDACTED",
+      "LRC_FOR_AUDIO_FILES=REDACTED",
+      "PROCADDEDMEDIA=REDACTED",
+      "SKIPIFINTERNALSUBLANG=REDACTED",
+      "PROCMEDIAONPLAY=REDACTED",
+      "WHISPER_THREADS=REDACTED",
+      "CUSTOM_MODEL_PROMPT=REDACTED",
+      "PATH=REDACTED",
+      "NVARCH=REDACTED",
+      "NVIDIA_REQUIRE_CUDA=REDACTED",
+      "NV_CUDA_CUDART_VERSION=REDACTED",
+      "NV_CUDA_COMPAT_PACKAGE=REDACTED",
+      "CUDA_VERSION=REDACTED",
+      "LD_LIBRARY_PATH=REDACTED",
+      "NVIDIA_VISIBLE_DEVICES=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "XDG_CACHE_HOME=REDACTED",
+      "HF_HOME=REDACTED",
+      "MPLCONFIGDIR=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED"
+    ],
+    "ExposedPorts": {
+      "9000/tcp": {}
+    },
+    "Hostname": "6705d32144b7",
+    "Image": "mccloud/subgen",
+    "Labels": {
+      "com.docker.compose.config-hash": "714dcd558f6e06226072b39a2b811dd996641fd455da0e1eff8b26feeb170e97",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:2b0ba6018cf5fb653e8aac99f934539b41ccad52a1c3c3ae66cca5fd2a0c6ba2",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "ai",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/AI/docker-compose.yml,/boot/config/plugins/compose.manager/projects/AI/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/AI",
+      "com.docker.compose.service": "subgen",
+      "com.docker.compose.version": "2.40.3",
+      "maintainer": "NVIDIA CORPORATION \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.version": "22.04"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": true,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/subgen"
+  },
+  "Created": "2026-05-12T21:21:15.684604582Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "6705d32144b7d72ce8ba33bcfaa6624e50df6c2871bf89819e31bd91380da5bb",
+      "LowerDir": "/var/lib/docker/overlay2/41401624686033c6f6381cdc9207ec11feebcdd7f9e0ae242e58474501521ab5-init/diff:/var/lib/docker/overlay2/ed286c8df1cbab4bcc6055c6eca0c06027c32f606cbe518a7861a73a535cd6c3/diff:/var/lib/docker/overlay2/5f1ba8d981b237cd6479365a7c41a1b61cdbd932f815875105329ed83db4c8df/diff:/var/lib/docker/overlay2/6cd95e7ed8298e5251058107aa2f9ccde81c21aa8df5a0026e5b83f242d95c09/diff:/var/lib/docker/overlay2/12b17e36ba96517ea7f1081137c78b76487eb2722c4178a71ef7d50a1cb6a16b/diff:/var/lib/docker/overlay2/0ce93260630bcb1411a26252e6f2c7df982be12953f1f2626661541fb57ab9ad/diff:/var/lib/docker/overlay2/48bad0d81a3af6b0aa02b89f1b141dc7a198c062b31f982d81d79335611d3bf3/diff:/var/lib/docker/overlay2/63acc8153468ef81df500acdcfd89c46cf9ff9c0c0a5dae6d5ac3611ee30cc83/diff:/var/lib/docker/overlay2/4360ada0ae3f0d3cef5d23c61a6587280b0fe40fa212f2340f4904530cc62bbc/diff:/var/lib/docker/overlay2/36e978bc142d4231195cf85c09f783141bca0671f9c8bdf9260f2c38fd390cd7/diff:/var/lib/docker/overlay2/db3324274270a8d014504fffcad2976f01a612d38274e730593bcf7431dc59a0/diff:/var/lib/docker/overlay2/4ebb99693fac8c651f1d9681b0772329b38afbba77dfb02ce24e34c3b097fcfa/diff:/var/lib/docker/overlay2/0955e22c7f2ae3cc93e0fdb4da5a7c4399c112563d77e36c1e356544f7cd0c30/diff:/var/lib/docker/overlay2/8f41c2066ae8565235a7f32ecad2a342ce718c369dcc2151c69e2dd979007a7e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/41401624686033c6f6381cdc9207ec11feebcdd7f9e0ae242e58474501521ab5/merged",
+      "UpperDir": "/var/lib/docker/overlay2/41401624686033c6f6381cdc9207ec11feebcdd7f9e0ae242e58474501521ab5/diff",
+      "WorkDir": "/var/lib/docker/overlay2/41401624686033c6f6381cdc9207ec11feebcdd7f9e0ae242e58474501521ab5/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/AI/subgen/models:/subgen/models:rw"
+    ],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": [
+      {
+        "Capabilities": [
+          [
+            "gpu"
+          ]
+        ],
+        "Count": 1,
+        "DeviceIDs": null,
+        "Driver": "nvidia",
+        "Options": null
+      }
+    ],
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "ai_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "9000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "9000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/6705d32144b7d72ce8ba33bcfaa6624e50df6c2871bf89819e31bd91380da5bb/hostname",
+  "HostsPath": "/var/lib/docker/containers/6705d32144b7d72ce8ba33bcfaa6624e50df6c2871bf89819e31bd91380da5bb/hosts",
+  "Id": "6705d32144b7d72ce8ba33bcfaa6624e50df6c2871bf89819e31bd91380da5bb",
+  "Image": "sha256:2b0ba6018cf5fb653e8aac99f934539b41ccad52a1c3c3ae66cca5fd2a0c6ba2",
+  "LogPath": "/var/lib/docker/containers/6705d32144b7d72ce8ba33bcfaa6624e50df6c2871bf89819e31bd91380da5bb/6705d32144b7d72ce8ba33bcfaa6624e50df6c2871bf89819e31bd91380da5bb-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/subgen/models",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/AI/subgen/models",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/subgen",
+  "NetworkSettings": {
+    "Networks": {
+      "ai_default": {
+        "Aliases": [
+          "subgen",
+          "subgen"
+        ],
+        "DNSNames": [
+          "subgen",
+          "6705d32144b7"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "19339b3913a23ae263c1ccd3b6138efd34ce5e7a0875b50b8464efeed6629c4a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/6705d32144b7d72ce8ba33bcfaa6624e50df6c2871bf89819e31bd91380da5bb/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2026-05-22T20:30:39.070427598Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-05-12T21:40:41.655966212Z",
+    "Status": "exited"
+  }
+}

@@ -1,0 +1,269 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "FIX_OWNERSHIP=REDACTED",
+      "TITLEDB_URL=REDACTED",
+      "TITLEDB_LANGUAGE=REDACTED",
+      "NUT_API_SCHEDULES=REDACTED",
+      "GROUP_ID=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "TITLEDB_UPDATE=REDACTED",
+      "TITLEDB_REGION=REDACTED",
+      "USER_ID=REDACTED",
+      "UMASK=REDACTED",
+      "TZ=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PATH=REDACTED",
+      "LANG=REDACTED",
+      "GPG_KEY=REDACTED",
+      "PYTHON_VERSION=REDACTED",
+      "PYTHON_PIP_VERSION=REDACTED",
+      "PYTHON_SETUPTOOLS_VERSION=REDACTED",
+      "PYTHON_GET_PIP_URL=REDACTED",
+      "PYTHON_GET_PIP_SHA256=REDACTED",
+      "S6_OVERLAY_RELEASE=REDACTED"
+    ],
+    "ExposedPorts": {
+      "9000/tcp": {}
+    },
+    "Hostname": "b5d6918e2135",
+    "Image": "shawly/nut:edge",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/A75G/docker-templates/master/templates/icons/nut.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:9000]",
+      "org.opencontainers.image.created": "2024-02-08T08:17:50Z",
+      "org.opencontainers.image.description": "$IMAGE_DESCRIPTION",
+      "org.opencontainers.image.revision": "7391b5549845765b22bc8b391f6bcbbc24380362",
+      "org.opencontainers.image.source": "https://github.com/shawly/docker-nut",
+      "org.opencontainers.image.title": "$IMAGE_TITLE",
+      "org.opencontainers.image.url": "https://github.com/shawly/docker-nut",
+      "org.opencontainers.image.vendor": "shawly",
+      "org.opencontainers.image.version": "$APP_VERSION"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/nut/_NSPOUT": {},
+      "/nut/conf": {},
+      "/nut/titles": {}
+    },
+    "WorkingDir": "/nut"
+  },
+  "Created": "2025-06-08T17:49:54.908305471Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "b5d6918e2135a8bfd584aa7c877c0422e61e7b2b3c25eafa38ac6c3c6b448e38",
+      "LowerDir": "/var/lib/docker/overlay2/0bef160018570bb7b2e10f3739b3116c57337f7cd6afa5d31b80b85a20ba6fc2-init/diff:/var/lib/docker/overlay2/f2e68025010edc626166728f1c70506afb97a3cfa59b8df2a114b6eeab24056a/diff:/var/lib/docker/overlay2/977bc7fbdf1777a80a605a539a851243318b57804110f6cdada0b1c78092c07f/diff:/var/lib/docker/overlay2/9864480e7b831b0c6e9215f418f7a0979396bedb05ec1ef04f6144d77ace7b61/diff:/var/lib/docker/overlay2/082a4cc65f46c9cf2b358ad441baa029651370a7d74780bbc45e92f72bf144f5/diff:/var/lib/docker/overlay2/5ca28a079e6a419729f94a4affb37516a27bdbf57a79658bb7ffa00e2282b78e/diff:/var/lib/docker/overlay2/a1b54f6c8b659acc95285bc52cc109a3789f0e75f2e2a6bfc5e2831a66a9b472/diff:/var/lib/docker/overlay2/54dfc5b330303604cec4ead3f4f0a41872edd445f691c7d42726c981ddf578ae/diff:/var/lib/docker/overlay2/ed1bb765ba9caab612feaacd0d1100fa809cf6777a7455873d61e6750a51d28d/diff:/var/lib/docker/overlay2/1e2f1c5969d92a54301a3419c40e40e70acb071b7a21348c3c4e5539aa7b04b8/diff:/var/lib/docker/overlay2/d047f87ead8ff435297aa0a3a04a43c913a514eb327185126f15f718536faa83/diff",
+      "MergedDir": "/var/lib/docker/overlay2/0bef160018570bb7b2e10f3739b3116c57337f7cd6afa5d31b80b85a20ba6fc2/merged",
+      "UpperDir": "/var/lib/docker/overlay2/0bef160018570bb7b2e10f3739b3116c57337f7cd6afa5d31b80b85a20ba6fc2/diff",
+      "WorkDir": "/var/lib/docker/overlay2/0bef160018570bb7b2e10f3739b3116c57337f7cd6afa5d31b80b85a20ba6fc2/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/games/roms/switch:/nut/titles:rw",
+      "/mnt/user/games/roms/switch/nut/conf:/nut/conf:rw",
+      "/mnt/user/games/roms/switch/nut/_NSPOUT:/nut/_NSPOUT:rw",
+      "/mnt/user/games/roms/switch/nut/titledb:/nut/titledb:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "9000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "9000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/b5d6918e2135a8bfd584aa7c877c0422e61e7b2b3c25eafa38ac6c3c6b448e38/hostname",
+  "HostsPath": "/var/lib/docker/containers/b5d6918e2135a8bfd584aa7c877c0422e61e7b2b3c25eafa38ac6c3c6b448e38/hosts",
+  "Id": "b5d6918e2135a8bfd584aa7c877c0422e61e7b2b3c25eafa38ac6c3c6b448e38",
+  "Image": "sha256:14505eab0df6d0149f098f5d918b838ee87196ddd9d3794d8b8c2102d9e0f30c",
+  "LogPath": "/var/lib/docker/containers/b5d6918e2135a8bfd584aa7c877c0422e61e7b2b3c25eafa38ac6c3c6b448e38/b5d6918e2135a8bfd584aa7c877c0422e61e7b2b3c25eafa38ac6c3c6b448e38-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/nut/_NSPOUT",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/games/roms/switch/nut/_NSPOUT",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/nut/conf",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/games/roms/switch/nut/conf",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/nut/titledb",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/games/roms/switch/nut/titledb",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/nut/titles",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/games/roms/switch",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/nut",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "de01e137ce3b6c28abc829f00be4ef25de72191c6c9eaf29632cf29502600d40"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/b5d6918e2135a8bfd584aa7c877c0422e61e7b2b3c25eafa38ac6c3c6b448e38/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2025-06-19T07:09:31.392509766Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2025-06-16T10:06:44.878608834Z",
+    "Status": "exited"
+  }
+}

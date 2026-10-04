@@ -1,0 +1,51 @@
+{
+  "data": [
+    {
+      "content": "import,images,iso",
+      "digest": "110461fd2ee0c4850998955501c437bc978c5ef4",
+      "export": "/mnt/user/games",
+      "path": "/mnt/pve/jupiter-games",
+      "prune-backups": "keep-all=1",
+      "server": "10.0.11.120",
+      "shared": 1,
+      "storage": "jupiter-games",
+      "type": "nfs"
+    },
+    {
+      "content": "rootdir,images",
+      "digest": "110461fd2ee0c4850998955501c437bc978c5ef4",
+      "storage": "local-lvm",
+      "thinpool": "data",
+      "type": "lvmthin",
+      "vgname": "pve"
+    },
+    {
+      "content": "rootdir,images",
+      "digest": "110461fd2ee0c4850998955501c437bc978c5ef4",
+      "mountpoint": "/data",
+      "nodes": "io",
+      "pool": "data",
+      "storage": "data",
+      "type": "zfspool"
+    },
+    {
+      "content": "backup",
+      "datastore": "store-2",
+      "digest": "110461fd2ee0c4850998955501c437bc978c5ef4",
+      "fingerprint": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:04",
+      "prune-backups": "keep-all=1",
+      "server": "10.0.11.120",
+      "shared": 1,
+      "storage": "pbs-unraid-io",
+      "type": "pbs",
+      "username": "admin@pbs"
+    },
+    {
+      "content": "backup,vztmpl,iso",
+      "digest": "110461fd2ee0c4850998955501c437bc978c5ef4",
+      "path": "/var/lib/vz",
+      "storage": "local",
+      "type": "dir"
+    }
+  ]
+}

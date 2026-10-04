@@ -1,0 +1,104 @@
+[
+  {
+    "Children": [
+      {
+        "Children": [],
+        "CssClass": "fa fa-sign-out fa-fw",
+        "Depth": 2,
+        "Id": "Logout",
+        "IsExternal": "N",
+        "LinkClass": "list-group-item menu_ref_5826b9762cc77e732b13a69fe799ecd4 ",
+        "Order": "3",
+        "Selected": false,
+        "Url": "/index.php?logout",
+        "Visibility": "all",
+        "VisibleName": "Logout",
+        "isVisible": true
+      }
+    ],
+    "CssClass": "fa fa-laptop",
+    "Depth": 1,
+    "Id": "Lobby",
+    "IsExternal": "N",
+    "LinkClass": "list-group-item ",
+    "Order": "10",
+    "Selected": false,
+    "Url": "",
+    "Visibility": "all",
+    "VisibleName": "Lobby",
+    "isVisible": true
+  },
+  {
+    "Children": [
+      {
+        "Children": [],
+        "CssClass": "fa fa-line-chart fa-fw",
+        "Depth": 2,
+        "Id": "Traffic",
+        "IsExternal": "N",
+        "LinkClass": "list-group-item menu_ref_a79052524455564c4f84b5e1dc481dbf ",
+        "Order": "20",
+        "Selected": false,
+        "Url": "/ui/diagnostics/traffic",
+        "Visibility": "all",
+        "VisibleName": "Traffic",
+        "isVisible": true
+      }
+    ],
+    "CssClass": "fa fa-area-chart",
+    "Depth": 1,
+    "Id": "Reporting",
+    "IsExternal": "N",
+    "LinkClass": "list-group-item ",
+    "Order": "15",
+    "Selected": false,
+    "Url": "",
+    "Visibility": "all",
+    "VisibleName": "Reporting",
+    "isVisible": true
+  },
+  {
+    "Children": [
+      {
+        "Children": [
+          {
+            "Children": [],
+            "CssClass": "",
+            "Depth": 3,
+            "Id": "Activity",
+            "IsExternal": "N",
+            "LinkClass": "list-group-item menu-level-3-item menu_ref_c6201fd93ebed52c3822a57a52b61222 ",
+            "Order": 0,
+            "Selected": false,
+            "Url": "/ui/diagnostics/activity",
+            "Visibility": "all",
+            "VisibleName": "Activity",
+            "isVisible": true
+          }
+        ],
+        "CssClass": "fa fa-medkit fa-fw",
+        "Depth": 2,
+        "Id": "Diagnostics",
+        "IsExternal": "N",
+        "LinkClass": "list-group-item ",
+        "Order": "160",
+        "Selected": false,
+        "Url": "",
+        "Visibility": "all",
+        "VisibleName": "Diagnostics",
+        "isVisible": true
+      }
+    ],
+    "CssClass": "fa fa-server",
+    "Depth": 1,
+    "Id": "System",
+    "IsExternal": "N",
+    "LinkClass": "list-group-item ",
+    "Order": "20",
+    "Selected": false,
+    "Url": "",
+    "Visibility": "all",
+    "VisibleName": "System",
+    "isVisible": true
+  }
+]

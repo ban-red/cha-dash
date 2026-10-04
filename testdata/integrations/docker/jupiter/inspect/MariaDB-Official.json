@@ -1,0 +1,256 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "mariadbd"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "mariadbd"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "docker-entrypoint.sh"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "MARIADB_RANDOM_ROOT_PASSWORD=REDACTED",
+      "MARIADB_USER=REDACTED",
+      "MARIADB_PASSWORD=REDACTED",
+      "MARIADB_ROOT_PASSWORD=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "MARIADB_DATABASE=REDACTED",
+      "PATH=REDACTED",
+      "GOSU_VERSION=REDACTED",
+      "LANG=REDACTED",
+      "MARIADB_VERSION=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3306/tcp": {}
+    },
+    "Hostname": "6d8f2aab29fe",
+    "Image": "mariadb:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://github.com/mgutt/unraid-docker-templates/raw/main/mgutt/images/mariadb.png",
+      "net.unraid.docker.managed": "dockerman",
+      "org.opencontainers.image.authors": "MariaDB Community",
+      "org.opencontainers.image.base.name": "docker.io/library/ubuntu:noble",
+      "org.opencontainers.image.description": "MariaDB Database for relational SQL",
+      "org.opencontainers.image.documentation": "https://hub.docker.com/_/mariadb/",
+      "org.opencontainers.image.licenses": "GPL-2.0",
+      "org.opencontainers.image.source": "https://github.com/MariaDB/mariadb-docker",
+      "org.opencontainers.image.title": "MariaDB Database",
+      "org.opencontainers.image.url": "https://github.com/MariaDB/mariadb-docker",
+      "org.opencontainers.image.vendor": "MariaDB Community",
+      "org.opencontainers.image.version": "12.2.2"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "99:100",
+    "Volumes": {
+      "/var/lib/mysql": {}
+    },
+    "WorkingDir": ""
+  },
+  "Created": "2026-05-11T21:18:38.338826161Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "6d8f2aab29fe2d053d42d94a04f4e67b3c92d792a5e8b6e43b30fc070f43f98e",
+      "LowerDir": "/var/lib/docker/overlay2/a9eb90e9d8721dc34b2f9ccb9fbcd00a5704fa469de0d8d0f2ec73998f40bfa3-init/diff:/var/lib/docker/overlay2/86c834308a56e1477ed4e38307f267621549559de3367c51e013e0b59bdd245f/diff:/var/lib/docker/overlay2/00e5e1cc41a653c7a3edff8cc37952b33c03c81494de214f67307dc5c80728b9/diff:/var/lib/docker/overlay2/443128414d92d91311656a66f42166654463c47fe3f243bf0d86a18ad5d1e822/diff:/var/lib/docker/overlay2/92ad6365ab51723a1b13bb85a306947f7e73798cfbe0af6cdd68c93820de3763/diff:/var/lib/docker/overlay2/85a345d8b199d63aebc97c1835c20a00a5abe3933f5185750d30e245f0e0bb74/diff:/var/lib/docker/overlay2/5e14f002ccea267b82563d3ae828ccd2bd7e65139fe41f40f320f43c782ced34/diff:/var/lib/docker/overlay2/ef73bd878654a400f4c81b08b19736135c9bec7714224d800c60709af4fbbbf9/diff:/var/lib/docker/overlay2/80610a3a4d80766965390f44330cd74897490f162d6e32647fcd0fd18e625f1e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/a9eb90e9d8721dc34b2f9ccb9fbcd00a5704fa469de0d8d0f2ec73998f40bfa3/merged",
+      "UpperDir": "/var/lib/docker/overlay2/a9eb90e9d8721dc34b2f9ccb9fbcd00a5704fa469de0d8d0f2ec73998f40bfa3/diff",
+      "WorkDir": "/var/lib/docker/overlay2/a9eb90e9d8721dc34b2f9ccb9fbcd00a5704fa469de0d8d0f2ec73998f40bfa3/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/mariadb-official/data:/var/lib/mysql:rw",
+      "/mnt/user/appdata/mariadb-official/config:/etc/mysql/conf.d:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 2147483648,
+    "MemoryReservation": 0,
+    "MemorySwap": -1,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3306/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3306"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/6d8f2aab29fe2d053d42d94a04f4e67b3c92d792a5e8b6e43b30fc070f43f98e/hostname",
+  "HostsPath": "/var/lib/docker/containers/6d8f2aab29fe2d053d42d94a04f4e67b3c92d792a5e8b6e43b30fc070f43f98e/hosts",
+  "Id": "6d8f2aab29fe2d053d42d94a04f4e67b3c92d792a5e8b6e43b30fc070f43f98e",
+  "Image": "sha256:7dda0fd12b1c0163d0138a9d03fe3a2df5d98883575c65fcc902979208e2f269",
+  "LogPath": "/var/lib/docker/containers/6d8f2aab29fe2d053d42d94a04f4e67b3c92d792a5e8b6e43b30fc070f43f98e/6d8f2aab29fe2d053d42d94a04f4e67b3c92d792a5e8b6e43b30fc070f43f98e-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/etc/mysql/conf.d",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/mariadb-official/config",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/var/lib/mysql",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/mariadb-official/data",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/MariaDB-Official",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "6ae29c145b36819cca56439c2d1b5cf7f22521ab82e182e46397ab5db2bc980a",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.13",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:16",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3306/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "3306"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "3306"
+        }
+      ]
+    },
+    "SandboxID": "f9b64167f08a436f3a2bb4a08a8dd94cebf7b04cd4e237e4ca5303c52290b338",
+    "SandboxKey": "/var/run/docker/netns/f9b64167f08a"
+  },
+  "Path": "docker-entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/6d8f2aab29fe2d053d42d94a04f4e67b3c92d792a5e8b6e43b30fc070f43f98e/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.873368523Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 40997,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:49.614208731Z",
+    "Status": "running"
+  }
+}

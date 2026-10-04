@@ -1,0 +1,279 @@
+{
+  "data": [
+    {
+      "endtime": 1791025203,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1791025200,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:00065DD3:0508C1A9:6AC0E030:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1791024725,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1791024724,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:00065868:050807AD:6AC0DE54:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790938803,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790938801,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:003F0E99:0484EC1D:6ABF8EB1:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790928988,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790928986,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:003E366B:0475F246:6ABF685A:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790852728,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790852726,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:003731B5:0401953A:6ABE3E76:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790852404,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790852400,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:00372A51:040115CD:6ABE3D30:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790768609,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790768607,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:002FEA26:03813A17:6ABCF5DF:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790766009,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790766000,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:002FCBED:037D3FF8:6ABCEBB0:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790679607,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790679601,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:00293A66:02F96A2B:6ABB9A31:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790666788,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790666787,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:0028A778:02E5DC92:6ABB6823:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790593539,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790593537,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:00226B1E:02761765:6ABA4A01:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790593211,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790593203,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:00226397:027594D4:6ABA48B3:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790506807,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790506801,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:001B11C9:01F1BDF9:6AB8F731:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790496628,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790496626,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:001A9D02:01E237B9:6AB8CF72:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790420406,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790420401,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:00143710:016DE7FF:6AB7A5B1:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790418868,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790418867,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:00141542:016B90DF:6AB79FB3:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790335108,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790335106,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:000D1458:00EBC1DE:6AB65882:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790334012,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790334002,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:000D0774:00EA1264:6AB65432:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790247603,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790247600,
+      "status": "job errors",
+      "type": "vzdump",
+      "upid": "UPID:io:0005F07C:00663B9F:6AB502B0:vzdump::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790241568,
+      "id": "",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790241566,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:io:00056BD7:005D06C9:6AB4EB1E:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790216664,
+      "id": "200",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790216240,
+      "status": "OK",
+      "type": "vncproxy",
+      "upid": "UPID:io:000339CF:003661CD:6AB48830:vncproxy:200:root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790216236,
+      "id": "200",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790215334,
+      "status": "OK",
+      "type": "vncproxy",
+      "upid": "UPID:io:000325FA:0034FFE6:6AB484A6:vncproxy:200:root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790215334,
+      "id": "200",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790214433,
+      "status": "OK",
+      "type": "vncproxy",
+      "upid": "UPID:io:00031245:00339FFE:6AB48121:vncproxy:200:root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790214433,
+      "id": "200",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790213532,
+      "status": "OK",
+      "type": "vncproxy",
+      "upid": "UPID:io:0002FE6B:00324019:6AB47D9C:vncproxy:200:root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790213532,
+      "id": "200",
+      "node": "io",
+      "saved": "1",
+      "starttime": 1790212631,
+      "status": "OK",
+      "type": "vncproxy",
+      "upid": "UPID:io:0002EAB1:0030E029:6AB47A17:vncproxy:200:root@pam:",
+      "user": "root@pam"
+    }
+  ]
+}

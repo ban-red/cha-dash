@@ -1,0 +1,968 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "-c",
+    "/etc/neko/supervisord.conf"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "/usr/bin/supervisord",
+      "-c",
+      "/etc/neko/supervisord.conf"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "NEKO_DESKTOP_SCREEN=REDACTED",
+      "CA_TS_FALLBACK_DIR=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED",
+      "USER=REDACTED",
+      "DISPLAY=REDACTED",
+      "PULSE_SERVER=REDACTED",
+      "XDG_RUNTIME_DIR=REDACTED",
+      "NEKO_SERVER_BIND=REDACTED",
+      "NEKO_PLUGINS_ENABLED=REDACTED",
+      "NEKO_PLUGINS_DIR=REDACTED"
+    ],
+    "ExposedPorts": {
+      "52000/udp": {},
+      "52001/udp": {},
+      "52002/udp": {},
+      "52003/udp": {},
+      "52004/udp": {},
+      "52005/udp": {},
+      "52006/udp": {},
+      "52007/udp": {},
+      "52008/udp": {},
+      "52009/udp": {},
+      "52010/udp": {},
+      "52011/udp": {},
+      "52012/udp": {},
+      "52013/udp": {},
+      "52014/udp": {},
+      "52015/udp": {},
+      "52016/udp": {},
+      "52017/udp": {},
+      "52018/udp": {},
+      "52019/udp": {},
+      "52020/udp": {},
+      "52021/udp": {},
+      "52022/udp": {},
+      "52023/udp": {},
+      "52024/udp": {},
+      "52025/udp": {},
+      "52026/udp": {},
+      "52027/udp": {},
+      "52028/udp": {},
+      "52029/udp": {},
+      "52030/udp": {},
+      "52031/udp": {},
+      "52032/udp": {},
+      "52033/udp": {},
+      "52034/udp": {},
+      "52035/udp": {},
+      "52036/udp": {},
+      "52037/udp": {},
+      "52038/udp": {},
+      "52039/udp": {},
+      "52040/udp": {},
+      "52041/udp": {},
+      "52042/udp": {},
+      "52043/udp": {},
+      "52044/udp": {},
+      "52045/udp": {},
+      "52046/udp": {},
+      "52047/udp": {},
+      "52048/udp": {},
+      "52049/udp": {},
+      "52050/udp": {},
+      "52051/udp": {},
+      "52052/udp": {},
+      "52053/udp": {},
+      "52054/udp": {},
+      "52055/udp": {},
+      "52056/udp": {},
+      "52057/udp": {},
+      "52058/udp": {},
+      "52059/udp": {},
+      "52060/udp": {},
+      "52061/udp": {},
+      "52062/udp": {},
+      "52063/udp": {},
+      "52064/udp": {},
+      "52065/udp": {},
+      "52066/udp": {},
+      "52067/udp": {},
+      "52068/udp": {},
+      "52069/udp": {},
+      "52070/udp": {},
+      "52071/udp": {},
+      "52072/udp": {},
+      "52073/udp": {},
+      "52074/udp": {},
+      "52075/udp": {},
+      "52076/udp": {},
+      "52077/udp": {},
+      "52078/udp": {},
+      "52079/udp": {},
+      "52080/udp": {},
+      "52081/udp": {},
+      "52082/udp": {},
+      "52083/udp": {},
+      "52084/udp": {},
+      "52085/udp": {},
+      "52086/udp": {},
+      "52087/udp": {},
+      "52088/udp": {},
+      "52089/udp": {},
+      "52090/udp": {},
+      "52091/udp": {},
+      "52092/udp": {},
+      "52093/udp": {},
+      "52094/udp": {},
+      "52095/udp": {},
+      "52096/udp": {},
+      "52097/udp": {},
+      "52098/udp": {},
+      "52099/udp": {},
+      "52100/udp": {},
+      "8080/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 10000000000,
+      "Retries": 8,
+      "Test": [
+        "CMD-SHELL",
+        "wget -O - http://localhost:${NEKO_SERVER_BIND#*:}/health ||         wget --no-check-certificate -O - https://localhost:${NEKO_SERVER_BIND#*:}/health ||         exit 1"
+      ],
+      "Timeout": 5000000000
+    },
+    "Hostname": "760c0592086c",
+    "Image": "ghcr.io/m1k1o/neko/xfce:latest",
+    "Labels": {
+      "net.m1k1o.neko.api-version": "3",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/m1k1o/neko/refs/heads/master/webpage/static/img/icons/xfce.svg",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8080]/",
+      "org.opencontainers.image.created": "2026-08-05T15:08:01.085Z",
+      "org.opencontainers.image.description": "A self hosted virtual browser that runs in docker and uses WebRTC.",
+      "org.opencontainers.image.licenses": "Apache-2.0",
+      "org.opencontainers.image.revision": "395ca1a6f62b7b0e270e654d366a2d57b8042efd",
+      "org.opencontainers.image.source": "https://github.com/m1k1o/neko",
+      "org.opencontainers.image.title": "neko",
+      "org.opencontainers.image.url": "https://github.com/m1k1o/neko",
+      "org.opencontainers.image.version": "3.1.5"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": ""
+  },
+  "Created": "2026-08-28T23:07:45.574069478Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "760c0592086c74123e78c180751a93a4ec918a3208e7edd13f6885bc0ef295a5",
+      "LowerDir": "/var/lib/docker/overlay2/f245772b1b4fe96df3e094a42d2b8e5cf87c2a3ead7aa5be488cd39f8b2f87b8-init/diff:/var/lib/docker/overlay2/2b09b23b86d5c533b79f855fd3774e64bd4a0548964eb7ea9f4ce27d09503be4/diff:/var/lib/docker/overlay2/1b76a375272ef2283f00a2333aa27ead32efefe23017e4e0823c0e54075ab4fe/diff:/var/lib/docker/overlay2/229c0507bb2b7c17830e24579f77b00a036d43a7c579f69947a3752221c03ebe/diff:/var/lib/docker/overlay2/ef24cbc768779f1f6d70ebda4e0452446376f18e932d4a7955bfac0889808215/diff:/var/lib/docker/overlay2/61196c8dea5d5c717181f4fff1d31f6dfe5ef61ef602e449b639fded174a2cc4/diff:/var/lib/docker/overlay2/36239b48277bad8822c41f97425c61f7d527d1443bf2928c7cd01b9fc2c5ab67/diff:/var/lib/docker/overlay2/59f6c6aa5a06b4245dada893fb1b14b862d860d83a04fb02de284b86368da2c5/diff:/var/lib/docker/overlay2/30209151251b487ea93c28ba9a5698112e90e9bddd90ad242b73578c96605463/diff:/var/lib/docker/overlay2/f6368f978a95cc5687738265a8aa571653b57af533f60db673f297fa64f62825/diff:/var/lib/docker/overlay2/f652f4f76c906ca1682c659355cd38a8bcbdc8bb8ad5d2d868bdef65cec2513f/diff:/var/lib/docker/overlay2/a05dcd5c2b4cdef7f7d93c6546b4d1d2ebe4d0677e74fd204eb7f05c4f3d7566/diff:/var/lib/docker/overlay2/a3f9b497bed3d644f37fa7c660a6b6529acd0a7d1d84dc1263e6bcf908b10a46/diff:/var/lib/docker/overlay2/0c254993043bc2a851d7da76a7114324c90dc0a2c0af0a1428e202258b4962e5/diff:/var/lib/docker/overlay2/3d5647ad18c2ea98c9c7398d79e0bf74f6ca8ac949594d3e4619c5d88a993449/diff:/var/lib/docker/overlay2/34834c08dcf6b64c00cc0b9321578ad341f3de666dcb3e46ac3c0be8117759a5/diff:/var/lib/docker/overlay2/d393b9d787c6701cbe1801a467c6f53b29e99c9be03224f2e6092f108ddec3be/diff:/var/lib/docker/overlay2/a9cfb56646d3d4e77ab2467fc6dac506ae3124ea0717a45eba55c74573c0bc16/diff:/var/lib/docker/overlay2/9b2ca92cdc617a039b4365017883e2caefa725a2815009dd25630c76f135959a/diff:/var/lib/docker/overlay2/fa4353a696cf3ce7dbebc407ddc2399392ebb67a7448383736ba902b6d8b0c1d/diff:/var/lib/docker/overlay2/7baa5806db5c00ba8bb5a531595333f738d474db81881466966d3098736b0e76/diff",
+      "MergedDir": "/var/lib/docker/overlay2/f245772b1b4fe96df3e094a42d2b8e5cf87c2a3ead7aa5be488cd39f8b2f87b8/merged",
+      "UpperDir": "/var/lib/docker/overlay2/f245772b1b4fe96df3e094a42d2b8e5cf87c2a3ead7aa5be488cd39f8b2f87b8/diff",
+      "WorkDir": "/var/lib/docker/overlay2/f245772b1b4fe96df3e094a42d2b8e5cf87c2a3ead7aa5be488cd39f8b2f87b8/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/games:/mnt/user/games:rw",
+      "/mnt/user/appdata/neko/config.yaml:/etc/neko/neko.yaml:rw",
+      "/mnt/user/appdata/neko/home:/home/neko:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": [
+      "CAP_SYS_ADMIN"
+    ],
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [
+      {
+        "CgroupPermissions": "rwm",
+        "PathInContainer": "/dev/fuse",
+        "PathOnHost": "/dev/fuse"
+      }
+    ],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": null,
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "52000/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52000"
+        }
+      ],
+      "52001/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52001"
+        }
+      ],
+      "52002/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52002"
+        }
+      ],
+      "52003/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52003"
+        }
+      ],
+      "52004/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52004"
+        }
+      ],
+      "52005/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52005"
+        }
+      ],
+      "52006/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52006"
+        }
+      ],
+      "52007/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52007"
+        }
+      ],
+      "52008/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52008"
+        }
+      ],
+      "52009/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52009"
+        }
+      ],
+      "52010/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52010"
+        }
+      ],
+      "52011/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52011"
+        }
+      ],
+      "52012/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52012"
+        }
+      ],
+      "52013/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52013"
+        }
+      ],
+      "52014/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52014"
+        }
+      ],
+      "52015/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52015"
+        }
+      ],
+      "52016/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52016"
+        }
+      ],
+      "52017/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52017"
+        }
+      ],
+      "52018/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52018"
+        }
+      ],
+      "52019/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52019"
+        }
+      ],
+      "52020/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52020"
+        }
+      ],
+      "52021/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52021"
+        }
+      ],
+      "52022/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52022"
+        }
+      ],
+      "52023/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52023"
+        }
+      ],
+      "52024/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52024"
+        }
+      ],
+      "52025/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52025"
+        }
+      ],
+      "52026/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52026"
+        }
+      ],
+      "52027/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52027"
+        }
+      ],
+      "52028/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52028"
+        }
+      ],
+      "52029/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52029"
+        }
+      ],
+      "52030/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52030"
+        }
+      ],
+      "52031/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52031"
+        }
+      ],
+      "52032/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52032"
+        }
+      ],
+      "52033/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52033"
+        }
+      ],
+      "52034/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52034"
+        }
+      ],
+      "52035/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52035"
+        }
+      ],
+      "52036/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52036"
+        }
+      ],
+      "52037/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52037"
+        }
+      ],
+      "52038/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52038"
+        }
+      ],
+      "52039/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52039"
+        }
+      ],
+      "52040/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52040"
+        }
+      ],
+      "52041/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52041"
+        }
+      ],
+      "52042/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52042"
+        }
+      ],
+      "52043/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52043"
+        }
+      ],
+      "52044/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52044"
+        }
+      ],
+      "52045/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52045"
+        }
+      ],
+      "52046/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52046"
+        }
+      ],
+      "52047/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52047"
+        }
+      ],
+      "52048/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52048"
+        }
+      ],
+      "52049/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52049"
+        }
+      ],
+      "52050/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52050"
+        }
+      ],
+      "52051/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52051"
+        }
+      ],
+      "52052/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52052"
+        }
+      ],
+      "52053/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52053"
+        }
+      ],
+      "52054/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52054"
+        }
+      ],
+      "52055/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52055"
+        }
+      ],
+      "52056/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52056"
+        }
+      ],
+      "52057/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52057"
+        }
+      ],
+      "52058/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52058"
+        }
+      ],
+      "52059/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52059"
+        }
+      ],
+      "52060/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52060"
+        }
+      ],
+      "52061/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52061"
+        }
+      ],
+      "52062/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52062"
+        }
+      ],
+      "52063/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52063"
+        }
+      ],
+      "52064/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52064"
+        }
+      ],
+      "52065/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52065"
+        }
+      ],
+      "52066/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52066"
+        }
+      ],
+      "52067/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52067"
+        }
+      ],
+      "52068/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52068"
+        }
+      ],
+      "52069/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52069"
+        }
+      ],
+      "52070/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52070"
+        }
+      ],
+      "52071/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52071"
+        }
+      ],
+      "52072/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52072"
+        }
+      ],
+      "52073/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52073"
+        }
+      ],
+      "52074/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52074"
+        }
+      ],
+      "52075/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52075"
+        }
+      ],
+      "52076/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52076"
+        }
+      ],
+      "52077/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52077"
+        }
+      ],
+      "52078/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52078"
+        }
+      ],
+      "52079/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52079"
+        }
+      ],
+      "52080/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52080"
+        }
+      ],
+      "52081/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52081"
+        }
+      ],
+      "52082/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52082"
+        }
+      ],
+      "52083/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52083"
+        }
+      ],
+      "52084/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52084"
+        }
+      ],
+      "52085/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52085"
+        }
+      ],
+      "52086/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52086"
+        }
+      ],
+      "52087/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52087"
+        }
+      ],
+      "52088/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52088"
+        }
+      ],
+      "52089/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52089"
+        }
+      ],
+      "52090/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52090"
+        }
+      ],
+      "52091/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52091"
+        }
+      ],
+      "52092/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52092"
+        }
+      ],
+      "52093/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52093"
+        }
+      ],
+      "52094/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52094"
+        }
+      ],
+      "52095/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52095"
+        }
+      ],
+      "52096/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52096"
+        }
+      ],
+      "52097/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52097"
+        }
+      ],
+      "52098/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52098"
+        }
+      ],
+      "52099/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52099"
+        }
+      ],
+      "52100/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "52100"
+        }
+      ],
+      "8080/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8580"
+        }
+      ]
+    },
+    "Privileged": true,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": null,
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": [
+      "label=disable"
+    ],
+    "ShmSize": 2147483648,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/760c0592086c74123e78c180751a93a4ec918a3208e7edd13f6885bc0ef295a5/hostname",
+  "HostsPath": "/var/lib/docker/containers/760c0592086c74123e78c180751a93a4ec918a3208e7edd13f6885bc0ef295a5/hosts",
+  "Id": "760c0592086c74123e78c180751a93a4ec918a3208e7edd13f6885bc0ef295a5",
+  "Image": "sha256:27c0753c91208da6aafe65c065b63bf9508fd3afede0373b491fe7077feb3dd8",
+  "LogPath": "/var/lib/docker/containers/760c0592086c74123e78c180751a93a4ec918a3208e7edd13f6885bc0ef295a5/760c0592086c74123e78c180751a93a4ec918a3208e7edd13f6885bc0ef295a5-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/home/neko",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/neko/home",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/mnt/user/games",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/games",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/etc/neko/neko.yaml",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/neko/config.yaml",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/Neko-Xfce",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "b497dcd67839addf1f827cb5699d388333e9b97f244d07ee58a7d5ef866c76ea"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/usr/bin/supervisord",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/760c0592086c74123e78c180751a93a4ec918a3208e7edd13f6885bc0ef295a5/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2026-09-05T22:11:30.873599905Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [],
+      "Status": "starting"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-08-28T23:08:02.110375635Z",
+    "Status": "exited"
+  }
+}

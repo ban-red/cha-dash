@@ -1,0 +1,27 @@
+{
+  "data": {
+    "agent": "1",
+    "balloon": 0,
+    "boot": "order=virtio0",
+    "cores": 4,
+    "cpu": "host,flags=+aes",
+    "digest": "dea1cc590c5a1e8cd9d18a52d74cf7d7115b06fa",
+    "ide2": "none,media=cdrom",
+    "memory": "16384",
+    "meta": "creation-qemu=7.1.0,ctime=1670887274",
+    "name": "OPNsense",
+    "net0": "virtio=BC:24:11:00:00:02,bridge=vmbr2,queues=4",
+    "net1": "virtio=BC:24:11:00:00:03,bridge=vmbr1,queues=4",
+    "numa": 0,
+    "onboot": 1,
+    "ostype": "l26",
+    "protection": 1,
+    "scsihw": "virtio-scsi-single",
+    "smbios1": "uuid=00000000-0000-4000-8000-000000000002",
+    "sockets": 1,
+    "startup": "order=1",
+    "tablet": 0,
+    "virtio0": "local-lvm:vm-103-disk-1,iothread=1,size=32G",
+    "vmgenid": "00000000-0000-4000-8000-000000000003"
+  }
+}

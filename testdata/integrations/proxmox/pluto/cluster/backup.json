@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "bwlimit": 0,
+      "enabled": 1,
+      "fleecing": {
+        "enabled": "0"
+      },
+      "id": "backup-8ef1991a-dabd",
+      "mailnotification": "failure",
+      "mailto": "admin@lab.example",
+      "mode": "snapshot",
+      "next-run": 1791104400,
+      "node": "pluto",
+      "notes-template": "{{guestname}}",
+      "notification-mode": "legacy-sendmail",
+      "prune-backups": {
+        "keep-monthly": "6"
+      },
+      "schedule": "03:00",
+      "storage": "pbs-unraid-pluto",
+      "type": "vzdump",
+      "vmid": "103,100"
+    }
+  ]
+}

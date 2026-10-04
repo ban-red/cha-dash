@@ -1,0 +1,291 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "HOST_CONTAINERNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PATH=REDACTED",
+      "HOME=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LANG=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "DISPLAY=REDACTED",
+      "PERL5LIB=REDACTED",
+      "START_DOCKER=REDACTED",
+      "PULSE_RUNTIME_PATH=REDACTED",
+      "SELKIES_INTERPOSER=REDACTED",
+      "NVIDIA_DRIVER_CAPABILITIES=REDACTED",
+      "DISABLE_ZINK=REDACTED",
+      "DISABLE_DRI3=REDACTED",
+      "SELKIES_ENCODER=REDACTED",
+      "TITLE=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "SSL_CERT_FILE=REDACTED",
+      "NO_GAMEPAD=REDACTED",
+      "PIXELFLUX_WAYLAND=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "3001/tcp": {}
+    },
+    "Hostname": "4dbc9a5ff66c",
+    "Image": "lscr.io/linuxserver/orcaslicer:latest",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v2.3.2-ls19 Build-date:- 2026-05-19T14:36:39+00:00",
+      "maintainer": "thelamer",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/orcaslicer-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "https://[IP]:[PORT:3001]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-05-19T14:36:39+00:00",
+      "org.opencontainers.image.description": "[Orca Slicer](https://github.com/SoftFever/OrcaSlicer) is an open source slicer for FDM printers. OrcaSlicer is fork of Bambu Studio, it was previously known as BambuStudio-SoftFever, Bambu Studio is forked from PrusaSlicer by Prusa Research, which is from Slic3r by Alessandro Ranellucci and the RepRap community",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-orcaslicer",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "71bb3d714599e449978d0c307777f0a447858816",
+      "org.opencontainers.image.revision": "71bb3d714599e449978d0c307777f0a447858816",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-orcaslicer",
+      "org.opencontainers.image.title": "Orcaslicer",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-orcaslicer/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v2.3.2-ls19"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-05-21T18:46:21.959210827Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "4dbc9a5ff66c4c6ae1fb25881d78245869dcc5e1cf72981b161543d9360bd622",
+      "LowerDir": "/var/lib/docker/overlay2/692ce1bfeebc75d3c98ff51d867f1a622efd0cd58451381ac05b00636ca1bdb3-init/diff:/var/lib/docker/overlay2/98f61f53e7242b26dc36cb8d95831f94c5584307a642bc9f8f6cae533a6b0b7f/diff:/var/lib/docker/overlay2/aededafb6aa56a3aace677c0f5e3e4ca89fc552e3811c528198eb3b560216773/diff:/var/lib/docker/overlay2/217323e273c2c46999ffbd7ae6291972b94a7367d23d6a4687a9082d37a221e2/diff:/var/lib/docker/overlay2/db44cbca4e15900c87bb61cc4d992fb8d780e0d6c31646cff67fc43c4729d09f/diff:/var/lib/docker/overlay2/ed951221df6cb58245e4806d4f8d300262ef59ad90b8d7f585d3bd8ba6b643a3/diff:/var/lib/docker/overlay2/599fd64ad6d2d05caf8a697e409144e8e9d1876664a679eea25322961f46949b/diff:/var/lib/docker/overlay2/bd57202fcf848d332fa292cb0d972b854b21a0e42fd1953d4d9704bec3435040/diff:/var/lib/docker/overlay2/0b4ac3f1979d60ee6233508977d7d802adc55b2f8b0787b3f20fd676fe22b504/diff:/var/lib/docker/overlay2/6c78495e166a5d9430ffa0f6d81ed0986375ec5511e6e637ea807836870e417a/diff:/var/lib/docker/overlay2/096ceec61cd250e3330a8bef79ac1d2ca254b75da3e024dbe4de0e15d60f6f3c/diff:/var/lib/docker/overlay2/9bfe8b16bd74f4deed1f34d5e31cf319915ebadad70c06f3605cb3615f9992cb/diff:/var/lib/docker/overlay2/c545b5302c5a47c20ec69622091536584132548ac6daa7cdcb0356f5bdec8145/diff:/var/lib/docker/overlay2/48dc3faa14dde5f34eb245d55353bb5fb5fe83d7e48259f5df3415561df87c2d/diff:/var/lib/docker/overlay2/9380587d13659ca79ba98c7076736919f487ff40940e10bebc4c113879f5ebbc/diff:/var/lib/docker/overlay2/bf43aa2eabaec76311d3453d7dfaac2ded54b2bf60fa4608100f7aa7b3d6ee1d/diff:/var/lib/docker/overlay2/69652a96a45d5c86218c97f6ed45b29e505d95765139a23666034816c0fb00ae/diff",
+      "MergedDir": "/var/lib/docker/overlay2/692ce1bfeebc75d3c98ff51d867f1a622efd0cd58451381ac05b00636ca1bdb3/merged",
+      "UpperDir": "/var/lib/docker/overlay2/692ce1bfeebc75d3c98ff51d867f1a622efd0cd58451381ac05b00636ca1bdb3/diff",
+      "WorkDir": "/var/lib/docker/overlay2/692ce1bfeebc75d3c98ff51d867f1a622efd0cd58451381ac05b00636ca1bdb3/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/archive_a/3D/:/3d:rw",
+      "/mnt/user/appdata/orcaslicer:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6680"
+        }
+      ],
+      "3001/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6681"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/4dbc9a5ff66c4c6ae1fb25881d78245869dcc5e1cf72981b161543d9360bd622/hostname",
+  "HostsPath": "/var/lib/docker/containers/4dbc9a5ff66c4c6ae1fb25881d78245869dcc5e1cf72981b161543d9360bd622/hosts",
+  "Id": "4dbc9a5ff66c4c6ae1fb25881d78245869dcc5e1cf72981b161543d9360bd622",
+  "Image": "sha256:29b840fc414d5c739c15072eef9326f3c43f4d9737c29bd09a348cc82761bdba",
+  "LogPath": "/var/lib/docker/containers/4dbc9a5ff66c4c6ae1fb25881d78245869dcc5e1cf72981b161543d9360bd622/4dbc9a5ff66c4c6ae1fb25881d78245869dcc5e1cf72981b161543d9360bd622-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/3d",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/archive_a/3D",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/orcaslicer",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/orcaslicer",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "4c3e836dac52a3bd56ea7b1b05295c057c843805c74193a2dee6acac29358696"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/4dbc9a5ff66c4c6ae1fb25881d78245869dcc5e1cf72981b161543d9360bd622/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2026-06-04T07:05:59.949426Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-05-22T21:19:07.866983711Z",
+    "Status": "exited"
+  }
+}

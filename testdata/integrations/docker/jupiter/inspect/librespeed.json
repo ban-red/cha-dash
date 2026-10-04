@@ -1,0 +1,245 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "CUSTOM_RESULTS=REDACTED",
+      "DB_TYPE=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "TZ=REDACTED",
+      "PASSWORD=REDACTED",
+      "UMASK=REDACTED",
+      "HOST_OS=REDACTED",
+      "PATH=REDACTED",
+      "PS1=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "PHP_INI_SCAN_DIR=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED"
+    ],
+    "ExposedPorts": {
+      "443/tcp": {},
+      "80/tcp": {}
+    },
+    "Hostname": "50dc108aad4a",
+    "Image": "lscr.io/linuxserver/librespeed",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v5.5.1-ls261 Build-date:- 2026-02-22T10:36:30+00:00",
+      "maintainer": "aptalca",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/librespeed-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:80]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2026-02-22T10:36:30+00:00",
+      "org.opencontainers.image.description": "[Librespeed](https://github.com/librespeed/speedtest) is a very lightweight Speedtest implemented in Javascript, using XMLHttpRequest and Web Workers.    No Flash, No Java, No Websocket, No Bullshit.  ",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-librespeed",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "6883fe5d97665a4605ceae3becd95ef11ed7564c",
+      "org.opencontainers.image.revision": "6883fe5d97665a4605ceae3becd95ef11ed7564c",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-librespeed",
+      "org.opencontainers.image.title": "Librespeed",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-librespeed/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v5.5.1-ls261"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/config": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2026-02-27T05:53:53.076260998Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "50dc108aad4a18ddcc52f0cb49ad82e3bc9b336f17cfab9944321181d553e3b5",
+      "LowerDir": "/var/lib/docker/overlay2/a2825d262fe4444d246e67a5f7f6d07b453a3f55baf890ed2416d84c701e1a68-init/diff:/var/lib/docker/overlay2/3f121afcd5e61846b65626d2b97fafa1d3c15b386f3196c97d7171435ffe1103/diff:/var/lib/docker/overlay2/d029aa048301e77a7970e6e072a498b51df551be83f9013f4dc5c63e624ced9c/diff:/var/lib/docker/overlay2/48e4b1b04ea38448ead35667406c4933b91833a6b42bbbe77e0f9d9b6200e319/diff:/var/lib/docker/overlay2/2f832ec9711f819dc68bc4e69d5652dffd5a3f43ddd23a731c2d0ff85fa9f000/diff:/var/lib/docker/overlay2/e93d935183d7a8f92ffc05fe4b965837ecaa6f7f7966a8a69d61b700ab317ae0/diff:/var/lib/docker/overlay2/26fa4d8effb4f3d6b050a1995efbabd1c075204e3d9497c25d0434f490a2d713/diff:/var/lib/docker/overlay2/3d72e99190a45993e5784c19c93d771a7143f6d0bcb536e736d1c0c7c50864f0/diff:/var/lib/docker/overlay2/4b29e312ba571cf9675d21d153de4cbaa1c4cac7c825a4001b83eef328029653/diff:/var/lib/docker/overlay2/9370e1cc8ac7196ab51022739af858eb90c87109ad7f880a763e2f12d0f0fd98/diff:/var/lib/docker/overlay2/64d5395a9ffd799a358753f85eef883db6078d47148b68cb24eef15ed8c257ac/diff:/var/lib/docker/overlay2/c7b146f914c637b1fd71c9630929f80452c1b4b7aba189ae805cbaf5188baf6e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/a2825d262fe4444d246e67a5f7f6d07b453a3f55baf890ed2416d84c701e1a68/merged",
+      "UpperDir": "/var/lib/docker/overlay2/a2825d262fe4444d246e67a5f7f6d07b453a3f55baf890ed2416d84c701e1a68/diff",
+      "WorkDir": "/var/lib/docker/overlay2/a2825d262fe4444d246e67a5f7f6d07b453a3f55baf890ed2416d84c701e1a68/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/librespeed:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "80/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6766"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/50dc108aad4a18ddcc52f0cb49ad82e3bc9b336f17cfab9944321181d553e3b5/hostname",
+  "HostsPath": "/var/lib/docker/containers/50dc108aad4a18ddcc52f0cb49ad82e3bc9b336f17cfab9944321181d553e3b5/hosts",
+  "Id": "50dc108aad4a18ddcc52f0cb49ad82e3bc9b336f17cfab9944321181d553e3b5",
+  "Image": "sha256:d862087e62a7fbebaa4cb37d976172711d0802784a51457eecd75589571f770d",
+  "LogPath": "/var/lib/docker/containers/50dc108aad4a18ddcc52f0cb49ad82e3bc9b336f17cfab9944321181d553e3b5/50dc108aad4a18ddcc52f0cb49ad82e3bc9b336f17cfab9944321181d553e3b5-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/librespeed",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/librespeed",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "f92d71a4cabbfb78ee8f3f5e0f6d13f903150e2c49a6ab9213eda4df32942e47"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/50dc108aad4a18ddcc52f0cb49ad82e3bc9b336f17cfab9944321181d553e3b5/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-04-30T22:10:42.070926211Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-04-28T17:07:59.482548526Z",
+    "Status": "exited"
+  }
+}

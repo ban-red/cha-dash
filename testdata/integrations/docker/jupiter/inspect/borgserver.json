@@ -1,0 +1,242 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/run.sh"
+    ],
+    "Env": [
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "PATH=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED"
+    ],
+    "ExposedPorts": {
+      "22/tcp": {}
+    },
+    "Hostname": "cd9f16c56078",
+    "Image": "nold360/borgserver:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/Balya/unraid-templates/main/borgserver/icon-200.png",
+      "net.unraid.docker.managed": "dockerman",
+      "org.opencontainers.image.created": "2026-05-10T00:01:26Z",
+      "org.opencontainers.image.revision": "f386c95898678833326c5eb03e79ad3b478c1cd8",
+      "org.opencontainers.image.source": "https://github.com/Nold360/borgserver.git",
+      "org.opencontainers.image.url": "https://github.com/Nold360/borgserver"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/backup": {},
+      "/sshkeys": {}
+    },
+    "WorkingDir": ""
+  },
+  "Created": "2026-05-11T19:17:54.532628034Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "cd9f16c56078302aebe7c6f0524f6a33bfb6141706594aafe553bb524653432c",
+      "LowerDir": "/var/lib/docker/overlay2/5ecf6f9d812af33c9fdbce1c536eaa4666c4578b40a9894c6eaff332363bf47f-init/diff:/var/lib/docker/overlay2/54639d8b633f6abaaec0a8df304945a37f056a930b52e0bc309a365349cab650/diff:/var/lib/docker/overlay2/68fabac064582a00a59a9b9fc841491264cc6e2a6576125e24dbb0fa5d0c50cb/diff:/var/lib/docker/overlay2/851ef214a9b35c604f1906d930fa53ef3a242120ab06e460aae6df3932df0afd/diff:/var/lib/docker/overlay2/c1e840fa80df47fa278687571df6bd8981f362dd6b06f6a74d4ebb445805322e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/5ecf6f9d812af33c9fdbce1c536eaa4666c4578b40a9894c6eaff332363bf47f/merged",
+      "UpperDir": "/var/lib/docker/overlay2/5ecf6f9d812af33c9fdbce1c536eaa4666c4578b40a9894c6eaff332363bf47f/diff",
+      "WorkDir": "/var/lib/docker/overlay2/5ecf6f9d812af33c9fdbce1c536eaa4666c4578b40a9894c6eaff332363bf47f/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/borg/sshkeys:/sshkeys:rw",
+      "/mnt/user/backup/borg:/backup:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "22/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "2222"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/cd9f16c56078302aebe7c6f0524f6a33bfb6141706594aafe553bb524653432c/hostname",
+  "HostsPath": "/var/lib/docker/containers/cd9f16c56078302aebe7c6f0524f6a33bfb6141706594aafe553bb524653432c/hosts",
+  "Id": "cd9f16c56078302aebe7c6f0524f6a33bfb6141706594aafe553bb524653432c",
+  "Image": "sha256:dec1322b0c2898360dcbf132c112806edc8f22c61e08429e762212cbabcd0fd6",
+  "LogPath": "/var/lib/docker/containers/cd9f16c56078302aebe7c6f0524f6a33bfb6141706594aafe553bb524653432c/cd9f16c56078302aebe7c6f0524f6a33bfb6141706594aafe553bb524653432c-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/backup",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/backup/borg",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/sshkeys",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/borg/sshkeys",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/borgserver",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "db7117610aafa55807275dc8c92a20ccefd7f5e52523a44cf238c34f770fafa4",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.30",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:1d",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "22/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "2222"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "2222"
+        }
+      ]
+    },
+    "SandboxID": "3448a752d0340a3a7c495af785dbf99d2e58cfa82f885bb36327beb0b2defbbe",
+    "SandboxKey": "/var/run/docker/netns/3448a752d034"
+  },
+  "Path": "/run.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/cd9f16c56078302aebe7c6f0524f6a33bfb6141706594aafe553bb524653432c/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.873340134Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 47940,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:53.771843043Z",
+    "Status": "running"
+  }
+}

@@ -1,0 +1,350 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "PAPERLESS_TIKA_GOTENBERG_ENDPOINT=REDACTED",
+      "PAPERLESS_IGNORE_DATES=REDACTED",
+      "USERMAP_UID=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PAPERLESS_OCR_LANGUAGES=REDACTED",
+      "PAPERLESS_TIME_ZONE=REDACTED",
+      "PAPERLESS_SECRET_KEY=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PAPERLESS_OCR_LANGUAGE=REDACTED",
+      "PAPERLESS_CSRF_TRUSTED_ORIGINS=REDACTED",
+      "PAPERLESS_APP_TITLE=REDACTED",
+      "USERMAP_GID=REDACTED",
+      "TZ=REDACTED",
+      "PAPERLESS_OCR_USER_ARGS=REDACTED",
+      "PAPERLESS_URL=REDACTED",
+      "PAPERLESS_ALLOWED_HOSTS=REDACTED",
+      "PAPERLESS_CONSUMER_POLLING=REDACTED",
+      "PAPERLESS_REDIS=REDACTED",
+      "PAPERLESS_FILENAME_FORMAT=REDACTED",
+      "PAPERLESS_CORS_ALLOWED_HOSTS=REDACTED",
+      "PAPERLESS_TIKA_ENABLED=REDACTED",
+      "PATH=REDACTED",
+      "LANG=REDACTED",
+      "GPG_KEY=REDACTED",
+      "PYTHON_VERSION=REDACTED",
+      "PYTHON_SHA256=REDACTED",
+      "UV_TOOL_BIN_DIR=REDACTED",
+      "S6_BEHAVIOUR_IF_STAGE2_FAILS=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "PYTHONDONTWRITEBYTECODE=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED",
+      "PYTHONWARNINGS=REDACTED",
+      "PNGX_CONTAINERIZED=REDACTED",
+      "UV_LINK_MODE=REDACTED",
+      "UV_CACHE_DIR=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8000/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 30000000000,
+      "Retries": 5,
+      "Test": [
+        "CMD",
+        "curl",
+        "-fs",
+        "-S",
+        "-L",
+        "--max-time",
+        "2",
+        "http://localhost:8000"
+      ],
+      "Timeout": 10000000000
+    },
+    "Hostname": "f0ee5c3d6b96",
+    "Image": "ghcr.io/paperless-ngx/paperless-ngx",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/selfhosters/unRAID-CA-templates/master/templates/img/paperless.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8000]",
+      "org.opencontainers.image.authors": "paperless-ngx team \u003credacted@example.com\u003e",
+      "org.opencontainers.image.created": "2026-04-27T02:39:51.366Z",
+      "org.opencontainers.image.description": "A community-supported supercharged document management system: scan, index and archive all your documents",
+      "org.opencontainers.image.documentation": "https://docs.paperless-ngx.com/",
+      "org.opencontainers.image.licenses": "GPL-3.0",
+      "org.opencontainers.image.revision": "05e48b23166df7c7afe6f329b460b0511a89496c",
+      "org.opencontainers.image.source": "https://github.com/paperless-ngx/paperless-ngx",
+      "org.opencontainers.image.title": "paperless-ngx",
+      "org.opencontainers.image.url": "https://github.com/paperless-ngx/paperless-ngx",
+      "org.opencontainers.image.version": "2.20.15"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/usr/src/paperless/consume": {},
+      "/usr/src/paperless/data": {},
+      "/usr/src/paperless/export": {},
+      "/usr/src/paperless/media": {}
+    },
+    "WorkingDir": "/usr/src/paperless/src/"
+  },
+  "Created": "2026-05-11T19:18:36.537419212Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "f0ee5c3d6b968069008c4062b40257565a89d7529348c8d12fec9a4cfc2b6121",
+      "LowerDir": "/var/lib/docker/overlay2/2d597b734ef27304941dc6398fbc5f0868cf9a88345cafeb3663ac97aa7cb8ce-init/diff:/var/lib/docker/overlay2/b03dd679300a019e763bf1e3dc42d80f5c7b0305af2ae123d6173f48c92f5ce7/diff:/var/lib/docker/overlay2/ebeb4e3d19fe07328e814decb60c25268d8ef2288ccc5813f0c1d3a5707ed034/diff:/var/lib/docker/overlay2/88c3be7866031fb78483c04dae33a102e262aaa1bb9bb0a0a466a07c280a41df/diff:/var/lib/docker/overlay2/d1b831079300405512de465c89171f9917c4f3dec3c4b3472ba3583d2e021f0a/diff:/var/lib/docker/overlay2/7bc65fbd5029ef7e0dbcf8863f07bab787151d14904e9d0cf53407d026c525c6/diff:/var/lib/docker/overlay2/e48e8f528d1a637bd099d0beeed7ab5d0fca8a56a32daa0de78b2127fbd2dbc2/diff:/var/lib/docker/overlay2/89bc154056252abc7112ea1b0eaa0dd49fa6e6cd5113e3ac5e3ba921d3bb18f1/diff:/var/lib/docker/overlay2/c8852846cf091e0cb2d885d6344ccb879f4b96c89294f4e8d172623d7fa539ae/diff:/var/lib/docker/overlay2/80aa2206deacb72f8e85594fcdf24b0b0d674529a44f26ec69cadf8b84f292aa/diff:/var/lib/docker/overlay2/f71da2c265b039205e10aac780f7503a5cda44734ba6c23aabdd095dc10f188c/diff:/var/lib/docker/overlay2/fe189eca327cd9015cacacdcdaf1a72ef35f07dbdbcc575efd86bb68cc3c8f90/diff:/var/lib/docker/overlay2/a8a2e0cdc7b89c815cd875a896ec66e7c251e26c45888978edb3aa8f5ac146c2/diff:/var/lib/docker/overlay2/fc762c74ecba699ff8eea0ea0cdd0d5e996da9d9dbc664c7c161b67b132b4cfa/diff:/var/lib/docker/overlay2/8d33cf7d1810eef7eee5e1377fec8f38a25b17313d11c52a02d3061c52855b9c/diff:/var/lib/docker/overlay2/e6ea7e9306638902c52e73aa027892a2958377124596282b3d8eb77aa9d7e7cf/diff",
+      "MergedDir": "/var/lib/docker/overlay2/2d597b734ef27304941dc6398fbc5f0868cf9a88345cafeb3663ac97aa7cb8ce/merged",
+      "UpperDir": "/var/lib/docker/overlay2/2d597b734ef27304941dc6398fbc5f0868cf9a88345cafeb3663ac97aa7cb8ce/diff",
+      "WorkDir": "/var/lib/docker/overlay2/2d597b734ef27304941dc6398fbc5f0868cf9a88345cafeb3663ac97aa7cb8ce/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/paperless-ngx/data:/usr/src/paperless/data:rw",
+      "/mnt/user/documents/papers:/usr/src/paperless/media:rw",
+      "/mnt/user/documents/import:/usr/src/paperless/consume:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/f0ee5c3d6b968069008c4062b40257565a89d7529348c8d12fec9a4cfc2b6121/hostname",
+  "HostsPath": "/var/lib/docker/containers/f0ee5c3d6b968069008c4062b40257565a89d7529348c8d12fec9a4cfc2b6121/hosts",
+  "Id": "f0ee5c3d6b968069008c4062b40257565a89d7529348c8d12fec9a4cfc2b6121",
+  "Image": "sha256:e5b01fc161095abda4448d9ddefcc608d6be237000014a1c14af4413befb38f0",
+  "LogPath": "/var/lib/docker/containers/f0ee5c3d6b968069008c4062b40257565a89d7529348c8d12fec9a4cfc2b6121/f0ee5c3d6b968069008c4062b40257565a89d7529348c8d12fec9a4cfc2b6121-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/usr/src/paperless/consume",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/documents/import",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/usr/src/paperless/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/paperless-ngx/data",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/usr/src/paperless/export",
+      "Driver": "local",
+      "Mode": "",
+      "Name": "654532ab995aaedee6412bcc41f736188f3caa14be2f0b857284ffeb2587cc73",
+      "Propagation": "",
+      "RW": true,
+      "Source": "/var/lib/docker/volumes/654532ab995aaedee6412bcc41f736188f3caa14be2f0b857284ffeb2587cc73/_data",
+      "Type": "volume"
+    },
+    {
+      "Destination": "/usr/src/paperless/media",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/documents/papers",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/paperless-ngx",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "91e9c46764ca971b82433d27e0f81ca3613f4d50405666abb3852c79906248a9",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.34",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:1a",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "8000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8000"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8000"
+        }
+      ]
+    },
+    "SandboxID": "b4ed69fe17b252395c74eb9c98a240ea6ca7500c7be3e1b4700e80af778af831",
+    "SandboxKey": "/var/run/docker/netns/b4ed69fe17b2"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/f0ee5c3d6b968069008c4062b40257565a89d7529348c8d12fec9a4cfc2b6121/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.87301332Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T20:04:32.971507214-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:04:32.850516204-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:03.035808718-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:05:02.972442017-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:33.132125679-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:05:33.037232738-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:03.189839958-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:06:03.134373257-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:33.287842358-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-10-03T20:06:33.191054728-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 49258,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:54.828937386Z",
+    "Status": "running"
+  }
+}

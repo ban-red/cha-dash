@@ -1,0 +1,38 @@
+{
+  "data": [
+    {
+      "by_id_link": "/dev/disk/by-id/nvme-PCIe_SSD_FAKESERIAL0002",
+      "devpath": "/dev/nvme0n1",
+      "gpt": 1,
+      "health": "PASSED",
+      "model": "PCIe SSD",
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0002",
+      "size": 512110190592,
+      "type": "nvme",
+      "used": "BIOS boot",
+      "vendor": "unknown",
+      "wearout": 90,
+      "wwn": "0x5000000000000002"
+    },
+    {
+      "devpath": "/dev/sda",
+      "gpt": 0,
+      "health": "PASSED",
+      "model": "My_Passport_07B8",
+      "mounted": 1,
+      "osdid": -1,
+      "osdid-list": null,
+      "rpm": 0,
+      "serial": "FAKESERIAL0003",
+      "size": 1000170586112,
+      "type": "usb",
+      "used": "ext4",
+      "vendor": "WD      ",
+      "wearout": "N/A",
+      "wwn": "unknown"
+    }
+  ]
+}

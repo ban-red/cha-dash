@@ -348,7 +348,7 @@ On a phone, sheets come up as full-height cards with momentum dismiss. A thumb-z
 | **T4 · Critical** | Power off the host running Cha Dash, format a disk, wipe | Disabled by default. Enabled per scope in settings. T3 flow plus a cooldown. | Audit plus a notification to all admins |
 
 - **Plan → apply** for multi-target operations: you see the list of steps and a diff, approve, then watch progress.
-- **AI or API-originated actions** above T1 always require human approval (later milestone).
+- **API-originated actions** above T1 always require human approval. **Agent-originated actions** need it for *every* write, at any tier, and agents can never approve ([ADR-0017](../adr/0017-ai-and-mcp.md); later milestone).
 - **Rate limits** apply to household and kiosk roles.
 
 ---

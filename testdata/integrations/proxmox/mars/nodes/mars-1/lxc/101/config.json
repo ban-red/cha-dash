@@ -1,0 +1,17 @@
+{
+  "data": {
+    "arch": "amd64",
+    "cores": 8,
+    "digest": "593338edefdb5c074e07544b00d10a8afda0ed47",
+    "features": "nesting=1",
+    "hostname": "pvedocker",
+    "memory": 16384,
+    "net0": "name=eth0,bridge=vmbr0,firewall=1,gw=10.0.11.1,hwaddr=BC:24:11:00:00:11,ip=10.0.11.201/24,type=veth",
+    "onboot": 1,
+    "ostype": "debian",
+    "rootfs": "vm-disks:vm-101-disk-0,size=100G",
+    "startup": "order=3",
+    "swap": 4096,
+    "unprivileged": 0
+  }
+}

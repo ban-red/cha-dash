@@ -1,0 +1,30 @@
+{
+  "data": {
+    "agent": "1",
+    "bios": "ovmf",
+    "boot": "order=scsi0",
+    "cores": 4,
+    "cpu": "host",
+    "digest": "486040379e8e57d075928cd92888cb6aba6cccf7",
+    "efidisk0": "local-lvm:vm-100-disk-0,efitype=4m,size=4M",
+    "localtime": 1,
+    "memory": "8192",
+    "meta": "creation-qemu=8.0.2,ctime=1698278879",
+    "name": "haos",
+    "net0": "virtio=BC:24:11:00:00:10,bridge=vmbr0,queues=4",
+    "numa": 0,
+    "onboot": 1,
+    "ostype": "l26",
+    "scsi0": "local-lvm:vm-100-disk-1,cache=writethrough,discard=on,size=128G,ssd=1",
+    "scsihw": "virtio-scsi-pci",
+    "smbios1": "uuid=00000000-0000-4000-8000-000000000006",
+    "sockets": 1,
+    "startup": "order=1,up=60",
+    "tablet": 0,
+    "tags": "tag-1",
+    "usb0": "host=10c4:ea60",
+    "usb1": "host=1a86:55d4",
+    "usb2": "host=0bda:2838",
+    "vmgenid": "00000000-0000-4000-8000-000000000007"
+  }
+}

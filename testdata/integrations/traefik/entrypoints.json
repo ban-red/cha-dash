@@ -1,0 +1,143 @@
+[
+  {
+    "address": ":2222",
+    "forwardedHeaders": {},
+    "http": {
+      "maxHeaderBytes": 1048576,
+      "sanitizePath": true
+    },
+    "http2": {
+      "maxConcurrentStreams": 250,
+      "maxDecoderHeaderTableSize": 4096,
+      "maxEncoderHeaderTableSize": 4096
+    },
+    "name": "onedev-ssh",
+    "transport": {
+      "lifeCycle": {
+        "graceTimeOut": "10s"
+      },
+      "respondingTimeouts": {
+        "idleTimeout": "3m0s",
+        "readTimeout": "1m0s"
+      }
+    },
+    "udp": {
+      "timeout": "3s"
+    }
+  },
+  {
+    "address": ":3128",
+    "forwardedHeaders": {},
+    "http": {
+      "maxHeaderBytes": 1048576,
+      "sanitizePath": true
+    },
+    "http2": {
+      "maxConcurrentStreams": 250,
+      "maxDecoderHeaderTableSize": 4096,
+      "maxEncoderHeaderTableSize": 4096
+    },
+    "name": "spice",
+    "transport": {
+      "lifeCycle": {
+        "graceTimeOut": "10s"
+      },
+      "respondingTimeouts": {
+        "idleTimeout": "3m0s",
+        "readTimeout": "1m0s"
+      }
+    },
+    "udp": {
+      "timeout": "3s"
+    }
+  },
+  {
+    "address": ":61000",
+    "forwardedHeaders": {},
+    "http": {
+      "maxHeaderBytes": 1048576,
+      "sanitizePath": true
+    },
+    "http2": {
+      "maxConcurrentStreams": 250,
+      "maxDecoderHeaderTableSize": 4096,
+      "maxEncoderHeaderTableSize": 4096
+    },
+    "name": "spice-tls",
+    "transport": {
+      "lifeCycle": {
+        "graceTimeOut": "10s"
+      },
+      "respondingTimeouts": {
+        "idleTimeout": "3m0s",
+        "readTimeout": "1m0s"
+      }
+    },
+    "udp": {
+      "timeout": "3s"
+    }
+  },
+  {
+    "address": ":80",
+    "forwardedHeaders": {},
+    "http": {
+      "maxHeaderBytes": 1048576,
+      "sanitizePath": true
+    },
+    "http2": {
+      "maxConcurrentStreams": 250,
+      "maxDecoderHeaderTableSize": 4096,
+      "maxEncoderHeaderTableSize": 4096
+    },
+    "name": "web",
+    "transport": {
+      "lifeCycle": {
+        "graceTimeOut": "10s"
+      },
+      "respondingTimeouts": {
+        "idleTimeout": "3m0s",
+        "readTimeout": "1m0s"
+      }
+    },
+    "udp": {
+      "timeout": "3s"
+    }
+  },
+  {
+    "address": ":443",
+    "forwardedHeaders": {},
+    "http": {
+      "maxHeaderBytes": 1048576,
+      "sanitizePath": true,
+      "tls": {
+        "certResolver": "cloudflare",
+        "domains": [
+          {
+            "main": "lab.example",
+            "sans": [
+              "*.lab.example"
+            ]
+          }
+        ]
+      }
+    },
+    "http2": {
+      "maxConcurrentStreams": 250,
+      "maxDecoderHeaderTableSize": 4096,
+      "maxEncoderHeaderTableSize": 4096
+    },
+    "name": "websecure",
+    "transport": {
+      "lifeCycle": {
+        "graceTimeOut": "10s"
+      },
+      "respondingTimeouts": {
+        "idleTimeout": "3m0s",
+        "readTimeout": "1m0s"
+      }
+    },
+    "udp": {
+      "timeout": "3s"
+    }
+  }
+]

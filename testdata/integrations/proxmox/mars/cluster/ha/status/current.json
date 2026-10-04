@@ -1,0 +1,45 @@
+{
+  "data": [
+    {
+      "id": "quorum",
+      "node": "mars-1",
+      "quorate": 1,
+      "status": "OK",
+      "type": "quorum"
+    },
+    {
+      "id": "master",
+      "node": "mars-2",
+      "status": "mars-2 (active, Sat Oct  3 19:29:40 2026)",
+      "timestamp": 1791077380,
+      "type": "master"
+    },
+    {
+      "id": "lrm:mars-1",
+      "node": "mars-1",
+      "status": "mars-1 (active, Sat Oct  3 19:29:47 2026)",
+      "timestamp": 1791077387,
+      "type": "lrm"
+    },
+    {
+      "id": "lrm:mars-2",
+      "node": "mars-2",
+      "status": "mars-2 (idle, Sat Oct  3 19:29:49 2026)",
+      "timestamp": 1791077389,
+      "type": "lrm"
+    },
+    {
+      "crm_state": "started",
+      "failback": 1,
+      "id": "service:ct:101",
+      "max_relocate": 1,
+      "max_restart": 1,
+      "node": "mars-1",
+      "request_state": "started",
+      "sid": "ct:101",
+      "state": "started",
+      "status": "ct:101 (mars-1, started)",
+      "type": "service"
+    }
+  ]
+}

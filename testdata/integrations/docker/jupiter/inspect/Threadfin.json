@@ -1,0 +1,290 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "-c",
+    "${THREADFIN_BIN}/threadfin -port=${THREADFIN_PORT} -bind=${THREADFIN_BIND_IP_ADDRESS} -config=${THREADFIN_CONF} -debug=${THREADFIN_DEBUG}"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "sh",
+      "-c",
+      "${THREADFIN_BIN}/threadfin -port=${THREADFIN_PORT} -bind=${THREADFIN_BIND_IP_ADDRESS} -config=${THREADFIN_CONF} -debug=${THREADFIN_DEBUG}"
+    ],
+    "Env": [
+      "DISPLAY=REDACTED",
+      "PUID=REDACTED",
+      "PGID=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED",
+      "THREADFIN_BIN=REDACTED",
+      "THREADFIN_CONF=REDACTED",
+      "THREADFIN_HOME=REDACTED",
+      "THREADFIN_TEMP=REDACTED",
+      "THREADFIN_CACHE=REDACTED",
+      "THREADFIN_UID=REDACTED",
+      "THREADFIN_GID=REDACTED",
+      "THREADFIN_USER=REDACTED",
+      "THREADFIN_BRANCH=REDACTED",
+      "THREADFIN_DEBUG=REDACTED",
+      "THREADFIN_PORT=REDACTED",
+      "THREADFIN_LOG=REDACTED",
+      "THREADFIN_BIND_IP_ADDRESS=REDACTED",
+      "DEBIAN_FRONTEND=REDACTED"
+    ],
+    "ExposedPorts": {
+      "34400/tcp": {}
+    },
+    "Hostname": "53fcd8f35fdd",
+    "Image": "fyb3roptik/threadfin",
+    "Labels": {
+      "DISCORD_URL": "https://discord.gg/bEPPNP2VG8",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/nwithan8/unraid_templates/master/images/threadfin-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:34400]/web/",
+      "org.label-schema.build-date": "",
+      "org.label-schema.description": "Dockerized Threadfin",
+      "org.label-schema.name": "Threadfin",
+      "org.label-schema.schema-version": "1.0",
+      "org.label-schema.url": "https://hub.docker.com/r/fyb3roptik/threadfin/",
+      "org.label-schema.vcs-ref": "",
+      "org.label-schema.vcs-url": "https://github.com/Threadfin/Threadfin",
+      "org.label-schema.vendor": "Threadfin",
+      "org.label-schema.version": "",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.version": "24.04"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/home/threadfin/conf": {},
+      "/tmp/threadfin": {}
+    },
+    "WorkingDir": "/home/threadfin"
+  },
+  "Created": "2025-10-31T07:03:22.812093157Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "53fcd8f35fddc1d8a5d76ae12d05e6f793eda3ddf7a095fa54d70662343adbb0",
+      "LowerDir": "/var/lib/docker/overlay2/e15decf614b791a65a43752416531bc291f157e591307e25f903877313e35aa1-init/diff:/var/lib/docker/overlay2/d5463c543581c6ec6308aafcb27e7bf9b8e8944812e92f478fc4a2d01f0bf480/diff:/var/lib/docker/overlay2/5000b47d92675af30250be778b135bebc764904a2bea4d82845ace88834a5ee6/diff:/var/lib/docker/overlay2/225898489a4156a2c77077870c56860b2e815e9ce00104075db3b7830a077cf3/diff:/var/lib/docker/overlay2/2c23c3a99b4d06de730cff4c4e1b50bb25732cb83276269b73c376d1ae04a5e0/diff:/var/lib/docker/overlay2/3e58880cd97ce6fb60d20e40d41f480cbb965845400170c53ebb4f1a3c6b2064/diff",
+      "MergedDir": "/var/lib/docker/overlay2/e15decf614b791a65a43752416531bc291f157e591307e25f903877313e35aa1/merged",
+      "UpperDir": "/var/lib/docker/overlay2/e15decf614b791a65a43752416531bc291f157e591307e25f903877313e35aa1/diff",
+      "WorkDir": "/var/lib/docker/overlay2/e15decf614b791a65a43752416531bc291f157e591307e25f903877313e35aa1/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/dev/dri:/dev/dri:rw",
+      "/run/dbus:/run/dbus:rw",
+      "/mnt/user/appdata/threadfin/config:/home/threadfin/conf:rw",
+      "/dev/shm/threadfin:/tmp/threadfin:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": [
+      "18"
+    ],
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "34400/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "34400"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/53fcd8f35fddc1d8a5d76ae12d05e6f793eda3ddf7a095fa54d70662343adbb0/hostname",
+  "HostsPath": "/var/lib/docker/containers/53fcd8f35fddc1d8a5d76ae12d05e6f793eda3ddf7a095fa54d70662343adbb0/hosts",
+  "Id": "53fcd8f35fddc1d8a5d76ae12d05e6f793eda3ddf7a095fa54d70662343adbb0",
+  "Image": "sha256:20b73bf04de909d11707b65f851f9cb6b8df3d5d6b6ba4ea6e0397d8d67aec25",
+  "LogPath": "/var/lib/docker/containers/53fcd8f35fddc1d8a5d76ae12d05e6f793eda3ddf7a095fa54d70662343adbb0/53fcd8f35fddc1d8a5d76ae12d05e6f793eda3ddf7a095fa54d70662343adbb0-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/dev/dri",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/dev/dri",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/home/threadfin/conf",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/threadfin/config",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/run/dbus",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/run/dbus",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/tmp/threadfin",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/dev/shm/threadfin",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/Threadfin",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "1d0c0eacbd931a0f3581ba7777029847ff64072f3ceb0d2e4c900aa8e087003e",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.27",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:28",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "34400/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "34400"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "34400"
+        }
+      ]
+    },
+    "SandboxID": "57f2b8f7b96418e607daf65cb9c57e3999485e286e93ea955db05f6f46f57d87",
+    "SandboxKey": "/var/run/docker/netns/57f2b8f7b964"
+  },
+  "Path": "sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/53fcd8f35fddc1d8a5d76ae12d05e6f793eda3ddf7a095fa54d70662343adbb0/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870267739Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 46726,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:52.726343415Z",
+    "Status": "running"
+  }
+}

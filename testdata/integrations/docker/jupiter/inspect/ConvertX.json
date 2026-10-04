@@ -1,0 +1,271 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "bun",
+    "run",
+    "dist/src/index.js"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "bun",
+      "run",
+      "dist/src/index.js"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/entrypoint.sh"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "JWT_SECRET=REDACTED",
+      "HTTP_ALLOWED=REDACTED",
+      "ALLOW_UNAUTHENTICATED=REDACTED",
+      "AUTO_DELETE_EVERY_N_HOURS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "ACCOUNT_REGISTRATION=REDACTED",
+      "CA_TS_FALLBACK_DIR=REDACTED",
+      "PATH=REDACTED",
+      "PIPX_HOME=REDACTED",
+      "PIPX_BIN_DIR=REDACTED",
+      "QTWEBENGINE_CHROMIUM_FLAGS=REDACTED",
+      "NODE_ENV=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Hostname": "7fbcd5728216",
+    "Image": "c4illin/convertx:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/C4illin/ConvertX/refs/heads/main/public/favicon.svg",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]",
+      "org.opencontainers.image.created": "2026-09-26T00:45:35.822Z",
+      "org.opencontainers.image.description": "💾 Self-hosted online file converter. Supports 1000+ formats ⚙️",
+      "org.opencontainers.image.licenses": "AGPL-3.0",
+      "org.opencontainers.image.revision": "710bc7c71712af04198a39f003e3ea1aa5168a31",
+      "org.opencontainers.image.source": "https://github.com/C4illin/ConvertX",
+      "org.opencontainers.image.title": "ConvertX",
+      "org.opencontainers.image.url": "https://github.com/C4illin/ConvertX",
+      "org.opencontainers.image.version": "v0.19.0"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  },
+  "Created": "2026-09-30T05:29:05.683727462Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "7fbcd572821670f43b28b92c3e42c9898448c07905e2701d705a0c00b265ffa7",
+      "LowerDir": "/var/lib/docker/overlay2/2696c7ca629f03002a448401e7d58acded14dfa945ffb9c6c1eb10ffa4246945-init/diff:/var/lib/docker/overlay2/01850cbf3ec6e1ee2717624068afdd46ddeca558b07b5eca6af57fe020f94513/diff:/var/lib/docker/overlay2/98976789f09cc22db48c6d35919d36592cea1b981fc1326c16aedbcacc34efdb/diff:/var/lib/docker/overlay2/36dfda0059ecefa1d51d418578aec09681244c27c4b4604016fde0739a686d95/diff:/var/lib/docker/overlay2/2444755001d70dc5fdbdabf055f22788dde92280f5808ee211ca6c55a23d27c7/diff:/var/lib/docker/overlay2/af974ad0f2820fbafc2c8d4526d3970557b8e6e24428f01653380aac3cefce2d/diff:/var/lib/docker/overlay2/a4ad1c8b4d9c9f30d7b2063ede6116e7f340447db34a9bf3f2279d5323388622/diff:/var/lib/docker/overlay2/78841d6fdaecc235ca05227a94bf55fc6854e8f01afecd3b97f7411bfc4417fb/diff:/var/lib/docker/overlay2/38a8b0047204a1e6f75c0e0a5b8c6f36b1c805922c56f7ccff46fb5ec46fc0bb/diff:/var/lib/docker/overlay2/2881c8e02f04be3fae5eba4f87682720b1758d07b875a6f24de31e9ef566ab74/diff:/var/lib/docker/overlay2/fccaa532a35d9ec2acd610e8ca154a160ebc9ba677c34a3c74784b885a7dc3e7/diff:/var/lib/docker/overlay2/413ed028cba597df1784585a9c8bc5e73ea8bb034ca3f30e39d89f74334a9fa9/diff:/var/lib/docker/overlay2/4d44982d21454ffdde5324672f402cd615512888df40916f09b35bcc3c76daed/diff:/var/lib/docker/overlay2/98a714767ff333913461f7fe7bc22b7bb7d171e3c59e15ec78e0e8c1e3faa9e9/diff:/var/lib/docker/overlay2/bceddccf6ae5cb2f37d092878d73c3f78989ee643681e9b052d6d359f485cdee/diff",
+      "MergedDir": "/var/lib/docker/overlay2/2696c7ca629f03002a448401e7d58acded14dfa945ffb9c6c1eb10ffa4246945/merged",
+      "UpperDir": "/var/lib/docker/overlay2/2696c7ca629f03002a448401e7d58acded14dfa945ffb9c6c1eb10ffa4246945/diff",
+      "WorkDir": "/var/lib/docker/overlay2/2696c7ca629f03002a448401e7d58acded14dfa945ffb9c6c1eb10ffa4246945/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/convertx/data:/app/data:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "31000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/7fbcd572821670f43b28b92c3e42c9898448c07905e2701d705a0c00b265ffa7/hostname",
+  "HostsPath": "/var/lib/docker/containers/7fbcd572821670f43b28b92c3e42c9898448c07905e2701d705a0c00b265ffa7/hosts",
+  "Id": "7fbcd572821670f43b28b92c3e42c9898448c07905e2701d705a0c00b265ffa7",
+  "Image": "sha256:bae05f3f81588b402fb5c75118e043edd2c51cd946ed9d84335117bb47df379a",
+  "LogPath": "/var/lib/docker/containers/7fbcd572821670f43b28b92c3e42c9898448c07905e2701d705a0c00b265ffa7/7fbcd572821670f43b28b92c3e42c9898448c07905e2701d705a0c00b265ffa7-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/app/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/convertx/data",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/ConvertX",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "b5d174e6b7805a8bd933f5f5df75f0585f278be94d2ad7d8cc8d5195e669193f",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.38",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:01",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "31000"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "31000"
+        }
+      ]
+    },
+    "SandboxID": "ba166e17ff5357cf3da57cf5e34f8c4b9c08040acdf4da93b2566568529b3e8b",
+    "SandboxKey": "/var/run/docker/netns/ba166e17ff53"
+  },
+  "Path": "/entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/7fbcd572821670f43b28b92c3e42c9898448c07905e2701d705a0c00b265ffa7/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 2459272,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-30T05:29:05.835459464Z",
+    "Status": "running"
+  }
+}

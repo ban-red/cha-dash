@@ -1,0 +1,27 @@
+{
+  "data": {
+    "agent": "1",
+    "balloon": 0,
+    "bios": "ovmf",
+    "boot": "order=scsi0",
+    "cores": 16,
+    "cpu": "host,flags=-md-clear;-pcid;-spec-ctrl;-ssbd;+aes",
+    "digest": "dee28f8e46545263ac4e9610f676bc9e61eba4d6",
+    "efidisk0": "local-lvm:vm-200-disk-0,efitype=4m,ms-cert=2023k,pre-enrolled-keys=1,size=4M",
+    "hostpci0": "0000:01:00,pcie=1,x-vga=1",
+    "ide2": "none,media=cdrom",
+    "machine": "q35,viommu=virtio",
+    "memory": "50000",
+    "meta": "creation-qemu=10.0.2,ctime=1758005762",
+    "name": "iolinux",
+    "net0": "virtio=BC:24:11:00:00:3B,bridge=vmbr0",
+    "numa": 0,
+    "ostype": "l26",
+    "scsi0": "/dev/disk/by-id/nvme-Fanxiang_S880_2TB_FAKESERIAL0009,backup=0,cache=writethrough,discard=on,iothread=1,size=1953514584K,ssd=1",
+    "scsihw": "virtio-scsi-single",
+    "smbios1": "uuid=00000000-0000-4000-8000-000000000014",
+    "sockets": 1,
+    "vga": "qxl",
+    "vmgenid": "00000000-0000-4000-8000-000000000015"
+  }
+}

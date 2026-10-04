@@ -1,0 +1,275 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/start.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "PUID=REDACTED",
+      "SUBFOLDER=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "MENU_VERSION=REDACTED",
+      "PORT_RANGE=REDACTED",
+      "PATH=REDACTED",
+      "TFTPD_OPTS=REDACTED",
+      "NGINX_PORT=REDACTED",
+      "WEB_APP_PORT=REDACTED",
+      "NODE_ENV=REDACTED",
+      "NPM_CONFIG_CACHE=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "69/udp": {},
+      "80/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 30000000000,
+      "Retries": 3,
+      "StartPeriod": 60000000000,
+      "Test": [
+        "CMD-SHELL",
+        "/healthcheck.sh"
+      ],
+      "Timeout": 15000000000
+    },
+    "Hostname": "0b417079ef78",
+    "Image": "ghcr.io/netbootxyz/netbootxyz",
+    "Labels": {
+      "maintainer": "antonym",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/netbootxyz-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]",
+      "org.opencontainers.image.authors": "netboot.xyz",
+      "org.opencontainers.image.created": "2025-10-17T07:38:36",
+      "org.opencontainers.image.description": "netboot.xyz official docker container - Your favorite operating systems in one place. A network-based bootable operating system installer based on iPXE.",
+      "org.opencontainers.image.documentation": "https://netboot.xyz",
+      "org.opencontainers.image.licenses": "Apache-2.0",
+      "org.opencontainers.image.ref.name": "8aa95c1b3e8bf4a7a5033a90e96fdcbd5c438d12",
+      "org.opencontainers.image.revision": "8aa95c1b3e8bf4a7a5033a90e96fdcbd5c438d12",
+      "org.opencontainers.image.source": "https://github.com/netbootxyz/docker-netbootxyz",
+      "org.opencontainers.image.title": "netbootxyz",
+      "org.opencontainers.image.url": "https://github.com/netbootxyz/docker-netbootxyz/packages",
+      "org.opencontainers.image.vendor": "netboot.xyz",
+      "org.opencontainers.image.version": "0.7.6-nbxyz10"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2025-10-31T19:16:23.100419086Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "0b417079ef7869028d720fa7c5f8c5a12e7c2bbc8c69d8ed62848a102cccddb9",
+      "LowerDir": "/var/lib/docker/overlay2/bae6b5fb7e991aab566706923d384a254d32a74a33bf007e2cef8f7086fa4843-init/diff:/var/lib/docker/overlay2/5566f52db0de060095caf8c4dfd6e19b72bc90d149683c7db3abdb34d0caec9b/diff:/var/lib/docker/overlay2/dcf06a47b48a84eb0fccee8abbe138f1634b4cb187d129f1378088a21676d8c0/diff:/var/lib/docker/overlay2/29e08dcf159a76be9f4d3172005f2eaa479928a243d613185dd432c4cee6a30e/diff:/var/lib/docker/overlay2/fb012650d4e483dea4336e40b2fa584655f6aa1f9e0456dad2cccb4ba58d8444/diff:/var/lib/docker/overlay2/592de6f96ad97022e2a92c33a4a4096bbaed66b0d57b9cde2db40e9c04a0b19b/diff",
+      "MergedDir": "/var/lib/docker/overlay2/bae6b5fb7e991aab566706923d384a254d32a74a33bf007e2cef8f7086fa4843/merged",
+      "UpperDir": "/var/lib/docker/overlay2/bae6b5fb7e991aab566706923d384a254d32a74a33bf007e2cef8f7086fa4843/diff",
+      "WorkDir": "/var/lib/docker/overlay2/bae6b5fb7e991aab566706923d384a254d32a74a33bf007e2cef8f7086fa4843/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/isos/:/assets:rw",
+      "/mnt/user/appdata/netbootxyz:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3232"
+        }
+      ],
+      "69/udp": [
+        {
+          "HostIp": "",
+          "HostPort": "69"
+        }
+      ],
+      "80/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8880"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/0b417079ef7869028d720fa7c5f8c5a12e7c2bbc8c69d8ed62848a102cccddb9/hostname",
+  "HostsPath": "/var/lib/docker/containers/0b417079ef7869028d720fa7c5f8c5a12e7c2bbc8c69d8ed62848a102cccddb9/hosts",
+  "Id": "0b417079ef7869028d720fa7c5f8c5a12e7c2bbc8c69d8ed62848a102cccddb9",
+  "Image": "sha256:9a2c2e9cec0d1f1bd9eb2fa655a376959db4bdd95fbca0cbed44daede3f0e44d",
+  "LogPath": "/var/lib/docker/containers/0b417079ef7869028d720fa7c5f8c5a12e7c2bbc8c69d8ed62848a102cccddb9/0b417079ef7869028d720fa7c5f8c5a12e7c2bbc8c69d8ed62848a102cccddb9-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/assets",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/isos",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/netbootxyz",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/netbootxyz",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "965af62cd41727a1df3fa2a12e1e03e8b3a7f7150110a457b652b3f8627fcd3a"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/start.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/0b417079ef7869028d720fa7c5f8c5a12e7c2bbc8c69d8ed62848a102cccddb9/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 255,
+    "FinishedAt": "2026-01-07T01:54:40.172220856Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [],
+      "Status": "starting"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2025-10-31T19:16:33.416678409Z",
+    "Status": "exited"
+  }
+}

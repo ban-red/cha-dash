@@ -1,0 +1,243 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/init"
+    ],
+    "Env": [
+      "WS_FALLBACK=REDACTED",
+      "RTC_CONFIG=REDACTED",
+      "PGID=REDACTED",
+      "UMASK=REDACTED",
+      "HOST_OS=REDACTED",
+      "RATE_LIMIT=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "DEBUG_MODE=REDACTED",
+      "PUID=REDACTED",
+      "TZ=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "PATH=REDACTED",
+      "PS1=REDACTED",
+      "HOME=REDACTED",
+      "TERM=REDACTED",
+      "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=REDACTED",
+      "S6_VERBOSITY=REDACTED",
+      "S6_STAGE2_HOOK=REDACTED",
+      "VIRTUAL_ENV=REDACTED",
+      "LSIO_FIRST_PARTY=REDACTED",
+      "NODE_ENV=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Hostname": "2ec54137984b",
+    "Image": "lscr.io/linuxserver/pairdrop",
+    "Labels": {
+      "build_version": "Linuxserver.io version:- v1.11.2-ls128 Build-date:- 2025-11-29T11:50:54+00:00",
+      "maintainer": "thespad",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/linuxserver-ls-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]",
+      "org.opencontainers.image.authors": "linuxserver.io",
+      "org.opencontainers.image.created": "2025-11-29T11:50:54+00:00",
+      "org.opencontainers.image.description": "[PairDrop](https://github.com/schlagmichdoch/PairDrop) is a sublime alternative to AirDrop that works on all platforms. Send images, documents or text via peer to peer connection to devices in the same local network/Wi-Fi or to paired devices.",
+      "org.opencontainers.image.documentation": "https://docs.linuxserver.io/images/docker-pairdrop",
+      "org.opencontainers.image.licenses": "GPL-3.0-only",
+      "org.opencontainers.image.ref.name": "4b7a40c4859f625a0f9a121b79e9414053722396",
+      "org.opencontainers.image.revision": "4b7a40c4859f625a0f9a121b79e9414053722396",
+      "org.opencontainers.image.source": "https://github.com/linuxserver/docker-pairdrop",
+      "org.opencontainers.image.title": "Pairdrop",
+      "org.opencontainers.image.url": "https://github.com/linuxserver/docker-pairdrop/packages",
+      "org.opencontainers.image.vendor": "linuxserver.io",
+      "org.opencontainers.image.version": "v1.11.2-ls128"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2025-12-06T18:41:41.390644838Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "2ec54137984ba9a247a088b122598491d85c03e658bf048a227659703912aa10",
+      "LowerDir": "/var/lib/docker/overlay2/cb7d41832ddac5538f3126b237e0ee6c56906a197cf923c6eea38cbc4ae0c587-init/diff:/var/lib/docker/overlay2/f745040e6ce03c1c10f29c429cdafacfeba566e3cee00353b5b1d80774078a81/diff:/var/lib/docker/overlay2/650b900f971be67edeba36b616a67a4d190aa0f571cf030697f46427a7c92b33/diff:/var/lib/docker/overlay2/b4ef8583c06b43a46206c4c75c109733fb390b8e98b124b3cb7a6061210f2440/diff:/var/lib/docker/overlay2/5236f4aaa2243ed40a1b30ab569b90304751b222e9a38d24b71061a9ad34a06c/diff:/var/lib/docker/overlay2/148c005ad435dcf5d638a6a3081e153c86c0ef40934600b31a62efe75e16eb46/diff:/var/lib/docker/overlay2/bf8d15f63cbffe4e8648ef695453392f0191e851c87ced6439a1e8114567ff32/diff:/var/lib/docker/overlay2/c02e7f9721b917bd3046ae3964c48f8e5ea2f97a388e732182ddf609e6519e65/diff:/var/lib/docker/overlay2/adc69ed62a4e3ae6bd18d8f9215ffbb15c326641e567293b13b688b4fd65083c/diff:/var/lib/docker/overlay2/c45277288d4a021bac928fabef32d71878d658d00db93f07f5cb842ef61a597d/diff",
+      "MergedDir": "/var/lib/docker/overlay2/cb7d41832ddac5538f3126b237e0ee6c56906a197cf923c6eea38cbc4ae0c587/merged",
+      "UpperDir": "/var/lib/docker/overlay2/cb7d41832ddac5538f3126b237e0ee6c56906a197cf923c6eea38cbc4ae0c587/diff",
+      "WorkDir": "/var/lib/docker/overlay2/cb7d41832ddac5538f3126b237e0ee6c56906a197cf923c6eea38cbc4ae0c587/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": null,
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3300"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/2ec54137984ba9a247a088b122598491d85c03e658bf048a227659703912aa10/hostname",
+  "HostsPath": "/var/lib/docker/containers/2ec54137984ba9a247a088b122598491d85c03e658bf048a227659703912aa10/hosts",
+  "Id": "2ec54137984ba9a247a088b122598491d85c03e658bf048a227659703912aa10",
+  "Image": "sha256:392cd5a5080dce69474061b3ee728c477ca3a9aae5c1fd858f8f2baa19107f5f",
+  "LogPath": "/var/lib/docker/containers/2ec54137984ba9a247a088b122598491d85c03e658bf048a227659703912aa10/2ec54137984ba9a247a088b122598491d85c03e658bf048a227659703912aa10-json.log",
+  "MountLabel": "",
+  "Mounts": [],
+  "Name": "/pairdrop",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "6c807d3eeaef3fc5691e049dfd07b111dd24c3f1529bb1c5403faa22eb1d1d7a",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.36",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:23",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "3300"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "3300"
+        }
+      ]
+    },
+    "SandboxID": "e376e94628f2dd0fcc9e3e76e83d6e7e8e2d5d77ccf1ad441238cc56d36c825b",
+    "SandboxKey": "/var/run/docker/netns/e376e94628f2"
+  },
+  "Path": "/init",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/2ec54137984ba9a247a088b122598491d85c03e658bf048a227659703912aa10/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870402427Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 50049,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:55.40677315Z",
+    "Status": "running"
+  }
+}

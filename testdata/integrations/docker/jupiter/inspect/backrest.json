@@ -1,0 +1,281 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "--",
+    "/docker-entrypoint",
+    "/backrest"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/backrest"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/sbin/tini",
+      "--",
+      "/docker-entrypoint"
+    ],
+    "Env": [
+      "BACKREST_DATA=REDACTED",
+      "BACKREST_CONFIG=REDACTED",
+      "XDG_CACHE_HOME=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "PATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "9898/tcp": {}
+    },
+    "Hostname": "bb6f6f5b4924",
+    "Image": "garethgeorge/backrest:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/homelab-user/unraid-ca-templates/master/templates/images/backrest-icon.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:9898]",
+      "org.opencontainers.image.source": "https://github.com/garethgeorge/backrest"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-05-11T19:17:59.64702146Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "bb6f6f5b4924738055cc404c5f5a1eab4878673899114b37742a6579ae4fe47c",
+      "LowerDir": "/var/lib/docker/overlay2/b07232161ab799fb4935d6294e7e4087a89e6b6a3900a4abe381730d5e736f6a-init/diff:/var/lib/docker/overlay2/76ca3046f401f7cb67769ac4666763af167dbd03feee955eedc5f8a5070bd5e6/diff:/var/lib/docker/overlay2/02da2e354038055d32eccf8b488250af6f86693e7efcca61b3e2a6a02e0487c1/diff:/var/lib/docker/overlay2/afb6a18919a2e6557b7d0d4458ded8182d7eecb8d5c5e125e20faa8dc27f76fd/diff:/var/lib/docker/overlay2/77845c3d208e548e3ea1330170b3f9d930c226fb8268b5a38b2685ae904abfe0/diff:/var/lib/docker/overlay2/046b006de5fb66b4bdefbfac55a847d809c1f5ef38a2f6235778401ea8e5b4df/diff:/var/lib/docker/overlay2/dfac90abc78bd87aaa29d4a16825765b1d7257ccf7b025ec0e8dfc191187cf1c/diff:/var/lib/docker/overlay2/9fb3c4883c7be634acbeced17033a50a196976790cbfe9d3b11abc2fc29c6050/diff",
+      "MergedDir": "/var/lib/docker/overlay2/b07232161ab799fb4935d6294e7e4087a89e6b6a3900a4abe381730d5e736f6a/merged",
+      "UpperDir": "/var/lib/docker/overlay2/b07232161ab799fb4935d6294e7e4087a89e6b6a3900a4abe381730d5e736f6a/diff",
+      "WorkDir": "/var/lib/docker/overlay2/b07232161ab799fb4935d6294e7e4087a89e6b6a3900a4abe381730d5e736f6a/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/backrest/cache:/cache:rw",
+      "/mnt/user/appdata/backrest/data:/data:rw",
+      "/mnt/user/appdata/backrest/repos:/repos:rw",
+      "/mnt/user/backup:/backup:ro",
+      "/mnt/user/general_backup:/general_backup:ro",
+      "/mnt/user/appdata/backrest/config:/config:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "9898/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "9898"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/bb6f6f5b4924738055cc404c5f5a1eab4878673899114b37742a6579ae4fe47c/hostname",
+  "HostsPath": "/var/lib/docker/containers/bb6f6f5b4924738055cc404c5f5a1eab4878673899114b37742a6579ae4fe47c/hosts",
+  "Id": "bb6f6f5b4924738055cc404c5f5a1eab4878673899114b37742a6579ae4fe47c",
+  "Image": "sha256:79a4a910ce36f8fba2b6fd1735c346b32b4bb8e7dea5b339566ae279ecf8533c",
+  "LogPath": "/var/lib/docker/containers/bb6f6f5b4924738055cc404c5f5a1eab4878673899114b37742a6579ae4fe47c/bb6f6f5b4924738055cc404c5f5a1eab4878673899114b37742a6579ae4fe47c-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/backup",
+      "Mode": "ro",
+      "Propagation": "rprivate",
+      "RW": false,
+      "Source": "/mnt/user/backup",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/cache",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/backrest/cache",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/config",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/backrest/config",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/backrest/data",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/general_backup",
+      "Mode": "ro",
+      "Propagation": "rprivate",
+      "RW": false,
+      "Source": "/mnt/user/general_backup",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/repos",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/backrest/repos",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/backrest",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "c70802b998fa22186f33de3d50cb4dd2e4e5282c0c5104441d02eccbb1eb6317",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.32",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:1c",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "9898/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "9898"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "9898"
+        }
+      ]
+    },
+    "SandboxID": "0a95acb052e0c7df9835b57dd32090290db70dab849324e98d013676db8c8669",
+    "SandboxKey": "/var/run/docker/netns/0a95acb052e0"
+  },
+  "Path": "/sbin/tini",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/bb6f6f5b4924738055cc404c5f5a1eab4878673899114b37742a6579ae4fe47c/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.870436123Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 48661,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:54.259720693Z",
+    "Status": "running"
+  }
+}

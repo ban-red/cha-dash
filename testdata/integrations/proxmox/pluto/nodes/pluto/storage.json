@@ -1,0 +1,63 @@
+{
+  "data": [
+    {
+      "active": 1,
+      "avail": 22325690368,
+      "content": "backup",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "usb",
+      "total": 41489260544,
+      "type": "dir",
+      "used": 17023008768,
+      "used_fraction": 0.41029916042844
+    },
+    {
+      "active": 1,
+      "avail": 3720782184448,
+      "content": "backup",
+      "enabled": 1,
+      "shared": 1,
+      "storage": "pbs-unraid-pluto",
+      "total": 45976621608960,
+      "type": "pbs",
+      "used": 42255839424512,
+      "used_fraction": 0.919072301220956
+    },
+    {
+      "active": 1,
+      "avail": 22325690368,
+      "content": "backup,vztmpl,iso",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local",
+      "total": 41489260544,
+      "type": "dir",
+      "used": 17023008768,
+      "used_fraction": 0.41029916042844
+    },
+    {
+      "active": 0,
+      "avail": 0,
+      "content": "images,rootdir",
+      "enabled": 0,
+      "shared": 0,
+      "storage": "store-1",
+      "total": 0,
+      "type": "zfspool",
+      "used": 0
+    },
+    {
+      "active": 1,
+      "avail": 31469936313,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local-lvm",
+      "total": 57902366720,
+      "type": "lvmthin",
+      "used": 26432430407,
+      "used_fraction": 0.456499999988256
+    }
+  ]
+}

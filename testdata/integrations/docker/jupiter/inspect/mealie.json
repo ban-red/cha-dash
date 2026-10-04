@@ -1,0 +1,374 @@
+{
+  "AppArmorProfile": "",
+  "Args": [],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": null,
+    "Domainname": "",
+    "Entrypoint": [
+      "/app/run.sh"
+    ],
+    "Env": [
+      "MAX_WORKERS=REDACTED",
+      "POSTGRES_PASSWORD=REDACTED",
+      "OPENAI_API_KEY=REDACTED",
+      "BASE_URL=REDACTED",
+      "UMASK=REDACTED",
+      "POSTGRES_DB=REDACTED",
+      "OPENAI_MODEL=REDACTED",
+      "PUID=REDACTED",
+      "POSTGRES_PORT=REDACTED",
+      "OPENAI_WORKERS=REDACTED",
+      "POSTGRES_SERVER=REDACTED",
+      "POSTGRES_USER=REDACTED",
+      "OPENAI_ENABLE_IMAGE_SERVICES=REDACTED",
+      "DB_ENGINE=REDACTED",
+      "OPENAI_SEND_DATABASE_DATA=REDACTED",
+      "OPENAI_BASE_URL=REDACTED",
+      "PGID=REDACTED",
+      "OPENAI_REQUEST_TIMEOUT=REDACTED",
+      "WEB_CONCURRENCY=REDACTED",
+      "TZ=REDACTED",
+      "ALLOW_SIGNUP=REDACTED",
+      "PATH=REDACTED",
+      "LANG=REDACTED",
+      "GPG_KEY=REDACTED",
+      "PYTHON_VERSION=REDACTED",
+      "PYTHON_SHA256=REDACTED",
+      "MEALIE_HOME=REDACTED",
+      "PYTHONUNBUFFERED=REDACTED",
+      "PYTHONDONTWRITEBYTECODE=REDACTED",
+      "PIP_NO_CACHE_DIR=REDACTED",
+      "PIP_DISABLE_PIP_VERSION_CHECK=REDACTED",
+      "PIP_DEFAULT_TIMEOUT=REDACTED",
+      "VENV_PATH=REDACTED",
+      "PRODUCTION=REDACTED",
+      "TESTING=REDACTED",
+      "GIT_COMMIT_HASH=REDACTED",
+      "NLTK_DATA=REDACTED",
+      "APP_PORT=REDACTED",
+      "HOST=REDACTED"
+    ],
+    "ExposedPorts": {
+      "9000/tcp": {}
+    },
+    "Healthcheck": {
+      "Test": [
+        "CMD-SHELL",
+        "$MEALIE_HOME/healthcheck.sh"
+      ]
+    },
+    "Hostname": "9d204a2cd74b",
+    "Image": "ghcr.io/mealie-recipes/mealie:nightly",
+    "Labels": {
+      "com.docker.compose.config-hash": "f46a2e178255ce5f4bf565fdf713224ffbaca16d221eea8cc83af79bd09fc878",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:d95fe86d7b5e2d17eea5bdb3d3bad37cd1d1526fba8f3b4ef1d700defacc5c74",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "mealie",
+      "com.docker.compose.project.config_files": "/boot/config/plugins/compose.manager/projects/Mealie/docker-compose.yml,/boot/config/plugins/compose.manager/projects/Mealie/docker-compose.override.yml",
+      "com.docker.compose.project.working_dir": "/boot/config/plugins/compose.manager/projects/Mealie",
+      "com.docker.compose.replace": "mealie",
+      "com.docker.compose.service": "mealie",
+      "com.docker.compose.version": "2.40.3",
+      "homepage.group": "Apps",
+      "homepage.href": "https://food.family.example",
+      "homepage.icon": "mealie.png",
+      "homepage.name": "Mealie",
+      "homepage.widget.key": "pyNzdTqzPiZMCdA8UcWcUhB7sHX3AfiKJET1.dwTvy10iL8Uak6UoNhf0ddHuJCQdKDL3JcN3Sna6RoOgQMOiTNLeXLNoPs09QjDlPIdjMTE8ZuemYsGcZTPkPr9ixMCrWpXbv25rgBKeFCYsEyasfZVujzX6dG4hG9pvBurxA3SkJISyIeSmPfD2bFF4LAo9MbjpHELfUL0.9MMEOkm_Vp1GVJLQRu8VSH7jnKflor4YxSgkwq0_bVR",
+      "homepage.widget.type": "mealie",
+      "homepage.widget.url": "http://10.0.11.120:9925",
+      "homepage.widget.version": "2",
+      "net.unraid.docker.icon": "",
+      "net.unraid.docker.managed": "composeman",
+      "net.unraid.docker.shell": "",
+      "net.unraid.docker.webui": "",
+      "org.opencontainers.image.created": "2026-08-13T22:33:45.958Z",
+      "org.opencontainers.image.description": "Mealie is a self hosted recipe manager and meal planner with a RestAPI backend and a reactive frontend application built in Vue for a pleasant user experience for the whole family. Easily add recipes into your database by providing the url and mealie will automatically import the relevant data or add a family recipe with the UI editor",
+      "org.opencontainers.image.licenses": "AGPL-3.0",
+      "org.opencontainers.image.revision": "8e24f4d34d76f0af9cafd3c48d4e79c43d5bc58f",
+      "org.opencontainers.image.source": "https://github.com/mealie-recipes/mealie",
+      "org.opencontainers.image.title": "mealie",
+      "org.opencontainers.image.url": "https://github.com/mealie-recipes/mealie",
+      "org.opencontainers.image.version": "nightly"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": {
+      "/app/data/": {}
+    },
+    "WorkingDir": ""
+  },
+  "Created": "2026-08-13T22:35:45.081861586Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "9d204a2cd74b000553f9bb9aa627afd4e9300065c33e89a07e3fd415b47473d1",
+      "LowerDir": "/var/lib/docker/overlay2/797c38eab585724d463e3d61d81c1048a78323389a60599285f3a3bee6659bff-init/diff:/var/lib/docker/overlay2/227973110367469eb7ca81e82f2d7f183a03ecf7d51c6bfe2a9513ceb428eaab/diff:/var/lib/docker/overlay2/4e37ca4c05bd27e652b1126ee3a000f2fc3aa876a47372c9be9ebfaf8e045a46/diff:/var/lib/docker/overlay2/41b68e5a548b624bff5d9b0366c8118601ad5623dd0dd658e59ed79ca627f89d/diff:/var/lib/docker/overlay2/4fcfef261c1e14a34bf4c9b90113a46f14e7ab7a330a33ed9f681315cd6e264a/diff:/var/lib/docker/overlay2/4b9fbc3837cbdd68b3b066c78e85254b22e5e6785130db4929062eadb15f40b9/diff:/var/lib/docker/overlay2/093f32bd81e4fae59085929e1b5fd385a8a373a31715411309b7992c52167b0b/diff:/var/lib/docker/overlay2/0efc03293ef79b42d588de24c980fbd16e7084bf9e68a3920fa10e4d4794bfab/diff:/var/lib/docker/overlay2/f372607d290b07e515b71ee821e629e55712eca0e9d0cc65184fc5b2987164aa/diff:/var/lib/docker/overlay2/8bc49b83a2185aed123d8ba98f3d197b668a2858076dcf9bd11162c61ed72dbd/diff:/var/lib/docker/overlay2/4f9efeaba9cbff0b5d6d6bb412cb352f7ab189f4e4bde926c985a885298dfd17/diff:/var/lib/docker/overlay2/38feda85ba8e19797ed6413bac2d447970bab7fd03844a39a264077efd72e6c3/diff:/var/lib/docker/overlay2/93a817b4e4737e6ba709c9761decc9503a6170c336cba486ae20edf75b9c5045/diff:/var/lib/docker/overlay2/217cb9e7c8b378cdb9069c863a2c7706252b7dbb57835dfb5e61b121c2de7bbc/diff:/var/lib/docker/overlay2/7f0c6ebc76849a3772b3fc41bb74ea44c60d35b7b34e9db48df96465ca0c1252/diff",
+      "MergedDir": "/var/lib/docker/overlay2/797c38eab585724d463e3d61d81c1048a78323389a60599285f3a3bee6659bff/merged",
+      "UpperDir": "/var/lib/docker/overlay2/797c38eab585724d463e3d61d81c1048a78323389a60599285f3a3bee6659bff/diff",
+      "WorkDir": "/var/lib/docker/overlay2/797c38eab585724d463e3d61d81c1048a78323389a60599285f3a3bee6659bff/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/mealie/data:/app/data:rw"
+    ],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": null,
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware",
+      "/sys/devices/system/cpu/cpu0/thermal_throttle",
+      "/sys/devices/system/cpu/cpu1/thermal_throttle",
+      "/sys/devices/system/cpu/cpu2/thermal_throttle",
+      "/sys/devices/system/cpu/cpu3/thermal_throttle",
+      "/sys/devices/system/cpu/cpu4/thermal_throttle",
+      "/sys/devices/system/cpu/cpu5/thermal_throttle",
+      "/sys/devices/system/cpu/cpu6/thermal_throttle",
+      "/sys/devices/system/cpu/cpu7/thermal_throttle",
+      "/sys/devices/system/cpu/cpu8/thermal_throttle",
+      "/sys/devices/system/cpu/cpu9/thermal_throttle",
+      "/sys/devices/system/cpu/cpu10/thermal_throttle",
+      "/sys/devices/system/cpu/cpu11/thermal_throttle",
+      "/sys/devices/system/cpu/cpu12/thermal_throttle",
+      "/sys/devices/system/cpu/cpu13/thermal_throttle",
+      "/sys/devices/system/cpu/cpu14/thermal_throttle",
+      "/sys/devices/system/cpu/cpu15/thermal_throttle",
+      "/sys/devices/system/cpu/cpu16/thermal_throttle",
+      "/sys/devices/system/cpu/cpu17/thermal_throttle",
+      "/sys/devices/system/cpu/cpu18/thermal_throttle",
+      "/sys/devices/system/cpu/cpu19/thermal_throttle"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "mealie_default",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": null,
+    "PortBindings": {
+      "9000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "9925"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "unless-stopped"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/9d204a2cd74b000553f9bb9aa627afd4e9300065c33e89a07e3fd415b47473d1/hostname",
+  "HostsPath": "/var/lib/docker/containers/9d204a2cd74b000553f9bb9aa627afd4e9300065c33e89a07e3fd415b47473d1/hosts",
+  "Id": "9d204a2cd74b000553f9bb9aa627afd4e9300065c33e89a07e3fd415b47473d1",
+  "Image": "sha256:d95fe86d7b5e2d17eea5bdb3d3bad37cd1d1526fba8f3b4ef1d700defacc5c74",
+  "LogPath": "/var/lib/docker/containers/9d204a2cd74b000553f9bb9aa627afd4e9300065c33e89a07e3fd415b47473d1/9d204a2cd74b000553f9bb9aa627afd4e9300065c33e89a07e3fd415b47473d1-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/app/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/mealie/data",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/mealie",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": [],
+        "DNSNames": null,
+        "DriverOpts": {},
+        "EndpointID": "a0b7948c31e0ca771b6b42b25e69948f4287ddb70fc046d9a9a70718207da6fc",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": {},
+        "IPAddress": "10.101.0.8",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:07",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      },
+      "mealie_default": {
+        "Aliases": [
+          "mealie",
+          "mealie"
+        ],
+        "DNSNames": [
+          "mealie",
+          "9d204a2cd74b"
+        ],
+        "DriverOpts": null,
+        "EndpointID": "2123958e81cec666116abfa3d2e5962a66d54de4e4cdbe8799eac7d65c09033f",
+        "Gateway": "10.102.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.102.0.2",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:08",
+        "NetworkID": "4185efd8116ec9e939e03f2cc421ab46a3e04fbe5d392e108e37b1a190b330a1"
+      }
+    },
+    "Ports": {
+      "9000/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "9925"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "9925"
+        }
+      ]
+    },
+    "SandboxID": "9c4596a79251cdfe77bd2a2c33b15a7d29619160c559a022719df3b149a26c8b",
+    "SandboxKey": "/var/run/docker/netns/9c4596a79251"
+  },
+  "Path": "/app/run.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/9d204a2cd74b000553f9bb9aa627afd4e9300065c33e89a07e3fd415b47473d1/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.873166781Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-10-03T20:04:41.203797638-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:04:41.14062118-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:11.315995165-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:05:11.205532421-06:00"
+        },
+        {
+          "End": "2026-10-03T20:05:41.436062259-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:05:41.31787372-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:11.538426594-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:06:11.437727482-06:00"
+        },
+        {
+          "End": "2026-10-03T20:06:41.624801402-06:00",
+          "ExitCode": 0,
+          "Output": "",
+          "Start": "2026-10-03T20:06:41.539854916-06:00"
+        }
+      ],
+      "Status": "healthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 29839,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:41.310448135Z",
+    "Status": "running"
+  }
+}

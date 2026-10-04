@@ -1,0 +1,249 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "java",
+    "-jar",
+    "/app/app.jar"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "java",
+      "-jar",
+      "/app/app.jar"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "entrypoint.sh"
+    ],
+    "Env": [
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "DATABASE_URL=REDACTED",
+      "DATABASE_USERNAME=REDACTED",
+      "DATABASE_PASSWORD=REDACTED",
+      "CA_TS_FALLBACK_DIR=REDACTED",
+      "TZ=REDACTED",
+      "PATH=REDACTED",
+      "JAVA_HOME=REDACTED",
+      "LANG=REDACTED",
+      "LANGUAGE=REDACTED",
+      "LC_ALL=REDACTED",
+      "JAVA_VERSION=REDACTED",
+      "JAVA_TOOL_OPTIONS=REDACTED"
+    ],
+    "ExposedPorts": {
+      "6060/tcp": {}
+    },
+    "Hostname": "48fef8b86da1",
+    "Image": "ghcr.io/booklore-app/booklore:latest",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/JmzTaylor/unraid_templates/master/booklore.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:6060]",
+      "org.opencontainers.image.base.name": "docker.io/library/eclipse-temurin:25-jre-alpine",
+      "org.opencontainers.image.description": "BookLore: A self-hosted, multi-user digital library with smart shelves, auto metadata, Kobo \u0026 KOReader sync, BookDrop imports, OPDS support, and a built-in reader for EPUB, PDF, and comics.",
+      "org.opencontainers.image.documentation": "https://booklore.org/docs/getting-started",
+      "org.opencontainers.image.licenses": "GPL-3.0",
+      "org.opencontainers.image.revision": "c663b19888c2fed69eb130e8a823c27d8ab9db3b",
+      "org.opencontainers.image.source": "https://github.com/booklore-app/booklore",
+      "org.opencontainers.image.title": "BookLore",
+      "org.opencontainers.image.url": "https://github.com/booklore-app/booklore",
+      "org.opencontainers.image.version": "v2.0.3"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2026-02-27T23:32:16.8373079Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "48fef8b86da1963f20c69f62fb917f35413693e3af3452322e7a1031ee07dd05",
+      "LowerDir": "/var/lib/docker/overlay2/85719598a26a782c068da52fd4513cf0030b808311ba0a65ff705f82495ca708-init/diff:/var/lib/docker/overlay2/e9124c5d4df1624f12763f583a90ea179081e4f41e3deab27a051ea497bf992f/diff:/var/lib/docker/overlay2/e7a0c4d9baa74e35f680351cbdad48879b56b1ea3eef70f590eca2ef1103504f/diff:/var/lib/docker/overlay2/9f8de81177ba0e66cc2d42983090b6e638a4104170ed788ccc23f1c091669680/diff:/var/lib/docker/overlay2/d5355343ef52dd2d4a5af133cfe9734c51c727c25e14388ca7c7beaa8e67978a/diff:/var/lib/docker/overlay2/575df4b1264fc911514d4c4f04cc67df14de7579655b6c961cd676bb88d3f75f/diff:/var/lib/docker/overlay2/b80c28fbc7e1990e4c38064fc4abeec0c612578065173a97203ec5babc1d7bae/diff:/var/lib/docker/overlay2/d33452762da42b4eb38b12f50359583f9fbdf25e42a3f30f91e70573de37cf74/diff:/var/lib/docker/overlay2/0e301c3eb520ce6abde51ad4dcaceb8e02abf39a4824e5090b1eacdb67804367/diff:/var/lib/docker/overlay2/a6d2c22e0c40f736671a54b3118b1d7d4e09bae07e5203aa53c30faf59757e95/diff:/var/lib/docker/overlay2/3e8fa7ac1b8aef69567d13d701a9a0225ca8db776bf38a90138454c497407726/diff:/var/lib/docker/overlay2/ec0499c2273901e0d63b6c777887b71eba8e75f545ee51afadb0a38551680ec2/diff",
+      "MergedDir": "/var/lib/docker/overlay2/85719598a26a782c068da52fd4513cf0030b808311ba0a65ff705f82495ca708/merged",
+      "UpperDir": "/var/lib/docker/overlay2/85719598a26a782c068da52fd4513cf0030b808311ba0a65ff705f82495ca708/diff",
+      "WorkDir": "/var/lib/docker/overlay2/85719598a26a782c068da52fd4513cf0030b808311ba0a65ff705f82495ca708/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/booklore:/app/data:rw",
+      "/mnt/user/media/books/:/books:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "6060/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "6060"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "",
+  "HostsPath": "",
+  "Id": "48fef8b86da1963f20c69f62fb917f35413693e3af3452322e7a1031ee07dd05",
+  "Image": "sha256:e0b97962da96135e40a29d7187440e3ffcd7eb2d11dbd4e4ed80031f4ea1e6a7",
+  "LogPath": "",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/app/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/booklore",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/books",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/media/books",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/BookLore",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": ""
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "Status": "created"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "data": [
+    {
+      "name": "chadash-sandbox",
+      "type": "lxc",
+      "vmid": 3696
+    }
+  ]
+}

@@ -1,0 +1,245 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "/entrypoint.sh"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "/entrypoint.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/docker-entrypoint.sh"
+    ],
+    "Env": [
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "TZ=REDACTED",
+      "PATH=REDACTED",
+      "NGINX_VERSION=REDACTED",
+      "PKG_RELEASE=REDACTED",
+      "DYNPKG_RELEASE=REDACTED",
+      "NJS_VERSION=REDACTED",
+      "NJS_RELEASE=REDACTED",
+      "ENABLE_LETSENCRYPT=REDACTED",
+      "DOMAIN_NAME=REDACTED",
+      "USER_EMAIL=REDACTED",
+      "CONFIG=REDACTED",
+      "INDEX_HTML=REDACTED",
+      "CHANGE_CONTAINER_PORTS=REDACTED",
+      "HTTP_PORT=REDACTED",
+      "HTTPS_PORT=REDACTED",
+      "SET_USER=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {},
+      "3001/tcp": {},
+      "8080/tcp": {}
+    },
+    "Hostname": "3a3162fa79fa",
+    "Image": "openspeedtest/latest",
+    "Labels": {
+      "maintainer": "OpenSpeedTest.com \u003credacted@example.com\u003e",
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/openspeedtest/iocage-plugin-OpenSpeedTest-Server/master/openspeedtest.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]",
+      "org.opencontainers.image.created": "2025-01-06T01:05:14.577Z",
+      "org.opencontainers.image.description": "Unprivileged NGINX Dockerfiles",
+      "org.opencontainers.image.licenses": "Apache-2.0",
+      "org.opencontainers.image.revision": "899909ee1a9fd15d6ae19a1197d199b5ba2c2fea",
+      "org.opencontainers.image.source": "https://github.com/nginxinc/docker-nginx-unprivileged",
+      "org.opencontainers.image.title": "docker-nginx-unprivileged",
+      "org.opencontainers.image.url": "https://github.com/nginxinc/docker-nginx-unprivileged",
+      "org.opencontainers.image.version": "1.26.2-alpine"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "StopSignal": "SIGQUIT",
+    "Tty": false,
+    "User": "101",
+    "Volumes": {
+      "/var/log/letsencrypt": {}
+    },
+    "WorkingDir": "/"
+  },
+  "Created": "2025-01-10T20:30:26.143810646Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "3a3162fa79fa708c1bdd0b0469522bd9f27e90d04fcacd3ea86e7a54e7d49715",
+      "LowerDir": "/var/lib/docker/overlay2/7a7324baff8f8c0784b23bed5a4ecb014acb26a08f40d5e5b3030e48ea6adaf9-init/diff:/var/lib/docker/overlay2/a7686345d582fd874d79c7ac9dfccc1baac110bb5439d0f5ea2363befbaa64e8/diff:/var/lib/docker/overlay2/fe98e568e7131ca1267f3fd2f794484859beca731377c2579c83e680edd5e4e8/diff:/var/lib/docker/overlay2/d2e669b863cfb695b9d87507347b49fc811227ce82b0f3faf04fc64f0eb69fac/diff:/var/lib/docker/overlay2/a53c48c46f7e61b10ee2c288bc7107aae8c9086759dc01acb6fe468ca60c0479/diff:/var/lib/docker/overlay2/fec69829ebe728255cd4b24ec1dad1bac19685a9caa5a3a4d2954d9ca07f677c/diff:/var/lib/docker/overlay2/086d8a5e6651fb115b7db2766a0176a5325e210fd0710fcb4b4f55d77db81d40/diff:/var/lib/docker/overlay2/faec138761cf8021dda49225a2298cef9cfe76ca976d86d063f4a1fd69803ebe/diff:/var/lib/docker/overlay2/f7bd817fc100cf3ab5b00025825f086a9c893b11aeed6f0fa60cc702ae457305/diff:/var/lib/docker/overlay2/22ccf07d44a6ac8bb061a1eedac5a00252720822484bb7bdda30c3e977ac8bd0/diff:/var/lib/docker/overlay2/96fac012380e0c9f84e4b37f0a0b5186f8b0c3c5ab5993f26fb9cdb762175352/diff:/var/lib/docker/overlay2/5678f45f17ae39cffb232341e31311301f06670ef83d95a12175cb52736716ae/diff:/var/lib/docker/overlay2/662da803fd1fed71375f03a5e27b49ca7df99126433a0cefdec6699573f915ff/diff:/var/lib/docker/overlay2/b0ef4b62df51ceaefeb627ba8b618403e5da4316e6e2b187d05b1a545f4c5a91/diff:/var/lib/docker/overlay2/ea99315f4916a673dc161f2f4ab9c0347ea171ef92798419755133f35b70c626/diff:/var/lib/docker/overlay2/43ef28e20f983e035f969df064cb137deb9100686b6f9959ce835e179ad9fc65/diff:/var/lib/docker/overlay2/a305b091b090ee3c28488af6e71cb6aaaef587a416bae25b0fb65c0271f5b554/diff:/var/lib/docker/overlay2/48019958a7d92a0690685cbb01e3bcaf3a86a653dc79305176bde0e3414c8cc7/diff:/var/lib/docker/overlay2/c3aadd9f21f755d2de5887fa03973bc4e125f0b673de93ac1fdc8c54c59c4d85/diff:/var/lib/docker/overlay2/c9003d11101dfc16ca1a1b7a45a29b0f719411c68335a518c9c55a6a77fe64f4/diff:/var/lib/docker/overlay2/e5e90364ed0de0cae4c66325677e5caae219edbbd84c2f76796db2b1b5568f5d/diff:/var/lib/docker/overlay2/6a8c2ca7e07eb116369863884d55361d88437548cdd5bbadc3b3410a3db94554/diff:/var/lib/docker/overlay2/2961a491e4ebf5cfb2086c35af0dd93a1fa940669d49d7f1222734e8dbf09067/diff:/var/lib/docker/overlay2/5049dfb2a472f3703dcb80717d61535069750b8ce25329066fcee88e53dbe744/diff:/var/lib/docker/overlay2/4d2c3e31fe56d914d652955d45bdcf2376a7b02a859a85edb675ac89811b639a/diff:/var/lib/docker/overlay2/511b4da9ce87771e53c58a8b197a910d5b2abd676888650b1ac2fa8e797310e2/diff:/var/lib/docker/overlay2/83d214cef807649cb47399793e3b848e13fda4fcd0cf3eec57bc02133a0d51c3/diff:/var/lib/docker/overlay2/25ae1356f6d81027a2520b2ebbc8a5c3973c85c6396de7ca6b750bd779bcc9b0/diff:/var/lib/docker/overlay2/1146bb32e01d0c24d69963ee00667a90cd06fff4b2d357942d6a1ba01ea53684/diff:/var/lib/docker/overlay2/75cffa8cb2e8412d2478f80c89df94391ac5e81528b92ed79bbd1482a0eeb02c/diff",
+      "MergedDir": "/var/lib/docker/overlay2/7a7324baff8f8c0784b23bed5a4ecb014acb26a08f40d5e5b3030e48ea6adaf9/merged",
+      "UpperDir": "/var/lib/docker/overlay2/7a7324baff8f8c0784b23bed5a4ecb014acb26a08f40d5e5b3030e48ea6adaf9/diff",
+      "WorkDir": "/var/lib/docker/overlay2/7a7324baff8f8c0784b23bed5a4ecb014acb26a08f40d5e5b3030e48ea6adaf9/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": null,
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "23000"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/3a3162fa79fa708c1bdd0b0469522bd9f27e90d04fcacd3ea86e7a54e7d49715/hostname",
+  "HostsPath": "/var/lib/docker/containers/3a3162fa79fa708c1bdd0b0469522bd9f27e90d04fcacd3ea86e7a54e7d49715/hosts",
+  "Id": "3a3162fa79fa708c1bdd0b0469522bd9f27e90d04fcacd3ea86e7a54e7d49715",
+  "Image": "sha256:cb3e3055e89a56821a509ad3ff2d2b8ac04a6e78ead20973421e37d2ea28dce8",
+  "LogPath": "/var/lib/docker/containers/3a3162fa79fa708c1bdd0b0469522bd9f27e90d04fcacd3ea86e7a54e7d49715/3a3162fa79fa708c1bdd0b0469522bd9f27e90d04fcacd3ea86e7a54e7d49715-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/var/log/letsencrypt",
+      "Driver": "local",
+      "Mode": "",
+      "Name": "ca0c495bc767879a6a76578f37ff8fd966a04741aa1797b033f989b9ba12c11f",
+      "Propagation": "",
+      "RW": true,
+      "Source": "/var/lib/docker/volumes/ca0c495bc767879a6a76578f37ff8fd966a04741aa1797b033f989b9ba12c11f/_data",
+      "Type": "volume"
+    }
+  ],
+  "Name": "/SpeedTest-By-OpenSpeedTest",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "9c7cd6e647f69eec659505f9f3fa438f05417fff557b938b713f97be9440c4ae"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "/docker-entrypoint.sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/3a3162fa79fa708c1bdd0b0469522bd9f27e90d04fcacd3ea86e7a54e7d49715/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 137,
+    "FinishedAt": "2025-01-28T04:15:42.444425823Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2025-01-27T10:44:09.270693825Z",
+    "Status": "exited"
+  }
+}

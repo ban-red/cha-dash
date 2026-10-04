@@ -1,0 +1,18 @@
+{
+  "data": {
+    "arch": "amd64",
+    "cores": 4,
+    "digest": "c81e7036938d8d984fdfae29b5e63feb81a9891f",
+    "features": "fuse=1,mount=nfs;cifs,nesting=1",
+    "hostname": "ct-200",
+    "memory": 8192,
+    "mp0": "/mnt/1tb-external,mp=/mnt/1tb-external",
+    "net0": "name=eth0,bridge=vmbr0,firewall=1,gw=10.0.11.1,hwaddr=BC:24:11:00:00:04,ip=10.0.11.202/24,type=veth",
+    "onboot": 1,
+    "ostype": "debian",
+    "rootfs": "local-lvm:vm-200-disk-0,size=200G",
+    "startup": "order=2",
+    "swap": 4096,
+    "unprivileged": 0
+  }
+}

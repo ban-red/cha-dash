@@ -23,19 +23,18 @@
 | 10 | **Unraid** | **Unraid stays Unraid.** Containers stay Unraid-managed and are controlled through the Unraid API; nothing is converted to compose. An **optional thin node on Unraid** (v0.3+) adds metrics, logs, SMART and update checks alongside the API | Owned stacks target compose hosts such as pvedocker |
 | 11 | **Mobile** | **The PWA is the mobile client.** It's served by the compose-hosted hub; no native app for now | Home Screen install, Web Push and passkey approvals cover the phone |
 | 12 | **Visual direction** | **A · Instrument, built to be very themeable.** A's structure is fixed; every visual is a theme token. B lives on as the built-in **Paper** theme plus an optional `headline` Briefing style | See [02 · Experience → Theming](02-experience.md#theming). Prototype v2 demos the theme engine |
+| 13 | **Grid engine** | **Build our own:** `@chadash/layout` + `@chadash/layout-vue` | The spike 2.4 comparison with gridstack 14 and dnd-kit/dom. [ADR-0013](../adr/0013-grid-engine.md) |
+| 14 | **Node transport and identity** | **Mutual TLS 1.3 inside the WebSocket**, Ed25519 keys pinned at enrollment, no CA | Works behind TLS-terminating proxies; post-quantum key exchange from the standard library. [ADR-0014](../adr/0014-node-transport.md) |
+| 15 | **SQLite driver** | **`ncruces/go-sqlite3`**; Adiantum encryption at rest as an opt-in | Level or faster than modernc on the hub's queries, fewer modules; encryption costs ~4× on writes and makes a lost key fatal. [ADR-0015](../adr/0015-sqlite-driver.md) |
+| 16 | **Hardware floor** | **amd64 and arm64 fully supported, armv7 best-effort, 512 MB minimum** | Hub ≤ 55 MB with 20 tabs, node ≤ 32 MB, image ~6 MB. [ADR-0016](../adr/0016-hardware-floor.md) |
+| 17 | **AI/MCP stance** | **Agents read and propose; humans approve every write.** Off by default; MCP after 1.0 | The propose API is designed now. [ADR-0017](../adr/0017-ai-and-mcp.md) |
 | 18 | **Go module path** | **Custom import path `dash.cha.sh`** (`module dash.cha.sh`) | `dash.cha.sh` must serve a `go-import` meta tag. See [docs/infra/vanity-import.md](../infra/vanity-import.md). Local builds work before that's live |
 | 19 | **JavaScript tooling** | **Bun** for packages, workspaces and scripts; `bun test` for plain TypeScript packages | Vite stays the dev server and bundler; Vue component tests use Vitest launched through Bun. [ADR-0019](../adr/0019-bun-for-javascript-tooling.md) |
 | 20 | **Node deploys** | **Compose SDK + go-git in the node:** hash plan, dry-run preflight, `up --wait` plus a restart-aware soak, rollback as a new commit | Validated by spike 4.6. [ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md) |
 
 ### Still open
 
-| # | Decision | Options | Recommendation | When |
-|---|---|---|---|---|
-| 13 | **Grid engine** | Build our own · gridstack 14 · dnd-kit/dom | **Build** (TS package + Vue/Motion renderer). Spike 2.4 confirms it: **proposed in [ADR-0013](../adr/0013-grid-engine.md)** | M0 |
-| 14 | **Node transport and identity** | mTLS · Noise | Spike 4.7: mutual TLS 1.3 *inside* the WebSocket with keys pinned at enrollment and no CA; it beats both a CA and Noise and works behind TLS-terminating proxies. **Proposed in [ADR-0014](../adr/0014-node-transport.md)** | Before v0.2 (the local node) |
-| 15 | **SQLite driver** | modernc · ncruces (encryption at rest) | Spike 4.8: ncruces is level or faster on the hub's queries and links fewer modules; encryption is cheap in CPU but ~4× on writes and makes a lost key fatal, so it's opt-in. **Proposed in [ADR-0015](../adr/0015-sqlite-driver.md)** | M0 |
-| 16 | **Hardware floor** | arm64 · armv7 | Fully support amd64 and arm64; armv7 best-effort; 512 MB minimum. Measured: hub ≤ 55 MB with 20 tabs, node ≤ 32 MB, image ~6 MB. **Proposed in [ADR-0016](../adr/0016-hardware-floor.md)** | M0 |
-| 17 | **AI/MCP stance** | Embrace post-1.0, with approvals · avoid | Embrace, but only through the action engine with human approval. Design the "propose" API now. **Proposed in [ADR-0017](../adr/0017-ai-and-mcp.md)** | Before v0.2 |
+None right now. New open questions get a row here, and an ADR when they're settled.
 
 ---
 
@@ -55,7 +54,7 @@
 
 ## M0: Foundations
 
-**Decisions:** settle 13–17 in the table above, each written up as an ADR in [`docs/adr/`](../adr/README.md).
+**Decisions:** ✅ 13–17 settled and accepted on 2026-10-03, each written up as an ADR in [`docs/adr/`](../adr/README.md).
 
 **Design spike**
 - Build static prototypes of **Direction A (Instrument)** and **Direction B (Paper)**, both rendering the **dogfood home's real shape** with sample values.
@@ -325,7 +324,7 @@ Compare it for one day against a gridstack 14 prototype.
 
 ## Open questions
 
-None right now. The remaining open items are the M0 decisions (13–17) above.
+None right now. The M0 decisions (13–17) are settled.
 
 *Answered:*
 - **Homepage config** is now the [importer fixture](../../testdata/importers/homepage/dogfood/README.md).
@@ -353,4 +352,4 @@ None right now. The remaining open items are the M0 decisions (13–17) above.
    - Traefik routers
    - Docker reads through the socket proxy
    - ~~Compose SDK + go-git deploy and rollback~~ ✅ spike 4.6, [ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md)
-6. ~~**ADRs**~~ ✅ 0001–0012 and 0018–0020 are written ([index](../adr/README.md)). 13–17 get theirs as they're settled.
+6. ~~**ADRs**~~ ✅ 0001–0020 are written and accepted ([index](../adr/README.md)).

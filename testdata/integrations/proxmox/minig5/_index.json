@@ -1,0 +1,359 @@
+{
+  "instance": "minig5",
+  "captured_at": "2026-10-04T01:29Z",
+  "wall_ms": 12160.3,
+  "dropped_keys": {
+    "description": 2,
+    "lxc": 1,
+    "pem": 2
+  },
+  "requests": [
+    {
+      "path": "/version",
+      "file": "version.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 84.7,
+      "bytes": 73,
+      "wire_bytes": 73
+    },
+    {
+      "path": "/cluster/status",
+      "file": "cluster/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 431,
+      "bytes": 126,
+      "wire_bytes": 126
+    },
+    {
+      "path": "/nodes",
+      "file": "nodes.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 24.4,
+      "bytes": 339,
+      "wire_bytes": 339
+    },
+    {
+      "path": "/cluster/resources",
+      "file": "cluster/resources.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 18.2,
+      "bytes": 1645,
+      "wire_bytes": 691,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/tasks",
+      "file": "cluster/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 5.8,
+      "bytes": 5377,
+      "wire_bytes": 1193,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/backup",
+      "file": "cluster/backup.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 38.5,
+      "bytes": 300,
+      "wire_bytes": 300
+    },
+    {
+      "path": "/cluster/backup-info/not-backed-up",
+      "file": "cluster/backup-info/not-backed-up.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 122.9,
+      "bytes": 58,
+      "wire_bytes": 58
+    },
+    {
+      "path": "/cluster/ha/status/current",
+      "file": "cluster/ha/status/current.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 31.5,
+      "bytes": 84,
+      "wire_bytes": 84
+    },
+    {
+      "path": "/cluster/config/join",
+      "file": "cluster/config/join.json",
+      "status": 424,
+      "reason": "node is not in a cluster, no join info available!",
+      "ms": 16.8,
+      "bytes": 75,
+      "wire_bytes": 75
+    },
+    {
+      "path": "/cluster/metrics/export",
+      "file": "cluster/metrics/export.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 159.2,
+      "bytes": 4186,
+      "wire_bytes": 794,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/metrics/export?history=1\u0026start-time=1791076776",
+      "file": "cluster/metrics/export.history-10m.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 100.1,
+      "bytes": 250077,
+      "wire_bytes": 24226,
+      "encoding": "gzip",
+      "trimmed": "kept the first 3 of 61 timestamps: 2520 → 126 points"
+    },
+    {
+      "path": "/pools",
+      "file": "pools.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 16,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/storage",
+      "file": "storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 10.3,
+      "bytes": 629,
+      "wire_bytes": 629
+    },
+    {
+      "path": "/access/permissions",
+      "file": "access/permissions.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 8.2,
+      "bytes": 851,
+      "wire_bytes": 851
+    },
+    {
+      "path": "/access/permissions?userid=api@pam",
+      "file": "access/permissions.owner.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 4.2,
+      "bytes": 851,
+      "wire_bytes": 851
+    },
+    {
+      "path": "/access/users/api@pam/token/chadash",
+      "file": "access/token.json",
+      "status": 403,
+      "reason": "Permission check failed",
+      "ms": 11,
+      "bytes": 51,
+      "wire_bytes": 51
+    },
+    {
+      "path": "/access/users/api@pam",
+      "file": "access/user.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 16.2,
+      "bytes": 105,
+      "wire_bytes": 105
+    },
+    {
+      "path": "/access/roles",
+      "file": "access/roles.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 9.2,
+      "bytes": 2710,
+      "wire_bytes": 549,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/acl",
+      "file": "access/acl.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 9.4,
+      "bytes": 186,
+      "wire_bytes": 186
+    },
+    {
+      "path": "/nodes/minig5/status",
+      "file": "nodes/minig5/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 37.2,
+      "bytes": 1728,
+      "wire_bytes": 1058,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/minig5/tasks?limit=50\u0026source=all",
+      "file": "nodes/minig5/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 61.8,
+      "bytes": 11370,
+      "wire_bytes": 2587,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/minig5/storage",
+      "file": "nodes/minig5/storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 594.3,
+      "bytes": 592,
+      "wire_bytes": 592
+    },
+    {
+      "path": "/nodes/minig5/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/minig5/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 54.8,
+      "bytes": 20984,
+      "wire_bytes": 4396,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/minig5/rrddata?timeframe=day\u0026cf=AVERAGE",
+      "file": "nodes/minig5/rrddata.day.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 21.5,
+      "bytes": 21591,
+      "wire_bytes": 5155,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/minig5/disks/list",
+      "file": "nodes/minig5/disks/list.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 385.8,
+      "bytes": 592,
+      "wire_bytes": 592
+    },
+    {
+      "path": "/nodes/minig5/apt/update",
+      "file": "nodes/minig5/apt/update.json",
+      "status": 403,
+      "reason": "Permission check failed (/nodes/minig5, Sys.Modify)",
+      "ms": 10.6,
+      "bytes": 79,
+      "wire_bytes": 79
+    },
+    {
+      "path": "/nodes/minig5/certificates/info",
+      "file": "nodes/minig5/certificates/info.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 29.7,
+      "bytes": 4952,
+      "wire_bytes": 3228,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/minig5/tasks/UPID:minig5:0033AC09:037A8F48:6AB8F737:vzdump:100:root@pam:/status",
+      "file": "nodes/minig5/tasks/vzdump-newest.status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 15.3,
+      "bytes": 369,
+      "wire_bytes": 369
+    },
+    {
+      "path": "/nodes/minig5/tasks/UPID:minig5:0033AC09:037A8F48:6AB8F737:vzdump:100:root@pam:/log?limit=1000",
+      "file": "nodes/minig5/tasks/vzdump-newest.log.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 31.4,
+      "bytes": 241,
+      "wire_bytes": 241
+    },
+    {
+      "path": "/nodes/minig5/storage/jupiter-pbs/content",
+      "file": "nodes/minig5/storage/jupiter-pbs/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 281.2,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/minig5/storage/local-lvm/content",
+      "file": "nodes/minig5/storage/local-lvm/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 188.9,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/minig5/storage/local/content",
+      "file": "nodes/minig5/storage/local/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 35.6,
+      "bytes": 146,
+      "wire_bytes": 146
+    },
+    {
+      "path": "/nodes/minig5/qemu/100/config",
+      "file": "nodes/minig5/qemu/100/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 83,
+      "bytes": 890,
+      "wire_bytes": 890
+    },
+    {
+      "path": "/nodes/minig5/qemu/100/agent/network-get-interfaces",
+      "file": "nodes/minig5/qemu/100/agent/network-get-interfaces.json",
+      "status": 403,
+      "reason": "Permission check failed (/vms/100, VM.Monitor)",
+      "ms": 7,
+      "bytes": 74,
+      "wire_bytes": 74
+    },
+    {
+      "path": "/nodes/minig5/qemu/100/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/minig5/qemu/100/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 27.4,
+      "bytes": 15430,
+      "wire_bytes": 3487,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/minig5/lxc/200/config",
+      "file": "nodes/minig5/lxc/200/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 54.4,
+      "bytes": 2264,
+      "wire_bytes": 1037,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/minig5/lxc/200/interfaces",
+      "file": "nodes/minig5/lxc/200/interfaces.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 41.9,
+      "bytes": 3499,
+      "wire_bytes": 803,
+      "encoding": "gzip"
+    }
+  ]
+}

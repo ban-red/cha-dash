@@ -1,0 +1,286 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "./scripts/docker/create-user.sh",
+    "sh",
+    "./scripts/docker/entrypoint.sh"
+  ],
+  "Config": {
+    "AttachStderr": true,
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "Cmd": [
+      "sh",
+      "./scripts/docker/entrypoint.sh"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "sh",
+      "./scripts/docker/create-user.sh"
+    ],
+    "Env": [
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "TRUST_PROXY=REDACTED",
+      "PATH=REDACTED",
+      "NODE_VERSION=REDACTED",
+      "YARN_VERSION=REDACTED",
+      "NODE_ENV=REDACTED"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Healthcheck": {
+      "Interval": 10000000000,
+      "Test": [
+        "CMD-SHELL",
+        "/bin/sh -c '(if [[ \"$CADDY_DISABLED\" = \"true\" ]]; then curl -fs http://localhost:${BACKEND_PORT:-8080}/api/health; else curl -fs http://localhost:3000/api/health; fi) || exit 1'"
+      ],
+      "Timeout": 3000000000
+    },
+    "Hostname": "e04d8eedc54b",
+    "Image": "stonith404/pingvin-share",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/stonith404/pingvin-share/main/frontend/public/img/icons/icon-512x512.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:3000]",
+      "org.opencontainers.image.created": "2025-05-25T20:21:26.463Z",
+      "org.opencontainers.image.description": "A self-hosted file sharing platform that combines lightness and beauty, perfect for seamless and efficient file sharing.",
+      "org.opencontainers.image.licenses": "BSD-2-Clause",
+      "org.opencontainers.image.revision": "dd546b4f17a516ef696ea35b96bbac8ff5521e2a",
+      "org.opencontainers.image.source": "https://github.com/stonith404/pingvin-share",
+      "org.opencontainers.image.title": "pingvin-share",
+      "org.opencontainers.image.url": "https://github.com/stonith404/pingvin-share",
+      "org.opencontainers.image.version": "v1.13.0"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/opt/app"
+  },
+  "Created": "2025-05-28T05:39:42.060459724Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "e04d8eedc54bf081b0046e7fb8c015ea3309f51b35360858b842710793e4ccfc",
+      "LowerDir": "/var/lib/docker/overlay2/298f6989545f79f40fbf18fad4daeb863955dceaccd374536d5c5d63e1aa46ee-init/diff:/var/lib/docker/overlay2/829fc9a5a30bc48c9417743f450e847358b0303c9890bfa5b394902d11e69bc8/diff:/var/lib/docker/overlay2/18b4c430141c2967711873c1ab0a04853deaf7522bfe9f15d3dae0a384894165/diff:/var/lib/docker/overlay2/e0b95e361b22144e8201044b2b809ccd3d08b4453615cb3bcd4ea830d159be80/diff:/var/lib/docker/overlay2/ce9293bb78baddc484790210d3d4d50b010be1cfe03e1579fbbee46536e3b2bc/diff:/var/lib/docker/overlay2/9bac3db55540936ff212c0d974b28534e45b2f3fa1215dc98f453a5d547dea4c/diff:/var/lib/docker/overlay2/8fb8a74b6b08669028e125fb8648870233c67a67256c2975266659f18e6b17a7/diff:/var/lib/docker/overlay2/e415d6cc703c6d27aedd6536d90ded72bd621d96aa703e4e5374832e1d7b81b1/diff:/var/lib/docker/overlay2/2cf544a1b5af7fed1431a1624ac6028e3ad5845044bcea70fb87ca8473131418/diff:/var/lib/docker/overlay2/4c93785db1377441897e97330cbcb6010a3c53a9f06234e201cf1b0b1e97b6ef/diff:/var/lib/docker/overlay2/2ebc503f22b66aaafe916bb90e443d6b976245c5019e4e3d1d851cd2da08c6b9/diff:/var/lib/docker/overlay2/7ed255efc99f9a1560f59bb0b9ada549fd777d4c31849e0299eb4ea1deed434c/diff:/var/lib/docker/overlay2/7bfd2a8b807ded6f08fb67b6f7bd7903f902742b58d0269aed0c412b88d3c7a6/diff:/var/lib/docker/overlay2/351e50a5952f0df0e0763144fb347f11f6f69a0c8f3d887efa5a89ea5158bf2b/diff:/var/lib/docker/overlay2/fffcd0f4ac2f60818db58056c0b0906cd6269d88f3e2731d4c014b90ba598394/diff:/var/lib/docker/overlay2/55c76c0ca7d1354ad5072b20ab57d110642c02e0c879873ff09dfa01eecea5d9/diff:/var/lib/docker/overlay2/b6060140f3fd145fd8502cc01bbc47a2e2f23be705b489df246c92940c9bad4d/diff:/var/lib/docker/overlay2/16e17bc7bb4db536c898353c8c154046538a44a569d603b592fdf97f099e6769/diff:/var/lib/docker/overlay2/ce91d90a1db850c2aa434357248c2925fd675cb9a3b3b53af7d4927036f0d65c/diff:/var/lib/docker/overlay2/4616bed3a814c3779309495561107231617b88f55fce13c0621d696d0b9e8252/diff:/var/lib/docker/overlay2/7a67b7ef2bd2b4ccaeb85b32907e9547eabe71767a1f06a875cbd585cb9fe241/diff",
+      "MergedDir": "/var/lib/docker/overlay2/298f6989545f79f40fbf18fad4daeb863955dceaccd374536d5c5d63e1aa46ee/merged",
+      "UpperDir": "/var/lib/docker/overlay2/298f6989545f79f40fbf18fad4daeb863955dceaccd374536d5c5d63e1aa46ee/diff",
+      "WorkDir": "/var/lib/docker/overlay2/298f6989545f79f40fbf18fad4daeb863955dceaccd374536d5c5d63e1aa46ee/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/public/uploads:/opt/app/backend/data/uploads:rw",
+      "/mnt/user/appdata/pingvin-share:/opt/app/backend/data:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "3301"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/e04d8eedc54bf081b0046e7fb8c015ea3309f51b35360858b842710793e4ccfc/hostname",
+  "HostsPath": "/var/lib/docker/containers/e04d8eedc54bf081b0046e7fb8c015ea3309f51b35360858b842710793e4ccfc/hosts",
+  "Id": "e04d8eedc54bf081b0046e7fb8c015ea3309f51b35360858b842710793e4ccfc",
+  "Image": "sha256:4c6956f661a30d2e35e4be0afdcc397840be750876eb9d68a078cc001f986b1e",
+  "LogPath": "/var/lib/docker/containers/e04d8eedc54bf081b0046e7fb8c015ea3309f51b35360858b842710793e4ccfc/e04d8eedc54bf081b0046e7fb8c015ea3309f51b35360858b842710793e4ccfc-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/opt/app/backend/data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/pingvin-share",
+      "Type": "bind"
+    },
+    {
+      "Destination": "/opt/app/backend/data/uploads",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/public/uploads",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/pingvin-share",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "",
+        "NetworkID": "3e991a2a0bdd3b823e790cd75a659b04d92d796af72a5632ce33f4a389052f3d"
+      }
+    },
+    "Ports": {},
+    "SandboxID": "",
+    "SandboxKey": ""
+  },
+  "Path": "sh",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/e04d8eedc54bf081b0046e7fb8c015ea3309f51b35360858b842710793e4ccfc/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 137,
+    "FinishedAt": "2026-05-22T03:47:41.12907049Z",
+    "Health": {
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "End": "2026-05-21T21:46:59.813626743-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-05-21T21:46:59.765515624-06:00"
+        },
+        {
+          "End": "2026-05-21T21:47:09.883798477-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-05-21T21:47:09.814448634-06:00"
+        },
+        {
+          "End": "2026-05-21T21:47:19.958165544-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-05-21T21:47:19.885030694-06:00"
+        },
+        {
+          "End": "2026-05-21T21:47:30.03193198-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-05-21T21:47:29.958604409-06:00"
+        },
+        {
+          "End": "2026-05-21T21:47:40.101223307-06:00",
+          "ExitCode": 0,
+          "Output": "REDACTED",
+          "Start": "2026-05-21T21:47:40.032649141-06:00"
+        }
+      ],
+      "Status": "unhealthy"
+    },
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 0,
+    "Restarting": false,
+    "Running": false,
+    "StartedAt": "2026-05-22T03:43:16.898394742Z",
+    "Status": "exited"
+  }
+}

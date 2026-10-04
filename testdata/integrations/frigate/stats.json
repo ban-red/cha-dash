@@ -1,0 +1,366 @@
+{
+  "camera_fps": 15.1,
+  "cameras": {
+    "driveway": {
+      "audio_dBFS": 0,
+      "audio_rms": 0,
+      "camera_fps": 5.1,
+      "capture_cpu": "1.6",
+      "capture_pid": 1033,
+      "connection_quality": "excellent",
+      "detect_cpu": "0.9",
+      "detection_enabled": true,
+      "detection_fps": 0.0,
+      "expected_fps": 5,
+      "ffmpeg_cpu": "7.9",
+      "ffmpeg_pid": 213245,
+      "pid": 944,
+      "process_fps": 5.1,
+      "reconnects_last_hour": 0,
+      "skipped_fps": 0.0,
+      "stalls_last_hour": 0
+    },
+    "backyard": {
+      "audio_dBFS": 0,
+      "audio_rms": 0,
+      "camera_fps": 5.0,
+      "capture_cpu": "0.9",
+      "capture_pid": 868,
+      "connection_quality": "excellent",
+      "detect_cpu": "1.4",
+      "detection_enabled": true,
+      "detection_fps": 0.0,
+      "expected_fps": 5,
+      "ffmpeg_cpu": "5.1",
+      "ffmpeg_pid": 4105698,
+      "pid": 803,
+      "process_fps": 5.0,
+      "reconnects_last_hour": 0,
+      "skipped_fps": 0.0,
+      "stalls_last_hour": 0
+    },
+    "side_deck": {
+      "audio_dBFS": 0,
+      "audio_rms": 0,
+      "camera_fps": 5.0,
+      "capture_cpu": "1.7",
+      "capture_pid": 1190,
+      "connection_quality": "excellent",
+      "detect_cpu": "1.0",
+      "detection_enabled": true,
+      "detection_fps": 0.0,
+      "expected_fps": 5,
+      "ffmpeg_cpu": "6.4",
+      "ffmpeg_pid": 4106086,
+      "pid": 1114,
+      "process_fps": 5.0,
+      "reconnects_last_hour": 0,
+      "skipped_fps": 0.0,
+      "stalls_last_hour": 0
+    }
+  },
+  "cpu_usages": {
+    "1033": {
+      "cmdline": "frigate.capture:driveway",
+      "cpu": "1.6",
+      "cpu_average": "1",
+      "mem": "0.3"
+    },
+    "104": {
+      "cmdline": "s6-log …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "1114": {
+      "cmdline": "frigate.process:side_deck",
+      "cpu": "1.0",
+      "cpu_average": "0",
+      "mem": "0.7"
+    },
+    "1190": {
+      "cmdline": "frigate.capture:side_deck",
+      "cpu": "1.7",
+      "cpu_average": "1",
+      "mem": "0.3"
+    },
+    "128": {
+      "cmdline": "go2rtc …",
+      "cpu": "18.1",
+      "cpu_average": "17",
+      "mem": "0.5"
+    },
+    "135": {
+      "cmdline": "bash …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "137": {
+      "cmdline": "python3 frigate",
+      "cpu": "3.9",
+      "cpu_average": "3",
+      "mem": "3.4"
+    },
+    "213089": {
+      "cmdline": "ffmpeg …",
+      "cpu": "1.2",
+      "cpu_average": "1",
+      "mem": "0.4"
+    },
+    "213245": {
+      "cmdline": "ffmpeg …",
+      "cpu": "7.9",
+      "cpu_average": "7",
+      "mem": "0.7"
+    },
+    "27": {
+      "cmdline": "s6-supervise …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "28": {
+      "cmdline": "s6-supervise …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "37": {
+      "cmdline": "s6-supervise …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "391": {
+      "cmdline": "python3 …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "392": {
+      "cmdline": "python3 …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.2"
+    },
+    "406": {
+      "cmdline": "python3 …",
+      "cpu": "1.7",
+      "cpu_average": "1",
+      "mem": "0.2"
+    },
+    "4105606": {
+      "cmdline": "ffmpeg …",
+      "cpu": "1.0",
+      "cpu_average": "0",
+      "mem": "0.4"
+    },
+    "4105607": {
+      "cmdline": "ffmpeg …",
+      "cpu": "4.4",
+      "cpu_average": "4",
+      "mem": "0.4"
+    },
+    "4105698": {
+      "cmdline": "ffmpeg …",
+      "cpu": "5.1",
+      "cpu_average": "4",
+      "mem": "0.5"
+    },
+    "4105711": {
+      "cmdline": "ffmpeg …",
+      "cpu": "1.3",
+      "cpu_average": "1",
+      "mem": "0.4"
+    },
+    "4105923": {
+      "cmdline": "ffmpeg …",
+      "cpu": "2.2",
+      "cpu_average": "2",
+      "mem": "0.4"
+    },
+    "4106086": {
+      "cmdline": "ffmpeg …",
+      "cpu": "6.4",
+      "cpu_average": "6",
+      "mem": "0.7"
+    },
+    "636": {
+      "cmdline": "frigate.recording_manager",
+      "cpu": "1.0",
+      "cpu_average": "0",
+      "mem": "1.0"
+    },
+    "649": {
+      "cmdline": "frigate.review_segment_manager",
+      "cpu": "0.5",
+      "cpu_average": "0",
+      "mem": "0.3"
+    },
+    "659": {
+      "cmdline": "frigate.embeddings_manager",
+      "cpu": "0.9",
+      "cpu_average": "0",
+      "mem": "2.4"
+    },
+    "702": {
+      "cmdline": "frigate.detector:coral",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.3"
+    },
+    "730": {
+      "cmdline": "frigate.output",
+      "cpu": "1.2",
+      "cpu_average": "1",
+      "mem": "0.6"
+    },
+    "760": {
+      "cmdline": "ffmpeg …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "765": {
+      "cmdline": "ffmpeg …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "770": {
+      "cmdline": "ffmpeg …",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.0"
+    },
+    "775": {
+      "cmdline": "ffmpeg …",
+      "cpu": "0.1",
+      "cpu_average": "0",
+      "mem": "0.2"
+    },
+    "776": {
+      "cmdline": "frigate.audio_manager",
+      "cpu": "0.0",
+      "cpu_average": "0",
+      "mem": "0.2"
+    },
+    "803": {
+      "cmdline": "frigate.process:backyard",
+      "cpu": "1.4",
+      "cpu_average": "1",
+      "mem": "0.4"
+    },
+    "868": {
+      "cmdline": "frigate.capture:backyard",
+      "cpu": "0.9",
+      "cpu_average": "0",
+      "mem": "0.2"
+    },
+    "944": {
+      "cmdline": "frigate.process:driveway",
+      "cpu": "0.9",
+      "cpu_average": "0",
+      "mem": "0.7"
+    },
+    "frigate.full_system": {
+      "cpu": "38.5",
+      "mem": "66.6"
+    }
+  },
+  "detection_fps": 0.0,
+  "detectors": {
+    "coral": {
+      "cpu": "0.0",
+      "detection_start": 0.0,
+      "inference_speed": 10.59,
+      "mem": "0.3",
+      "pid": 702
+    }
+  },
+  "embeddings": {
+    "face_recognition": 0.0,
+    "face_recognition_speed": 121.0
+  },
+  "gpu_usages": {
+    "N100 iGPU": {
+      "clients": {
+        "137": "0.0%",
+        "213245": "3.95%",
+        "4105698": "2.48%",
+        "4106086": "2.25%"
+      },
+      "compute": "2.2%",
+      "dec": "6.48%",
+      "gpu": "8.68%",
+      "mem": "-%",
+      "vendor": "intel"
+    }
+  },
+  "process_fps": 15.1,
+  "processes": {
+    "audio_detector": {
+      "cpu": "0.0",
+      "mem": "0.2",
+      "pid": 776
+    },
+    "embeddings": {
+      "cpu": "0.9",
+      "mem": "2.4",
+      "pid": 659
+    },
+    "go2rtc": {
+      "cpu": "18.1",
+      "mem": "0.5",
+      "pid": 128
+    },
+    "recording": {
+      "cpu": "1.0",
+      "mem": "1.0",
+      "pid": 636
+    },
+    "review_segment": {
+      "cpu": "0.5",
+      "mem": "0.3",
+      "pid": 649
+    }
+  },
+  "service": {
+    "last_updated": 1791079164,
+    "latest_version": "0.18.0",
+    "storage": {
+      "/dev/shm": {
+        "available": 1998.0,
+        "camera_frame_size": 7.1,
+        "free": 1887.8,
+        "min_shm": 192,
+        "mount_type": "tmpfs",
+        "shm_frame_count": 50,
+        "total": 2048.0,
+        "used": 160.2
+      },
+      "/media/frigate/clips": {
+        "free": 826524.9,
+        "mount_type": "ext4",
+        "total": 937766.0,
+        "used": 63533.3
+      },
+      "/media/frigate/recordings": {
+        "free": 826524.9,
+        "mount_type": "ext4",
+        "total": 937766.0,
+        "used": 63533.3
+      },
+      "/tmp/cache": {
+        "free": 914.7,
+        "mount_type": "tmpfs",
+        "total": 953.7,
+        "used": 39.0
+      }
+    },
+    "uptime": 1155815,
+    "version": "0.18.0-7e08f7b"
+  },
+  "skipped_fps": 0.0
+}

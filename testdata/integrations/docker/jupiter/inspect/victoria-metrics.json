@@ -1,0 +1,237 @@
+{
+  "AppArmorProfile": "",
+  "Args": [
+    "-envflag.enable"
+  ],
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": [
+      "-envflag.enable"
+    ],
+    "Domainname": "",
+    "Entrypoint": [
+      "/victoria-metrics-prod"
+    ],
+    "Env": [
+      "promscrape_config=REDACTED",
+      "promscrape_config_strictParse=REDACTED",
+      "TZ=REDACTED",
+      "HOST_OS=REDACTED",
+      "HOST_HOSTNAME=REDACTED",
+      "HOST_CONTAINERNAME=REDACTED",
+      "retentionPeriod=REDACTED",
+      "PATH=REDACTED"
+    ],
+    "ExposedPorts": {
+      "8428/tcp": {}
+    },
+    "Hostname": "79593473d5d3",
+    "Image": "victoriametrics/victoria-metrics:v1.118.0",
+    "Labels": {
+      "net.unraid.docker.icon": "https://raw.githubusercontent.com/homelab-user/unraid-ca-templates/master/templates/images/victoria-metrics-logo.png",
+      "net.unraid.docker.managed": "dockerman",
+      "net.unraid.docker.webui": "http://[IP]:[PORT:8428]/vmui",
+      "org.opencontainers.image.created": "2025-05-23T13:32:34Z",
+      "org.opencontainers.image.documentation": "https://docs.victoriametrics.com/",
+      "org.opencontainers.image.source": "https://github.com/VictoriaMetrics/VictoriaMetrics",
+      "org.opencontainers.image.title": "victoria-metrics",
+      "org.opencontainers.image.vendor": "VictoriaMetrics",
+      "org.opencontainers.image.version": "v1.118.0"
+    },
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": "/"
+  },
+  "Created": "2025-05-28T16:15:47.988341979Z",
+  "Driver": "overlay2",
+  "ExecIDs": null,
+  "GraphDriver": {
+    "Data": {
+      "ID": "79593473d5d3b9a56dd63379aa2092a33e30519635485097abdb88b115edcb6a",
+      "LowerDir": "/var/lib/docker/overlay2/b0efef29607b9e2af3d2dde8cfcdb23950d4ca116e83612996381aab0bb16c50-init/diff:/var/lib/docker/overlay2/56e08a9bce27f54fb8fbc14ab25969c8927223b7a3ef7be2af3237888ee41c8d/diff:/var/lib/docker/overlay2/e88dcffcbba0256fcd0cfead74d790f4500e5e912c2b22ce248cc96687910edc/diff:/var/lib/docker/overlay2/7a67b7ef2bd2b4ccaeb85b32907e9547eabe71767a1f06a875cbd585cb9fe241/diff",
+      "MergedDir": "/var/lib/docker/overlay2/b0efef29607b9e2af3d2dde8cfcdb23950d4ca116e83612996381aab0bb16c50/merged",
+      "UpperDir": "/var/lib/docker/overlay2/b0efef29607b9e2af3d2dde8cfcdb23950d4ca116e83612996381aab0bb16c50/diff",
+      "WorkDir": "/var/lib/docker/overlay2/b0efef29607b9e2af3d2dde8cfcdb23950d4ca116e83612996381aab0bb16c50/work"
+    },
+    "Name": "overlay2"
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": [
+      "/mnt/user/appdata/victoria-metrics:/victoria-metrics-data:rw"
+    ],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceWriteIOps": [],
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "CapAdd": null,
+    "CapDrop": null,
+    "Cgroup": "",
+    "CgroupParent": "",
+    "CgroupnsMode": "private",
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpuShares": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "Devices": [],
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "private",
+    "Isolation": "",
+    "Links": null,
+    "LogConfig": {
+      "Config": {
+        "max-file": "1",
+        "max-size": "100m"
+      },
+      "Type": "json-file"
+    },
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "Memory": 0,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "NanoCpus": 0,
+    "NetworkMode": "bridge",
+    "OomKillDisable": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 4096,
+    "PortBindings": {
+      "8428/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "8428"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "Runtime": "runc",
+    "SecurityOpt": null,
+    "ShmSize": 67108864,
+    "UTSMode": "",
+    "Ulimits": [],
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": null
+  },
+  "HostnamePath": "/var/lib/docker/containers/79593473d5d3b9a56dd63379aa2092a33e30519635485097abdb88b115edcb6a/hostname",
+  "HostsPath": "/var/lib/docker/containers/79593473d5d3b9a56dd63379aa2092a33e30519635485097abdb88b115edcb6a/hosts",
+  "Id": "79593473d5d3b9a56dd63379aa2092a33e30519635485097abdb88b115edcb6a",
+  "Image": "sha256:f27bae4db8767e6aa0e258e5001be9403719d834bad3cdae5ebb4d2ef3c71670",
+  "LogPath": "/var/lib/docker/containers/79593473d5d3b9a56dd63379aa2092a33e30519635485097abdb88b115edcb6a/79593473d5d3b9a56dd63379aa2092a33e30519635485097abdb88b115edcb6a-json.log",
+  "MountLabel": "",
+  "Mounts": [
+    {
+      "Destination": "/victoria-metrics-data",
+      "Mode": "rw",
+      "Propagation": "rprivate",
+      "RW": true,
+      "Source": "/mnt/user/appdata/victoria-metrics",
+      "Type": "bind"
+    }
+  ],
+  "Name": "/victoria-metrics",
+  "NetworkSettings": {
+    "Networks": {
+      "bridge": {
+        "Aliases": null,
+        "DNSNames": null,
+        "DriverOpts": null,
+        "EndpointID": "4474323524ea7961550687bf27663bfa7f0728b49c7a735ee64f9d378d3007a0",
+        "Gateway": "10.101.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "GwPriority": 0,
+        "IPAMConfig": null,
+        "IPAddress": "10.101.0.15",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "Links": null,
+        "MacAddress": "02:42:0a:00:00:2a",
+        "NetworkID": "74f4f32003d91206d0a3d0d0929aae6e73b28d15753a70c048485d88817c96e9"
+      }
+    },
+    "Ports": {
+      "8428/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "8428"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "8428"
+        }
+      ]
+    },
+    "SandboxID": "e02bc0e735cf5562b020f49bd902a8003256e8e332e575032eb0d1fbd95ad906",
+    "SandboxKey": "/var/run/docker/netns/e02bc0e735cf"
+  },
+  "Path": "/victoria-metrics-prod",
+  "Platform": "linux",
+  "ProcessLabel": "",
+  "ResolvConfPath": "/var/lib/docker/containers/79593473d5d3b9a56dd63379aa2092a33e30519635485097abdb88b115edcb6a/resolv.conf",
+  "RestartCount": 0,
+  "State": {
+    "Dead": false,
+    "Error": "",
+    "ExitCode": 0,
+    "FinishedAt": "2026-09-05T22:11:30.872839401Z",
+    "OOMKilled": false,
+    "Paused": false,
+    "Pid": 41559,
+    "Restarting": false,
+    "Running": true,
+    "StartedAt": "2026-09-05T22:11:50.054995282Z",
+    "Status": "running"
+  }
+}
