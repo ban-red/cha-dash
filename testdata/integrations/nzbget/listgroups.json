@@ -1,0 +1,48 @@
+{
+  "version": "1.1",
+  "id": 1,
+  "result": [
+    {
+      "NZBID": 101,
+      "NZBName": "Synthetic.Download.One",
+      "Kind": "NZB",
+      "Category": "tv",
+      "Status": "DOWNLOADING",
+      "FileSizeMB": 4096,
+      "RemainingSizeMB": 2903,
+      "PausedSizeMB": 0,
+      "Health": 1000,
+      "CriticalHealth": 898,
+      "MaxPriority": 0,
+      "ActiveDownloads": 14
+    },
+    {
+      "NZBID": 102,
+      "NZBName": "Synthetic.Download.Two",
+      "Kind": "NZB",
+      "Category": "movies",
+      "Status": "QUEUED",
+      "FileSizeMB": 3936,
+      "RemainingSizeMB": 3936,
+      "PausedSizeMB": 0,
+      "Health": 1000,
+      "CriticalHealth": 912,
+      "MaxPriority": 0,
+      "ActiveDownloads": 0
+    },
+    {
+      "NZBID": 99,
+      "NZBName": "Synthetic.Download.Three",
+      "Kind": "NZB",
+      "Category": "tv",
+      "Status": "UNPACKING",
+      "FileSizeMB": 1210,
+      "RemainingSizeMB": 0,
+      "PausedSizeMB": 0,
+      "Health": 1000,
+      "CriticalHealth": 905,
+      "MaxPriority": 0,
+      "ActiveDownloads": 0
+    }
+  ]
+}
