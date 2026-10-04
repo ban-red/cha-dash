@@ -1,0 +1,76 @@
+# Speedtest Tracker: the latest speed test's download, upload and ping.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test:
+# speedtesttracker_test.go, against testdata/speedtesttracker/ (synthetic).
+# Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: speedtesttracker
+  name: Speedtest Tracker
+  icon: speedtest-tracker
+  version: 0.1.0
+  tier: bronze
+  capabilities: [net.speedtest]
+
+config:
+  token: { type: secret, title: API token, required: true, description: "Settings → API Tokens, with only the results:read ability" }
+
+source:
+  headers:
+    Authorization: "Bearer {{ secret.token }}"
+  timeout: 10s
+
+# Tests run hourly or so by default; polling faster shows nothing new.
+every: 300s
+
+requests:
+  # The list, one per page: it checks the token on an endpoint that answers
+  # even before the first test, and says how many there have been.
+  results:
+    path: /api/v1/results
+    query: { "page[size]": "1" }
+    extract:
+      total: meta.total
+  # latest answers 404 until a test has run, so it's optional: no test yet
+  # is unknown values, not a broken API.
+  latest:
+    path: /api/v1/results/latest
+    optional: true
+    extract:
+      id: data.id
+      status: data.status # completed, failed, …
+      healthy: data.healthy # false when below the thresholds set in Speedtest Tracker
+      ping: data.ping # ms
+      download_bits: data.download_bits # bits/s
+      upload_bits: data.upload_bits
+      jitter: data.data.ping.jitter # ms, from the Ookla result
+      packet_loss: data.data.packetLoss # %
+      scheduled: data.scheduled
+      created_at: data.created_at
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: 'latest.id == nil ? "unknown" : (latest.status == "failed" || latest.healthy == false ? "attention" : "ok")'
+    reason: 'latest.id == nil ? "No speed test has finished yet" : (latest.status == "failed" ? "The last speed test failed" : (latest.healthy == false ? "The last speed test was below your thresholds" : ""))'
+    attrs:
+      type: '"speedtesttracker"'
+      results: results.total
+      last_status: latest.status
+      last_scheduled: latest.scheduled
+      tested_at: latest.created_at
+    caps: [net.speedtest]
+    links:
+      - { title: Speedtest Tracker, url: config.url }
+
+metrics:
+  # bits/s → Mb/s, to 0.1.
+  - { resource: app, key: dl.mbps, value: 'latest.download_bits == nil || latest.status == "failed" ? nil : round(float(latest.download_bits) / 100000) / 10', unit: Mb/s, max: 10000, band: [100, 1000] }
+  - { resource: app, key: ul.mbps, value: 'latest.upload_bits == nil || latest.status == "failed" ? nil : round(float(latest.upload_bits) / 100000) / 10', unit: Mb/s, max: 10000, band: [20, 1000] }
+  - { resource: app, key: ping.ms, value: 'latest.ping == nil || latest.status == "failed" ? nil : round(float(latest.ping) * 10) / 10', unit: ms, max: 1000, band: [0, 30] }
+  - { resource: app, key: jitter.ms, value: 'latest.jitter == nil || latest.status == "failed" ? nil : round(float(latest.jitter) * 10) / 10', unit: ms, max: 1000, band: [0, 10] }
+  - { resource: app, key: packet_loss.pct, value: 'latest.packet_loss == nil || latest.status == "failed" ? nil : round(float(latest.packet_loss) * 10) / 10', unit: '%', max: 100, band: [0, 1] }

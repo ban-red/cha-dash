@@ -1,0 +1,37 @@
+{
+  "data": {
+    "id": 4812,
+    "service": "ookla",
+    "ping": 12.345,
+    "download": 117654320,
+    "upload": 5154320,
+    "download_bits": 941234567,
+    "upload_bits": 41234567,
+    "download_bits_human": "941.23 Mbps",
+    "upload_bits_human": "41.23 Mbps",
+    "benchmarks": {
+      "download": {"bar": "min", "passed": true, "type": "absolute", "value": 500, "unit": "mbps"},
+      "upload": {"bar": "min", "passed": true, "type": "absolute", "value": 20, "unit": "mbps"},
+      "ping": {"bar": "max", "passed": true, "type": "absolute", "value": 50, "unit": "ms"}
+    },
+    "healthy": true,
+    "status": "completed",
+    "scheduled": true,
+    "comments": null,
+    "data": {
+      "type": "result",
+      "timestamp": "2026-10-03T13:00:41Z",
+      "ping": {"jitter": 1.87, "latency": 12.345, "low": 11.2, "high": 15.9},
+      "download": {"bandwidth": 117654320, "bytes": 1209876543, "elapsed": 10012},
+      "upload": {"bandwidth": 5154320, "bytes": 62123456, "elapsed": 12004},
+      "packetLoss": 0,
+      "isp": "Example ISP",
+      "interface": {"internalIp": "192.0.2.10", "name": "eth0", "isVpn": false, "externalIp": "198.51.100.23"},
+      "server": {"id": 99999, "host": "speedtest.example.net", "port": 8080, "name": "Example Server", "location": "Example City", "country": "Exampleland", "ip": "203.0.113.5"},
+      "result": {"id": "00000000-0000-4000-8000-000000004812", "url": "https://www.speedtest.net/result/c/00000000-0000-4000-8000-000000004812", "persisted": true}
+    },
+    "created_at": "2026-10-03T13:00:41.000000Z",
+    "updated_at": "2026-10-03T13:01:07.000000Z"
+  },
+  "message": "ok"
+}

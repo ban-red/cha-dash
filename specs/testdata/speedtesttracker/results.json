@@ -1,0 +1,31 @@
+{
+  "data": [
+    {
+      "id": 4812,
+      "service": "ookla",
+      "ping": 12.345,
+      "download_bits": 941234567,
+      "upload_bits": 41234567,
+      "healthy": true,
+      "status": "completed",
+      "scheduled": true,
+      "created_at": "2026-10-03T13:00:41.000000Z",
+      "updated_at": "2026-10-03T13:01:07.000000Z"
+    }
+  ],
+  "links": {
+    "first": "/api/v1/results?page%5Bsize%5D=1&page%5Bnumber%5D=1",
+    "last": "/api/v1/results?page%5Bsize%5D=1&page%5Bnumber%5D=4812",
+    "prev": null,
+    "next": "/api/v1/results?page%5Bsize%5D=1&page%5Bnumber%5D=2"
+  },
+  "meta": {
+    "current_page": 1,
+    "from": 1,
+    "last_page": 4812,
+    "path": "/api/v1/results",
+    "per_page": 1,
+    "to": 1,
+    "total": 4812
+  }
+}
