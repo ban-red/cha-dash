@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"dash.cha.sh/internal/action"
+	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
@@ -94,6 +96,9 @@ type app struct {
 	// correlator merges what several instances report as one thing, over
 	// integrationTopics: the Demo Home has nothing to merge.
 	correlator *correlate.Correlator
+	// actions is the action engine, under the OwnerOnly policy until
+	// internal/authz replaces it.
+	actions *action.Engine
 
 	stop context.CancelFunc // ends the background work below
 	bg   sync.WaitGroup     // the demo driver or the inbox clock, and the correlator
@@ -197,13 +202,32 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
+	// The action engine and its audit log. In demo mode the Demo Home's
+	// incident fixes are its actions.
+	actions := action.NewRegistry()
+	if drv != nil {
+		if err := actions.Register(demo.ActionSource, drv.Actions()...); err != nil {
+			return nil, err
+		}
+	}
+	eng, err := action.New(ctx, action.Options{
+		Store: st, Audit: audit.New(st), Registry: actions, Policy: action.OwnerOnly{}, Graph: g,
+		// No step-up grants yet: OwnerOnly refuses T3 until the session's
+		// grant is wired into StepUpUntil.
+		Sessions: action.Sessions{Proxies: proxies},
+		Log:      log,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	// index.html carries the first board's snapshot for a signed-in owner,
 	// when the web app is built in (the placeholder page has no use for it).
 	var firstPaint *firstpaint.Builder
 	if webui.Embedded {
 		firstPaint = &firstpaint.Builder{Topics: tp, Boards: boards.New(st), Demo: drv != nil}
 	}
-	hub := realtime.New(watch.Source(tp.Source()), realtime.Options{
+	hub := realtime.New(watch.Source(tp.SourceWith(realtime.Mux{action.TasksTopic: eng.TasksSource()})), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,
 		Log:            log,
@@ -223,16 +247,19 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Onboarding:     ob,
 		FirstPaint:     firstPaint,
 		Security:       sec,
+		Actions:        eng,
 	})
 	if err != nil {
+		eng.Close()
 		return nil, err
 	}
 
-	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr}
+	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr, actions: eng}
 	bg, stop := context.WithCancel(ctx)
 	a.stop = stop
 	if err := mgr.Start(bg); err != nil {
 		stop()
+		eng.Close()
 		return nil, err
 	}
 	if cfg.Demo {
@@ -244,6 +271,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		a.bg.Go(func() { tp.RunClock(bg, inboxClock, time.Now) })
 	}
 	a.bg.Go(func() { corr.Run(bg) })
+	a.bg.Go(func() { eng.Run(bg) })
 	return a, nil
 }
 
@@ -251,6 +279,7 @@ func (a *app) close() error {
 	a.stop()
 	a.integrations.Close()
 	a.bg.Wait()
+	a.actions.Close() // running tasks record how they ended before the store closes
 	a.hub.Close()
 	return a.store.Close()
 }

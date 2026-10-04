@@ -8,7 +8,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 
 | Package | Job |
 |---|---|
-| `cmd/chadash` | Entry point: `serve`, `healthcheck`, `version`, `export`, `import`. Wires everything together in `newApp` |
+| `cmd/chadash` | Entry point: `serve`, `healthcheck`, `version`, `export`, `import`, `audit verify`. Wires everything together in `newApp` |
 | `internal/server` | HTTP routes, the middleware chain, graceful `Serve` |
 | `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, step-up grants, attempt limiting; the users store and its invariants (one owner, disabled never deleted). `Identify` reads a session without renewing it |
 | `internal/authz` | Every permission decision: the five roles, the route table and `Guard` that enforces it, action decisions by tier and scope (`Decide`, and `Policy` for the action engine), `ActorFrom` for a request, and the users API |
@@ -18,28 +18,31 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/onboarding` | The first-run wizard's state and discovery (the compose sidecar, and only hosts the owner names) |
 | `internal/importer` | The shared importer pipeline: the plan shape, layout documents, and a transactional, idempotent apply |
 | `internal/importer/homepage` | The Homepage importer: parses `services.yaml`, `docker.yaml` and `settings.yaml` into a plan; the import API. Mapping table in its [README](importer/homepage/README.md) |
-| `internal/integration` | The contract every integration implements: `Integration`, `Instance`, `Manifest` (config JSON Schema), `TestResult`, the facts and inbox shapes, error classes, the registry, recipes, the optional `Authorizer` |
+| `internal/integration` | The contract every integration implements: `Integration`, `Instance`, `Manifest` (config JSON Schema), `TestResult`, the facts and inbox shapes, error classes, the registry, recipes, the optional `Authorizer` and `Actor` (actions; `Params` adapts a schema to an action's params) |
+| `internal/action` | The action engine: `Def`, the `Registry` every source adds to, and the lifecycle (resolve, authorize, plan, approve, execute, verify, audit) with per-resource locks, idempotency keys and tasks. Defines `Actor`, `Policy` and `Tier`; `OwnerOnly` stands in for `internal/authz`. Serves the action routes and the `tasks` topic |
+| `internal/audit` | The append-only, hash-chained audit log: `Append`, `Query`, NDJSON `Export`, `Verify`, its routes. The canonical form is in its package doc |
 | `internal/integration/integrationtest` | A harness for contract tests: an integration on the runtime's real HTTP clients and emitter, publishing into a private graph |
 | `internal/security` | The security posture (`relaxed`, `standard`, `strict`; one settings row): the severity transform for `category: security` incidents and its API |
 | `internal/runtime` | Runs instances: a coordinator each, the per-instance HTTP client (TLS policy, session cache), secrets from the vault, the fact emitter, the integrations API |
 | `internal/spec` | The Tier 1 spec engine: YAML specs with gjson extraction and expr-lang expressions |
 | `integrations/<id>` | Tier 0 integrations, one folder each, with a `recipe.md` for the least-privilege credential. Linked in by `cmd/chadash/integrations.go` |
 | `specs` | The bundled Tier 1 specs (`<id>.yaml`), embedded and registered at init |
-| `internal/demo` | Demo mode: runs the Demo Home simulator (`sim/`) and maps it onto the topics |
+| `internal/demo` | Demo mode: runs the Demo Home simulator (`sim/`) and maps it onto the topics; its incident fixes are engine actions (`Driver.Actions`) |
 | `internal/topics` | The topic set (`graph`, `metrics`, `inbox`), their document shapes and routing |
-| `internal/realtime` | WebSocket gateway, protocol v1 (`hello` / `sub` / `snap` / `diff` / `ping`); `GraphSource`, `DocSource`, `Mux` |
+| `internal/realtime` | WebSocket gateway, protocol v1 (`hello` / `sub` / `snap` / `diff` / `ping`); `GraphSource`, `DocSource`, `Mux`; `ContextSource` and `ViewerDocSource` for topics filtered per viewer |
 | `internal/graph` | Home Graph v0: resources, relations, version, watchers |
 | `internal/livedoc` | Live JSON documents for topics that aren't the graph: values, keyed collections, watchers; `Tx.Item` reads an item inside an update, so read-modify-write is atomic |
 | `internal/jsonpatch` | The RFC 6902 subset used on the wire, plus `Compact` for coalescing |
 | `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise. `WithInline` attaches a per-request first-paint snapshot, embedded only in `index.html`. Compressible files of 1 KiB or more are gzipped once and kept (their own ETag, `Vary: Accept-Encoding`; ranges get identity bytes); the personalised page is gzipped per request |
 | `internal/firstpaint` | Builds the snapshot inlined into the first paint: user, board (layout and tiles), graph, metrics for its resources, open incidents. HTML-escaped, capped at 512 KiB |
 | `internal/vault` | Envelope-encrypted secrets |
-| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table |
+| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table, `00007` plans, tasks and idempotency keys, `00008` the audit log |
 | `internal/httpx` | Client IP and scheme behind trusted proxies, JSON I/O, shared middleware; `GzipJSON` compresses `/api` JSON of 1 KiB or more (never auth, setup or sign-in flows, upgrades or ranges; the BREACH reasoning is at the top of `gzip.go`) |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
 
 Dependencies point down: `cmd → server → {auth, authz, boards, demo, realtime, importer/homepage, runtime} → {importer, integration, security, topics, graph, livedoc, vault, store} → …`. `security → authz → auth`: decisions live in `authz`, which reads identities from `auth`; `auth` never imports either.
+`integration` imports `action` (an Actor's `Def`s) and `action` imports `audit`, `auth`, `graph`, `livedoc` and `realtime`, never `integration`; the runtime, which owns instances, will sit between them.
 Integrations import only `integration`; `runtime` imports them never (they
 register themselves), and `cmd/chadash` links them in.
 `realtime` sees topics only through its `Source` interface; `graph` and
@@ -141,6 +144,12 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `POST /api/users/{id}/transfer-ownership` | owner | No body → `200` the new owner; the old owner becomes an admin in the same transaction. T3: `403 step_up_required` without a step-up grant. `422` for a disabled target |
 | `GET /api/demo` | session | Demo mode only: `{"enabled":true,"now":RFC 3339,"seed":n}`. `now` is the simulated time |
 | `POST /api/demo/incidents/{id}/fix` | operator | Demo mode only: presses the incident's suggested action → `202 {"id"}`. `404` unknown incident, `409` not open yet, already fixing or resolved. Progress arrives on the `inbox` topic |
+| `POST /api/actions/plan` | session; the policy decides | `{"action","target","params"?}` → `200` a plan: `{"id","hash","action","label","target","params","tier","confirm","confirm_text"?,"step_up","steps","impact","undo","expires_at"}` (2 minutes; secret params as `[redacted]`). `403 forbidden`, `404 not_found` (action or target), `409 precondition`, `409 unavailable` with `"recipe"`, `422 invalid` with `"fields"`. Every refusal is audited |
+| `POST /api/plans/{id}/approve` | session that made the plan | `{"hash","typed"?}`, optional `Idempotency-Key` header (≤ 128 bytes; a retry gets the same task) → `202 {"task"}`. `403 step_up_required`, `403 forbidden` (another session), `410 plan_expired` (also when it already ran), `409 plan_changed` (hash, or the target's state), `422 confirm_mismatch`, `409 locked`, `409 precondition` |
+| `GET /api/tasks/{id}` | session | The task: `{"id","plan","action","label","target","actor":{"kind","name"},"state","step"?,"progress"?,"log"?,"started_at","finished_at","error","undo","audit"}`. Your own, or anyone's with the `tasks.all` scope; otherwise `404` |
+| `GET /api/audit` | `audit.read` (admin and owner) | `?actor=&action=&target=&result=&since=&before=&limit=&cursor=` → `{"events","next"?}`, newest first. `action` ending in `.` or `*` is a prefix; `since`/`before` are RFC 3339; `limit` 1–500 (default 100); pass `next` back as `cursor`. `422 invalid` otherwise |
+| `GET /api/audit/export` | `audit.read` | Every event as NDJSON, oldest first, as an attachment: each line the stored canonical JSON plus `hash` |
+| `GET /api/audit/verify` | `audit.read` | `{"ok","checked","first_break"?:{"seq","id"?,"reason"}}` |
 | `GET /ws` | session | WebSocket; see [`realtime/protocol.go`](realtime/protocol.go) and the topics below |
 | `/api/*` (other) | — | JSON `404`; so are the demo routes outside demo mode |
 | `GET /…` | none | The web app. Unknown paths get `index.html` (history-mode routing). For an owner session, `index.html` carries the first-paint snapshot as `<script type="application/json" id="chadash-snapshot">` (non-executable, so the CSP holds), served `no-store` with `Vary: Cookie`; everyone else gets the generic shell (`no-cache`, ETag) |
@@ -183,6 +192,7 @@ paths start with `/<topic>/`.
 | `graph` | `{"resources":{id: resource},"relations":{key: relation}}` | Whole resources and relations; see `internal/graph` |
 | `graph:kind/<kind>[,<kind>…]` | The same, filtered to those kinds | As above |
 | `metrics` | `{"series":{"<resource id>#<metric key>": series}}` | Each sample tick, the fields of each series that changed: `/series/<key>/value`, `/as_of`, and `/stale` when it flips. Every 30 minutes, when the history gains a point, `/history` whole (or the whole series, when that's smaller). Whole series when one appears or disappears |
+| `tasks` | `{"tasks":{id: task}}`: running tasks and the last 24 hours, at most 50; the owner (and later Admin) sees everyone's, others their own | The fields of a task that changed (state, step, progress, log), whole tasks when they appear or go |
 | `inbox` | `{"now": RFC 3339, "incidents":{id: incident}}`; an incident's `class` is `problem`, `repair` or `suggestion` (the correlator's "merge?"); `category: "security"` marks a security finding, whose `severity` the security posture decides | The fields of an incident that changed, or the whole incident when it appears or disappears; `/now` each tick |
 
 A series is exactly a `series` entry of the simulator's snapshots (`unit`,
@@ -243,7 +253,7 @@ What wave 5 integrations must do:
 - **Respect the interest.** `want.Watched` false means nobody's looking: report health, skip the expensive parts. Set `Manifest.Poll` (interval while watched, idle interval, timeout) to the spike's polling plan.
 - **`Test`** reports the upstream version and, where the source can tell, the grants it read back, `Write: true` (or `Access`) on any that can change things; the runtime warns about write grants on read-only connections. Use `integration.Failed(err)` on failure.
 - **Push** is optional: implement `Subscribe(ctx, emit)`; it runs only while someone watches.
-- **`Do` is a stub.** Actions arrive in v0.2.
+- **Actions** are the optional `integration.Actor` (`Actions() []action.Def`, `Execute`), registered with the engine through `ActionDefs`. The runtime wires instances' actions in wave 8; until then only the Demo Home has actions.
 - **Fixture tests** against `testdata/integrations/<id>/` with `integrationtest`: `Validate` the config shapes the importer writes, `Connect`, `Test`, `Sync`, then read back `Resource`, `Series` and `Incident`.
 
 **Tier 1 specs** (internal and unstable until v1.0). `specs/<id>.yaml`,
@@ -311,7 +321,7 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - **Optimistic saves.** A save names the revision it started from; the check and the insert share one write transaction, and the single writer connection serialises them, so two tabs can't both win. The loser gets `409` and the current revision.
 - **Layout history is capped** at the newest 100 revisions per board, pruned on save, so autosave can't grow the database without bound.
 - **The default board** (`Home`, slug `home`, ID `b_…`) is created by the first `GET /api/boards`, with `INSERT … WHERE NOT EXISTS` inside a write transaction so concurrent first calls make one board.
-- **`audit`** is a stub table with an `UPDATE` trigger that aborts. Retention may delete rows; nothing writes to it yet.
+- **`audit`** is v0's stub table, left as it was; nothing writes to it. The audit log is `audit_events` (see Actions and audit).
 
 **First run and sessions**
 - **Setup token**: `cds_` + 128 random bits. It lives in memory only and is logged once at `warn`, so it survives a quiet log level. A restart before setup logs a fresh one. A wrong token or invalid input leaves it valid; success spends it.
@@ -412,6 +422,14 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - **Topics publish separately.** One demo tick updates the graph, metrics and inbox in turn, so a subscription may see it as two diffs a moment apart. Each diff is correct on its own.
 - **Shutdown**: hijacked connections aren't covered by `http.Server.Shutdown`, so `Serve` calls `Hub.Close` afterwards. That sends close code 1001 (going away), and new upgrades then get 1013 (try again later).
 
+**Actions and audit**
+- **One engine, one decision point.** Every action goes through `action.Engine`; whether an actor may do it is only ever `Policy.Authorize(actor, scope, target, tier)`. The hub runs `OwnerOnly` (owner only, T3 needs a step-up grant, T4 refused) until `internal/authz` implements `Policy`. The policy finds the `Def` (for `Household`) with `action.DefFromContext`. Reads that aren't actions are scopes too: `audit.read`, and `tasks.all` for seeing other people's tasks.
+- **Plans are bound to what was shown.** The hash covers the action, target, params, tier, blast radius and the target's state (for a graph resource its kind, name and state, not health or attrs, which move with every sync). Approve recomputes the state, asks the policy again (now with the step-up grant), checks the typed name for T3 and T4, and marks the plan used in the same transaction that creates the task, so a plan runs at most once. T4 also wants a grant that began after the plan: grants last 5 minutes, so the engine takes `StepUpUntil − 5 min` as when it began.
+- **Tasks** run in the background on the engine's context, with a timeout (2 minutes, 30 for `Async`, plus the `Verify` timeout), a per-target lock, and a recovered panic as an `internal` failure. State and step changes are written to `tasks`; progress and log lines only go to the topic. A task that was running when the hub stopped is marked `failed` (`interrupted`) and audited at the next start. Shutdown cancels running tasks and waits for them to record how they ended.
+- **The tasks topic is filtered per viewer.** `realtime.ContextSource` lets a source see the subscribing connection's context (the session); `Mux` and the runtime's `Watch` pass it on. `ViewerDocSource` decides once per item, when it first sees it whole, and then passes field ops and removals only for items the viewer holds, so every op applies to the viewer's document.
+- **The audit log is append-only and hash-chained.** Each row keeps its canonical JSON exactly as hashed, and the chain links each event to the previous event's hash (see `internal/audit`'s package doc for the form). Triggers refuse `UPDATE` and `DELETE`, and a test fails if any non-test Go or SQL file in the repository updates or deletes `audit_events`. Secret-typed params (write-only properties of an action's schema) are redacted before hashing. Refusals are recorded at plan and approve time; a task's outcome when it ends, with its duration.
+- **The Demo Home's fixes are actions.** One `Def` per suggested action ID in the day's script (not `link.open`), with the simulator's ID and tier, so the web plans exactly what an incident suggests. The plan finds the open incident; `Execute` presses the fix; `Verify` follows the incident's phases as task steps until it resolves (45 minutes at most).
+
 **Demo mode**
 - **`--demo` runs the Demo Home simulator inside the hub.** It reads nothing real. First-run setup and sign-in work exactly as in a real install; there's no bypass.
 - **The simulator owns the graph.** Its snapshot replaces the graph's contents, and the hub doesn't insert `chadash:hub`: the Demo Home's `app:chadash` (`self: true`) stands for it.
@@ -443,7 +461,8 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - TOTP, OIDC, roles beyond owner, API and kiosk tokens, step-up (re-verify with a passkey for T3+).
 - Passkeys: deleting one doesn't end the sessions it started (sessions don't record which credential began them, and there's no "sign out everywhere" yet). No attestation checks or FIDO metadata. The Signal API's `signalAllAcceptedCredentials` and `signalCurrentUserDetails`. Passkey-only accounts.
 - Revoking live WebSockets when a session is logged out or expires. A socket stays open until it reconnects.
-- Writing to `audit`; nothing records auth events yet.
+- Auth events (sign-ins, passkey changes) and settings changes in the audit log; only actions are recorded so far.
+- Action follow-ups: cancelling a task over HTTP (`Engine.Cancel` exists, no route), locks beyond the target resource, incidents' `plan_ready`/`unavailable`, API tokens and agents as actors (a plan's approval is bound to a session today).
 - Vault key rotation and a keyed-hash fingerprint for spotting reused secrets. The importer finds reuse within one import with its own per-import HMAC key; reuse against secrets already in the vault needs the vault's fingerprint.
 - Importer follow-ups: turning the record's `runs_on` links into confirmed correlation decisions; mapping `homepage.widget.type` of a label-discovered container to a catalog widget.
 - Graph persistence (the last-known cache). Correlator follow-ups are in its [README](correlate/README.md): DNS ↔ IP matching, the nginx-proxy hop, MACs, cross-source `backed_up_by`.
