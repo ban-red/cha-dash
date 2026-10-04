@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Seven more integrations, all read-only**, each tested against responses written from its API's documentation:
+  - **Nextcloud:** users and how many are active, files, shares and free space, with a serverinfo token that can read nothing else;
+  - **Transmission:** speeds and how many torrents are seeding, downloading and queued, on the Downloads tile beside qBittorrent;
+  - **NZBGet:** speed, queue and what's left, on the Downloads tile beside SABnzbd, with its restricted user;
+  - **Lidarr:** the queue, what's wanted, and this week's album releases in Up next;
+  - **Audiobookshelf:** books, podcasts and their hours, and who's listening;
+  - **Paperless-ngx:** documents and the inbox, with a view-only user;
+  - **Speedtest Tracker:** the latest download, upload and ping, with a token that can only read results.
+- **Overseerr and Jellyseerr** connect as Seerr, their successor with the same API, and the add list says so.
+- **The Homepage importer** brings these over too: `overseerr`, `jellyseerr`, `nextcloud`, `transmission`, `nzbget`, `lidarr` (calendar included), `audiobookshelf`, `paperlessngx` and `speedtest` widgets.
+
 ## [0.1.0-beta.1] - 2026-10-04
 
 The first beta of Cha Dash: a calm, live, read-only front page for your homelab. It reads from the services you already run and never changes anything in them. If you'd like to try it and tell us what you think, the [beta guide](https://github.com/ban-red/cha-dash/blob/main/docs/beta.md) has everything you need, and thank you.

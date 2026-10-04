@@ -200,6 +200,11 @@ checks); an **instance** is one configured connection to it. The framework
 owns the boilerplate, so an integration only connects, tests, and turns what it
 reads into facts.
 
+**Bundled:** 33 integrations plus weather, all read-only.
+- **Tier 0** (`integrations/<id>`, 25 with `checks` and `weather`): adguard, audiobookshelf, checks, docker, frigate, homeassistant, immich, jellyfin, lidarr, nextcloud, nzbget, opnsense, pbs, pihole, plex, prowlarr, proxmox, qbittorrent, radarr, sonarr, traefik, transmission, unraid, uptimekuma, weather.
+- **Tier 1 specs** (`specs/<id>.yaml`, 9): bazarr, karakeep, linkding, mealie, paperlessngx, sabnzbd, seerr (also Overseerr and Jellyseerr, as `aliases`), speedtesttracker, tautulli.
+- v0.2's breadth set (wave 8) is lidarr, transmission, nzbget, nextcloud, audiobookshelf, paperlessngx and speedtesttracker, plus seerr covering Overseerr and Jellyseerr. `cmd/chadash`'s `TestIntegrationsLinkedIn` lists every ID; `TestEveryIntegrationHasARecipe` checks each has a recipe.
+
 **Writing a Tier 0 integration.** A folder `integrations/<id>/` with a package
 that registers itself, a line in `cmd/chadash/integrations.go`, fixture tests
 and a README:
@@ -218,6 +223,8 @@ func (sonarr) Connect(_ context.Context, cfg integration.Config, d integration.D
 	return &instance{url: cfg.String("url"), key: cfg.String("api_key"), d: d}, nil // no I/O here
 }
 ```
+
+Choose Go when the API needs more than fixed JSON `GET`s with a header or query key: basic auth (Nextcloud, NZBGet), a handshake (Transmission's session id), per-item fan-out (Audiobookshelf's libraries) or shared code (the *arrs). Otherwise write a spec.
 
 The instance's `Test` returns version and grants; `Sync(ctx, want)` fetches
 with `d.HTTP`, calls `integration.CheckResponse(resp)` (a 401 or 403 becomes a

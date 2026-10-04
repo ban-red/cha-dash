@@ -204,7 +204,12 @@ Cha Dash only reads in v0.1, so every credential it holds should only read. Each
 | Uptime Kuma | None (a public status page), or a key that only opens `/metrics` | No |
 | Built-in checks, Weather | None (Weather's Open-Meteo is keyless) | — |
 | Home Assistant, Mealie | A token of a user who isn't an administrator | Yes: the narrowest there is can still control devices (Home Assistant) or edit recipes (Mealie) |
-| Plex, Jellyfin, Sonarr, Radarr, Prowlarr, qBittorrent, SABnzbd, Tautulli, Bazarr, Seerr, Pi-hole, AdGuard Home, Linkding, Karakeep | The only kind of key the service has, or a user of its own where that helps revoke it | Yes: none of them offers a read-only credential. Cha Dash still only reads |
+| Nextcloud | A serverinfo token, which reads only the monitoring endpoint (or an administrator's app password) | No, with the token |
+| Paperless-ngx | The token of a user with view permissions only | No |
+| Speedtest Tracker | An API token with only the `results:read` ability | No |
+| Audiobookshelf | The API key of a user with no upload, change or delete permission (open sessions then stay unknown; they need an admin) | No |
+| NZBGet | The restricted user, which can't see or change settings | Yes: it can still pause and delete downloads |
+| Plex, Jellyfin, Sonarr, Radarr, Lidarr, Prowlarr, qBittorrent, Transmission, SABnzbd, Tautulli, Bazarr, Seerr (Overseerr, Jellyseerr), Pi-hole, AdGuard Home, Linkding, Karakeep | The only kind of key the service has, or a user of its own where that helps revoke it | Yes: none of them offers a read-only credential. Cha Dash still only reads |
 
 **Discovery stays on what you name.** The wizard's Discover step asks the socket proxy this `compose.yaml` runs (`tcp://socket-proxy:2375`) as soon as it opens. Anything else it checks only when you list it: machines by name or address, and Docker addresses you tick. It sends GET requests, without credentials, to the usual ports of the services Cha Dash knows, and never scans a network.
 
