@@ -1,0 +1,68 @@
+# Paperless-ngx: how many documents there are, and how many wait in the inbox.
+#
+# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# internal/README.md, "Tier 1 specs". Fixture test: paperlessngx_test.go,
+# against testdata/paperlessngx/ (synthetic). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: paperlessngx
+  name: Paperless-ngx
+  icon: paperless-ngx
+  version: 0.1.0
+  tier: bronze
+  capabilities: [documents.library]
+
+config:
+  token: { type: secret, title: API token, required: true, description: "My Profile → API Auth Token, for a user that can only view" }
+  inbox_warn: { type: integer, title: Inbox documents before attention, default: 50, min: 1, max: 100000 }
+
+source:
+  headers:
+    Authorization: "Token {{ secret.token }}"
+  timeout: 15s
+
+every: 300s
+
+requests:
+  # Counts of what the token's user may see.
+  stats:
+    path: /api/statistics/
+    extract:
+      documents: documents_total
+      inbox: documents_inbox # null without an inbox tag
+      tags: tag_count
+      correspondents: correspondent_count
+      document_types: document_type_count
+      storage_paths: storage_path_count
+  # Paperless-ngx 2.x; staff only, so optional: a view-only user reads
+  # everything but the version.
+  status:
+    path: /api/status/
+    optional: true
+    extract:
+      version: pngx_version
+
+version: status.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: '(stats.inbox ?? 0) >= (config.inbox_warn ?? 50) ? "attention" : "ok"'
+    reason: '(stats.inbox ?? 0) >= (config.inbox_warn ?? 50) ? string(stats.inbox) + " documents are waiting in the inbox" : ""'
+    attrs:
+      type: '"paperlessngx"'
+      version: status.version
+      tags: stats.tags
+      correspondents: stats.correspondents
+      document_types: stats.document_types
+      storage_paths: stats.storage_paths
+    caps: [documents.library]
+    links:
+      - { title: Paperless-ngx, url: config.url }
+
+metrics:
+  - { resource: app, key: documents, value: 'stats.documents == nil ? nil : float(stats.documents)', unit: count, max: 1000000, band: [0, 1000000] }
+  - { resource: app, key: inbox, value: 'stats.inbox == nil ? nil : float(stats.inbox)', unit: count, max: 1000, band: [0, 20] }

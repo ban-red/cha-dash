@@ -15,6 +15,7 @@ The engine adds the shared behaviour: a 401 or 403 is an auth Repair on the secr
 | [`linkding`](linkding.yaml) | `url` (`token`) | `Authorization: Token` | `/health` (public), `/api/bookmarks/`, `/api/bookmarks/archived/`, `/api/tags/` (each `limit=1`) | `/health`'s `version` | `bookmarks` | `version`, `archived`, `tags` | none of its own |
 | [`karakeep`](karakeep.yaml) | `url` (`api_key`) | `Authorization: Bearer` | `/api/version` (public, optional), `/api/v1/users/me/stats` | `/api/version`, unless `unknown` | `bookmarks` | `version`, `favorites`, `archived`, `tags`, `lists`, `highlights` | before 0.23: unsupported |
 | [`sabnzbd`](sabnzbd.yaml) | `url` (`api_key`) | `apikey` query parameter | `/api?mode=version` (public, optional), `/api?mode=queue&limit=1` | `mode=version`, else the queue's `version` | `dl.mbps`, `queue`, `left.gib` | `version`, `status`, `paused`, `timeleft`, `speedlimit_pct`, `disk_free_gib` | an error inside a 200 (`auth` when it's the key, else `api_changed`); before 3.0: unsupported |
+| [`paperlessngx`](paperlessngx.yaml) | `url` (`token`), `inbox_warn` | `Authorization: Token` | `/api/statistics/`, `/api/status/` (staff only, optional) | `pngx_version`, unknown without staff | `documents`, `inbox` | `version`, `tags`, `correspondents`, `document_types`, `storage_paths` | none of its own |
 
 The config shapes are the Homepage importer's ([07 · v0.1](../docs/plan/07-v0.1.md#instance-config-keys)): `url`, `tls` and one secret.
 
@@ -39,6 +40,8 @@ The config shapes are the Homepage importer's ([07 · v0.1](../docs/plan/07-v0.1
 - **Paused:** the state is `paused` (else `running`) and `attrs.paused` is `true`; health stays `ok`, because a pause is usually the owner's. The Workbench draws that as "off, expected".
 - `attrs.speedlimit_pct` is the speed limit as a percentage of the line speed, left out without one; `attrs.disk_free_gib` is the free space on the download folder (`diskspace1`).
 - A wrong key is a 403 on recent releases (an auth Repair from the engine) and an error inside a 200 on older ones (the spec's own `auth` repair). Use the API key, not the NZB key: the NZB key can only add jobs.
+
+**Paperless-ngx.** The documents library; capability `documents.library` (new). Polls every 5 minutes. `documents` is `documents_total` and `inbox` is `documents_inbox`, both new keys; the inbox is unknown, not 0, when no tag is marked as an inbox tag. Health is `attention` with "N documents are waiting in the inbox" from `inbox_warn` (default 50) up. The recipe makes a user with view permissions only, so the token can't change anything; Paperless-ngx counts only the documents that user may view, and `/api/status/` (the version) is staff only, so with that user the version is unknown. Spec rather than Go: one header token and two fixed GETs.
 
 ## Limits
 
