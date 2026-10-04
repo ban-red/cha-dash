@@ -1,5 +1,5 @@
-// Package arr is what Sonarr, Radarr and Prowlarr share: their REST API
-// (v3, or v1 for Prowlarr) with the key in X-Api-Key, the config schema,
+// Package arr is what Sonarr, Radarr, Lidarr and Prowlarr share: their REST API
+// (v3, or v1 for Lidarr and Prowlarr) with the key in X-Api-Key, the config schema,
 // the status, health and paging reads, the app resource, and the grant an
 // *arr API key amounts to (full admin: there are no read-only keys).
 package arr

@@ -24,6 +24,8 @@ func TestIntegrationsLinkedIn(t *testing.T) {
 		"uptimekuma", "homeassistant", "plex", "sonarr", "radarr", "prowlarr", "qbittorrent", "immich",
 		"tautulli", "bazarr", "mealie", "linkding", "karakeep", "seerr",
 		"jellyfin", "pihole", "adguard", "sabnzbd", "weather",
+		// wave 8 breadth (v0.2)
+		"lidarr",
 	} {
 		if _, _, ok := integration.Default.Get(id); !ok {
 			t.Errorf("%s isn't registered in the hub", id)

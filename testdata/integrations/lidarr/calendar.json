@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Old Signal",
+    "disambiguation": "",
+    "albumType": "Single",
+    "secondaryTypes": [],
+    "releaseDate": "2026-10-02T00:00:00Z",
+    "monitored": true,
+    "artistId": 34,
+    "foreignAlbumId": "00000000-0000-4000-8000-000000000412",
+    "artist": {"artistName": "Fen & Pike", "foreignArtistId": "00000000-0000-4000-8000-000000000034", "id": 34},
+    "id": 412
+  },
+  {
+    "title": "Night Ferries",
+    "disambiguation": "",
+    "albumType": "EP",
+    "secondaryTypes": [],
+    "releaseDate": "2026-10-06T00:00:00Z",
+    "monitored": true,
+    "artistId": 12,
+    "foreignAlbumId": "00000000-0000-4000-8000-000000000415",
+    "artist": {"artistName": "Marlow Avenue", "foreignArtistId": "00000000-0000-4000-8000-000000000012", "id": 12},
+    "id": 415
+  },
+  {
+    "title": "Harbour Lights",
+    "disambiguation": "",
+    "albumType": "Album",
+    "secondaryTypes": [],
+    "releaseDate": "2026-10-09T00:00:00Z",
+    "monitored": true,
+    "artistId": 5,
+    "foreignAlbumId": "00000000-0000-4000-8000-000000000418",
+    "artist": {"artistName": "The Quiet Tide", "foreignArtistId": "00000000-0000-4000-8000-000000000005", "id": 5},
+    "id": 418
+  }
+]

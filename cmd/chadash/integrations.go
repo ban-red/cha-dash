@@ -10,6 +10,7 @@ import (
 	_ "dash.cha.sh/integrations/homeassistant" // Home Assistant: who's home, lights, power
 	_ "dash.cha.sh/integrations/immich"        // Immich photo library statistics
 	_ "dash.cha.sh/integrations/jellyfin"      // Jellyfin: streams, libraries
+	_ "dash.cha.sh/integrations/lidarr"        // Lidarr: queue, wanted, calendar
 	_ "dash.cha.sh/integrations/opnsense"      // OPNsense WAN traffic (counters + SSE)
 	_ "dash.cha.sh/integrations/pbs"           // Proxmox Backup Server
 	_ "dash.cha.sh/integrations/pihole"        // Pi-hole v6: queries, blocked, blocklist

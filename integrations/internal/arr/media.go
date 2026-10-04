@@ -12,7 +12,7 @@ import (
 // calendar) run while someone watches.
 const SlowEvery = 10 * time.Minute
 
-// MediaApp is what differs between Sonarr and Radarr: everything else about
+// MediaApp is what differs between Sonarr, Radarr and Lidarr: everything else about
 // them is the same instance.
 type MediaApp struct {
 	App
@@ -28,7 +28,7 @@ type MediaApp struct {
 // while not (health and the queue only), the slow reads every SlowEvery.
 var Poll = integration.Poll{Interval: time.Minute, Idle: 5 * time.Minute, Timeout: 30 * time.Second}
 
-// NewMedia returns the instance for a Sonarr or Radarr config. Connect calls
+// NewMedia returns the instance for a Sonarr, Radarr or Lidarr config. Connect calls
 // it; it does no I/O.
 func NewMedia(m MediaApp, cfg integration.Config, d integration.Deps) integration.Instance {
 	return &media{m: m, c: New(m.App, cfg, d), cfg: cfg, d: d, slow: Every{D: SlowEvery}}
