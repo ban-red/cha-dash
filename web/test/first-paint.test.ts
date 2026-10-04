@@ -135,7 +135,7 @@ describe('the first paint', () => {
     // No loading state anywhere: no busy door, tile or skeleton.
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
     expect(document.querySelector('.skel, .is-loading')).toBeNull();
-    expect(document.querySelectorAll('.tile').length).toBe(15);
+    expect(document.querySelectorAll('.tile').length).toBe(17);
     expect(page().textContent).toContain('Plex');
     // Signed in and on the board without a request: no /api/setup, session, boards or layout.
     const asked = f.calls.map((c) => c.path);

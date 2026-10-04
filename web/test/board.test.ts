@@ -37,8 +37,19 @@ describe('default layout', () => {
       'arr@app:radarr',
       'downloads',
       'calendar',
+      'weather',
+      'clock',
       'incidents',
     ]);
+    // With a weather source, incidents is wide under the weather and the clock.
+    expect(board.sections[3]!.items.map((i) => [i.id, i.size])).toEqual([
+      ['weather', 'small'],
+      ['clock', 'small'],
+      ['incidents', 'wide'],
+    ]);
+    const noWeather = docs(withIncidents).graph;
+    delete noWeather.resources['weather:demo/here'];
+    expect(defaultBoard(noWeather, now).sections[3]!.items.map((i) => [i.id, i.size])).toEqual([['incidents', 'large']]);
     for (const s of board.sections) {
       for (const i of s.items) {
         const w = WIDGETS[i.type]!;

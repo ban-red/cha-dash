@@ -215,9 +215,9 @@ func TestSyncThroughTecnativa(t *testing.T) {
 		}
 	}
 
-	// Hints: the coarse proxy, and the secrets in labels.
+	// Hints: the coarse proxy (reads only, so info), and the secrets in labels.
 	hint, ok := h.Incident(hintEndpoint)
-	if !ok || hint.Class != "problem" || hint.Severity != "attention" || hint.Target != "docker:i_test/engine" ||
+	if !ok || hint.Class != "problem" || hint.Severity != "info" || hint.Target != "docker:i_test/engine" ||
 		!strings.Contains(hint.Summary, "every container's environment, logs and files") {
 		t.Fatalf("endpoint hint = %+v", hint)
 	}
@@ -343,7 +343,7 @@ func TestRawAPI(t *testing.T) {
 	if eng := resource(t, h, "docker:i_test/engine"); eng.Attrs["access"] != "raw" || eng.Attrs["via"] != "tcp" {
 		t.Fatalf("engine = %+v", eng.Attrs)
 	}
-	if hint, _ := h.Incident(hintEndpoint); !strings.Contains(hint.Summary, "root on the host") {
+	if hint, _ := h.Incident(hintEndpoint); !strings.Contains(hint.Summary, "root on the host") || hint.Severity != "attention" {
 		t.Fatalf("raw API hint = %+v", hint)
 	}
 	res := h.Connect(Integration{}, map[string]any{"endpoint": ep}, nil).Test(t.Context())

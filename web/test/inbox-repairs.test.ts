@@ -6,7 +6,7 @@ import NeedsAttention from '../src/components/NeedsAttention.vue';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { resolve, route, settingsPath, syncRoute } from '../src/lib/router';
 import { toPointer } from '../src/lib/jsonpatch';
-import { groupInbox, isBeingFixed } from '../src/model/inbox';
+import { groupInbox, isBeingFixed, isHint } from '../src/model/inbox';
 import { findInstance, focusField, repairTarget } from '../src/model/integrations';
 import type { Incident } from '../src/model/types';
 import { docs, inboxDoc, withIncidents } from './fixtures';
@@ -28,8 +28,21 @@ afterEach(() => {
 describe('grouping by status', () => {
   it('puts open problems first (down, then attention), then repairs; in-hand ones apart', () => {
     const g = groupInbox(inboxDoc(withIncidents));
-    expect(g.open.map((i) => i.id)).toEqual(['backup-failed', 'pbs-datastore-filling', 'host-memory-pressure', 'karakeep-api-changed', 'plex-token-revoked']);
-    expect(g.fixing.map((i) => i.id)).toEqual(['qbittorrent-oom']); // phase "restarting"
+    expect(g.open.map((i) => i.id)).toEqual([
+      'proxmox-jupiter-nas.guest.101',
+      'proxmox-pluto.backup.daily',
+      'backup-failed',
+      'proxmox-mars.backup.daily',
+      'proxmox-io.backup.daily',
+      'pbs-datastore-filling',
+      'host-memory-pressure',
+      'karakeep-api-changed',
+      'unraid-jupiter.repair',
+      'plex-token-revoked',
+    ]);
+    // qBittorrent's phase is "restarting"; the hints are standing advice, in their own group.
+    expect(g.fixing.map((i) => i.id)).toEqual(['qbittorrent-oom']);
+    expect(g.hints.map((i) => i.id)).toEqual(['docker-jupiter.hint.docker_endpoint', 'frigate.unauthenticated-admin', 'traefik.hint.api_no_auth']);
     expect(g.resolved).toEqual([]);
   });
 
@@ -39,9 +52,14 @@ describe('grouping by status', () => {
     inbox.incidents['plex-token-revoked']!.resolved_at = '2026-10-03T14:00:00Z';
     const g = groupInbox(inbox, { 'backup-failed': { state: 'accepted' } });
     expect(g.fixing.map((i) => i.id)).toEqual(['backup-failed', 'qbittorrent-oom']);
+    expect(g.hints).toHaveLength(3);
     expect(g.resolved.map((i) => i.id)).toEqual(['plex-token-revoked']);
-    const info = { ...inbox.incidents['backup-failed']!, severity: 'info' } as Incident;
-    expect(isBeingFixed(info)).toBe(true);
+    // Info with nothing working on it is a hint, not "being fixed"; in a fixing phase it's settling.
+    const info = { ...inbox.incidents['backup-failed']!, severity: 'info', phase: 'open' } as Incident;
+    expect(isBeingFixed(info)).toBe(false);
+    expect(isHint(info)).toBe(true);
+    expect(isHint({ ...info, phase: 'recovering' })).toBe(false);
+    expect(isBeingFixed({ ...info, phase: 'recovering' })).toBe(true);
   });
 });
 
@@ -49,7 +67,9 @@ describe('repairs', () => {
   const plex = () => structuredClone(inboxDoc(withIncidents).incidents['plex-token-revoked']!);
 
   it('know where Reconnect goes: the instance, and the field that failed', () => {
-    expect(repairTarget(plex())).toEqual({ ref: 'plex', reason: 'auth' });
+    // The Demo Home's repairs carry the hub's facts: instance, field, status.
+    expect(repairTarget(plex())).toEqual({ ref: 'plex', field: 'token', reason: 'auth' });
+    expect(repairTarget({ ...plex(), facts: { status: 401 } })).toEqual({ ref: 'plex', reason: 'auth' });
     const real = { ...plex(), target: 'integration:01HZY', facts: { field: 'token', status: 401 } };
     expect(repairTarget(real)).toEqual({ ref: '01HZY', field: 'token', reason: 'auth' });
     const viaFacts = { ...plex(), facts: { instance: 'abc' }, phase: 'api-changed' };
@@ -82,7 +102,7 @@ describe('repairs', () => {
     reconnect.click();
     expect(h.ui.state.inboxOpen).toBe(false);
     expect(route.value.path).toBe('/settings/integrations/plex');
-    expect(route.value.query).toEqual({ reason: 'auth' });
+    expect(route.value.query).toEqual({ field: 'token', reason: 'auth' });
     expect(resolve(route.value)).toEqual({ name: 'settings', pane: 'integrations', id: 'plex' });
   });
 
@@ -114,7 +134,7 @@ describe('problems outside demo mode', () => {
     vi.stubGlobal('fetch', fetchMock);
     const h = harness(docs(withIncidents)); // demo off
     const w = h.mountIn(NeedsAttention);
-    const backup = w.findAll('.strip')[0]!;
+    const backup = w.findAll('.strip').find((s) => s.text().includes('Backup of homeassistant failed'))!;
     const act = backup.findAll('.acts button')[1]!;
     expect(act.text()).toBe('Back up homeassistant now T1');
     expect(act.attributes('disabled')).toBeDefined();
@@ -146,18 +166,19 @@ describe('the Inbox holds still while you read it', () => {
     await flushPromises();
     await nextTick();
     const groups = () => [...document.body.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
-    expect(groups()).toEqual(['Open · 5', 'Being fixed · 1']);
+    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Hints · 3']);
     h.ui.act(h.live.inbox.value!.incidents['backup-failed']!);
     await flushPromises();
     h.ws.push({ op: 'diff', id: h.ws.subId('inbox'), seq: 4000, patch: [{ op: 'replace', path: toPointer('inbox', 'incidents', 'backup-failed', 'phase'), value: 'retrying' }] });
     await nextTick();
-    expect(groups()).toEqual(['Open · 5', 'Being fixed · 1']);
+    // Still under Open while you read: the list holds still.
+    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Hints · 3']);
     h.ui.closeInbox();
     await nextTick();
     h.ui.openInbox();
     await flushPromises();
     await nextTick();
-    expect(groups()).toEqual(['Open · 4', 'Being fixed · 2']);
+    expect(groups()).toEqual(['Open · 9', 'Being fixed · 2', 'Hints · 3']);
   });
 });
 

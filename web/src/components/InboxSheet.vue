@@ -63,6 +63,7 @@ const fixing = computed(() => inGroup('fixing'));
 const openNow = (list: Incident[]) => list.filter((i) => i.status === 'open').length;
 const done = computed(() => groups.value.resolved.filter((i) => !isLingering(i.id)));
 const suggestions = computed(() => groups.value.suggestions);
+const hints = computed(() => groups.value.hints);
 /** Open items plus the discovery question and the suggestions, which need an answer too. */
 const openCount = computed(() => openNow(open.value) + (discovered.value ? 1 : 0) + suggestions.value.length);
 
@@ -216,6 +217,11 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
           <template v-if="fixing.length">
             <h3 class="ib-grp">Being fixed · {{ openNow(fixing) }}</h3>
             <IncidentItem v-for="i in fixing" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
+          </template>
+
+          <template v-if="hints.length">
+            <h3 class="ib-grp">Hints · {{ hints.length }}</h3>
+            <IncidentItem v-for="i in hints" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
           <div v-if="!open.length && !fixing.length && !discovered && !suggestions.length" class="ib-empty">

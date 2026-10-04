@@ -66,8 +66,8 @@ type Config struct {
 	DemoSeed      int64
 }
 
-// DefaultDemoAt is when the demo day starts: 14:05, the moment all six of
-// the default script's incidents are open (sim.DefaultAllOpen).
+// DefaultDemoAt is when the demo day starts: 14:05, the moment every
+// incident of the default script is open (sim.DefaultAllOpen).
 const DefaultDemoAt = 14*time.Hour + 5*time.Minute
 
 // KeyFile returns the vault key path and whether the operator set it explicitly.

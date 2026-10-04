@@ -26,10 +26,10 @@ describe('live store fed with the sim snapshots', () => {
   it('exposes the topics and derived views', () => {
     const { live } = liveWithFixtures();
     expect(live.conn.status).toBe('live');
-    expect(Object.keys(live.graph.value!.resources)).toHaveLength(129);
+    expect(Object.keys(live.graph.value!.resources)).toHaveLength(134);
     expect(Object.keys(live.metrics.value!.series)).toHaveLength(withIncidents.series.length);
-    expect(live.problems.value).toHaveLength(4);
-    expect(live.repairs.value.map((i) => i.id)).toEqual(['karakeep-api-changed', 'plex-token-revoked']);
+    expect(live.problems.value).toHaveLength(8);
+    expect(live.repairs.value.map((i) => i.id)).toEqual(['karakeep-api-changed', 'unraid-jupiter.repair', 'plex-token-revoked']);
     expect(live.stale.value).toBe(false);
     expect(live.loading.value).toBe(false);
   });
@@ -48,7 +48,7 @@ describe('live store fed with the sim snapshots', () => {
       ],
     });
     await nextTick();
-    expect(seen).toEqual([3]);
+    expect(seen).toEqual([7]);
     expect(live.problems.value.map((i) => i.id)).not.toContain('backup-failed');
     expect(live.inbox.value!.incidents['backup-failed']!.resolution).toBe('The retry at 15:30 succeeded.');
   });
@@ -127,7 +127,7 @@ describe('live store fed with the sim snapshots', () => {
     live.tick();
     expect(live.conn.status).toBe('reconnecting');
     expect(live.stale.value).toBe(true);
-    expect(live.problems.value).toHaveLength(4); // last-known values stay
+    expect(live.problems.value).toHaveLength(8); // last-known values stay
     vi.advanceTimersByTime(live.conn.nextRetryAt! - Date.now());
     FakeSocket.last.handshake(docs(withIncidents));
     live.tick();

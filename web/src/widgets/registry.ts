@@ -14,6 +14,7 @@ import ArrWidget from './ArrWidget.vue';
 import BackupsWidget from './BackupsWidget.vue';
 import CalendarWidget from './CalendarWidget.vue';
 import CamerasWidget from './CamerasWidget.vue';
+import ClockWidget from './ClockWidget.vue';
 import ContainersWidget from './ContainersWidget.vue';
 import DownloadsWidget from './DownloadsWidget.vue';
 import FleetWidget from './FleetWidget.vue';
@@ -25,6 +26,7 @@ import PlexWidget from './PlexWidget.vue';
 import ServiceWidget from './ServiceWidget.vue';
 import TraefikWidget from './TraefikWidget.vue';
 import UptimeKumaWidget from './UptimeKumaWidget.vue';
+import WeatherWidget from './WeatherWidget.vue';
 import WidgetPending from './parts/WidgetPending.vue';
 
 const failed = { render: () => h(WidgetPending, { failed: true }) };
@@ -36,6 +38,7 @@ export const WIDGET_COMPONENTS: Record<string, Component> = {
   backups: BackupsWidget,
   calendar: CalendarWidget,
   cameras: CamerasWidget,
+  clock: ClockWidget,
   containers: ContainersWidget,
   downloads: DownloadsWidget,
   fleet: FleetWidget,
@@ -47,14 +50,13 @@ export const WIDGET_COMPONENTS: Record<string, Component> = {
   service: ServiceWidget,
   traefik: TraefikWidget,
   uptimekuma: UptimeKumaWidget,
+  weather: WeatherWidget,
   bookmarks: lazy(() => import('./BookmarksWidget.vue')),
   check: lazy(() => import('./CheckWidget.vue')),
-  clock: lazy(() => import('./ClockWidget.vue')),
   guests: lazy(() => import('./GuestsWidget.vue')),
   metric: lazy(() => import('./MetricWidget.vue')),
   storage: lazy(() => import('./StorageWidget.vue')),
   unraid: lazy(() => import('./UnraidWidget.vue')),
-  weather: lazy(() => import('./WeatherWidget.vue')),
 };
 
 /** Fetch every on-demand widget now; afterwards they render without a skeleton. */

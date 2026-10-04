@@ -300,8 +300,23 @@ describe('metric stat and sparkline', () => {
 });
 
 describe('uptime check', () => {
-  it('reads the Demo Home’s built-in checks from the apps’ http.ms', () => {
+  /** The Demo Home without its check resources: the apps' own http.ms are the fallback. */
+  const withoutChecks = (d: Data): Data => {
+    for (const r of Object.values(d.graph.resources)) if (r.kind === 'check') delete d.graph.resources[r.id];
+    return d;
+  };
+
+  it('reads the Demo Home’s built-in checks, as a hub publishes them', () => {
     const { w } = mountWidget(docs(healthy), 'check', 'small');
+    expect(w.find('.v').text()).toBe('2/2 up');
+    const wide = mountWidget(docs(withIncidents), 'check', 'wide');
+    expect(wide.w.findAll('.chk').map((r) => r.text())).toEqual([expect.stringContaining('Jupiter Unraid'), expect.stringContaining('Linkding')]);
+    // Unraid's web UI answers while its API integration can't be read.
+    expect(wide.tile().classes()).not.toContain('is-down');
+  });
+
+  it('falls back to the apps’ http.ms without check resources', () => {
+    const { w } = mountWidget(withoutChecks(docs(healthy)), 'check', 'small');
     expect(w.find('.v').text()).toBe('18/18 up');
     expect(w.findAll('.bars i')).toHaveLength(24);
     expect(w.find('.bars').attributes('aria-label')).toContain('Last 24 hours');
@@ -315,7 +330,7 @@ describe('uptime check', () => {
   });
 
   it('lists checks worst first when wide, each with its latency', () => {
-    const d = docs(healthy);
+    const d = withoutChecks(docs(healthy));
     d.metrics.series['app:mealie#http.ms']!.value = null;
     const { w, tile } = mountWidget(d, 'check', 'wide');
     expect(tile().classes()).toContain('is-down');
@@ -346,7 +361,15 @@ describe('host card', () => {
     const { w } = mountWidget(docs(withIncidents), 'host', 'large', 'pve:jupiter-nas');
     expect(w.find('.host-disks').text()).toContain('tank');
     const guests = w.findAll('.list .li');
-    expect(guests[0]!.text()).toContain('debian-nas');
+    // scratch is down (internal-error), then the guest whose memory grew.
+    expect(guests[0]!.text()).toContain('scratch');
+    expect(guests[0]!.text()).toContain('internal-error');
+    expect(guests[1]!.text()).toContain('debian-nas');
+  });
+
+  it('dims a guest stopped on purpose', () => {
+    const { w } = mountWidget(docs(healthy), 'host', 'large', 'pve:jupiter-nas');
+    const guests = w.findAll('.list .li');
     expect(guests[1]!.classes()).toContain('dim');
     expect(guests[1]!.text()).toContain('stopped (expected)');
   });
@@ -372,10 +395,12 @@ describe('guest list', () => {
   it('lists problems first and stopped-on-purpose guests dimmed', () => {
     const { w } = mountWidget(docs(withIncidents), 'guests', 'tall');
     const rows = w.findAll('.li');
-    expect(rows[0]!.text()).toContain('debian-nas');
+    expect(rows[0]!.text()).toContain('scratch'); // down: internal-error
+    expect(rows[1]!.text()).toContain('debian-nas');
     expect(rows.some((r) => r.text().includes('homeassistant') && r.text().includes('backup failed'))).toBe(true);
     const off = rows.filter((r) => r.classes().includes('dim'));
-    expect(off.length).toBe(3);
+    expect(off.length).toBe(2); // win-gaming and devbox
+
     expect(off[0]!.find('.g-off').exists()).toBe(true);
   });
 
@@ -490,7 +515,8 @@ describe('backups', () => {
     m.w.unmount();
     m = mountWidget(docs(withIncidents), 'backups', 'large');
     expect(m.w.find('.list').text()).toContain('minig5 nightly');
-    expect(m.w.find('.nights').findAll('.bad')).toHaveLength(1);
+    // pluto's and mars's runs couldn't reach PBS; homeassistant and win-gaming failed in theirs.
+    expect(m.w.find('.nights').findAll('.bad')).toHaveLength(4);
     expect(m.w.find('.tf').text()).toContain('keep-daily 7');
   });
 });
@@ -658,8 +684,17 @@ describe('clock', () => {
 });
 
 describe('weather', () => {
+  it('shows the Demo Home’s weather, credited to Open-Meteo', () => {
+    const { w, tile } = mountWidget(docs(withIncidents), 'weather', 'wide');
+    expect(tile().attributes('aria-label')).toMatch(/^Greenwich/);
+    expect(w.text()).toMatch(/\d+°C/);
+    expect(w.text()).toContain('Weather data by Open-Meteo.com');
+  });
+
   it('says "Not connected" and where to set a location without a weather source', () => {
-    const { w, ui } = mountWidget(docs(healthy), 'weather', 'small');
+    const d = docs(healthy);
+    delete d.graph.resources['weather:demo/here'];
+    const { w, ui } = mountWidget(d, 'weather', 'small');
     expect(w.text()).toContain('Not connected. Set a location to see the weather here.');
     void ui;
     expect(w.find('button.linkish').text()).toBe('Set location');

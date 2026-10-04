@@ -117,7 +117,7 @@ Series keyed `weather:<instance id>/here#<key>`, current conditions only:
 | `wind.kmh` | km/h | 0–150 | 0–30 | `current.wind_speed_10m` |
 | `precip.mm` | mm | 0–50 | 0–1 | `current.precipitation`: over the current reading's slot (the preceding 15 minutes) |
 
-A missing value is unknown (`null`), never 0. `temp.c` is the simulator's key for CPU temperatures; here it's the air's. The others aren't in the Demo Home.
+A missing value is unknown (`null`), never 0. `temp.c` is also the key for disk temperatures; here it's the air's. The Demo Home's `weather:demo/here` publishes all five.
 
 ### WMO codes
 

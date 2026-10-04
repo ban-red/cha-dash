@@ -31,7 +31,7 @@ Under `<url>/api/v3`, all `GET`: `/system/status`, `/wanted/missing` and `/wante
 | `wanted` | count | 0–5000 | 0–20 | missing + cutoff unmet (unknown before Radarr 5) |
 | `missing.movies` | count | 0–10000 | 0–20 | missing only (not in the Demo Home, where the key is Bazarr's) |
 
-**The queue is `queue`**, as for Sonarr. The Demo Home calls Radarr's `queued`; the queue tile reads either, and one key for both *arrs is simpler for everything else.
+**The queue is `queue`**, as for Sonarr and in the Demo Home. One key for both *arrs is simpler for everything else; the queue tile also reads the older `queued`.
 
 ## Grants, repairs, limits
 

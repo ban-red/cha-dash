@@ -5,7 +5,10 @@
  *   attention and the Briefing.
  * - Repairs (class `repair`) are integration issues: Inbox only, never
  *   mirrored as outages (02 · Experience → Voice and copy).
- * - Info items are open but settled (e.g. qBittorrent recovered, fix pending).
+ * - Info items are open but settled (e.g. qBittorrent recovered, fix pending),
+ *   or **hints**: standing advice to tighten something (a socket proxy that's
+ *   too broad, Frigate's anonymous admin). Hints have their own Inbox group;
+ *   they never feed Needs attention, the Briefing or the Incidents tile.
  */
 import type { GraphDoc, Incident, InboxDoc, Resource } from './types';
 import { label } from './graph';
@@ -32,10 +35,10 @@ export function openRepairs(inbox: InboxDoc | undefined): Incident[] {
     .sort(byPriority);
 }
 
-/** Open, but nothing to do right now (severity info). */
+/** Open, but settling by itself (severity info, in a fixing phase). Hints aren't settling. */
 export function settling(inbox: InboxDoc | undefined): Incident[] {
   return incidents(inbox)
-    .filter((i) => i.class === 'problem' && isOpen(i) && !needsYou(i))
+    .filter((i) => i.class === 'problem' && isOpen(i) && !needsYou(i) && !isHint(i))
     .sort(byPriority);
 }
 
@@ -64,10 +67,15 @@ export const FIXING_PHASES: ReadonlySet<string> = new Set([
   'in_progress',
 ]);
 
-/** Open, but in hand: a fix is running, it's recovering by itself, or there's nothing to do (info). */
+/** Open, but in hand: a fix is running, or it's recovering by itself. */
 export function isBeingFixed(i: Incident, fixState?: string): boolean {
   if (i.status !== 'open') return false;
-  return fixState === 'sending' || fixState === 'accepted' || FIXING_PHASES.has(i.phase ?? '') || i.severity === 'info';
+  return fixState === 'sending' || fixState === 'accepted' || FIXING_PHASES.has(i.phase ?? '');
+}
+
+/** A hint: an open info problem nothing is working on, i.e. standing advice. */
+export function isHint(i: Incident): boolean {
+  return i.class === 'problem' && i.status === 'open' && i.severity === 'info' && !FIXING_PHASES.has(i.phase ?? '');
 }
 
 export interface InboxGroups {
@@ -77,6 +85,8 @@ export interface InboxGroups {
   suggestions: Incident[];
   /** In hand, not resolved yet. */
   fixing: Incident[];
+  /** Standing advice: worth tightening, nothing broken. Oldest first. */
+  hints: Incident[];
   /** Newest first. */
   resolved: Incident[];
 }
@@ -85,19 +95,22 @@ const CLASS_RANK: Record<string, number> = { problem: 0, repair: 1 };
 
 export const isSuggestion = (i: Incident) => i.class === 'suggestion';
 
-/** The Inbox by status: open, suggestions, being fixed, resolved. */
+/** The Inbox by status: open, suggestions, being fixed, hints, resolved. */
 export function groupInbox(inbox: InboxDoc | undefined, fixes: Readonly<Record<string, { state: string } | undefined>> = {}): InboxGroups {
   const open: Incident[] = [];
   const suggestions: Incident[] = [];
   const fixing: Incident[] = [];
+  const hints: Incident[] = [];
   for (const i of incidents(inbox)) {
     if (i.status !== 'open') continue;
     if (isSuggestion(i)) suggestions.push(i);
-    else (isBeingFixed(i, fixes[i.id]?.state) ? fixing : open).push(i);
+    else if (isBeingFixed(i, fixes[i.id]?.state)) fixing.push(i);
+    else if (isHint(i)) hints.push(i);
+    else open.push(i);
   }
   const order = (a: Incident, b: Incident) =>
     (SEV_RANK[a.severity] ?? 3) - (SEV_RANK[b.severity] ?? 3) || (CLASS_RANK[a.class] ?? 2) - (CLASS_RANK[b.class] ?? 2) || byPriority(a, b);
-  return { open: open.sort(order), suggestions: suggestions.sort(byPriority), fixing: fixing.sort(order), resolved: resolved(inbox) };
+  return { open: open.sort(order), suggestions: suggestions.sort(byPriority), fixing: fixing.sort(order), hints: hints.sort(byPriority), resolved: resolved(inbox) };
 }
 
 /** Open incidents whose target (or blast radius) touches a resource. Suggestions are questions, not incidents. */

@@ -560,9 +560,13 @@ func (in *instance) hints(eng string, secretHolders []string) error {
 			fmt.Sprintf("%s answers like a raw Docker API: anyone who can reach it has root on the host. Put a read-only socket proxy in front of it and point this instance at the proxy.", in.ep.raw),
 			"Resolves when the endpoint filters what it allows.")
 	case in.acc.broad:
-		want[hintEndpoint] = base(hintEndpoint, in.name+"'s socket proxy is too broad",
+		// Reads only, so a hint (info) rather than a problem that needs you;
+		// the raw API and the socket above hand out root and stay attention.
+		inc := base(hintEndpoint, in.name+"'s socket proxy is too broad",
 			fmt.Sprintf("The socket proxy at %s lets every GET under /containers/ through, so anyone who can reach it can read every container's environment, logs and files. Restrict who can connect (a firewall, or wollomatic's -allowfrom), or switch to a path-anchored allowlist like Cha Dash's compose preset.", in.ep.raw),
 			"Resolves when the proxy refuses container logs.")
+		inc.Severity = integration.SeverityInfo
+		want[hintEndpoint] = inc
 	}
 	if len(secretHolders) > 0 {
 		inc := base(hintLabelSecrets, "Secrets in container labels on "+in.name,

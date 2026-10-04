@@ -86,7 +86,7 @@ describe('edit mode', () => {
     await settle();
     expect(w.findComponent(LayoutBoard).exists()).toBe(true);
     expect(w.findComponent(LayoutBoard).props('editing')).toBe(true);
-    expect(w.findAll('.tile')).toHaveLength(15); // the same widgets, now editable
+    expect(w.findAll('.tile')).toHaveLength(17); // the same widgets, now editable
     const undo = w.findAll('.edit-bar button').find((b) => b.text() === 'Undo')!;
     expect(undo.attributes('disabled')).toBeDefined();
 
@@ -140,7 +140,7 @@ describe('removing a tile', () => {
     const [board, saved] = store.save.mock.lastCall!;
     expect(board).toEqual(remove(before, 'plex'));
     expect(saved).toEqual({});
-    expect(w.findAll('.tile')).toHaveLength(14);
+    expect(w.findAll('.tile')).toHaveLength(16);
     expect(w.ui.state.toasts.at(-1)!.text).toBe('Removed Now playing: Living room. Undo puts it back.');
     // focus (and so the selection) moves to its neighbour in the section
     const media = before.sections.find((s) => s.items.some((i) => i.id === 'plex'))!.items;
@@ -150,7 +150,7 @@ describe('removing a tile', () => {
     await button(w, 'Undo').trigger('click');
     await flushPromises();
     expect(store.save).toHaveBeenLastCalledWith(before, tiles);
-    expect(w.findAll('.tile')).toHaveLength(15);
+    expect(w.findAll('.tile')).toHaveLength(17);
   });
 
   it('removes the focused tile with Delete, but not one that is picked up', async () => {

@@ -3,9 +3,10 @@
  * kind `check` (integrations/checks, integrations/uptimekuma), with their
  * latency series (`http.ms`, `tcp.ms`, `ping.ms`, `response.ms`).
  *
- * The Demo Home has no `check` resources: its built-in checks are the apps'
- * own `http.ms` series (sim/README.md → Metrics), and Uptime Kuma is the
- * app's `monitors.up`/`monitors.down`. Both are read as a fallback.
+ * Without `check` resources, the apps' own `http.ms` series (the Demo Home's
+ * hub-side checks, sim/README.md → Metrics) are the checks, and Uptime Kuma
+ * without monitor resources is the app's `monitors.up`/`monitors.down`. Both
+ * are read as a fallback.
  */
 import type { TileStatus } from '../components/Tile.vue';
 import { attr, byKind, distinct, incoming, label, outgoing, series } from '../model/graph';

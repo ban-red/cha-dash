@@ -80,7 +80,7 @@ IDs are `unraid:<instance id>/<path>`.
 
 `temp.c` is unknown (`null`), never 0, while a disk is spun down; the HDD scale warns at 50 °C and is critical at 55 °C, solid-state devices at 70 and 80. A failed metrics read leaves `cpu.pct` and `mem.pct` unknown, with a warning.
 
-**Not like the Demo Home:** the host has no `temp.c` (the API doesn't report a CPU temperature), and the boot flash is a `disk` resource, which the simulator doesn't have. Its serial isn't published: it ties to the Unraid license.
+**Not like the Demo Home:** the boot flash is a `disk` resource, which the simulator doesn't have. (The host has no `temp.c`, as in the Demo Home: the API doesn't report a CPU temperature.) Its serial isn't published: it ties to the Unraid license.
 
 ### Pools and disks
 - Unraid has no pool object. Pool devices come in `array.caches`, named `<pool>`, `<pool>2`, …, and only the first carries the file system. Pool names can't end in a digit, so the grouping is unambiguous.

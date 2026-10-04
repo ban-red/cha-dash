@@ -50,7 +50,7 @@ A cookie session through the runtime's `Session` hook:
 | `ul.mbps` | Mb/s | 0–1000 | 0–20 | `server_state.up_info_speed`, likewise |
 | `seeding` | count | 0–10000 | 50–100 | torrents `uploading`, `stalledUP` or `forcedUP` |
 | `leeching` | count | 0–1000 | 0–30 | torrents `downloading`, `stalledDL`, `forcedDL`, `metaDL` or `forcedMetaDL` |
-| `queued` | count | 0–1000 | 0–10 | torrents `queuedDL` or `queuedUP` (not in the Demo Home) |
+| `queued` | count | 0–1000 | 0–10 | torrents `queuedDL` or `queuedUP` |
 
 Stopped (paused), checking and moving torrents count in none of them. An idle client is 0 Mb/s and 0 torrents, never unknown.
 

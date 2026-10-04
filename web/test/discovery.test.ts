@@ -4,6 +4,7 @@ import { nextTick } from 'vue';
 import { createBoard, toDocument, type Board } from '@chadash/layout';
 import Briefing from '../src/components/Briefing.vue';
 import InboxSheet from '../src/components/InboxSheet.vue';
+import { defaultBoard } from '../src/model/defaultLayout';
 import { addLabelServices, labelServices, placementSentence, slug } from '../src/model/discovery';
 import { setDisplayTimeZone } from '../src/lib/format';
 import type { Resource } from '../src/model/types';
@@ -28,7 +29,20 @@ const container = (id: string, labels: Record<string, string>): Resource => ({
   labels,
 });
 
-/** The Demo Home plus containers as the Docker integration publishes them, labels and all. */
+/** The Demo Home without its containers' homepage.* labels. */
+function unlabelled(): ReturnType<typeof docs> {
+  const d = docs(withIncidents);
+  for (const r of Object.values(d.graph.resources)) {
+    if (r.labels) r.labels = Object.fromEntries(Object.entries(r.labels).filter(([k]) => !k.startsWith('homepage.')));
+  }
+  return d;
+}
+
+/**
+ * The Demo Home plus containers as the Docker integration publishes them,
+ * labels and all. The Demo Home's own jupiter containers carry the same
+ * services' labels, so they're the same suggestions seen by another source.
+ */
 function labelled(): ReturnType<typeof docs> {
   const d = docs(withIncidents);
   for (const r of [
@@ -87,15 +101,29 @@ describe('label discovery', () => {
   it('leaves out what was dismissed and what the board already shows', () => {
     const { board, tiles } = importedBoard();
     const g = labelled().graph;
-    // Mealie is one service seen by two sources: dismissing either one dismisses it
-    expect(labelServices(g, board, tiles, new Set()).find((x) => x.name === 'Mealie')!.duplicates).toEqual(['docker:i_u/container/mealie']);
+    // Mealie is one service seen by three sources: dismissing any one dismisses it
+    expect(labelServices(g, board, tiles, new Set()).find((x) => x.name === 'Mealie')!.duplicates).toEqual(['docker:i_u/container/mealie', 'docker:jupiter/mealie']);
     expect(labelServices(g, board, tiles, new Set(['docker:i_u/container/mealie'])).map((x) => x.name)).toEqual(['Immich', 'Proxmox Backup Server']);
+    expect(labelServices(g, board, tiles, new Set(['docker:jupiter/immich'])).map((x) => x.name)).toEqual(['Mealie', 'Proxmox Backup Server']);
     const added = addLabelServices({ board, tiles }, labelServices(g, board, tiles, new Set()));
     expect(labelServices(g, added.board, added.tiles, new Set())).toEqual([]);
     // a tile bound to the container by hand counts too
     const bound: TilesDoc = { ...tiles, plex: { bind: { resource: 'docker:i_d/container/immich_server' } } };
     expect(labelServices(g, board, bound, new Set()).map((x) => x.name)).toEqual(['Mealie', 'Proxmox Backup Server']);
     expect(labelServices(undefined, board, tiles, new Set())).toEqual([]);
+  });
+
+  it('offers the Demo Home’s own labelled containers on its default board', () => {
+    const d = docs(withIncidents);
+    const board = defaultBoard(d.graph, Date.parse(withIncidents.now));
+    const s = labelServices(d.graph, board, {}, new Set());
+    expect(s.map((x) => [x.resource, x.sectionId, x.newSection])).toEqual([
+      ['docker:jupiter/immich', 'apps', true],
+      ['docker:jupiter/mealie', 'apps', true],
+      ['docker:jupiter/pbs', 'backup', true],
+    ]);
+    expect(s[1]).toMatchObject({ name: 'Mealie', href: 'https://food.family.example', icon: 'mealie.png', description: 'Recipes' });
+    expect(placementSentence(s)).toBe('Immich and Mealie in a new Apps section; Proxmox Backup Server in a new Backup section.');
   });
 
   it('adds them as service tiles: into the matching section, or a new one at the end', () => {
@@ -195,14 +223,22 @@ describe('the discovery Inbox item', () => {
     first.panel().querySelector<HTMLButtonElement>('.disc .btn.ghost')!.click();
     await flushPromises();
     expect(f.last('POST', '/api/boards/b1/discovery/dismiss')!.body).toEqual({
-      resources: ['docker:i_d/container/mealie', 'docker:i_u/container/mealie', 'docker:i_d/container/immich_server', 'docker:i_d/container/proxmox-backup-server'],
+      resources: [
+        'docker:i_d/container/mealie',
+        'docker:i_u/container/mealie',
+        'docker:jupiter/mealie',
+        'docker:i_d/container/immich_server',
+        'docker:jupiter/immich',
+        'docker:i_d/container/proxmox-backup-server',
+        'docker:jupiter/pbs',
+      ],
     });
     expect(first.panel().querySelector('.disc')).toBeNull();
     expect(f.calls.filter((c) => c.method === 'PUT')).toHaveLength(0);
     document.body.innerHTML = '';
 
     // Another device, later, with one more labelled container: only that one is new.
-    expect(dismissedOnHub()).toHaveLength(4);
+    expect(dismissedOnHub()).toHaveLength(7);
     const data = labelled();
     data.graph.resources['docker:i_d/container/paperless'] = container('docker:i_d/container/paperless', { 'homepage.group': 'Apps', 'homepage.name': 'Paperless' });
     const again = await open(data);
@@ -215,7 +251,7 @@ describe('the discovery Inbox item', () => {
     const { f } = hub({
       'GET /api/boards/b1/discovery': () => new Promise((resolve) => (release = () => resolve({ status: 200, body: { dismissed: [] } }))),
     });
-    const plain = harness(docs(withIncidents));
+    const plain = harness(unlabelled());
     await plain.board.load();
     await flushPromises();
     expect(plain.discovery.suggestions.value).toEqual([]);

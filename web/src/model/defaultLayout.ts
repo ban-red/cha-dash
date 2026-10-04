@@ -10,21 +10,24 @@
  *   Home Asst. wide     │ host wide · Traefik · Uptime Kuma
  *   ────────────────────┼─────────────────────────────
  *   Media (8)                                │ Activity (4)
- *   Now playing wide · Sonarr · Radarr       │ incidents large
- *   downloads wide · up next wide            │
+ *   Now playing wide · Sonarr · Radarr       │ weather · clock
+ *   downloads wide · up next wide            │ incidents wide
+ *
+ * The weather tile joins Activity when the graph has a weather source; the
+ * clock beside it, so the band stays even. Otherwise incidents is large.
  *
  * Without a graph (realtime not up yet) it falls back to the singleton
  * widgets, so the first paint is never empty.
  */
-import { createBoard, type Board, type ItemInput, type SectionInput } from '@chadash/layout';
+import { createBoard, type Board, type ItemInput, type SectionInput, type SizeId } from '@chadash/layout';
 import { WIDGETS, itemId } from './widgets';
 import { appsOfType, byKind, calendar, resolve, resources } from './graph';
 import type { GraphDoc } from './types';
 
-function item(type: string, target?: string): ItemInput {
+function item(type: string, target?: string, size?: SizeId): ItemInput {
   const w = WIDGETS[type];
   if (!w) throw new Error(`unknown widget type ${type}`);
-  return { id: itemId(type, target), type, size: w.size, supportedSizes: w.sizes };
+  return { id: itemId(type, target), type, size: size ?? w.size, supportedSizes: w.sizes };
 }
 
 export function defaultBoard(g: GraphDoc | undefined, nowMs = Date.now()): Board {
@@ -57,7 +60,8 @@ export function defaultBoard(g: GraphDoc | undefined, nowMs = Date.now()): Board
   if (any || calendar(g, nowMs - 7 * 86_400_000).length > 0) media.push(item('calendar'));
   if (media.length) sections.push({ id: 'media', title: 'Media', span: 8, items: media });
 
-  sections.push({ id: 'activity', title: 'Activity', span: 4, items: [item('incidents')] });
+  const activity = kinds.has('weather') ? [item('weather'), item('clock'), item('incidents', undefined, 'wide')] : [item('incidents')];
+  sections.push({ id: 'activity', title: 'Activity', span: 4, items: activity });
 
   return createBoard({ sections });
 }

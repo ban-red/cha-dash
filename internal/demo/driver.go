@@ -2,8 +2,8 @@
 // simulated home becomes the Home Graph, its metrics feed the metrics topic,
 // and its incidents feed the inbox. It powers `chadash serve --demo`.
 //
-// The simulated day starts at 14:05 by default, when all six of the default
-// script's incidents are open, and then runs in real time. At midnight a new
+// The simulated day starts at 14:05 by default, when every incident of the
+// default script is open, and then runs in real time. At midnight a new
 // day begins with the same seed, so a long-running demo replays the script
 // every day instead of going quiet.
 package demo

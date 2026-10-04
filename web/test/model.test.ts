@@ -59,8 +59,9 @@ describe('graph views over the Demo Home', () => {
     const { graph } = docs(withIncidents);
     const next = calendar(graph, Date.parse(withIncidents.now));
     expect(next[0]).toMatchObject({ title: 'Black Clover', source: 'Sonarr' });
-    expect(lastBackup(graph)?.at).toBe('2026-10-03T03:01:00Z');
-    expect(lastBackup(graph)?.failed).toBe(1);
+    // io's run ends last (02:55); pluto's two guests, mars's one, homeassistant and win-gaming failed.
+    expect(lastBackup(graph)?.at).toBe('2026-10-03T02:55:00Z');
+    expect(lastBackup(graph)?.failed).toBe(5);
   });
 });
 
@@ -68,17 +69,31 @@ describe('inbox views', () => {
   it('splits problems, repairs and settling incidents at 14:05', () => {
     const { inbox, graph } = docs(withIncidents);
     const problems = openProblems(inbox);
-    expect(problems.map((i) => i.id)).toEqual(['backup-failed', 'pbs-datastore-filling', 'host-memory-pressure', 'qbittorrent-oom']);
-    expect(openRepairs(inbox).map((i) => i.id)).toEqual(['karakeep-api-changed', 'plex-token-revoked']);
+    // Down first (scratch in internal-error), then by age.
+    expect(problems.map((i) => i.id)).toEqual([
+      'proxmox-jupiter-nas.guest.101',
+      'proxmox-pluto.backup.daily',
+      'backup-failed',
+      'proxmox-mars.backup.daily',
+      'proxmox-io.backup.daily',
+      'pbs-datastore-filling',
+      'host-memory-pressure',
+      'qbittorrent-oom',
+    ]);
+    expect(openRepairs(inbox).map((i) => i.id)).toEqual(['karakeep-api-changed', 'unraid-jupiter.repair', 'plex-token-revoked']);
+    // Nothing is settling by itself at 14:05; the standing hints aren't settling, they're hints.
     expect(settling(inbox)).toEqual([]);
+    expect(incidentKicker(problems[0]!, graph)).toBe('VM · scratch');
     expect(incidentKicker(problems[1]!, graph)).toBe('Backups');
-    expect(incidentKicker(problems[2]!, graph)).toBe('Host · jupiter‑nas');
+    expect(incidentKicker(problems[5]!, graph)).toBe('Backups');
+    expect(incidentKicker(problems[6]!, graph)).toBe('Host · jupiter‑nas');
   });
 
   it('puts down before attention', () => {
     const { inbox } = docs(withIncidents);
     inbox.incidents['host-memory-pressure']!.severity = 'down';
-    expect(openProblems(inbox)[0]!.id).toBe('host-memory-pressure');
+    expect(openProblems(inbox)[0]!.id).toBe('proxmox-jupiter-nas.guest.101'); // down since 11:20
+    expect(openProblems(inbox)[1]!.id).toBe('host-memory-pressure');
   });
 
   it('is empty when the home is quiet', () => {

@@ -95,7 +95,7 @@ Templates are skipped. Desired state is `running` for a guest with `onboot`; a g
 | backup job | `tasks.failed_24h` | count | failed runs of the job in the last 24 h |
 | backup job | `last_ok.age_h` | h | hours since the last good run, unknown when none is in the task list |
 
-`swap.pct`, `rootfs.pct`, `disk.pct`, `tasks.failed_24h` on jobs and `last_ok.age_h` are keys the simulator doesn't have. **There's no `temp.c`:** PVE's API has no temperatures (the spike checked); the Demo Home's host temperatures need the node agent. Stopped guests have no series, as in the Demo Home. A value Cha Dash can't know is unknown, never 0.
+`swap.pct`, `rootfs.pct`, `disk.pct`, `tasks.failed_24h` on jobs and `last_ok.age_h` are keys the simulator doesn't have. **There's no `temp.c`:** PVE's API has no temperatures (the spike checked), so the Demo Home's hosts have none either; they need the node agent. Stopped guests have no series, as in the Demo Home. A value Cha Dash can't know is unknown, never 0.
 
 **Health:**
 - host: `down` when offline; `attention` at memory ≥ 90% (" · no swap" when it has none) or root disk ≥ 90%.
