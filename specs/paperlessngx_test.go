@@ -13,7 +13,7 @@ const paperlessToken = "fake-paperless-token-0123456789abcdef"
 
 func paperless(t *testing.T) *app {
 	return &app{t: t, dir: "testdata/paperlessngx", base: "/paperless",
-		auth: func(r *http.Request) bool { return r.Header.Get("Authorization") == "Token "+paperlessToken },
+		auth:   func(r *http.Request) bool { return r.Header.Get("Authorization") == "Token "+paperlessToken },
 		routes: map[string]string{"/api/statistics/": "statistics.json", "/api/status/": "status.json"}}
 }
 
