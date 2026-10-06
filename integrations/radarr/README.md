@@ -37,6 +37,16 @@ Under `<url>/api/v3`, all `GET`: `/system/status`, `/wanted/missing` and `/wante
 
 As Sonarr's: one `admin` grant (`Radarr API key`; there are no read-only keys); `auth` on `api_key` for a 401/403; `api_changed` on `url` for a 404 or an answer that isn't JSON; `invalid_config` when the URL is another *arr; `unsupported_version` before Radarr 3. No library counts (`/movie` returns the whole library), monitored movies only, no relations to download clients or indexers.
 
+## Actions
+
+| Action | Tier | Undo | What it does | Verify |
+|---|---|---|---|---|
+| `radarr.app.search-missing` | T1 | — (a search only looks) | `POST /command` with `{"name": "MissingMoviesSearch"}`: Radarr searches for every monitored movie that's missing | `GET /command/{id}` reads the command back: queued, started or completed passes; failed, aborted or cancelled fails the task. The search itself can run for long and isn't waited for |
+
+- **Preconditions** (`409 precondition`): nothing monitored is missing (`/wanted/missing` totals 0; skipped on versions without it), or the same search is already queued or running.
+- **Credential:** the instance's API key. Radarr has one key with full access and no scopes, so there's no separate control credential to add.
+- **Audit:** the target and empty params; the key never appears in a plan, task log or audit record.
+
 ## Fixtures
 
 Synthetic, in [`testdata/integrations/radarr/`](../../testdata/integrations/radarr/README.md).

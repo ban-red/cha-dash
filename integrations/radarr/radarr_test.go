@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"dash.cha.sh/integrations/internal/arr/arrtest"
 	"dash.cha.sh/integrations/internal/fixture"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/integration/integrationtest"
@@ -110,4 +111,8 @@ func TestTest(t *testing.T) {
 	if !res.OK || res.Version != "5.26.2.10099" || len(res.Grants) != 1 || res.Grants[0].Access != integration.AccessAdmin {
 		t.Fatalf("test = %+v", res)
 	}
+}
+
+func TestSearchMissing(t *testing.T) {
+	arrtest.SearchMissing(t, Integration{}, fixture.Dir(t, ID), "/radarr/api/v3", key, "MissingMoviesSearch", "movies")
 }

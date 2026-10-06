@@ -77,6 +77,18 @@ Pi-hole has one administrator, and an app password signs in as it, so Test repor
 | 404 otherwise, or an answer that isn't JSON | `api_changed` Repair: check the URL, and that it's v6 or later | `url` |
 | 429 on login | transient, saying the seats are taken | |
 
+## Actions
+
+| Action | Tier | Undo | Household | What it does | Verify |
+|---|---|---|---|---|---|
+| `pihole.app.pause` | T1 | `pihole.app.resume` | yes | `POST /api/dns/blocking` with `{"blocking": false, "timer": 300}`: Pi-hole turns blocking back on by itself after 5 minutes | `GET /api/dns/blocking` says `disabled` |
+| `pihole.app.resume` | T1 | — | yes | `POST /api/dns/blocking` with `{"blocking": true, "timer": null}` | it says `enabled` |
+
+- **Household:** both are marked `household: true`, so the Household role can pause blocking for a few minutes (and turn it back on) without any other rights.
+- **Preconditions** (`409 precondition`): blocking is already paused (with the minutes left) or off, for a pause; already on, for a resume.
+- **Credential:** the instance's app password. Pi-hole has one administrator and no scopes, so there's no separate control credential to add.
+- **Audit:** the target and empty params; the password never appears in a plan, task log or audit record.
+
 ## Limits
 
 - Top domains, top clients and the query log aren't read: they're personal, and the tile shows totals.

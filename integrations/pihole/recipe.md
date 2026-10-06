@@ -17,5 +17,6 @@ Use the Pi-hole's address as the URL. Pi-hole serves HTTPS itself with its own c
 
 ## Notes
 
+- Pausing blocking from Cha Dash uses this same password: Pi-hole has no separate credential for changes.
 - A new app password replaces the old one, which cuts off everything that used it.
 - Pi-hole v5 isn't supported: its API takes a different credential, and v5 is out of support.

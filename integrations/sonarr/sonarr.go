@@ -19,6 +19,7 @@ const ID = "sonarr"
 var app = arr.MediaApp{
 	App:        arr.App{ID: ID, Name: "Sonarr", APIPath: "/api/v3", MinMajor: 3},
 	MissingKey: "missing.episodes", MissingMax: 100000,
+	SearchCommand: "MissingEpisodeSearch", MissingNoun: "episodes",
 	QueueBand: [2]float64{0, 15}, WantedBand: [2]float64{0, 40},
 	Calendar: calendar,
 }

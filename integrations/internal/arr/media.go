@@ -22,6 +22,11 @@ type MediaApp struct {
 	WantedBand [2]float64 // and of wanted and the missing count
 	// Calendar reads the upcoming releases in now's window (CalendarQuery).
 	Calendar func(ctx context.Context, c *Client, now time.Time) ([]CalendarItem, error)
+	// SearchCommand is the app's command that searches for everything
+	// monitored and missing (MissingEpisodeSearch), and MissingNoun what
+	// it looks for ("episodes"): the search-missing action (actions.go).
+	SearchCommand string
+	MissingNoun   string
 }
 
 // Poll is a media *arr's polling plan: every minute while watched, every 5
@@ -40,6 +45,7 @@ type media struct {
 	cfg  integration.Config
 	d    integration.Deps
 	slow Every
+	cmds commands // the search command each task started
 
 	// From the last slow read.
 	version         string

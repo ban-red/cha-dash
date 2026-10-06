@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"dash.cha.sh/integrations/internal/arr/arrtest"
 	"dash.cha.sh/integrations/internal/fixture"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/integration/integrationtest"
@@ -214,4 +215,8 @@ func TestTest(t *testing.T) {
 	if _, ok := h.Resource("sonarr:i_test/app"); ok {
 		t.Fatal("Test must not emit facts")
 	}
+}
+
+func TestSearchMissing(t *testing.T) {
+	arrtest.SearchMissing(t, Integration{}, fixture.Dir(t, ID), "/sonarr/api/v3", key, "MissingEpisodeSearch", "episodes")
 }

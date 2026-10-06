@@ -18,6 +18,7 @@ const ID = "lidarr"
 var app = arr.MediaApp{
 	App:        arr.App{ID: ID, Name: "Lidarr", APIPath: "/api/v1", MinMajor: 1},
 	MissingKey: "missing.albums", MissingMax: 10000,
+	SearchCommand: "MissingAlbumSearch", MissingNoun: "albums",
 	QueueBand: [2]float64{0, 5}, WantedBand: [2]float64{0, 20},
 	Calendar: calendar,
 }

@@ -69,6 +69,18 @@ qBittorrent has one WebUI account and no read-only mode, so Test reports one gra
 | An answer that isn't JSON | `api_changed` Repair | `url` |
 | Web API 1.x | `unsupported_version` Repair | |
 
+## Actions
+
+| Action | Tier | Undo | What it does | Verify |
+|---|---|---|---|---|
+| `qbittorrent.app.pause` | T1 | `qbittorrent.app.resume` | `POST /api/v2/torrents/stop` (`pause` before Web API 2.11, qBittorrent 4) with `hashes=all` | no torrent is left running (`torrents/info?filter=running`, or `resumed`) |
+| `qbittorrent.app.resume` | T1 | `qbittorrent.app.pause` | `POST /api/v2/torrents/start` (`resume` before 2.11) with `hashes=all` | no torrent is left stopped (`filter=stopped`, or `paused`) |
+
+- **Preconditions** (`409 precondition`): nothing to pause (no torrent running) or to resume (none stopped).
+- **All means all:** resuming starts every stopped torrent, including ones that were stopped before the pause.
+- **Credential:** the WebUI account. qBittorrent has one account with full control and no scopes, so there's no separate control credential to add.
+- **Audit:** the target and empty params; the password never appears in a plan, task log or audit record.
+
 ## Limits
 
 - No per-torrent resources or names: the counts are what the Downloads tile shows, and torrent names can be personal.

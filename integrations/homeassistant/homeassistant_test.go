@@ -2,6 +2,7 @@ package homeassistant
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -45,6 +46,10 @@ type fake struct {
 	history []string // each history request's path and query
 	admin   bool
 	noWS    bool
+	// calls are the service calls received, "<path> <body>", and onCall
+	// answers them (actions_test.go). Reads are all GETs.
+	calls  []string
+	onCall func(path string, body []byte) []byte
 }
 
 func newFake(t *testing.T) *fake {
@@ -89,8 +94,22 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/services/") {
+		b, _ := io.ReadAll(r.Body)
+		f.mu.Lock()
+		f.calls = append(f.calls, r.URL.Path+" "+string(b))
+		on := f.onCall
+		f.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		if on == nil {
+			w.Write([]byte("[]"))
+			return
+		}
+		w.Write(on(r.URL.Path, b))
+		return
+	}
 	if r.Method != http.MethodGet {
-		f.t.Errorf("%s %s: the integration only reads", r.Method, r.URL.Path)
+		f.t.Errorf("%s %s: only actions call services; everything else reads", r.Method, r.URL.Path)
 	}
 	key := r.URL.Path
 	if strings.HasPrefix(key, "/api/history/period/") {

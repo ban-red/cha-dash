@@ -38,10 +38,15 @@ type webui struct {
 	referers  int
 	maindata  map[string]string // rid → body, overriding the fixture files
 	maindatas []string          // the rids asked for
+
+	// For actions (actions_test.go): how many torrents run and are
+	// stopped, and the POSTs received.
+	running, stopped int
+	posts            []string
 }
 
 func newWebUI(t *testing.T) *webui {
-	w := &webui{dir: fixture.Dir(t, ID), sids: map[string]bool{}, maindata: map[string]string{}}
+	w := &webui{dir: fixture.Dir(t, ID), sids: map[string]bool{}, maindata: map[string]string{}, running: 11, stopped: 1}
 	w.Server = httptest.NewServer(http.HandlerFunc(w.serve))
 	t.Cleanup(w.Close)
 	return w
@@ -114,6 +119,10 @@ func (w *webui) serve(rw http.ResponseWriter, r *http.Request) {
 		default:
 			rw.Write(w.file("maindata_full.json"))
 		}
+	case "/api/v2/torrents/info":
+		w.torrents(rw, r)
+	case "/api/v2/torrents/stop", "/api/v2/torrents/start", "/api/v2/torrents/pause", "/api/v2/torrents/resume":
+		w.control(rw, r)
 	default:
 		http.NotFound(rw, r)
 	}

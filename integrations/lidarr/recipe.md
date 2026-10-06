@@ -13,5 +13,6 @@ In Lidarr, **Settings → General → Security → API Key**. Paste it into **AP
 
 ## Notes
 
+- Cha Dash's one action here, searching for missing albums, uses this same key: Lidarr has no separate key for changes.
 - Regenerating the key in Lidarr cuts off everything that uses it, Cha Dash included; Cha Dash then asks to reconnect.
 - Keep Lidarr off the open internet, or behind your reverse proxy's sign-in: the key is all an attacker would need.

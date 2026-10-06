@@ -17,8 +17,9 @@ Home Assistant's health and version, and five readings derived from its entity s
 | `token` | yes | A long-lived access token (profile → Security). Sent as `Authorization: Bearer` on every request, and in the WebSocket's auth message; never in a URL |
 | `power_entity` | no | `sensor.…`: the whole house's power sensor, when the default pick is wrong |
 | `energy_entity` | no | `sensor.…`: the whole house's energy meter, when the default pick is wrong |
+| `scripts` | no | `["script.movie_night", …]`, at most 50: the scripts Cha Dash may run (see Actions). Empty or missing: no actions |
 
-`power_entity` and `energy_entity` are additions to the shared keys in [07 · v0.1](../../docs/plan/07-v0.1.md#instance-config-keys); both are optional, and the importer's shape (`url`, `tls`, `token`) validates as is.
+`power_entity`, `energy_entity` and `scripts` are additions to the shared keys in [07 · v0.1](../../docs/plan/07-v0.1.md#instance-config-keys); both are optional, and the importer's shape (`url`, `tls`, `token`) validates as is.
 
 ## What it reads
 
@@ -96,6 +97,17 @@ All of them are write grants, so the runtime adds its write-grant warning: Cha D
 - **401 or 403** (a revoked or wrong token) → an auth Repair on `token`.
 - **404 or 410** on `/api/config` or `/api/states` (not Home Assistant, or the `api` integration isn't loaded), a `/api/config` without a version, or JSON it can't decode → an `api_changed` Repair.
 - A failing history request is never a failed sync: energy today stays unknown, and it's logged at debug.
+
+## Actions
+
+| Action | Tier | Undo | Params | What it does | Verify |
+|---|---|---|---|---|---|
+| `homeassistant.script.run` | T1 | — (a script does what it does) | `{"script": "script.…"}`, one of the instance's `scripts` | `POST /api/services/script/turn_on` with `{"entity_id": …}`, which starts the script without waiting for it | `GET /api/states/<script>`: its `last_triggered` moved, or it's running |
+
+- **Only allow-listed scripts.** The params schema is an enum of the instance's `scripts`, so anything else (another script, another service, an extra field) is `422 invalid` before anything is sent. No other service can be called. With no scripts listed, the instance has no actions.
+- **Preconditions** (`409 precondition`): Home Assistant has no such script (deleted or renamed since it was listed), it's already running, or it's unavailable.
+- **Credential:** the instance's token. Home Assistant's tokens carry their user's rights and have no scopes, so the allow-list is the limit; there's no separate control credential. A non-administrator user can still run scripts.
+- **Audit:** the target and the script's entity ID; the token never appears in a plan, task log or audit record.
 
 ## Limits
 

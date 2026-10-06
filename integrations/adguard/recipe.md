@@ -39,5 +39,6 @@ Put `{{user}}` into **Username** and the password you typed into **Password**.
 
 ## Notes
 
+- Pausing protection from Cha Dash uses this same user: AdGuard Home has no read-only or limited users.
 - AdGuard Home without any users lets anyone who reaches it change everything. Cha Dash flags that too.
 - Prefer an `https://` URL: the password crosses the network on every request.

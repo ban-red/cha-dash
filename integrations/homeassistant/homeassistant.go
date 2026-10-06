@@ -50,16 +50,20 @@ func (Integration) Manifest() integration.Manifest {
 				Description: "Optional: the sensor that measures the whole house's power. Default: the largest power reading."}),
 			integration.Prop("energy_entity", &integration.Schema{Type: "string", Title: "House energy sensor", Pattern: entityPattern,
 				Description: "Optional: the meter that measures the whole house's energy. Default: the meter that rose most since midnight."}),
+			integration.Prop("scripts", &integration.Schema{Type: "array", Title: "Scripts Cha Dash may run",
+				Description: "Optional: the scripts (script.…) Cha Dash may run from tiles and ⌘K. Nothing else can be run: no other script, and no other service.",
+				Items:       &integration.Schema{Type: "string", Title: "Script", Pattern: scriptPattern}, MaxItems: intp(maxScripts)}),
 		).Require("url", "token"),
 		Poll: integration.Poll{Interval: 60 * time.Second, Idle: 5 * time.Minute, Timeout: 30 * time.Second},
 	}
 }
 
 type config struct {
-	URL          string `json:"url"`
-	Token        string `json:"token"`
-	PowerEntity  string `json:"power_entity"`
-	EnergyEntity string `json:"energy_entity"`
+	URL          string   `json:"url"`
+	Token        string   `json:"token"`
+	PowerEntity  string   `json:"power_entity"`
+	EnergyEntity string   `json:"energy_entity"`
+	Scripts      []string `json:"scripts"`
 }
 
 // ValidateConfig implements integration.ConfigValidator.
@@ -100,7 +104,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	}
 	return &instance{
 		d: d, http: client, base: base, token: c.Token, name: name, link: c.URL,
-		appID: ID + ":" + key + "/app", powerEntity: c.PowerEntity, energyEntity: c.EnergyEntity,
+		appID: ID + ":" + key + "/app", powerEntity: c.PowerEntity, energyEntity: c.EnergyEntity, scripts: c.Scripts,
 		needFull: true, tz: time.UTC,
 		baselines: map[string]float64{}, tried: map[string]time.Time{},
 	}, nil

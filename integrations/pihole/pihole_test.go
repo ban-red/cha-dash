@@ -39,6 +39,7 @@ type pihole struct {
 	logins     int
 	logouts    int
 	paths      []string
+	posts      []string // bodies POSTed to /api/dns/blocking (actions_test.go)
 }
 
 func newPihole(t *testing.T) *pihole {
@@ -114,6 +115,10 @@ func (p *pihole) serve(w http.ResponseWriter, r *http.Request) {
 	if !p.noPassword && !p.sessions[r.Header.Get("X-FTL-SID")] {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write(p.file("unauthorized.json"))
+		return
+	}
+	if r.Method == http.MethodPost && r.URL.Path == "/api/dns/blocking" {
+		p.setBlocking(w, r)
 		return
 	}
 	if body, ok := p.bodies[r.URL.Path]; ok {

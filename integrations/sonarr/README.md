@@ -63,6 +63,16 @@ Sonarr API keys have full access and there are no read-only keys, so Test report
 
 TLS refusals, timeouts and refused connections are the framework's.
 
+## Actions
+
+| Action | Tier | Undo | What it does | Verify |
+|---|---|---|---|---|
+| `sonarr.app.search-missing` | T1 | — (a search only looks) | `POST /command` with `{"name": "MissingEpisodeSearch"}`: Sonarr searches for every monitored episode that's missing | `GET /command/{id}` reads the command back: queued, started or completed passes; failed, aborted or cancelled fails the task. The search itself can run for long and isn't waited for |
+
+- **Preconditions** (`409 precondition`): nothing monitored is missing (`/wanted/missing` totals 0; skipped on versions without it), or the same search is already queued or running.
+- **Credential:** the instance's API key. Sonarr has one key with full access and no scopes, so there's no separate control credential to add.
+- **Audit:** the target and empty params; the key never appears in a plan, task log or audit record.
+
 ## Limits
 
 - No library counts (series, episodes on disk): `/series` returns every series whole, too big to poll. So no `media.library` yet.

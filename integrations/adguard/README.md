@@ -71,6 +71,18 @@ Every AdGuard Home user is an administrator, so Test reports one grant, `AdGuard
 | 404, or an answer that isn't JSON | `api_changed` Repair: check that the URL is AdGuard Home's web interface | `url` |
 | `/control/status` without a version | `api_changed` Repair | `url` |
 
+## Actions
+
+| Action | Tier | Undo | Household | What it does | Verify |
+|---|---|---|---|---|---|
+| `adguard.app.pause` | T1 | `adguard.app.resume` | yes | `POST /control/protection` with `{"enabled": false, "duration": 300000}` (milliseconds; v0.107.27 and later): AdGuard Home turns protection back on by itself after 5 minutes | `GET /control/status` says `protection_enabled: false` |
+| `adguard.app.resume` | T1 | — | yes | `POST /control/protection` with `{"enabled": true}` | it says `protection_enabled: true` |
+
+- **Household:** both are marked `household: true`, so the Household role can pause blocking for a few minutes (and turn it back on) without any other rights.
+- **Preconditions** (`409 precondition`): protection is already off, for a pause; already on, for a resume.
+- **Credential:** the instance's sign-in. Every AdGuard Home user has full access, so there's no separate control credential to add.
+- **Audit:** the target and empty params; the password never appears in a plan, task log or audit record.
+
 ## Limits
 
 - Top domains, top clients and the query log aren't read: they're personal, and the tile shows totals.

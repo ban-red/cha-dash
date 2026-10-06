@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"dash.cha.sh/integrations/internal/arr/arrtest"
 	"dash.cha.sh/integrations/internal/fixture"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/integration/integrationtest"
@@ -131,4 +132,8 @@ func TestQueueErrors(t *testing.T) {
 	if r.Health != integration.HealthAttention || r.Attrs["health.reason"] != "A download in Lidarr's queue has an error" {
 		t.Fatalf("health = %s %v", r.Health, r.Attrs["health.reason"])
 	}
+}
+
+func TestSearchMissing(t *testing.T) {
+	arrtest.SearchMissing(t, Integration{}, fixture.Dir(t, ID), "/lidarr/api/v1", key, "MissingAlbumSearch", "albums")
 }

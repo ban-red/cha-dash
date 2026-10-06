@@ -20,6 +20,7 @@ discover:
 
 ## Notes
 
-- Cha Dash only reads: the config, the entity states, and the energy meters' history. Test connection says whether the token's user is an administrator.
+- To run scripts from Cha Dash, list them under **Scripts Cha Dash may run**. It runs only those, with this same token: Home Assistant's tokens have no scopes, so the list is the limit.
+- Cha Dash reads the config, the entity states, and the energy meters' history, and changes nothing unless you list scripts for it to run. Test connection says whether the token's user is an administrator.
 - A token of an administrator works too, and it can also change the configuration and manage users. Test flags it.
 - Revoke the token under that person's **Security** tab whenever you like; Cha Dash then asks to reconnect.

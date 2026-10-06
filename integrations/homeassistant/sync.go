@@ -23,7 +23,8 @@ const (
 )
 
 // instance is one Home Assistant. Sync runs on one goroutine and Test on a
-// separate instance, so the state needs no lock.
+// separate instance, so the state needs no lock; actions read only the
+// fields set at Connect, plus runs, which locks itself.
 type instance struct {
 	d            integration.Deps
 	http         *http.Client
@@ -34,6 +35,8 @@ type instance struct {
 	appID        string
 	powerEntity  string
 	energyEntity string
+	scripts      []string // the scripts the owner lets Cha Dash run (actions.go)
+	runs         runs     // what each script run saw before it started
 
 	needFull  bool
 	version   string

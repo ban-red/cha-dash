@@ -33,6 +33,16 @@ Under `<url>/api/v1`, all `GET`: `/system/status`, `/wanted/missing` and `/wante
 
 As Sonarr's: one `admin` grant (`Lidarr API key`; there are no read-only keys); `auth` on `api_key` for a 401/403; `api_changed` on `url` for a 404 or an answer that isn't JSON (usually a missing URL base); `invalid_config` when the URL is another *arr ("that URL is Readarr, not Lidarr"); `unsupported_version` before Lidarr 1. No library counts (`/artist` returns the whole library), monitored albums only, no relations to download clients or indexers.
 
+## Actions
+
+| Action | Tier | Undo | What it does | Verify |
+|---|---|---|---|---|
+| `lidarr.app.search-missing` | T1 | — (a search only looks) | `POST /command` with `{"name": "MissingAlbumSearch"}`: Lidarr searches for every monitored album that's missing | `GET /command/{id}` reads the command back: queued, started or completed passes; failed, aborted or cancelled fails the task. The search itself can run for long and isn't waited for |
+
+- **Preconditions** (`409 precondition`): nothing monitored is missing (`/wanted/missing` totals 0; skipped on versions without it), or the same search is already queued or running.
+- **Credential:** the instance's API key. Lidarr has one key with full access and no scopes, so there's no separate control credential to add.
+- **Audit:** the target and empty params; the key never appears in a plan, task log or audit record.
+
 ## Fixtures
 
 Synthetic, in [`testdata/integrations/lidarr/`](../../testdata/integrations/lidarr/README.md).
