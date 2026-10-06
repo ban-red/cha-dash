@@ -21,6 +21,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Unraid VMs** show up, with their state, beside the containers.
 - **App actions:** pause and resume all torrents in qBittorrent; search for missing episodes, movies or albums in Sonarr, Radarr and Lidarr; run the Home Assistant scripts you list in the instance's settings, and nothing else; pause Pi-hole or AdGuard Home for 5 minutes, which the Household role may do too. Each checks the result through the next read.
 - **The Homepage importer** brings these over too: `overseerr`, `jellyseerr`, `nextcloud`, `transmission`, `nzbget`, `lidarr` (calendar included), `audiobookshelf`, `paperlessngx` and `speedtest` widgets.
+- **Proxmox VE actions:** start, shut down, reboot and hard-stop a guest, take, roll back and delete snapshots, and back a guest up now, with live progress from Proxmox's task log. Each runs as a plan you confirm at its tier (undo for start, shutdown and new snapshots; hold for reboot and hard stop; the typed name for rollback and delete) and lands in the audit log.
+- **Cha Dash knows when an action would take itself or the network down.** Rebooting, stopping or rolling back the guest the hub runs in, or the router's guest, or the host under either, needs the critical confirmation, which is off unless you turn it on. Cha Dash finds its own guest by its addresses, or by the new "Cha Dash's own guest" setting.
+- **Proxmox Backup Server: prune a datastore per policy**, by its prune job's retention, from the "filling up" incident, the fix the demo shows.
+- **Control tokens.** Proxmox VE and Proxmox Backup Server keep reading with their read-only token; a second, optional control token lets Cha Dash act. Each recipe has a control variant that grants only what the actions need. Without one, the actions show as unavailable with a link to it, and Test connection mentions it.
+- **Incidents say whether their fix can run now**, and why not, so a button never offers what Cha Dash can't do.
 
 ### Security
 
