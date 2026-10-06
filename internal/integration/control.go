@@ -31,8 +31,9 @@ const HubResource = "chadash:hub"
 //     an instance with it empty has no control credential: its actions
 //     answer 409 unavailable with Missing.
 //   - Mode: one credential, with the mode chosen in config (Unraid, decision
-//     6). Mode names a boolean property; true lets the instance act with
-//     the credential it reads with, false (or absent) keeps it read-only.
+//     6). Mode names a boolean property, where true lets the instance act
+//     with the credential it reads with; or, with ModeOn, an enum property
+//     whose value ModeOn does. Anything else (or absent) keeps it read-only.
 //   - Neither, with Grants: one credential that always acts (an app's
 //     full-access key), declared only to name its expected write grants.
 //
@@ -47,7 +48,10 @@ const HubResource = "chadash:hub"
 type Control struct {
 	Fields []ControlField `json:"fields,omitempty"`
 	Mode   string         `json:"mode,omitempty"`
-	Grants []string       `json:"grants,omitempty"`
+	// ModeOn is the value of an enum Mode property that lets the instance
+	// act ("control" for Unraid). Empty: Mode is a boolean.
+	ModeOn string   `json:"mode_on,omitempty"`
+	Grants []string `json:"grants,omitempty"`
 	// Missing is the sentence an action answers without the control
 	// credential; "{instance}" is replaced by the instance's name. Empty
 	// gives a generic one.
@@ -97,6 +101,9 @@ func (m Manifest) ControlConfig(cfg Config) (Config, bool) {
 	switch {
 	case c == nil:
 		return cfg, true
+	case c.Mode != "" && c.ModeOn != "":
+		v, _ := cfg.Values[c.Mode].(string)
+		return cfg, v == c.ModeOn
 	case c.Mode != "":
 		on, _ := cfg.Values[c.Mode].(bool)
 		return cfg, on
@@ -198,6 +205,9 @@ func checkControl(m Manifest) error {
 	if len(c.Fields) > 0 && c.Mode != "" {
 		return fmt.Errorf("control: set Fields or Mode, not both")
 	}
+	if c.ModeOn != "" && c.Mode == "" {
+		return fmt.Errorf("control: ModeOn needs Mode")
+	}
 	if len(c.Fields) == 0 && c.Mode == "" {
 		if len(c.Grants) == 0 {
 			return fmt.Errorf("control: set Fields, Mode or Grants")
@@ -209,8 +219,11 @@ func checkControl(m Manifest) error {
 	}
 	if c.Mode != "" {
 		s := m.ConfigSchema.Property(c.Mode)
-		if s == nil || s.Type != "boolean" {
+		switch {
+		case c.ModeOn == "" && (s == nil || s.Type != "boolean"):
 			return fmt.Errorf("control: mode %q must be a boolean property", c.Mode)
+		case c.ModeOn != "" && (s == nil || !slices.Contains(s.Enum, any(c.ModeOn))):
+			return fmt.Errorf("control: mode %q must be an enum property offering %q", c.Mode, c.ModeOn)
 		}
 		if len(grouped) > 0 {
 			return fmt.Errorf("control: a mode has no control fields, but %s are in the group", strings.Join(grouped, ", "))

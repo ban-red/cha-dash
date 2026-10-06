@@ -75,6 +75,10 @@ func (Integration) Manifest() integration.Manifest {
 			integration.Prop("api_key", integration.Secret("API key").Describe("A key from the consent link below, or from "+keysPage+".")),
 		).Require("url", "api_key"),
 		Poll: integration.Poll{Interval: syncInterval, Timeout: syncTimeout},
+		// One key (decision 6): in control mode it acts with the grants Test
+		// reports as docker and vms, so those aren't a "write grant" warning.
+		// A read-only instance offers no actions at all.
+		Control: &integration.Control{Mode: "mode", ModeOn: ModeControl, Grants: []string{"docker", "vms"}},
 	}
 }
 

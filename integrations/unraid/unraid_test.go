@@ -663,3 +663,30 @@ func equal(got, want any) bool {
 	}
 	return got == want
 }
+
+// In control mode the key's Docker and VM update grants are what the
+// actions use, so they aren't a "write grant" warning; in read-only mode
+// they are, and any other write grant always is.
+func TestControlModeExpectsItsWriteGrants(t *testing.T) {
+	m := Integration{}.Manifest()
+	grants := []integration.Grant{
+		{Name: "docker", Access: integration.AccessReadWrite, Write: true},
+		{Name: "vms", Access: integration.AccessReadWrite, Write: true},
+		{Name: "array", Access: integration.AccessRead},
+	}
+	control := integration.Config{Values: map[string]any{"mode": ModeControl}}
+	readOnly := integration.Config{Values: map[string]any{"mode": ModeReadOnly}}
+	if w := integration.WriteGrantWarning(grants, m.ExpectedWrites(control)...); w != nil {
+		t.Fatalf("control mode flags its own grants: %s", w.Message)
+	}
+	if w := integration.WriteGrantWarning(grants, m.ExpectedWrites(readOnly)...); w == nil {
+		t.Fatal("read-only mode doesn't flag Docker and VM update grants")
+	}
+	extra := append(grants, integration.Grant{Name: "disk", Access: integration.AccessReadWrite, Write: true})
+	if w := integration.WriteGrantWarning(extra, m.ExpectedWrites(control)...); w == nil || !strings.Contains(w.Message, "(disk)") {
+		t.Fatalf("control mode hides another write grant: %v", w)
+	}
+	if _, ok := m.ControlConfig(readOnly); ok {
+		t.Fatal("read-only mode can act")
+	}
+}

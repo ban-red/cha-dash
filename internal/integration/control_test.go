@@ -77,6 +77,21 @@ func TestControlConfig(t *testing.T) {
 	if !strings.Contains(mode.ControlMissing("nas"), "nas is set up read-only") {
 		t.Fatal(mode.ControlMissing("nas"))
 	}
+	// An enum mode (Unraid): the value ModeOn acts, any other doesn't.
+	enum := Manifest{ID: "enum", Name: "Enum", Version: "1", Tier: Bronze,
+		ConfigSchema: Object(Prop("api_key", Secret("Key")), Prop("mode", Enum("Mode", "read_only", "control"))),
+		Control:      &Control{Mode: "mode", ModeOn: "control"}}
+	if err := ValidateManifest(enum); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := enum.ControlConfig(Config{Values: map[string]any{"api_key": "k", "mode": "control"}}); !ok {
+		t.Fatal("enum mode on can't act")
+	}
+	for _, v := range []any{"read_only", nil, true} {
+		if _, ok := enum.ControlConfig(Config{Values: map[string]any{"api_key": "k", "mode": v}}); ok {
+			t.Fatalf("enum mode %v can act", v)
+		}
+	}
 	// No Control: the one credential acts.
 	plain := Manifest{ConfigSchema: Object(Prop("api_key", Secret("Key")))}
 	if _, ok := plain.ControlConfig(Config{Values: map[string]any{"api_key": "k"}}); !ok {
@@ -98,6 +113,16 @@ func TestControlManifestChecks(t *testing.T) {
 		"grouped but unlisted":  func(m *Manifest) { m.Control.Fields = m.Control.Fields[1:] },
 		"mode not boolean": func(m *Manifest) {
 			m.Control = &Control{Mode: "url"}
+			m.ConfigSchema.Property("control_token_id").Group = ""
+			m.ConfigSchema.Property("control_token_secret").Group = ""
+		},
+		"mode_on not offered": func(m *Manifest) {
+			m.Control = &Control{Mode: "url", ModeOn: "control"}
+			m.ConfigSchema.Property("control_token_id").Group = ""
+			m.ConfigSchema.Property("control_token_secret").Group = ""
+		},
+		"mode_on without mode": func(m *Manifest) {
+			m.Control = &Control{ModeOn: "control", Grants: []string{"x"}}
 			m.ConfigSchema.Property("control_token_id").Group = ""
 			m.ConfigSchema.Property("control_token_secret").Group = ""
 		},

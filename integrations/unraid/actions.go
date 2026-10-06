@@ -113,6 +113,9 @@ func (in *instance) Actions() []action.Def {
 	vStop := def(ActVMStop, "Shut down", "vm", action.T1, "Ask Unraid to shut %s down", "Wait for it to report stopped")
 	vStop.Undo = act.UndoBy(ActVMStart, "Start")
 	vStop.Timeout, vStop.VerifyTimeout = 5*time.Minute, 3*time.Minute
+	// Stopping or recreating what runs the hub or the router takes them
+	// down too: the runtime raises these to T4 then (self-aware T4).
+	cStop.Disrupts, cUpdate.Disrupts, vStop.Disrupts = true, true, true
 	return []action.Def{cStart, cStop, cUpdate, vStart, vStop}
 }
 
