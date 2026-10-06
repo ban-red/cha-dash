@@ -233,13 +233,19 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
-	// index.html carries the first board's snapshot for a signed-in owner,
+	// The inbox per role: whole for viewers and up, the household's
+	// projection of what its boards show otherwise (server.InboxView).
+	bs := boards.New(st)
+	// index.html carries the first board's snapshot for a signed-in user,
 	// when the web app is built in (the placeholder page has no use for it).
 	var firstPaint *firstpaint.Builder
 	if webui.Embedded {
-		firstPaint = &firstpaint.Builder{Topics: tp, Boards: boards.New(st), Demo: drv != nil}
+		firstPaint = &firstpaint.Builder{Topics: tp, Boards: bs, Demo: drv != nil, Inbox: server.InboxView(bs, g, log)}
 	}
-	hub := realtime.New(watch.Source(tp.SourceWith(realtime.Mux{action.TasksTopic: eng.TasksSource()})), realtime.Options{
+	hub := realtime.New(watch.Source(tp.SourceWith(realtime.Mux{
+		action.TasksTopic: eng.TasksSource(),
+		topics.Inbox:      tp.InboxSource(server.InboxViewer(bs, g, log)),
+	})), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,
 		Log:            log,

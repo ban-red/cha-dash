@@ -14,6 +14,7 @@ import (
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/internal/webui"
@@ -32,11 +33,14 @@ func webFS() fstest.MapFS {
 	}
 }
 
-// firstPaintEnv is a hub with the web app and first-paint snapshots on, and
-// a graph with one resource whose name tries to break out of the data block.
-func firstPaintEnv(t *testing.T) (*env, *store.Store) {
+// firstPaintEnv is a hub with the web app and first-paint snapshots on, a
+// graph with one resource whose name tries to break out of the data block,
+// and an inbox with a problem on it (with facts), a repair and a security
+// finding.
+func firstPaintEnv(t *testing.T) (*env, *store.Store, *firstpaint.Builder) {
 	t.Helper()
 	var st *store.Store
+	var fp *firstpaint.Builder
 	e := newEnvWith(t, func(d *Deps) {
 		st = d.Store
 		tp := topics.New(graph.New(), time.Date(2026, 10, 3, 14, 5, 0, 0, time.UTC))
@@ -45,10 +49,21 @@ func firstPaintEnv(t *testing.T) (*env, *store.Store) {
 		}); err != nil {
 			t.Fatal(err)
 		}
+		tp.Inbox.Update(func(tx *livedoc.Tx) error {
+			for id, in := range map[string]string{
+				"x-down":   `{"id":"x-down","class":"problem","severity":"down","status":"open","title":"X is down","target":"app:x","facts":{"exit_code":137},"causes":[{"text":"out of memory","resource":"app:x"}],"blast_radius":[],"suggested":{"id":"x.restart","label":"Restart","tier":"T2","target":"app:x"}}`,
+				"x-repair": `{"id":"x-repair","class":"repair","severity":"attention","status":"open","title":"Reconnect X","target":"app:x","causes":[],"blast_radius":[]}`,
+				"x-socket": `{"id":"x-socket","class":"problem","category":"security","severity":"info","status":"open","title":"Socket open","target":"app:x","causes":[],"blast_radius":[]}`,
+			} {
+				tx.Put(topics.Incidents, id, json.RawMessage(in))
+			}
+			return nil
+		})
 		d.Web = webui.Handler(webFS())
-		d.FirstPaint = &firstpaint.Builder{Topics: tp, Boards: boards.New(d.Store)}
+		fp = &firstpaint.Builder{Topics: tp, Boards: boards.New(d.Store), Inbox: InboxView(boards.New(d.Store), tp.Graph, nil)}
+		d.FirstPaint = fp
 	})
-	return e, st
+	return e, st, fp
 }
 
 var dataBlock = regexp.MustCompile(`<script type="application/json" id="chadash-snapshot">([^<]*)</script>`)
@@ -75,8 +90,8 @@ func (e *env) page(t *testing.T, c *http.Client, path string) (*http.Response, s
 	return resp, string(b), &s
 }
 
-func TestFirstPaintOnlyForTheOwner(t *testing.T) {
-	e, st := firstPaintEnv(t)
+func TestFirstPaintForEveryRole(t *testing.T) {
+	e, st, fp := firstPaintEnv(t)
 	jar, _ := cookiejar.New(nil)
 	c := &http.Client{Jar: jar}
 
@@ -129,16 +144,59 @@ func TestFirstPaintOnlyForTheOwner(t *testing.T) {
 		t.Fatalf("asset: %q", body)
 	}
 
-	// Another role (they arrive with RBAC) gets nothing.
-	if _, err := st.Writer().ExecContext(t.Context(), `UPDATE users SET role = 'viewer'`); err != nil {
-		t.Fatal(err)
+	// Every role gets one, seeing the inbox the way its inbox topic shows
+	// it: whole for viewers and up, the household's projection below.
+	setRole := func(role string) {
+		t.Helper()
+		if _, err := st.Writer().ExecContext(t.Context(), `UPDATE users SET role = ?`, role); err != nil {
+			t.Fatal(err)
+		}
 	}
+	incidents := func(s *firstpaint.Snapshot) map[string]json.RawMessage {
+		t.Helper()
+		b, _ := json.Marshal(s.Inbox["incidents"])
+		var m map[string]json.RawMessage
+		json.Unmarshal(b, &m)
+		return m
+	}
+	for _, role := range []string{"admin", "operator", "viewer"} {
+		setRole(role)
+		resp, body, snap := e.page(t, c, "/")
+		if snap == nil || snap.User.Role != role || snap.Board == nil {
+			t.Fatalf("%s: snapshot %+v", role, snap)
+		}
+		if n := len(incidents(snap)); n != 3 {
+			t.Fatalf("%s: %d incidents, want all 3", role, n)
+		}
+		if resp.Header.Get("Cache-Control") != "no-store" || resp.Header.Get("Vary") == "" {
+			t.Fatalf("%s: headers %v", role, resp.Header)
+		}
+		assertNothingInlineRuns(t, resp, body)
+	}
+	setRole("household")
+	resp, body, snap = e.page(t, c, "/")
+	if snap == nil || snap.User.Role != "household" {
+		t.Fatalf("household: snapshot %+v", snap)
+	}
+	got := incidents(snap)
+	if len(got) != 1 || got["x-down"] == nil {
+		t.Fatalf("household sees %v", got)
+	}
+	for _, hidden := range []string{"exit_code", "out of memory", "x.restart"} {
+		if strings.Contains(string(got["x-down"]), hidden) {
+			t.Fatalf("household's incident carries %q: %s", hidden, got["x-down"])
+		}
+	}
+	if !strings.Contains(resp.Header.Get("Vary"), "Cookie") || resp.Header.Get("Cache-Control") != "no-store" {
+		t.Fatalf("household: headers %v", resp.Header)
+	}
+	assertNothingInlineRuns(t, resp, body)
+	// A builder that can't project the inbox inlines nothing for household.
+	fp.Inbox = nil
 	if _, _, snap := e.page(t, c, "/"); snap != nil {
-		t.Fatal("a non-owner got the snapshot")
+		t.Fatal("household got an unprojected snapshot")
 	}
-	if _, err := st.Writer().ExecContext(t.Context(), `UPDATE users SET role = 'owner'`); err != nil {
-		t.Fatal(err)
-	}
+	setRole("owner")
 
 	// Signed out again: nothing.
 	if resp := e.request(t, c, "POST", "/api/auth/logout", nil, nil); resp.StatusCode != http.StatusNoContent {

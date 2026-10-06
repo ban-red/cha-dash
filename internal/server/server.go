@@ -28,13 +28,13 @@
 //	GET  /api/settings/security    security posture, step-up rule and their options (viewer)
 //	PUT  /api/settings/security    {posture?, step_up?}; step_up needs a step-up (owner)
 //	GET  /api/demo             demo clock and seed; demo mode only (session)
-//	POST /api/demo/incidents/{id}/fix   press the suggested action (operator; deprecated)
-//	POST /api/actions/plan, POST /api/plans/{id}/approve, GET /api/tasks/{id}
+//	POST /api/actions/plan, POST /api/plans/{id}/approve, GET /api/tasks/{id},
+//	POST /api/tasks/{id}/cancel, GET /api/actions?target=
 //	                           the action engine (session; the policy decides, see action.Engine.Register)
 //	GET  /api/audit, /api/audit/export, /api/audit/verify   the audit log (admin; audit.read)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
-//	                           with the first-paint snapshot for a signed-in owner)
+//	                           with the first-paint snapshot for any signed-in role)
 //
 // Roles in parentheses are the least a route admits ("session": any signed-in
 // role). The table that decides is internal/authz/routes.go, enforced by
@@ -107,7 +107,8 @@ type Deps struct {
 	// /api/onboarding unmounted.
 	Onboarding *onboarding.Service
 	// FirstPaint builds the snapshot index.html carries for a signed-in
-	// owner (see firstPaint). Nil serves the generic page to everyone.
+	// user (see firstPaint); its Inbox field gives each role its view of the
+	// inbox (InboxView). Nil serves the generic page to everyone.
 	FirstPaint *firstpaint.Builder
 	// Security is the security posture. Nil leaves /api/settings/security
 	// unmounted.

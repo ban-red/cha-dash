@@ -147,6 +147,13 @@ func tierCap(role string) Tier {
 	return ""
 }
 
+// SeesInboxDetail reports whether role sees the Inbox in full: every
+// incident with its facts, causes, blast radius and actions, on the inbox
+// topic and in the first-paint snapshot. Household doesn't ("Boards only,
+// no Inbox detail"): it gets topics.ProjectIncident's projection, limited to
+// incidents about what its boards show. An unknown role sees nothing.
+func SeesInboxDetail(role string) bool { return rank(role) >= rank(auth.RoleViewer) }
+
 // HouseholdCap is the highest tier an action marked household: true may have
 // and still be open to the household role.
 const HouseholdCap = T1

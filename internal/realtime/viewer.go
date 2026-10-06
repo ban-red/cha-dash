@@ -137,6 +137,129 @@ func (f *viewerFeed) Drain() (uint64, []jsonpatch.Op, error) {
 
 func (f *viewerFeed) Close() { f.w.Close() }
 
+// ProjectedDocSource serves a live document whose collection Coll some
+// viewers see through a projection: Project, called once per subscription
+// with its context, returns the viewer's projection, or nil for the
+// document as published. A projection turns an item into what the viewer
+// may see, or says they don't see it at all; members other than Coll pass
+// through.
+//
+// Unlike ViewerDocSource, what a viewer sees of an item may change over its
+// life (an incident becomes relevant, or a field the projection reads
+// changes). So for a projected viewer, each diff that touches an item
+// re-reads it whole from the document, projects it, and sends the item
+// whole when the projection changed: added when the viewer didn't have it,
+// replaced when they did, removed when they no longer see it. Changes to
+// fields the projection drops send nothing. The item read may be newer than
+// the ops being drained; the next drain then finds nothing new to send, so
+// every op applies to the viewer's document.
+type ProjectedDocSource struct {
+	Doc     *livedoc.Doc
+	Topic   string
+	Coll    string
+	Project func(ctx context.Context) func(key string, item json.RawMessage) (json.RawMessage, bool)
+	// MaxPending bounds each feed's undelivered operations before it lags.
+	MaxPending int
+}
+
+// Open implements Source. Without a viewer, Project gets a bare context.
+func (s ProjectedDocSource) Open(topic string, notify chan<- struct{}) (Feed, error) {
+	return s.OpenContext(context.Background(), topic, notify)
+}
+
+// OpenContext implements ContextSource.
+func (s ProjectedDocSource) OpenContext(ctx context.Context, topic string, notify chan<- struct{}) (Feed, error) {
+	if topic != s.Topic {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownTopic, topic)
+	}
+	proj := s.Project(ctx)
+	w := s.Doc.Watch(notify, s.MaxPending)
+	if proj == nil {
+		return docFeed{w}, nil
+	}
+	return &projectedFeed{w: w, doc: s.Doc, coll: s.Coll, project: proj, sent: map[string]string{}}, nil
+}
+
+type projectedFeed struct {
+	w       *livedoc.Watcher
+	doc     *livedoc.Doc
+	coll    string
+	project func(key string, item json.RawMessage) (json.RawMessage, bool)
+	sent    map[string]string // item key → its projection as the viewer holds it
+}
+
+func (f *projectedFeed) Snapshot() (uint64, any) {
+	seq, doc := f.w.Snapshot()
+	clear(f.sent)
+	if items, ok := doc[f.coll].(map[string]json.RawMessage); ok {
+		for k, v := range items {
+			if p, ok := f.project(k, v); ok {
+				items[k] = p
+				f.sent[k] = string(p)
+			} else {
+				delete(items, k)
+			}
+		}
+	}
+	return seq, doc
+}
+
+func (f *projectedFeed) Drain() (uint64, []jsonpatch.Op, error) {
+	seq, ops, err := f.w.Drain()
+	if errors.Is(err, livedoc.ErrLagged) {
+		return 0, nil, fmt.Errorf("%w: %w", ErrResync, err)
+	}
+	if err != nil || len(ops) == 0 {
+		return seq, ops, err
+	}
+	whole := jsonpatch.Pointer(f.coll)
+	prefix := whole + "/"
+	out := make([]jsonpatch.Op, 0, len(ops))
+	var touched []string
+	seen := map[string]bool{}
+	for _, op := range ops {
+		if op.Path == whole {
+			// The collection itself was replaced: start again from a snapshot.
+			return 0, nil, fmt.Errorf("%w: %s replaced whole", ErrResync, f.coll)
+		}
+		rest, ok := strings.CutPrefix(op.Path, prefix)
+		if !ok {
+			out = append(out, op)
+			continue
+		}
+		key, _, _ := strings.Cut(rest, "/")
+		key = strings.NewReplacer("~1", "/", "~0", "~").Replace(key)
+		if !seen[key] {
+			seen[key] = true
+			touched = append(touched, key)
+		}
+	}
+	for _, key := range touched {
+		path := jsonpatch.Pointer(f.coll, key)
+		had, wasSent := f.sent[key]
+		var p json.RawMessage
+		visible := false
+		if raw := f.doc.Item(f.coll, key); raw != nil {
+			p, visible = f.project(key, raw)
+		}
+		switch {
+		case !visible && wasSent:
+			delete(f.sent, key)
+			out = append(out, jsonpatch.Op{Op: jsonpatch.Remove, Path: path})
+		case !visible:
+		case !wasSent:
+			f.sent[key] = string(p)
+			out = append(out, jsonpatch.Op{Op: jsonpatch.Add, Path: path, Value: p})
+		case had != string(p):
+			f.sent[key] = string(p)
+			out = append(out, jsonpatch.Op{Op: jsonpatch.Replace, Path: path, Value: p})
+		}
+	}
+	return seq, out, nil
+}
+
+func (f *projectedFeed) Close() { f.w.Close() }
+
 func encoded(v any) json.RawMessage {
 	if raw, ok := v.(json.RawMessage); ok {
 		return raw

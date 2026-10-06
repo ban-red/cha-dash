@@ -1,5 +1,5 @@
 // Package firstpaint builds the snapshot the hub inlines into index.html for
-// a signed-in owner, so the front page renders with real values on its first
+// a signed-in user, whatever their role, so the front page renders with real values on its first
 // paint and then goes live (03 · Architecture → Realtime, "Inline snapshot").
 // The web app reads it from a non-executable data block, renders from it
 // straight away, and lets the WebSocket's first snapshots supersede it.
@@ -15,7 +15,9 @@
 //	         axis; a series whose resource the page can't name isn't shown
 //	inbox    the clock, every open incident and the newest resolution (the
 //	         Incidents tile's "Last: …"); older resolutions only appear in the
-//	         Inbox, which the socket fills before anyone can open it
+//	         Inbox, which the socket fills before anyone can open it. Seen
+//	         the way the inbox topic shows it to the user's role (Inbox):
+//	         whole, or the household's projection
 //
 // Encode escapes <, > and & (and U+2028/U+2029), so the JSON can sit in a
 // <script type="application/json"> element: nothing in it can end the
@@ -54,9 +56,13 @@ type Builder struct {
 	Demo bool
 	// MaxBytes caps the encoded snapshot; 0 means MaxBytes.
 	MaxBytes int
+	// Inbox is how a role sees the inbox, the same view the inbox topic
+	// gives it (topics.InboxView). Nil shows it whole, so a hub that
+	// inlines snapshots for roles below viewer must set it.
+	Inbox func(ctx context.Context, role string) topics.InboxView
 }
 
-// User is who the snapshot is for: the signed-in owner, as GET
+// User is who the snapshot is for: the signed-in user, as GET
 // /api/auth/session reports them.
 type User struct {
 	ID       string `json:"id"`
@@ -141,7 +147,11 @@ func (b *Builder) Snapshot(ctx context.Context, u User) (Snapshot, error) {
 	_, metrics := b.Topics.Metrics.Snapshot()
 	s.Metrics = trimMetrics(metrics, s.Graph)
 	_, inbox := b.Topics.Inbox.Snapshot()
-	s.Inbox = trimInbox(inbox)
+	view := topics.InboxView{Detail: true}
+	if b.Inbox != nil {
+		view = b.Inbox(ctx, u.Role)
+	}
+	s.Inbox = trimInbox(topics.ProjectInbox(inbox, view))
 	return s, nil
 }
 

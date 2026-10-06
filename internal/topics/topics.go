@@ -7,7 +7,8 @@
 //
 // graph also answers graph:kind/<kind>[,<kind>…] (see realtime.GraphSource).
 // The action engine adds tasks ({"tasks": {id: task}}, filtered per viewer)
-// through SourceWith.
+// through SourceWith, and the hub replaces inbox with InboxSource, which
+// gives the household role its projection (household.go).
 // Series and incidents use the Demo Home simulator's JSON shapes (see
 // sim/README.md). Demo mode fills metrics and inbox from the simulator;
 // outside it they start empty, and real integrations will write the same
