@@ -171,6 +171,21 @@ func SeesInboxDetail(role string) bool { return rank(role) >= rank(auth.RoleView
 // API token's T2 plans) in the Inbox: the approvers, admin and owner.
 func SeesApprovals(role string) bool { return rank(role) >= rank(auth.RoleAdmin) }
 
+// ChangeSecuritySettings decides whether a may change the security settings
+// (the posture and the step-up rule) other than through Settings → Security:
+// importing a Home file that carries them. The same rule as PUT
+// /api/settings/security: the owner only, and changing the step-up rule
+// (stepUp) is T3, so it needs a step-up grant.
+func ChangeSecuritySettings(a Actor, stepUp bool, now time.Time) error {
+	if a.Role != auth.RoleOwner {
+		return forbid("Only the owner can change the security settings, so this file's security settings weren't imported.")
+	}
+	if !stepUp {
+		return nil
+	}
+	return Decide(a, Request{Scope: "settings.security.update", Tier: T3}, Env{Now: now})
+}
+
 // HouseholdCap is the highest tier an action marked household: true may have
 // and still be open to the household role.
 const HouseholdCap = T1

@@ -128,6 +128,29 @@ func Encode(d *Document) ([]byte, error) {
 	}
 	add(root, "settings", flowIfEmpty(settings))
 
+	if s := d.Security; s != nil {
+		n := mapping()
+		add(n, "posture", str(s.Posture))
+		add(n, "step_up", str(s.StepUp))
+		add(root, "security", n)
+	}
+	if d.Correlation != nil {
+		decs := sequence()
+		for _, c := range d.Correlation {
+			n := mapping()
+			n.Style = yaml.FlowStyle // one decision per line
+			add(n, "from", str(c.From))
+			add(n, "rel", str(c.Rel))
+			add(n, "to", str(c.To))
+			add(n, "verdict", str(c.Verdict))
+			if c.Rule != "" {
+				add(n, "rule", str(c.Rule))
+			}
+			decs.Content = append(decs.Content, n)
+		}
+		add(root, "correlation", flowIfEmpty(decs))
+	}
+
 	if b := d.Bundle; b != nil {
 		n := mapping()
 		add(n, "cipher", str(b.Cipher))
@@ -624,7 +647,7 @@ func (p *parser) writeJSON(buf *bytes.Buffer, n *yaml.Node, path string) {
 func (p *parser) document(n *yaml.Node) *Document {
 	d := &Document{Boards: []Board{}, Instances: []Instance{}, Settings: []Setting{}}
 	var sawVersion, sawKind bool
-	p.fields(n, "", []string{"apiVersion", "kind", "meta", "boards", "instances", "settings", "secrets_bundle"}, func(key string, v *yaml.Node) {
+	p.fields(n, "", []string{"apiVersion", "kind", "meta", "boards", "instances", "settings", "security", "correlation", "secrets_bundle"}, func(key string, v *yaml.Node) {
 		switch key {
 		case "apiVersion":
 			sawVersion = true
@@ -647,6 +670,10 @@ func (p *parser) document(n *yaml.Node) *Document {
 				d.Settings = append(d.Settings, Setting{Key: k, Value: p.json(sv, join(key, k))})
 			})
 			slices.SortFunc(d.Settings, func(a, b Setting) int { return strings.Compare(a.Key, b.Key) })
+		case "security":
+			d.Security = p.security(v)
+		case "correlation":
+			d.Correlation = p.correlation(v)
 		case "secrets_bundle":
 			d.Bundle = p.bundle(v)
 		}

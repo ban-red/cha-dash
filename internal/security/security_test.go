@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/store"
@@ -115,6 +116,34 @@ func TestService(t *testing.T) {
 		if err != nil || s.Posture() != Default {
 			t.Fatalf("%s: %v", bad, err)
 		}
+	}
+}
+
+// TestReload: settings written behind the service's back (a Home file
+// import) take effect, and a changed posture reaches the subscribers.
+func TestReload(t *testing.T) {
+	st := openStore(t)
+	s, err := New(t.Context(), st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []Posture
+	s.OnChange(func(p Posture) { got = append(got, p) })
+	if _, err := st.Writer().Exec(`INSERT INTO settings (key, value, updated_at) VALUES ('security.posture', '"strict"', 1), ('security.step_up', '"passkey_only"', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if s.Posture() != Strict || s.StepUp() != auth.StepUpPasskeyOnly || len(got) != 1 || got[0] != Strict {
+		t.Fatalf("after reload: %q %q, subscribers saw %v", s.Posture(), s.StepUp(), got)
+	}
+	// An unknown value keeps what's in force.
+	if _, err := st.Writer().Exec(`UPDATE settings SET value = '"wild"'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Reload(t.Context()); err != nil || s.Posture() != Strict || s.StepUp() != auth.StepUpPasskeyOnly || len(got) != 1 {
+		t.Fatalf("unknown values: %v %q %q", err, s.Posture(), s.StepUp())
 	}
 }
 

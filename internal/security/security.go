@@ -257,6 +257,32 @@ func (s *Service) Set(ctx context.Context, p Posture) error {
 	return nil
 }
 
+// Reload re-reads both settings from the settings table, for when something
+// else wrote them (a Home file import, internal/export). A changed posture
+// is applied as Set applies it; an unknown or missing row keeps what's in
+// force.
+func (s *Service) Reload(ctx context.Context) error {
+	if v, ok, err := s.load(ctx, StepUpKey); err != nil {
+		return fmt.Errorf("security: reading the step-up rule: %w", err)
+	} else if m, known := auth.ParseStepUpMode(v); ok && known {
+		s.mu.Lock()
+		changed := s.stepUp != m
+		s.stepUp = m
+		s.mu.Unlock()
+		if changed {
+			s.log.Warn("step-up rule changed", "step_up", m, "via", "import")
+		}
+	}
+	v, ok, err := s.load(ctx, SettingsKey)
+	if err != nil {
+		return fmt.Errorf("security: reading the posture: %w", err)
+	}
+	if p, known := Parse(v); ok && known && p != s.Posture() {
+		return s.Set(ctx, p)
+	}
+	return nil
+}
+
 // View is the API's answer.
 type View struct {
 	Posture     Posture         `json:"posture"`

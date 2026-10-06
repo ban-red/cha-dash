@@ -47,7 +47,7 @@ func TestExportRoutes(t *testing.T) {
 			Summary map[string]int `json:"summary"`
 		} `json:"plan"`
 	}
-	if resp.StatusCode != 200 || json.NewDecoder(resp.Body).Decode(&body) != nil || body.Plan.Summary["unchanged"] != 1 || body.Plan.Summary["create"] != 0 {
+	if resp.StatusCode != 200 || json.NewDecoder(resp.Body).Decode(&body) != nil || body.Plan.Summary["unchanged"] != 2 || body.Plan.Summary["create"] != 0 {
 		t.Fatalf("dry run: %d %+v", resp.StatusCode, body)
 	}
 }

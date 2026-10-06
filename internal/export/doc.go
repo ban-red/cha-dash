@@ -14,7 +14,8 @@
 //
 // Users, sessions, passkeys and the audit log are never exported, nor is
 // the hub's own derived state: layout history, integration state, discovery
-// dismissals, correlation decisions, onboarding progress.
+// dismissals, onboarding progress. The security settings and the
+// correlation decisions travel since v0.2 (extras.go).
 //
 // Importing compares a Home file with the hub (Plan, the dry run) and applies
 // it in one transaction (Apply). Objects are matched by ID; importing an
@@ -40,6 +41,12 @@ type Document struct {
 	Instances []Instance
 	// Settings are the carried settings rows, sorted by key (see carried).
 	Settings []Setting
+	// Security is the security posture and step-up rule; nil when the file
+	// has no security key (extras.go).
+	Security *Security
+	// Correlation is the owner's correlation decisions; nil when the file
+	// has no correlation key, empty when it has none (extras.go).
+	Correlation []Decision
 	// Bundle holds the encrypted secret values of a full backup; nil
 	// otherwise.
 	Bundle *Bundle

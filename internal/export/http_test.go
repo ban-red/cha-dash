@@ -94,7 +94,7 @@ func TestHTTP(t *testing.T) {
 			t.Errorf("plan lacks %s: %s", k, body)
 		}
 	}
-	if string(dry["plan"]["summary"]) != `{"create":0,"update":0,"unchanged":11,"stale":0,"secrets_restored":0,"secrets_needed":0}` ||
+	if string(dry["plan"]["summary"]) != `{"create":0,"update":0,"unchanged":13,"stale":0,"secrets_restored":0,"secrets_needed":0}` ||
 		string(dry["plan"]["bundle"]) != `{"present":true,"unlocked":true,"secrets":4}` {
 		t.Fatalf("plan = %s", body)
 	}

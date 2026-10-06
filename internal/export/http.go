@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 )
 
@@ -113,6 +114,15 @@ func (h handler) importFile(w http.ResponseWriter, r *http.Request) {
 		h.importError(w, err)
 		return
 	}
+	// The security settings are the owner's, and the step-up rule needs a
+	// step-up (authz decides); anyone else imports the rest of the file.
+	actor, _ := authz.ActorFrom(r)
+	var refusal error
+	ctx := WithSecurityGate(r.Context(), func(stepUp bool) error {
+		refusal = authz.ChangeSecuritySettings(actor, stepUp, h.svc.now())
+		return refusal
+	})
+	r = r.WithContext(ctx)
 	if dry {
 		plan, err := h.svc.Plan(r.Context(), d, req.Passphrase)
 		if err != nil {
@@ -131,11 +141,39 @@ func (h handler) importFile(w http.ResponseWriter, r *http.Request) {
 		h.importError(w, err)
 		return
 	}
+	h.auditSecurity(r, applied.Plan, refusal)
 	s := applied.Plan.Summary
 	h.log.Info("home file imported", "boards", len(applied.BoardIDs), "instances", len(applied.InstanceIDs),
 		"created", s.Create, "updated", s.Update, "unchanged", s.Unchanged, "stale", s.Stale,
 		"secrets_restored", s.SecretsRestored, "secrets_needed", s.SecretsNeeded)
 	httpx.WriteJSON(w, http.StatusOK, applied)
+}
+
+// auditSecurity records a security change an import made, or refused, as
+// settings.security.update, like Settings → Security does. AfterApply
+// lets the running hub take the imported settings and decisions up.
+func (h handler) auditSecurity(r *http.Request, p *Plan, refusal error) {
+	for _, c := range p.Changes {
+		if c.Kind != "security" || (c.Action != actionUpdate && c.Skipped == "") {
+			continue
+		}
+		params := map[string]any{"via": "import"}
+		tier := authz.T1
+		for _, f := range c.Fields {
+			params[strings.TrimPrefix(f.Path, "/")] = f.To
+			if f.Path == "/step_up" {
+				tier = authz.T3
+			}
+		}
+		if c.Skipped != "" {
+			h.svc.Audit.Change(r, "settings.security.update", "settings:security", params, tier, refusal)
+		} else {
+			h.svc.Audit.Change(r, "settings.security.update", "settings:security", params, tier, nil)
+		}
+	}
+	if h.svc.AfterApply != nil && p.Changed() {
+		h.svc.AfterApply(r.Context())
+	}
 }
 
 func (h handler) importError(w http.ResponseWriter, err error) {

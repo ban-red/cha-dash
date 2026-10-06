@@ -37,9 +37,13 @@ type Plan struct {
 
 // Change is one object: the importer's change row (kind, id, name,
 // action) plus what changes inside it. Kinds are board, layout, tiles,
-// instance and setting; actions are create, update, unchanged and stale.
+// instance, setting, security and correlation; actions are create, update,
+// unchanged and stale.
 type Change struct {
 	importer.Change
+	// Skipped says why a change the file asks for isn't made (the security
+	// settings, for anyone but the owner); its action is then unchanged.
+	Skipped string `json:"skipped,omitempty"`
 	// FileID is the object's ID in the file when the hub's differs: a board
 	// matched by its slug.
 	FileID      string `json:"file_id,omitempty"`
@@ -152,6 +156,8 @@ type work struct {
 	instances []instanceWrite
 	secrets   map[string]importer.Secret // vault name → value to store
 	settings  []settingWrite
+	security  *Security  // nil: leave the security settings alone
+	decisions []Decision // correlation decisions to create or update
 	boardIDs  []string
 	instIDs   []string
 }
@@ -212,6 +218,12 @@ func (s *Service) compare(ctx context.Context, q querier, d *Document, bundle im
 		return nil, err
 	}
 	if err := s.compareSettings(ctx, q, d, remap, w); err != nil {
+		return nil, err
+	}
+	if err := s.compareSecurity(ctx, q, d, w); err != nil {
+		return nil, err
+	}
+	if err := s.compareDecisions(ctx, q, d, w); err != nil {
 		return nil, err
 	}
 

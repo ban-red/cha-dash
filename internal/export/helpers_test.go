@@ -217,7 +217,7 @@ func mustNotLeak(t *testing.T, what, text string) {
 		}
 	}
 	for _, s := range []string{passphrase, "FAKE-client-id-never-exported", "FAKE-owner-name", "FAKE-hash", "FAKE-audit",
-		"FAKE-onboarding-state", "FAKE-correlation-rule", "cd_1"} {
+		"FAKE-onboarding-state", "cd_1"} { // decisions travel since v0.2, their row IDs never
 		if strings.Contains(text, s) {
 			t.Fatalf("%s holds %q", what, s)
 		}

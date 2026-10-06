@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/importer"
 	"dash.cha.sh/internal/integration"
@@ -25,6 +26,13 @@ type Service struct {
 	reg     *integration.Registry
 	version string
 	now     func() time.Time
+
+	// Audit records security settings an HTTP import changed or was
+	// refused (nil: none).
+	Audit *authz.Recorder
+	// AfterApply runs after an HTTP import changed something, so the running
+	// hub takes up imported security settings and decisions (nil: nothing).
+	AfterApply func(context.Context)
 }
 
 // Options configure a Service.
@@ -207,6 +215,11 @@ func guard(d *Document, values importer.Secrets) error {
 			return err
 		}
 	}
+	for _, c := range d.Correlation {
+		visit(c.From)
+		visit(c.To)
+		visit(c.Rule)
+	}
 	if leak != "" {
 		return &LeakError{Secret: leak}
 	}
@@ -278,6 +291,18 @@ func (s *Service) read(ctx context.Context) (*Document, *Exported, error) {
 	if err := srows.Err(); err != nil {
 		return nil, nil, err
 	}
+	sec, err := readSecurity(ctx, q)
+	if err != nil {
+		return nil, nil, fmt.Errorf("export: security settings: %w", err)
+	}
+	d.Security = &sec
+	if d.Correlation, err = readDecisions(ctx, q); err != nil {
+		return nil, nil, fmt.Errorf("export: correlation decisions: %w", err)
+	}
+	for i := range d.Correlation {
+		d.Correlation[i] = d.Correlation[i].normalized()
+	}
+	slices.SortFunc(d.Correlation, func(a, b Decision) int { return strings.Compare(a.key(), b.key()) })
 	out.Boards, out.Instances, out.Settings = len(d.Boards), len(d.Instances), len(d.Settings)
 	return d, out, nil
 }
@@ -484,5 +509,5 @@ func (s *Service) write(ctx context.Context, tx *sql.Tx, w *work, userID string)
 			return fmt.Errorf("export: setting %s: %w", st.key, err)
 		}
 	}
-	return nil
+	return writeExtras(ctx, tx, w, userID, now)
 }

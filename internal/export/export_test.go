@@ -83,7 +83,8 @@ func TestRoundTripFullBackup(t *testing.T) {
 	}
 	mustNotLeak(t, "the plan", jsonOf(t, plan))
 	for k, act := range actions(plan) {
-		if act != actionCreate {
+		// The security settings are the defaults on both hubs.
+		if act != actionCreate && !(k == "security:security" && act == actionUnchanged) {
 			t.Errorf("fresh hub: %s = %s", k, act)
 		}
 	}
@@ -115,11 +116,14 @@ func TestRoundTripFullBackup(t *testing.T) {
 	if withoutMeta(back.Data) != withoutMeta(plain.Data) {
 		t.Fatalf("round trip differs:\n--- original\n%s\n--- after\n%s", plain.Data, back.Data)
 	}
-	// Users, sessions and audit stayed behind.
-	for _, table := range []string{"users", "sessions", "audit", "passkeys", "correlation_decisions"} {
+	// Users, sessions and audit stayed behind; the decision came along.
+	for _, table := range []string{"users", "sessions", "audit", "passkeys"} {
 		if n := rowCount(t, b.st, table); n != 0 {
 			t.Fatalf("%s has %d rows after an import", table, n)
 		}
+	}
+	if n := rowCount(t, b.st, "correlation_decisions"); n != 1 {
+		t.Fatalf("%d correlation decisions after an import, want 1", n)
 	}
 
 	// Importing it again changes nothing, with or without the passphrase.
@@ -355,7 +359,7 @@ func TestDiffShapes(t *testing.T) {
 		jsonOf(t, c.Fields) != `[{"path":"/instances","op":"replace","from":["i_sonarr"],"to":["i_sonarr","i_radarr"]}]` {
 		t.Fatalf("record = %s", jsonOf(t, c.Fields))
 	}
-	if plan.Summary != (Summary{Create: 1, Update: 5, Unchanged: 5, Stale: 1, SecretsNeeded: 1}) {
+	if plan.Summary != (Summary{Create: 1, Update: 5, Unchanged: 7, Stale: 1, SecretsNeeded: 1}) {
 		t.Fatalf("summary = %+v", plan.Summary)
 	}
 	// Stale objects come last.
@@ -511,7 +515,7 @@ func TestValuesOutsideTheVaultAreLeftOut(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustNotLeak(t, "the export", string(out.Data))
-	if strings.Contains(string(out.Data), "password") || strings.Contains(string(out.Data), "extra") || len(out.Warnings) != 2 ||
+	if strings.Contains(string(out.Data), "password:") || strings.Contains(string(out.Data), "extra") || len(out.Warnings) != 2 ||
 		out.Warnings[0].Code != "value_left_out" {
 		t.Fatalf("export = %+v\n%s", out.Warnings, out.Data)
 	}

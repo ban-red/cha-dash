@@ -1,7 +1,8 @@
 # Home files: export and import
 
 A **Home file** is a whole hub's configuration as one YAML document: boards
-with their layouts, integration instances, and the settings worth carrying.
+with their layouts, integration instances, the settings worth carrying, the
+security settings and the correlation decisions.
 `chadash export` and `GET /api/export` write one; `chadash import` and
 `POST /api/import/chadash` read one back, after showing exactly what would
 change.
@@ -70,6 +71,11 @@ settings:
     instances: [i_sonarr]
     links: []
     discovery: []
+security:
+  posture: standard
+  step_up: passkey_or_password
+correlation:
+  - {from: 'docker:i_d/container/sonarr', rel: same_as, to: 'unraid:i_u/container/sonarr', verdict: confirm, rule: container_id}
 secrets_bundle:            # only in a full backup (--with-secrets)
   cipher: xchacha20poly1305
   kdf: {name: scrypt, log_n: 15, r: 8, p: 1, salt: mSwGjrBAT5zoZXEuwEtqpA==}
@@ -100,6 +106,8 @@ secrets_bundle:            # only in a full backup (--with-secrets)
 | `.tls` | no | `{mode: verify\|pin\|tofu\|insecure, pin: <sha256>}`. `tls` inside `config` (the stored shape) is accepted on import too, but not both |
 | `.secrets` | no | `<field>: !secret <vault name>` for every secret field that's set. `${secret:<vault name>}` is accepted on import. **Anything else is refused** |
 | `settings` | no | Carried settings rows, by key: the import records (`import/<source>`), which keep what an import made beyond the board (explicit links, discovery hints, board settings, the instance ids for stale reports). Other keys are this hub's own state and stay |
+| `security` | no | `posture` (`relaxed`, `standard`, `strict`) and `step_up` (`passkey_or_password`, `passkey_only`), both required when the key is there. Written in every export, with the defaults when never changed. No key on import leaves the hub's settings alone. See below |
+| `correlation` | no | The owner's correlation decisions, one per pair: `from`, `rel` (`same_as`, `runs_on`, `routes_to`, `stores_on`, `depends_on`, `monitors`), `to`, `verdict` (`confirm` or `reject`) and the `rule` that suggested it. Written in every export (`[]` when there are none), sorted, same_as pairs smaller ID first. No key on import leaves the hub's decisions alone. See below |
 | `secrets_bundle` | no | The encrypted values of a full backup (below) |
 
 The decoder is strict: an unknown field, a repeated key, a YAML alias, a
@@ -111,10 +119,10 @@ Never exported: users, sessions, passkeys, the audit log, layout history
 (only the latest revision and its tiles), integration state
 (`integration_state`, such as OPNsense's running totals), discovery
 dismissals (`board_dismissals`: a label suggestion dismissed on one hub is
-offered again after a restore), correlation decisions
-(`correlation_decisions`: the correlator suggests again, and the owner
-answers again), and settings that aren't carried (the onboarding wizard's
-state, the client identity the hub signs in to Plex with).
+offered again after a restore), the decisions' row IDs and who made them,
+the T4 allow-list (`actions.t4`: enabling a critical action is never
+carried from a file), and settings that aren't carried (the onboarding
+wizard's state, the client identity the hub signs in to Plex with).
 
 ## Secrets
 
@@ -262,8 +270,8 @@ instance's `updated_at`, so a running hub restarts it with the new value.
 }
 ```
 
-- **Kinds**: `board`, `layout`, `tiles`, `instance`, `setting`. Stale objects
-  come last.
+- **Kinds**: `board`, `layout`, `tiles`, `instance`, `setting`, `security`,
+  `correlation`. Stale objects come last.
 - **Field changes** use JSON Patch's words (`add`, `replace`, `remove`) and
   JSON Pointer paths into the object, except that an array whose elements
   are objects with a unique `id` (or `item_id`) is addressed by that id, so
@@ -280,11 +288,40 @@ instance's `updated_at`, so a running hub restarts it with the new value.
   holds a secret value.**
 - **Warnings** codes: `unknown_integration`, `invalid_config`,
   `tiles_ignored` (tiles for a board with no layout to keep them with),
-  `setting_ignored`, `no_bundle`.
+  `setting_ignored`, `no_bundle`, `security_skipped` (below).
 
 Without `dry_run` the same call applies it and answers
 `{"plan", "changed", "board_ids", "instance_ids"}`, where `plan` is what was
 done.
+
+## Security settings and correlation decisions
+
+`extras.go` is the only place that knows about them.
+
+- **Security** is one change, kind `security`, ID `security`, with field
+  changes `/posture` and `/step_up` between what's in force (a missing or
+  unknown row reads as its default) and the file. Changing them through an
+  import follows Settings → Security's rule, decided by
+  `authz.ChangeSecuritySettings`: **the owner only**, and a different
+  step-up rule needs a step-up grant (T3). The API passes that rule in with
+  `WithSecurityGate`. Refused, the change stays in the plan with its fields,
+  action `unchanged` and `skipped` (the sentence), a `security_skipped`
+  warning says why, and the rest of the file imports. An applied change, or
+  a refused one, is audited as `settings.security.update` with
+  `"via": "import"`. The CLI has no gate: it reads the data directory, which
+  already takes the owner's power. The running hub takes the new settings at
+  once (`security.Service.Reload`, through `AfterApply`); after a CLI import
+  a running hub takes them at its next start.
+- **Decisions** are kind `correlation`, one per pair, ID
+  `<from> <rel> <to>` in stored order. A pair matches the hub's whichever way
+  round either side wrote a same_as pair. Actions: `create` (detail: the
+  verdict), `update` (`/verdict`, `/rule`; the hub's row is updated in
+  place), `unchanged`, and `stale` for the hub's decisions the file doesn't
+  have, which are never deleted. Each written decision's instances are read
+  from its resource IDs (`<integration>:<instance id>/…`), so it still goes
+  when either instance is deleted; one about an instance the hub doesn't
+  have keeps no instance. The correlator re-reads decisions on its next pass
+  (the API runs one at once).
 
 ## API
 

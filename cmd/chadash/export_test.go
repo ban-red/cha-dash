@@ -160,7 +160,7 @@ func TestImportCommand(t *testing.T) {
 		"create  board     Home (b_home)\n",
 		"create  layout    Home (b_home): 0 sections, 0 items\n",
 		"create  instance  Sonarr (sonarr, i_sonarr)\n          + /config/url: \"https://sonarr.home.arpa\"\n          secret api_key: create from the bundle\n",
-		"Dry run: 4 to create, 0 to update, 0 unchanged, 0 stale, 2 secrets from the bundle. Nothing was changed.",
+		"Dry run: 4 to create, 0 to update, 1 unchanged, 0 stale, 2 secrets from the bundle. Nothing was changed.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("dry run lacks %q:\n%s", want, stdout)
@@ -172,7 +172,7 @@ func TestImportCommand(t *testing.T) {
 	}
 
 	code, stdout, stderr = runCmd(t, env, "import", file)
-	if code != 0 || !strings.Contains(stdout, "Imported: 4 created, 0 updated, 0 unchanged, 0 stale, 2 secrets from the bundle.") {
+	if code != 0 || !strings.Contains(stdout, "Imported: 4 created, 0 updated, 1 unchanged, 0 stale, 2 secrets from the bundle.") {
 		t.Fatalf("import: %d\n%s\n%s", code, stdout, stderr)
 	}
 	noLeak(t, "import", stdout+stderr)
@@ -191,10 +191,10 @@ func TestImportCommand(t *testing.T) {
 			Summary map[string]int `json:"summary"`
 		} `json:"plan"`
 	}
-	if code != 0 || json.Unmarshal([]byte(stdout), &applied) != nil || applied.Changed || applied.Plan.Summary["unchanged"] != 4 {
+	if code != 0 || json.Unmarshal([]byte(stdout), &applied) != nil || applied.Changed || applied.Plan.Summary["unchanged"] != 5 {
 		t.Fatalf("re-import: %d %s", code, stdout)
 	}
-	if code, stdout, _ := runCmd(t, env, "import", file); code != 0 || !strings.Contains(stdout, "Nothing to change: the hub already matches the file (4 unchanged, 0 stale).") {
+	if code, stdout, _ := runCmd(t, env, "import", file); code != 0 || !strings.Contains(stdout, "Nothing to change: the hub already matches the file (5 unchanged, 0 stale).") {
 		t.Fatalf("re-import text: %s", stdout)
 	}
 

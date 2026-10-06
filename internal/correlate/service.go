@@ -389,6 +389,17 @@ func (c *Correlator) Decisions(ctx context.Context) ([]Decision, error) {
 // relTypes are the relations a decision can be about.
 var relTypes = []graph.RelType{SameAs, RunsOn, RoutesTo, StoresOn, DependsOn, Monitors}
 
+// DecisionTypes are the relations a decision can be about (Home files
+// carry decisions; internal/export checks them against this).
+func DecisionTypes() []graph.RelType { return slices.Clone(relTypes) }
+
+// StoredPair is a pair in the order the correlation_decisions table keeps
+// it: a same_as pair with the smaller resource ID first, others as given.
+func StoredPair(from graph.RID, typ graph.RelType, to graph.RID) (graph.RID, graph.RID) {
+	k := keyOf(from, typ, to)
+	return k.from, k.to
+}
+
 // Decide records the owner's verdict on a pair and correlates again.
 // Both resources must be in the graph. userID is who decided ("" if
 // unknown).
