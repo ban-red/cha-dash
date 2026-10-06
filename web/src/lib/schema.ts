@@ -69,8 +69,9 @@ export function typeOf(s: JsonSchema): JsonType | undefined {
 
 /** Labelled choices for `enum` or `oneOf: [{const, title}]`. */
 export function choices(s: JsonSchema): Choice[] | undefined {
-  if (s.enum) return s.enum.map((v) => ({ value: v, label: String(v) }));
+  // The hub sends both for labelled choices (enum to validate, oneOf for the titles): prefer the titles.
   if (s.oneOf?.length && s.oneOf.every((o) => 'const' in o)) return s.oneOf.map((o) => ({ value: o.const, label: o.title ?? String(o.const) }));
+  if (s.enum) return s.enum.map((v) => ({ value: v, label: String(v) }));
   return undefined;
 }
 

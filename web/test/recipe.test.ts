@@ -90,6 +90,34 @@ describe('recipe templates', () => {
     expect(paramValues(r, {}, {}, '')['instance']).toBeUndefined();
   });
 
+  it('lets a form field pick a bound option (Unraid’s mode picks the scopes)', () => {
+    const ro = 'info:read_any,docker:read_any';
+    const ctl = 'info:read_any,docker:read_any,docker:update_any';
+    const r: Recipe = {
+      ...PVE,
+      params: [
+        {
+          name: 'scopes',
+          label: 'Scopes',
+          from: 'config.mode',
+          default: ro,
+          options: [
+            { label: 'Read-only', value: ro, when: 'read_only' },
+            { label: 'Control', value: ctl, when: 'control' },
+          ],
+        },
+      ],
+      fills: {},
+    };
+    expect(paramValues(r, {}, { mode: 'control' })).toEqual({ scopes: ctl });
+    expect(paramValues(r, {}, { mode: 'read_only' })).toEqual({ scopes: ro });
+    // Not chosen yet: the default.
+    expect(paramValues(r, {}, {})).toEqual({ scopes: ro });
+    // A value no option names is a gap, and typing can't override the form.
+    expect(paramValues(r, { scopes: ctl }, { mode: 'admin' })['scopes']).toBeUndefined();
+    expect(render('?scopes={{scopes}}', r, paramValues(r, {}, { mode: 'control' }))).toBe(`?scopes=${ctl}`);
+  });
+
   it('allows `code` and **bold**, never HTML', () => {
     expect(inline('Run `pveum` on **any node** <b>now</b>')).toEqual([
       { t: 'text', v: 'Run ' },

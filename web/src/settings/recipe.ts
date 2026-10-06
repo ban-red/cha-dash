@@ -20,6 +20,8 @@ export type RecipeAccess = 'read-only' | 'scoped' | 'full' | 'none';
 export interface RecipeOption {
   label: string;
   value: string;
+  /** For a parameter bound to the form: the form field's value that picks this option. */
+  when?: string;
 }
 
 export interface RecipeParam {
@@ -94,7 +96,8 @@ export function paramValid(p: RecipeParam, v: string): boolean {
 
 /**
  * Each parameter's value: what was typed (or chosen), the form's field for a
- * bound one (trailing slashes dropped; the instance's name as a slug), else
+ * bound one (trailing slashes dropped; the instance's name as a slug; for one
+ * with options, the option the field's value picks), else
  * the default. Undefined when it doesn't fit: a bound field left empty, or a
  * typed value the pattern refuses.
  */
@@ -105,6 +108,11 @@ export function paramValues(recipe: Recipe, inputs: Record<string, string>, form
     let v: string;
     if (field === 'name') {
       v = slug(name);
+    } else if (field && p.options?.length) {
+      // The form's field picks an option (Unraid's mode picks a scope list); empty picks the default.
+      const raw = form[field];
+      const hit = typeof raw === 'string' && raw !== '' ? p.options.find((o) => o.when === raw) : p.options.find((o) => o.value === p.default);
+      v = hit?.value ?? '';
     } else if (field) {
       const raw = form[field];
       v = typeof raw === 'string' ? raw.trim().replace(/\/+$/, '') : '';

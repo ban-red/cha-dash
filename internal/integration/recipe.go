@@ -30,7 +30,7 @@ import (
 // On the wire (GET /api/integrations/catalog, each entry's "recipe"):
 //
 //	{"title", "summary", "access": "read-only"|"scoped"|"full"|"none",
-//	 "params": [{"name", "label", "help"?, "default", "pattern", "options"?: [{"label", "value"}], "from"?: "name"|"config.<field>"}],
+//	 "params": [{"name", "label", "help"?, "default", "pattern", "options"?: [{"label", "value", "when"?}], "from"?: "name"|"config.<field>"}],
 //	 "steps": [{"title", "blocks": [block]}],
 //	 "notes": [block],
 //	 "fills": {"<config field>": "<template>"},
@@ -89,7 +89,8 @@ type RecipeParam struct {
 	// metacharacters, quotes and spaces.
 	Pattern string `json:"pattern" yaml:"pattern"`
 	// Options make the parameter a choice between authored values (which
-	// may hold spaces: they're never typed by anyone).
+	// may hold spaces: they're never typed by anyone). Bound to the form,
+	// the form's field picks the option (RecipeOption.When).
 	Options []RecipeOption `json:"options,omitempty" yaml:"options"`
 	// From binds the parameter to the form being filled in instead of an
 	// input: "config.<field>" is a config field (the instance's URL), "name"
@@ -101,6 +102,10 @@ type RecipeParam struct {
 type RecipeOption struct {
 	Label string `json:"label" yaml:"label"`
 	Value string `json:"value" yaml:"value"`
+	// When is, for a parameter bound to the form, the form field's value
+	// that picks this option (Unraid's mode picks a scope list). An empty
+	// field picks the option whose value is the default.
+	When string `json:"when,omitempty" yaml:"when"`
 }
 
 // RecipeStep is one titled step.
@@ -286,15 +291,22 @@ func (p RecipeParam) check() error {
 		if p.From != "name" && (!strings.HasPrefix(p.From, "config.") || !fieldRE.MatchString(strings.TrimPrefix(p.From, "config."))) {
 			return fmt.Errorf("from %q must be name or config.<field>", p.From)
 		}
-		if len(p.Options) > 0 {
-			return errors.New("a param bound to the form has no options")
-		}
 	}
 	if len(p.Options) > 0 {
+		whens := map[string]bool{}
 		for _, o := range p.Options {
 			if strings.TrimSpace(o.Label) == "" || o.Value == "" || strings.ContainsAny(o.Value, "\n`$\\\"'") {
 				return fmt.Errorf("option %q needs a label and a plain value", o.Label)
 			}
+			switch {
+			case p.From != "" && o.When == "":
+				return fmt.Errorf("option %q of a param bound to the form needs a when", o.Label)
+			case p.From == "" && o.When != "":
+				return fmt.Errorf("option %q has a when, but the param isn't bound to the form", o.Label)
+			case o.When != "" && whens[o.When]:
+				return fmt.Errorf("two options have when %q", o.When)
+			}
+			whens[o.When] = true
 		}
 		if !slices.ContainsFunc(p.Options, func(o RecipeOption) bool { return o.Value == p.Default }) {
 			return fmt.Errorf("the default %q isn't one of the options", p.Default)

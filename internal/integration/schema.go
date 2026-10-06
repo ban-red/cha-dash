@@ -20,7 +20,7 @@ import (
 // standard JSON Schema (properties in declaration order, so forms can follow
 // it) and validates decoded JSON. Supported keywords: type, title,
 // description, properties, required, additionalProperties (false only),
-// items, enum, default, format (uri, hostname), pattern, minLength,
+// items, enum (with titles, as oneOf), default, format (uri, hostname), pattern, minLength,
 // maxLength, minimum, maximum, minItems, maxItems and writeOnly, plus the
 // extension x-chadash-authorize. Anything a schema can't say goes in a
 // ConfigValidator.
@@ -32,18 +32,21 @@ type Schema struct {
 	Required    []string
 	// Closed rejects properties that aren't listed (additionalProperties:
 	// false). The helpers set it on every object.
-	Closed    bool
-	Items     *Schema
-	Enum      []any
-	Default   any
-	Format    string // "uri" or "hostname"
-	Pattern   string
-	MinLength *int
-	MaxLength *int
-	Minimum   *float64
-	Maximum   *float64
-	MinItems  *int
-	MaxItems  *int
+	Closed bool
+	Items  *Schema
+	Enum   []any
+	// EnumTitles label Enum's values, one each, for forms. They marshal as
+	// oneOf: [{const, title}] beside the enum.
+	EnumTitles []string
+	Default    any
+	Format     string // "uri" or "hostname"
+	Pattern    string
+	MinLength  *int
+	MaxLength  *int
+	Minimum    *float64
+	Maximum    *float64
+	MinItems   *int
+	MaxItems   *int
 	// WriteOnly marks a secret: kept in the vault, never returned. Only
 	// top-level string properties may be write-only.
 	WriteOnly bool
@@ -108,6 +111,12 @@ func Enum(title string, values ...string) *Schema {
 	for _, v := range values {
 		s.Enum = append(s.Enum, v)
 	}
+	return s
+}
+
+// Titled labels an enum's values, in order, and returns s.
+func (s *Schema) Titled(titles ...string) *Schema {
+	s.EnumTitles = titles
 	return s
 }
 
@@ -219,6 +228,9 @@ func (s *Schema) check(path string, top bool) error {
 			return fail("pattern: %v", err)
 		}
 		s.re = re
+	}
+	if len(s.EnumTitles) > 0 && len(s.EnumTitles) != len(s.Enum) {
+		return fail("%d enum titles for %d values", len(s.EnumTitles), len(s.Enum))
 	}
 	for i, v := range s.Enum {
 		n, err := normalize(v)
@@ -482,6 +494,17 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	set("description", s.Description, s.Description != "")
 	set("format", s.Format, s.Format != "")
 	set("enum", s.Enum, len(s.Enum) > 0)
+	if len(s.EnumTitles) > 0 {
+		type choice struct {
+			Const any    `json:"const"`
+			Title string `json:"title"`
+		}
+		oneOf := make([]choice, len(s.Enum))
+		for i, v := range s.Enum {
+			oneOf[i] = choice{v, s.EnumTitles[i]}
+		}
+		set("oneOf", oneOf, true)
+	}
 	set("default", s.Default, s.Default != nil)
 	if len(s.Properties) > 0 && err == nil {
 		if !first {

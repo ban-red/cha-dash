@@ -114,6 +114,22 @@ func TestParseRecipe(t *testing.T) {
 	}
 }
 
+func TestBoundOptions(t *testing.T) {
+	src := "---\ntitle: T\nsummary: S\naccess: read-only\nparams:\n" +
+		"  - name: scopes\n    label: Scopes\n    from: config.mode\n    default: 'a:read_any'\n    options:\n" +
+		"      - {label: Read-only, value: 'a:read_any', when: read_only}\n" +
+		"      - {label: Control, value: 'a:read_any,a:update_any', when: control}\n" +
+		"---\n## X\n\n```url\nhttps://x.example/?scopes={{scopes}}\n```\n"
+	r, err := ParseRecipe([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(r.Params)
+	if !strings.Contains(string(b), `"options":[{"label":"Read-only","value":"a:read_any","when":"read_only"},{"label":"Control","value":"a:read_any,a:update_any","when":"control"}],"from":"config.mode"`) {
+		t.Fatalf("params = %s", b)
+	}
+}
+
 func TestParseRecipeErrors(t *testing.T) {
 	base := "---\ntitle: T\nsummary: S\naccess: read-only\n%s---\n%s"
 	param := func(p string) string { return "params:\n  - " + strings.ReplaceAll(p, "\n", "\n    ") + "\n" }
@@ -136,6 +152,9 @@ func TestParseRecipeErrors(t *testing.T) {
 		"no label":           {param("name: user\ndefault: a"), "## X\n\n{{user}}\n"},
 		"bad from":           {param("name: u\nlabel: U\ndefault: a\nfrom: secrets.key"), "## X\n\n{{u}}\n"},
 		"option default":     {param("name: v\nlabel: V\ndefault: z\noptions:\n  - {label: A, value: a}"), "## X\n\n{{v}}\n"},
+		"bound, no when":     {param("name: v\nlabel: V\nfrom: config.mode\ndefault: a\noptions:\n  - {label: A, value: a}"), "## X\n\n{{v}}\n"},
+		"when, unbound":      {param("name: v\nlabel: V\ndefault: a\noptions:\n  - {label: A, value: a, when: x}"), "## X\n\n{{v}}\n"},
+		"when twice":         {param("name: v\nlabel: V\nfrom: config.mode\ndefault: a\noptions:\n  - {label: A, value: a, when: x}\n  - {label: B, value: b, when: x}"), "## X\n\n{{v}}\n"},
 		"bad fill field":     {"fills:\n  Token-ID: x\n", "## X\n\nY\n"},
 		"bad hint":           {"discover:\n  - {scheme: ftp, port: 21, path: /, match: x}\n", "## X\n\nY\n"},
 	}

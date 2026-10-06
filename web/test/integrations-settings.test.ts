@@ -5,7 +5,7 @@ import IntegrationEditor from '../src/settings/IntegrationEditor.vue';
 import IntegrationsPane from '../src/settings/IntegrationsPane.vue';
 import TestResultView from '../src/settings/TestResultView.vue';
 import { route, syncRoute } from '../src/lib/router';
-import { clean, fieldLabel, initialValue, kindOf, secretPaths, validate, type JsonSchema } from '../src/lib/schema';
+import { choices, clean, fieldLabel, initialValue, kindOf, secretPaths, validate, type JsonSchema } from '../src/lib/schema';
 import { isWrite, normalizeGrant } from '../src/model/integrations';
 import { resetIntegrations } from '../src/stores/integrations';
 import { fakeFetch } from './fake-fetch';
@@ -134,6 +134,22 @@ describe('the schema subset', () => {
     expect(kindOf({ type: 'string', writeOnly: true })).toBe('secret');
     expect(kindOf({ enum: ['a', 'b'] })).toBe('enum');
     expect(kindOf({ type: ['integer', 'null'] })).toBe('integer');
+    // The hub's labelled choices carry both enum and oneOf (Unraid's mode): the titles win.
+    const mode: JsonSchema = {
+      type: 'string',
+      enum: ['read_only', 'control'],
+      oneOf: [
+        { const: 'read_only', title: 'Read-only' },
+        { const: 'control', title: 'Read-only, and let Cha Dash control Unraid' },
+      ],
+      default: 'read_only',
+    };
+    expect(kindOf(mode)).toBe('enum');
+    expect(choices(mode)).toEqual([
+      { value: 'read_only', label: 'Read-only' },
+      { value: 'control', label: 'Read-only, and let Cha Dash control Unraid' },
+    ]);
+    expect(initialValue({ type: 'object', properties: { mode } }, {})).toEqual({ mode: 'read_only' });
     // secrets never come back as values, at any depth
     expect(initialValue(PLEX_SCHEMA, { url: 'https://x', token: LEAK })).toEqual({ url: 'https://x', tls: { mode: 'verify' } });
     expect(initialValue({ type: 'object', properties: { a: { type: 'object', properties: { s: { type: 'string', writeOnly: true } } } } }, { a: { s: LEAK } })).toEqual({ a: {} });

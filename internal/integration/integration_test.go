@@ -133,6 +133,27 @@ func TestSchemaJSON(t *testing.T) {
 	}
 }
 
+func TestSchemaEnumTitles(t *testing.T) {
+	s := Object(Prop("mode", Enum("Access", "read_only", "control").Titled("Read-only", "Control").WithDefault("read_only")))
+	if err := s.Check(); err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `"mode":{"type":"string","title":"Access","enum":["read_only","control"],"oneOf":[{"const":"read_only","title":"Read-only"},{"const":"control","title":"Control"}],"default":"read_only"}`
+	if !strings.Contains(string(b), want) {
+		t.Fatalf("got %s", b)
+	}
+	if errs := s.Validate(map[string]any{"mode": "Control"}); len(errs) != 1 || errs[0].Path != "/mode" {
+		t.Fatalf("a title isn't a value: %v", errs)
+	}
+	if err := Object(Prop("mode", Enum("Access", "a", "b").Titled("A"))).Check(); err == nil {
+		t.Fatal("one title for two values passed")
+	}
+}
+
 func TestSchemaValidate(t *testing.T) {
 	min1 := 1
 	s := Object(
