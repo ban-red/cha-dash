@@ -40,6 +40,11 @@ These are tracked as requirements in [docs/plan/03-architecture.md](docs/plan/03
   - ntfy and webhooks go where an admin points them, often the LAN, so private addresses are allowed; link-local addresses (cloud metadata), multicast and unspecified ones are refused, checked on the address actually dialled after DNS. No request follows a redirect or uses an environment proxy, and each has short timeouts and a small response cap.
   - Webhook requests are signed with HMAC-SHA256 over a timestamp and the body, with a secret only the admin and the receiver hold. The ntfy token, the webhook secret and the hub's VAPID key live in the vault and never appear in responses, logs, delivery errors or audit parameters; the audit log keeps only a URL's host, since webhook URLs are often credentials too.
   - What a device is told follows its user's role: household devices hear only about what their boards show, by title, and critical actions reach admins and the owner only.
+- **API tokens** are scoped, expiring credentials for scripts (`cdt_<id>_<secret>`, 256 random bits). Notes on their threat model:
+  - Only the SHA-256 of a token is stored, compared in constant time. A slow hash like argon2id guards low-entropy passwords; a 256-bit random secret can't be guessed however fast the hash is. The secret is shown once and never appears in logs, errors, the audit log or later responses (the response that carries it is never compressed).
+  - A token acts as its user and never above the user's current role, narrowed by its scopes. It works only in `Authorization: Bearer` on `/api/` routes, never as a cookie, so there's nothing for a cross-site request to ride on. Signing in, step-up, passkeys, users, tokens and settings refuse tokens: a stolen token can't mint another or raise itself.
+  - A token can't step up, so T3 and T4 actions are out of its reach. Its T2 plans wait for a person, who approves them in a session with a fresh step-up, bound to the plan's hash. Revoking a token takes effect on its next request and withdraws what it left waiting.
+  - Every token expires (a year at most) and shows when and from where it was last used. Bad tokens are rate-limited per client address.
 - No unauthenticated network listeners.
 - No third-party JavaScript in the Cha Dash origin.
 - Releases will be signed and ship with an SBOM.

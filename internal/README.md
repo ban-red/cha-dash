@@ -15,8 +15,8 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/node/docker` | The node's Docker module: capability verbs over the Docker Engine API (moby client), with `docker.protect` and `redact_env` |
 | `internal/nodes` | The hub's side of the node: `/node`, the registry of node keys (`nodes`, `node_hub_keys`), the hub's own keys in the vault, local pairing, revocation, status in the Home Graph (`node:<id>`), the nodes API, and `Caller` (`Hub.Call`) for running node verbs |
 | `internal/server` | HTTP routes, the middleware chain, graceful `Serve` |
-| `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, step-up grants, attempt limiting; the users store and its invariants (one owner, disabled never deleted). `Identify` reads a session without renewing it |
-| `internal/authz` | Every permission decision: the five roles, the route table and `Guard` that enforces it, action decisions by tier and scope (`Decide`, and `Policy` for the action engine), `ActorFrom` for a request, and the users API |
+| `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, step-up grants, attempt limiting; the users store and its invariants (one owner, disabled never deleted); API tokens (`cdt_…`, stored as a SHA-256, `RequireToken`, `TokenAccess`). `Identify` reads a session without renewing it |
+| `internal/authz` | Every permission decision: the five roles, the route table and `Guard` that enforces it (which routes take an API token, with which scope: `TokenRoute`), action decisions by tier and scope (`Decide`, and `Policy` for the action engine, with tokens resolved through `WithTokens`), which plans wait for a person (`NeedsApproval`, `DecideApproval`), `ActorFrom` for a request, and the users and tokens APIs |
 | `internal/boards` | Boards, their layouts and tile config (one revision carries both): optimistic revisions, history, label-discovery dismissals, the boards API; `Scope`, what the boards show (for the household's inbox) |
 | `internal/correlate` | Identity across sources: `same_as` links to a primary, cross-source relations, causes across instances, merge suggestions and decisions. Design in its [README](correlate/README.md) |
 | `internal/export` | YAML export and import of a hub with a field-level diff; secrets as placeholders or a passphrase-sealed bundle. Format in its [README](export/README.md) |
@@ -24,7 +24,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/importer` | The shared importer pipeline: the plan shape, layout documents, and a transactional, idempotent apply |
 | `internal/importer/homepage` | The Homepage importer: parses `services.yaml`, `docker.yaml` and `settings.yaml` into a plan; the import API. Mapping table in its [README](importer/homepage/README.md) |
 | `internal/integration` | The contract every integration implements: `Integration`, `Instance`, `Manifest` (config JSON Schema), `TestResult`, the facts and inbox shapes, error classes, the registry, recipes, the optional `Authorizer` and `Actor` (actions; `Params` adapts a schema to an action's params), `Manifest.Control` (control credentials: `ReadConfig`, `ControlConfig`) and recipes' control variant |
-| `internal/action` | The action engine: `Def`, the `Registry` every source adds to, and the lifecycle (resolve, authorize, plan, approve, execute, verify, audit) with per-resource locks, idempotency keys, tasks and cancelling them (`Def.Cancellable`). Defines `Actor`, `Policy` and `Tier`; the hub runs `internal/authz`'s policy through `authz.Policy.ForEngine` (`OwnerOnly` remains for tests). Serves the action routes, what can be planned on a target (`ActionsFor`), and the `tasks` topic |
+| `internal/action` | The action engine: `Def`, the `Registry` every source adds to, and the lifecycle (resolve, authorize, plan, approve, execute, verify, audit) with per-resource locks, idempotency keys, tasks and cancelling them (`Def.Cancellable`). Defines `Actor`, `Policy` and `Tier`; the hub runs `internal/authz`'s policy through `authz.Policy.ForEngine` (`OwnerOnly` remains for tests). Plans that wait for a person (approvals: `Grant`, `Deny`, expiry, an Inbox item of class `approval`). Serves the action routes, what can be planned on a target (`ActionsFor`), and the `tasks` topic |
 | `internal/stacks` | Owned stacks, the hub's side: the stacks API over the nodes (`nodes.Caller`), drafts (`stack_drafts`), stack secrets in the vault (`stacks/<name>`), and the `stack.deploy`, `stack.rollback`, `stack.adopt` and `stack.unadopt` actions. Never links the Compose SDK. See its [README](stacks/README.md) |
 | `internal/notify` | Notifications: Web Push (VAPID, RFC 8291 encryption, per-user devices), ntfy and signed webhooks; symptom-first rules over the `inbox` topic plus every T4 action (`action.Options.OnTaskDone`); grouping, dedupe, rate limits, retries with backoff and the delivery log. Channel secrets and the VAPID key in the vault. See its [README](notify/README.md) |
 | `internal/stackproto` | The stacks verbs' wire contract, shared by the hub and the node: verb names, policy permissions, request, response and progress shapes, `Error` with codes that survive a text-only transport. Standard library only |
@@ -37,7 +37,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `integrations/<id>` | Tier 0 integrations, one folder each, with a `recipe.md` for the least-privilege credential. Linked in by `cmd/chadash/integrations.go` |
 | `specs` | The bundled Tier 1 specs (`<id>.yaml`), embedded and registered at init |
 | `internal/demo` | Demo mode: runs the Demo Home simulator (`sim/`) and maps it onto the topics; its incident fixes are engine actions (`Driver.Actions`), the only way to run them |
-| `internal/topics` | The topic set (`graph`, `metrics`, `inbox`), their document shapes and routing; the inbox per viewer (`InboxSource`, `InboxView`) and the household's projection of an incident (`ProjectIncident`) |
+| `internal/topics` | The topic set (`graph`, `metrics`, `inbox`), their document shapes and routing; the inbox per viewer (`InboxSource`, `InboxView`: approvals only for approvers) and the household's projection of an incident (`ProjectIncident`) |
 | `internal/realtime` | WebSocket gateway, protocol v1 (`hello` / `sub` / `snap` / `diff` / `ping`); `GraphSource`, `DocSource`, `Mux`; `ContextSource`, `ViewerDocSource` (items filtered per viewer) and `ProjectedDocSource` (items projected per viewer) |
 | `internal/graph` | Home Graph v0: resources, relations, version, watchers |
 | `internal/livedoc` | Live JSON documents for topics that aren't the graph: values, keyed collections, watchers; `Tx.Item` reads an item inside an update, so read-modify-write is atomic |
@@ -45,7 +45,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise. `WithInline` attaches a per-request first-paint snapshot, embedded only in `index.html`. Compressible files of 1 KiB or more are gzipped once and kept (their own ETag, `Vary: Accept-Encoding`; ranges get identity bytes); the personalised page is gzipped per request |
 | `internal/firstpaint` | Builds the snapshot inlined into the first paint, for any signed-in role: user, board (layout and tiles), graph, metrics for its resources, open incidents as the role's inbox topic shows them. HTML-escaped, capped at 512 KiB |
 | `internal/vault` | Envelope-encrypted secrets |
-| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table, `00007` plans, tasks and idempotency keys, `00008` the audit log, `00009` stack drafts, `00010` node identities and the hub's node keys, `00011` notifications (channels, rules, push subscriptions, events, deliveries) |
+| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table, `00007` plans, tasks and idempotency keys, `00008` the audit log, `00009` stack drafts, `00010` node identities and the hub's node keys, `00011` notifications (channels, rules, push subscriptions, events, deliveries), `00012` API tokens' revoker and last address, and the approvals queue |
 | `internal/httpx` | Client IP and scheme behind trusted proxies, `ProxyCheck` (notices an untrusted reverse proxy), JSON I/O, shared middleware; `GzipJSON` compresses `/api` JSON of 1 KiB or more (never auth, setup or sign-in flows, upgrades or ranges; the BREACH reasoning is at the top of `gzip.go`) |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
@@ -157,13 +157,23 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `POST /api/users/{id}/transfer-ownership` | owner | No body → `200` the new owner; the old owner becomes an admin in the same transaction. T3: `403 step_up_required` without a step-up grant. `422` for a disabled target |
 | `GET /api/demo` | session | Demo mode only: `{"enabled":true,"now":RFC 3339,"seed":n}`. `now` is the simulated time. The Demo Home's fixes are engine actions (below); there's no demo-only fix route |
 | `POST /api/actions/plan` | session; the policy decides | `{"action","target","params"?}` → `200` a plan: `{"id","hash","action","label","target","params","tier","confirm","confirm_text"?,"step_up","steps","impact","undo","expires_at"}` (2 minutes; secret params as `[redacted]`). `403 forbidden`, `404 not_found` (action or target), `409 precondition`, `409 unavailable` with `"recipe"`, `422 invalid` with `"fields"`. Every refusal is audited |
-| `POST /api/plans/{id}/approve` | session that made the plan | `{"hash","typed"?}`, optional `Idempotency-Key` header (≤ 128 bytes; a retry gets the same task) → `202 {"task"}`. `403 step_up_required`, `403 forbidden` (another session), `410 plan_expired` (also when it already ran), `409 plan_changed` (hash, or the target's state), `422 confirm_mismatch`, `409 locked`, `409 precondition` |
+| `POST /api/plans/{id}/approve` | session (or API token) that made the plan | `{"hash","typed"?}`, optional `Idempotency-Key` header (≤ 128 bytes; a retry gets the same task) → `202 {"task"}`, or `202 {"task": null, "approval"}` when the plan waits for a person (a token's T2; see [API](#api)). `403 step_up_required`, `403 forbidden` (another session), `410 plan_expired` (also when it already ran), `409 plan_changed` (hash, or the target's state), `422 confirm_mismatch`, `409 locked`, `409 precondition` |
 | `GET /api/tasks/{id}` | session | The task: `{"id","plan","action","label","target","actor":{"kind","name"},"state","step"?,"progress"?,"log"?,"started_at","finished_at","error","undo","audit","cancellable"?}`. Your own, or anyone's with the `tasks.all` scope; otherwise `404` |
 | `POST /api/tasks/{id}/cancel` | session; the policy decides | No body → `202 {"task"}`: its context is cancelled, and it ends `cancelled` on the `tasks` topic. Your own task, or anyone's with `tasks.all`; otherwise `404`. `409 not_cancellable` when its action doesn't allow it (`Def.Cancellable`, false by default), `409 finished` when it has ended. Every attempt is audited as `task.cancel` (T0, the task's target, `{"task"}` as params) |
 | `GET /api/actions?target=` | session; the policy decides | `[{"id","label","tier","available","unavailable"?,"recipe"?,"household"?}]`, by label: what the caller could plan on that resource. Left out: actions that don't apply to it, that the policy refuses the caller, or whose precondition refuses ("already stopped"). An unavailable one (no control credential) is listed with `available: false` and its sentence. Reads only; nothing is audited. `422 invalid` without a target |
 | `GET /api/audit` | `audit.read` (admin and owner) | `?actor=&action=&target=&result=&since=&before=&limit=&cursor=` → `{"events","next"?}`, newest first. `action` ending in `.` or `*` is a prefix; `since`/`before` are RFC 3339; `limit` 1–500 (default 100); pass `next` back as `cursor`. `422 invalid` otherwise |
 | `GET /api/audit/export` | `audit.read` | Every event as NDJSON, oldest first, as an attachment: each line the stored canonical JSON plus `hash` |
 | `GET /api/audit/verify` | `audit.read` | `{"ok","checked","first_break"?:{"seq","id"?,"reason"}}` |
+| `GET /api/graph` | session, or a token with `graph.read` | `{"version","resources","relations"}`: the Home Graph, as the `graph` topic has it |
+| `GET /api/inbox` | session, or a token with `inbox.read` | `{"now","incidents"}`: the Inbox as the caller's role sees it on the `inbox` topic |
+| `GET /api/tokens` | session (any role) | `{"tokens":[{"id","user_id","username","name","scopes","created_at","expires_at","last_used_at","last_used_ip"?,"revoked_at","revoked_by"?}]}`, newest first: your own; admins and the owner, everyone's. Never a secret |
+| `POST /api/tokens` | session (any role) | `{"name","scopes","expires_in_days"?}` (1–365, default 90) → `201 {"token","secret"}`, the only time the secret is shown (never compressed). `422 invalid` for no scopes, more than 50, a malformed one, one your role can't use (`audit.read` below admin) or `approvals.decide`. Audited as `tokens.create` |
+| `DELETE /api/tokens/{id}` | session (any role) | → `200 {"token"}`, revoked at once; your own, or any for admins and the owner (`404` otherwise). `409 already_revoked`. Withdraws the plans it left waiting. Audited as `tokens.revoke` |
+| `GET /api/tokens/scopes` | session (any role) | The scope picker for your role: `{"reads","families","actions","all","default_days","max_days","approval"}`; each offer has `available` and, when not, `unavailable` (a sentence) |
+| `GET /api/approvals` | admin; the policy decides | `{"approvals":[Approval]}`: awaiting first, then the last 24 hours, at most 50 |
+| `GET /api/approvals/{id}` | session, or the token that asked | One Approval (see [API](#api)). Anyone else: `404` |
+| `POST /api/approvals/{id}/approve` | admin, session only | `{"hash","typed"?}` → `202 {"task"}`, the task running as the originator with `approved_by`. `403 step_up_required` without a step-up made after the request, `403 forbidden`, `409 plan_changed` (hash; or the target changed, which also voids the approval), `409 already_decided`, `410 approval_expired`, `409 locked`. Audited as `approval.approve` |
+| `POST /api/approvals/{id}/deny` | admin, session only | `{"reason"?}` → `200 {"approval"}`. No step-up. `409 already_decided`, `410 approval_expired`. Audited as `approval.deny` |
 | `GET /node` | node key | chadash-node's channel: a WebSocket carrying mutual TLS 1.3, where the node proves its pinned key; no session, and no person's role admits it (`authz.NodeKey`). The registry decides; local pairing enrolls the compose network's node. `429` after five failed pairings from an address in a minute |
 | `GET /api/nodes` | admin | `{"nodes":[{"id","name","public_key","fingerprint","state","enrolled_via","approved_by","approved_at","revoked_by","revoked_at","last_seen_at","address","version","hub_pins","verbs","created_at","connected","hub_key_current"}],"hub_pin","pairing"}`. Never a secret |
 | `POST /api/nodes/{id}/revoke` | admin | → `200` the node, revoked; its live session ends at once and its key never works again. `404`, `409 already_revoked`. Audited as `nodes.revoke` |
@@ -201,6 +211,13 @@ no_authz_rule` and an error in the log, and `authz`'s tests fail on it, so
 attach the session (`auth.Require`, which passes straight through when Guard
 already ran it).
 
+**API tokens.** A request with `Authorization: Bearer cdt_…` is
+authenticated by the token alone, only on `/api/`, and only on rows whose
+`Token` column admits it: a read scope, or any token for the action routes.
+Every other route is session only and answers a token `403 session_only`. The
+Auth column above names the scope where a token can call a route. See
+[API](#api).
+
 Passkey options and credentials are the WebAuthn JSON forms, with binary fields
 as unpadded base64url. The SPA hands `publicKey` to
 `PublicKeyCredential.parseCreationOptionsFromJSON` (or
@@ -208,6 +225,107 @@ as unpadded base64url. The SPA hands `publicKey` to
 posts the credential's `toJSON()` to `finish` as is. `@simplewebauthn/browser`
 produces the same shapes. Autofill (`mediation: "conditional"`) needs nothing
 from the hub: it uses the same `login/begin` options.
+
+## API
+
+Scripts and automations call the same `/api/` routes as the web app, with an
+**API token** instead of a session. The public OpenAPI document trails in
+v0.2.x; until then this section and the HTTP table above are the reference.
+
+**Making one.** Settings → API tokens (or `POST /api/tokens` from a signed-in
+session) with a name, the scopes and an expiry in days (1–365, 90 by
+default). The answer carries the secret once:
+
+```jsonc
+// POST /api/tokens  {"name": "backup script", "scopes": ["graph.read", "docker.container.*"], "expires_in_days": 90}
+{ "token": { "id": "tok_k3v…", "user_id": "u_…", "username": "sam", "name": "backup script",
+             "scopes": ["graph.read", "docker.container.*"], "created_at": "…", "expires_at": "…",
+             "last_used_at": null, "revoked_at": null },
+  "secret": "cdt_k3v…_ABC…" }      // shown this once; the hub keeps its SHA-256
+```
+
+**Using it.** `Authorization: Bearer cdt_…` on `/api/` routes only. The token
+alone counts: a cookie sent with it is ignored, and another bearer token (an
+identity proxy's) or another scheme (a proxy's Basic auth) isn't ours, so it
+isn't read at all. Bad tokens answer `401 invalid_token` (or, when the secret
+matched, `token_expired` / `token_revoked`); ten in a row from one address,
+then one every 6 seconds, then `429`.
+
+```sh
+TOKEN=cdt_aaaaaaaaaaaaaaaaaaaaaaaaaa_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA   # fake
+HUB=https://dash.lab.example
+
+curl -H "Authorization: Bearer $TOKEN" $HUB/api/graph          # graph.read
+curl -H "Authorization: Bearer $TOKEN" $HUB/api/inbox          # inbox.read
+curl -H "Authorization: Bearer $TOKEN" "$HUB/api/audit?limit=20"   # audit.read (admin or owner)
+```
+
+**Scopes.** A token acts as its user, never above the user's *current* role
+(a demotion applies at once), narrowed to its scopes:
+
+| Scope | What it opens |
+|---|---|
+| `graph.read` | `GET /api/graph`, boards and their layouts, discovery dismissals, correlation links, suggestions and decisions, the stacks list, the demo clock |
+| `inbox.read` | `GET /api/inbox`, as the user's role sees it (household: its projection) |
+| `audit.read` | the audit log, its export and verification (admin and owner only) |
+| `tasks.all` | other people's and tokens' tasks, not only the token's own (admin and owner only) |
+| an action ID or pattern | planning that action: `docker.container.restart`, `proxmox.guest.*`, `stack.*`, optionally qualified (`proxmox.guest.start:target=proxmox:i_x/qemu/201`) |
+| `*` | every read and every action the user's role allows |
+
+Planning, approving its own plans, reading its own tasks and cancelling them,
+listing a target's actions (`GET /api/actions`) and polling its approvals take
+no read scope: the engine decides per action. **Session only**, whatever the
+scopes: signing in, step-up, passkeys, `GET /api/auth/session`, users,
+tokens, every setting, integrations, import and export, nodes, stack files,
+drafts and secrets, and `/ws`; a token gets `403 session_only` (or `401` off
+`/api/`). The route table's `Token` column decides
+([`authz/routes.go`](authz/routes.go); `authz.TokenRoute`), and
+`server.TestRouteMatrix` calls every row with tokens too.
+
+**Actions.** A token plans like the web app does, and approves its own plan:
+
+```sh
+# plan
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"action":"docker.container.start","target":"docker:i_x/c/sonarr"}' $HUB/api/actions/plan
+# → {"id":"p_…","hash":"sha256:…","tier":"T1",…}
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"hash":"sha256:…"}' $HUB/api/plans/p_…/approve
+# T0, T1 → 202 {"task": {…}}; then GET /api/tasks/t_… until it has finished
+```
+
+- **T0 and T1** run when the token approves its plan. The plan is bound to the
+  token that made it (`plans.session_id` is `token:<id>`), as a session's is to
+  its session.
+- **T2** waits for a person: approve answers `202 {"task": null, "approval":
+  {"id": "apv_…", "state": "awaiting_approval", "plan": {…}, "originator":
+  {"kind": "token", "id": "tok_…", "name": "backup script (sam)", …},
+  "requested_at", "expires_at", "decided_at", "decided_by", "reason"?, "task"}}`.
+  Asking again returns the same approval in its current state. An Inbox item of
+  class `approval` (for admins and the owner only) shows who asked, the plan's
+  steps and impact. A person approves it in a session (`POST
+  /api/approvals/{id}/approve {"hash"}`) with a step-up made after the request,
+  so the confirmation is for this plan; or denies it (`…/deny {"reason"?}`, no
+  step-up). The task then runs as the token, with `approved_by` naming the
+  person. The token polls `GET /api/approvals/{id}`, then `GET /api/tasks/{task}`.
+  Unanswered, it expires after an hour; revoking the token withdraws it; a
+  target that changed, or a token that lost the scope or its role, voids it at
+  approval time (`expired`, with the reason).
+- **T3 and T4** are refused at planning (`403 forbidden`): a token can't step up.
+
+Every step is audited: `approval.request` by the token, `approval.approve`
+and `approval.deny` by the person (refusals included), `approval.expire` by
+the hub, and the action itself by the token, as `{"kind": "token", "id":
+"tok_…", "name": "backup script (sam)", "via": "api"}`. Token creation and
+revocation are `tokens.create` and `tokens.revoke`. Secrets never reach any of
+them.
+
+**For agents later** ([ADR-0017](../docs/adr/0017-ai-and-mcp.md)): the
+approval queue is generic. Whether a plan waits is
+`action.ApprovalPolicy.NeedsApproval(actor, tier)`, which `authz` answers
+(`authz.NeedsApproval`: a token's plans from T2, every plan of an `agent`); the
+plan's actor is its originator; deciding is the `approvals.decide` scope
+(`authz.DecideApproval`), never a token's.
 
 ## Realtime topics
 
@@ -220,7 +338,7 @@ paths start with `/<topic>/`.
 | `graph:kind/<kind>[,<kind>…]` | The same, filtered to those kinds | As above |
 | `metrics` | `{"series":{"<resource id>#<metric key>": series}}` | Each sample tick, the fields of each series that changed: `/series/<key>/value`, `/as_of`, and `/stale` when it flips. Every 30 minutes, when the history gains a point, `/history` whole (or the whole series, when that's smaller). Whole series when one appears or disappears |
 | `tasks` | `{"tasks":{id: task}}`: running tasks and the last 24 hours, at most 50; Admin and Owner (`tasks.all`) see everyone's, others their own | The fields of a task that changed (state, step, progress, log), whole tasks when they appear or go |
-| `inbox` | `{"now": RFC 3339, "incidents":{id: incident}}`; an incident's `class` is `problem`, `repair` or `suggestion` (the correlator's "merge?"); `category: "security"` marks a security finding, whose `severity` the security posture decides. **Per viewer**: Viewer and up get it whole; Household gets the household projection (below) | The fields of an incident that changed, or the whole incident when it appears or disappears; `/now` each tick. Household gets whole incidents, and only when its projection changed |
+| `inbox` | `{"now": RFC 3339, "incidents":{id: incident}}`; an incident's `class` is `problem`, `repair`, `suggestion` (the correlator's "merge?") or `approval` (a plan an API token made that waits for a person, with the Approval as `approval`; admins and the owner only); `category: "security"` marks a security finding, whose `severity` the security posture decides. **Per viewer**: Viewer and up get it whole; Household gets the household projection (below) | The fields of an incident that changed, or the whole incident when it appears or disappears; `/now` each tick. Household gets whole incidents, and only when its projection changed |
 
 **The household's inbox** (`topics.ProjectIncident`, decided by `authz.SeesInboxDetail`). The Roles table says "Boards only, no Inbox detail", so household sees only what a tile needs to say something is wrong:
 - **Which incidents:** problems (not repairs, which are about an integration's credentials, nor the correlator's suggestions), never a security finding, and only when the incident's target or a resource in its blast radius is on a board (`boards.Scope`: a resource an item names (`<type>@<id>`) or a tile binds, or one of the kinds a target-less widget shows, such as hosts for the fleet card; a board never saved, the Incidents widget or an unknown widget type shows everything).
@@ -421,7 +539,7 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - **One owner, never stranded.** The owner can't be demoted, disabled or deleted; ownership moves only by `transfer-ownership`, which demotes the old owner to admin first so the single-owner index never sees two. An admin manages every other account. Users are disabled, never deleted, so audit records keep pointing at someone.
 - **Step-up** is a re-verification on the session: a passkey assertion with user verification required, or the password when the account has no passkey that works at this address and the rule allows it (`security.step_up`, `passkey_or_password` by default, or `passkey_only`). A grant is `sessions.step_up_until`, five minutes, server-side, gone with the session. T3 needs a grant; T4 needs one from the last minute and the engine clears it after use (`auth.Service.ClearStepUp`), so T4 always asks again. Changing the rule is itself T3.
 - **The engine's seam.** `authz.ActorFrom(r)` gives the actor behind a request, step-up included; `authz.Policy` implements the action engine's `Policy`. T4 is refused unless its scope is listed in the `actions.t4` setting (a JSON array of scopes, empty by default). Scopes can be qualified by resource (`proxmox.guest.reboot:host=pve-a`) and patterns (`proxmox.guest.*`) are understood; the UI doesn't offer them yet.
-- **`api_tokens`** (`00006`) holds wave 10's scoped, expiring tokens: hashed secrets, a JSON scope list, `last_used_at`, revocation. A token acts as its user narrowed to its scopes (`authz.WithGrants`) and can't step up, so T3+ is out of its reach.
+- **`api_tokens`** (`00006`, `00012`) holds the scoped, expiring tokens: the SHA-256 of each secret, a JSON scope list, `last_used_at` and its address (written at most once a minute), revocation and who did it. A token acts as its user, with the user's current role, narrowed to its scopes (`authz.WithTokens` over `auth.Service.TokenAccess`), and can't step up, so T3+ is out of its reach. Its T2 plans wait for a person (`approvals`, `00012`). See [API](#api).
 
 **Passkeys**
 - **`github.com/go-webauthn/webauthn` v0.18.2** does the ceremonies. It adds about 2 MB to the stripped binary: it links every attestation format (TPM, Android, SafetyNet) even though we ask for none.
@@ -542,12 +660,12 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - Integrations: per-widget interest (lenses), persisting `last_ok`/`last_error`, rate budgets, version adapters as a framework feature, grants read-back for specs, re-pinning from the Repair, a hub-wide diagnostics bundle.
 - The metrics history axis (start, step) isn't on the wire; series carry only their 48 points, 30 minutes apart, newest last.
 - Demo actions beyond each incident's suggested fix, and a reset button.
-- TOTP, OIDC, roles beyond owner, API and kiosk tokens, step-up (re-verify with a passkey for T3+).
+- TOTP, OIDC, kiosk tokens. API tokens: per-token rate limits beyond the bad-token budget, a token's own tasks on its user's `tasks` topic (they're on the token's, and on admins'), and Web Push for approvals (10A's notifications can route the `approval` Inbox class).
 - Passkeys: deleting one doesn't end the sessions it started (sessions don't record which credential began them, and there's no "sign out everywhere" yet). No attestation checks or FIDO metadata. The Signal API's `signalAllAcceptedCredentials` and `signalCurrentUserDetails`. Passkey-only accounts.
 - Revoking live WebSockets when a session is logged out or expires. A socket stays open until it reconnects.
 - Auth events (sign-ins, passkey changes) and settings changes in the audit log; only actions are recorded so far.
 - Node follow-ups: remote enrollment with join tokens and Inbox approval (v0.3; `Hello.Token` is refused today), a UI for nodes and for hub key rotation (`Hub.RotateKey`, `Stranded`, `RetireOldKeys` exist, no routes), a trigger for node key rotation (`Client.RotateKey` exists), direct mode (the hub dials the node), exec, relay, host metrics, registry credentials for pulls, measuring the node's idle RSS against a real daemon.
-- Action follow-ups: locks beyond the target resource, API tokens and agents as actors (a plan's approval is bound to a session today).
+- Action follow-ups: locks beyond the target resource; agents as actors (ADR-0017: the approval queue is ready, `KindAgent` waits on every plan, but no agent token can be minted yet).
 - Vault key rotation and a keyed-hash fingerprint for spotting reused secrets. The importer finds reuse within one import with its own per-import HMAC key; reuse against secrets already in the vault needs the vault's fingerprint.
 - Importer follow-ups: turning the record's `runs_on` links into confirmed correlation decisions; mapping `homepage.widget.type` of a label-discovered container to a catalog widget.
 - Graph persistence (the last-known cache). Correlator follow-ups are in its [README](correlate/README.md): DNS ↔ IP matching, the nginx-proxy hop, MACs, cross-source `backed_up_by`.
