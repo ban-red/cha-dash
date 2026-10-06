@@ -1237,7 +1237,7 @@ func TestHTTPShapes(t *testing.T) {
 	var rules struct {
 		Rules []Rule `json:"rules"`
 	}
-	if json.Unmarshal(w.Body.Bytes(), &rules) != nil || len(rules.Rules) != 5 || rules.Rules[0].ID != RuleDown || !rules.Rules[4].Locked {
+	if json.Unmarshal(w.Body.Bytes(), &rules) != nil || len(rules.Rules) != 6 || rules.Rules[0].ID != RuleDown || !rules.Rules[5].Locked {
 		t.Fatalf("rules = %s", w.Body)
 	}
 	w = call("GET", "/api/notify/channels", "")
@@ -1274,4 +1274,33 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 		t.Fatal(err)
 	}
 	return a
+}
+
+// A plan an API token left waiting for a person reaches the approvers
+// once: ntfy (an admin's channel) and the admins' devices, never a
+// viewer's or the household's.
+func TestApprovalsReachTheApprovers(t *testing.T) {
+	e := newEnv(t)
+	e.view = func(_ context.Context, role string) topics.InboxView {
+		return topics.InboxView{Detail: authz.SeesInboxDetail(role), Approvals: authz.SeesApprovals(role)}
+	}
+	e.start()
+	n := newNtfy(t)
+	e.addNtfy(n)
+	p := newPushService(t, e)
+	p.add(e, "u_admin", "/admin")
+	p.add(e, "u_view", "/viewer")
+	p.add(e, "u_home", "/home")
+
+	e.put(inc("approval.ap_1", topics.ApprovalClass, "attention", "open", "open", withTitle("backup script wants to reboot win-gaming")))
+	e.settle()
+	e.put(inc("approval.ap_1", topics.ApprovalClass, "attention", "open", "open", withTitle("backup script wants to reboot win-gaming")))
+	e.settle()
+	got := n.msgs()
+	if len(got) != 1 || got[0].Title != "backup script wants to reboot win-gaming" || !strings.Contains(got[0].Message, "within the hour") || !slicesContain(got[0].Tags, KindApproval) {
+		t.Fatalf("ntfy got %+v", got)
+	}
+	if len(p.to("/admin")) != 1 || len(p.to("/viewer")) != 0 || len(p.to("/home")) != 0 {
+		t.Fatalf("push: admin %d, viewer %d, home %d", len(p.to("/admin")), len(p.to("/viewer")), len(p.to("/home")))
+	}
 }

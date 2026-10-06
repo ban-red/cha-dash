@@ -19,6 +19,7 @@ const (
 	KindStuck     = "stack.stuck"
 	KindResolved  = "incident.resolved"
 	KindAction    = "action.t4"
+	KindApproval  = "approval"
 	KindGroup     = "group"
 	KindTest      = "test"
 )

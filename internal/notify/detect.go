@@ -3,6 +3,8 @@ package notify
 import (
 	"encoding/json"
 	"time"
+
+	"dash.cha.sh/internal/topics"
 )
 
 // What notifies: symptoms, not causes (02 · Experience → Voice and copy;
@@ -22,7 +24,8 @@ import (
 //
 // A down problem notifies at once (also when an attention one escalates);
 // a repair (an integration to reconnect) once per opening; a stuck stack
-// (internal/stacks' "stack-stuck") under its own rule. A resolution is a
+// (internal/stacks' "stack-stuck") under its own rule; a plan an API token
+// left waiting for a person (class "approval") once, to the approvers. A resolution is a
 // candidate whenever something that was open resolves; the service only
 // sends it when the opening was notified and the rule wants resolutions.
 
@@ -59,6 +62,7 @@ const (
 	trStuck     = "stuck"
 	trResolved  = "resolved"
 	trAction    = "action"
+	trApproval  = "approval"
 )
 
 // stuckScenario is internal/stacks' stuck-stack incident.
@@ -120,6 +124,10 @@ func (d *detector) observe(now time.Time, incs map[string]incident, grace time.D
 				if !fixing {
 					propose(RuleRepair, trRepair)
 				}
+			case in.Class == topics.ApprovalClass:
+				// A token's plan waiting for a person. Only approvers' views
+				// include it, so Web Push reaches only them.
+				propose(RuleApproval, trApproval)
 			case in.Class != "problem":
 			case in.Scenario == stuckScenario:
 				propose(RuleStuck, trStuck)

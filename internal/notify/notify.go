@@ -140,7 +140,7 @@ func New(ctx context.Context, o Options) (*Service, error) {
 	}
 	if s.inboxView == nil {
 		s.inboxView = func(_ context.Context, role string) topics.InboxView {
-			return topics.InboxView{Detail: authz.SeesInboxDetail(role)}
+			return topics.InboxView{Detail: authz.SeesInboxDetail(role), Approvals: authz.SeesApprovals(role)}
 		}
 	}
 	v := o.Version
@@ -262,6 +262,9 @@ func eventFor(c candidate, now time.Time) Event {
 	case trStuck:
 		e.Kind, e.Severity, e.Title = KindStuck, "down", title
 		e.Body = summary
+	case trApproval:
+		e.Kind, e.Severity, e.Title = KindApproval, "attention", title
+		e.Body = join(summary, "Approve or deny it in the Inbox within the hour.")
 	case trResolved:
 		e.Kind, e.Severity, e.Title = KindResolved, "info", "Resolved: "+title
 		at := now
@@ -503,6 +506,10 @@ func (s *Service) forViewer(ctx context.Context, e Event, role string, views map
 	if !ok {
 		v = s.inboxView(ctx, role)
 		views[role] = v
+	}
+	if e.Incident.Class == topics.ApprovalClass {
+		// Only approvers see plans waiting for a person, as in the inbox.
+		return e, v.Detail && v.Approvals
 	}
 	if v.Detail {
 		return e, true

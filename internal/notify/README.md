@@ -14,6 +14,7 @@ Symptoms, not causes ([02 · Experience → Voice and copy](../../docs/plan/02-e
 | `incident.attention` · Needs attention for a while | An `attention` problem still open after the grace period (5 minutes by default, 1–240), and not in a fixing phase. Dropping back to `info` restarts the grace, so a flap never pages | no |
 | `repair` · An integration needs reconnecting | A `repair` incident opens (not while it's in a fixing phase: the user is already on it) | no |
 | `stack.stuck` · A stack is stuck | `internal/stacks` opens its `stack-stuck` incident: a deploy failed and so did its rollback | yes |
+| `approval` · A plan is waiting for approval | An API token's plan at T2 or above waits for a person (an Inbox item of class `approval`). Once per plan; Web Push reaches admins and the owner only | — |
 | `action.t4` · Critical actions | Every T4 task that ends, however it ended. Web Push reaches admins and the owner only. Always on | — |
 
 **Never:** hints (an open `info` problem nothing is working on; `web/src/model/inbox.ts` `isHint`), anything at `info` (settling incidents included), the correlator's suggestions, or an incident that was already resolved when first seen. The security posture already decides a security finding's severity: under Relaxed every finding is `info`, a hint, so it never notifies; under Standard or Strict an `attention` finding follows the attention rule like any other problem.
@@ -74,7 +75,7 @@ Payload, version 1 (`Message`):
 {
   "version": 1,
   "id": "ne_…",                 // the event; a group is "ng_…"
-  "kind": "incident.down",      // incident.down, incident.attention, repair, stack.stuck, incident.resolved, action.t4, group, test
+  "kind": "incident.down",      // incident.down, incident.attention, repair, stack.stuck, approval, incident.resolved, action.t4, group, test
   "severity": "down",           // down, attention or info
   "title": "PBS can't reach its datastore",
   "body": "PBS stopped answering. Down since 02:14 UTC.",

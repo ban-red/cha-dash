@@ -17,6 +17,7 @@ const (
 	RuleRepair    = "repair"
 	RuleStuck     = "stack.stuck"
 	RuleAction    = "action.t4"
+	RuleApproval  = "approval"
 )
 
 // Grace bounds for the attention rule, in minutes.
@@ -72,6 +73,9 @@ var ruleDefs = []ruleDef{
 	{id: RuleStuck, label: "A stack is stuck",
 		description: "A deploy failed and so did its rollback, so the stack may be half-updated.",
 		defaults:    RuleSettings{Enabled: true, Resolved: true}, hasResolved: true},
+	{id: RuleApproval, label: "A plan is waiting for approval",
+		description: "An API token planned something that needs a person (T2 and up). Web Push goes to admins and the owner, who can approve it; it expires after an hour.",
+		defaults:    RuleSettings{Enabled: true}},
 	{id: RuleAction, label: "Critical actions",
 		description: "Every T4 action that runs, whoever ran it and however it ended. Web Push goes to admins and the owner only. Always on.",
 		defaults:    RuleSettings{Enabled: true}, locked: true},
