@@ -582,6 +582,7 @@ func (in *instance) containerFacts(cs []container) integration.Facts {
 	var f integration.Facts
 	host := in.id("host")
 	seen := map[string]bool{}
+	var hubOn []string // containers whose ID is the hub's own: Cha Dash runs on this server
 	for _, c := range cs {
 		if len(c.Names) == 0 {
 			continue
@@ -626,6 +627,15 @@ func (in *instance) containerFacts(cs []container) integration.Facts {
 				f.Relations = append(f.Relations, rel(id, "stores_on", in.id("share/"+s)))
 			}
 		}
+		if integration.IsHubContainer(localID(c.ID)) {
+			hubOn = append(hubOn, id)
+		}
+	}
+	// Best effort, and only when exactly one matches: the hub runs in a
+	// container on this server (Unraid's template), and its own container
+	// ID (integration.HubContainerID) is one Unraid lists.
+	if len(hubOn) == 1 {
+		f.Relations = append(f.Relations, rel(integration.HubResource, "runs_on", hubOn[0]))
 	}
 	return f
 }

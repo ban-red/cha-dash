@@ -41,6 +41,7 @@ type fakeNode struct {
 	deny      map[string]string // permission → the node's reason
 	offline   bool
 	callsSeen chan string
+	hubID     string // what engine.self names as the hub's container
 }
 
 func newFakeNode(t *testing.T, f *fakeDocker) *fakeNode {
@@ -139,6 +140,14 @@ func (n *fakeNode) Call(ctx context.Context, node, verb string, req any, progres
 		return out, err
 	case "container.stats":
 		return nil, &nodeErr{"not_found", "No such container"}
+	case "engine.self":
+		n.mu.Lock()
+		id := n.hubID
+		n.mu.Unlock()
+		if id == "" {
+			return json.RawMessage(`{"project":"chadash"}`), nil
+		}
+		return json.Marshal(map[string]any{"project": "chadash", "hub": map[string]string{"id": id, "name": "chadash", "service": "chadash"}})
 	case "engine.events":
 		q := url.Values{}
 		if p.Filters != nil {

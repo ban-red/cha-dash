@@ -317,6 +317,54 @@ func TestSelfProject(t *testing.T) {
 	}
 }
 
+// TestSelfInfo: engine.self names the node's container and the hub's in
+// the same compose project, by service, else by image; anything else in
+// another project is never taken for the hub.
+func TestSelfInfo(t *testing.T) {
+	f, host := newFakeDocker(t)
+	proj := func(p, svc string) map[string]string {
+		return map[string]string{"com.docker.compose.project": p, "com.docker.compose.service": svc}
+	}
+	f.add(&fakeContainer{ID: "abcdef123456" + strings.Repeat("0", 52), Name: "chadash-chadash-node-1", Image: "ghcr.io/ban-red/chadash-node:0.2", Labels: proj("chadash", "chadash-node")})
+	hub := f.add(&fakeContainer{ID: "fedcba654321" + strings.Repeat("1", 52), Name: "chadash-chadash-1", Image: "ghcr.io/ban-red/chadash:0.2", Labels: proj("chadash", "chadash")})
+	f.add(&fakeContainer{Name: "other-chadash-1", Image: "ghcr.io/ban-red/chadash:0.1", Labels: proj("other", "chadash")})
+	m, _ := New(Options{Host: host, Policy: node.DefaultPolicy(), SelfID: "abcdef123456"})
+	defer m.Close()
+	d, err := node.NewDispatcher(node.DefaultPolicy(), m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, _, err := call(t, d, "engine.self", map[string]any{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s Self
+	_ = json.Unmarshal(res, &s)
+	if s.Project != "chadash" || s.Node == nil || s.Node.Name != "chadash-chadash-node-1" || s.Hub == nil || s.Hub.ID != hub.ID || s.Hub.Name != "chadash-chadash-1" || s.Hub.Service != "chadash" {
+		t.Fatalf("self = %s", res)
+	}
+
+	// A renamed service: the image tells.
+	hub.Labels = proj("chadash", "dash")
+	if s, err := m.SelfInfo(t.Context()); err != nil || s.Hub == nil || s.Hub.ID != hub.ID {
+		t.Fatalf("by image: %+v %v", s.Hub, err)
+	}
+	// Two candidates: none.
+	f.add(&fakeContainer{Name: "chadash-dash-2", Image: "chadash:dev", Labels: proj("chadash", "dash2")})
+	if s, err := m.SelfInfo(t.Context()); err != nil || s.Hub != nil {
+		t.Fatalf("ambiguous: %+v %v", s.Hub, err)
+	}
+	// Not in a container: nothing.
+	other, _ := New(Options{Host: host, Policy: node.DefaultPolicy(), SelfID: "999999999999"})
+	defer other.Close()
+	if s, err := other.SelfInfo(t.Context()); err != nil || s.Node != nil || s.Hub != nil {
+		t.Fatalf("unknown self = %+v %v", s, err)
+	}
+	if imageRepo("ghcr.io/ban-red/chadash-node@sha256:abc") != "chadash-node" || imageRepo("chadash") != "chadash" || imageRepo("localhost:5000/chadash:1") != "chadash" {
+		t.Fatal("imageRepo")
+	}
+}
+
 func TestDockerUnreachable(t *testing.T) {
 	p := node.DefaultPolicy()
 	m, err := New(Options{Host: "unix:///nonexistent/docker.sock", Policy: p})

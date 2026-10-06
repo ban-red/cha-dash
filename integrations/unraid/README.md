@@ -96,6 +96,7 @@ IDs are `unraid:<instance id>/<path>`.
 - **Desired state comes from Unraid's autostart list.** Docker's restart policy can't say whether a template container should run. On the list, desired is `running`. Off it, desired stays unset, because Docker's restart policy (which this API doesn't report) decides; the correlator combines the two (spike §7). Compose Manager containers are never on the list.
 - State comes from Unraid (`running`, `exited`, `paused`). The API folds Docker's `created` into `exited`, so prefer the Docker integration's state when both are present.
 - Until the correlator exists, a container that both integrations see appears twice, once per source.
+- **Cha Dash's own container, best effort.** When the hub runs in a container on this server (Unraid's template), and its own container ID (`integration.HubContainerID`: from `/proc/self/mountinfo`, else its hostname) matches exactly one container Unraid lists, Unraid publishes `chadash:hub runs_on unraid:<id>/container/<name>`. Stopping or updating that container is then the self-aware T4, and its plan lists "Cha Dash itself". A container with a hostname set and no Docker mounts to read can't be told; the Docker integration through chadash-node (`engine.self`) is the dependable way.
 
 ## Test connection
 

@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -64,6 +65,9 @@ func (t *nodeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return t.verb(req, verb, map[string]string{"id": m[1]})
 	case path == "/events":
 		return t.events(req)
+	case path == selfPath:
+		// Not Docker's: where the node and the hub run (engine.self).
+		return t.verb(req, "engine.self", nil)
 	}
 	return respond(req, http.StatusForbidden, "text/plain", []byte("not a node verb")), nil
 }
@@ -155,6 +159,52 @@ func respond(req *http.Request, status int, contentType string, body []byte) *ht
 		Proto: "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1, Header: h, Request: req,
 		Body: io.NopCloser(bytes.NewReader(body)), ContentLength: int64(len(body)),
 	}
+}
+
+// selfPath is the node transport's own path for engine.self.
+const selfPath = "/_chadash/self"
+
+// nodeSelf asks the node which container on its host is the hub (its
+// engine.self verb). "" when it can't tell, or the node predates the verb.
+func (in *instance) nodeSelf(ctx context.Context) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, in.ep.base+selfPath, nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := in.http.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	var s struct {
+		Hub *struct {
+			ID string `json:"id"`
+		} `json:"hub"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&s) != nil || s.Hub == nil {
+		return ""
+	}
+	return s.Hub.ID
+}
+
+// hubContainer is the name of the container the hub runs in on this
+// engine, or "": the one the node names (engine.self), else the one whose
+// ID is the hub's own (integration.IsHubContainer). Exactly one match
+// counts.
+func (in *instance) hubContainer(list []summary) string {
+	var match []string
+	for _, s := range list {
+		if in.hubID != "" && s.ID == in.hubID || in.hubID == "" && integration.IsHubContainer(s.ID) {
+			match = append(match, s.name())
+		}
+	}
+	if len(match) != 1 {
+		return ""
+	}
+	return match[0]
 }
 
 // nodeName reads node://<name>.

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/integration/integrationtest"
 )
@@ -405,6 +406,45 @@ func TestContainersJoinDockerByID(t *testing.T) {
 	}
 	if joined != len(docker) || joined != 74 {
 		t.Fatalf("joined %d of %d", joined, len(docker))
+	}
+}
+
+// TestHubOnUnraid: when the hub's own container ID is one Unraid lists,
+// chadash:hub runs_on that container (best effort; one match only).
+func TestHubOnUnraid(t *testing.T) {
+	var docker []struct {
+		ID    string   `json:"Id"`
+		Names []string `json:"Names"`
+	}
+	b, err := os.ReadFile("../../testdata/integrations/docker/jupiter/containers.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &docker); err != nil {
+		t.Fatal(err)
+	}
+	prev := integration.HubContainerID
+	t.Cleanup(func() { integration.HubContainerID = prev })
+	integration.HubContainerID = func() string { return docker[5].ID[:12] }
+
+	srv := newServer(t)
+	h := integrationtest.New(t)
+	if _, err := h.Set.Graph.Update(func(tx *graph.Tx) error {
+		return tx.Upsert(graph.Resource{ID: integration.HubResource, Kind: "app", Name: "Cha Dash"})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := connect(t, h, srv).Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	var on []string
+	for _, r := range h.Graph().Relations {
+		if string(r.From) == integration.HubResource && r.Type == "runs_on" {
+			on = append(on, string(r.To))
+		}
+	}
+	if len(on) != 1 || !strings.HasSuffix(on[0], "/container"+docker[5].Names[0]) {
+		t.Fatalf("chadash:hub runs_on %v, want %s", on, docker[5].Names[0])
 	}
 }
 

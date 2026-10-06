@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -208,6 +209,8 @@ type instance struct {
 	info     *engineInfo           // from /info, when the proxy allows it
 	cache    map[string]*inspected // by container ID
 	raised   map[string]bool       // open hints, by incident ID
+	hubID    string                // node:// only: the hub's container, as the node names it
+	selfAt   time.Time             // when the node was last asked
 }
 
 // rid is a resource ID of this instance.
@@ -285,6 +288,12 @@ func (in *instance) refresh(ctx context.Context, force map[string]bool) error {
 	}
 	if err := in.inspectAll(ctx, list, force); err != nil {
 		return err
+	}
+	// Through chadash-node, ask which container is the hub: hourly, or at
+	// once when the one it named is gone (recreated by an update).
+	if in.ep.node != "" && (in.selfAt.IsZero() || in.d.Now().Sub(in.selfAt) >= probeEvery ||
+		in.hubID != "" && !slices.ContainsFunc(list, func(s summary) bool { return s.ID == in.hubID })) {
+		in.hubID, in.selfAt = in.nodeSelf(ctx), in.d.Now()
 	}
 	return in.publish(list)
 }

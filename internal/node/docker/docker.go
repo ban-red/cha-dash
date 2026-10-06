@@ -7,6 +7,7 @@
 //	engine.version       docker.read        {}                              Docker's /version: Version, ApiVersion, MinAPIVersion, Os, Arch
 //	engine.info          docker.read        {}                              part of /info: Name, OperatingSystem, NCPU, MemTotal, …
 //	engine.events        docker.read        {filters?, since?, until?}      a stream of events (no actor attributes but name and image); ends at until
+//	engine.self          docker.read        {}                              {node?: {id, name}, project?, hub?: {id, name, service}}: the node's own container and the hub's beside it
 //	container.list       docker.read        {all?}                          Docker's /containers/json
 //	container.inspect    docker.read        {id}                            Docker's /containers/{id}/json; env values "[redacted]" under redact_env
 //	container.stats      docker.read        {id}                            one stats sample
@@ -121,6 +122,103 @@ func (m *Module) SelfProject(ctx context.Context) (string, error) {
 	return res.Container.Config.Labels["com.docker.compose.project"], nil
 }
 
+// SelfContainer is a container engine.self names.
+type SelfContainer struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Service string `json:"service,omitempty"`
+}
+
+// Self is engine.self's reply: the node's own container, its compose
+// project, and the hub's container in that project, each when known.
+type Self struct {
+	Node    *SelfContainer `json:"node,omitempty"`
+	Project string         `json:"project,omitempty"`
+	Hub     *SelfContainer `json:"hub,omitempty"`
+}
+
+// HubService is the hub's service in deploy/compose.yaml, and HubImage its
+// image's repository name.
+const (
+	HubService = "chadash"
+	HubImage   = "chadash"
+)
+
+// SelfInfo says where the node and the hub run on this host, so the hub
+// can tell which container is Cha Dash itself (chadash:hub runs_on it, and
+// stopping it is the self-aware T4). The hub's container is the one in the
+// node's compose project whose service is "chadash", or failing that whose
+// image is a chadash image (not chadash-node); exactly one, or none.
+func (m *Module) SelfInfo(ctx context.Context) (Self, error) {
+	var out Self
+	if m.self == "" {
+		return out, nil
+	}
+	res, err := m.cli.ContainerInspect(ctx, m.self, client.ContainerInspectOptions{})
+	if cerrdefs.IsNotFound(err) {
+		return out, nil
+	}
+	if err != nil {
+		return out, mapErr(err)
+	}
+	c := res.Container
+	out.Node = &SelfContainer{ID: c.ID, Name: strings.TrimPrefix(c.Name, "/")}
+	if c.Config != nil {
+		out.Project = c.Config.Labels["com.docker.compose.project"]
+		out.Node.Service = c.Config.Labels["com.docker.compose.service"]
+	}
+	if out.Project == "" {
+		return out, nil
+	}
+	list, err := m.cli.ContainerList(ctx, client.ContainerListOptions{All: true})
+	if err != nil {
+		return out, mapErr(err)
+	}
+	var byService, byImage []*SelfContainer
+	for _, s := range list.Items {
+		if s.ID == c.ID || s.Labels["com.docker.compose.project"] != out.Project {
+			continue
+		}
+		name := ""
+		if len(s.Names) > 0 {
+			name = strings.TrimPrefix(s.Names[0], "/")
+		}
+		sc := &SelfContainer{ID: s.ID, Name: name, Service: s.Labels["com.docker.compose.service"]}
+		switch {
+		case sc.Service == HubService:
+			byService = append(byService, sc)
+		case imageRepo(s.Image) == HubImage:
+			byImage = append(byImage, sc)
+		}
+	}
+	switch {
+	case len(byService) == 1:
+		out.Hub = byService[0]
+	case len(byService) == 0 && len(byImage) == 1:
+		out.Hub = byImage[0]
+	}
+	return out, nil
+}
+
+// imageRepo is an image reference's last path element without its tag or
+// digest: "ghcr.io/ban-red/chadash:0.2" → "chadash".
+func imageRepo(ref string) string {
+	ref, _, _ = strings.Cut(ref, "@")
+	if i := strings.LastIndex(ref, "/"); i >= 0 {
+		ref = ref[i+1:]
+	}
+	ref, _, _ = strings.Cut(ref, ":")
+	return ref
+}
+
+func (m *Module) selfVerb(ctx context.Context, _ json.RawMessage, _ func(json.RawMessage)) (json.RawMessage, error) {
+	s, err := m.SelfInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return reply(s)
+}
+
 // Close releases the client's connections.
 func (m *Module) Close() error { return m.cli.Close() }
 
@@ -133,6 +231,7 @@ func (m *Module) Verbs() []node.Verb {
 		{Name: "engine.version", Policy: "docker.read", Handle: m.version},
 		{Name: "engine.info", Policy: "docker.read", Handle: m.info},
 		{Name: "engine.events", Policy: "docker.read", Handle: m.events},
+		{Name: "engine.self", Policy: "docker.read", Handle: m.selfVerb},
 		{Name: "container.list", Policy: "docker.read", Handle: m.list},
 		{Name: "container.inspect", Policy: "docker.read", Handle: m.inspect},
 		{Name: "container.stats", Policy: "docker.read", Handle: m.stats},

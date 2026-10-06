@@ -110,6 +110,11 @@ func (in *instance) publish(list []summary) error {
 	if p := in.proxyContainer(list); p != nil {
 		f.Relations = append(f.Relations, integration.Relation{From: self, Type: "depends_on", To: in.rid("container/" + p.name())})
 	}
+	// Cha Dash itself runs here: stopping this container takes the hub down
+	// (the self-aware T4, and "Cha Dash itself" in a plan's impact).
+	if name := in.hubContainer(list); name != "" {
+		f.Relations = append(f.Relations, integration.Relation{From: integration.HubResource, Type: "runs_on", To: in.rid("container/" + name)})
+	}
 	if err := in.d.Emit.Replace("", f); err != nil {
 		return err
 	}

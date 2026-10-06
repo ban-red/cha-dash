@@ -212,12 +212,21 @@ Each sync is one list request, plus inspects only for containers that changed. A
 
 ## Through chadash-node
 
-With `node://<name>`, requests never leave the hub as HTTP: a small transport (`node.go`) turns the integration's GETs into the node's Docker verbs over `Deps.Nodes` (`integration.NodeCaller`): `/_ping` and `/version` → `engine.version`, `/info` → `engine.info`, `/containers/json` → `container.list`, `/containers/{id}/json` → `container.inspect`, `/containers/{id}/stats` → `container.stats`, `/events` → `engine.events` (streamed). Every other path answers 403, as a filtering proxy would, so the probe turns that feature off. The resources, relations and IDs are the same as through the socket (a test syncs the same engine both ways); like `unix://`, there's no host address to fill Unraid's web-UI links with.
+With `node://<name>`, requests never leave the hub as HTTP: a small transport (`node.go`) turns the integration's GETs into the node's Docker verbs over `Deps.Nodes` (`integration.NodeCaller`): `/_ping` and `/version` → `engine.version`, `/info` → `engine.info`, `/containers/json` → `container.list`, `/containers/{id}/json` → `container.inspect`, `/containers/{id}/stats` → `container.stats`, `/events` → `engine.events` (streamed), and its own `/_chadash/self` → `engine.self` (below). Every other path answers 403, as a filtering proxy would, so the probe turns that feature off. The resources, relations and IDs are the same as through the socket (a test syncs the same engine both ways); like `unix://`, there's no host address to fill Unraid's web-UI links with.
 
 - **The engine** gets `via: node`, `access: node` and `node: <name>`. Test reports a `node` grant and no write grants: what Cha Dash may change is the node's policy's business.
 - **A refusal** keeps the integration's meaning: the node's `forbidden` is a proxy's 403 (a feature off, or a Repair when listing is refused, naming the policy), `not_found` is Docker's 404, and a node that isn't connected is a 503 the runtime backs off from.
 - **Inspect** leaves the node with environment values redacted (the default `redact_env`), so a socket proxy's write switches read as unknown.
 - **Compose `depends_on`** (the `com.docker.compose.depends_on` label) is published as `depends_on` relations between containers of one project, for every endpoint.
+
+## Cha Dash's own container
+
+When the hub runs in a container on this engine, the integration publishes `chadash:hub runs_on docker:<instance>/container/<name>`, so stopping, restarting, recreating or removing that container is the self-aware T4 and its plan lists "Cha Dash itself" (the web's words). It finds the container two ways:
+
+- **Through chadash-node**, the node names it: `engine.self` (permission `docker.read`) answers with the node's own container, its compose project, and the hub's container in that project, the one whose service is `chadash` or, failing that, whose image is a `chadash` image (not `chadash-node`). Exactly one candidate counts. The transport maps it to its own path, `/_chadash/self`. The integration asks hourly, and again at once when the container it named is gone (recreated by an update). A node that predates the verb, or can't tell, answers nothing, and the next rule applies.
+- **Through any endpoint**, the hub's own container ID: `integration.HubContainerID` reads it from `/proc/self/mountinfo` (the `/etc/hostname`, `/etc/hosts` and `/etc/resolv.conf` mounts Docker makes from `/var/lib/docker/containers/<id>/`), else from the hostname when it looks like a container ID. A container whose ID matches, at least 12 characters, is the hub's. Exactly one match counts.
+
+A socket proxy on another host never matches, so the relation only appears on the hub's own host. Unraid relates the hub to its container of the same ID too (best effort, `integrations/unraid`).
 
 ## Actions through the node
 

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -172,6 +173,15 @@ func (e *Engine) impactOf(ctx context.Context, d *Def, r Request) []Impact {
 	var im []Impact
 	if d.BlastRadius != nil {
 		im = d.BlastRadius(ctx, r)
+		// A Def's own blast radius may not walk the graph; the hub itself is
+		// never left out of a plan whose target it runs on.
+		if !slices.ContainsFunc(im, func(x Impact) bool { return x.Resource == HubResource }) {
+			for _, x := range GraphImpact(e.graph, r.Target.ID) {
+				if x.Resource == HubResource {
+					im = append(im, x)
+				}
+			}
+		}
 	} else {
 		im = GraphImpact(e.graph, r.Target.ID)
 	}
@@ -180,6 +190,12 @@ func (e *Engine) impactOf(ctx context.Context, d *Def, r Request) []Impact {
 	}
 	return im
 }
+
+// HubResource is the hub's own resource in the Home Graph (the same ID as
+// integration.HubResource, which imports this package). A plan whose
+// target it runs on lists it in its impact; the web calls it "Cha Dash
+// itself".
+const HubResource = "chadash:hub"
 
 func labelOf(d *Def, r Request) string {
 	if d.Label != nil {
