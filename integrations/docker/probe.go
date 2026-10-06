@@ -242,6 +242,10 @@ func (f *flagArgs) UnmarshalJSON(b []byte) error {
 // grants is what Test reports the endpoint allows.
 func (a access) grants(ep endpoint, w writes) []integration.Grant {
 	g := []integration.Grant{{Name: "containers", Access: integration.AccessRead, Detail: "list containers, their state and labels"}}
+	if ep.node != "" {
+		g = append(g, integration.Grant{Name: "node", Access: integration.AccessRead,
+			Detail: "reads through chadash-node " + ep.node + "; the node's own policy decides what Cha Dash may change, and inspect leaves without environment values"})
+	}
 	add := func(on bool, name, detail string) {
 		if on {
 			g = append(g, integration.Grant{Name: name, Access: integration.AccessRead, Detail: detail})

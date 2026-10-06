@@ -276,6 +276,10 @@ func cmpVersion(a, b string) int {
 func (in *instance) list(ctx context.Context) ([]summary, error) {
 	var out []summary
 	err := in.getJSON(ctx, in.api+"/containers/json?all=1", &out)
+	if isDenied(err) && in.ep.node != "" {
+		return nil, &integration.RepairError{Code: CodeCapability, Field: "endpoint",
+			Message: "chadash-node " + in.ep.node + " refuses to list containers: its policy needs read in docker.allow (/etc/chadash-node/policy.yaml)"}
+	}
 	if isDenied(err) {
 		return nil, &integration.RepairError{Code: CodeCapability, Field: "endpoint",
 			Message: "the socket proxy refuses to list containers; allow GET /containers/json (CONTAINERS=1 on Tecnativa's proxy)"}

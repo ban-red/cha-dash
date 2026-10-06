@@ -1,6 +1,6 @@
 # Docker (`docker`)
 
-Reads one Docker engine: the engine, its containers and their compose stacks, live while someone watches. It reads through a socket proxy, or the socket itself, and never writes. Containers keep an allowlist of their labels, so `homepage.*` labels arrive ready for label discovery.
+Reads one Docker engine: the engine, its containers and their compose stacks, live while someone watches. It reads through a socket proxy, the socket itself, or chadash-node (`node://<name>`, v0.2). Through a proxy or the socket it never writes; through a node it also offers [actions](#actions-through-the-node). Containers keep an allowlist of their labels, so `homepage.*` labels arrive ready for label discovery.
 
 **Tier:** silver (repairs, version detection, a capability probe, fixture tests). **Capability:** `containers`. **Secrets:** none.
 
@@ -12,12 +12,13 @@ Built from [spike 4.4](../../spikes/docker-proxy/README.md) and tested against i
 {"endpoint": "tcp://10.0.11.120:2375"}
 {"endpoint": "tcp://dockerproxy:2375"}
 {"endpoint": "unix:///var/run/docker.sock"}
+{"endpoint": "node://local"}
 {"endpoint": "tcp://docker.lab.example:2376", "tls": {"mode": "tofu"}}
 ```
 
 | Key | Meaning |
 |---|---|
-| `endpoint` | `tcp://host[:port]` (port 2375, or 2376 with `tls`) or `unix:///absolute/path`. These are the shapes the Homepage importer writes. |
+| `endpoint` | `tcp://host[:port]` (port 2375, or 2376 with `tls`), `unix:///absolute/path`, or `node://<node name or ID>` for chadash-node (`node://local` on the hub's host). The first two are the shapes the Homepage importer writes. |
 | `tls` | Only for an endpoint that speaks TLS. Its presence switches the client to `https://`, so the schema gives `mode` no default. A Unix socket can't have one. Client certificates (Docker's `--tlsverify`) aren't supported yet. |
 
 ## What it reads
@@ -208,3 +209,33 @@ Each sync is one list request, plus inspects only for containers that changed. A
 - `desired` stays unset for restart policy `no`; the Unraid integration owns autostart.
 - Following nginx-proxy hops needs `VIRTUAL_HOST`/`VIRTUAL_PATH`/`VIRTUAL_PORT`, which are environment values. They're dropped like the rest; the correlator (wave 6) decides whether to read them server-side.
 - Containers that mount the Docker socket aren't flagged yet.
+
+## Through chadash-node
+
+With `node://<name>`, requests never leave the hub as HTTP: a small transport (`node.go`) turns the integration's GETs into the node's Docker verbs over `Deps.Nodes` (`integration.NodeCaller`): `/_ping` and `/version` → `engine.version`, `/info` → `engine.info`, `/containers/json` → `container.list`, `/containers/{id}/json` → `container.inspect`, `/containers/{id}/stats` → `container.stats`, `/events` → `engine.events` (streamed). Every other path answers 403, as a filtering proxy would, so the probe turns that feature off. The resources, relations and IDs are the same as through the socket (a test syncs the same engine both ways); like `unix://`, there's no host address to fill Unraid's web-UI links with.
+
+- **The engine** gets `via: node`, `access: node` and `node: <name>`. Test reports a `node` grant and no write grants: what Cha Dash may change is the node's policy's business.
+- **A refusal** keeps the integration's meaning: the node's `forbidden` is a proxy's 403 (a feature off, or a Repair when listing is refused, naming the policy), `not_found` is Docker's 404, and a node that isn't connected is a 503 the runtime backs off from.
+- **Inspect** leaves the node with environment values redacted (the default `redact_env`), so a socket proxy's write switches read as unknown.
+- **Compose `depends_on`** (the `com.docker.compose.depends_on` label) is published as `depends_on` relations between containers of one project, for every endpoint.
+
+## Actions through the node
+
+Only `node://` instances implement them (`actions.go`, the `integration.Actor` interface); every other instance's `Actions()` is empty, so a socket proxy never sees a write.
+
+| Action | Tier | Undo | Node verb | Node policy |
+|---|---|---|---|---|
+| `docker.container.start` | T1 | stop | `container.start` | `docker.lifecycle` |
+| `docker.container.stop` | T1 | start | `container.stop` | `docker.lifecycle` |
+| `docker.container.restart` | T2 | — | `container.restart` | `docker.lifecycle` |
+| `docker.container.recreate` | T2 | — | `container.recreate` | `docker.update` |
+| `docker.container.pull` | T2 | — | `container.pull` | `docker.update` |
+| `docker.container.remove` | T3 | — | `container.remove` | `docker.remove` |
+| `docker.container.logs` | T0 | — | `container.logs` (last 50 lines into the task log) | `docker.logs` |
+
+- **Targets** are this instance's containers, `docker:<instance>/container/<name>`; another instance's are `not_found`. Resolve inspects through the node; the plan's hash covers the container's ID, state and image.
+- **Preconditions** refuse a start of a running container, a stop of a stopped one and a remove of a running one, then ask the node (`container.can`) whether its policy allows the verb on that container: a refusal is `409 unavailable` with the node's sentence ("vaultwarden is protected by this node's policy"). A node that isn't connected is `unavailable` too.
+- **Blast radius** is the engine's walk of the Home Graph: compose `depends_on`, Traefik's `routes_to`, `part_of` and `runs_on`.
+- **Remove** lists the volumes it keeps (named ones always) and the anonymous ones it keeps or deletes (`{"volumes": true}`).
+- **Verify** reads the container back through the node until it reports the promised state (by name, so it finds a recreated container).
+- **Pull** pulls the container's tag without registry credentials (private images fail with the registry's message); the container runs the old image until it's recreated. Recreate keeps the name, labels, networks and every volume, anonymous ones included, and rolls back if the new container can't be created or started.

@@ -1,5 +1,5 @@
-// Package docker reads one Docker engine, through a socket proxy or the
-// socket itself: the engine, its containers and their compose stacks, with
+// Package docker reads one Docker engine, through a socket proxy, the
+// socket itself, or chadash-node (node://<name>, v0.2): the engine, its containers and their compose stacks, with
 // live updates from the event stream while someone watches. Containers keep
 // an allowlist of their labels, so homepage.* labels arrive ready for label
 // discovery. A read-only probe classifies the endpoint (raw API, broad proxy,
@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -61,17 +62,21 @@ func (Integration) Manifest() integration.Manifest {
 		Capabilities: []integration.Capability{"containers"},
 		ConfigSchema: integration.Object(
 			integration.Prop("endpoint", integration.URL("Endpoint").Describe(
-				"tcp://host:port of a read-only socket proxy, or unix:///var/run/docker.sock.")),
+				"tcp://host:port of a read-only socket proxy, unix:///var/run/docker.sock, or node://local for the hub's own host through chadash-node.")),
 			integration.Prop("tls", tls),
 		).Require("endpoint"),
 		Poll: integration.Poll{Interval: watchedInterval, Idle: 5 * time.Minute, Timeout: 45 * time.Second},
 	}
 }
 
+// nodeRE is a node's name or ID in a node:// endpoint.
+var nodeRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$`)
+
 // endpoint is a parsed endpoint config value.
 type endpoint struct {
 	raw    string
 	unix   bool
+	node   string // node: the chadash-node's name or ID
 	socket string // unix: the socket path
 	host   string // tcp: host and port
 	port   string
@@ -83,10 +88,19 @@ type endpoint struct {
 func parseEndpoint(s string, withTLS bool) (endpoint, error) {
 	u, err := url.Parse(strings.TrimSpace(s))
 	if err != nil {
-		return endpoint{}, errors.New("must be tcp://host:port or unix:///path/to/docker.sock")
+		return endpoint{}, errors.New("must be tcp://host:port, unix:///path/to/docker.sock or node://<node name>")
 	}
 	ep := endpoint{raw: s}
 	switch u.Scheme {
+	case "node":
+		name, _ := nodeName(s)
+		if !nodeRE.MatchString(name) {
+			return endpoint{}, errors.New("a node endpoint is node://<node name>, such as node://local")
+		}
+		if withTLS {
+			return endpoint{}, errors.New("the node channel has its own encryption; leave tls out")
+		}
+		ep.node, ep.base = name, "http://node"
 	case "unix":
 		if u.Host != "" || !strings.HasPrefix(u.Path, "/") {
 			return endpoint{}, errors.New("a socket needs an absolute path: unix:///var/run/docker.sock (three slashes)")
@@ -115,7 +129,7 @@ func parseEndpoint(s string, withTLS bool) (endpoint, error) {
 		}
 		ep.base = scheme + "://" + net.JoinHostPort(ep.host, ep.port)
 	default:
-		return endpoint{}, fmt.Errorf("must start with tcp:// or unix://, not %s://", u.Scheme)
+		return endpoint{}, fmt.Errorf("must start with tcp://, unix:// or node://, not %s://", u.Scheme)
 	}
 	return ep, nil
 }
@@ -145,12 +159,22 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	if in.name == "" {
 		in.name = cmpStr(ep.host, "docker")
 	}
-	if ep.unix {
+	switch {
+	case ep.unix:
 		c, err := d.NewHTTPClient(integration.HTTPOptions{UnixSocket: ep.socket})
 		if err != nil {
 			return nil, err
 		}
 		in.http = c
+	case ep.node != "":
+		if d.Nodes == nil {
+			return nil, &integration.ConfigError{Field: "endpoint",
+				Message: "this hub has no chadash-node to read through; add the node service to the compose file (deploy/README.md), or use a socket proxy"}
+		}
+		in.http = &http.Client{Transport: &nodeTransport{nodes: d.Nodes, node: ep.node}, Timeout: 30 * time.Second}
+		if in.name == "" || in.name == "docker" {
+			in.name = ep.node
+		}
 	}
 	// The event stream outlives any per-request timeout: the same transport
 	// (TLS policy, socket, response cap) without the client's deadline.

@@ -92,6 +92,7 @@ func (in *instance) publish(list []summary) error {
 			f.Relations = append(f.Relations, integration.Relation{From: r.ID, Type: "part_of", To: in.rid("stack/" + p)})
 		}
 	}
+	f.Relations = append(f.Relations, in.composeDependencies(list)...)
 	names := make([]string, 0, len(stacks))
 	for p := range stacks {
 		names = append(names, p)
@@ -115,6 +116,36 @@ func (in *instance) publish(list []summary) error {
 	return in.hints(eng, secretHolders)
 }
 
+// composeDependencies turns compose's depends_on (the
+// com.docker.compose.depends_on label: "db:service_healthy:false,…") into
+// depends_on relations between containers of one project, so a plan that
+// restarts the database lists what depends on it.
+func (in *instance) composeDependencies(list []summary) []integration.Relation {
+	byService := map[string]string{} // project/service → container name
+	for _, s := range list {
+		p, svc := s.Labels["com.docker.compose.project"], s.Labels["com.docker.compose.service"]
+		if p != "" && svc != "" {
+			if _, ok := byService[p+"/"+svc]; !ok {
+				byService[p+"/"+svc] = s.name()
+			}
+		}
+	}
+	var out []integration.Relation
+	for _, s := range list {
+		p, deps := s.Labels["com.docker.compose.project"], s.Labels["com.docker.compose.depends_on"]
+		if p == "" || deps == "" {
+			continue
+		}
+		for d := range strings.SplitSeq(deps, ",") {
+			svc, _, _ := strings.Cut(strings.TrimSpace(d), ":")
+			if to, ok := byService[p+"/"+svc]; ok && to != s.name() {
+				out = append(out, integration.Relation{From: in.rid("container/" + s.name()), Type: "depends_on", To: in.rid("container/" + to)})
+			}
+		}
+	}
+	return out
+}
+
 // engine is the engine resource, the instance's service resource.
 func (in *instance) engine(total, running int, manager string) integration.Resource {
 	attrs := map[string]any{
@@ -127,7 +158,10 @@ func (in *instance) engine(total, running int, manager string) integration.Resou
 	case in.acc.raw:
 		attrs["via"] = "tcp"
 	}
-	if !in.ep.unix {
+	if in.ep.node != "" {
+		attrs["via"], attrs["access"], attrs["node"] = "node", "node", in.ep.node
+	}
+	if in.ep.host != "" {
 		attrs["host"] = in.ep.host
 		if net.ParseIP(in.ep.host) != nil {
 			attrs["ip"] = in.ep.host
