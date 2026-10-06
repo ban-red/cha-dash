@@ -23,6 +23,7 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/nodes"
+	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
@@ -92,6 +93,11 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 			t.Fatal(err)
 		}
 		d.Stacks = stk
+		nt, err := notify.New(t.Context(), notify.Options{Store: d.Store, Vault: v, Log: d.Log})
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Notify = nt
 	})
 	return e, st
 }

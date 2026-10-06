@@ -190,6 +190,11 @@ func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tie
 			t.Audit = &ev.ID
 		}
 	})
+	if e.onDone != nil {
+		if t, err := e.task(context.Background(), id); err == nil {
+			e.onDone(TaskDone{Task: t, Tier: tier, Actor: r.Actor})
+		}
+	}
 }
 
 // finish records a task's end. The task shows as finished, its lock is

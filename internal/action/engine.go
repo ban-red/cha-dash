@@ -49,8 +49,13 @@ type Options struct {
 	// ConsumeStepUp ends a session's step-up grant once a T4 action has
 	// used it, so the next T4 asks again. Nil leaves grants to lapse.
 	ConsumeStepUp func(ctx context.Context, session string) error
-	Log           *slog.Logger
-	Now           func() time.Time // nil means time.Now
+	// OnTaskDone is told about every task that ends, after its audit
+	// record, with the tier it ran at and who ran it (internal/notify tells
+	// the admins about every T4). It runs on the task's goroutine, so it
+	// must return quickly. Nil skips it.
+	OnTaskDone func(TaskDone)
+	Log        *slog.Logger
+	Now        func() time.Time // nil means time.Now
 }
 
 // Engine runs the lifecycle. It's safe for concurrent use.
@@ -62,6 +67,7 @@ type Engine struct {
 	graph    *graph.Graph
 	sessions Sessions
 	consume  func(ctx context.Context, session string) error
+	onDone   func(TaskDone)
 	log      *slog.Logger
 	now      func() time.Time
 
@@ -76,6 +82,13 @@ type Engine struct {
 	live   map[string]*liveTask // tasks in the topic, running or recent
 	locks  map[string]string    // resource ID → the task holding it
 	closed bool
+}
+
+// TaskDone is a task that has ended, for Options.OnTaskDone.
+type TaskDone struct {
+	Task  Task // as finished: state, error, audit event
+	Tier  Tier
+	Actor Actor
 }
 
 // liveTask is a task the topic holds.
@@ -97,7 +110,7 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 		return nil, errors.New("action: Store, Audit, Registry and Policy are required")
 	}
 	e := &Engine{
-		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, log: o.Log, now: o.Now,
+		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, onDone: o.OnTaskDone, log: o.Log, now: o.Now,
 		tasks: livedoc.New(tasksColl),
 		live:  map[string]*liveTask{},
 		locks: map[string]string{},

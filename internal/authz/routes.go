@@ -218,6 +218,24 @@ var Routes = []Route{
 	{Pattern: "DELETE /api/stacks/{node}/{stack}/draft", Access: Admin},
 	{Pattern: "POST /api/stacks/{node}/{stack}/validate", Access: Admin},
 
+	// Settings → Notifications (track 10A): channels, rules and the
+	// delivery log are admin+ (notifications are Settings in the Roles
+	// table). The VAPID key and your own devices' push subscriptions are
+	// every signed-in role's: notify scopes them to the caller.
+	{Pattern: "GET /api/notify/channels", Access: Admin},
+	{Pattern: "POST /api/notify/channels", Access: Admin},
+	{Pattern: "PUT /api/notify/channels/{id}", Access: Admin},
+	{Pattern: "DELETE /api/notify/channels/{id}", Access: Admin},
+	{Pattern: "POST /api/notify/channels/{id}/test", Access: Admin},
+	{Pattern: "GET /api/notify/rules", Access: Admin},
+	{Pattern: "PUT /api/notify/rules/{id}", Access: Admin},
+	{Pattern: "GET /api/notify/deliveries", Access: Admin},
+	{Pattern: "GET /api/notify/push/key", Access: SignedIn},
+	{Pattern: "GET /api/notify/push/subscriptions", Access: SignedIn},
+	{Pattern: "POST /api/notify/push/subscriptions", Access: SignedIn},
+	{Pattern: "DELETE /api/notify/push/subscriptions/{id}", Access: SignedIn},
+	{Pattern: "POST /api/notify/push/unsubscribe", Access: SignedIn},
+
 	// Settings → Audit. Added by the audit track.
 	{Pattern: "GET /api/audit", Access: Admin},
 	{Pattern: "GET /api/audit/export", Access: Admin},

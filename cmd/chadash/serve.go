@@ -28,6 +28,7 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/nodes"
+	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
@@ -278,20 +279,28 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 			return nil, err
 		}
 	}
+	// The inbox per role: whole for viewers and up, the household's
+	// projection of what its boards show otherwise (server.InboxView).
+	bs := boards.New(st)
+	// Notifications: the inbox's transitions (each device hears what its
+	// user's role sees) and every T4 action, from the engine below.
+	nt, err := notify.New(ctx, notify.Options{Store: st, Vault: v, Inbox: tp.Inbox, InboxView: server.InboxView(bs, g, log),
+		PublicURL: cfg.PublicURL, Version: buildinfo.Version, Log: log.With("component", "notify")})
+	if err != nil {
+		return nil, err
+	}
 	eng, err := action.New(ctx, action.Options{
 		Store: st, Audit: auditLog, Registry: actions, Policy: authz.NewPolicy(st, log).ForEngine(), Graph: g,
 		Sessions: action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
-		// A T4 spends the grant that allowed it.
+		// A T4 spends the grant that allowed it, and tells the admins.
 		ConsumeStepUp: authSvc.ClearStepUp,
+		OnTaskDone:    nt.TaskDone,
 		Log:           log,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	// The inbox per role: whole for viewers and up, the household's
-	// projection of what its boards show otherwise (server.InboxView).
-	bs := boards.New(st)
 	// index.html carries the first board's snapshot for a signed-in user,
 	// when the web app is built in (the placeholder page has no use for it).
 	var firstPaint *firstpaint.Builder
@@ -326,6 +335,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Audit:          auditLog,
 		Nodes:          nodeHub,
 		Stacks:         stk,
+		Notify:         nt,
 	})
 	if err != nil {
 		eng.Close()
@@ -350,6 +360,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	a.bg.Go(func() { corr.Run(bg) })
 	a.bg.Go(func() { eng.Run(bg) })
+	a.bg.Go(func() { nt.Run(bg) })
 	return a, nil
 }
 

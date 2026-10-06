@@ -35,6 +35,7 @@
 //	GET  /node                 chadash-node's channel (the node's pinned key, not a session; see nodes.Hub)
 //	GET  /api/nodes, POST /api/nodes/{id}/revoke   nodes and revoking one (admin)
 //	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)
+//	/api/notify/…              notifications: channels, rules, delivery log (admin); the VAPID key and your own push subscriptions (session; see notify.Service.Register)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
 //	                           with the first-paint snapshot for any signed-in role)
@@ -74,6 +75,7 @@ import (
 	"dash.cha.sh/internal/importer"
 	"dash.cha.sh/internal/importer/homepage"
 	"dash.cha.sh/internal/nodes"
+	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
@@ -131,6 +133,9 @@ type Deps struct {
 	// /api/stacks unmounted. Its actions are registered with the engine by
 	// the caller (stacks.Service.Actions).
 	Stacks *stacks.Service
+	// Notify is notifications (channels, rules, devices, the delivery
+	// log). Nil leaves /api/notify unmounted.
+	Notify *notify.Service
 }
 
 // New builds the root handler.
@@ -201,6 +206,10 @@ func New(d Deps) (http.Handler, error) {
 	if d.Stacks != nil {
 		d.Stacks.Audit = rec
 		d.Stacks.Register(mux, session)
+	}
+	if d.Notify != nil {
+		d.Notify.Audit = rec
+		d.Notify.Register(mux, session)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")
