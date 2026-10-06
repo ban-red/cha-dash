@@ -43,6 +43,9 @@ type Emitter struct {
 	// posture is the hub's security posture, read under mu each time an
 	// incident is published. Nil publishes declared severities.
 	posture func() security.Posture
+	// annotate fills an incident action's availability (plan_ready,
+	// unavailable, recipe) as it's published. Nil leaves them out.
+	annotate func(*integration.Action)
 
 	mu     sync.Mutex
 	scopes map[string]*owned
@@ -440,33 +443,80 @@ func (e *Emitter) published(in integration.Incident) integration.Incident {
 	if e.posture != nil {
 		in.Severity = e.posture().Severity(in.Category, in.Severity)
 	}
+	annotate := e.annotate
+	if annotate == nil {
+		annotate = func(a *integration.Action) { a.PlanReady, a.Unavailable, a.Recipe = nil, "", "" }
+	}
+	annotate(&in.Suggested)
+	if len(in.Alternatives) > 0 {
+		in.Alternatives = slices.Clone(in.Alternatives)
+		for i := range in.Alternatives {
+			annotate(&in.Alternatives[i])
+		}
+	}
 	return in
 }
 
-// Reapply re-publishes the instance's security findings, open and resolved,
-// at the severity the posture gives them now: the Manager calls it when the
-// posture changes, so every finding moves at once rather than at the next
-// sync. Each changes in place in the inbox, keeping what other writers
-// added (the correlator's causes), and nothing else about it changes.
+// SetAnnotate sets how incident actions get their availability.
+func (e *Emitter) SetAnnotate(fn func(*integration.Action)) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.annotate = fn
+}
+
+// sameAvailability reports whether two actions carry the same availability.
+func sameAvailability(a, b integration.Action) bool {
+	return reflect.DeepEqual(a.PlanReady, b.PlanReady) && a.Unavailable == b.Unavailable && a.Recipe == b.Recipe
+}
+
+// withAvailability copies want's availability onto the actions of cur that
+// are the same action, and reports whether anything changed.
+func withAvailability(cur *integration.Incident, want integration.Incident) bool {
+	changed := false
+	set := func(c *integration.Action, w integration.Action) {
+		if c.ID == w.ID && c.Target == w.Target && !sameAvailability(*c, w) {
+			c.PlanReady, c.Unavailable, c.Recipe = w.PlanReady, w.Unavailable, w.Recipe
+			changed = true
+		}
+	}
+	set(&cur.Suggested, want.Suggested)
+	for i := range cur.Alternatives {
+		if i < len(want.Alternatives) {
+			set(&cur.Alternatives[i], want.Alternatives[i])
+		}
+	}
+	return changed
+}
+
+// Reapply re-publishes the instance's incidents where what the hub adds has
+// changed: security findings, open and resolved, at the severity the
+// posture gives them now, and actions' availability (plan_ready,
+// unavailable). The Manager calls it when the posture changes and when
+// instances' actions do, so everything moves at once rather than at the
+// next sync. Each changes in place in the inbox, keeping what other
+// writers added (the correlator's causes), and nothing else about it
+// changes.
 func (e *Emitter) Reapply() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	_, _ = e.t.Inbox.Update(func(tx *livedoc.Tx) error {
 		for id, in := range e.incidents {
-			if in.Category != integration.CategorySecurity {
-				continue
-			}
-			want := e.published(in).Severity
+			want := e.published(in)
 			raw := tx.Item(topics.Incidents, id)
 			if raw == nil {
 				continue
 			}
 			var cur integration.Incident
-			if err := json.Unmarshal(raw, &cur); err != nil || cur.Severity == want {
+			if err := json.Unmarshal(raw, &cur); err != nil {
 				continue
 			}
-			cur.Severity = want
-			tx.Put(topics.Incidents, id, cur)
+			changed := withAvailability(&cur, want)
+			if in.Category == integration.CategorySecurity && cur.Severity != want.Severity {
+				cur.Severity, changed = want.Severity, true
+			}
+			if changed {
+				tx.Put(topics.Incidents, id, cur)
+			}
 		}
 		return nil
 	})

@@ -132,12 +132,13 @@ func (r TestResult) MarshalJSON() ([]byte, error) {
 	return json.Marshal(out)
 }
 
-// WriteGrantWarning is the warning for write grants on a read-only
-// connection, or nil when there are none. Every v0.1 connection is read-only.
-func WriteGrantWarning(grants []Grant) *Warning {
+// WriteGrantWarning is the warning for write grants beyond what Cha Dash
+// uses, or nil when there are none. expected are the write grants the
+// connection's actions need (Manifest.ExpectedWrites): they don't count.
+func WriteGrantWarning(grants []Grant, expected ...string) *Warning {
 	var names []string
 	for _, g := range grants {
-		if g.CanWrite() {
+		if g.CanWrite() && !slices.Contains(expected, g.Name) {
 			names = append(names, g.Name)
 		}
 	}

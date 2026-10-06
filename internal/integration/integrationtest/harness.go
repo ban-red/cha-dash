@@ -92,6 +92,9 @@ func Validate(integ integration.Integration, config map[string]any, secrets map[
 			errs = append(errs, integration.FieldError{Path: "/tls", Message: err.Error()})
 		}
 	}
+	if len(errs) == 0 {
+		errs = m.CheckControl(full)
+	}
 	if v, ok := integ.(integration.ConfigValidator); ok && len(errs) == 0 {
 		errs = v.ValidateConfig(integration.Config{InstanceID: "i_test", Values: full})
 	}

@@ -76,6 +76,17 @@ func GraphImpact(g *graph.Graph, origin string) []Impact {
 	return out
 }
 
+// ResolveInGraph resolves id in the Home Graph the way the engine does for
+// a Def without Resolve: the resource must exist and be of one of d's
+// Targets kinds. A source that wraps Defs (the integration runtime) uses
+// it to keep that default.
+func ResolveInGraph(g *graph.Graph, d *Def, id string) (Target, error) {
+	if id == "" {
+		return Target{}, ErrNotFound
+	}
+	return graphTarget(g, d, id)
+}
+
 // graphTarget resolves a target in the Home Graph.
 func graphTarget(g *graph.Graph, d *Def, id string) (Target, error) {
 	if g == nil {

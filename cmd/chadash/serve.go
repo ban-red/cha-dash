@@ -189,7 +189,17 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if cfg.Demo {
 		itp = topics.New(graph.New(), time.Now())
 	}
-	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log, Posture: sec.Posture()})
+	// The action engine's registry. Instances register their actions in it
+	// (one source per integration), except in demo mode: there they write to
+	// a private graph the engine never sees, and the Demo Home's fixes are
+	// the actions.
+	actions := action.NewRegistry()
+	instanceActions := actions
+	if cfg.Demo {
+		instanceActions = nil
+	}
+	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log, Posture: sec.Posture(),
+		Actions: instanceActions})
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +216,6 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 
 	// The action engine and its audit log. In demo mode the Demo Home's
 	// incident fixes are its actions.
-	actions := action.NewRegistry()
 	auditLog := audit.New(st)
 	if drv != nil {
 		if err := actions.Register(demo.ActionSource, drv.Actions()...); err != nil {

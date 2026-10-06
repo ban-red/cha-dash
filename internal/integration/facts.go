@@ -211,6 +211,17 @@ type Action struct {
 	Target string   `json:"target"`
 	Detail string   `json:"detail,omitempty"`
 	Impact []Impact `json:"impact,omitempty"`
+	// Params are the action's params, for the plan.
+	Params map[string]any `json:"params,omitempty"`
+
+	// The hub fills these for an action the engine runs (an Actor's), so
+	// the web needn't decide availability itself; what an integration sets
+	// is overwritten. PlanReady: the engine can plan it now. Unavailable:
+	// why not, as a sentence, with Recipe naming the instance whose recipe
+	// grants it. See runtime.Actions.Availability for the rule.
+	PlanReady   *bool  `json:"plan_ready,omitempty"`
+	Unavailable string `json:"unavailable,omitempty"`
+	Recipe      string `json:"recipe,omitempty"`
 }
 
 // Attrs that carry the resource fields graph.Resource doesn't have yet, the

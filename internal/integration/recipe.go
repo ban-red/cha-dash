@@ -34,7 +34,8 @@ import (
 //	 "steps": [{"title", "blocks": [block]}],
 //	 "notes": [block],
 //	 "fills": {"<config field>": "<template>"},
-//	 "grants": ["<grant name>"]}
+//	 "grants": ["<grant name>"],
+//	 "control"?: recipe}   // the control variant, same shape, no "control" of its own
 //
 // where a block is {"kind": "text", "text"} | {"kind": "list", "items", "ordered"?} |
 // {"kind": "code", "lang", "code"}. Text may use `code` and **bold**.
@@ -59,6 +60,11 @@ type Recipe struct {
 	// Discover says how to recognise the service on a machine the owner
 	// names (the onboarding wizard's "check these machines"). Hub-only.
 	Discover []DiscoverHint `json:"-"`
+	// Control is the recipe's control variant: how to make the control
+	// credential an integration's actions use (Manifest.Control), whose
+	// Fills name the control group's fields. Registered apart, with
+	// RegisterControlRecipe; nil when there's none.
+	Control *Recipe `json:"control,omitempty"`
 }
 
 // Recipe access labels.
@@ -568,10 +574,50 @@ func (r *Registry) AddRecipe(id string, rc Recipe) error {
 	return nil
 }
 
-// Recipe returns the recipe for the integration id, if it has one.
+// Recipe returns the recipe for the integration id, if it has one, with
+// its control variant.
 func (r *Registry) Recipe(id string) (Recipe, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	rc, ok := r.recipes[id]
+	if c, has := r.controls[id]; ok && has {
+		rc.Control = &c
+	}
 	return rc, ok
+}
+
+// RegisterControlRecipe parses the control variant of an integration's
+// recipe (recipe.control.md, the same Markdown as ParseRecipe) and adds it
+// to Default. It panics on a bad recipe, like RegisterRecipe.
+func RegisterControlRecipe(id string, md []byte) {
+	r, err := ParseRecipe(md)
+	if err != nil {
+		panic(fmt.Errorf("integration %q: control %w", id, err))
+	}
+	if err := Default.AddControlRecipe(id, r); err != nil {
+		panic(err)
+	}
+}
+
+// AddControlRecipe adds the control variant of the integration id's
+// recipe. A control credential can change things, so its access is never
+// read-only.
+func (r *Registry) AddControlRecipe(id string, rc Recipe) error {
+	if !idRE.MatchString(id) {
+		return fmt.Errorf("recipe: id %q must match %s", id, idRE)
+	}
+	rc.normalize()
+	if err := rc.Check(); err != nil {
+		return fmt.Errorf("integration %q: control recipe: %w", id, err)
+	}
+	if rc.Access == RecipeReadOnly || rc.Control != nil {
+		return fmt.Errorf("integration %q: a control recipe can change things, so its access isn't read-only, and it has no control variant of its own", id)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, dup := r.controls[id]; dup {
+		return fmt.Errorf("%w: a control recipe for %s", ErrDuplicate, id)
+	}
+	r.controls[id] = rc
+	return nil
 }

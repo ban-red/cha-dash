@@ -166,6 +166,9 @@ type Manifest struct {
 	// ConfigSchema is the instance config as JSON Schema (the subset in
 	// schema.go). Secret fields are top-level strings marked WriteOnly.
 	ConfigSchema *Schema `json:"config_schema"`
+	// Control says where an Actor's actions get their credential: a
+	// control group of fields, or a mode (see Control). Optional.
+	Control *Control `json:"control,omitempty"`
 
 	Engine Engine `json:"-"` // EngineGo when empty
 	Poll   Poll   `json:"-"`

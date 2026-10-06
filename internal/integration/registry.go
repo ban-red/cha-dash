@@ -16,6 +16,8 @@ type Registry struct {
 	mu      sync.RWMutex
 	m       map[string]entry
 	recipes map[string]Recipe // least-privilege recipes, by integration ID (recipe.go)
+	// controls are the recipes' control variants, by integration ID.
+	controls map[string]Recipe
 }
 
 // entry keeps the manifest checked at registration: Check compiles the
@@ -37,7 +39,9 @@ func Register(i Integration) {
 }
 
 // NewRegistry returns an empty registry.
-func NewRegistry() *Registry { return &Registry{m: map[string]entry{}, recipes: map[string]Recipe{}} }
+func NewRegistry() *Registry {
+	return &Registry{m: map[string]entry{}, recipes: map[string]Recipe{}, controls: map[string]Recipe{}}
+}
 
 // ErrDuplicate is returned by Register for an ID that's already registered.
 var ErrDuplicate = errors.New("integration: already registered")
@@ -125,6 +129,9 @@ func ValidateManifest(m Manifest) error {
 	}
 	if tls := m.ConfigSchema.Property("tls"); tls != nil && tls.Type != "object" {
 		return fail("the tls property must be TLSSchema()")
+	}
+	if err := checkControl(m); err != nil {
+		return fail("%v", err)
 	}
 	return nil
 }

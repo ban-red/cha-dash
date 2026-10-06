@@ -22,8 +22,8 @@ import (
 // description, properties, required, additionalProperties (false only),
 // items, enum (with titles, as oneOf), default, format (uri, hostname), pattern, minLength,
 // maxLength, minimum, maximum, minItems, maxItems and writeOnly, plus the
-// extension x-chadash-authorize. Anything a schema can't say goes in a
-// ConfigValidator.
+// extensions x-chadash-authorize and x-chadash-group. Anything a schema
+// can't say goes in a ConfigValidator.
 type Schema struct {
 	Type        string // object, array, string, integer, number, boolean
 	Title       string
@@ -54,6 +54,10 @@ type Schema struct {
 	// (see Authorizer): "x-chadash-authorize": true, so the form offers a
 	// "Sign in with …" button. Only on write-only properties.
 	Authorize bool
+	// Group puts a top-level property in a named group of the form:
+	// "x-chadash-group": "control" marks the control credential's fields
+	// (see Manifest.Control). GroupControl is the only group.
+	Group string
 
 	re *regexp.Regexp // Pattern, compiled by Check
 }
@@ -141,6 +145,12 @@ func TLSSchema() *Schema {
 	return s
 }
 
+// InGroup puts s in a form group (GroupControl) and returns s.
+func (s *Schema) InGroup(g string) *Schema {
+	s.Group = g
+	return s
+}
+
 // Require marks properties as required and returns s.
 func (s *Schema) Require(names ...string) *Schema {
 	s.Required = append(s.Required, names...)
@@ -198,6 +208,12 @@ func (s *Schema) check(path string, top bool) error {
 	}
 	if s.Authorize && !s.WriteOnly {
 		return fail("x-chadash-authorize is only allowed on write-only properties")
+	}
+	if s.Group != "" && (!top || path == "") {
+		return fail("x-chadash-group is only allowed on top-level properties")
+	}
+	if s.Group != "" && s.Group != GroupControl {
+		return fail("x-chadash-group %q isn't %q", s.Group, GroupControl)
 	}
 	if len(s.Properties) > 0 && s.Type != "object" {
 		return fail("properties on a %s", s.Type)
@@ -539,6 +555,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	set("maxItems", s.MaxItems, s.MaxItems != nil)
 	set("writeOnly", true, s.WriteOnly)
 	set("x-chadash-authorize", true, s.Authorize)
+	set("x-chadash-group", s.Group, s.Group != "")
 	if err != nil {
 		return nil, err
 	}

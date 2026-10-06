@@ -220,6 +220,11 @@ type Def struct {
 	// Async marks a long-running action (a PVE task, a deploy): its default
 	// timeout is AsyncTimeout rather than DefaultTimeout.
 	Async bool
+	// Disrupts marks an action that takes its target down for a while
+	// (reboot, stop). The engine doesn't read it: the integration runtime
+	// raises such an action to T4 when the target runs the hub or the
+	// router (the self-aware T4; see runtime.Actions).
+	Disrupts bool
 	// Timeout bounds Execute; VerifyTimeout bounds Verify.
 	Timeout       time.Duration
 	VerifyTimeout time.Duration

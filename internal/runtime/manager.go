@@ -21,6 +21,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/store"
@@ -46,6 +47,12 @@ type Options struct {
 	// Posture is the security posture instances' security findings are
 	// published under (see SetPosture). Empty publishes declared severities.
 	Posture security.Posture
+	// Actions is the action engine's registry. When set, every running
+	// instance whose integration is an integration.Actor registers its
+	// actions there (see Actions), and incidents' actions carry their
+	// availability. Nil runs no actions (demo mode, where instances write
+	// to a private graph).
+	Actions *action.Registry
 }
 
 // Manager owns every instance: it loads them at boot, runs a coordinator
@@ -63,6 +70,8 @@ type Manager struct {
 	bg     sync.WaitGroup
 
 	auth authState // sign-in flows (authorize.go)
+
+	actions *Actions // nil without Options.Actions
 
 	posture atomic.Value // security.Posture
 }
@@ -129,7 +138,26 @@ func New(o Options) (*Manager, error) {
 	}
 	m := &Manager{o: o, reg: o.Registry, log: o.Log, insts: map[string]*managed{}}
 	m.posture.Store(o.Posture)
+	if o.Actions != nil {
+		m.actions = NewActions(o.Actions, o.Topics.Graph, o.Log)
+		m.actions.OnChange(m.reapplyAll)
+	}
 	return m, nil
+}
+
+// Actions is the bridge to the action engine, or nil without
+// Options.Actions.
+func (m *Manager) Actions() *Actions { return m.actions }
+
+// reapplyAll publishes every instance's incidents again where the hub's
+// additions changed (actions' availability).
+func (m *Manager) reapplyAll() {
+	m.mu.Lock()
+	insts := m.all()
+	m.mu.Unlock()
+	for _, mi := range insts {
+		mi.emit.Reapply()
+	}
 }
 
 // Posture is the security posture the instances publish under.
@@ -174,6 +202,7 @@ func (m *Manager) Close() {
 	m.mu.Unlock()
 	for _, mi := range insts {
 		mi.life.Lock()
+		m.detach(mi)
 		if mi.coord != nil {
 			mi.coord.stop()
 			mi.coord = nil
@@ -290,6 +319,9 @@ func (m *Manager) add(r row) *managed {
 	mi.emit = NewEmitter(m.o.Topics, r.ID, m.o.Now)
 	mi.emit.report = mi.st.report
 	mi.emit.posture = m.Posture
+	if m.actions != nil {
+		mi.emit.annotate = m.actions.annotate
+	}
 	m.mu.Lock()
 	m.insts[r.ID] = mi
 	m.mu.Unlock()
@@ -300,6 +332,7 @@ func (m *Manager) add(r row) *managed {
 func (m *Manager) retire(mi *managed) {
 	mi.life.Lock()
 	defer mi.life.Unlock()
+	m.detach(mi)
 	if mi.coord != nil {
 		mi.coord.stop()
 		mi.coord = nil
@@ -325,6 +358,7 @@ func (m *Manager) restartLocked(mi *managed) {
 		unknown = fmt.Sprintf("This hub doesn't include the %q integration.", r.Integration)
 	}
 	mi.st.reset(!r.Enabled, unknown)
+	m.detach(mi)
 	if !r.Enabled || mi.integ == nil {
 		mi.emit.Clear()
 		return
@@ -352,16 +386,50 @@ func (m *Manager) restartLocked(mi *managed) {
 	red := newRedactor(secrets)
 	log = newRedactLogger(log, red)
 	cfg := integration.Config{InstanceID: r.ID, Name: r.Name, Values: full}
+	// Sync never sees the control credential: it reads with the read one.
+	readCfg := mi.man.ReadConfig(cfg)
 	c := &coordinator{
-		name: r.Name, integ: mi.integ, man: mi.man, cfg: cfg,
+		name: r.Name, integ: mi.integ, man: mi.man, cfg: readCfg,
 		emit: mi.emit, st: mi.st, watch: m.o.Watch, log: log, red: red,
+		poke: make(chan struct{}, 1),
 	}
 	c.deps = func() (integration.Deps, func()) {
-		d, _, release := m.buildDeps(mi, gen, cfg, log, mi.emit)
+		d, _, release := m.buildDeps(mi, gen, readCfg, log, mi.emit)
 		return d, release
 	}
+	m.attach(ctx, mi, gen, cfg, log, c.syncSoon)
 	mi.coord = c
 	c.start(ctx)
+}
+
+// attach registers a starting instance's actions with the engine, if it
+// has any. The caller holds mi.life.
+func (m *Manager) attach(ctx context.Context, mi *managed, gen int, cfg integration.Config, log *slog.Logger, poke func()) {
+	if m.actions == nil {
+		return
+	}
+	self := SelfID(cfg.InstanceID)
+	_, err := m.actions.Attach(ctx, ActorSpec{
+		Instance: cfg.InstanceID, Name: cfg.Name, Integration: mi.integ, Manifest: mi.man, Config: cfg,
+		Deps: func(c integration.Config) (integration.Deps, func()) {
+			// Action instances publish nothing: Sync owns the facts.
+			d, _, release := m.buildDeps(mi, gen, c, log, discard{self: self})
+			return d, release
+		},
+		Poke: poke,
+	})
+	if err != nil {
+		log.Error("registering the instance's actions failed", "err", err)
+	}
+}
+
+// detach removes an instance's actions. The caller holds mi.life.
+func (m *Manager) detach(mi *managed) {
+	if m.actions == nil {
+		return
+	}
+	r, _ := mi.snapshotRow()
+	m.actions.Detach(r.ID)
 }
 
 // resolve returns a stored config with its secrets read from the vault, and
@@ -701,6 +769,9 @@ func validateFull(integ integration.Integration, man integration.Manifest, id st
 		}
 	}
 	if len(fields) == 0 {
+		fields = man.CheckControl(full)
+	}
+	if len(fields) == 0 {
 		if v, ok := integ.(integration.ConfigValidator); ok {
 			fields = v.ValidateConfig(integration.Config{InstanceID: id, Values: cloneMap(full)})
 		}
@@ -927,6 +998,7 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	}
 	mi.life.Lock()
 	defer mi.life.Unlock()
+	m.detach(mi)
 	if mi.coord != nil {
 		mi.coord.stop()
 		mi.coord = nil
@@ -1144,7 +1216,8 @@ func (m *Manager) runTest(ctx context.Context, mi *managed, gen int, integ integ
 				res = integration.TestResult{ErrorCode: code, ErrorMessage: msg}
 			}
 		}()
-		inst, err := integ.Connect(ctx, cfg, deps)
+		// Test connection tests the credential Cha Dash reads with.
+		inst, err := integ.Connect(ctx, man.ReadConfig(cfg), deps)
 		if err != nil {
 			return integration.Failed(err)
 		}
@@ -1175,7 +1248,10 @@ func (m *Manager) runTest(ctx context.Context, mi *managed, gen int, integ integ
 // frameworkWarnings are the checks every test gets.
 func frameworkWarnings(man integration.Manifest, cfg integration.Config, grants []integration.Grant) []integration.Warning {
 	var out []integration.Warning
-	if w := integration.WriteGrantWarning(grants); w != nil {
+	if w := integration.WriteGrantWarning(grants, man.ExpectedWrites(cfg)...); w != nil {
+		out = append(out, *w)
+	}
+	if w := controlWarning(man, cfg); w != nil {
 		out = append(out, *w)
 	}
 	out = append(out, configWarnings(cfg)...)
@@ -1190,6 +1266,23 @@ func frameworkWarnings(man integration.Manifest, cfg integration.Config, grants 
 		}
 	}
 	return out
+}
+
+// controlWarning is the hint that a read-only connection can be given
+// control: for an integration with a control credential (or mode) that
+// this config doesn't have yet. It points at the recipe's control variant.
+func controlWarning(man integration.Manifest, cfg integration.Config) *integration.Warning {
+	if man.Control == nil || (len(man.Control.Fields) == 0 && man.Control.Mode == "") {
+		return nil
+	}
+	if _, ok := man.ControlConfig(cfg); ok {
+		return nil
+	}
+	msg := "This connection only reads. To let Cha Dash act on it too (with a plan, a confirmation and an audit record each time), add a control credential: the recipe's control variant makes one with only the rights those actions need."
+	if man.Control.Mode != "" {
+		msg = "This connection only reads. To let Cha Dash act on it too, switch it to control in its settings."
+	}
+	return &integration.Warning{Code: "control_available", Severity: integration.WarnInfo, Message: msg}
 }
 
 // configWarnings are the risks a saved config keeps carrying. A test reports

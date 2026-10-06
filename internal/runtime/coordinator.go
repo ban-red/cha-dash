@@ -41,6 +41,9 @@ type coordinator struct {
 	log    *slog.Logger
 	red    redactor
 	jitter func(time.Duration) time.Duration // nil: ±10 %
+	// poke asks for a sync now (an action just changed the source). Nil:
+	// never.
+	poke chan struct{}
 
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -60,6 +63,14 @@ func (c *coordinator) start(parent context.Context) {
 func (c *coordinator) stop() {
 	c.cancel()
 	<-c.done
+}
+
+// syncSoon asks the coordinator to sync now, without waiting for it.
+func (c *coordinator) syncSoon() {
+	select {
+	case c.poke <- struct{}{}:
+	default:
+	}
 }
 
 // jitter spreads d by ±10 %, so instances started together drift apart.
@@ -102,6 +113,10 @@ func (c *coordinator) run(ctx context.Context) {
 		case <-ctx.Done():
 			timer.Stop()
 			return
+		case <-c.poke:
+			timer.Stop()
+			next = time.Now()
+			continue
 		case <-changed:
 			timer.Stop()
 			interest = c.watch.Interest()
