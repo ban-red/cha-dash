@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Owned stacks (wave 9, track 9B)
+- **Settings → Stacks**: manage compose stacks on each node from the web. It lists status, drafts, drift and Cha Dash's own protected stack, and adopts running projects in place.
+- A plain compose editor checks the file as you type: errors with line numbers, referenced secrets, a plan per service and a diff. Drafts save on the hub.
+- Deploy and roll back go through the hold-to-confirm ring and show live progress. A deploy runs seven steps on the node: validate, plan, a dry-run preflight that blocks a bad tag before anything stops, commit, pull and up, a restart-aware health gate, then keep or roll back. A failed health check rolls back on its own, pinned to the image digests that last ran; if that fails too, the stack is stuck and the Inbox says so.
+- Every change to a stack is a commit in the stacks root's git repository, so history and rollback are just git.
+- Stack secrets are `${secret:name}` references, resolved in memory at deploy time and never written to disk or git. They're write-only: set or delete them, but values are never shown again.
+- Stack actions are admin+, whatever their tier: stacks are settings.
+
 ### Added
 
 - **Seven more integrations, all read-only**, each tested against responses written from its API's documentation:
