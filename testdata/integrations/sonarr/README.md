@@ -12,4 +12,4 @@ The numbers match the Demo Home at 2026-10-03 14:05 UTC (queue 10, wanted 25), a
 | `queue_status.json` | `GET /api/v3/queue/status` | 10 queued, warnings, no errors |
 | `wanted_missing.json` | `GET /api/v3/wanted/missing?page=1&pageSize=1&monitored=true` | `totalRecords` 21 |
 | `wanted_cutoff.json` | `GET /api/v3/wanted/cutoff?page=1&pageSize=1&monitored=true` | `totalRecords` 4 |
-| `calendar.json` | `GET /api/v3/calendar?start=…&end=…&includeSeries=true` | 7 episodes: one aired before the window, one after it, one with no air time (TBA), a season premiere, a season finale, a series premiere, and an episode whose title is "TBA". A real Sonarr returns only the requested window; the extras test the integration's own filtering |
+| `calendar.json` | `GET /api/v3/calendar?start=…&end=…&includeSeries=true` | 7 episodes: one aired before the window, one after it, one with no air time (TBA), a season premiere, a season finale, a series premiere, and an episode whose title is "TBA" (that one is unmonitored, so the calendar marks it). A real Sonarr returns only the requested window; the extras test the integration's own filtering |

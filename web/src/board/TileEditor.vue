@@ -3,8 +3,10 @@
  * Edit one tile, in edit mode (its own chunk, loaded on the first Edit): its
  * name, its link, and what it's bound to. A widget bound to one resource can
  * be pointed at another (the queue at the other Sonarr); a service tile takes
- * its status from a check, an integration or any resource. Everything else
- * in its config (icon, options, where it came from) is kept as it is.
+ * its status from a check, an integration or any resource. The media
+ * calendar also has "Include unmonitored releases" (`options.unmonitored`;
+ * saving it replaces the importer's per-source option). Everything else in
+ * its config (icon, other options, where it came from) is kept as it is.
  *
  * It only describes the change; EditableBoard records it in the history, so
  * Undo takes it back, and saves it.
@@ -35,6 +37,11 @@ const href = ref(config?.href ?? '');
 const description = ref(config?.description ?? '');
 const target = ref(config?.bind?.resource ?? idTarget ?? '');
 const binding = ref(encodeBinding(config?.bind));
+const isCalendar = item.type === 'calendar';
+const unmonitored = ref(
+  config?.options?.['unmonitored'] === true ||
+    (config?.bind?.sources ?? []).some((s) => s.capability === 'media.calendar' && s.options?.['unmonitored'] === true),
+);
 
 const candidates = computed(() => {
   if (kind.value !== 'resource' || !spec.value) return [];
@@ -70,6 +77,24 @@ function submit(): void {
     delete bind.instance;
     delete bind.resource;
     Object.assign(bind, decodeBinding(binding.value));
+  }
+  if (isCalendar) {
+    const options = { ...config?.options };
+    if (unmonitored.value) options['unmonitored'] = true;
+    else delete options['unmonitored'];
+    if (Object.keys(options).length) next.options = options;
+    else delete next.options;
+    // One answer for the tile: the sources' own option goes.
+    if (bind.sources?.some((s) => s.options && 'unmonitored' in s.options)) {
+      bind.sources = bind.sources.map((s) => {
+        if (!s.options || !('unmonitored' in s.options)) return s;
+        const { unmonitored: _drop, ...rest } = s.options;
+        const out = { ...s };
+        if (Object.keys(rest).length) out.options = rest;
+        else delete out.options;
+        return out;
+      });
+    }
   }
   if (Object.keys(bind).length) next.bind = bind;
   else delete next.bind;
@@ -118,6 +143,14 @@ function submit(): void {
             <option v-for="c in gr.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
           </optgroup>
         </select>
+      </div>
+
+      <div v-if="isCalendar" class="field check">
+        <label :for="`${uid}-unmon`">
+          <input :id="`${uid}-unmon`" v-model="unmonitored" type="checkbox" :aria-describedby="`${uid}-unmon-help`" />
+          Include unmonitored releases
+        </label>
+        <span :id="`${uid}-unmon-help`" class="help">Lists what Sonarr, Radarr and Lidarr know about but aren’t monitoring, marked as such.</span>
       </div>
 
       <div class="edit-dlg-foot">

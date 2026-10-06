@@ -80,7 +80,7 @@ func TestSync(t *testing.T) {
 	// first, TBA dates left out.
 	want := []any{
 		map[string]any{"at": "2026-10-04T04:00:00Z", "title": "Orbital Kitchen", "detail": "S02E01 · Re-entry · season premiere"},
-		map[string]any{"at": "2026-10-04T10:00:00Z", "title": "Night Garden Detectives", "detail": "S01E07"},
+		map[string]any{"at": "2026-10-04T10:00:00Z", "title": "Night Garden Detectives", "detail": "S01E07", "unmonitored": true},
 		map[string]any{"at": "2026-10-06T20:00:00Z", "title": "The Lighthouse Keepers", "detail": "S03E06 · Beacon · season finale"},
 		map[string]any{"at": "2026-10-08T02:00:00Z", "title": "Quiet Valley", "detail": "S01E01 · Pilot · series premiere"},
 	}
@@ -105,7 +105,7 @@ func TestSync(t *testing.T) {
 		}
 	}
 	cal := up.Requests("/calendar")[0].URL.Query()
-	if cal.Get("start") != "2026-10-03T02:05:00Z" || cal.Get("end") != "2026-10-10T14:05:00Z" || cal.Get("includeSeries") != "true" {
+	if cal.Get("start") != "2026-10-03T02:05:00Z" || cal.Get("end") != "2026-10-10T14:05:00Z" || cal.Get("includeSeries") != "true" || cal.Get("unmonitored") != "true" {
 		t.Fatalf("calendar query = %v", cal)
 	}
 	if q := up.Requests("/wanted/missing")[0].URL.Query(); q.Get("pageSize") != "1" || q.Get("monitored") != "true" {

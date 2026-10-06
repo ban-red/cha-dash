@@ -43,8 +43,8 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	return arr.NewMedia(app, cfg, d), nil
 }
 
-// calendar reads the albums releasing in now's window, monitored ones only
-// (Lidarr's default), with their artist.
+// calendar reads the albums releasing in now's window, unmonitored ones
+// marked, with their artist.
 func calendar(ctx context.Context, c *arr.Client, now time.Time) ([]arr.CalendarItem, error) {
 	q := arr.CalendarQuery(now)
 	q.Set("includeArtist", "true")
@@ -66,6 +66,7 @@ type album struct {
 	Title       string     `json:"title"`
 	AlbumType   string     `json:"albumType"` // Album, EP, Single, Broadcast, Other
 	ReleaseDate *time.Time `json:"releaseDate"`
+	Monitored   *bool      `json:"monitored"`
 	Artist      *struct {
 		ArtistName string `json:"artistName"`
 	} `json:"artist"`
@@ -86,5 +87,5 @@ func (a album) item() (arr.CalendarItem, bool) {
 	case t != "" && !strings.EqualFold(t, "album"):
 		detail += " · " + strings.ToLower(t)
 	}
-	return arr.CalendarItem{At: *a.ReleaseDate, Title: strings.TrimSpace(a.Artist.ArtistName), Detail: detail}, true
+	return arr.CalendarItem{At: *a.ReleaseDate, Title: strings.TrimSpace(a.Artist.ArtistName), Detail: detail, Unmonitored: arr.Unmonitored(a.Monitored)}, true
 }

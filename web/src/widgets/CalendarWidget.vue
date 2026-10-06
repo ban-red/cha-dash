@@ -4,9 +4,10 @@
  * and Radarr instance, read from their `attrs.calendar`
  * (`[{at, title, detail}]`), so renames don't break it. Target: one instance;
  * else the instances the tile config lists (`bind.sources` with capability
- * `media.calendar`, as the importer writes them); else all of them. The
- * importer's per-source `unmonitored` option isn't honoured yet: the *arr
- * integrations publish monitored releases only.
+ * `media.calendar`, as the importer writes them); else all of them.
+ * Unmonitored releases (the *arrs publish them marked) are listed only when
+ * the tile's `options.unmonitored` is true, or the source's own options say
+ * so (the importer's per-source `unmonitored`); they're marked "unmonitored".
  *
  * Strip: "Next: Black Clover 04:00". Wide: today and tomorrow. Tall: tonight
  * and the week. Large: a week grid.
@@ -39,6 +40,17 @@ const configured = computed(() =>
     .filter((src) => src.capability === 'media.calendar')
     .flatMap((src) => outgoing(live.graph.value, `integration:${src.instance}`, 'monitors').filter((r) => r.kind === 'app')),
 );
+/** Whether a source's unmonitored releases are listed: the tile's option, else that source's (the importer's per-source one). */
+function withUnmonitored(r: Resource): boolean {
+  const cfg = tile.config.value;
+  if (cfg?.options?.['unmonitored'] === true) return true;
+  return (cfg?.bind?.sources ?? []).some(
+    (src) =>
+      src.capability === 'media.calendar' &&
+      src.options?.['unmonitored'] === true &&
+      outgoing(live.graph.value, `integration:${src.instance}`, 'monitors').some((x) => x.id === r.id),
+  );
+}
 const sources = computed<Resource[]>(() => {
   if (picked.value) return [picked.value];
   if (configured.value.length) return configured.value;
@@ -52,7 +64,7 @@ const all = computed(() => {
   const doc: GraphDoc | undefined = live.graph.value
     ? { resources: Object.fromEntries(Object.entries(live.graph.value.resources).filter(([id]) => ids.has(id))), relations: {} }
     : undefined;
-  return calendar(doc, live.now.value).filter((e) => Date.parse(e.at) < live.now.value + 7 * DAY);
+  return calendar(doc, live.now.value, withUnmonitored).filter((e) => Date.parse(e.at) < live.now.value + 7 * DAY);
 });
 const horizon = computed(() => (size === 'wide' ? 2 : 7));
 const limit = computed(() => (size === 'tall' ? 8 : size === 'large' ? 40 : 4));
@@ -132,7 +144,7 @@ const sourceNames = computed(() => sources.value.map((r) => label(r)).join(' · 
       <div v-for="d in week" :key="d.key" class="wk-day" role="row">
         <div class="ag-day" role="rowheader">{{ d.day }}</div>
         <div v-for="e in d.items.slice(0, 4)" :key="e.at + e.title" class="wk-item" role="cell">
-          <span class="n">{{ hhmm(e.at) }}</span> {{ e.title }}
+          <span class="n">{{ hhmm(e.at) }}</span> {{ e.title }}<small v-if="e.unmonitored"> · unmonitored</small>
         </div>
         <div v-if="d.items.length > 4" class="wk-item more" role="cell">+{{ d.items.length - 4 }}</div>
       </div>
@@ -144,7 +156,7 @@ const sourceNames = computed(() => sources.value.map((r) => label(r)).join(' · 
         <div class="ag-day">{{ g.day }}</div>
         <div v-for="e in g.items" :key="e.at + e.title" class="ag-row" role="listitem">
           <span class="n">{{ hhmm(e.at) }}</span>
-          <span>{{ e.title }}<small>{{ e.source }}{{ e.detail ? ` · ${e.detail}` : '' }}</small></span>
+          <span>{{ e.title }}<small>{{ e.source }}{{ e.detail ? ` · ${e.detail}` : '' }}{{ e.unmonitored ? ' · unmonitored' : '' }}</small></span>
         </div>
       </template>
     </div>

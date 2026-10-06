@@ -72,7 +72,7 @@
     "airDateUtc": "2026-10-04T10:00:00Z",
     "runtime": 24,
     "hasFile": false,
-    "monitored": true,
+    "monitored": false,
     "unverifiedSceneNumbering": false,
     "series": {
       "title": "Night Garden Detectives",

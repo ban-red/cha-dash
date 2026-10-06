@@ -44,8 +44,8 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	return arr.NewMedia(app, cfg, d), nil
 }
 
-// calendar reads the episodes airing in now's window, monitored ones only
-// (Sonarr's default), with their series.
+// calendar reads the episodes airing in now's window, unmonitored ones
+// marked, with their series.
 func calendar(ctx context.Context, c *arr.Client, now time.Time) ([]arr.CalendarItem, error) {
 	q := arr.CalendarQuery(now)
 	q.Set("includeSeries", "true")
@@ -69,6 +69,7 @@ type episode struct {
 	Title         string     `json:"title"`
 	AirDateUTC    *time.Time `json:"airDateUtc"`
 	FinaleType    string     `json:"finaleType"`
+	Monitored     *bool      `json:"monitored"`
 	Series        *struct {
 		Title string `json:"title"`
 	} `json:"series"`
@@ -92,5 +93,5 @@ func (e episode) item() (arr.CalendarItem, bool) {
 	case e.EpisodeNumber == 1 && e.SeasonNumber > 1:
 		parts = append(parts, "season premiere")
 	}
-	return arr.CalendarItem{At: *e.AirDateUTC, Title: e.Series.Title, Detail: strings.Join(parts, " · ")}, true
+	return arr.CalendarItem{At: *e.AirDateUTC, Title: e.Series.Title, Detail: strings.Join(parts, " · "), Unmonitored: arr.Unmonitored(e.Monitored)}, true
 }

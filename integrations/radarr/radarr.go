@@ -42,8 +42,8 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	return arr.NewMedia(app, cfg, d), nil
 }
 
-// calendar reads the movies with a release date in now's window, monitored
-// ones only (Radarr's default): one entry per release date inside it.
+// calendar reads the movies with a release date in now's window, unmonitored
+// ones marked: one entry per release date inside it.
 func calendar(ctx context.Context, c *arr.Client, now time.Time) ([]arr.CalendarItem, error) {
 	var movies []movie
 	if err := c.Get(ctx, "/calendar", arr.CalendarQuery(now), &movies); err != nil {
@@ -62,6 +62,7 @@ type movie struct {
 	InCinemas       *time.Time `json:"inCinemas"`
 	DigitalRelease  *time.Time `json:"digitalRelease"`
 	PhysicalRelease *time.Time `json:"physicalRelease"`
+	Monitored       *bool      `json:"monitored"`
 }
 
 // items are the movie's release dates as calendar entries; arr.Calendar
@@ -76,7 +77,7 @@ func (m movie) items() []arr.CalendarItem {
 		detail string
 	}{{m.InCinemas, "in cinemas"}, {m.DigitalRelease, "digital release"}, {m.PhysicalRelease, "physical release"}} {
 		if r.at != nil && !r.at.IsZero() {
-			out = append(out, arr.CalendarItem{At: *r.at, Title: m.Title, Detail: r.detail})
+			out = append(out, arr.CalendarItem{At: *r.at, Title: m.Title, Detail: r.detail, Unmonitored: arr.Unmonitored(m.Monitored)})
 		}
 	}
 	return out

@@ -246,19 +246,28 @@ export interface CalendarEntry {
   title: string;
   detail?: string;
   source: string;
+  /** The *arr isn't monitoring it; only listed where the tile asks. */
+  unmonitored?: boolean;
 }
 
-/** Upcoming releases from the *arrs' `calendar` attr, soonest first. */
-export function calendar(g: GraphDoc | undefined, nowMs: number): CalendarEntry[] {
+/**
+ * Upcoming releases from the *arrs' `calendar` attr, soonest first.
+ * Unmonitored ones (`unmonitored: true` on an entry) are left out unless
+ * `withUnmonitored` says yes for their source.
+ */
+export function calendar(g: GraphDoc | undefined, nowMs: number, withUnmonitored?: (r: Resource) => boolean): CalendarEntry[] {
   const out: CalendarEntry[] = [];
   for (const r of resources(g)) {
     const cal = attr<unknown[]>(r, 'calendar');
     if (!Array.isArray(cal)) continue;
+    const unmon = withUnmonitored?.(r) ?? false;
     for (const e of cal) {
-      const entry = e as { at?: string; title?: string; detail?: string };
+      const entry = e as { at?: string; title?: string; detail?: string; unmonitored?: boolean };
+      if (entry.unmonitored === true && !unmon) continue;
       if (entry.at && entry.title && Date.parse(entry.at) >= nowMs - 3_600_000) {
         const item: CalendarEntry = { at: entry.at, title: entry.title, source: label(r) };
         if (entry.detail) item.detail = entry.detail;
+        if (entry.unmonitored === true) item.unmonitored = true;
         out.push(item);
       }
     }

@@ -166,7 +166,13 @@ function home(): Data {
   M['tautulli:i_t/app#streams'] = s(2, { unit: 'count' });
   M['tautulli:i_t/app#streams.transcode'] = s(1, { unit: 'count' });
   M['tautulli:i_t/app#bandwidth.mbps'] = s(12.3, { unit: 'Mb/s' });
-  appR('i_s', 'sonarr', 'Sonarr', { calendar: [{ at: '2026-10-04T04:00:00Z', title: 'Black Clover', detail: 'S05E01' }, { at: '2026-10-05T20:00:00Z', title: 'Severance', detail: 'S02E04' }] });
+  appR('i_s', 'sonarr', 'Sonarr', {
+    calendar: [
+      { at: '2026-10-04T04:00:00Z', title: 'Black Clover', detail: 'S05E01' },
+      { at: '2026-10-05T02:00:00Z', title: 'Quiet Valley', detail: 'S01E01', unmonitored: true },
+      { at: '2026-10-05T20:00:00Z', title: 'Severance', detail: 'S02E04' },
+    ],
+  });
   M['sonarr:i_s/app#queue'] = s(3, { unit: 'count' });
   M['sonarr:i_s/app#wanted'] = s(12, { unit: 'count' });
   appR('i_r', 'radarr', 'Radarr 4K', { calendar: [{ at: '2026-10-06T00:00:00Z', title: 'Dune: Part Two', detail: 'digital release' }] }, { caps: ['media.calendar'] });
@@ -450,6 +456,23 @@ describe('home and media widgets on real instances', () => {
     expect(w.findAll('.ag-row').map((r) => r.text())).toEqual([expect.stringContaining('Dune: Part Two')]);
     const all = mountReal('calendar', 'tall');
     expect(all.w.findAll('.ag-row')).toHaveLength(3);
+    expect(all.w.text()).not.toContain('Quiet Valley');
+  });
+
+  it('lists unmonitored releases only where the tile, or that source, asks', () => {
+    const rows = (tiles?: TilesDoc) => mountReal('calendar', 'tall', undefined, home(), tiles).w.findAll('.ag-row').map((r) => r.text());
+    const tile = rows({ calendar: { options: { unmonitored: true } } });
+    expect(tile).toHaveLength(4);
+    expect(tile.find((r) => r.includes('Quiet Valley'))).toContain('unmonitored');
+    // The importer's per-source option: Sonarr's, so Sonarr's unmonitored row shows.
+    const perSource = rows({
+      calendar: { bind: { sources: [{ instance: 'i_s', capability: 'media.calendar', options: { unmonitored: true } }, { instance: 'i_r', capability: 'media.calendar' }] } },
+    });
+    expect(perSource.some((r) => r.includes('Quiet Valley'))).toBe(true);
+    const otherSource = rows({
+      calendar: { bind: { sources: [{ instance: 'i_s', capability: 'media.calendar' }, { instance: 'i_r', capability: 'media.calendar', options: { unmonitored: true } }] } },
+    });
+    expect(otherSource.some((r) => r.includes('Quiet Valley'))).toBe(false);
   });
 
   it('reads the weather source’s shape: now, high and low, the next hours, the credit', () => {
