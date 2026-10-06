@@ -26,6 +26,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Proxmox Backup Server: prune a datastore per policy**, by its prune job's retention, from the "filling up" incident, the fix the demo shows.
 - **Control tokens.** Proxmox VE and Proxmox Backup Server keep reading with their read-only token; a second, optional control token lets Cha Dash act. Each recipe has a control variant that grants only what the actions need. Without one, the actions show as unavailable with a link to it, and Test connection mentions it.
 - **Incidents say whether their fix can run now**, and why not, so a button never offers what Cha Dash can't do.
+- **Cancel a running task** from the task presence at the bottom left, or from the incident it's working on, when the action allows it. Cancelling is recorded in the audit log like any action.
+- **⌘K runs actions.** Search for a host, guest or service (or open ⌘K on a focused tile), and the command bar lists what you can do to it, with the same confirmation as everywhere else. Actions Cha Dash can't run yet stay listed with the reason.
+
+### Changed
+
+- **Every role gets the instant first paint**, not only the owner.
+- **Household accounts see only what their boards need.** The live inbox they receive holds problems about what's on their boards, with a title and a status, and no facts, causes or blast radius.
+- **Roles below admin no longer see broken screens.** Settings opens on your own passkeys, and the setup guide, integrations, repairs' Reconnect and the "merge?" questions are left to admins and the owner.
+- **The Demo Home's fixes run only through the action engine**, with the same plans, confirmations, tasks and audit records as a real home. The old demo-only endpoint is gone.
 
 ### Security
 
