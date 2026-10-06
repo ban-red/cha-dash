@@ -33,6 +33,9 @@ func (s *Spec) Connect(_ context.Context, cfg integration.Config, d integration.
 			in.plain[k] = v
 		}
 	}
+	if len(s.actions) > 0 {
+		return actor{in}, nil
+	}
 	return in, nil
 }
 
@@ -276,47 +279,57 @@ func (in *instance) Sync(ctx context.Context, _ integration.Interest) error {
 	self := in.d.Emit.Self()
 	ids := map[string]string{}
 	var f integration.Facts
-	for _, c := range in.s.res {
-		id := in.s.manifest.ID + ":" + in.key() + "/" + c.tpl.ID
-		ids[c.tpl.ID] = id
-		r := integration.Resource{ID: id, Kind: c.tpl.Kind, Name: in.cfg.Name, Labels: c.tpl.Labels, Caps: c.tpl.Caps,
-			Health: integration.Health{Status: integration.HealthOK}, Attrs: map[string]any{}}
-		for _, x := range []struct {
-			dst  *string
-			p    *vm.Program
-			what string
-		}{{&r.Name, c.name, "name"}, {&r.State, c.state, "state"}, {&r.Health.Status, c.health, "health"}, {&r.Health.Reason, c.reason, "reason"}} {
-			v, err := run(x.p, env)
-			if err != nil {
-				return specErr(c.tpl.ID+"."+x.what, err)
-			}
-			if v != nil {
-				*x.dst = fmt.Sprint(v)
-			}
-		}
-		if !healths[r.Health.Status] {
-			return specErr(c.tpl.ID+".health", fmt.Errorf("%q isn't ok, attention, down, unknown or maintenance", r.Health.Status))
-		}
-		for k, p := range c.attrs {
-			v, err := run(p, env)
-			if err != nil {
-				return specErr(c.tpl.ID+".attrs."+k, err)
-			}
-			if v != nil {
-				r.Attrs[k] = v
-			}
-		}
-		for i, p := range c.links {
-			v, err := run(p, env)
-			if err != nil {
-				return specErr(c.tpl.ID+".links", err)
-			}
-			if s, ok := v.(string); ok && s != "" {
-				r.Links = append(r.Links, integration.Link{Title: c.tpl.Links[i].Title, URL: s})
-			}
+	add := func(c compiledResource, id string, env map[string]any) error {
+		r, err := in.build(c, id, env)
+		if err != nil {
+			return err
 		}
 		f.Resources = append(f.Resources, r)
 		f.Relations = append(f.Relations, integration.Relation{From: self, Type: "monitors", To: id})
+		if c.tpl.PartOf != "" {
+			f.Relations = append(f.Relations, integration.Relation{From: id, Type: "part_of", To: ids[c.tpl.PartOf]})
+		}
+		return nil
+	}
+	for _, c := range in.s.res {
+		id := in.s.manifest.ID + ":" + in.key() + "/" + c.tpl.ID
+		if c.each == nil {
+			ids[c.tpl.ID] = id
+			if err := add(c, id, env); err != nil {
+				return err
+			}
+			continue
+		}
+		// One resource per element, in order, the first maxEach; a list
+		// that isn't one (an optional request that failed) is none.
+		list, err := run(c.each, env)
+		if err != nil {
+			return specErr(c.tpl.ID+".each", err)
+		}
+		items, _ := list.([]any)
+		seen := map[string]bool{}
+		for _, item := range items {
+			if len(seen) == maxEach {
+				break
+			}
+			ienv := make(map[string]any, len(env)+1)
+			for k, v := range env {
+				ienv[k] = v
+			}
+			ienv["item"] = item
+			k, err := run(c.key, ienv)
+			if err != nil {
+				return specErr(c.tpl.ID+".key", err)
+			}
+			key := fmt.Sprint(k)
+			if k == nil || !keyRE.MatchString(key) || seen[key] {
+				continue // no usable key: skipped, not a failed sync
+			}
+			seen[key] = true
+			if err := add(c, id+"/"+key, ienv); err != nil {
+				return err
+			}
+		}
 	}
 	for _, c := range in.s.metrics {
 		v, err := run(c.value, env)
@@ -328,6 +341,47 @@ func (in *instance) Sync(ctx context.Context, _ integration.Interest) error {
 		f.Metrics = append(f.Metrics, m)
 	}
 	return in.d.Emit.Replace("", f)
+}
+
+// build computes one resource of c, at id, from env.
+func (in *instance) build(c compiledResource, id string, env map[string]any) (integration.Resource, error) {
+	r := integration.Resource{ID: id, Kind: c.tpl.Kind, Name: in.cfg.Name, Labels: c.tpl.Labels, Caps: c.tpl.Caps,
+		Health: integration.Health{Status: integration.HealthOK}, Attrs: map[string]any{}}
+	for _, x := range []struct {
+		dst  *string
+		p    *vm.Program
+		what string
+	}{{&r.Name, c.name, "name"}, {&r.State, c.state, "state"}, {&r.Health.Status, c.health, "health"}, {&r.Health.Reason, c.reason, "reason"}} {
+		v, err := run(x.p, env)
+		if err != nil {
+			return r, specErr(c.tpl.ID+"."+x.what, err)
+		}
+		if v != nil {
+			*x.dst = fmt.Sprint(v)
+		}
+	}
+	if !healths[r.Health.Status] {
+		return r, specErr(c.tpl.ID+".health", fmt.Errorf("%q isn't ok, attention, down, unknown or maintenance", r.Health.Status))
+	}
+	for k, p := range c.attrs {
+		v, err := run(p, env)
+		if err != nil {
+			return r, specErr(c.tpl.ID+".attrs."+k, err)
+		}
+		if v != nil {
+			r.Attrs[k] = v
+		}
+	}
+	for i, p := range c.links {
+		v, err := run(p, env)
+		if err != nil {
+			return r, specErr(c.tpl.ID+".links", err)
+		}
+		if s, ok := v.(string); ok && s != "" {
+			r.Links = append(r.Links, integration.Link{Title: c.tpl.Links[i].Title, URL: s})
+		}
+	}
+	return r, nil
 }
 
 // number turns an expression result into a metric value; anything that

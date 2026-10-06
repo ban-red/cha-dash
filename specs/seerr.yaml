@@ -6,6 +6,11 @@
 # and Jellyseerr 1.x and 2.x connect as Seerr. The Homepage importer maps its
 # overseerr and jellyseerr widgets here.
 #
+# From v0.2 it also acts: approve (T1) or decline (T2) a pending request.
+# Pending requests are published as kind media_request at the same IDs the
+# actions take (seerr:<instance>/request/<id>), so ⌘K finds them and lists
+# Approve and Decline.
+#
 # The sample Tier 1 spec. Format: chadash/v1alpha1, internal and unstable
 # until v1.0; see internal/README.md, "Tier 1 specs".
 # The fixture test is specs_test.go, against testdata/seerr/.
@@ -46,6 +51,14 @@ requests:
       processing: processing
       available: available
       total: total
+  # The oldest pending requests, for the media_request resources. Optional:
+  # the app still reads if the list fails.
+  pending:
+    path: /api/v1/request
+    query: { take: "20", skip: "0", filter: pending, sort: added }
+    extract:
+      items: results
+    optional: true
 
 version: status.version
 
@@ -63,6 +76,23 @@ resources:
     caps: [media.requests]
     links:
       - { title: Seerr, url: config.url }
+  # One per pending request (at most 50). Seerr's list carries no title
+  # (its own UI asks TMDB), so a request is named by type, number and who
+  # asked.
+  - id: request
+    each: pending.items
+    key: string(item.id)
+    part_of: app
+    kind: media_request
+    name: '(item.type == "tv" ? "TV" : "Movie") + " request #" + string(item.id) + (item.requestedBy?.displayName != nil ? " by " + item.requestedBy.displayName : "")'
+    state: '"pending"'
+    attrs:
+      media_type: item.type
+      requested_by: item.requestedBy?.displayName
+      requested_at: item.createdAt
+      is4k: item.is4k
+    links:
+      - { title: Requests, url: 'trimSuffix(config.url, "/") + "/requests?filter=pending"' }
 
 metrics:
   - { resource: app, key: requests.pending, value: counts.pending, unit: count, max: 100, band: [0, 5] }
@@ -73,3 +103,52 @@ repairs:
   - when: 'status.version != nil && status.version startsWith "0."'
     code: unsupported_version
     message: '"Seerr " + status.version + " is older than this spec supports (1.0 or later)."'
+
+# Actions (v0.2). A target is addressed by its param, checked against the
+# anchored pattern before anything is sent; the read resolves it and gives
+# the values preconditions and verify use. Seerr's one API key acts as an
+# administrator, so there's no separate control credential. See
+# internal/README.md, "Tier 1 specs", for the format.
+targets:
+  request:
+    kind: media_request
+    pattern: '^[1-9][0-9]{0,9}$'
+    read:
+      path: /api/v1/request/{{ target.id }}
+      extract:
+        status: status            # 1 pending, 2 approved, 3 declined, 4 failed, 5 completed
+        type: type
+        requested_by: requestedBy.displayName
+    name: '(target.type == "tv" ? "TV" : "Movie") + " request #" + target.id + (target.requested_by != nil ? " by " + target.requested_by : "")'
+    state: string(target.status)
+
+actions:
+  - id: seerr.request.approve
+    target: request
+    title: Approve
+    tier: T1
+    preconditions:
+      - { when: 'target.status == 2', message: 'target.name + " is already approved."' }
+      - { when: 'target.status == 3', message: 'target.name + " was declined. It can be requested again in Seerr."' }
+      - { when: 'target.status != 1', message: 'target.name + " isn''t waiting for approval any more."' }
+    request:
+      method: POST
+      path: /api/v1/request/{{ target.id }}/approve
+    verify:
+      until: 'target.status in [2, 5]'
+      message: '"Seerr didn''t mark " + target.name + " approved."'
+  # Declining is T2: Seerr tells the person who asked, and it can't be taken
+  # back from here (they'd have to request it again).
+  - id: seerr.request.decline
+    target: request
+    title: Decline
+    tier: T2
+    preconditions:
+      - { when: 'target.status == 3', message: 'target.name + " is already declined."' }
+      - { when: 'target.status != 1', message: 'target.name + " isn''t waiting for approval any more."' }
+    request:
+      method: POST
+      path: /api/v1/request/{{ target.id }}/decline
+    verify:
+      until: 'target.status == 3'
+      message: '"Seerr didn''t mark " + target.name + " declined."'

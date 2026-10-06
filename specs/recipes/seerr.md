@@ -1,6 +1,6 @@
 ---
 title: The API key, which has full access
-summary: Seerr (Overseerr or Jellyseerr) has one API key, and it acts as an administrator. There is no read-only key. Cha Dash only reads the request counts and the version.
+summary: Seerr (Overseerr or Jellyseerr) has one API key, and it acts as an administrator. There is no read-only key. Cha Dash reads the request counts, the pending requests and the version, and approves or declines a request when you ask.
 access: full
 discover:
   - {scheme: http, port: 5055, path: /api/v1/status, match: commitTag}

@@ -1,0 +1,1 @@
+{"id":43,"status":1,"type":"tv","is4k":false,"createdAt":"2026-10-02T09:30:00.000Z","updatedAt":"2026-10-02T09:30:00.000Z","media":{"id":312,"mediaType":"tv","tmdbId":100002,"tvdbId":200002,"status":2},"requestedBy":{"id":4,"username":"viewer-two","displayName":"viewer-two","userType":1},"modifiedBy":null,"seasons":[{"id":901,"seasonNumber":1,"status":1}]}
