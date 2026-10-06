@@ -2,22 +2,25 @@
 /**
  * The Inbox, grouped by status: open (problems that need you, down first,
  * then integration repairs), discovered (services found by their labels,
- * offered as tiles: stores/discovery.ts), suggestions (the hub's correlator
+ * offered as tiles: stores/discovery.ts), approvals (plans an API token made
+ * that wait for an admin or the owner), suggestions (the hub's correlator
  * asking whether two things are one), being fixed (a fix is running, or
  * it's recovering by itself), and resolved. Real and demo hubs fill it the
  * same way, from the `inbox` topic. A glass panel on desktop; a bottom sheet on a
  * phone that a flick dismisses. An item that resolves while you watch shows
  * its done row in place for a moment, then moves to Resolved.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
 import Glyph from './marks/Glyph.vue';
 import DiscoveryItem from './DiscoveryItem.vue';
 import IncidentItem from './IncidentItem.vue';
 import SuggestionItem from './SuggestionItem.vue';
+// Approvals are rare and only for owners and admins: their own chunk.
+const ApprovalItem = defineAsyncComponent(() => import('./ApprovalItem.vue'));
 import { hhmm } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
-import { groupInbox, hintsHeading, incidents, isSuggestion, type InboxGroups } from '../model/inbox';
+import { groupInbox, hintsHeading, incidents, isApproval, isSuggestion, type InboxGroups } from '../model/inbox';
 import { useDiscovery } from '../stores/discovery';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
@@ -63,9 +66,10 @@ const fixing = computed(() => inGroup('fixing'));
 const openNow = (list: Incident[]) => list.filter((i) => i.status === 'open').length;
 const done = computed(() => groups.value.resolved.filter((i) => !isLingering(i.id)));
 const suggestions = computed(() => groups.value.suggestions);
+const approvals = computed(() => groups.value.approvals);
 const hints = computed(() => groups.value.hints);
-/** Open items plus the discovery question and the suggestions, which need an answer too. */
-const openCount = computed(() => openNow(open.value) + (discovered.value ? 1 : 0) + suggestions.value.length);
+/** Open items plus the discovery question, the approvals and the suggestions, which need an answer too. */
+const openCount = computed(() => openNow(open.value) + (discovered.value ? 1 : 0) + approvals.value.length + suggestions.value.length);
 
 // Keep a just-resolved item in place briefly, expanded on its done row.
 watch(
@@ -75,7 +79,7 @@ watch(
     const was = new Map(before.split('|').map((s) => s.split(':') as [string, string]));
     for (const i of all.value) {
       // An answered suggestion says so in a toast and moves to Resolved.
-      if (i.status === 'resolved' && was.get(i.id) === 'open' && !isSuggestion(i)) {
+      if (i.status === 'resolved' && was.get(i.id) === 'open' && !isSuggestion(i) && !isApproval(i)) {
         lingering.set(i.id, Date.now());
         if (!placed.has(i.id)) placed.set(i.id, 'open');
         expanded.add(i.id);
@@ -204,6 +208,11 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
             <IncidentItem v-for="i in open" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
+          <template v-if="approvals.length">
+            <h3 class="ib-grp">Waiting for approval · {{ approvals.length }}</h3>
+            <ApprovalItem v-for="i in approvals" :key="i.id" :incident="i" />
+          </template>
+
           <template v-if="discovered">
             <h3 class="ib-grp">Discovered</h3>
             <DiscoveryItem />
@@ -224,7 +233,7 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
             <IncidentItem v-for="i in hints" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
           </template>
 
-          <div v-if="!open.length && !fixing.length && !discovered && !suggestions.length" class="ib-empty">
+          <div v-if="!open.length && !fixing.length && !discovered && !suggestions.length && !approvals.length" class="ib-empty">
             <Glyph kind="check" />
             <div class="t">Nothing needs you</div>
             <div class="m">Every integration is reading normally.{{ done[0] ? ` The last fix was “${done[0].title}”, at ${hhmm(done[0].resolved_at)}.` : '' }}</div>

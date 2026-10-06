@@ -3,7 +3,7 @@
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
  * /settings/integrations, /settings/stacks, /settings/import, /settings/backup,
- * /settings/users, /settings/audit, /settings/notifications,
+ * /settings/users, /settings/audit, /settings/notifications, /settings/tokens,
  * /settings/security. The board, the
  * socket and the Inbox stay live underneath; Esc or the scrim goes back.
  *
@@ -26,6 +26,7 @@ const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
 const UsersPane = defineAsyncComponent(() => import('./UsersPane.vue'));
 const AuditPane = defineAsyncComponent(() => import('./AuditPane.vue'));
 const NotificationsPane = defineAsyncComponent(() => import('./NotificationsPane.vue'));
+const TokensPane = defineAsyncComponent(() => import('./TokensPane.vue'));
 
 const ui = useUi();
 
@@ -40,6 +41,7 @@ const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'users', label: 'Users', note: 'people and roles' },
   { id: 'audit', label: 'Audit', note: 'who did what' },
   { id: 'notifications', label: 'Notifications', note: 'push, ntfy, webhooks' },
+  { id: 'tokens', label: 'API tokens', note: 'scripts and automations' },
   { id: 'security', label: 'Security', note: 'level, step-up, passkeys' },
 ];
 const PANES = computed(() =>
@@ -60,6 +62,7 @@ const TITLES: Record<SettingsPane, string> = {
   users: 'Users',
   audit: 'Audit',
   notifications: 'Notifications',
+  tokens: 'API tokens',
   security: 'Security',
 };
 const title = computed(() => TITLES[pane.value]);
@@ -123,6 +126,7 @@ onBeforeUnmount(() => {
             <UsersPane v-else-if="pane === 'users'" />
             <AuditPane v-else-if="pane === 'audit'" />
             <NotificationsPane v-else-if="pane === 'notifications'" />
+            <TokensPane v-else-if="pane === 'tokens'" />
             <SecurityPane v-else />
           </div>
         </div>

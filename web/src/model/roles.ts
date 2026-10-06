@@ -8,9 +8,10 @@
  * |-----------|-----------------------------|--------------------------------------------|
  * | owner     | every tier (T4 where on)    | everything                                 |
  * | admin     | T0–T3                       | all but security; users other than owner   |
- * | operator  | T0–T2                       | their own passkeys and devices             |
- * | viewer    | T0                          | their own passkeys and devices             |
- * | household | T0 + `household: true`      | own passkeys and devices; boards only      |
+ * | operator  | T0–T2                       | their own passkeys, devices and API tokens |
+ * | viewer    | T0                          | their own passkeys, devices and API tokens |
+ * | household | T0 + `household: true`      | own passkeys, devices, API tokens; boards  |
+ * |           |                             | only, no Inbox detail                      |
  *
  * Every role may manage its own passkeys (the hub's passkey routes are open
  * to any signed-in role, and "Passkey only" needs one for every role), so
@@ -19,6 +20,11 @@
  * else in Settings (integrations, import, backup, users, audit, notification
  * channels and rules, the first-run wizard) answers 403 below admin, and is
  * never shown there.
+ *
+ * Every role also manages its own API tokens (a token never exceeds its
+ * user's role), so API tokens is open below admin too. Owners and admins
+ * see and revoke everyone's tokens, and approve the plans tokens leave
+ * waiting (`approve`).
  */
 import type { SettingsPane } from '../lib/router';
 import type { Tier } from './types';
@@ -66,6 +72,8 @@ export interface Permissions {
   users: boolean;
   /** Settings → Audit. */
   audit: boolean;
+  /** Approve or deny plans an API token left waiting for a person; see and revoke everyone's tokens. */
+  approve: boolean;
   /** Can this role run an action of this tier (household: only actions marked for it)? */
   act(tier: Tier | string, household?: boolean): boolean;
   /** Which settings panes to list. */
@@ -75,7 +83,7 @@ export interface Permissions {
 export function permissions(role: string | undefined): Permissions {
   const r = asRole(role);
   const admin = r === 'owner' || r === 'admin';
-  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'import', 'backup', 'users', 'audit', 'notifications', 'security'] : ['security', 'notifications'];
+  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'import', 'backup', 'users', 'audit', 'notifications', 'tokens', 'security'] : ['security', 'notifications', 'tokens'];
   return {
     role: r,
     inbox: r !== 'household',
@@ -86,6 +94,7 @@ export function permissions(role: string | undefined): Permissions {
     securitySettings: r === 'owner',
     users: admin,
     audit: admin,
+    approve: admin,
     act: (tier, household) => {
       const n = tierN(tier);
       if (r === 'household') return n === 0 || household === true;

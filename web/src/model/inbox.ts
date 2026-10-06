@@ -9,6 +9,9 @@
  *   or **hints**: standing advice to tighten something (a socket proxy that's
  *   too broad, Frigate's anonymous admin). Hints have their own Inbox group;
  *   they never feed Needs attention, the Briefing or the Incidents tile.
+ * - Approvals (class `approval`) are plans an API token made that wait for
+ *   a person: their own Inbox group, for admins and the owner (the hub sends
+ *   them to nobody else). Never Needs attention, a tile or the Briefing.
  * - Security findings (`category: security`) arrive at the severity the
  *   hub's security level gives them: at Relaxed (the default) every one is
  *   info, so a hint. An info security finding stays in Hints whatever its
@@ -48,7 +51,7 @@ export function settling(inbox: InboxDoc | undefined): Incident[] {
 
 export function resolved(inbox: InboxDoc | undefined): Incident[] {
   return incidents(inbox)
-    .filter((i) => i.status === 'resolved')
+    .filter((i) => i.status === 'resolved' && !isApproval(i))
     .sort((a, b) => Date.parse(b.resolved_at ?? b.updated_at ?? b.opened_at) - Date.parse(a.resolved_at ?? a.updated_at ?? a.opened_at));
 }
 
@@ -95,6 +98,8 @@ export function hintsHeading(hints: readonly Incident[]): string {
 export interface InboxGroups {
   /** Needs you: problems (down first), then repairs. */
   open: Incident[];
+  /** Plans an API token made that wait for a person. Oldest first. */
+  approvals: Incident[];
   /** The correlator's questions: are these two things one? Oldest first. */
   suggestions: Incident[];
   /** In hand, not resolved yet. */
@@ -108,16 +113,19 @@ export interface InboxGroups {
 const CLASS_RANK: Record<string, number> = { problem: 0, repair: 1 };
 
 export const isSuggestion = (i: Incident) => i.class === 'suggestion';
+export const isApproval = (i: Incident) => i.class === 'approval';
 
 /** The Inbox by status: open, suggestions, being fixed, hints, resolved. */
 export function groupInbox(inbox: InboxDoc | undefined, fixes: Readonly<Record<string, { state: string } | undefined>> = {}): InboxGroups {
   const open: Incident[] = [];
+  const approvals: Incident[] = [];
   const suggestions: Incident[] = [];
   const fixing: Incident[] = [];
   const hints: Incident[] = [];
   for (const i of incidents(inbox)) {
     if (i.status !== 'open') continue;
-    if (isSuggestion(i)) suggestions.push(i);
+    if (isApproval(i)) approvals.push(i);
+    else if (isSuggestion(i)) suggestions.push(i);
     else if (isSecurityHint(i)) hints.push(i);
     else if (isBeingFixed(i, fixes[i.id]?.state)) fixing.push(i);
     else if (isHint(i)) hints.push(i);
@@ -125,13 +133,13 @@ export function groupInbox(inbox: InboxDoc | undefined, fixes: Readonly<Record<s
   }
   const order = (a: Incident, b: Incident) =>
     (SEV_RANK[a.severity] ?? 3) - (SEV_RANK[b.severity] ?? 3) || (CLASS_RANK[a.class] ?? 2) - (CLASS_RANK[b.class] ?? 2) || byPriority(a, b);
-  return { open: open.sort(order), suggestions: suggestions.sort(byPriority), fixing: fixing.sort(order), hints: hints.sort(byPriority), resolved: resolved(inbox) };
+  return { open: open.sort(order), approvals: approvals.sort(byPriority), suggestions: suggestions.sort(byPriority), fixing: fixing.sort(order), hints: hints.sort(byPriority), resolved: resolved(inbox) };
 }
 
-/** Open incidents whose target (or blast radius) touches a resource. Suggestions are questions, not incidents. */
+/** Open incidents whose target (or blast radius) touches a resource. Suggestions and approvals are questions, not incidents. */
 export function incidentsFor(inbox: InboxDoc | undefined, resourceIds: readonly string[]): Incident[] {
   const set = new Set(resourceIds);
-  return incidents(inbox).filter((i) => isOpen(i) && !isSuggestion(i) && set.has(i.target));
+  return incidents(inbox).filter((i) => isOpen(i) && !isSuggestion(i) && !isApproval(i) && set.has(i.target));
 }
 
 const KIND_WORDS: Record<string, string> = {

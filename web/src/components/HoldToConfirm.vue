@@ -7,7 +7,7 @@
 import { onBeforeUnmount, ref } from 'vue';
 import { prefersReducedMotion, SPRING } from '../lib/motion';
 
-const { label, duration = 650 } = defineProps<{ label: string; duration?: number }>();
+const { label, duration = 650, hint = 'hold-hint' } = defineProps<{ label: string; duration?: number; /** The id of the hint beside it. */ hint?: string }>();
 const emit = defineEmits<{ confirm: []; progress: [p: number] }>();
 
 const C = 2 * Math.PI * 11;
@@ -103,7 +103,7 @@ defineExpose({ progress: p });
     type="button"
     :class="['hold', { done }]"
     :aria-label="`Hold to ${label}`"
-    aria-describedby="hold-hint"
+    :aria-describedby="hint"
     @pointerdown="start"
     @pointerup="stop"
     @pointerleave="stop"

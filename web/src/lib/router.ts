@@ -19,6 +19,7 @@
  *   /settings/users                    users and roles (owner, admin)
  *   /settings/audit                    the audit log (owner, admin)
  *   /settings/notifications            this device's notifications; channels, rules, the delivery log (owner, admin)
+ *   /settings/tokens                   API tokens: your own (owner and admins: everyone's)
  *   /settings/security                 the security level, step-up, passkeys
  *
  * Settings is a layer over the front page, not a separate app, so the board,
@@ -31,9 +32,9 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'stacks' | 'import' | 'backup' | 'users' | 'audit' | 'notifications' | 'security';
+export type SettingsPane = 'integrations' | 'stacks' | 'import' | 'backup' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security';
 
-const PANES: readonly string[] = ['stacks', 'import', 'backup', 'users', 'audit', 'notifications', 'security'];
+const PANES: readonly string[] = ['stacks', 'import', 'backup', 'users', 'audit', 'notifications', 'tokens', 'security'];
 
 export type View =
   | { name: 'front'; board?: string }

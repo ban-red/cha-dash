@@ -118,7 +118,7 @@ export interface Cause {
 }
 
 /** `suggestion`: the hub's correlator asking whether two things are one (Merge / Keep separate). */
-export type IncidentClass = 'problem' | 'repair' | 'suggestion';
+export type IncidentClass = 'problem' | 'repair' | 'suggestion' | 'approval';
 export type Severity = 'info' | 'attention' | 'down';
 
 export interface Incident {
@@ -144,6 +144,49 @@ export interface Incident {
   resolves_when?: string;
   resolved_by?: 'action' | 'auto' | string;
   resolution?: string;
+  /** Class `approval` only: the plan waiting for a person, as the hub shows it. */
+  approval?: Approval;
+}
+
+/** Who made a plan that waits for a person: an API token (or, later, an agent) and its user. */
+export interface Originator {
+  kind: 'token' | 'agent' | string;
+  id: string;
+  /** "backup script (sam)": the token and its user. */
+  name: string;
+  user?: string;
+  user_name?: string;
+}
+
+/**
+ * A plan waiting for a person (08 · v0.2 → Wave 10 status, API tokens): an API
+ * token's T2 plan. Admins and the owner approve it in a session, with a
+ * step-up, bound to the plan's hash; or deny it. It expires after an hour.
+ */
+export interface Approval {
+  id: string;
+  state: 'awaiting_approval' | 'approved' | 'denied' | 'expired';
+  plan: {
+    id: string;
+    hash: string;
+    action: string;
+    label: string;
+    target: string;
+    tier: Tier;
+    confirm?: string;
+    confirm_text?: string;
+    steps?: { label: string }[];
+    impact?: Impact[];
+    undo?: UndoSpec | null;
+    expires_at?: string;
+  };
+  originator: Originator;
+  requested_at: string;
+  expires_at: string;
+  decided_at?: string | null;
+  decided_by?: { kind: string; name: string } | null;
+  reason?: string;
+  task?: string | null;
 }
 
 export interface InboxDoc {
@@ -168,6 +211,8 @@ export interface Task {
   label: string;
   target: string;
   actor?: { kind: string; name?: string };
+  /** Who approved it for its actor, when it waited for a person (an API token's T2 plan). */
+  approved_by?: { kind: string; name: string };
   state: TaskState;
   /** The current step, and progress 0–1; both optional. */
   step?: string | null;
