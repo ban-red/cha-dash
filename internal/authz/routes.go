@@ -137,8 +137,11 @@ var Routes = []Route{
 	{Pattern: "POST /api/actions/plan", Access: SignedIn},
 	{Pattern: "POST /api/plans/{id}/approve", Access: SignedIn},
 	{Pattern: "GET /api/tasks/{id}", Access: SignedIn},
-	// The Demo Home's fix button, until the demo runs on the engine.
-	{Pattern: "POST /api/demo/incidents/{id}/fix", Access: Operator},
+	// Cancelling: your own task, or anyone's with tasks.all (the engine asks
+	// the policy). Listing what could be planned on a target: filtered by
+	// the policy, per action.
+	{Pattern: "POST /api/tasks/{id}/cancel", Access: SignedIn},
+	{Pattern: "GET /api/actions", Access: SignedIn},
 
 	// Identity across sources: reads for viewers, decisions for admins.
 	{Pattern: "GET /api/correlate/links", Access: Viewer},

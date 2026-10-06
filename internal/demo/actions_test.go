@@ -1,6 +1,7 @@
 package demo
 
 import (
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"slices"
@@ -160,6 +161,49 @@ func TestFixRefusals(t *testing.T) {
 	_, err = e.Approve(t.Context(), demoOwner, p.ID, action.ApproveRequest{Hash: p.Hash}, "")
 	if !errors.As(err, &ref) || (ref.Code != "precondition" && ref.Code != "plan_changed") {
 		t.Fatalf("approve after a fix elsewhere: %v", err)
+	}
+}
+
+// Every suggested action the day offers plans through the engine while its
+// incident is open, and the hub lists it for its target (⌘K), so the web
+// never needs a demo-only way to press a fix.
+func TestEverySuggestedActionPlans(t *testing.T) {
+	d, tp, clock := newDriver(t, Options{Seed: 1, At: DefaultAt})
+	e := newEngine(t, d)
+	planned := map[string]bool{}
+	for range 2 * 10 { // 14:05 to 00:05, half an hour at a time
+		_, doc := tp.Inbox.Snapshot()
+		items, _ := doc["incidents"].(map[string]json.RawMessage)
+		for id, raw := range items {
+			var in sim.Incident
+			if json.Unmarshal(raw, &in) != nil || in.Status != sim.StatusOpen || in.Suggested.ID == "" || in.Suggested.ID == "link.open" {
+				continue
+			}
+			if d.CanFix(id) != nil {
+				continue // being fixed already, or not open in the script's terms
+			}
+			a := in.Suggested
+			p, err := e.Plan(t.Context(), demoOwner, action.PlanRequest{Action: a.ID, Target: a.Target})
+			if err != nil {
+				t.Errorf("%s: planning %s on %s: %v", id, a.ID, a.Target, err)
+				continue
+			}
+			if p.Tier.String() != string(a.Tier) && p.Tier < action.T3 {
+				t.Errorf("%s: %s planned at %s, suggested at %s", id, a.ID, p.Tier, a.Tier)
+			}
+			offers, err := e.ActionsFor(t.Context(), demoOwner, a.Target)
+			if err != nil || !slices.ContainsFunc(offers, func(o action.Offer) bool { return o.ID == a.ID && o.Available }) {
+				t.Errorf("%s: %s isn't listed for %s: %+v, %v", id, a.ID, a.Target, offers, err)
+			}
+			planned[a.ID] = true
+		}
+		clock.Advance(30 * time.Minute)
+		d.Step()
+	}
+	for _, def := range d.Actions() {
+		if !planned[def.ID] {
+			t.Errorf("%s was never planned against an open incident", def.ID)
+		}
 	}
 }
 

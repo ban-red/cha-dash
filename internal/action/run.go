@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"time"
 
@@ -63,17 +64,51 @@ func (e *Engine) storedTask(ctx context.Context, id string) (Task, string, error
 	return t, owner, err
 }
 
-// Cancel stops a running task the actor may see. Cancelling a finished
-// task does nothing.
+// Cancel stops a running task: the actor's own, or anyone's with
+// ScopeTasksAll, and only when its action is Cancellable. It ends the task's
+// context; the task then records itself as cancelled, with its own audit
+// record, as it stops. The request is audited as ActionCancel, refusals
+// included. A task the actor may not see is ErrNotFound, so IDs don't leak;
+// the other refusals are *Refusal: 409 finished, 409 not_cancellable.
 func (e *Engine) Cancel(ctx context.Context, a Actor, id string) error {
-	if _, err := e.Task(ctx, a, id); err != nil {
+	params, _ := json.Marshal(map[string]string{"task": clip(id, 100)})
+	record := func(target, action string, result string, r *Refusal) {
+		entry := audit.Entry{Actor: auditActor(a), Action: ActionCancel, Target: clip(target, 500), Params: params, Tier: T0.String(), Result: result}
+		if r != nil {
+			entry.Error = &audit.Error{Code: r.Code, Message: r.Message}
+		}
+		if result == audit.OK {
+			entry.Task = id
+		}
+		if _, err := e.audit.Append(context.WithoutCancel(ctx), entry); err != nil {
+			e.log.Error("action: auditing a cancel failed", "task", id, "action", action, "err", err)
+		}
+	}
+	t, err := e.Task(ctx, a, id)
+	if errors.Is(err, ErrNotFound) {
+		record("", "", audit.Refused, &Refusal{Status: http.StatusNotFound, Code: "not_found", Message: "There's no such task."})
+		return err
+	} else if err != nil {
 		return err
 	}
+	refuse := func(r *Refusal) error {
+		record(t.Target, t.Action, audit.Refused, r)
+		return r
+	}
+	if d, ok := e.reg.Get(t.Action); !ok || !d.Cancellable {
+		return refuse(&Refusal{Status: http.StatusConflict, Code: "not_cancellable", Message: fmt.Sprintf("%s can't be stopped once it has started.", t.Label)})
+	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
-	if lt, ok := e.live[id]; ok && lt.cancel != nil {
+	lt, ok := e.live[id]
+	running := ok && lt.cancel != nil
+	if running {
 		lt.cancel()
 	}
+	e.mu.Unlock()
+	if !running {
+		return refuse(&Refusal{Status: http.StatusConflict, Code: "finished", Message: fmt.Sprintf("%s has already finished.", t.Label)})
+	}
+	record(t.Target, t.Action, audit.OK, nil)
 	return nil
 }
 

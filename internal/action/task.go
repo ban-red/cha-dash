@@ -47,6 +47,9 @@ type Task struct {
 	Error      *Error     `json:"error"`
 	Undo       *Undo      `json:"undo"`  // once it has succeeded, the plan's undo
 	Audit      *string    `json:"audit"` // the audit event, once finished
+	// Cancellable: its action allows POST /api/tasks/{id}/cancel while it
+	// runs (Def.Cancellable).
+	Cancellable bool `json:"cancellable,omitempty"`
 }
 
 // Finished reports whether the task has ended.

@@ -635,7 +635,7 @@ func TestFailures(t *testing.T) {
 			return ctx.Err()
 		}},
 		{ID: "x.panic", Tier: T1, Execute: func(context.Context, Request, *TaskRun) error { panic("boom") }},
-		{ID: "x.block", Tier: T1, Execute: func(ctx context.Context, _ Request, _ *TaskRun) error {
+		{ID: "x.block", Tier: T1, Cancellable: true, Execute: func(ctx context.Context, _ Request, _ *TaskRun) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -672,20 +672,41 @@ func TestFailures(t *testing.T) {
 		}
 	}
 
-	// Cancellation: only someone who may see the task can cancel it.
+	// Cancellation: only someone who may see the task can cancel it, and
+	// only when its action allows it. Every attempt is audited.
 	task, err := e.approve(owner, e.mustPlan(owner, "x.block", "app:plex"), "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !task.Cancellable {
+		t.Fatalf("task from a cancellable action = %+v", task)
+	}
 	if err := e.e.Cancel(t.Context(), other, task.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("someone else cancelled it: %v", err)
+	}
+	if ev := e.lastEvent(); ev.Action != ActionCancel || ev.Result != audit.Refused || ev.Error == nil || ev.Error.Code != "not_found" || ev.Target != "" {
+		t.Fatalf("refused cancel audited as %+v", ev)
 	}
 	if err := e.e.Cancel(t.Context(), owner, task.ID); err != nil {
 		t.Fatal(err)
 	}
+	if ev := e.lastEvent(); ev.Action != ActionCancel || ev.Result != audit.OK || ev.Target != "app:plex" || ev.Task != task.ID || ev.Actor.ID != owner.ID {
+		t.Fatalf("cancel audited as %+v", ev)
+	}
 	if got := e.wait(task.ID); got.State != StateCancelled || got.Error.Code != "cancelled" {
 		t.Fatalf("cancelled task = %+v", got)
 	}
+	refusal(t, e.e.Cancel(t.Context(), owner, task.ID), "finished")
+	// An action that doesn't allow it is refused, and audited.
+	fails, err := e.approve(owner, e.mustPlan(owner, "x.fail", "app:plex"), "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fails.Cancellable {
+		t.Fatalf("task from an action that isn't cancellable = %+v", fails)
+	}
+	refusal(t, e.e.Cancel(t.Context(), owner, fails.ID), "not_cancellable")
+	e.wait(fails.ID)
 	if rep, _ := e.audit.Verify(t.Context()); !rep.OK {
 		t.Fatalf("audit chain: %+v", rep)
 	}

@@ -414,7 +414,7 @@ func (e *Engine) Approve(ctx context.Context, a Actor, planID string, req Approv
 
 	task := Task{
 		ID: "t_" + strings.ToLower(rand.Text()), Plan: p.id, Action: d.ID, Label: p.doc.Label, Target: t.ID,
-		Actor: TaskActor{Kind: a.Kind, Name: a.Name}, State: StateQueued,
+		Actor: TaskActor{Kind: a.Kind, Name: a.Name}, State: StateQueued, Cancellable: d.Cancellable,
 	}
 	r.Task = task.ID
 	if !e.lock(t.ID, task.ID) {

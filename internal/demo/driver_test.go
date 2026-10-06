@@ -3,6 +3,7 @@ package demo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/config"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/jsonpatch"
@@ -128,8 +130,8 @@ func TestEndpoints(t *testing.T) {
 		wrapped++
 		return h
 	})
-	if wrapped != 2 {
-		t.Fatalf("%d endpoints wrapped, want 2", wrapped)
+	if wrapped != 1 {
+		t.Fatalf("%d endpoints wrapped, want 1", wrapped)
 	}
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -154,32 +156,38 @@ func TestEndpoints(t *testing.T) {
 	if incident(t, tp, "plex-token-revoked").Status != sim.StatusOpen {
 		t.Fatal("plex should start open")
 	}
-	if code, body := do("POST", "/api/demo/incidents/plex-token-revoked/fix"); code != http.StatusAccepted || body["id"] != "plex-token-revoked" {
-		t.Fatalf("fix: %d %v", code, body)
+	// Fixes are engine actions now; the old endpoint is gone.
+	if code, _ := do("POST", "/api/demo/incidents/plex-token-revoked/fix"); code != http.StatusNotFound {
+		t.Fatalf("the removed fix endpoint answered %d", code)
 	}
-	// Pressing it again while it's in progress, or for nothing, is refused.
-	if code, body := do("POST", "/api/demo/incidents/plex-token-revoked/fix"); code != http.StatusConflict || body["error"].(map[string]any)["code"] != "conflict" {
-		t.Fatalf("second fix: %d %v", code, body)
-	} else if msg := body["error"].(map[string]any)["message"].(string); strings.HasPrefix(msg, "sim:") {
-		t.Fatalf("message leaks the package prefix: %q", msg)
+	e := newEngine(t, d)
+	in := incident(t, tp, "plex-token-revoked")
+	p, err := e.Plan(t.Context(), demoOwner, action.PlanRequest{Action: in.Suggested.ID, Target: in.Suggested.Target})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if code, _ := do("POST", "/api/demo/incidents/no-such-thing/fix"); code != http.StatusNotFound {
-		t.Fatalf("unknown incident: %d", code)
+	if _, err := e.Approve(t.Context(), demoOwner, p.ID, action.ApproveRequest{Hash: p.Hash}, ""); err != nil {
+		t.Fatal(err)
+	}
+	// Pressing it again while it's in progress is refused, in words.
+	waitFor(t, func() bool { return d.CanFix(in.ID) != nil })
+	_, err = e.Plan(t.Context(), demoOwner, action.PlanRequest{Action: in.Suggested.ID, Target: in.Suggested.Target})
+	var ref *action.Refusal
+	if !errors.As(err, &ref) || ref.Code != "precondition" || strings.HasPrefix(ref.Message, "sim:") {
+		t.Fatalf("second plan: %v", err)
 	}
 
 	// Plex reconnects 10 s after the fix; a minute later it's resolved by
 	// the action, and the integration is healthy again.
 	clock.Advance(time.Minute)
 	d.Step()
-	in := incident(t, tp, "plex-token-revoked")
-	if in.Status != sim.StatusResolved || in.ResolvedBy != "action" || !in.ResolvedAt.Equal(time.Date(2026, 10, 3, 14, 5, 30, 0, time.UTC)) {
+	waitFor(t, func() bool { return incident(t, tp, "plex-token-revoked").Status == sim.StatusResolved })
+	in = incident(t, tp, "plex-token-revoked")
+	if in.ResolvedBy != "action" || !in.ResolvedAt.Equal(time.Date(2026, 10, 3, 14, 5, 30, 0, time.UTC)) {
 		t.Fatalf("after the fix: %+v", in)
 	}
 	if r, _ := tp.Graph.Get("integration:plex"); r.Health != graph.HealthOK {
 		t.Fatalf("integration:plex health = %q", r.Health)
-	}
-	if code, _ := do("POST", "/api/demo/incidents/plex-token-revoked/fix"); code != http.StatusConflict {
-		t.Fatalf("fixing a resolved incident: %d", code)
 	}
 }
 

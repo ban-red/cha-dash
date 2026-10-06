@@ -84,7 +84,7 @@ func TestDemoEndpointsNeedDemoMode(t *testing.T) {
 	e := newEnv(t)
 	c := signIn(t, e)
 	for _, r := range []struct{ method, path string }{
-		{"GET", "/api/demo"}, {"POST", "/api/demo/incidents/plex-token-revoked/fix"},
+		{"GET", "/api/demo"},
 	} {
 		resp := e.request(t, c, r.method, r.path, nil, nil)
 		if resp.StatusCode != http.StatusNotFound || decode(t, resp)["error"].(map[string]any)["code"] != "not_found" {
@@ -110,14 +110,9 @@ func TestDemoEndpoints(t *testing.T) {
 	if m["enabled"] != true || m["now"] != "2026-10-03T14:05:00Z" || m["seed"] != 5.0 {
 		t.Fatalf("demo info = %v", m)
 	}
-	if resp := e.request(t, c, "POST", "/api/demo/incidents/plex-token-revoked/fix", nil, nil); resp.StatusCode != http.StatusAccepted {
-		t.Fatalf("fix: %d", resp.StatusCode)
-	}
-	if resp := e.request(t, c, "POST", "/api/demo/incidents/plex-token-revoked/fix", nil, nil); resp.StatusCode != http.StatusConflict {
-		t.Fatalf("fix again: %d", resp.StatusCode)
-	}
-	if resp := e.request(t, c, "POST", "/api/demo/incidents/nope/fix", nil, nil); resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("unknown incident: %d", resp.StatusCode)
+	// Fixes run on the engine; the demo's own fix endpoint is gone.
+	if resp := e.request(t, c, "POST", "/api/demo/incidents/plex-token-revoked/fix", nil, nil); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("the removed fix endpoint: %d", resp.StatusCode)
 	}
 }
 

@@ -19,6 +19,8 @@ const maxIdempotencyKey = 128
 //	POST /api/actions/plan        {"action","target","params"?} → 200 Plan
 //	POST /api/plans/{id}/approve  {"hash","typed"?}, optional Idempotency-Key → 202 {"task"}
 //	GET  /api/tasks/{id}          → 200 Task (your own, or anyone's with ScopeTasksAll)
+//	POST /api/tasks/{id}/cancel   → 202 {"task"}; 404, 409 finished, 409 not_cancellable (audited as task.cancel)
+//	GET  /api/actions?target=     → 200 [Offer]: what the actor could plan on target (see ActionsFor)
 //	GET  /api/audit, /api/audit/export, /api/audit/verify   (ScopeAuditRead; see audit.Log.Register)
 //
 // Refusals use the error envelope with the codes in docs/plan/08-v0.2.md;
@@ -93,6 +95,45 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, t)
+	})))
+
+	mux.Handle("POST /api/tasks/{id}/cancel", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a, ok := actorOf(w, r)
+		if !ok {
+			return
+		}
+		id := r.PathValue("id")
+		err := e.Cancel(r.Context(), a, id)
+		if errors.Is(err, ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such task.")
+			return
+		} else if err != nil {
+			fail(w, err)
+			return
+		}
+		t, err := e.Task(r.Context(), a, id)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusAccepted, map[string]Task{"task": t})
+	})))
+	mux.Handle("GET /api/actions", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a, ok := actorOf(w, r)
+		if !ok {
+			return
+		}
+		target := r.URL.Query().Get("target")
+		if target == "" || len(target) > 500 {
+			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "Name a target: ?target=<resource id>.")
+			return
+		}
+		offers, err := e.ActionsFor(r.Context(), a, target)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, offers)
 	})))
 
 	e.audit.Register(mux, func(h http.Handler) http.Handler { return session(e.Guard(ScopeAuditRead)(h)) }, log)

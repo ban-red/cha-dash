@@ -114,10 +114,12 @@ var (
 
 // Scopes that aren't actions: reading the audit log, and seeing (or
 // cancelling) other people's tasks. The policy maps them to roles; the plan
-// gives both to Admin and Owner.
+// gives both to Admin and Owner. Cancelling is audited as ActionCancel.
 const (
 	ScopeAuditRead = "audit.read"
 	ScopeTasksAll  = "tasks.all"
+	// ActionCancel is the audit log's name for cancelling a task.
+	ActionCancel = "task.cancel"
 )
 
 type defKey struct{}
@@ -225,6 +227,12 @@ type Def struct {
 	// raises such an action to T4 when the target runs the hub or the
 	// router (the self-aware T4; see runtime.Actions).
 	Disrupts bool
+	// Cancellable lets the person who started a task (or anyone with
+	// ScopeTasksAll) stop it while it runs: POST /api/tasks/{id}/cancel
+	// ends its context. Leave it false unless Execute and Verify stop
+	// cleanly when their context ends; instant T0 and T1 actions don't need
+	// it, and an action whose upstream can't be stopped mustn't claim it.
+	Cancellable bool
 	// Timeout bounds Execute; VerifyTimeout bounds Verify.
 	Timeout       time.Duration
 	VerifyTimeout time.Duration
