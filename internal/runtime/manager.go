@@ -987,8 +987,9 @@ func (m *Manager) view(mi *managed) InstanceView {
 	snap := mi.st.snapshot()
 	v := InstanceView{
 		ID: r.ID, Integration: r.Integration, Name: r.Name, Enabled: r.Enabled,
-		Status: snap.Status, Version: snap.Version, Warnings: snap.Warnings,
-		Config: nonSecret(r.Config, mi.man), Secrets: map[string]SecretState{},
+		Status: snap.Status, Version: snap.Version,
+		Warnings: slices.Concat(snap.Warnings, configWarnings(integration.Config{Values: r.Config})),
+		Config:   nonSecret(r.Config, mi.man), Secrets: map[string]SecretState{},
 		CreatedAt: time.UnixMilli(r.CreatedAt).UTC(), UpdatedAt: time.UnixMilli(r.UpdatedAt).UTC(),
 	}
 	if !snap.LastOK.IsZero() {
@@ -1177,11 +1178,8 @@ func frameworkWarnings(man integration.Manifest, cfg integration.Config, grants 
 	if w := integration.WriteGrantWarning(grants); w != nil {
 		out = append(out, *w)
 	}
+	out = append(out, configWarnings(cfg)...)
 	u, _ := url.Parse(cfg.String("url"))
-	if u != nil && u.Scheme == "https" && cfg.TLS().Mode == integration.TLSInsecure {
-		out = append(out, integration.Warning{Code: "tls_insecure", Severity: integration.WarnWarning,
-			Message: "Certificate checks are off for this instance, so anyone on the network path could impersonate it. Trust on first use is safer."})
-	}
 	if u != nil && u.Scheme == "http" {
 		for _, f := range man.SecretFields() {
 			if s, _ := cfg.Values[f].(string); s != "" {
@@ -1192,6 +1190,20 @@ func frameworkWarnings(man integration.Manifest, cfg integration.Config, grants 
 		}
 	}
 	return out
+}
+
+// configWarnings are the risks a saved config keeps carrying. A test reports
+// them, and so does the instance's view for as long as the config has them,
+// so turning certificate checks off isn't forgotten. They don't change the
+// instance's status. Plain http:// stays a test-time warning only: on a LAN
+// it's the norm, and a lasting badge on most instances would be noise.
+func configWarnings(cfg integration.Config) []integration.Warning {
+	u, _ := url.Parse(cfg.String("url"))
+	if u != nil && u.Scheme == "https" && cfg.TLS().Mode == integration.TLSInsecure {
+		return []integration.Warning{{Code: "tls_insecure", Severity: integration.WarnWarning,
+			Message: "Certificate checks are off for this instance, so anyone on the network path could impersonate it. Trust on first use is safer."}}
+	}
+	return nil
 }
 
 func cmpStr(a, b string) string {

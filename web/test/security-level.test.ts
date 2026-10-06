@@ -53,6 +53,17 @@ describe('Settings → Security → Security level', () => {
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);
   });
 
+  it('shows the hub’s deployment notes above the levels', async () => {
+    const message = 'Requests are arriving through what looks like a reverse proxy that Cha Dash doesn’t trust.';
+    fakeFetch({ 'GET /api/settings/security': { status: 200, body: { ...view('relaxed'), notes: [{ code: 'untrusted_proxy', message }] } } });
+    const { mountIn } = harness();
+    const w = mountIn(SecurityLevel);
+    await flushPromises();
+    const notes = w.findAll('[role="note"][data-code]');
+    expect(notes.map((n) => [n.attributes('data-code'), n.text()])).toEqual([['untrusted_proxy', message]]);
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+  });
+
   it('saves a choice at once, and puts it back when the hub refuses', async () => {
     let posture = 'relaxed';
     const f = fakeFetch({

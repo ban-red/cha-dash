@@ -44,6 +44,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
+      # Better: publish on one interface only, as "<this host's LAN IP>:{{port}}:2375".
       - "{{port}}:2375"
     command:
       - -listenip=0.0.0.0
@@ -64,5 +65,6 @@ Then use the endpoint `tcp://{{host}}:{{port}}`.
 ## Notes
 
 - Test connection checks what the endpoint lets through, with GET requests only, and says which of three kinds it is: a filtered proxy like this one, a broad proxy, or the raw Docker API.
+- The allowlist lets container inspects through (`/containers/<id>/json`). Cha Dash reads restarts, exit codes, health and out-of-memory kills from them and drops the environment, but the proxy serves the whole inspect, **environment variables included**, to anything that connects from Cha Dash's address. On a bridge network, that's every container on Cha Dash's host. Prefer a VPN or a dedicated interface between the two hosts. If you'd rather give that up, change `(json|stats)` to `stats` in that line: Cha Dash still lists containers and their state, without those details.
 - A proxy that passes every GET under `/containers/` (Tecnativa's `CONTAINERS=1`) also hands out every container's environment, logs and files. Test flags it.
 - The Docker socket itself, or the raw API on port 2375, is root on the host for whoever reaches it. It works, and the Inbox keeps a hint about it.

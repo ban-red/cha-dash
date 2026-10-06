@@ -119,15 +119,19 @@ func (s *Service) clearCookie(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// rateLimited applies the per-IP attempt budget and writes 429 when spent.
+// rateLimited applies the per-client attempt budget and writes 429 when spent.
 func (s *Service) rateLimited(w http.ResponseWriter, r *http.Request, scope string) bool {
-	ok, wait := s.limiter.allow(scope + "|" + s.proxies.ClientIP(r).String())
+	ok, wait := s.limiter.allow(scope + "|" + clientKey(s.proxies.ClientIP(r)))
 	if ok {
 		return false
 	}
+	tooManyAttempts(w, wait)
+	return true
+}
+
+func tooManyAttempts(w http.ResponseWriter, wait time.Duration) {
 	w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 	httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "too many attempts; try again later")
-	return true
 }
 
 func (s *Service) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
@@ -192,6 +196,12 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, err := s.Login(r.Context(), req.Username, req.Password)
+	var limited *AccountLimitedError
+	if errors.As(err, &limited) {
+		s.log.Warn("sign-in refused: too many wrong passwords for this account", "user_id", limited.UserID, "client", s.proxies.ClientIP(r).String())
+		tooManyAttempts(w, limited.Wait)
+		return
+	}
 	if errors.Is(err, ErrBadCredentials) {
 		// Usernames aren't logged: people sometimes type a password into that field.
 		s.log.Info("sign-in failed", "client", s.proxies.ClientIP(r).String())

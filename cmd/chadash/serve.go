@@ -156,6 +156,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if err != nil {
 		return nil, err
 	}
+	proxyCheck := httpx.NewProxyCheck(log, proxies, cfg.PublicURL)
+	sec.ProxyNotes = proxyCheck.Notes
 
 	g := graph.New()
 	tp := topics.New(g, time.Now())
@@ -240,6 +242,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Realtime:       hub,
 		Web:            webui.New(),
 		Proxies:        proxies,
+		ProxyCheck:     proxyCheck,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Demo:           drv,
 		Vault:          v,

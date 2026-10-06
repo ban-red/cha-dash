@@ -85,8 +85,11 @@ type Deps struct {
 	Auth     *auth.Service
 	Realtime http.Handler // the WebSocket hub; mounted behind the session check
 	// Web serves the SPA (webui.New in the hub). Nil serves Placeholder.
-	Web            http.Handler
-	Proxies        httpx.Proxies
+	Web     http.Handler
+	Proxies httpx.Proxies
+	// ProxyCheck notices an untrusted reverse proxy in front of the hub.
+	// Nil skips the check.
+	ProxyCheck     *httpx.ProxyCheck
 	AllowedOrigins []string // extra trusted origins, scheme://host[:port]
 	// Demo is the Demo Home driver in demo mode, nil otherwise. Without it
 	// the /api/demo endpoints answer 404.
@@ -213,6 +216,9 @@ func New(d Deps) (http.Handler, error) {
 	h = compressAPI(h)
 	h = cop.Handler(h)
 	h = httpx.Recover(d.Log)(h)
+	if d.ProxyCheck != nil {
+		h = d.ProxyCheck.Middleware(h)
+	}
 	h = httpx.AccessLog(d.Log, d.Proxies)(h)
 	h = httpx.SecurityHeaders(h)
 	return h, nil

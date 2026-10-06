@@ -233,12 +233,18 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 			httpx.Error(w, http.StatusBadRequest, "bad_json", `send {"password"} or a passkey assertion`)
 			return
 		}
+		// Wrong passwords here draw on the same per-account budget as sign-in.
+		if wait := s.failures.wait(id.User.ID); wait > 0 {
+			tooManyAttempts(w, wait)
+			return
+		}
 		ok, err := s.checkPassword(ctx, id.User.ID, password)
 		if err != nil {
 			s.internalError(w, "could not check the password", err)
 			return
 		}
 		if !ok {
+			s.failures.allow(id.User.ID)
 			fail("wrong password", nil)
 			return
 		}

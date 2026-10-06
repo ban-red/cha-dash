@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/store"
 )
@@ -114,5 +115,19 @@ func TestService(t *testing.T) {
 		if err != nil || s.Posture() != Default {
 			t.Fatalf("%s: %v", bad, err)
 		}
+	}
+}
+
+func TestViewNotes(t *testing.T) {
+	s, err := New(t.Context(), openStore(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := s.view(); v.Notes != nil {
+		t.Fatalf("notes without a source = %v", v.Notes)
+	}
+	s.ProxyNotes = func() []httpx.ProxyNote { return []httpx.ProxyNote{{Code: httpx.NoteUntrustedProxy, Message: "m"}} }
+	if v := s.view(); len(v.Notes) != 1 || v.Notes[0].Code != httpx.NoteUntrustedProxy {
+		t.Fatalf("notes = %v", v.Notes)
 	}
 }

@@ -720,3 +720,25 @@ func TestReload(t *testing.T) {
 		t.Fatal("i_later should be gone")
 	}
 }
+
+func TestInsecureTLSWarningStays(t *testing.T) {
+	e := newEnv(t)
+	up := newUpstream(t, secret, true)
+	code, body := e.call(t, "POST", "/api/integrations/instances", map[string]any{
+		"integration": "echo", "name": "Echo", "config": map[string]any{"url": up.URL, "tls": map[string]any{"mode": "insecure"}},
+		"secrets": map[string]any{"api_key": secret},
+	})
+	if code != 201 {
+		t.Fatalf("create: %d %s", code, body)
+	}
+	id := decodeAs[map[string]string](t, body)["id"]
+	// The instance works, so its status is ok, but the saved config keeps warning.
+	waitFor(t, "the instance to sync", func() bool { return e.status(id) == StatusOK })
+	got, err := e.m.Get(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Warnings) != 1 || got.Warnings[0].Code != "tls_insecure" {
+		t.Fatalf("warnings = %+v", got.Warnings)
+	}
+}

@@ -170,6 +170,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
+      # Better: publish on one interface only, as "<this host's LAN IP>:2375:2375".
       - "2375:2375"
     command:
       - -listenip=0.0.0.0
@@ -184,6 +185,8 @@ services:
       - -stoponwatchdog
       - -shutdowngracetime=5
 ```
+
+`-allowfrom` checks only the source address. The allowlist lets container inspects through, and an inspect includes the container's environment variables: Cha Dash drops them, but anything else that connects from the hub's address gets them too. On a bridge network, that's every container on the hub's host. Prefer a VPN or a dedicated interface between the hosts. To give up inspects, change `(json|stats)` to `stats`: you keep the container list and state, but lose restarts, exit codes, health and out-of-memory kills.
 
 Then add Docker with the endpoint `tcp://<that host>:2375`. Test connection says which kind of endpoint it found, with GET requests only: a filtered proxy like this one, a broad proxy that also hands out containers' environment, logs and files, or the raw Docker API (root on that host).
 

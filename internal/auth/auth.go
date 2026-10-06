@@ -77,6 +77,17 @@ var (
 	ErrNoSession      = errors.New("auth: no valid session")
 )
 
+// AccountLimitedError is Login's answer when an account has used up its
+// budget of wrong passwords. Passkey sign-in isn't limited this way.
+type AccountLimitedError struct {
+	UserID string
+	Wait   time.Duration
+}
+
+func (e *AccountLimitedError) Error() string {
+	return "auth: too many wrong passwords for this account"
+}
+
 // ValidationError is a user-fixable input problem.
 type ValidationError struct{ Msg string }
 
@@ -110,8 +121,11 @@ type Service struct {
 	log     *slog.Logger
 	proxies httpx.Proxies
 	limiter *limiter
-	now     func() time.Time
-	params  argonParams
+	// failures is the per-account budget for wrong passwords, keyed by user
+	// ID, so changing address doesn't buy more guesses at one account.
+	failures *limiter
+	now      func() time.Time
+	params   argonParams
 
 	// Passkeys: the relying party from CHADASH_PUBLIC_URL (or why it can't be
 	// one), and the ceremonies begun but not yet finished.
@@ -137,12 +151,13 @@ func WithPublicURL(u string) Option { return func(s *Service) { s.publicURL = u 
 // New starts the auth service. With no users it mints and logs a setup token.
 func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.Proxies, opts ...Option) (*Service, error) {
 	s := &Service{
-		st:      st,
-		log:     log,
-		proxies: proxies,
-		limiter: newLimiter(10, 6*time.Second), // 10 attempts, then one per 6 s, per client IP
-		now:     time.Now,
-		params:  defaultParams,
+		st:       st,
+		log:      log,
+		proxies:  proxies,
+		limiter:  newLimiter(10, 6*time.Second), // 10 attempts, then one per 6 s, per client IP
+		failures: newLimiter(20, time.Minute),   // 20 wrong passwords, then one a minute, per account
+		now:      time.Now,
+		params:   defaultParams,
 	}
 	for _, o := range opts {
 		o(s)
@@ -259,9 +274,15 @@ func (s *Service) Login(ctx context.Context, username, password string) (User, e
 	if err != nil {
 		return User{}, fmt.Errorf("auth: %w", err)
 	}
+	if wait := s.failures.wait(u.ID); wait > 0 {
+		return User{}, &AccountLimitedError{UserID: u.ID, Wait: wait}
+	}
 	ok, err := verifyPassword(password, hash.String)
 	if err != nil {
 		return User{}, fmt.Errorf("auth: user %s: %w", u.ID, err)
+	}
+	if !ok {
+		s.failures.allow(u.ID)
 	}
 	if !ok || disabled.Valid {
 		return User{}, ErrBadCredentials

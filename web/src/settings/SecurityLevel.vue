@@ -8,6 +8,9 @@
  *
  * A native radio group: arrows move between the levels, and choosing one
  * saves it. A failed save puts the choice back and says why.
+ *
+ * Above it go the hub's deployment notes, such as a reverse proxy it doesn't
+ * trust (internal/httpx/proxycheck.go). They clear when the hub restarts.
  */
 import { onMounted, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
@@ -21,9 +24,14 @@ export interface SecurityLevelInfo {
   description: string;
   default?: boolean;
 }
+export interface SecurityNote {
+  code: string;
+  message: string;
+}
 export interface SecurityView {
   posture: string;
   levels: SecurityLevelInfo[];
+  notes?: SecurityNote[];
 }
 
 const ui = useUi();
@@ -72,6 +80,7 @@ onMounted(load);
       How much security findings interrupt you. At any level they’re listed in the Inbox; above Relaxed, the serious ones also need you in the Briefing and Needs
       attention.
     </p>
+    <div v-for="n in view?.notes ?? []" :key="n.code" class="st-note attn" role="note" :data-code="n.code"><Glyph kind="attn" /><span>{{ n.message }}</span></div>
     <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span></div>
     <div v-else-if="status === 'error'" class="st-note bad" role="alert"><Glyph kind="down" /><span>{{ loadError }}</span></div>
     <fieldset v-else-if="view" class="sl-group" :aria-busy="saving">

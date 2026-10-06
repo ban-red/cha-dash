@@ -107,6 +107,9 @@ type Service struct {
 	now func() time.Time
 	// Audit records every change to these settings (nil: none, for tests).
 	Audit *authz.Recorder
+	// ProxyNotes reports reverse-proxy problems the hub has noticed
+	// (httpx.ProxyCheck). Nil reports none.
+	ProxyNotes func() []httpx.ProxyNote
 
 	set    sync.Mutex // serialises Set: the row and the subscribers change in order
 	mu     sync.Mutex
@@ -260,15 +263,23 @@ type View struct {
 	Levels      []Level         `json:"levels"`
 	StepUp      auth.StepUpMode `json:"step_up"`
 	StepUpModes []StepUpLevel   `json:"step_up_modes"`
+	// Notes are deployment problems to fix, such as an untrusted reverse
+	// proxy. Omitted when there are none.
+	Notes []httpx.ProxyNote `json:"notes,omitempty"`
 }
 
 func (s *Service) view() View {
-	return View{Posture: s.Posture(), Levels: Levels, StepUp: s.StepUp(), StepUpModes: StepUpModes}
+	v := View{Posture: s.Posture(), Levels: Levels, StepUp: s.StepUp(), StepUpModes: StepUpModes}
+	if s.ProxyNotes != nil {
+		v.Notes = s.ProxyNotes()
+	}
+	return v
 }
 
 // Register mounts the routes:
 //
-//	GET /api/settings/security   {posture, levels, step_up, step_up_modes}       (read wraps it)
+//	GET /api/settings/security   {posture, levels, step_up, step_up_modes,       (read wraps it)
+//	                             notes?}
 //	PUT /api/settings/security   {posture?, step_up?} → the same; 422 for an     (write wraps it)
 //	                             unknown value; changing step_up needs a step-up
 func (s *Service) Register(mux *http.ServeMux, read, write func(http.Handler) http.Handler) {
