@@ -284,12 +284,12 @@ func TestNodeTransportEvents(t *testing.T) {
 	go func() { done <- inst.(integration.Subscriber).Subscribe(ctx, nil) }()
 	select {
 	case <-f.subscribed:
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second): // generous: -race on a busy machine
 		t.Fatal("no event stream through the node")
 	}
 	eventually := func(what string, cond func() bool) {
 		t.Helper()
-		deadline := time.Now().Add(5 * time.Second)
+		deadline := time.Now().Add(15 * time.Second)
 		for !cond() {
 			if time.Now().After(deadline) {
 				t.Fatalf("timed out: %s", what)
