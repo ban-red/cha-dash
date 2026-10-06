@@ -1,32 +1,34 @@
 # Unraid (`unraid`)
 
-Reads an Unraid server through the Unraid API (GraphQL): the host, the array with its disks, the pools, the shares, and the Docker containers Unraid manages, with their autostart settings.
+Reads an Unraid server through the Unraid API (GraphQL): the host, the array with its disks, the pools, the shares, the VMs, and the Docker containers Unraid manages, with their autostart settings. A controllable instance also starts, stops and updates containers and starts and stops VMs (see [Actions](#actions)).
 
-**Tier:** silver (version gate, repairs, grants read back, fixture tests). **Capabilities:** `host.metrics`, `storage.pools`, `storage.disks`, `storage.shares`, `containers`. **Secret:** `api_key`.
+**Tier:** silver (version gate, repairs, grants read back, fixture tests). **Capabilities:** `host.metrics`, `storage.pools`, `storage.disks`, `storage.shares`, `containers`, `compute.guests`. **Secret:** `api_key`.
 
 Written from [spike 4.2](../../spikes/unraid/README.md) and tested against its capture of the dogfood server, [`testdata/integrations/unraid/`](../../testdata/integrations/unraid/README.md) (Unraid 7.3.2, API 4.37.2).
 
 ## Config
 
 ```json
-{"url": "http://10.0.11.120", "tls": {"mode": "verify"}, "api_key": "${secret:instance/<id>/api_key}"}
+{"url": "http://10.0.11.120", "tls": {"mode": "verify"}, "mode": "read_only", "api_key": "${secret:instance/<id>/api_key}"}
 ```
 
 | Key | Meaning |
 |---|---|
 | `url` | The server's webGUI address, `http://` or `https://`. The API is `POST <url>/graphql`; a URL that already ends in `/graphql` works too |
 | `tls` | `{"mode": "verify" \| "pin" \| "tofu" \| "insecure", "pin": "<sha256>"}` |
+| `mode` | `read_only` (the default, and what a config without it means) or `control`: the answer to "Read-only, or let Cha Dash control Unraid?". It decides which scopes the recipe's consent link asks for and whether the instance has actions. It can be switched later; nothing needs deleting |
 | `api_key` | Sent as the `x-api-key` header, and nowhere else |
 
 These are the keys in [07 · v0.1](../../docs/plan/07-v0.1.md#instance-config-keys), in the shape the Homepage importer writes. Homepage's `pool1`–`pool4` options are tile options, not instance config.
 
-**The key to create:** a read-only key with exactly these scopes, through Unraid's consent URL or under *Settings → Management Access → API Keys*:
+**The key to create** (decision 6: one key, its scopes set by the mode), through Unraid's consent URL or under *Settings → Management Access → API Keys*:
 
-```
-info:read_any, array:read_any, docker:read_any, share:read_any, me:read_any
-```
+| Mode | Scopes |
+|---|---|
+| `read_only` | `info:read_any, array:read_any, docker:read_any, vms:read_any, share:read_any, me:read_any` |
+| `control` | the same, plus `docker:update_any, vms:update_any` |
 
-`info` and `array` are required. Without `docker` or `share`, those parts are missing and the instance says so in a warning. `me` lets Test connection read the grants back. The spike's recipe also asks for `disk`, `vms` and `notifications`; this version reads none of them (see Limits).
+The recipe's consent link follows the form's mode (a recipe param bound to `config.mode`; see `RecipeOption.When` in `internal/integration`). `info` and `array` are required. Without `docker` or `share`, those parts are missing and the instance says so in a warning; without `vms`, a read-only instance just shows no VMs (keys made from the v0.1 recipe lack it), and a controllable one warns. `me` lets Test connection read the grants back. Never `array:update_any`: it also lets a key add and remove disks. The spike's recipe also asks for `disk` and `notifications`; this version reads neither (see Limits).
 
 ## Requirements
 
@@ -43,8 +45,9 @@ info:read_any, array:read_any, docker:read_any, share:read_any, me:read_any
 | `array { state capacity parityCheckStatus boot parities disks caches }` | ARRAY | Every sync | ~7 ms |
 | `metrics { cpu memory }` | INFO | Every sync | ~14 ms |
 | `shares { name include exclude }` | SHARE | Every 5 minutes | ~7 ms |
-| `docker { containers { id names image state autoStart autoStartOrder autoStartWait labels mounts webUiUrl } }` | DOCKER | Every sync while someone watches containers; every 15 minutes otherwise | ~0.2 s |
-| `me { name roles permissions }` | ME | Test connection only | ~5 ms |
+| `docker { containers { id names image state autoStart autoStartOrder autoStartWait labels mounts webUiUrl } }` | DOCKER | Every sync while someone watches containers; every 15 minutes otherwise; and when an action resolves or verifies a container | ~0.2 s |
+| `vms { domains { id name state } }` | VMS | Every sync while someone watches VMs; every 15 minutes otherwise; and when an action resolves or verifies a VM | ~12 ms |
+| `me { name roles permissions }` | ME | Test connection, and before an action (at most every 30 s) | ~5 ms |
 
 **Poll plan.** The coordinator syncs every 60 s while someone watches, and every 5 minutes (the default idle interval) while nobody does. One sync is a few sequential POSTs.
 
@@ -63,9 +66,10 @@ IDs are `unraid:<instance id>/<path>`.
 | `disk/<name>` (parity, data, pool devices, `flash`) | `disk` | `role` (`parity`, `data`, `pool`, `boot`), `serial`, `model`, `device`, `fs`, `transport`, `size_tb`, `rotational`, `errors`, and `pool` for pool devices. State `online`, or `idle` while spun down | From emhttp's status: `down` for missing or disabled, `attention` for invalid, wrong or new, and for read/write errors |
 | `pool/<name>` | `pool` | `fs`, `devices`, `media` (`nvme`, `ssd`, `hdd`), `size_tb` | `down` while the array is stopped, `attention` when unmounted or a device needs attention |
 | `share/<name>` | `share` | `include`, `exclude` (the disks it's limited to) | `ok` |
+| `vm/<uuid>` | `vm`, named after the VM | `platform: unraid`, `uuid` (libvirt's). State `running` (also libvirt's idle), `paused`, `stopping`, `stopped`, `error` (crashed) or `unknown` | `attention` when crashed |
 | `container/<name>` | `container` | `container_id` (Docker's full ID), `image`, `manager` (`dockerman` or `composeman`), `autostart`, `autostart_order`, `autostart_wait_s`; desired `running` when it's on the autostart list; a link to its web UI | `attention` when it's on the autostart list but not running |
 
-**Relations:** the instance `monitors` the host; `array`, every pool and the flash are `part_of` the host; parity and data disks are `part_of` the array; pool devices are `part_of` their pool; a share is `part_of` the array when its include or exclude list names array disks, else `part_of` the host; a container `runs_on` the host and `stores_on` every share it mounts (`/mnt/user/<share>/…`, `/mnt/user0/<share>/…`, or a disk or pool path).
+**Relations:** the instance `monitors` the host; `array`, every pool and the flash are `part_of` the host; parity and data disks are `part_of` the array; pool devices are `part_of` their pool; a share is `part_of` the array when its include or exclude list names array disks, else `part_of` the host; a VM `runs_on` the host; a container `runs_on` the host and `stores_on` every share it mounts (`/mnt/user/<share>/…`, `/mnt/user0/<share>/…`, or a disk or pool path).
 
 **Metrics**, with the Demo Home's keys and scales:
 
@@ -95,10 +99,32 @@ IDs are `unraid:<instance id>/<path>`.
 
 ## Test connection
 
+The mode is checked against the key's actual grants, never trusted.
+
 1. The version read. A rejected key fails with `auth`; a server without the API fails with `api_changed`, naming the URL.
-2. `me`, turned into grants: one per role (`role:admin` is `admin`; `viewer` and `guest` read; any other role counts as a write) and one per resource, named after it (`array`, `docker`, …), with its actions as the detail. **Anything beyond reading is a write grant**: a `create`, `update` or `delete` action, or an unknown one. The framework then warns about write grants on this read-only connection. On the spike's first key, `disk: create_any` is flagged.
-3. Missing reads: no ARRAY read fails the test (`missing_permission`); no DOCKER or SHARE read is a warning. A key without ME passes with a `grants_unknown` notice.
-4. An API older than 4.37.4 fails with `unsupported_version`.
+2. `me`, turned into grants: one per role (`role:admin` is `admin`; `viewer` and `guest` read; any other role counts as a write) and one per resource, named after it (`array`, `docker`, …), with its actions as the detail. **Anything beyond reading is a write grant**: a `create`, `update` or `delete` action, or an unknown one. The framework then warns about write grants (on a controllable instance too, for now; see Limits). On the spike's first key, `disk: create_any` is flagged.
+3. Missing reads: no ARRAY read fails the test (`missing_permission`); no DOCKER or SHARE read is a warning, and so is no VMS read on a controllable instance. A key without ME passes with a `grants_unknown` notice.
+4. **Controllable instances:** each missing write scope (`DOCKER: Update`, `VMS: Update`) is a `missing_permission` warning naming the actions it stops and how to add it. The test still passes: the instance reads as before.
+5. An API older than 4.37.4 fails with `unsupported_version`.
+
+## Actions
+
+Only a controllable instance (`mode: control`) has actions; a read-only one has none, so tiles and ⌘K show none and nothing probes for write access. All go through the Unraid API's mutations (never the node), with the instance's one key.
+
+| Action | Tier | Undo | Needs | Mutation | Verify (next read) |
+|---|---|---|---|---|---|
+| `unraid.container.start` | T1 | `unraid.container.stop` | `docker:update_any` | `docker { start(id) }` | the container reports `running` |
+| `unraid.container.stop` | T1 | `unraid.container.start` | `docker:update_any` | `docker { stop(id) }` | it reports `exited` |
+| `unraid.container.update` | T2 | — | `docker:update_any` | `docker { updateContainer(id) }` | it's listed again, and running if it was |
+| `unraid.vm.start` | T1 | `unraid.vm.stop` | `vms:update_any` | `vm { start(id) }` | the VM reports `running` |
+| `unraid.vm.stop` | T1 | `unraid.vm.start` | `vms:update_any` | `vm { stop(id) }` (a clean shutdown) | it reports `stopped` |
+
+- **Targets** are this instance's `container/<name>` and `vm/<uuid>` resources. Each action resolves its target with a fresh read, so preconditions see now, not the last sync; another instance's target, or another kind, is `not_found`. The blast radius comes from the Home Graph.
+- **Missing scopes:** before planning, the key's grants are read with `me` (cached 30 s). Without the write scope an action needs, it refuses with `409 unavailable`, naming the scope and the two ways to add it (re-run the consent link with Control chosen, or edit the key under *Settings → Management Access → API Keys*), with `recipe` naming the instance. A key that can't read ME is let through, and a `FORBIDDEN` answer fails the task with `missing_permission` and the same sentence.
+- **Preconditions** (`409 precondition`): already running or stopped; paused (resume it in Unraid); a VM that's shutting down; a container from a Compose Manager stack can't be updated (Unraid's update covers template containers only).
+- **Timeouts:** mutations get a 15-minute HTTP client, since Unraid answers a stop or an update when it's done; an update may run 15 minutes, a VM shutdown 5, and verifying waits 1 to 3 minutes.
+- **Audit:** the target and empty params; the key never appears in a plan, task log or audit record.
+- **Not offered: parity check and array stop** (the plan's T2/T3, allowed to slip to v0.2.x). Both need `array:update_any`, which also lets a key add and remove disks, and the dogfooding rules keep writes off the array. They can come later with a separate, explicit opt-in.
 
 ## Repairs and warnings
 
@@ -117,7 +143,10 @@ GraphQL reports most failures inside a 200, so the integration maps `errors[].ex
 ## Limits
 
 - **No SMART data, serial-number cross-check, model from `disks`, or firmware.** They need the `disks` query, which wakes disks. A deliberate "refresh SMART" action could read it on demand later (v0.2 has actions).
-- **No VMs and no notifications yet.** The spike mapped both (`vms.domains`; Unraid's own notifications, `warningsAndAlerts` for the Inbox).
+- **No notifications yet.** The spike mapped them (Unraid's own notifications, `warningsAndAlerts` for the Inbox).
+- **The mutations aren't verified live.** They're written from the published schema (`DockerMutations.start`, `stop`, `updateContainer`; `VmMutations.start`, `stop`) and tested against fakes; the house rule keeps writes off the lab until the maintainer's write run. If an API version lacks one, the task fails with `unsupported`, naming the version.
+- **No "update available" yet.** The API's update check isn't read, so an update may pull the same image and recreate the container anyway.
+- **Write grants on a controllable instance** still get the framework's "Cha Dash only reads" warning: the runtime doesn't know about modes yet (wave 8, 8A).
 - **No live CPU and memory.** The API's `systemMetricsCpu` and `systemMetricsMemory` subscriptions (graphql-ws) would give second-by-second values while a host tile is open; this version polls `metrics` instead. `arraySubscription` is broken on 4.37.2.
 - **Shares have no pool.** The API reports `cache: null` and `size: 0` for shares (4.37.2), so a share without an include or exclude list is related to the host, not to its pool, and shares have no usage series.
 - **The host's `ip`** is the URL's host when that's an address, else br0's address from the network read.

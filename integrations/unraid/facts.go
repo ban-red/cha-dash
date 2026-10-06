@@ -645,3 +645,53 @@ func (in *instance) shareOf(path string) string {
 	}
 	return ""
 }
+
+// vmDomain is one of vms.domains: a libvirt domain.
+type vmDomain struct {
+	ID    string `json:"id"` // <server id>:<libvirt UUID>
+	Name  string `json:"name"`
+	State string `json:"state"` // RUNNING, IDLE, PAUSED, SHUTDOWN, SHUTOFF, CRASHED, PMSUSPENDED, NOSTATE
+}
+
+// vmState is a libvirt state in the graph's words.
+func vmState(s string) string {
+	switch strings.ToUpper(s) {
+	case "RUNNING", "IDLE":
+		return "running"
+	case "PAUSED", "PMSUSPENDED":
+		return "paused"
+	case "SHUTDOWN":
+		return "stopping"
+	case "SHUTOFF":
+		return "stopped"
+	case "CRASHED":
+		return "error"
+	}
+	return "unknown"
+}
+
+// vmFacts are the VMs, by libvirt UUID (a name can change and hold
+// spaces), each running on the host.
+func (in *instance) vmFacts(ds []vmDomain) integration.Facts {
+	var f integration.Facts
+	host := in.id("host")
+	for _, d := range ds {
+		uuid := localID(d.ID)
+		if uuid == "" {
+			continue
+		}
+		id := in.id("vm/" + uuid)
+		name := d.Name
+		if name == "" {
+			name = uuid
+		}
+		r := integration.Resource{ID: id, Kind: "vm", Name: name, State: vmState(d.State), Health: healthy,
+			Attrs: map[string]any{"platform": "unraid", "uuid": uuid}}
+		if r.State == "error" {
+			r.Health = integration.Health{Status: integration.HealthAttention, Reason: "The VM crashed"}
+		}
+		f.Resources = append(f.Resources, r)
+		f.Relations = append(f.Relations, rel(id, "runs_on", host))
+	}
+	return f
+}

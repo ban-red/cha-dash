@@ -48,11 +48,13 @@ fragment Device on ArrayDisk {
   docker { containers { id names image state autoStart autoStartOrder autoStartWait labels mounts webUiUrl } }
 }`
 	qShares = `query ChadashShares { shares { name include exclude } }`
+	qVMs    = `query ChadashVMs { vms { domains { id name state } } }`
 	qMe     = `query ChadashMe { me { name roles permissions { resource actions } } }`
 )
 
-// queries lists every document the integration can send (tests check them).
-var queries = []string{qVersion, qInfo, qNetwork, qMetrics, qArray, qDocker, qShares, qMe}
+// queries lists every read document the integration can send (tests check
+// them); mutations (actions.go) are the only writes.
+var queries = []string{qVersion, qInfo, qNetwork, qMetrics, qArray, qDocker, qShares, qVMs, qMe}
 
 // What each operation reads, and the Unraid resource its permission names.
 var reads = map[string]struct{ what, resource string }{
@@ -63,6 +65,7 @@ var reads = map[string]struct{ what, resource string }{
 	"ChadashArray":   {"the array", "ARRAY"},
 	"ChadashDocker":  {"Docker containers", "DOCKER"},
 	"ChadashShares":  {"shares", "SHARE"},
+	"ChadashVMs":     {"VMs", "VMS"},
 	"ChadashMe":      {"its own permissions", "ME"},
 }
 
@@ -112,7 +115,17 @@ func (in *instance) apiMissing(detail string) error {
 // is a rejected key, FORBIDDEN a missing permission (a *forbiddenError),
 // validation failures an API that changed.
 func (in *instance) query(ctx context.Context, op, doc string, dst any) error {
-	body, err := json.Marshal(map[string]string{"query": doc, "operationName": op})
+	return in.do(ctx, in.d.HTTP, op, doc, nil, dst)
+}
+
+// do sends one GraphQL operation with c: a read through query, or one of
+// the actions' mutations, with its variables.
+func (in *instance) do(ctx context.Context, c *http.Client, op, doc string, vars map[string]any, dst any) error {
+	msg := map[string]any{"query": doc, "operationName": op}
+	if vars != nil {
+		msg["variables"] = vars
+	}
+	body, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -123,7 +136,7 @@ func (in *instance) query(ctx context.Context, op, doc string, dst any) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("x-api-key", in.apiKey)
-	resp, err := in.d.HTTP.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return err
 	}
@@ -180,8 +193,8 @@ func (in *instance) failure(op string, errs []gqlError) error {
 	}
 	if e, ok := has("GRAPHQL_VALIDATION_FAILED", "GRAPHQL_PARSE_FAILED", "BAD_USER_INPUT"); ok {
 		v := "this version"
-		if in.api != "" {
-			v = "API " + in.api
+		if api := in.apiVersion(); api != "" {
+			v = "API " + api
 		}
 		return &integration.RepairError{Code: integration.CodeAPIChanged,
 			Message: fmt.Sprintf("The Unraid API (%s) no longer accepts the %s read: %s", v, op, e.Message)}

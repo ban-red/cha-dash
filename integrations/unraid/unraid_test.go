@@ -45,6 +45,9 @@ type server struct {
 	api      string            // replaces the captured API version when set
 	ops      []string          // operations received, in order
 	override map[string][]byte // operation → body to answer instead
+	// handlers answer an operation from its variables, before override
+	// (actions_test.go: mutations, and reads that follow them).
+	handlers map[string]func(vars map[string]any) []byte
 }
 
 var files = map[string]string{
@@ -55,22 +58,24 @@ var files = map[string]string{
 	"ChadashArray":   "array.json",
 	"ChadashDocker":  "docker.json",
 	"ChadashShares":  "shares.json",
+	"ChadashVMs":     "vms.json",
 	"ChadashMe":      "me.json",
 }
 
 // rootField is the first field a GraphQL document selects.
-var rootField = regexp.MustCompile(`^\s*query\s+\w+\s*\{\s*(\w+)`)
+var rootField = regexp.MustCompile(`^\s*(?:query|mutation)\s+\w+\s*(?:\([^)]*\))?\s*\{\s*(\w+)`)
 
 func newServer(t *testing.T) *server {
-	s := &server{t: t, api: "4.37.5+0123abcd", override: map[string][]byte{}}
+	s := &server{t: t, api: "4.37.5+0123abcd", override: map[string][]byte{}, handlers: map[string]func(map[string]any) []byte{}}
 	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/graphql" || r.Header.Get("Content-Type") != "application/json" {
 			http.NotFound(w, r)
 			return
 		}
 		var req struct {
-			Query         string `json:"query"`
-			OperationName string `json:"operationName"`
+			Query         string         `json:"query"`
+			OperationName string         `json:"operationName"`
+			Variables     map[string]any `json:"variables"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -82,12 +87,16 @@ func newServer(t *testing.T) *server {
 		s.mu.Lock()
 		s.ops = append(s.ops, req.OperationName)
 		body, overridden := s.override[req.OperationName]
+		handler := s.handlers[req.OperationName]
 		api := s.api
 		s.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		if r.Header.Get("x-api-key") != apiKey {
 			io.WriteString(w, `{"data":null,"errors":[{"message":"API key validation failed","extensions":{"code":"UNAUTHENTICATED"}}]}`)
 			return
+		}
+		if handler != nil && !overridden {
+			body, overridden = handler(req.Variables), true
 		}
 		if !overridden {
 			name, ok := files[req.OperationName]
@@ -178,7 +187,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestNoQueryReadsDisks(t *testing.T) {
-	for _, q := range queries {
+	for _, q := range append(append([]string(nil), queries...), mutations...) {
 		m := rootField.FindStringSubmatch(q)
 		if m == nil || m[1] == "disks" {
 			t.Errorf("root field of %q = %v", q, m)
@@ -199,7 +208,7 @@ func TestSync(t *testing.T) {
 	if err := in.Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)
 	}
-	if ops := srv.took(); !slices.Equal(ops, []string{"ChadashInfo", "ChadashNetwork", "ChadashArray", "ChadashMetrics", "ChadashShares", "ChadashDocker"}) {
+	if ops := srv.took(); !slices.Equal(ops, []string{"ChadashInfo", "ChadashNetwork", "ChadashArray", "ChadashMetrics", "ChadashShares", "ChadashDocker", "ChadashVMs"}) {
 		t.Fatalf("ops = %v", ops)
 	}
 	get := func(id string) map[string]any {
@@ -418,17 +427,17 @@ func TestSyncSchedule(t *testing.T) {
 		t.Fatalf("idle = %v", ops)
 	}
 	h.Advance(time.Minute)
-	// Watched: containers every sync.
-	if ops := sync(integrationtest.Watched); !slices.Equal(ops, []string{"ChadashArray", "ChadashMetrics", "ChadashDocker"}) {
+	// Watched: containers and VMs every sync.
+	if ops := sync(integrationtest.Watched); !slices.Equal(ops, []string{"ChadashArray", "ChadashMetrics", "ChadashDocker", "ChadashVMs"}) {
 		t.Fatalf("watched = %v", ops)
 	}
 	h.Advance(time.Minute)
-	// Watching only hosts: no containers.
+	// Watching only hosts: no containers or VMs.
 	if ops := sync(integration.Interest{Watched: true, Kinds: []string{"host"}}); !slices.Equal(ops, []string{"ChadashArray", "ChadashMetrics"}) {
 		t.Fatalf("hosts only = %v", ops)
 	}
 	h.Advance(time.Hour)
-	if ops := sync(idle); !slices.Equal(ops, []string{"ChadashInfo", "ChadashNetwork", "ChadashArray", "ChadashMetrics", "ChadashShares", "ChadashDocker"}) {
+	if ops := sync(idle); !slices.Equal(ops, []string{"ChadashInfo", "ChadashNetwork", "ChadashArray", "ChadashMetrics", "ChadashShares", "ChadashDocker", "ChadashVMs"}) {
 		t.Fatalf("an hour later = %v", ops)
 	}
 }

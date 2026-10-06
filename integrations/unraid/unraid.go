@@ -10,9 +10,11 @@ import (
 	"errors"
 	"maps"
 	"net"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"dash.cha.sh/internal/integration"
@@ -40,8 +42,17 @@ const (
 	partContainers  = "containers"
 	partShares      = "shares"
 	partMetrics     = "metrics"
+	partVMs         = "vms"
 	scopeShares     = "shares"
 	scopeContainers = "containers"
+	scopeVMs        = "vms"
+)
+
+// Modes: what the owner chose at onboarding. The key's grants are checked
+// against it, never trusted from it.
+const (
+	ModeReadOnly = "read_only"
+	ModeControl  = "control"
 )
 
 const defaultName = "Unraid"
@@ -54,11 +65,14 @@ type Integration struct{}
 // Manifest implements integration.Integration.
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
-		ID: ID, Name: "Unraid", Icon: "unraid", Version: "0.1.0", Tier: integration.Silver,
-		Capabilities: []integration.Capability{"host.metrics", "storage.pools", "storage.disks", "storage.shares", "containers"},
+		ID: ID, Name: "Unraid", Icon: "unraid", Version: "0.2.0", Tier: integration.Silver,
+		Capabilities: []integration.Capability{"host.metrics", "storage.pools", "storage.disks", "storage.shares", "containers", "compute.guests"},
 		ConfigSchema: integration.Object(
 			integration.URLProp(), integration.TLSProp(),
-			integration.Prop("api_key", integration.Secret("API key").Describe("A read-only key from "+keysPage+".")),
+			integration.Prop("mode", integration.Enum("Read-only, or let Cha Dash control Unraid?", ModeReadOnly, ModeControl).
+				Titled("Read-only", "Control: start, stop and update containers and VMs").WithDefault(ModeReadOnly).
+				Describe("Control needs a key with Docker and VM update scopes; the recipe's consent link asks for the scopes the choice needs. You can switch later without deleting the instance.")),
+			integration.Prop("api_key", integration.Secret("API key").Describe("A key from the consent link below, or from "+keysPage+".")),
 		).Require("url", "api_key"),
 		Poll: integration.Poll{Interval: syncInterval, Timeout: syncTimeout},
 	}
@@ -97,9 +111,11 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	web := *ep
 	web.Path = strings.TrimSuffix(ep.Path, "graphql")
 	in := &instance{
-		d: d, name: cfg.Name, prefix: ID + ":" + key + "/",
+		d: d, name: cfg.Name, prefix: ID + ":" + key + "/", instanceID: cfg.InstanceID,
 		endpoint: ep.String(), web: web.String(), apiKey: cfg.String("api_key"),
+		control:  cfg.String("mode") == ModeControl,
 		warnings: map[string]integration.Warning{},
+		resolved: map[string]resolvedTarget{},
 	}
 	if in.name == "" {
 		in.name = defaultName
@@ -118,9 +134,24 @@ type instance struct {
 	web      string // the webGUI, for links
 	apiKey   string
 	urlIP    string // the URL's host when it's an IP address
+	// control is the instance's mode: true when the owner chose to let Cha
+	// Dash control Unraid. Read-only instances have no actions.
+	control    bool
+	instanceID string // for the recipe an unavailable action points to
+
+	// apiMu guards api, which Sync and Test write and actions read.
+	apiMu sync.Mutex
+	api   string // the API version last read
+
+	// Actions run beside Sync (actions.go): their own reads, the key's
+	// grants for a short while, and the HTTP client for mutations.
+	actMu    sync.Mutex
+	me       *meData // nil: not read yet, or the key can't read ME
+	meAt     time.Time
+	resolved map[string]resolvedTarget // by target ID, as last resolved
+	longHTTP *http.Client
 
 	// Sync state; Sync runs on one goroutine.
-	api        string // the API version last read
 	info       *infoData
 	infoAt     time.Time
 	versionOK  bool
@@ -131,10 +162,23 @@ type instance struct {
 	shares     map[string]bool // names of the shares last read
 	sharesAt   time.Time
 	dockerAt   time.Time
+	vmsAt      time.Time
 	warnings   map[string]integration.Warning // by part
 }
 
 func (in *instance) id(path string) string { return in.prefix + path }
+
+func (in *instance) setAPI(v string) {
+	in.apiMu.Lock()
+	defer in.apiMu.Unlock()
+	in.api = v
+}
+
+func (in *instance) apiVersion() string {
+	in.apiMu.Lock()
+	defer in.apiMu.Unlock()
+	return in.api
+}
 
 // Close implements integration.Instance. The runtime owns the HTTP client.
 func (in *instance) Close() error { return nil }
@@ -152,7 +196,7 @@ func (in *instance) Test(ctx context.Context) integration.TestResult {
 		}
 		return integration.Failed(err)
 	}
-	in.api = v.Info.Versions.Core.API
+	in.setAPI(v.Info.Versions.Core.API)
 	res := integration.TestResult{OK: true, Version: v.Info.version()}
 	var me struct {
 		Me meData `json:"me"`
@@ -169,13 +213,13 @@ func (in *instance) Test(ctx context.Context) integration.TestResult {
 		return failed
 	default:
 		res.Grants = me.Me.grants()
-		warnings, missing := me.Me.check()
+		warnings, missing := me.Me.check(in.control)
 		res.Warnings = append(res.Warnings, warnings...)
 		if missing != "" {
 			res.OK, res.ErrorCode, res.ErrorMessage = false, CodeMissingPermission, missing
 		}
 	}
-	if err := checkVersion(in.api); err != nil {
+	if err := checkVersion(in.apiVersion()); err != nil {
 		code, _, msg := integration.Classify(err)
 		res.OK, res.ErrorCode, res.ErrorMessage = false, code, msg
 	}
@@ -200,9 +244,10 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 		if err := in.query(ctx, "ChadashInfo", qInfo, &r); err != nil {
 			return required(err)
 		}
-		in.info, in.infoAt, in.api = &r.Info, now, r.Info.Versions.Core.API
+		in.info, in.infoAt = &r.Info, now
+		in.setAPI(r.Info.Versions.Core.API)
 		in.d.Emit.SetVersion(r.Info.version())
-		if err := checkVersion(in.api); err != nil {
+		if err := checkVersion(in.apiVersion()); err != nil {
 			in.versionOK = false
 			return err
 		}
@@ -294,11 +339,50 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 		}
 	}
 
+	vmsEvery := dockerIdleEvery
+	if want.Watched && want.WantsKind("vm") {
+		vmsEvery = 0
+	}
+	if due(in.vmsAt, vmsEvery) {
+		if err := in.syncVMs(ctx, now); err != nil {
+			return err
+		}
+	}
+
 	ws := make([]integration.Warning, 0, len(in.warnings))
 	for _, k := range slices.Sorted(maps.Keys(in.warnings)) {
 		ws = append(ws, in.warnings[k])
 	}
 	in.d.Emit.SetWarnings(ws)
+	return nil
+}
+
+// syncVMs reads the VMs. Read-only keys made before v0.2 have no VMS scope,
+// so on a read-only instance a refusal is quiet; on a controllable one it's
+// a warning, as the VM actions need it. Any other failure is logged only:
+// with Unraid's VM manager off the read fails, and that isn't a problem.
+func (in *instance) syncVMs(ctx context.Context, now time.Time) error {
+	var r struct {
+		VMs struct {
+			Domains []vmDomain `json:"domains"`
+		} `json:"vms"`
+	}
+	err := in.query(ctx, "ChadashVMs", qVMs, &r)
+	var fe *forbiddenError
+	switch {
+	case err == nil:
+		in.vmsAt = now
+		delete(in.warnings, partVMs)
+		return in.d.Emit.Replace(scopeVMs, in.vmFacts(r.VMs.Domains))
+	case ctx.Err() != nil:
+		return ctx.Err()
+	case errors.As(err, &fe) && in.control:
+		in.partFailed(partVMs, err)
+	default:
+		in.vmsAt = now
+		delete(in.warnings, partVMs)
+		in.d.Log.Debug("couldn't read the VMs", "err", err)
+	}
 	return nil
 }
 
@@ -324,7 +408,7 @@ func (in *instance) partFailed(part string, err error) {
 	in.d.Log.Debug("an optional read failed", "part", part, "err", err)
 }
 
-var opOf = map[string]string{partMetrics: "ChadashMetrics", partShares: "ChadashShares", partContainers: "ChadashDocker"}
+var opOf = map[string]string{partMetrics: "ChadashMetrics", partShares: "ChadashShares", partContainers: "ChadashDocker", partVMs: "ChadashVMs"}
 
 // netInterface is one of info.networkInterfaces.
 type netInterface struct {
@@ -432,16 +516,51 @@ func (m meData) canRead(resource string) bool {
 	return false
 }
 
-// check compares the key's grants with the reads the integration makes:
-// the array is required (missing says so), Docker and shares are warnings.
-func (m meData) check() (warnings []integration.Warning, missing string) {
+// can reports whether the key may take an action on an Unraid resource:
+// verb is UPDATE, CREATE or DELETE (any or own), and the admin role or a
+// "*" action allows everything.
+func (m meData) can(resource, verb string) bool {
+	if slices.ContainsFunc(m.Roles, func(r string) bool { return strings.EqualFold(r, "ADMIN") }) {
+		return true
+	}
+	for _, p := range m.Permissions {
+		if !strings.EqualFold(p.Resource, resource) {
+			continue
+		}
+		for _, a := range p.Actions {
+			a = strings.ToUpper(strings.ReplaceAll(a, ":", "_"))
+			if a == "*" || strings.HasPrefix(a, verb+"_") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// check compares the key's grants with what the instance does: the array
+// read is required (missing says so), Docker and shares are warnings, and
+// a controllable instance also wants to read VMs and to update Docker and
+// VMs (each missing one is a warning naming the actions it stops).
+func (m meData) check(control bool) (warnings []integration.Warning, missing string) {
 	if !m.canRead("ARRAY") {
 		missing = "The API key can't read the array (it needs ARRAY: Read). Add it in Unraid under " + keysPage + "."
 	}
-	for _, r := range []struct{ resource, what string }{{"DOCKER", "Docker containers"}, {"SHARE", "shares"}} {
+	reads := []struct{ resource, what string }{{"DOCKER", "Docker containers"}, {"SHARE", "shares"}}
+	if control {
+		reads = append(reads, struct{ resource, what string }{"VMS", "VMs"})
+	}
+	for _, r := range reads {
 		if !m.canRead(r.resource) {
 			warnings = append(warnings, integration.Warning{Code: CodeMissingPermission, Severity: integration.WarnWarning,
 				Message: "The API key can't read " + r.what + " (" + r.resource + ": Read), so they won't show."})
+		}
+	}
+	if control {
+		for _, s := range controlScopes {
+			if !m.can(s.resource, "UPDATE") {
+				warnings = append(warnings, integration.Warning{Code: CodeMissingPermission, Severity: integration.WarnWarning,
+					Message: "Cha Dash is set to control Unraid, but the API key can't " + s.what + " (it needs " + s.resource + ": Update), so " + s.actions + " will say so. " + addScopeHelp(s)})
+			}
 		}
 	}
 	return warnings, missing
