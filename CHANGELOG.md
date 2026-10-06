@@ -22,6 +22,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Actions from a token:** up to T1 they run when the token approves its own plan. **T2 actions wait in the Inbox** for an admin or the owner, who sees who asked, the plan's steps and what it affects, then approves with the hold ring and a fresh step-up, or denies it. The token can poll the request and the task. Unanswered requests expire after an hour; revoking the token withdraws them. T3 and T4 never run from a token.
 - Every step is in the audit log: the token's request, who approved or denied it, expiry, and the action itself, named after the token and its user.
 
+### Control in the forms, Cha Dash's own place, icons (wave 10, track 10C)
+- **"Let Cha Dash act"** in an integration's settings: the control token (Proxmox VE, Proxmox Backup Server) or Unraid's read-only/control choice now sits in its own folded section, apart from the credential that reads. It says whether the connection can act now, what saving would change, and, for Unraid, what each choice means. The recipe for the control token sits beside the form.
+- **"Open its settings"** on an action that can't run yet goes straight to that section.
+- **Where Cha Dash runs**, at the bottom of Settings → Security: the chain the hub runs on (its container, the Docker host, the VM, the host) and the router in front of it.
+- **Cha Dash finds its own container.** Through chadash-node, the node names the hub's container; otherwise the hub reads its own container ID. Unraid relates the hub to its container too, when it can tell. Stopping, restarting, recreating or removing that container is then the critical confirmation, off unless you turn it on.
+- **"Cha Dash itself"** leads the list in a confirmation whose blast radius includes the hub, with a warning that this page goes offline until it's back.
+- **Tiles show service icons.** The hub fetches a tile's icon URL, or its link's favicon, checks it and serves it itself, so the strict CSP stays. Monograms remain the fallback, and for tiles that need you.
+- **Backups carry the security settings and the "same thing?" decisions.** Exports include the security level, the step-up rule and the correlation decisions; imports show them field by field. Only the owner can import the security settings; anyone else imports the rest, and the preview says what was left out.
+
+### Security
+- **The icon fetcher has its own rules** (SECURITY.md): only the URLs your tiles and connections name, never loopback, link-local or cloud metadata addresses (checked after DNS), one redirect on the same host, short timeouts, 256 KiB, PNG, ICO, WebP or SVG only, and SVGs with scripts or external references refused. Icons are served with a sandbox CSP.
+
 ### Owned stacks (wave 9, track 9B)
 - **Settings → Stacks**: manage compose stacks on each node from the web. It lists status, drafts, drift and Cha Dash's own protected stack, and adopts running projects in place.
 - A plain compose editor checks the file as you type: errors with line numbers, referenced secrets, a plan per service and a diff. Drafts save on the hub.
