@@ -65,6 +65,11 @@ func (in *instance) Actions() []action.Def {
 			Resolve:       in.resolve,
 			Preconditions: in.preconditions(s.verb, s.policy),
 			Verify:        in.verify(s.verb),
+			// Stopping, restarting, recreating or removing what runs the
+			// hub or the router takes them down: the runtime raises these
+			// to T4 then (self-aware T4). Node verbs don't stop cleanly
+			// mid-way, so none is Cancellable.
+			Disrupts: s.verb == "stop" || s.verb == "restart" || s.verb == "recreate" || s.verb == "remove",
 		}
 		switch s.verb {
 		case "start":
