@@ -17,6 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   - **Paperless-ngx:** documents and the inbox, with a view-only user;
   - **Speedtest Tracker:** the latest download, upload and ping, with a token that can only read results.
 - **Overseerr and Jellyseerr** connect as Seerr, their successor with the same API, and the add list says so.
+- **Unraid can be read-only or controllable, with one key.** The form asks "Read-only, or let Cha Dash control Unraid?", and the recipe's consent link asks Unraid for the matching scopes. Controllable instances start and stop containers and VMs, and update containers, each with a plan, a check afterwards and an audit record. Test connection compares the key's grants with the choice, and an action whose scope the key lacks says which one and how to add it. Read-only instances have no actions.
+- **Unraid VMs** show up, with their state, beside the containers.
+- **App actions:** pause and resume all torrents in qBittorrent; search for missing episodes, movies or albums in Sonarr, Radarr and Lidarr; run the Home Assistant scripts you list in the instance's settings, and nothing else; pause Pi-hole or AdGuard Home for 5 minutes, which the Household role may do too. Each checks the result through the next read.
 - **The Homepage importer** brings these over too: `overseerr`, `jellyseerr`, `nextcloud`, `transmission`, `nzbget`, `lidarr` (calendar included), `audiobookshelf`, `paperlessngx` and `speedtest` widgets.
 
 ### Security
