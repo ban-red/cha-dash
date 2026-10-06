@@ -385,6 +385,13 @@ func (in *instance) fillingIncidents(stores []*storeFacts, now time.Time) []inte
 		}
 		var noPrune []string
 		for _, s := range g {
+			if s.prune == "disabled" && inc.Suggested.ID != actPrune {
+				// Pruning by the disabled job's policy is the fix the
+				// Demo Home suggests; the link stays as an alternative.
+				inc.Alternatives = append(inc.Alternatives, inc.Suggested)
+				inc.Suggested = integration.Action{ID: actPrune, Label: "Prune per policy", Tier: "T2", Target: s.id,
+					Detail: fmt.Sprintf("Removes the snapshots on %s that %s's retention policy doesn't keep. The space comes back at the next garbage collection.", s.u.Store, s.pruneJob.ID)}
+			}
 			if s.prune == "disabled" {
 				text := fmt.Sprintf("The prune job %s on %s is disabled, so snapshots outside its retention policy stay.", s.pruneJob.ID, s.u.Store)
 				if set(s.pruneJob.LastEndtime) {

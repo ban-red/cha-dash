@@ -1,0 +1,14 @@
+{
+  "data": [
+    {"n": 1, "t": "prune datastore 'mars'"},
+    {"n": 2, "t": "retention options: --keep-daily 7 --keep-weekly 4 --keep-monthly 6"},
+    {"n": 3, "t": "Starting prune on store \"mars\" group \"vm/100\""},
+    {"n": 4, "t": "remove vm/100/2026-08-30T03:00:02Z"},
+    {"n": 5, "t": "remove vm/100/2026-08-31T03:00:01Z"},
+    {"n": 6, "t": "keep vm/100/2026-10-03T03:00:02Z"},
+    {"n": 7, "t": "Starting prune on store \"mars\" group \"ct/101\""},
+    {"n": 8, "t": "remove ct/101/2026-08-30T03:04:11Z"},
+    {"n": 9, "t": "keep ct/101/2026-10-03T03:04:09Z"},
+    {"n": 10, "t": "TASK OK"}
+  ]
+}

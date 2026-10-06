@@ -1,8 +1,9 @@
 // Package pbs is the Proxmox Backup Server integration: the server as an
 // app resource and each datastore as a backup target, with its usage, the
 // estimate of when it fills up, garbage collection, prune and verify jobs,
-// and the tasks that failed in the last day. Read-only: a token with the
-// Audit role on / is enough. See README.md.
+// and the tasks that failed in the last day. It reads with a token holding
+// the Audit role on /; an optional control token lets it prune a datastore
+// by its retention policy (actions.go). See README.md.
 package pbs
 
 import (
@@ -50,15 +51,26 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	tokenID := &integration.Schema{Type: "string", Title: "Token ID", Pattern: tokenIDPattern,
 		Description: "The API token, as user@realm!name (e.g. chadash@pbs!dash). The Audit role on / is enough."}
+	controlID := &integration.Schema{Type: "string", Title: "Control token ID", Pattern: tokenIDPattern, Group: integration.GroupControl,
+		Description: "Optional. A second token that lets Cha Dash prune datastores by their retention policy, as user@realm!name (e.g. chadash-control@pbs!control)."}
 	return integration.Manifest{
-		ID: ID, Name: "Proxmox Backup Server", Icon: "proxmox-backup-server", Version: "0.1.0", Tier: integration.Silver,
+		ID: ID, Name: "Proxmox Backup Server", Icon: "proxmox-backup-server", Version: "0.2.0", Tier: integration.Silver,
 		Capabilities: []integration.Capability{"backups.targets", "backups.jobs"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Where PBS answers, e.g. https://pbs.lab.example:8007.")),
 			integration.TLSProp(),
 			integration.Prop("token_id", tokenID),
 			integration.Prop("token_secret", integration.Secret("Token secret")),
+			integration.Prop("control_token_id", controlID),
+			integration.Prop("control_token_secret", integration.Secret("Control token secret").InGroup(integration.GroupControl)),
 		).Require("url", "token_id", "token_secret"),
+		Control: &integration.Control{
+			Fields: []integration.ControlField{
+				{Field: "control_token_id", Replaces: "token_id"},
+				{Field: "control_token_secret", Replaces: "token_secret"},
+			},
+			Missing: "Add a control token to {instance} to let Cha Dash prune its datastores. The recipe's control variant makes one.",
+		},
 		Poll: integration.Poll{Interval: liveInterval, Idle: idleInterval, Timeout: syncTimeout},
 	}
 }
@@ -229,6 +241,7 @@ type pruneJob struct {
 	Disable  num    `json:"disable"`
 	Schedule string `json:"schedule"`
 	NS       string `json:"ns"`
+	MaxDepth *num   `json:"max-depth"`
 	keepOptions
 	schedule
 }

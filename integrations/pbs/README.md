@@ -1,6 +1,6 @@
 # Proxmox Backup Server (`pbs`)
 
-Reads one Proxmox Backup Server: the server as the instance's `app` resource, and each datastore as a `backup_target` with its usage, when PBS expects it to fill up, garbage collection, prune and verify jobs. Failed tasks of the last day go on the app. Read-only.
+Reads one Proxmox Backup Server: the server as the instance's `app` resource, and each datastore as a `backup_target` with its usage, when PBS expects it to fill up, garbage collection, prune and verify jobs. Failed tasks of the last day go on the app. It reads with an Audit token; an optional control token lets it prune a datastore by its retention policy (see Actions).
 
 **Tier:** silver (repairs, version check, fixture tests). **Capabilities:** `backups.targets`, `backups.jobs`. **Fixture:** [`testdata/integrations/pbs/`](../../testdata/integrations/pbs/README.md), **synthetic**: no PBS was captured, so it's built from the PBS API's source and agrees with the Proxmox VE capture (one PBS at `10.0.11.120:8007`, five datastores on one filesystem, 91.9% used).
 
@@ -27,6 +27,8 @@ proxmox-backup-manager acl update / Audit --auth-id 'chadash@pbs!dash'
 ```
 
 `Audit` is `Sys.Audit` + `Datastore.Audit`. `DatastoreAudit` alone shows the datastores but not other users' tasks or the server's load (see Grants).
+
+**Control token** (optional): `control_token_id` and `control_token_secret`, the form's control group (`Manifest.Control`). Both or neither. The recipe's control variant ([`recipe.control.md`](recipe.control.md)) makes a second user with **DatastoreAdmin** on one datastore: pruning every group (not only the token's own) needs `Datastore.Modify`, only DatastoreAdmin holds it, and PBS has no custom roles. That role can also read and delete the datastore's backups, which the recipe says.
 
 ## What it reads, and how often
 
@@ -73,6 +75,18 @@ PBS before 3.x is an `unsupported_version` Repair; above 4.x it's read the same 
 | `filling.<store>` | problem, attention, scenario `pbs-datastore-filling` | Datastores at ≥ 90% or due to fill up within 30 days. **Datastores that report identical totals share a filesystem and are one incident**, named after the first (the dogfood's five are one). Causes: a disabled prune job and when it last ran, datastores with no prune job, GC that hasn't run for a week | When usage is below 90% and the estimate is past 30 days |
 | `datastore.<store>.error` | problem, down | PBS reports an error for the datastore | When it doesn't |
 | `tasks.failed` | problem, attention | Tasks failed in the last 24 h; targets the datastore of the newest one | When none has failed for 24 h |
+
+## Actions
+
+| Action | Tier | Target | What it does |
+|---|---|---|---|
+| `pbs.datastore.prune` ("Prune per policy") | T2 | a datastore (`backup_target`) | `POST /admin/datastore/{store}/prune-datastore` with the retention of the datastore's prune job (an enabled one first, then by ID; `job` param to choose): its `keep-*` options, `ns` and `max-depth`. Follows the PBS task's log into the task; Verify reads the task's status back with the read token |
+
+- The ID and label are the Demo Home's, so the `filling.<store>` incident suggests it (with the link to PBS as the alternative) when the datastore's prune job is disabled, and the hub fills its `plan_ready`.
+- **Preconditions:** a datastore in maintenance (`mars is in maintenance (read-only), so it can't be pruned now.`), no prune job (`mini-g5 has no prune job, so there's no retention policy to prune by. …`), a named job that isn't there, a policy that keeps everything.
+- Pruning only marks snapshots gone; the space comes back at the next garbage collection, as the plan's steps say.
+- **Without a control token** the action answers `409 unavailable` ("Add a control token to … to let Cha Dash prune its datastores. …") with `recipe` naming the instance. A 403 from PBS fails the task with the role it needs.
+- **Fixtures:** synthetic, [`testdata/integrations/pbs/actions/`](../../testdata/integrations/pbs/actions/README.md). Not verified without a live run: that `Datastore.Prune` alone prunes only the token's own groups, and PBS's exact 403 text.
 
 ## Grants and warnings
 
