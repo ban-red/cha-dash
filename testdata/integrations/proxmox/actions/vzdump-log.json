@@ -1,0 +1,17 @@
+{
+  "data": [
+    {"n": 1, "t": "INFO: starting new backup job: vzdump 201 --mode snapshot --storage pbs-main"},
+    {"n": 2, "t": "INFO: Starting Backup of VM 201 (qemu)"},
+    {"n": 3, "t": "INFO: Backup started at 2026-10-03 14:05:01"},
+    {"n": 4, "t": "INFO: status = running"},
+    {"n": 5, "t": "INFO: creating Proxmox Backup Server archive 'vm/201/2026-10-03T14:05:01Z'"},
+    {"n": 6, "t": "INFO: started backup task '00000000-0000-4000-8000-000000000201'"},
+    {"n": 7, "t": "INFO:  25% (16.0 GiB of 64.0 GiB) in 30s, read: 546.1 MiB/s, write: 12.0 MiB/s"},
+    {"n": 8, "t": "INFO:  50% (32.0 GiB of 64.0 GiB) in 58s, read: 585.1 MiB/s, write: 9.3 MiB/s"},
+    {"n": 9, "t": "INFO: 100% (64.0 GiB of 64.0 GiB) in 1m 51s, read: 590.4 MiB/s, write: 8.1 MiB/s"},
+    {"n": 10, "t": "INFO: backup was done incrementally, reused 63.1 GiB (98%)"},
+    {"n": 11, "t": "INFO: Finished Backup of VM 201 (00:01:53)"},
+    {"n": 12, "t": "INFO: Backup job finished successfully"},
+    {"n": 13, "t": "TASK OK"}
+  ]
+}

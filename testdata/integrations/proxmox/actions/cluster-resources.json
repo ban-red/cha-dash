@@ -1,0 +1,11 @@
+{
+  "data": [
+    {"id": "node/io", "type": "node", "node": "io", "status": "online", "maxcpu": 16, "maxmem": 68719476736, "uptime": 864000},
+    {"id": "qemu/201", "type": "qemu", "node": "io", "vmid": 201, "name": "win-gaming", "status": "running", "maxcpu": 8, "maxmem": 17179869184, "uptime": 7200, "template": 0},
+    {"id": "lxc/202", "type": "lxc", "node": "io", "vmid": 202, "name": "build", "status": "stopped", "maxcpu": 4, "maxmem": 4294967296, "uptime": 0, "template": 0},
+    {"id": "qemu/100", "type": "qemu", "node": "io", "vmid": 100, "name": "opnsense", "status": "running", "maxcpu": 4, "maxmem": 8589934592, "uptime": 864000, "template": 0},
+    {"id": "lxc/105", "type": "lxc", "node": "io", "vmid": 105, "name": "chadash", "status": "running", "maxcpu": 2, "maxmem": 2147483648, "uptime": 86400, "template": 0},
+    {"id": "qemu/203", "type": "qemu", "node": "io", "vmid": 203, "name": "media", "status": "running", "lock": "backup", "maxcpu": 4, "maxmem": 8589934592, "uptime": 3600, "template": 0},
+    {"id": "qemu/9000", "type": "qemu", "node": "io", "vmid": 9000, "name": "debian-template", "status": "stopped", "template": 1}
+  ]
+}

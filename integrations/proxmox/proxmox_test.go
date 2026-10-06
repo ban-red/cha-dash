@@ -209,8 +209,11 @@ func TestRegistered(t *testing.T) {
 	if !ok || m.Name != "Proxmox VE" || m.Poll.Interval != liveInterval || m.Poll.Idle != idleInterval {
 		t.Fatalf("manifest = %+v", m)
 	}
-	if got := m.SecretFields(); !slices.Equal(got, []string{"token_secret"}) {
+	if got := m.SecretFields(); !slices.Equal(got, []string{"token_secret", "control_token_secret"}) {
 		t.Fatalf("secret fields = %v", got)
+	}
+	if got := m.ControlFields(); !slices.Equal(got, []string{"control_token_id", "control_token_secret"}) {
+		t.Fatalf("control fields = %v", got)
 	}
 }
 

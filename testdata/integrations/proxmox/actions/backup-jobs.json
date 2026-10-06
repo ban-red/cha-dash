@@ -1,0 +1,6 @@
+{
+  "data": [
+    {"id": "backup-a1b2c3d4-e5f6", "type": "vzdump", "enabled": 1, "schedule": "03:00", "storage": "pbs-main", "vmid": "201,203", "mode": "snapshot", "next-run": 1759546800},
+    {"id": "backup-local-off", "type": "vzdump", "enabled": 0, "schedule": "sun 05:00", "storage": "local", "all": 1, "node": "io", "mode": "stop"}
+  ]
+}

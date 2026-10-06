@@ -2,8 +2,10 @@
 // "domain" (a cluster, or a standalone node). It reads the fleet from
 // /cluster/resources every poll and the rest on the slower plan from spike
 // 4.1, and publishes the cluster, hosts, guests, storage and backup jobs
-// with the Demo Home's kinds and metric keys. Read-only: a privilege-
-// separated PVEAuditor token is enough. See README.md.
+// with the Demo Home's kinds and metric keys. It reads with a privilege-
+// separated PVEAuditor token; an optional second token, the control token,
+// lets it start, stop, snapshot and back up guests (actions.go). See
+// README.md.
 package proxmox
 
 import (
@@ -51,15 +53,28 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	tokenID := &integration.Schema{Type: "string", Title: "Token ID", Pattern: tokenIDPattern,
 		Description: "The API token, as user@realm!name (e.g. chadash@pve!dash). A privilege-separated token with PVEAuditor on / is enough."}
+	controlID := &integration.Schema{Type: "string", Title: "Control token ID", Pattern: tokenIDPattern, Group: integration.GroupControl,
+		Description: "Optional. A second token that lets Cha Dash start, stop, snapshot and back up guests, as user@realm!name (e.g. chadash-control@pve!control)."}
 	return integration.Manifest{
-		ID: ID, Name: "Proxmox VE", Icon: "proxmox", Version: "0.1.0", Tier: integration.Silver,
+		ID: ID, Name: "Proxmox VE", Icon: "proxmox", Version: "0.2.0", Tier: integration.Silver,
 		Capabilities: []integration.Capability{"host.metrics", "compute.guests", "backups.jobs"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Where the PVE API answers, e.g. https://pve.lab.example:8006. For a cluster, any node.")),
 			integration.TLSProp(),
 			integration.Prop("token_id", tokenID),
 			integration.Prop("token_secret", integration.Secret("Token secret")),
+			integration.Prop("control_token_id", controlID),
+			integration.Prop("control_token_secret", integration.Secret("Control token secret").InGroup(integration.GroupControl)),
+			integration.Prop("hub_vmid", integration.Integer("Cha Dash's own guest", 100, 999999999).
+				Describe("Optional. The VMID of the guest Cha Dash runs in, when it runs on this cluster. Rebooting or stopping it then needs the critical (T4) confirmation. Cha Dash also looks for it by its own addresses.")),
 		).Require("url", "token_id", "token_secret"),
+		Control: &integration.Control{
+			Fields: []integration.ControlField{
+				{Field: "control_token_id", Replaces: "token_id"},
+				{Field: "control_token_secret", Replaces: "token_secret"},
+			},
+			Missing: "Add a control token to {instance} to let Cha Dash start, stop, snapshot and back up its guests. The recipe's control variant makes one.",
+		},
 		Poll: integration.Poll{Interval: liveInterval, Idle: idleInterval, Timeout: syncTimeout},
 	}
 }
@@ -79,6 +94,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 		URL         string `json:"url"`
 		TokenID     string `json:"token_id"`
 		TokenSecret string `json:"token_secret"`
+		HubVMID     int    `json:"hub_vmid"`
 	}
 	if err := cfg.Decode(&c); err != nil {
 		return nil, &integration.ConfigError{Message: err.Error()}
@@ -96,7 +112,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	}
 	return &instance{
 		d: d, key: key, base: base, auth: "PVEAPIToken=" + c.TokenID + "=" + c.TokenSecret,
-		user: user, token: token,
+		user: user, token: token, hubVMID: c.HubVMID,
 		guestCfg: map[string]*guestConfig{}, addrs: map[string]addr{}, nodeStat: map[string]nodeSample{},
 		logs: map[string]*runLog{}, updates: map[string]int{}, hidden: map[string]string{},
 		raised: map[string]bool{}, at: map[string]time.Time{},
@@ -111,6 +127,7 @@ type instance struct {
 	base        string // the URL without a trailing slash; also the UI root for links
 	auth        string // the Authorization header
 	user, token string // token_id split at "!"
+	hubVMID     int    // the hub_vmid hint: the guest Cha Dash runs in, or 0
 
 	ad      *adapter
 	version string

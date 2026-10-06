@@ -1,6 +1,6 @@
 # Proxmox VE (`proxmox`)
 
-Reads one Proxmox VE "domain" per instance: a cluster, or a standalone node. It publishes the cluster, its hosts, guests, storage and backup jobs with the Demo Home's kinds and metric keys, and raises backup failures, broken guests, lost quorum and a few quiet hints in the inbox. Read-only: nothing it does changes PVE.
+Reads one Proxmox VE "domain" per instance: a cluster, or a standalone node. It publishes the cluster, its hosts, guests, storage and backup jobs with the Demo Home's kinds and metric keys, and raises backup failures, broken guests, lost quorum and a few quiet hints in the inbox. It reads with a read-only token; with an optional control token it can also start, stop, snapshot and back up guests (see Actions), never anything else.
 
 **Tier:** silver (repairs, version adapters, multi-version fixture tests). **Capabilities:** `host.metrics`, `compute.guests`, `backups.jobs`. **Built from** [spike 4.1](../../spikes/pve/README.md) and its captures in [`testdata/integrations/proxmox/`](../../testdata/integrations/proxmox/README.md): PVE 8.4.19, 8.4.21, 9.0.9, 9.1.5 and 9.2.20, one 2-node cluster.
 
@@ -21,6 +21,8 @@ Reads one Proxmox VE "domain" per instance: a cluster, or a standalone node. It 
 | `tls` | `verify`, `pin`, `tofu` or `insecure`. PVE serves a self-signed leaf, often without the URL host in its SAN, so `tofu` (the importer's choice for LAN hosts) or `pin` |
 | `token_id` | `user@realm!name`, plain config |
 | `token_secret` | The token's secret, in the vault. Sent only as `Authorization: PVEAPIToken=<token_id>=<token_secret>` |
+| `control_token_id`, `control_token_secret` | Optional, both or neither: the control token the actions use (the form's control group, `Manifest.Control`). Sync and Test never see it. Made by the recipe's control variant |
+| `hub_vmid` | Optional: the VMID of the guest Cha Dash runs in, when it runs on this cluster (see "The hub's own guest") |
 
 These are the keys in [07 · v0.1](../../docs/plan/07-v0.1.md#instance-config-keys); the importer's shape validates as is.
 
@@ -142,10 +144,36 @@ Auth failures (401) are Repairs through the framework. A sync fails only when `/
 
 **Dropped at ingestion:** descriptions, comments, cloud-init, SMBIOS and vmgenid UUIDs, raw `lxc` lines, disk serials, certificate PEMs, task logs beyond the parsed result.
 
+## Actions
+
+Guest actions, per the Tiers table in [08 · v0.2](../../docs/plan/08-v0.2.md#tiers-for-v02-actions). Targets are guests (`vm`, `lxc`); the guest is resolved fresh from `/cluster/resources?type=vm` at plan and at approve (its node moves with a migration), and the plan is bound to its kind, name, node and status. Each action is a PVE task started with the **control token**: Execute follows its log (`/nodes/{node}/tasks/{upid}/log`) into the task's log, and fails with PVE's exit status; Verify reads the result back with the read token.
+
+| Action | Tier | Undo | Request | Verify | Control token needs |
+|---|---|---|---|---|---|
+| `proxmox.guest.start` | T1 | shutdown | `POST …/status/start` | reports `running` | `VM.PowerMgmt` |
+| `proxmox.guest.shutdown` | T1 | start | `POST …/status/shutdown` `timeout=180` | reports `stopped` | `VM.PowerMgmt` |
+| `proxmox.guest.reboot` | T2 | — | `POST …/status/reboot` `timeout=180` | reports `running` | `VM.PowerMgmt` |
+| `proxmox.guest.stop` (hard stop) | T2 | — | `POST …/status/stop` | reports `stopped` | `VM.PowerMgmt` |
+| `proxmox.guest.snapshot.create` (`name`, `description`?, `vmstate`?) | T1 | `snapshot.delete` (T3) | `POST …/snapshot` | listed | `VM.Snapshot` |
+| `proxmox.guest.snapshot.rollback` (`name`) | T3 | — | `POST …/snapshot/{name}/rollback` | the task ended OK | `VM.Snapshot`, `VM.Snapshot.Rollback` |
+| `proxmox.guest.snapshot.delete` (`name`) | T3 | — | `DELETE …/snapshot/{name}` | not listed | `VM.Snapshot` |
+| `proxmox.guest.backup` (`storage`?, `mode`?) | T1 | — | `POST /nodes/{node}/vzdump` `vmid`, `storage`, `mode` | the task ended OK | `VM.Backup`, `Datastore.AllocateSpace` |
+
+`…` is `/nodes/{node}/{qemu|lxc}/{vmid}`. Backup now takes the storage of an enabled backup job that covers the guest when none is given, and turns vzdump's `INFO:  NN% (…)` lines into progress.
+
+- **Preconditions** refuse with a sentence before anything is sent: `win-gaming is already running.`, `build is already stopped.`, `build isn't running, so it can't reboot. Start it instead.`, a locked guest (`media is locked (backup), …`), a snapshot that exists (create) or doesn't (rollback, delete), a backup with nowhere to go.
+- **Blast radius** is the Home Graph's walk from the guest (`runs_on`, `depends_on`, `routes_to`, the router's `provides_network_for`, …).
+- **The self-aware T4.** Shutdown, reboot, hard stop and rollback are `Disrupts`: the runtime makes them T4 when the guest runs the hub or the router, transitively, in the graph (the router is OPNsense's resource, `runs_on` its guest by the correlator's IP match). T4 is off unless the owner enables that scope.
+- **The hub's own guest** is found best effort and published as `chadash:hub runs_on <guest>`: the `hub_vmid` hint when that guest exists, else the guest whose primary IPv4 or MAC is one of this machine's (from the guest agent, the LXC's interfaces or the config's `net0`). That finds a hub running directly in an LXC or VM, or in Docker with host networking; behind a Docker bridge the addresses are the container's, so use the hint. Two matches count as none. The hint also makes the actions T4 on its own, without the graph.
+- **Without a control token** every action answers `409 unavailable`: "Add a control token to *instance* to let Cha Dash start, stop, snapshot and back up its guests. The recipe's control variant makes one.", with `recipe` naming the instance; Test connection says the same (`control_available`, info). A 403 from PVE fails the task with the privilege it needs and a pointer to the control recipe.
+- **Incidents:** `guest.<vmid>` (internal-error) offers the hard stop as an alternative; the hub fills its `plan_ready`.
+- **Control token recipe** ([`recipe.control.md`](recipe.control.md)): a second user `chadash-control@pve` with a role of `VM.Audit Sys.Audit Datastore.Audit VM.PowerMgmt VM.Snapshot VM.Snapshot.Rollback VM.Backup Datastore.AllocateSpace`, a privilege-separated token, and both ACLs on `/` or on `/pool/<name>` to keep it to a few guests.
+- **Fixtures:** synthetic, from the PVE API documentation: [`testdata/integrations/proxmox/actions/`](../../testdata/integrations/proxmox/actions/README.md). `actions_test.go` runs every action through the engine against a fake that keeps guest state, and checks each request's method, path and form.
+
 ## Not yet
 
 - Merging instances that see the same domain (the cluster CA as identity), and failover between a cluster's nodes.
 - Temperatures, disk health, certificate expiry, HA manager state, QDevice detection ("2 nodes, no QDevice").
 - Backup state for pool-selected jobs; mapping a task to a job by anything but schedule and selection.
 - The router hint (`provides_network_for` from the guest that is everyone's gateway), MAC and IP correlation with OPNsense and Docker: the facts are published (`ip`, `mac`, `pbs.*`, `nfs.*`) for the correlator.
-- Actions (v0.2).
+- Host actions (node reboot, updates), migration, console, and pool-qualified scopes in the UI.

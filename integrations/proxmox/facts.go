@@ -56,6 +56,7 @@ func (in *instance) publish(res []resource, now time.Time) error {
 	b.hosts(res)
 	b.storages(res)
 	b.guestRes(res)
+	b.hubGuest()
 	b.backups(res)
 	b.hints(res)
 	if err := in.d.Emit.Replace("", b.facts); err != nil {
@@ -583,7 +584,9 @@ func (b *builder) guestState(r *integration.Resource, g resource, cfg *guestConf
 		ID: incID, Scenario: "guest-error", Class: integration.ClassProblem, Severity: integration.SeverityDown,
 		Title: fmt.Sprintf("%s is in %s", r.Name, cmp.Or(g.Status, "an error state")), Summary: summary,
 		Target: r.ID, Facts: facts,
-		Suggested:    integration.Action{ID: "link.open", Label: "Open " + r.Name + " in Proxmox", Tier: "T0", Target: r.ID},
+		Suggested: integration.Action{ID: "link.open", Label: "Open " + r.Name + " in Proxmox", Tier: "T0", Target: r.ID},
+		Alternatives: []integration.Action{{ID: actStop, Label: "Hard stop " + r.Name, Tier: "T2", Target: r.ID,
+			Detail: "Stops it at once, like pulling the plug, and frees what it holds. Start it again afterwards."}},
 		ResolvesWhen: "Resolves when " + r.Name + " leaves its error state.",
 	}
 	if g.HAState == "error" || g.HAState == "fence" {
