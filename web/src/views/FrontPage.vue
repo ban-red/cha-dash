@@ -3,7 +3,8 @@
  * The signed-in app: the front page plus its layers. Creates the live, board
  * and UI stores for everything below it, and owns what spans them:
  *
- * - the route (which board; Settings as a layer over the page);
+ * - the route (which board; Settings as a layer over the page; a
+ *   notification's `?incident=` link opens the Inbox on it);
  * - ⌘K / Ctrl K and / for the command bar;
  * - the hub's first-paint snapshot, inlined into index.html: the page and
  *   its board render from it at once, and the socket supersedes it;
@@ -27,7 +28,7 @@ import Toasts from '../components/Toasts.vue';
 import BoardSurface from '../board/BoardSurface.vue';
 import { api } from '../lib/api';
 import { setDisplayTimeZone } from '../lib/format';
-import { view } from '../lib/router';
+import { inboxLink, navigate, route, view } from '../lib/router';
 import type { GraphDoc } from '../model/types';
 import { createBoardStore, provideBoard } from '../stores/board';
 import { createDiscovery, provideDiscovery } from '../stores/discovery';
@@ -176,7 +177,16 @@ onMounted(() => {
   if (!seeded || (want !== undefined && want !== board.state.boardId)) void board.load(want);
   document.addEventListener('keydown', onKey);
   stopPersist = persistSnapshots(live, board, session);
+  openFromLink();
 });
+
+/** A notification's link: `/?incident=<id>` opens the Inbox on it, `/?inbox=1` the Inbox. The query then goes. */
+function openFromLink(): void {
+  const link = inboxLink(route.value);
+  if (!link) return;
+  if (ui.can.value.inbox) ui.openInbox(link.incident);
+  navigate(route.value.path, { replace: true });
+}
 onBeforeUnmount(() => {
   live.stop();
   stopPersist?.();

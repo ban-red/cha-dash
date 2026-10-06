@@ -8,15 +8,17 @@
  * |-----------|-----------------------------|--------------------------------------------|
  * | owner     | every tier (T4 where on)    | everything                                 |
  * | admin     | T0–T3                       | all but security; users other than owner   |
- * | operator  | T0–T2                       | their own passkeys                         |
- * | viewer    | T0                          | their own passkeys                         |
- * | household | T0 + `household: true`      | their own passkeys; boards only, no Inbox  |
+ * | operator  | T0–T2                       | their own passkeys and devices             |
+ * | viewer    | T0                          | their own passkeys and devices             |
+ * | household | T0 + `household: true`      | own passkeys and devices; boards only      |
  *
  * Every role may manage its own passkeys (the hub's passkey routes are open
  * to any signed-in role, and "Passkey only" needs one for every role), so
- * Settings opens for everyone, on Security alone below admin. Everything
- * else in Settings (integrations, import, backup, users, audit, the
- * first-run wizard) answers 403 below admin, and is never shown there.
+ * Settings opens for everyone, on Security below admin, plus Notifications
+ * for "Notify me on this device" (your own push subscriptions). Everything
+ * else in Settings (integrations, import, backup, users, audit, notification
+ * channels and rules, the first-run wizard) answers 403 below admin, and is
+ * never shown there.
  */
 import type { SettingsPane } from '../lib/router';
 import type { Tier } from './types';
@@ -73,7 +75,7 @@ export interface Permissions {
 export function permissions(role: string | undefined): Permissions {
   const r = asRole(role);
   const admin = r === 'owner' || r === 'admin';
-  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'import', 'backup', 'users', 'audit', 'security'] : ['security'];
+  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'import', 'backup', 'users', 'audit', 'notifications', 'security'] : ['security', 'notifications'];
   return {
     role: r,
     inbox: r !== 'household',

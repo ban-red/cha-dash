@@ -18,6 +18,7 @@
  *   /settings/backup                   export this hub, import a Home file
  *   /settings/users                    users and roles (owner, admin)
  *   /settings/audit                    the audit log (owner, admin)
+ *   /settings/notifications            this device's notifications; channels, rules, the delivery log (owner, admin)
  *   /settings/security                 the security level, step-up, passkeys
  *
  * Settings is a layer over the front page, not a separate app, so the board,
@@ -30,9 +31,9 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'stacks' | 'import' | 'backup' | 'users' | 'audit' | 'security';
+export type SettingsPane = 'integrations' | 'stacks' | 'import' | 'backup' | 'users' | 'audit' | 'notifications' | 'security';
 
-const PANES: readonly string[] = ['stacks', 'import', 'backup', 'users', 'audit', 'security'];
+const PANES: readonly string[] = ['stacks', 'import', 'backup', 'users', 'audit', 'notifications', 'security'];
 
 export type View =
   | { name: 'front'; board?: string }
@@ -98,6 +99,13 @@ export function settingsPath(pane: SettingsPane = 'integrations', id?: string, q
   for (const [k, v] of Object.entries(query ?? {})) if (v) q.set(k, v);
   const qs = q.toString();
   return qs ? `${p}?${qs}` : p;
+}
+
+/** A notification's link on the front page (`/?incident=<id>`, `/?inbox=1`): the Inbox to open, focused on the incident, or null. */
+export function inboxLink(r: Route): { incident: string } | null {
+  if (resolve(r).name !== 'front') return null;
+  if (r.query['incident']) return { incident: r.query['incident'] };
+  return r.query['inbox'] ? { incident: '' } : null;
 }
 
 /** Path for one stack, or the stacks list without one. The new-stack form is `/settings/stacks/new`. */

@@ -225,6 +225,7 @@ export function buildCommands(ctx: CommandContext): Command[] {
     { id: 'settings:backup', group: 'Settings', label: 'Settings: Backup', keywords: 'export import restore yaml home file secrets', run: () => d.openSettings('backup') },
     { id: 'settings:users', group: 'Settings', label: 'Settings: Users', keywords: 'people roles accounts household owner admin', run: () => d.openSettings('users') },
     { id: 'settings:audit', group: 'Settings', label: 'Settings: Audit', keywords: 'log history who did what actions', run: () => d.openSettings('audit') },
+    { id: 'settings:notifications', group: 'Settings', label: 'Settings: Notifications', keywords: 'push ntfy webhook alerts phone devices', run: () => d.openSettings('notifications') },
     { id: 'settings:security', group: 'Settings', label: 'Settings: Security', keywords: 'passkeys webauthn touch id face id step-up', run: () => d.openSettings('security') },
   );
 

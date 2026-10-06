@@ -101,6 +101,58 @@ async function staleWhileRevalidate(request, event) {
   return fresh;
 }
 
+/*
+ * Notifications (internal/notify). The hub sends an encrypted Web Push
+ * message the browser decrypts; its JSON is {v, kind, severity, title, body,
+ * path, tag, at}. Shown with the app's icon; a newer message with the same
+ * tag (the incident) replaces the older one. A click focuses an open tab and
+ * takes it to `path` (an incident opens the Inbox on it), or opens one.
+ * Only same-origin paths are followed.
+ */
+
+/** A path inside the app, or the front page. */
+const appPath = (p) => (typeof p === 'string' && p.startsWith('/') && !p.startsWith('//') ? p : '/');
+
+self.addEventListener('push', (event) => {
+  let msg = {};
+  try {
+    msg = event.data ? event.data.json() : {};
+  } catch {
+    msg = {};
+  }
+  const title = typeof msg.title === 'string' && msg.title ? msg.title : 'Cha Dash';
+  const options = {
+    body: typeof msg.body === 'string' ? msg.body : '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data: { path: appPath(msg.path) },
+    timestamp: Date.parse(msg.at) || Date.now(),
+  };
+  if (typeof msg.tag === 'string' && msg.tag) {
+    options.tag = msg.tag;
+    options.renotify = msg.severity === 'down';
+  }
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const path = appPath(event.notification.data && event.notification.data.path);
+  const url = new URL(path, self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const tab of tabs) {
+        if (new URL(tab.url).origin !== self.location.origin) continue;
+        await tab.focus();
+        if ('navigate' in tab) await tab.navigate(url);
+        return;
+      }
+      await self.clients.openWindow(url);
+    })(),
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;

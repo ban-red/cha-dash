@@ -3,7 +3,8 @@
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
  * /settings/integrations, /settings/stacks, /settings/import, /settings/backup,
- * /settings/users, /settings/audit, /settings/security. The board, the
+ * /settings/users, /settings/audit, /settings/notifications,
+ * /settings/security. The board, the
  * socket and the Inbox stay live underneath; Esc or the scrim goes back.
  *
  * Only owners and admins open Settings; the panes listed are the ones the
@@ -24,6 +25,7 @@ const StacksPane = defineAsyncComponent(() => import('./StacksPane.vue'));
 const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
 const UsersPane = defineAsyncComponent(() => import('./UsersPane.vue'));
 const AuditPane = defineAsyncComponent(() => import('./AuditPane.vue'));
+const NotificationsPane = defineAsyncComponent(() => import('./NotificationsPane.vue'));
 
 const ui = useUi();
 
@@ -37,17 +39,29 @@ const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'backup', label: 'Backup', note: 'export and restore' },
   { id: 'users', label: 'Users', note: 'people and roles' },
   { id: 'audit', label: 'Audit', note: 'who did what' },
+  { id: 'notifications', label: 'Notifications', note: 'push, ntfy, webhooks' },
   { id: 'security', label: 'Security', note: 'level, step-up, passkeys' },
 ];
 const PANES = computed(() =>
-  ALL_PANES.filter((p) => ui.can.value.panes.includes(p.id)).map((p) => (p.id === 'security' && !ui.can.value.securitySettings ? { ...p, note: 'passkeys' } : p)),
+  ALL_PANES.filter((p) => ui.can.value.panes.includes(p.id)).map((p) =>
+    p.id === 'security' && !ui.can.value.securitySettings ? { ...p, note: 'passkeys' } : p.id === 'notifications' && !ui.can.value.users ? { ...p, note: 'this device' } : p,
+  ),
 );
 /** The route's pane, or the first one this role has. */
 const pane = computed<SettingsPane>(() => {
   const want = view.value.name === 'settings' ? view.value.pane : 'integrations';
   return ui.can.value.panes.includes(want) ? want : (ui.can.value.panes[0] ?? 'integrations');
 });
-const TITLES: Record<SettingsPane, string> = { integrations: 'Integrations', stacks: 'Stacks', import: 'Import from Homepage', backup: 'Backup', users: 'Users', audit: 'Audit', security: 'Security' };
+const TITLES: Record<SettingsPane, string> = {
+  integrations: 'Integrations',
+  stacks: 'Stacks',
+  import: 'Import from Homepage',
+  backup: 'Backup',
+  users: 'Users',
+  audit: 'Audit',
+  notifications: 'Notifications',
+  security: 'Security',
+};
 const title = computed(() => TITLES[pane.value]);
 
 function close(): void {
@@ -108,6 +122,7 @@ onBeforeUnmount(() => {
             <BackupPane v-else-if="pane === 'backup'" />
             <UsersPane v-else-if="pane === 'users'" />
             <AuditPane v-else-if="pane === 'audit'" />
+            <NotificationsPane v-else-if="pane === 'notifications'" />
             <SecurityPane v-else />
           </div>
         </div>
