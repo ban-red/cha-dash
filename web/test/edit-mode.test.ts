@@ -226,6 +226,32 @@ describe('editing a tile', () => {
     expect(w.find('[data-item-id="plex"] .tile .tn').text()).not.toBe('Living room');
   });
 
+  it('sets the calendar’s unmonitored option, replacing the importer’s per-source one', async () => {
+    const hs = harness(docs(withIncidents));
+    const config = {
+      name: 'Up next',
+      options: { view: 'agenda' },
+      bind: { sources: [{ instance: 'i_s', capability: 'media.calendar', options: { unmonitored: true, color: 'teal' } }, { instance: 'i_r', capability: 'media.calendar' }] },
+    };
+    const ed = hs.mountIn(TileEditor, { item: { id: 'calendar', type: 'calendar' }, config }).findComponent(TileEditor);
+    await flushPromises();
+    const box = ed.find('input[type="checkbox"]');
+    expect((box.element as HTMLInputElement).checked).toBe(true); // a source had it on
+    await ed.find('form').trigger('submit');
+    expect(ed.emitted('save')![0]![0]).toEqual({
+      name: 'Up next',
+      options: { view: 'agenda', unmonitored: true },
+      bind: { sources: [{ instance: 'i_s', capability: 'media.calendar', options: { color: 'teal' } }, { instance: 'i_r', capability: 'media.calendar' }] },
+    });
+    await box.setValue(false);
+    await ed.find('form').trigger('submit');
+    expect(ed.emitted('save')![1]![0]).toMatchObject({ options: { view: 'agenda' } });
+    expect((ed.emitted('save')![1]![0] as { options: object }).options).not.toHaveProperty('unmonitored');
+    // Other widgets don't get the box.
+    const other = hs.mountIn(TileEditor, { item: { id: 'plex', type: 'plex' } });
+    expect(other.find('input[type="checkbox"]').exists()).toBe(false);
+  });
+
   it('points a bound widget at another resource without changing its id', async () => {
     const before = start();
     const store = fakeStore(before);
@@ -246,7 +272,71 @@ describe('editing a tile', () => {
   });
 });
 
+describe('label discovery in edit mode', () => {
+  /** Edit mode, with the harness's discovery reading board b1 (the fake store draws it). */
+  async function editingDiscovered(store: BoardStore) {
+    const hs = harness(docs(withIncidents));
+    hs.board.state.boardId = 'b1';
+    hs.board.state.status = 'ready';
+    const Page = defineComponent({
+      setup() {
+        provideBoard(store);
+        return () => h(BoardSurface, { board: store.board.value!, breakpoint: 'desktop' });
+      },
+    });
+    const w = Object.assign(hs.mountIn(Page), { ui: hs.ui });
+    await w.find('.board-tools button').trigger('click');
+    await settle();
+    await settle();
+    return w;
+  }
+
+  it('lists dismissed services and offers one again', async () => {
+    const restored: unknown[] = [];
+    let dismissed = ['docker:jupiter/mealie', 'docker:jupiter/pbs'];
+    fakeFetch({
+      'GET /api/boards/b1/discovery': () => ({ status: 200, body: { dismissed } }),
+      'POST /api/boards/b1/discovery/restore': (body) => {
+        restored.push(body);
+        const gone = new Set((body as { resources: string[] }).resources);
+        dismissed = dismissed.filter((r) => !gone.has(r));
+        return { status: 200, body: { dismissed } };
+      },
+    });
+    const w = await editingDiscovered(fakeStore(start()));
+    const open = w.findAll('.edit-bar button').find((b) => b.text().startsWith('Dismissed'))!;
+    expect(open.text()).toBe('Dismissed · 2');
+    await open.trigger('click');
+    await settle();
+    const rows = [...document.querySelectorAll('dialog.dismissed li')];
+    expect(rows.map((li) => li.querySelector('.ds-name')!.textContent)).toEqual(['Mealie', 'Proxmox Backup Server']);
+    rows[0]!.querySelector('button')!.click();
+    await flushPromises();
+    expect(restored).toEqual([{ resources: ['docker:jupiter/mealie'] }]);
+    expect(w.ui.state.toasts.at(-1)!.text).toBe('Mealie will be offered again in the Inbox.');
+    expect([...document.querySelectorAll('dialog.dismissed li')]).toHaveLength(1);
+    expect(w.findAll('.edit-bar button').find((b) => b.text().startsWith('Dismissed'))!.text()).toBe('Dismissed · 1');
+  });
+
+  it('has no Dismissed button when nothing is dismissed', async () => {
+    fakeFetch({ 'GET /api/boards/b1/discovery': { status: 200, body: { dismissed: [] } } });
+    const w = await editingDiscovered(fakeStore(start()));
+    expect(w.findAll('.edit-bar button').some((b) => b.text().startsWith('Dismissed'))).toBe(false);
+  });
+});
+
 describe('adding a widget', () => {
+  it('opens the picker when ⌘K asked for it', async () => {
+    const w = mountSurface(fakeStore(start()));
+    w.ui.state.editing = true;
+    w.ui.state.addingWidget = true;
+    await settle();
+    await settle();
+    expect(w.findComponent(WidgetPicker).exists()).toBe(true);
+    expect(w.ui.state.addingWidget).toBe(false);
+    expect(document.querySelector('dialog.picker')?.hasAttribute('open')).toBe(true);
+  });
+
   it('loads the picker on demand and lists the catalog by what the graph can feed', async () => {
     const before = start();
     const store = fakeStore(remove(before, 'cameras'));

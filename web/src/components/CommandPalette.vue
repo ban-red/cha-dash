@@ -58,6 +58,10 @@ const commands = computed(() =>
     do: {
       openInbox: (id) => ui.openInbox(id ?? ''),
       toggleEdit: () => (ui.state.editing = !ui.state.editing),
+      addWidget: () => {
+        ui.state.editing = true;
+        ui.state.addingWidget = true;
+      },
       openBoard: (id) => navigate(id === board.state.boards[0]?.id ? '/' : `/boards/${encodeURIComponent(id)}`),
       reveal: (id) => ui.reveal(id),
       openSettings: (pane, id) => ui.openSettings(pane, id),

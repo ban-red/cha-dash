@@ -3,11 +3,15 @@
  * A discovery in the Inbox: containers whose `homepage.*` labels name a
  * group and a service, offered as tiles for this board. "Add them" puts
  * every one on the board in one save; "Dismiss" remembers the answer on the
- * hub, so they aren't offered again. Nothing is ever added without asking.
+ * hub, so they aren't offered again, and its toast's Undo takes it back
+ * (edit mode lists every dismissed one too). Nothing is ever added without
+ * asking. A container that is a known integration says which catalog widget
+ * it becomes, or which integration to connect for one.
  */
 import { computed, ref } from 'vue';
 import Glyph from './marks/Glyph.vue';
-import { placementSentence } from '../model/discovery';
+import { placementSentence, type LabelService } from '../model/discovery';
+import { WIDGETS } from '../model/widgets';
 import { useDiscovery } from '../stores/discovery';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
@@ -38,10 +42,22 @@ async function add(): Promise<void> {
   }
 }
 
+/** How a service lands: as a catalog widget, or a service tile (and what to connect for a widget). */
+function how(s: LabelService): string {
+  if (s.widget) return `as ${s.widget.type === 'service' ? `${s.known?.name ?? 'its'} service tile` : (WIDGETS[s.widget.type]?.name ?? s.widget.type)}`;
+  return s.known ? `connect ${s.known.name} for its widget` : '';
+}
+
 async function dismiss(): Promise<void> {
   busy.value = true;
+  const n = list.value.length;
+  const first = list.value[0]?.name ?? '';
   try {
-    await discovery.dismiss();
+    const refs = await discovery.dismiss();
+    ui.toast(`Dismissed ${n === 1 ? first : `${n} services`}. ${n === 1 ? 'It isn’t' : 'They aren’t'} offered again.`, 'ok', 10_000, {
+      label: 'Undo',
+      run: () => void discovery.restore(refs).catch(() => ui.toast('Couldn’t undo that on the hub. Restore it from edit mode.', 'error')),
+    });
   } catch {
     ui.toast('Couldn’t remember that on the hub; it may be offered again.', 'error');
   } finally {
@@ -59,7 +75,7 @@ async function dismiss(): Promise<void> {
       <ul class="disc-list">
         <li v-for="s in list" :key="s.resource">
           <span class="disc-name">{{ s.name }}</span>
-          <span class="disc-where">{{ s.sectionTitle }}{{ s.newSection ? ' (new section)' : '' }}</span>
+          <span class="disc-where">{{ s.sectionTitle }}{{ s.newSection ? ' (new section)' : '' }}<template v-if="how(s)"> · {{ how(s) }}</template></span>
         </li>
       </ul>
       <div class="acts disc-acts">

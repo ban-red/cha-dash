@@ -52,6 +52,7 @@ const KIND_WORDS: Record<string, string> = {
   storage: 'storage',
   cluster: 'cluster',
   wan: 'WAN',
+  media_request: 'request',
 };
 
 export interface CommandContext {
@@ -68,6 +69,8 @@ export interface CommandContext {
   do: {
     openInbox: (incident?: string) => void;
     toggleEdit: () => void;
+    /** Edit mode with the widget picker open on the current board. */
+    addWidget?: () => void;
     openBoard: (id: string) => void;
     reveal: (resourceId: string) => void;
     openSettings: (pane: SettingsPane, id?: string) => void;
@@ -183,6 +186,9 @@ export function buildCommands(ctx: CommandContext): Command[] {
       run: d.toggleEdit,
     },
   ];
+  if (d.addWidget && ctx.currentBoard) {
+    out.push({ id: 'add-widget', group: 'Actions', label: 'Add widget', keywords: 'add new widget tile card catalog picker edit layout', run: d.addWidget });
+  }
 
   for (const i of Object.values(ctx.inbox?.incidents ?? {})) {
     if (i.status !== 'open') continue;
@@ -248,7 +254,7 @@ export function buildCommands(ctx: CommandContext): Command[] {
 function allowed(c: CommandInput, can: CommandContext['can']): boolean {
   if (!can) return true;
   if (c.group === 'Inbox' || c.id === 'inbox') return can.inbox;
-  if (c.id === 'edit') return can.editBoards;
+  if (c.id === 'edit' || c.id === 'add-widget') return can.editBoards;
   if (c.group === 'Integrations') return can.integrations;
   if (c.group === 'Settings') {
     const pane = c.id === 'settings:import' ? 'import' : c.id.replace(/^settings:/, '');

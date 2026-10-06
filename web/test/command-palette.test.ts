@@ -105,6 +105,21 @@ describe('commands', () => {
     expect(ctx.do.openSettings).toHaveBeenCalledWith('integrations', 'i-plex');
     expect(buildCommands(context({ editing: true })).find((c) => c.id === 'edit')!.label).toBe('Done editing layout');
   });
+
+  it('offers Add widget on a board, to those who may edit it', () => {
+    const addWidget = vi.fn();
+    const base = context();
+    const ctx = context({ do: { ...base.do, addWidget } });
+    const add = buildCommands(ctx).find((c) => c.id === 'add-widget')!;
+    expect(add).toMatchObject({ group: 'Actions', label: 'Add widget' });
+    add.run();
+    expect(addWidget).toHaveBeenCalled();
+    expect(searchCommands(buildCommands(ctx), 'add wid')[0]!.items[0]!.id).toBe('add-widget');
+    const viewer = { inbox: true, settings: true, integrations: false, editBoards: false, panes: [] };
+    expect(buildCommands({ ...ctx, can: viewer }).some((c) => c.id === 'add-widget')).toBe(false);
+    expect(buildCommands({ ...ctx, currentBoard: '' }).some((c) => c.id === 'add-widget')).toBe(false);
+    expect(buildCommands(base).some((c) => c.id === 'add-widget')).toBe(false);
+  });
 });
 
 describe('command bar', () => {
@@ -159,6 +174,16 @@ describe('command bar', () => {
     await key(input, 'Enter');
     expect(ui.state.editing).toBe(true);
     expect(ui.state.paletteOpen).toBe(false);
+  });
+
+  it('opens edit mode with the widget picker from “Add widget”', async () => {
+    const { input, ui } = await open();
+    await type(input, 'add widget');
+    expect(selected()!.textContent).toContain('Add widget');
+    await key(input, 'Enter');
+    expect(ui.state.paletteOpen).toBe(false);
+    expect(ui.state.editing).toBe(true);
+    expect(ui.state.addingWidget).toBe(true); // EditableBoard opens the picker and clears it
   });
 
   it('finds resources fuzzily and opens an incident in the Inbox', async () => {

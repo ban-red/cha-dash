@@ -10,9 +10,20 @@
  * the board already shows one of them (a tile bound to it), a tile of the
  * same name sits in that section already (the import brought it from
  * services.yaml), or one of them was dismissed.
+ *
+ * A container that is a known integration (catalogMatch.ts: its Homepage
+ * widget label or its image) is suggested as that integration's catalog
+ * widget, bound to its app (`arr@sonarr:<instance>/app`, `plex`, or the
+ * service tile on the app for the per-integration stat), when the graph has
+ * that app: the one that `runs_on` the container, else the only one. It's
+ * not offered when the board already shows that app. Without the app, it's a
+ * service tile on the container, and `known` says which integration to
+ * connect for the widget.
  */
 import { addSection, smartInsert, type Board } from '@chadash/layout';
-import { WIDGETS, itemId } from './widgets';
+import { WIDGETS, itemId, parseItemId } from './widgets';
+import { knownIntegrationOf } from './catalogMatch';
+import { appsOfType, outgoing } from './graph';
 import type { GraphDoc, Resource } from './types';
 import type { BoardState } from './edit';
 import { hrefOk, withTile, type TileConfig, type TilesDoc } from '../stores/tiles';
@@ -33,6 +44,10 @@ export interface LabelService {
   sectionId: string;
   sectionTitle: string;
   newSection: boolean;
+  /** The integration the container is, when it's a known one. */
+  known?: { id: string; name: string };
+  /** The catalog widget to add instead of a service tile: its type, item id and the app it shows. */
+  widget?: { type: string; id: string; app: string };
 }
 
 /** Same as the importer's section slugs: `Archive/Backup` → `archive-backup`. */
@@ -49,16 +64,43 @@ const SPAN = 4; // a Homepage group without layout hints, as the importer makes 
 
 const labelOf = (r: Resource, key: string): string => (r.labels?.[`homepage.${key}`] ?? '').trim();
 
+/** The containers whose labels name this group and service (to dismiss them with a tile that shows their app). */
+export function labelContainers(g: GraphDoc | undefined, group: string, name: string): string[] {
+  if (!g || !group || !name) return [];
+  return Object.values(g.resources)
+    .filter((r) => r.kind === 'container' && labelOf(r, 'group').toLowerCase() === group.toLowerCase() && labelOf(r, 'name').toLowerCase() === name.toLowerCase())
+    .map((r) => r.id)
+    .sort();
+}
+
+/** The app a known container is: the one that runs_on one of the containers, else the only one of its type. */
+function appFor(g: GraphDoc, type: string, containers: readonly Resource[]): Resource | undefined {
+  const apps = appsOfType(g, type);
+  const ids = new Set(containers.map((c) => c.id));
+  return apps.find((a) => outgoing(g, a.id, 'runs_on').some((c) => ids.has(c.id))) ?? (apps.length === 1 ? apps[0] : undefined);
+}
+
+/** The catalog widget for a known integration's app. */
+function widgetFor(tile: string, app: string): { type: string; id: string; app: string } {
+  const spec = WIDGETS[tile];
+  if (!spec) return { type: 'service', id: itemId('service', app), app };
+  return { type: tile, id: tile === 'service' || spec.bound ? itemId(tile, app) : itemId(tile), app };
+}
+
 export const discoveredItemId = (resource: string): string => itemId('service', resource);
 
 /** The containers the board could show, in board order (then weight, then name). */
 export function labelServices(g: GraphDoc | undefined, board: Board | undefined, tiles: TilesDoc, dismissed: ReadonlySet<string>): LabelService[] {
   if (!g || !board) return [];
   const onBoard = new Set<string>();
+  const itemIds = new Set<string>();
   const namesIn = new Map<string, Set<string>>();
   for (const s of board.sections) {
     const names = new Set<string>();
     for (const i of s.items) {
+      itemIds.add(i.id);
+      const t = parseItemId(i.id).target;
+      if (t) onBoard.add(t);
       const c = tiles[i.id];
       const bound = c?.bind?.resource;
       if (bound) onBoard.add(bound);
@@ -89,6 +131,10 @@ export function labelServices(g: GraphDoc | undefined, board: Board | undefined,
     if ([r, ...rest].some((c) => onBoard.has(c.id) || dismissed.has(c.id))) continue;
     const group = labelOf(r, 'group');
     const name = labelOf(r, 'name');
+    const known = [r, ...rest].map(knownIntegrationOf).find(Boolean);
+    const app = known ? appFor(g, known.id, [r, ...rest]) : undefined;
+    const widget = known && app ? widgetFor(known.tile, app.id) : undefined;
+    if (widget && (onBoard.has(widget.app) || itemIds.has(widget.id))) continue; // the board shows it already
 
     const g0 = group.toLowerCase();
     const existing = byTitle.get(g0) ?? (sectionIds.has(slug(group)) ? { id: slug(group), title: group } : undefined);
@@ -118,6 +164,8 @@ export function labelServices(g: GraphDoc | undefined, board: Board | undefined,
       newSection,
     };
     if (!Number.isFinite(s.weight)) s.weight = 0;
+    if (known) s.known = { id: known.id, name: known.name };
+    if (widget) s.widget = widget;
     const href = labelOf(r, 'href');
     if (hrefOk(href)) s.href = href;
     const icon = labelOf(r, 'icon');
@@ -138,7 +186,10 @@ export function labelServices(g: GraphDoc | undefined, board: Board | undefined,
 
 /** The tile config a discovered service starts with. */
 export function labelTileConfig(s: LabelService): TileConfig {
-  const c: TileConfig = { name: s.name, bind: { resource: s.resource }, origin: { source: 'labels', group: s.group, entry: s.name } };
+  const origin = { source: 'labels', group: s.group, entry: s.name };
+  // A catalog widget's item id names the app; a dedicated widget keeps its own name.
+  if (s.widget && s.widget.type !== 'service') return s.href ? { href: s.href, origin } : { origin };
+  const c: TileConfig = s.widget ? { name: s.name, origin } : { name: s.name, bind: { resource: s.resource }, origin };
   if (s.href) c.href = s.href;
   if (s.icon) c.icon = s.icon;
   if (s.description) c.description = s.description;
@@ -151,7 +202,6 @@ export function labelTileConfig(s: LabelService): TileConfig {
  * Services that fit nowhere are left out of `added`.
  */
 export function addLabelServices(state: BoardState, services: readonly LabelService[]): BoardState & { added: LabelService[] } {
-  const spec = WIDGETS['service']!;
   let board = state.board;
   let tiles = state.tiles;
   const added: LabelService[] = [];
@@ -159,13 +209,21 @@ export function addLabelServices(state: BoardState, services: readonly LabelServ
     if (!board.sections.some((sec) => sec.id === s.sectionId)) {
       board = addSection(board, { id: s.sectionId, title: s.sectionTitle, span: SPAN, items: [] });
     }
-    const id = discoveredItemId(s.resource);
+    const spec = WIDGETS[s.widget?.type ?? 'service']!;
+    const id = s.widget?.id ?? discoveredItemId(s.resource);
     if (board.sections.some((sec) => sec.items.some((i) => i.id === id))) continue;
-    try {
-      board = smartInsert(board, { id, type: spec.type, size: spec.size, supportedSizes: spec.sizes }, { sectionId: s.sectionId });
-    } catch {
-      continue; // a section too narrow for it
+    // Its default size, else the smallest that fits.
+    let placed = false;
+    for (const size of [spec.size, ...spec.sizes.filter((x) => x !== spec.size)]) {
+      try {
+        board = smartInsert(board, { id, type: spec.type, size, supportedSizes: spec.sizes }, { sectionId: s.sectionId });
+        placed = true;
+        break;
+      } catch {
+        /* a section too narrow for this size */
+      }
     }
+    if (!placed) continue;
     tiles = withTile(tiles, id, labelTileConfig(s));
     added.push(s);
   }

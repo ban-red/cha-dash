@@ -5,6 +5,10 @@
  *
  *   GET  /api/boards/{id}/discovery          → {"dismissed": ["<resource id>", …]}
  *   POST /api/boards/{id}/discovery/dismiss  {"resources": [...]} → {"dismissed": [...]}
+ *   POST /api/boards/{id}/discovery/restore  {"resources": [...]} → {"dismissed": [...]}
+ *
+ * Restore is Undo on the Inbox's Dismiss and edit mode's list of dismissed
+ * services (`dismissedServices`, named from the containers' labels).
  *
  * The dismissed list is fetched only once there is something to suggest, so
  * a board with nothing to discover costs no request. Nothing is suggested
@@ -14,6 +18,7 @@
 import { computed, inject, provide, shallowRef, watch, type InjectionKey } from 'vue';
 import { api } from '../lib/api';
 import { addLabelServices, labelServices, type LabelService } from '../model/discovery';
+import type { GraphDoc } from '../model/types';
 import type { BoardStore } from './board';
 import type { Live } from './live';
 
@@ -97,12 +102,72 @@ export function createDiscovery(live: Live, board: BoardStore, canEdit: () => bo
     }
   }
 
-  /** Dismiss what's suggested now (and the same services seen by other sources). */
-  function dismiss(): Promise<void> {
-    return remember(suggestions.value.flatMap((s) => [s.resource, ...s.duplicates]));
+  /** Dismiss what's suggested now (and the same services seen by other sources); resolves with what it dismissed. */
+  async function dismiss(): Promise<string[]> {
+    const refs = suggestions.value.flatMap((s) => [s.resource, ...s.duplicates]);
+    await remember(refs);
+    return refs;
   }
 
-  return { suggestions, add, dismiss, remember };
+  /**
+   * Offer these again: forget their dismissal on this board. They're
+   * suggested again at once; on a failure the list is put back and it
+   * rejects.
+   */
+  async function restore(resources: readonly string[]): Promise<void> {
+    const id = board.state.boardId;
+    if (!resources.length || !id) return;
+    const before = dismissed.value;
+    dismissed.value = new Set([...before].filter((r) => !resources.includes(r)));
+    try {
+      const res = await api<{ dismissed?: unknown }>(`/api/boards/${encodeURIComponent(id)}/discovery/restore`, {
+        method: 'POST',
+        body: { resources: [...resources] },
+      });
+      if (board.state.boardId === id && Array.isArray(res?.dismissed)) {
+        dismissed.value = new Set(res.dismissed.filter((x): x is string => typeof x === 'string'));
+      }
+    } catch (err) {
+      if (board.state.boardId === id) dismissed.value = before;
+      throw err;
+    }
+  }
+
+  /** Load this board's dismissals now (edit mode's list), even with nothing to suggest. */
+  function ensureLoaded(): void {
+    const id = board.state.boardId;
+    if (canEdit() && id && loadedFor.value !== id) void load(id);
+  }
+
+  /** The dismissed services on this board, one row per service (its containers together), by name. */
+  const dismissedServices = computed(() => {
+    if (!loadedFor.value || loadedFor.value !== board.state.boardId) return [];
+    return dismissedRows(live.graph.value, dismissed.value);
+  });
+
+  return { suggestions, add, dismiss, remember, restore, ensureLoaded, dismissedServices };
+}
+
+export interface DismissedService {
+  /** The containers to restore together. */
+  resources: string[];
+  name: string;
+  group: string;
+}
+
+/** Dismissed resource ids as rows: named and grouped by their homepage labels; ones the graph no longer has by id. */
+export function dismissedRows(g: GraphDoc | undefined, dismissed: ReadonlySet<string>): DismissedService[] {
+  const rows = new Map<string, DismissedService>();
+  for (const id of dismissed) {
+    const r = g?.resources[id];
+    const name = (r?.labels?.['homepage.name'] ?? '').trim() || r?.name || id;
+    const group = (r?.labels?.['homepage.group'] ?? '').trim();
+    const key = r ? `${group.toLowerCase()}\u0000${name.toLowerCase()}` : `\u0001${id}`;
+    const row = rows.get(key);
+    if (row) row.resources.push(id);
+    else rows.set(key, { resources: [id], name, group });
+  }
+  return [...rows.values()].sort((a, b) => a.name.localeCompare(b.name) || a.group.localeCompare(b.group));
 }
 
 export type Discovery = ReturnType<typeof createDiscovery>;

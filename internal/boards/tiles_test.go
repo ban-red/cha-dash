@@ -130,6 +130,23 @@ func TestDismissals(t *testing.T) {
 		t.Fatalf("after: %s", r.raw)
 	}
 
+	// Restore takes one back (Undo, or Settings); restoring what isn't
+	// dismissed changes nothing.
+	r = call(t, srv, "POST", path+"/restore", `{"resources":["docker:i_d/container/mealie","docker:i_d/container/never"]}`)
+	if got := r.body["dismissed"].([]any); r.status != 200 || len(got) != 2 || got[0] != "docker:i_d/container/immich_server" {
+		t.Fatalf("restore: %d %s", r.status, r.raw)
+	}
+	if r := call(t, srv, "POST", path+"/restore", `{"resources":[]}`); r.status != http.StatusUnprocessableEntity {
+		t.Fatalf("restore nothing: %d", r.status)
+	}
+	if r := call(t, srv, "POST", "/api/boards/b_nope/discovery/restore", `{"resources":["x"]}`); r.status != http.StatusNotFound {
+		t.Fatalf("restore on a missing board: %d", r.status)
+	}
+	r = call(t, srv, "POST", path+"/dismiss", `{"resources":["docker:i_d/container/mealie"]}`)
+	if r.status != 200 || len(r.body["dismissed"].([]any)) != 3 {
+		t.Fatalf("dismiss after restore: %d %s", r.status, r.raw)
+	}
+
 	for name, body := range map[string]string{
 		"none":      `{"resources":[]}`,
 		"empty id":  `{"resources":[""]}`,

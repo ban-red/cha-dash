@@ -64,6 +64,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     paletteOpen: false,
     /** The board is in edit mode (EditableBoard). */
     editing: false,
+    /** ⌘K asked for the widget picker: edit mode opens it, then clears this. */
+    addingWidget: false,
     confirm: undefined as ConfirmRequest | undefined,
     stepUp: undefined as StepUpRequest | undefined,
     toasts: [] as Toast[],

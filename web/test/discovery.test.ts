@@ -5,7 +5,8 @@ import { createBoard, toDocument, type Board } from '@chadash/layout';
 import Briefing from '../src/components/Briefing.vue';
 import InboxSheet from '../src/components/InboxSheet.vue';
 import { defaultBoard } from '../src/model/defaultLayout';
-import { addLabelServices, labelServices, placementSentence, slug } from '../src/model/discovery';
+import { addLabelServices, labelContainers, labelServices, placementSentence, slug } from '../src/model/discovery';
+import { imageName, knownIntegrationOf } from '../src/model/catalogMatch';
 import { setDisplayTimeZone } from '../src/lib/format';
 import type { Resource } from '../src/model/types';
 import type { TilesDoc } from '../src/stores/tiles';
@@ -64,6 +65,13 @@ function labelled(): ReturnType<typeof docs> {
     container('docker:i_d/container/linkding', { 'homepage.group': 'Archive/Backup', 'homepage.name': 'Linkding' }),
   ])
     d.graph.resources[r.id] = r;
+  return d;
+}
+
+/** Without the Demo Home's Mealie and Immich apps: their containers are plain service tiles then. */
+function withoutApps(d: ReturnType<typeof docs>): ReturnType<typeof docs> {
+  delete d.graph.resources['app:mealie'];
+  delete d.graph.resources['app:immich'];
   return d;
 }
 
@@ -128,7 +136,7 @@ describe('label discovery', () => {
 
   it('adds them as service tiles: into the matching section, or a new one at the end', () => {
     const { board, tiles } = importedBoard();
-    const s = labelServices(labelled().graph, board, tiles, new Set());
+    const s = labelServices(withoutApps(labelled()).graph, board, tiles, new Set());
     const next = addLabelServices({ board, tiles }, s);
     expect(next.added).toHaveLength(3);
     expect(next.board.sections.map((x) => [x.id, x.title, x.span, x.items.map((i) => i.id)])).toEqual([
@@ -147,6 +155,54 @@ describe('label discovery', () => {
     });
     expect(next.tiles['service@docker:i_d/container/mealie']!.description).toBe('Recipes');
     expect(next.tiles['service@homepage:archive-backup/linkding']).toEqual(tiles['service@homepage:archive-backup/linkding']);
+  });
+
+  it('suggests a known integration’s catalog widget when its app is in the graph', () => {
+    const { board, tiles } = importedBoard();
+    const d = labelled();
+    for (const r of [
+      container('docker:i_d/container/sonarr', { 'homepage.group': 'Media', 'homepage.name': 'TV' }),
+      container('docker:i_d/container/plex', { 'homepage.group': 'Media', 'homepage.name': 'Plex' }),
+      container('docker:i_d/container/abs', { 'homepage.group': 'Media', 'homepage.name': 'Books' }),
+    ])
+      d.graph.resources[r.id] = r;
+    d.graph.resources['docker:i_d/container/sonarr']!.attrs = { image: 'lscr.io/linuxserver/sonarr:latest' };
+    d.graph.resources['docker:i_d/container/plex']!.attrs = { image: 'plexinc/pms-docker:1.41' };
+    d.graph.resources['docker:i_d/container/abs']!.attrs = { image: 'ghcr.io/advplyr/audiobookshelf@sha256:0123' };
+    const s = labelServices(d.graph, board, tiles, new Set());
+    const by = (name: string) => s.find((x) => x.name === name);
+    // Mealie: the app that runs_on its container (the Demo Home's), through its service tile.
+    expect(by('Mealie')).toMatchObject({ known: { id: 'mealie', name: 'Mealie' }, widget: { type: 'service', id: 'service@app:mealie', app: 'app:mealie' } });
+    // Sonarr: its own widget, the queue, on the only Sonarr.
+    expect(by('TV')).toMatchObject({ known: { id: 'sonarr' }, widget: { type: 'arr', id: 'arr@app:sonarr', app: 'app:sonarr' } });
+    // Plex: the board shows Now playing already, so it isn't offered.
+    expect(by('Plex')).toBeUndefined();
+    // Audiobookshelf isn't connected: a service tile on the container, saying what to connect.
+    expect(by('Books')).toMatchObject({ known: { id: 'audiobookshelf', name: 'Audiobookshelf' } });
+    expect(by('Books')!.widget).toBeUndefined();
+
+    const next = addLabelServices({ board, tiles }, s);
+    const media = next.board.sections.find((x) => x.id === 'media')!.items;
+    expect(media.find((i) => i.id === 'arr@app:sonarr')).toMatchObject({ type: 'arr' });
+    expect(next.tiles['arr@app:sonarr']).toEqual({ origin: { source: 'labels', group: 'Media', entry: 'TV' } });
+    expect(next.tiles['service@app:mealie']).toEqual({ name: 'Mealie', description: 'Recipes', origin: { source: 'labels', group: 'apps', entry: 'Mealie' } });
+    expect(next.tiles['service@docker:i_d/container/abs']!.bind).toEqual({ resource: 'docker:i_d/container/abs' });
+    // Once on the board, the app counts as shown: nothing is offered again.
+    expect(labelServices(d.graph, next.board, next.tiles, new Set()).map((x) => x.name)).toEqual([]);
+    // Removing such a tile dismisses the containers its labels name.
+    expect(labelContainers(d.graph, 'Apps', 'Mealie')).toEqual(['docker:i_d/container/mealie', 'docker:i_u/container/mealie', 'docker:jupiter/mealie']);
+  });
+
+  it('matches by Homepage’s widget label first, then the image’s name', () => {
+    expect(imageName('ghcr.io/hotio/sonarr:release@sha256:abc')).toBe('sonarr');
+    expect(imageName('adguard/adguardhome')).toBe('adguardhome');
+    const r = container('docker:i_d/container/x', { 'homepage.widget.type': 'jellyseerr' });
+    r.attrs = { image: 'lscr.io/linuxserver/sonarr' };
+    expect(knownIntegrationOf(r)?.id).toBe('seerr');
+    r.labels = {};
+    expect(knownIntegrationOf(r)?.id).toBe('sonarr');
+    r.attrs = { image: 'example/unknown:1' };
+    expect(knownIntegrationOf(r)).toBeUndefined();
   });
 });
 
@@ -172,6 +228,11 @@ describe('the discovery Inbox item', () => {
         dismissed = [...new Set([...dismissed, ...(body as { resources: string[] }).resources])];
         return { status: 200, body: { dismissed } };
       },
+      'POST /api/boards/b1/discovery/restore': (body) => {
+        const gone = new Set((body as { resources: string[] }).resources);
+        dismissed = dismissed.filter((r) => !gone.has(r));
+        return { status: 200, body: { dismissed } };
+      },
       ...over,
     });
     return { f, saved, dismissedOnHub: () => dismissed };
@@ -195,7 +256,11 @@ describe('the discovery Inbox item', () => {
     const item = panel().querySelector('.disc')!;
     expect(item.querySelector('.ib-title')!.textContent).toBe('3 services found by their labels. Add them?');
     expect(item.querySelector('.m')!.textContent).toBe('Mealie and Immich in Apps; Proxmox Backup Server in a new Backup section.');
-    expect([...item.querySelectorAll('.disc-list li')].map((li) => li.textContent)).toEqual(['MealieApps', 'ImmichApps', 'Proxmox Backup ServerBackup (new section)']);
+    expect([...item.querySelectorAll('.disc-list li')].map((li) => li.textContent)).toEqual([
+      'MealieApps · as Mealie service tile',
+      'ImmichApps · as Immich service tile',
+      'Proxmox Backup ServerBackup (new section)',
+    ]);
     // the question counts in the Inbox badge until it's answered
     const badge = Number(brief.find('.pill .badge').text());
     expect(badge).toBeGreaterThan(0);
@@ -207,7 +272,7 @@ describe('the discovery Inbox item', () => {
     const puts = f.calls.filter((c) => c.method === 'PUT');
     expect(puts).toHaveLength(1);
     expect(Object.keys(saved.tiles as object)).toEqual(
-      expect.arrayContaining(['service@docker:i_d/container/mealie', 'service@docker:i_d/container/immich_server', 'service@docker:i_d/container/proxmox-backup-server']),
+      expect.arrayContaining(['service@app:mealie', 'service@app:immich', 'service@docker:i_d/container/proxmox-backup-server']),
     );
     expect(board.board.value!.sections.map((s) => s.id)).toEqual(['media', 'apps', 'archive-backup', 'backup']);
     expect(discovery.suggestions.value).toEqual([]);
@@ -244,6 +309,39 @@ describe('the discovery Inbox item', () => {
     const again = await open(data);
     expect(again.discovery.suggestions.value.map((s) => s.resource)).toEqual(['docker:i_d/container/paperless']);
     expect(again.panel().querySelector('.disc .ib-title')!.textContent).toBe('One service found by its labels. Add it?');
+  });
+
+  it('takes a dismissal back with the toast’s Undo', async () => {
+    const { f, dismissedOnHub } = hub();
+    const { panel, ui, discovery } = await open();
+    panel().querySelector<HTMLButtonElement>('.disc .btn.ghost')!.click();
+    await flushPromises();
+    expect(dismissedOnHub()).toHaveLength(7);
+    const toast = ui.state.toasts.at(-1)!;
+    expect(toast.text).toBe('Dismissed 3 services. They aren’t offered again.');
+    expect(toast.action?.label).toBe('Undo');
+    // Edit mode's list names them by their labels, one row per service.
+    expect(discovery.dismissedServices.value.map((r) => [r.name, r.resources.length])).toEqual([
+      ['Immich', 2],
+      ['Mealie', 3],
+      ['Proxmox Backup Server', 2],
+    ]);
+    toast.action!.run();
+    await flushPromises();
+    expect(f.last('POST', '/api/boards/b1/discovery/restore')!.body).toEqual({ resources: expect.arrayContaining(['docker:jupiter/mealie', 'docker:jupiter/pbs']) });
+    expect(dismissedOnHub()).toEqual([]);
+    expect(discovery.suggestions.value.map((s) => s.name)).toEqual(['Mealie', 'Immich', 'Proxmox Backup Server']);
+    await nextTick();
+    expect(panel().querySelector('.disc')).not.toBeNull();
+  });
+
+  it('puts the dismissal back when the hub can’t restore it', async () => {
+    hub({ 'POST /api/boards/b1/discovery/restore': { status: 500, body: { error: { code: 'internal', message: 'x' } } } });
+    const { discovery } = await open();
+    const refs = await discovery.dismiss();
+    await expect(discovery.restore(refs)).rejects.toBeTruthy();
+    expect(discovery.suggestions.value).toEqual([]);
+    expect(discovery.dismissedServices.value).toHaveLength(3);
   });
 
   it('costs no request when nothing has labels, and suggests nothing until the dismissals arrive', async () => {

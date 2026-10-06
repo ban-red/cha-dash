@@ -61,17 +61,53 @@ func dismissed(ctx context.Context, q rowQuerier, boardID string) ([]string, err
 	return refs, rows.Err()
 }
 
+// checkRefs checks a batch of refs to dismiss or restore.
+func checkRefs(verb string, refs []string) error {
+	if len(refs) == 0 || len(refs) > MaxDismissBatch {
+		return fmt.Errorf("%w: %s 1–%d resources at a time", ErrInvalidRef, verb, MaxDismissBatch)
+	}
+	for _, r := range refs {
+		if r == "" || len(r) > MaxRefLen || !utf8.ValidString(r) {
+			return fmt.Errorf("%w: resource ids are 1–%d bytes of UTF-8", ErrInvalidRef, MaxRefLen)
+		}
+	}
+	return nil
+}
+
+// Restore forgets dismissals on a board (undoing a Dismiss, or Settings'
+// restore) and returns the ones it still has. Restoring one that isn't
+// dismissed is a no-op.
+func (s *Service) Restore(ctx context.Context, boardID string, refs []string) ([]string, error) {
+	if err := checkRefs("restore", refs); err != nil {
+		return nil, err
+	}
+	var out []string
+	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		var one int
+		err := tx.QueryRowContext(ctx, `SELECT 1 FROM boards WHERE id = ?`, boardID).Scan(&one)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		for _, r := range refs {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM board_dismissals WHERE board_id = ? AND ref = ?`, boardID, r); err != nil {
+				return err
+			}
+		}
+		out, err = dismissed(ctx, tx, boardID)
+		return err
+	})
+	return out, err
+}
+
 // Dismiss remembers refs as dismissed on a board and returns every
 // dismissal it now has. Dismissing one twice is a no-op; past MaxDismissed
 // the oldest are forgotten.
 func (s *Service) Dismiss(ctx context.Context, boardID string, refs []string) ([]string, error) {
-	if len(refs) == 0 || len(refs) > MaxDismissBatch {
-		return nil, fmt.Errorf("%w: dismiss 1–%d resources at a time", ErrInvalidRef, MaxDismissBatch)
-	}
-	for _, r := range refs {
-		if r == "" || len(r) > MaxRefLen || !utf8.ValidString(r) {
-			return nil, fmt.Errorf("%w: resource ids are 1–%d bytes of UTF-8", ErrInvalidRef, MaxRefLen)
-		}
+	if err := checkRefs("dismiss", refs); err != nil {
+		return nil, err
 	}
 	var out []string
 	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {

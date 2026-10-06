@@ -2,6 +2,7 @@ package boards
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -28,6 +29,7 @@ const MaxLayoutBytes = 1 << 20
 //	                                         Without tiles (or with null), the latest revision's carry over
 //	GET  /api/boards/{id}/discovery          {"dismissed":["<resource id>",…]}
 //	POST /api/boards/{id}/discovery/dismiss  {"resources":["<resource id>",…]} → 200 {"dismissed":[…]}
+//	POST /api/boards/{id}/discovery/restore  {"resources":["<resource id>",…]} → 200 {"dismissed":[…]}
 func (s *Service) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler, log *slog.Logger) {
 	h := handlers{s: s, log: log}
 	mux.Handle("GET /api/boards", wrap(http.HandlerFunc(h.list)))
@@ -35,6 +37,7 @@ func (s *Service) Register(mux *http.ServeMux, wrap func(http.Handler) http.Hand
 	mux.Handle("PUT /api/boards/{id}/layout", wrap(http.HandlerFunc(h.putLayout)))
 	mux.Handle("GET /api/boards/{id}/discovery", wrap(http.HandlerFunc(h.getDiscovery)))
 	mux.Handle("POST /api/boards/{id}/discovery/dismiss", wrap(http.HandlerFunc(h.dismiss)))
+	mux.Handle("POST /api/boards/{id}/discovery/restore", wrap(http.HandlerFunc(h.restore)))
 }
 
 type handlers struct {
@@ -149,20 +152,29 @@ func (h handlers) getDiscovery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handlers) dismiss(w http.ResponseWriter, r *http.Request) {
+	h.dismissals(w, r, h.s.Dismiss, "saving a dismissal failed")
+}
+
+func (h handlers) restore(w http.ResponseWriter, r *http.Request) {
+	h.dismissals(w, r, h.s.Restore, "restoring a dismissal failed")
+}
+
+// dismissals runs Dismiss or Restore on the body's resources.
+func (h handlers) dismissals(w http.ResponseWriter, r *http.Request, do func(context.Context, string, []string) ([]string, error), what string) {
 	var req struct {
 		Resources []string `json:"resources"`
 	}
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	refs, err := h.s.Dismiss(r.Context(), r.PathValue("id"), req.Resources)
+	refs, err := do(r.Context(), r.PathValue("id"), req.Resources)
 	switch {
 	case errors.Is(err, ErrNotFound):
 		notFound(w)
 	case errors.Is(err, ErrInvalidRef):
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", err.Error())
 	case err != nil:
-		h.internal(w, "saving a dismissal failed", err)
+		h.internal(w, what, err)
 	default:
 		httpx.WriteJSON(w, http.StatusOK, dismissedBody{Dismissed: refs})
 	}

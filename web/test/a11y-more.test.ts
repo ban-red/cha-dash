@@ -155,6 +155,46 @@ describe('edit mode: the widget picker and the tile editor', () => {
     await settle();
     expect(await axeViolations()).toEqual([]);
   });
+
+  it('the dismissed services, and the widget picker ⌘K opens', async () => {
+    fakeFetch({ 'GET /api/boards/b1/discovery': { status: 200, body: { dismissed: ['docker:jupiter/mealie', 'docker:gone/x'] } } });
+    const store = fakeStore(defaultBoard(docs(withIncidents).graph, Date.parse(withIncidents.now)));
+    const hs = harness(docs(withIncidents));
+    hs.board.state.boardId = 'b1';
+    hs.board.state.status = 'ready';
+    const Page = defineComponent({
+      setup() {
+        provideBoard(store);
+        return () => h('main', { class: 'page', 'aria-label': 'Front page' }, [h(BoardSurface, { board: store.board.value!, breakpoint: 'desktop' })]);
+      },
+    });
+    const w = hs.mountIn(Page);
+    mounted.push(w, { unmount: () => hs.live.stop() });
+    hs.ui.state.editing = true;
+    await settle();
+    await settle();
+    await w.findAll('.edit-bar button').find((b) => b.text().startsWith('Dismissed'))!.trigger('click');
+    await settle();
+    expect(document.querySelectorAll('dialog.dismissed li')).toHaveLength(2);
+    expect(await axeViolations()).toEqual([]);
+    await w.findAll('dialog.dismissed button').find((b) => b.text() === 'Done')!.trigger('click');
+    await settle();
+    hs.ui.state.addingWidget = true;
+    await settle();
+    await settle();
+    expect(document.querySelector('dialog.picker')?.hasAttribute('open')).toBe(true);
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it('the calendar’s tile editor, with its unmonitored option', async () => {
+    const w = await editing();
+    w.findComponent(LayoutBoard).vm.$emit('select', 'calendar');
+    await settle();
+    await w.findAll('button').find((b) => b.text() === 'Edit')!.trigger('click');
+    await settle();
+    expect(document.querySelector('dialog.editor input[type="checkbox"]')).not.toBeNull();
+    expect(await axeViolations()).toEqual([]);
+  });
 });
 
 describe('the first-run wizard', () => {

@@ -7,8 +7,11 @@
  * the widget picker and the tile editor are chunks of their own again,
  * loaded on first use.
  *
- * - **Add:** the toolbar's "Add widget", or a section's "Add", opens the
- *   picker (WidgetPicker.vue); the widget lands in the first gap that fits.
+ * - **Add:** the toolbar's "Add widget", a section's "Add", or ⌘K's "Add
+ *   widget" (`ui.state.addingWidget`) opens the picker (WidgetPicker.vue);
+ *   the widget lands in the first gap that fits.
+ * - **Dismissed:** label discovery's dismissed services on this board, to
+ *   offer again (DismissedServices.vue, lazy), when there are any.
  * - **Edit / Remove:** for the selected tile (the one last focused or
  *   grabbed), from the toolbar; Delete or Backspace removes it too. Removing
  *   never asks: Undo puts it back, config and all.
@@ -17,7 +20,7 @@
  *   through the board store; on a 409 the store loads the other writer's
  *   board, which starts a fresh history because it isn't the present one.
  */
-import { computed, defineAsyncComponent, nextTick, ref } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onMounted, ref, watch } from 'vue';
 import { LayoutError, type Board, type Breakpoint, type Item } from '@chadash/layout';
 import { LayoutBoard } from '@chadash/layout-vue';
 import { onKeyStroke } from '@vueuse/core';
@@ -25,6 +28,7 @@ import SectionHeader from './SectionHeader.vue';
 import { useBoardHistory } from './useBoardHistory';
 import WidgetHost from '../widgets/WidgetHost.vue';
 import { label } from '../model/graph';
+import { labelContainers } from '../model/discovery';
 import { addWidget, editTile, removeTile, sectionOf, targetOf, type AddRequest, type BoardState } from '../model/edit';
 import { WIDGETS } from '../model/widgets';
 import { useBoard } from '../stores/board';
@@ -35,6 +39,7 @@ import { useUi } from '../stores/ui';
 
 const WidgetPicker = defineAsyncComponent(() => import('./WidgetPicker.vue'));
 const TileEditor = defineAsyncComponent(() => import('./TileEditor.vue'));
+const DismissedServices = defineAsyncComponent(() => import('./DismissedServices.vue'));
 
 const { board, breakpoint } = defineProps<{ board: Board; breakpoint?: Breakpoint | undefined }>();
 const emit = defineEmits<{ done: [] }>();
@@ -52,6 +57,9 @@ const selected = ref('');
 const picking = ref<{ sectionId: string } | null>(null);
 /** The tile being edited. */
 const editingId = ref('');
+/** The dismissed services' list is open. */
+const showDismissed = ref(false);
+const dismissedCount = computed(() => discovery?.dismissedServices.value.length ?? 0);
 
 const items = computed(() => new Map(present.value.board.sections.flatMap((s) => s.items.map((i) => [i.id, i] as const))));
 const selectedItem = computed(() => items.value.get(selected.value));
@@ -144,10 +152,27 @@ function removeItem(id: string): void {
   if (selected.value === id) selected.value = '';
   if (next) void focusItem(next);
   ui.toast(`Removed ${name}. Undo puts it back.`);
-  // A tile label discovery suggested and you removed isn't suggested again.
-  const found = config?.origin?.source === 'labels' ? config.bind?.resource : undefined;
-  if (found && discovery) discovery.remember([found]).catch(() => undefined);
+  // A tile label discovery suggested and you removed isn't suggested again:
+  // its container, or, for a catalog widget showing the container's app, the
+  // containers its labels name.
+  const origin = config?.origin;
+  if (origin?.source === 'labels' && discovery) {
+    const found = config?.bind?.resource ? [config.bind.resource] : labelContainers(live.graph.value, origin.group ?? '', origin.entry ?? '');
+    if (found.length) discovery.remember(found).catch(() => undefined);
+  }
 }
+
+// ⌘K → "Add widget": open the picker once edit mode is here.
+watch(
+  () => ui.state.addingWidget,
+  (asked) => {
+    if (!asked) return;
+    ui.state.addingWidget = false;
+    openPicker();
+  },
+  { immediate: true },
+);
+onMounted(() => discovery?.ensureLoaded());
 
 /** Delete or Backspace on a focused tile removes it (not while it's picked up). */
 function onKeydown(e: KeyboardEvent): void {
@@ -176,6 +201,7 @@ onKeyStroke('z', (e) => {
     <span v-else class="edit-hint">Drag a tile, or resize it from its corner. Select one to edit or remove it. With the keyboard, Enter picks a tile up and the arrows move it.</span>
     <span v-if="store.state.unsaved" class="edit-unsaved" role="status">Not saved</span>
     <button type="button" class="btn sm" @click="openPicker()">Add widget</button>
+    <button v-if="dismissedCount" type="button" class="btn ghost sm" @click="showDismissed = true">Dismissed · {{ dismissedCount }}</button>
     <button type="button" class="btn ghost sm" :disabled="!history.canUndo.value" @click="step('undo')">Undo</button>
     <button type="button" class="btn ghost sm" :disabled="!history.canRedo.value" @click="step('redo')">Redo</button>
     <button type="button" class="btn primary sm" @click="emit('done')">Done</button>
@@ -202,6 +228,7 @@ onKeyStroke('z', (e) => {
   </div>
   <WidgetPicker v-if="picking" :board="present.board" :tiles="present.tiles" :section-id="picking.sectionId" @add="onAdd" @close="picking = null" />
   <TileEditor v-if="editingItem" :item="editingItem" :config="present.tiles[editingItem.id]" @save="onEdit" @close="editingId = ''" />
+  <DismissedServices v-if="showDismissed && discovery" @close="showDismissed = false" />
 </template>
 
 <style>
@@ -324,6 +351,20 @@ onKeyStroke('z', (e) => {
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
+}
+.edit-dlg .field.check label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  color: var(--text);
+}
+.edit-dlg .field.check input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--text);
 }
 .edit-dlg .pk-to select {
   width: auto;

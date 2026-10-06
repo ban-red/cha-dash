@@ -143,6 +143,7 @@ var Routes = []Route{
 	{Pattern: "GET /api/boards/{id}/discovery", Access: Viewer},
 	{Pattern: "PUT /api/boards/{id}/layout", Access: Admin},
 	{Pattern: "POST /api/boards/{id}/discovery/dismiss", Access: Admin},
+	{Pattern: "POST /api/boards/{id}/discovery/restore", Access: Admin},
 
 	// Actions: the engine authorizes each one (Policy), so the routes only
 	// need a session. Added by the action engine track.
