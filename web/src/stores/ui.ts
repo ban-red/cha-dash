@@ -130,7 +130,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     live,
     state,
     toast,
-    openRecipe: (instance) => openSettings('integrations', instance),
+    // An action refused as unavailable: the instance's "Let Cha Dash act" section.
+    openRecipe: (instance) => openSettings('integrations', instance, { section: 'control' }),
     canOpenRecipe: () => can.value.integrations,
     ...(hooks.pollMs !== undefined ? { pollMs: hooks.pollMs } : {}),
   });

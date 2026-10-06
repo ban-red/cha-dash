@@ -143,7 +143,7 @@ const id = computed(() => `ib-${incident.id}`);
         <p v-if="primary.hidden" class="sub">Your role can see this but not run “{{ action.label }}”. Ask an admin or the owner.</p>
         <p v-else-if="!primary.ok && primary.why && !live.stale.value && fix?.state !== 'failed'" class="sub">{{ primary.why }}</p>
         <p v-if="fix?.state === 'failed'" class="err" role="alert">{{ fix.error }}</p>
-        <button v-if="recipe && ui.can.value.integrations" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe)">Open its settings</button>
+        <button v-if="recipe && ui.can.value.integrations" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe, { section: 'control' })">Open its settings</button>
       </div>
 
       <div v-if="facts.length">

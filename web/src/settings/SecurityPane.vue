@@ -4,7 +4,8 @@
  * security findings interrupt you) and how destructive actions are confirmed
  * (StepUpSetting.vue), both the owner's; then your passkeys. Add one (on this
  * device), rename them so you can tell them apart, delete the ones you no
- * longer have. Admins see only their passkeys here.
+ * longer have. Admins see only their passkeys here. Last, where Cha Dash
+ * itself runs (HubPlace.vue).
  *
  * Passkeys need a secure context (HTTPS, or localhost). On a plain LAN
  * address the page explains that instead of offering a button that can't
@@ -12,6 +13,7 @@
  */
 import { nextTick, onMounted, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
+import HubPlace from './HubPlace.vue';
 import SecurityLevel from './SecurityLevel.vue';
 import StepUpSetting from './StepUpSetting.vue';
 import { ago, absolute } from '../lib/format';
@@ -177,6 +179,7 @@ onMounted(load);
       </li>
     </ul>
   </section>
+  <HubPlace />
 </template>
 
 <style>

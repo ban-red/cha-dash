@@ -64,6 +64,20 @@ a.mono:hover {
   background: var(--text);
   color: var(--text-inverse);
 }
+/* A cached icon (stores/icons.ts) in place of the monogram: no frame, and
+   the hover lifts it rather than inverting it. */
+.mono.has-icon {
+  border-color: transparent;
+  overflow: hidden;
+}
+a.mono.has-icon:hover {
+  background: var(--surface-hover);
+}
+.mono-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .tn {
   white-space: nowrap;
   overflow: hidden;

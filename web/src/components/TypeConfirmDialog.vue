@@ -13,7 +13,8 @@
 import { computed, nextTick, onMounted, ref, useId, useTemplateRef } from 'vue';
 import Glyph from './marks/Glyph.vue';
 import { useModal } from '../board/useModal';
-import { impactName, relationWords } from '../model/words';
+import { HUB_WARNING, hitsHub, hubFirst, impactName, relationWords } from '../model/words';
+import { isHub } from '../model/hub';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 
@@ -29,7 +30,8 @@ const plan = computed(() => c.value?.plan);
 const expected = computed(() => plan.value?.confirm_text ?? '');
 const typed = ref('');
 const matches = computed(() => expected.value !== '' && typed.value.trim() === expected.value);
-const impacts = computed(() => (plan.value?.impact ?? []).slice(0, 20));
+const impacts = computed(() => hubFirst(live.graph.value, plan.value?.impact ?? []).slice(0, 20));
+const takesHub = computed(() => hitsHub(live.graph.value, (plan.value?.impact ?? []).map((x) => x.resource)));
 const more = computed(() => (plan.value?.impact?.length ?? 0) - impacts.value.length);
 const fourth = computed(() => plan.value?.tier === 'T4');
 
@@ -62,6 +64,8 @@ onMounted(async () => {
         {{ fourth ? 'It’s critical, so Cha Dash asks you to confirm it’s you every time.' : '' }}
       </p>
 
+      <p v-if="takesHub" class="act-hub" role="alert"><Glyph kind="attn" /><span>{{ HUB_WARNING }}</span></p>
+
       <section v-if="plan.steps?.length" class="act-sec" :aria-labelledby="`${uid}-steps`">
         <h3 :id="`${uid}-steps`">What Cha Dash will do</h3>
         <ol class="act-steps">
@@ -72,8 +76,8 @@ onMounted(async () => {
       <section class="act-sec" :aria-labelledby="`${uid}-lost`">
         <h3 :id="`${uid}-lost`">What will be lost or affected · {{ plan.impact?.length ?? 0 }}</h3>
         <ul v-if="impacts.length" class="act-impact">
-          <li v-for="x in impacts" :key="x.resource">
-            <Glyph :kind="x.depth <= 1 ? 'down' : 'attn'" />
+          <li v-for="x in impacts" :key="x.resource" :class="{ 'is-self': isHub(live.graph.value, x.resource) }">
+            <Glyph :kind="x.depth <= 1 || isHub(live.graph.value, x.resource) ? 'down' : 'attn'" />
             <span>{{ impactName(live.graph.value, x.resource) }}</span>
             <span class="via">{{ relationWords(x.via) }}</span>
           </li>

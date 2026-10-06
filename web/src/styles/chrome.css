@@ -333,6 +333,34 @@
   color: var(--text-3);
   white-space: nowrap;
 }
+
+/* Cha Dash itself in a blast radius (model/hub.ts): the confirmations say so
+   first, in the down colour, so nobody reboots the host the dashboard is on
+   without noticing. */
+.confirm .confirm-note.is-self,
+.act-hub {
+  border-color: color-mix(in oklch, var(--down) 55%, var(--line));
+  background: var(--down-bg);
+}
+.act-hub {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+  padding: 8px 10px;
+  border: var(--hairline) solid color-mix(in oklch, var(--down) 55%, var(--line));
+  border-radius: var(--radius-md);
+  font-size: var(--type-small);
+  color: var(--text);
+}
+.blast li.is-self,
+.act-impact li.is-self {
+  color: var(--down-text);
+  font-weight: var(--weight-medium);
+}
+.blast li.is-self {
+  opacity: 1;
+}
 .hold {
   position: relative;
   display: inline-flex;

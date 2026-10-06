@@ -41,6 +41,8 @@ export interface JsonSchema {
   writeOnly?: boolean;
   /** A secret the integration's sign-in flow can fill in (Plex's PIN): the form offers "Sign in with …". */
   'x-chadash-authorize'?: boolean;
+  /** "control": part of the control credential, shown under "Let Cha Dash act" (model/control.ts). */
+  'x-chadash-group'?: string;
   readOnly?: boolean;
   examples?: unknown[];
   if?: JsonSchema;

@@ -47,6 +47,7 @@ onMounted(() => {
     :integration-id="v.add || undefined"
     :focus="route.query['field']"
     :reason="route.query['reason']"
+    :section="route.query['section']"
   />
 
   <!-- The catalog -->

@@ -12,7 +12,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AnimatePresence, motion } from 'motion-v';
 import Glyph from './marks/Glyph.vue';
 import HoldToConfirm from './HoldToConfirm.vue';
-import { relationWords, impactName } from '../model/words';
+import { HUB_WARNING, hitsHub, hubFirst, relationWords, impactName } from '../model/words';
+import { isHub } from '../model/hub';
 import { transition, useReducedMotion } from '../lib/motion';
 import { trapTab } from '../lib/trap';
 import { useLive } from '../stores/live';
@@ -30,8 +31,9 @@ const review = computed(() => req.value?.kind === 'review');
 const impacts = computed(() => {
   const c = req.value;
   if (!c) return [];
-  return (c.plan?.impact ?? c.action.impact ?? c.incident?.blast_radius ?? []).slice(0, 12);
+  return hubFirst(live.graph.value, c.plan?.impact ?? c.action.impact ?? c.incident?.blast_radius ?? []).slice(0, 12);
 });
+const takesHub = computed(() => hitsHub(live.graph.value, impacts.value.map((x) => x.resource)));
 const steps = computed(() => req.value?.plan?.steps ?? []);
 const verb = computed(() => (req.value?.action.label.split(' ')[0] ?? 'confirm').toLowerCase());
 const compact = computed(() => typeof window !== 'undefined' && window.innerWidth < 640);
@@ -96,12 +98,13 @@ const lit = (i: number) => review.value || progress.value >= ((i + 0.5) / Math.m
         >
           <h3 id="confirm-h">{{ req.action.label }} <span class="chip">{{ req.action.tier }}</span></h3>
           <p v-if="req.note" class="confirm-note" role="note"><Glyph kind="attn" />{{ req.note }}</p>
+          <p v-if="takesHub" class="confirm-note is-self" role="alert"><Glyph kind="attn" />{{ HUB_WARNING }}</p>
           <p id="confirm-d">{{ req.action.detail ? `${req.action.detail} ` : '' }}{{ review ? 'Check the plan, then run it.' : 'Hold to confirm. Let go to cancel.' }}</p>
           <ol v-if="steps.length" class="confirm-steps" aria-label="What Cha Dash will do">
             <li v-for="(s, i) in steps" :key="i">{{ s.label }}</li>
           </ol>
           <ul class="blast" aria-label="What this affects">
-            <li v-for="(x, i) in impacts" :key="x.resource" :class="{ on: lit(i) }">
+            <li v-for="(x, i) in impacts" :key="x.resource" :class="{ on: lit(i), 'is-self': isHub(live.graph.value, x.resource) }">
               <Glyph :kind="x.depth <= 1 ? 'attn' : 'ok'" />
               <span>{{ impactName(live.graph.value, x.resource) }}</span>
               <span class="via">{{ relationWords(x.via) }}</span>

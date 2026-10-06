@@ -15,9 +15,13 @@
  * - The integration's least-privilege recipe sits beside the form
  *   (RecipePanel), open while adding; what discovery found pre-fills a new
  *   one (onboarding/draft.ts).
+ * - The control credential (or mode) is its own folded section, "Let Cha
+ *   Dash act" (ControlSection), with the recipe's control variant beside the
+ *   form. `?section=control` (an action refused as unavailable) opens it.
  */
 import { computed, nextTick, onMounted, provide, reactive, ref, shallowRef } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
+import ControlSection from './ControlSection.vue';
 import RecipePanel from './RecipePanel.vue';
 import SchemaField from './SchemaField.vue';
 import TestResultView from './TestResultView.vue';
@@ -50,14 +54,17 @@ import {
   updateInstance,
 } from '../stores/integrations';
 import { useUi } from '../stores/ui';
+import { actStatus, controlKeys, hasControl } from '../model/control';
 
-const { instanceRef, integrationId, focus, reason } = defineProps<{
+const { instanceRef, integrationId, focus, reason, section } = defineProps<{
   /** An instance id (or, from a Repair, a name or integration id to resolve). */
   instanceRef?: string | undefined;
   /** Adding a new instance of this integration. */
   integrationId?: string | undefined;
   focus?: string | undefined;
   reason?: string | undefined;
+  /** "control": open and scroll to "Let Cha Dash act". */
+  section?: string | undefined;
 }>();
 
 const ui = useUi();
@@ -70,10 +77,19 @@ const EMPTY: JsonSchema = { type: 'object', properties: {} };
 const schema = computed<JsonSchema>(() => entry.value?.config_schema ?? EMPTY);
 const kindName = computed(() => entry.value?.name ?? detail.value?.integration ?? integrationId ?? 'integration');
 const recipe = computed(() => entry.value?.recipe);
-const fieldLabels = computed(() => {
+const fieldLabels = computed(() => labelsFor(recipe.value?.fills));
+function labelsFor(fills: Record<string, string> | undefined): Record<string, string> {
   const props = schema.value.properties ?? {};
-  return Object.fromEntries(Object.keys(recipe.value?.fills ?? {}).map((k) => [k, fieldLabel(k, props[k] ?? {})]));
-});
+  return Object.fromEntries(Object.keys(fills ?? {}).map((k) => [k, fieldLabel(k, props[k] ?? {})]));
+}
+
+// The control credential: its own section, and its recipe beside the form.
+const control = computed(() => (hasControl(entry.value?.control) ? entry.value!.control : undefined));
+const ctlKeys = computed(() => controlKeys(control.value, schema.value));
+const mainKeys = computed(() => Object.keys(schema.value.properties ?? {}).filter((k) => !ctlKeys.value.includes(k)));
+const controlRecipe = computed(() => (control.value ? recipe.value?.control : undefined));
+const controlLabels = computed(() => labelsFor(controlRecipe.value?.fills));
+const controlOpen = ref(false);
 
 const name = ref('');
 const values = reactive<Record<string, unknown>>({});
@@ -95,6 +111,8 @@ const errors = computed<Errors>(() => {
   return e;
 });
 const dirty = computed(() => JSON.stringify({ n: name.value.trim(), c: config.value }) !== initial || Object.values(secrets).some((v) => v !== ''));
+const savedAct = computed(() => (control.value && detail.value ? actStatus(control.value, schema.value, detail.value.config ?? {}, held.value) : undefined));
+const currentAct = computed(() => (control.value ? actStatus(control.value, schema.value, config.value, held.value, secrets) : undefined));
 const readOnly = computed(() => isReadOnly(config.value));
 
 provide(FORM, {
@@ -110,6 +128,11 @@ provide(FORM, {
 
 type TestState = { state: 'idle' } | { state: 'running' } | { state: 'done'; result: TestResult } | { state: 'error'; message: string };
 const test = ref<TestState>({ state: 'idle' });
+/** The hub's hint that this connection could act (Test's control_available warning). */
+const controlNote = computed(() => {
+  const ws = [...(test.value.state === 'done' ? (test.value.result.warnings ?? []) : []), ...(detail.value?.warnings ?? [])];
+  return ws.find((w) => w.code === 'control_available')?.message ?? '';
+});
 
 function reset(d: InstanceDetail | undefined): void {
   detail.value = d;
@@ -133,6 +156,7 @@ function onFill(patch: Record<string, string>): void {
 }
 
 async function focusField_(path: string | undefined): Promise<void> {
+  if (path && ctlKeys.value.includes(path.split('.')[0]!)) controlOpen.value = true;
   await nextTick();
   const el = path ? document.getElementById(path === 'name' ? 'f-name' : fieldId(path)) : undefined;
   el?.focus();
@@ -166,6 +190,7 @@ onMounted(async () => {
     status.value = 'ready';
     focusPath.value = focusField(schema.value, focus, reason);
     if (focusPath.value) await focusField_(focusPath.value);
+    else if (section === 'control') await openControl();
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) status.value = 'missing';
     else {
@@ -174,6 +199,16 @@ onMounted(async () => {
     }
   }
 });
+
+/** An unavailable action's recipe link: the control section, open and in view. */
+async function openControl(): Promise<void> {
+  if (!control.value) return;
+  controlOpen.value = true;
+  await nextTick();
+  const el = document.getElementById('control');
+  el?.scrollIntoView?.({ block: 'start' });
+  el?.querySelector<HTMLElement>('summary')?.focus();
+}
 
 /** Add an instance of this integration, keeping the field to focus. */
 function addPath(id: string): string {
@@ -363,13 +398,26 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
             </div>
 
             <SchemaField
-              v-for="(sub, key) in schema.properties"
+              v-for="key in mainKeys"
               :key="key"
-              :schema="sub"
+              :schema="schema.properties![key]!"
               :container="values"
               :k="key"
-              :path="String(key)"
-              :required="(schema.required ?? []).includes(String(key))"
+              :path="key"
+              :required="(schema.required ?? []).includes(key)"
+            />
+
+            <ControlSection
+              v-if="control && ctlKeys.length && currentAct"
+              v-model:open="controlOpen"
+              :control="control"
+              :schema="schema"
+              :keys="ctlKeys"
+              :values="values"
+              :saved="savedAct"
+              :current="currentAct"
+              :kind="isNew ? kindName : (detail?.name ?? kindName)"
+              :note="controlNote"
             />
 
             <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
@@ -408,6 +456,17 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
             :open="isNew"
             @fill="onFill"
           />
+          <div v-if="controlRecipe" class="ed-control-recipe">
+            <h4 class="caps">To let Cha Dash act</h4>
+            <RecipePanel
+              :recipe="controlRecipe"
+              :form="config"
+              :name="name"
+              :labels="controlLabels"
+              :open="controlOpen"
+              @fill="onFill"
+            />
+          </div>
         </div>
       </div>
     </template>
@@ -436,6 +495,15 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
 }
 .ed-test:empty {
   display: none;
+}
+.ed-control-recipe {
+  margin-top: var(--space-5);
+}
+.ed-control-recipe h4 {
+  margin-bottom: var(--space-2);
+  font: var(--weight-medium) var(--type-caption) / 1.3 var(--font-ui);
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-2);
 }
 .ed-grid,
 .ed-main {

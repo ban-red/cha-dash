@@ -5,8 +5,8 @@
  *   POST /api/import/chadash (same body) → {plan, changed, board_ids, instance_ids}
  *
  * plan: {format, exported_at, hub_version, changes [{kind: board|layout|tiles|
- * instance|setting, id, name, file_id?, integration?, action: create|update|
- * unchanged|stale, detail?, fields [{path, op: add|replace|remove|reorder,
+ * instance|setting|security|correlation, id, name, file_id?, integration?,
+ * action: create|update|unchanged|stale, detail?, skipped?, fields [{path, op: add|replace|remove|reorder,
  * from?, to?}], truncated?, secrets [{field, secret, action: create|update|
  * unchanged|needed, source?: bundle|vault, in_bundle?}]}], secrets_needed
  * [{instance, name, integration, field, secret, in_bundle?}], bundle {present,
@@ -18,7 +18,7 @@
  */
 
 export type Action = 'create' | 'update' | 'unchanged' | 'stale';
-export type Kind = 'board' | 'layout' | 'tiles' | 'instance' | 'setting';
+export type Kind = 'board' | 'layout' | 'tiles' | 'instance' | 'setting' | 'security' | 'correlation';
 
 export interface FieldRow {
   path: string;
@@ -98,6 +98,8 @@ const KINDS: { kind: Kind; title: string }[] = [
   { kind: 'tiles', title: 'Tile settings' },
   { kind: 'instance', title: 'Connections' },
   { kind: 'setting', title: 'Settings' },
+  { kind: 'security', title: 'Security settings' },
+  { kind: 'correlation', title: 'Same-thing decisions' },
 ];
 const ACTIONS: Action[] = ['create', 'update', 'unchanged', 'stale'];
 const OPS: FieldRow['op'][] = ['add', 'replace', 'remove', 'reorder'];
@@ -177,7 +179,11 @@ export function backupPreviewOf(res: unknown): BackupPreview {
     if (integration) row.integration = integration;
     const detail = str(c['detail']);
     if (detail) row.detail = detail;
-    (action === 'unchanged' ? section.unchanged : section.changed).push(row);
+    // A change the file asks for that isn't made (security settings, for
+    // anyone but the owner): shown with its fields and why.
+    const skipped = str(c['skipped']);
+    if (skipped) row.detail = `Not imported: ${skipped}`;
+    (action === 'unchanged' && !skipped ? section.unchanged : section.changed).push(row);
   });
 
   const summary = obj(plan['summary']);

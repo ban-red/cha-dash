@@ -100,7 +100,7 @@ describe('Settings → Security → Security level', () => {
     const w = mountIn(SecurityPane);
     await flushPromises();
     const headings = w.findAll('.st-section > header h3').map((h) => h.text());
-    expect(headings).toEqual(['Security level', 'Confirming destructive actions', 'Passkeys']);
+    expect(headings).toEqual(['Security level', 'Confirming destructive actions', 'Passkeys', 'Where Cha Dash runs']);
     expect(w.find('.st-section .st-note.bad').text()).toContain('doesn’t have that yet');
   });
 });

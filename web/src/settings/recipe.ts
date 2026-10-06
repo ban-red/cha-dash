@@ -58,6 +58,8 @@ export interface Recipe {
   notes: RecipeBlock[];
   fills: Record<string, string>;
   grants: string[];
+  /** The control variant: a credential that also lets Cha Dash act (its fills name the control fields). */
+  control?: Recipe;
 }
 
 /** The access label, in words, with the sentence that explains it. */

@@ -12,13 +12,18 @@
  * The board's tile config (stores/tiles.ts, provided by WidgetHost) has the
  * last word on identity, for every widget alike: its name replaces the
  * widget's, its link the widget's, and a chromeless tile has no header.
+ *
+ * The mark is the tile's icon when the hub has cached one (stores/icons.ts:
+ * the CSP keeps images from other origins out), else the monogram. A tile
+ * that needs you keeps the monogram, whose colour is the state.
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
 import { hhmm, monogram } from '../lib/format';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
+import { iconFor, iconMap, wantsIcon } from '../stores/icons';
 
 export type TileStatus = 'ok' | 'attention' | 'down' | 'off' | 'maintenance' | 'repair' | 'unknown';
 
@@ -85,6 +90,15 @@ const classes = computed(() => [
 const label = computed(() => [shownName.value, context, tag].filter(Boolean).join(', '));
 const mark = computed(() => (tile.config.value?.name ? monogram(tile.config.value.name) : (mono ?? monogram(name))));
 
+// The cached icon, once the board has loaded the map; an image that fails
+// to load falls back to the monogram.
+const broken = ref('');
+const icon = computed(() => {
+  if (status === 'attention' || status === 'down' || !wantsIcon(tile.config.value, shownHref.value)) return undefined;
+  const src = iconFor(iconMap.value, tile.config.value, shownHref.value);
+  return src && src !== broken.value ? src : undefined;
+});
+
 function onKey(e: KeyboardEvent) {
   if (!clickable) return;
   if (e.key === 'Enter' || e.key === ' ') {
@@ -104,8 +118,14 @@ function onKey(e: KeyboardEvent) {
     @keydown="onKey"
   >
     <div v-if="!chromeless" class="th">
-      <a v-if="shownHref" class="mono" :href="shownHref" target="_blank" rel="noopener noreferrer" :aria-label="`Open ${shownName}`" @click.stop>{{ mark }}</a>
-      <span v-else class="mono" aria-hidden="true">{{ mark }}</span>
+      <a v-if="shownHref" :class="['mono', { 'has-icon': icon }]" :href="shownHref" target="_blank" rel="noopener noreferrer" :aria-label="`Open ${shownName}`" @click.stop>
+        <img v-if="icon" class="mono-img" :src="icon" alt="" @error="broken = icon ?? ''" />
+        <template v-else>{{ mark }}</template>
+      </a>
+      <span v-else :class="['mono', { 'has-icon': icon }]" aria-hidden="true">
+        <img v-if="icon" class="mono-img" :src="icon" alt="" @error="broken = icon ?? ''" />
+        <template v-else>{{ mark }}</template>
+      </span>
       <span class="tn">{{ shownName }}</span>
       <span v-if="context" class="tc">{{ context }}</span>
       <span v-if="isStale && staleSince" class="tg"><span class="asof" :title="'Last-known value'">as of {{ staleSince }}</span></span>

@@ -13,6 +13,7 @@
 import type { JsonSchema } from '../lib/schema';
 import { secretPaths } from '../lib/schema';
 import type { Recipe } from '../settings/recipe';
+import type { ControlSpec } from './control';
 import type { Incident } from './types';
 
 export type InstanceStatus = 'ok' | 'degraded' | 'repair' | 'error' | 'disabled';
@@ -33,6 +34,8 @@ export interface CatalogEntry {
   config_schema: JsonSchema;
   /** How to make a credential with exactly the access it needs (settings/recipe.ts). */
   recipe?: Recipe;
+  /** Where its actions get their credential: a control group or a mode (model/control.ts). */
+  control?: ControlSpec;
 }
 
 export interface Instance {
