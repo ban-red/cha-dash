@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Notifications (wave 10, track 10A)
+- **Settings → Notifications**: Web Push to your browsers, ntfy, and signed webhooks. Each channel has a test button that sends one now and says how it went, and the delivery log shows every message, failures included.
+- **Symptom-first defaults.** Something down is sent at once. Something that needs attention waits 5 minutes first, so a flap that clears by itself never pages anyone. An integration to reconnect and a stuck stack notify once each. Hints never notify, and neither do security findings at the Relaxed level. Resolutions are sent for things that were down.
+- **Quiet by design.** One message per problem per change, also across restarts. Several at once, as on a backup night, arrive as one message. A burst past a channel's limit is dropped and logged, not queued.
+- **Every critical (T4) action** notifies the admins and the owner, however it ended. This rule can't be turned off.
+- **"Notify me on this device"**, for every role, in Settings → Notifications. The browser only asks for permission when you click it. A notification opens the incident in the Inbox. Household accounts hear only about what's on their boards.
+- Failed sends are retried with backoff (30 s, 2 min, 10 min, 30 min), honouring `Retry-After`. Devices whose subscription expired are removed.
+- Webhooks are versioned JSON with an `X-Chadash-Signature` HMAC-SHA256 header; the format is in `internal/notify/README.md`. Links in messages need `CHADASH_PUBLIC_URL`.
+
 ### Owned stacks (wave 9, track 9B)
 - **Settings → Stacks**: manage compose stacks on each node from the web. It lists status, drafts, drift and Cha Dash's own protected stack, and adopts running projects in place.
 - A plain compose editor checks the file as you type: errors with line numbers, referenced secrets, a plan per service and a diff. Drafts save on the hub.

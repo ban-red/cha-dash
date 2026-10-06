@@ -1,6 +1,6 @@
 # @chadash/web
 
-The Cha Dash web app: first-run setup (with an optional passkey, then "Connect your home") and sign-in (password or passkey), the front page (Briefing, Needs attention, the board), the Inbox, the safety ladder on the hub's action engine (plan, confirm by tier, step-up, tasks and cancelling them), the ⌘K command bar with actions, Settings (integrations, owned stacks, import from Homepage, backup, users, the audit log, the security level, step-up and passkeys), and the realtime client. An installable PWA that opens on the last-known page when the hub can't be reached. Vue 3.6 and Vite, built into `internal/webui/dist`, which the hub embeds with `go build -tags webui`.
+The Cha Dash web app: first-run setup (with an optional passkey, then "Connect your home") and sign-in (password or passkey), the front page (Briefing, Needs attention, the board), the Inbox, the safety ladder on the hub's action engine (plan, confirm by tier, step-up, tasks and cancelling them), the ⌘K command bar with actions, Settings (integrations, owned stacks, import from Homepage, backup, users, the audit log, notifications, the security level, step-up and passkeys), and the realtime client. An installable PWA that opens on the last-known page when the hub can't be reached, and shows the hub's Web Push notifications. Vue 3.6 and Vite, built into `internal/webui/dist`, which the hub embeds with `go build -tags webui`.
 
 Design: Direction A ("Instrument") from [02 · Experience](../docs/plan/02-experience.md), following [prototype v2](../design/prototypes/m0-v2.html). Every colour, size and spring comes from [`@chadash/tokens`](../design/tokens/README.md).
 
@@ -35,7 +35,7 @@ Passkeys work at `http://localhost:3697` (the dev server's URL) with no configur
 ```
 index.html            no inline script or style; loads public/boot.js, then src/main.ts
 public/               boot.js (theme before first paint), manifest.webmanifest, icons/, favicon
-sw/service-worker.js  the service worker's source; `vite build` emits it as /sw.js
+sw/service-worker.js  the service worker's source (the shell cache, and showing notifications); `vite build` emits it as /sw.js
 src/
   main.ts             tokens.css, fonts, global styles, mount, service worker registration
   App.vue             the doors: setup · passkey offer (lazy) · sign-in · front page (lazy) · unreachable
@@ -46,7 +46,8 @@ src/
   settings/           SettingsSheet (lazy) and its panes: IntegrationsPane, IntegrationEditor,
                       SchemaField (forms from JSON Schema), TestResultView, ImportPane,
                       BackupPane, UsersPane and AuditPane (each its own chunk), StacksPane (one
-                      chunk with StackEditor, StackSecrets and stacks.ts), SecurityPane
+                      chunk with StackEditor, StackSecrets and stacks.ts), NotificationsPane (one
+                      chunk with NotifyDevice and notify.ts), SecurityPane
                       (with SecurityLevel and StepUpSetting)
   dev/                dev-server-only pieces (Login as Local Dev); each export is undefined in
                       `vite build`, so production bundles carry none of it
@@ -75,6 +76,7 @@ src/
   lib/                router, fetch wrapper, RFC 6902 applier, formatting, themes, motion tokens,
                       fuzzy, schema (JSON Schema subset), webauthn, passkeys, actions (plan, approve,
                       tasks, cancel, a target's actions, refusals), stepup, trap (Tab inside a dialog), snapshot (IndexedDB),
+                      push (Notify me on this device),
                       inline (the hub's first-paint snapshot), pwa
   styles/             fonts, base, board, tiles, chrome (global, token-only CSS)
 test/                 Vitest: patches, protocol, stores, components, ⌘K, Inbox, the safety ladder on a
@@ -116,6 +118,7 @@ test/                 Vitest: patches, protocol, stores, components, ⌘K, Inbox
 | `/settings/backup` | export this hub as a Home file; import one with the diff preview |
 | `/settings/users` | users and roles (owner; admins for everyone but the owner) |
 | `/settings/audit` | the audit log and its chain (owner, admin) |
+| `/settings/notifications` | "Notify me on this device" and your devices (every role); the rules, channels with tests, and the delivery log (owner, admin) |
 | `/settings/security` | the security level and step-up (owner), then passkeys |
 
 Settings is a sheet over the front page, not a separate app: the board, the socket and the Inbox stay live underneath, and Esc goes back.
@@ -141,7 +144,9 @@ When the plan's `step_up` is `required` (no grant on this session) or `fresh` (T
 
 **Step-up** (`components/StepUpDialog.vue` with `lib/stepup.ts`, one lazy chunk). `POST /api/auth/step-up/begin` answers WebAuthn request options (the browser's passkey prompt, via `lib/webauthn.ts`, then the assertion to `POST /api/auth/step-up`) or `{"method": "password"}` (a password field, `{password}` to the same route, and a nudge to add a passkey). A refusal that leaves no way (`passkey_required`, `no_passkey`, `step_up_unavailable`, or a 409/412: "Passkey only" and no passkey yet) explains it and offers **Open Settings → Security**. Any other v0.2 request the hub refuses with `step_up_required` (a user change, the step-up setting) goes through `ui.withStepUp()`: step up, then try once more; closing the dialog cancels quietly.
 
-**Roles** (`model/roles.ts`, from 08 · v0.2 → Roles; the role is `user.role` from the session). The page hides what a role can't use and the hub enforces it anyway: action buttons above the role's tier (Owner T4, Admin T3, Operator T2, Viewer T0; Household T0 plus actions marked `household: true`) aren't shown, and the Inbox says the role can see but not run it. Integrations, Import, Backup, Users, Audit, the first-run wizard, Edit layout, label discovery and answering the correlator's suggestions are for owners and admins; below admin, Settings opens on Security alone, for your own passkeys (every role may manage them, and "Passkey only" needs one for every role). Settings → Security's hub-wide settings are the owner's. Below admin a repair says to ask an admin rather than offering Reconnect, an unavailable action names its reason without a link into settings, and the page never calls a route the hub answers 403 (`/api/onboarding`, `/api/integrations/…`, discovery dismissals, the correlator's decisions). Household sees boards only: no Inbox, no Needs attention, no Briefing phrases that open the Inbox; the hub sends it only the household projection of the inbox anyway (internal/README.md → Realtime topics). An unknown role is treated as a viewer.
+**Roles** (`model/roles.ts`, from 08 · v0.2 → Roles; the role is `user.role` from the session). The page hides what a role can't use and the hub enforces it anyway: action buttons above the role's tier (Owner T4, Admin T3, Operator T2, Viewer T0; Household T0 plus actions marked `household: true`) aren't shown, and the Inbox says the role can see but not run it. Integrations, Import, Backup, Users, Audit, the first-run wizard, Edit layout, label discovery and answering the correlator's suggestions are for owners and admins; below admin, Settings opens on Security, for your own passkeys, plus Notifications for your own devices (every role may manage them, and "Passkey only" needs one for every role). Settings → Security's hub-wide settings are the owner's. Below admin a repair says to ask an admin rather than offering Reconnect, an unavailable action names its reason without a link into settings, and the page never calls a route the hub answers 403 (`/api/onboarding`, `/api/integrations/…`, discovery dismissals, the correlator's decisions). Household sees boards only: no Inbox, no Needs attention, no Briefing phrases that open the Inbox; the hub sends it only the household projection of the inbox anyway (internal/README.md → Realtime topics). An unknown role is treated as a viewer.
+
+**Notifications** (`settings/NotificationsPane.vue`, `lib/push.ts`, `sw/service-worker.js`; [`internal/notify`](../internal/notify/README.md)). Every role gets **Notify me on this device**: a switch (`aria-pressed`) that, on click and never before, asks the browser for permission, subscribes with the hub's VAPID key (`GET /api/notify/push/key`) and posts the subscription; off forgets it on the hub, then in the browser. It's on only when the browser has a subscription the hub knows (matched by the endpoint's SHA-256 fingerprint). Without a secure context, a service worker or the Push API (iOS outside a Home Screen app), the pane says why instead of offering it. Owners and admins also get the rules (the defaults in plain words, a toggle each, resolutions, the attention grace, which channels), the channels with a **Test** each, an add/edit form (an ntfy token or a webhook's signing secret, write-only; **Generate** makes a secret to copy to the receiver), and the delivery log with a Failed filter. The service worker shows each push and, on click, focuses an open tab and navigates it to the message's path; `/?incident=<id>` opens the Inbox on that incident (`inboxLink`, read once by the front page, which then drops the query).
 
 ## The command bar (⌘K)
 
