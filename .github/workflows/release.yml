@@ -2,7 +2,7 @@ name: Release
 
 # Runs when the maintainer pushes a version tag (v0.1.0, v0.1.0-beta.1,
 # v0.1.0-rc.1), and never on branch pushes or pull requests. It publishes the
-# hub image to ghcr.io, signs it, builds the binaries, and leaves a draft
+# hub and node images to ghcr.io, signs them, builds the binaries, and leaves a draft
 # GitHub release to read over and publish by hand. How to cut one:
 # CONTRIBUTING.md, "Releasing".
 #
@@ -22,6 +22,8 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/ban-red/chadash
+  # chadash-node: the same tags as the hub, from the Dockerfile's node target.
+  NODE_IMAGE: ghcr.io/ban-red/chadash-node
   # Installed with `go install`, so the Go checksum database vouches for the
   # source, the way ci.yml runs staticcheck and govulncheck. Bump it to the
   # current cosign release before tagging (CONTRIBUTING.md, "Releasing").
@@ -48,6 +50,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
       tags: ${{ steps.version.outputs.tags }}
+      node_tags: ${{ steps.version.outputs.node_tags }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -84,12 +87,16 @@ jobs:
               echo "::notice::$newest is newer than $TAG, so latest stays where it is."
             fi
           fi
+          node_tags=${tags//$IMAGE:/$NODE_IMAGE:}
           {
             echo "tag=$TAG"
             echo "version=$version"
             echo "prerelease=$prerelease"
             echo "tags<<TAGS"
             echo "$tags"
+            echo "TAGS"
+            echo "node_tags<<TAGS"
+            echo "$node_tags"
             echo "TAGS"
           } >> "$GITHUB_OUTPUT"
           { echo "### $TAG"; echo; echo "Prerelease: $prerelease"; echo; echo "Image tags:"; sed 's/^/- `/; s/$/`/' <<<"$tags"; } >> "$GITHUB_STEP_SUMMARY"
@@ -114,6 +121,7 @@ jobs:
       packages: write           # push to ghcr.io
     outputs:
       digest: ${{ steps.push.outputs.digest }}
+      node_digest: ${{ steps.push-node.outputs.digest }}
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -138,6 +146,18 @@ jobs:
           target: binary
           platforms: linux/amd64,linux/arm64,linux/arm/v7,darwin/amd64,darwin/arm64
           outputs: type=local,dest=out
+          provenance: false
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Build the node binaries
+        # The node runs on a Docker host, so linux only.
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: node-binary
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          outputs: type=local,dest=out-node
           provenance: false
           build-args: |
             VERSION=${{ needs.prepare.outputs.tag }}
@@ -176,6 +196,29 @@ jobs:
           got=$("dist/chadash-$VERSION-linux-amd64" version)
           echo "$got"
           [[ "$got" == "chadash $TAG (commit $GITHUB_SHA, "* ]] || fail "version printed '$got'"
+
+          # chadash-node, the same checks without the SPA's tag.
+          declare -A nodes=([linux_amd64]=linux-amd64 [linux_arm64]=linux-arm64 [linux_arm_v7]=linux-armv7)
+          for dir in "${!nodes[@]}"; do
+            src="out-node/$dir/chadash-node"
+            [ -f "$src" ] || fail "No $src. buildx wrote: $(ls out-node | tr '\n' ' ')"
+            name="chadash-node-$VERSION-${nodes[$dir]}"
+            install -m 0755 "$src" "dist/$name"
+            rest=${dir#*_}; arch=${rest%%_*}
+            settings=$(go version -m "dist/$name" | awk '$1 == "build" { $1 = ""; print substr($0, 2) }')
+            for want in GOOS=linux "GOARCH=$arch" CGO_ENABLED=0; do
+              grep -qxF -e "$want" <<<"$settings" || fail "$name wasn't built with $want"
+            done
+            if [ "$dir" = linux_arm_v7 ]; then
+              grep -qxF GOARM=7 <<<"$settings" || fail "$name wasn't built with GOARM=7"
+            fi
+            for want in "$TAG" "$GITHUB_SHA"; do
+              grep -qaF -e "$want" "dist/$name" || fail "$name isn't stamped with $want"
+            done
+          done
+          got=$("dist/chadash-node-$VERSION-linux-amd64" version)
+          echo "$got"
+          [[ "$got" == "chadash-node $TAG (commit $GITHUB_SHA, "* ]] || fail "the node's version printed '$got'"
 
           cd dist
           sha256sum chadash-* > SHA256SUMS
@@ -223,6 +266,39 @@ jobs:
           grep -q 'setup_token=cds_' <<<"$logs" || fail "No setup token in the first-run logs"
           if grep -q 'dev login is built in' <<<"$logs"; then fail "The image was built with -tags devlogin"; fi
 
+      - name: Build the linux/amd64 node image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: node
+          platforms: linux/amd64
+          load: true
+          tags: chadash-node:release
+          provenance: false
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Node smoke test
+        # As ci.yml runs it: it must start, wait for a pairing token and pass
+        # its healthcheck, and say which release it is.
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          got=$(docker run --rm chadash-node:release version)
+          [[ "$got" == "chadash-node $TAG (commit $GITHUB_SHA, "* ]] || fail "the node image's version is '$got'"
+          docker run -d --name node-smoke --user 0:0 --group-add 65532 \
+            --read-only --tmpfs /tmp:size=16m,mode=1777 \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            chadash-node:release
+          healthy=
+          for _ in $(seq 30); do
+            if docker exec node-smoke /chadash-node healthcheck 2>/dev/null; then healthy=1; break; fi
+            sleep 1
+          done
+          logs=$(docker logs node-smoke 2>&1)
+          echo "$logs"
+          docker rm -f node-smoke >/dev/null
+          [ -n "$healthy" ] || fail "The node never passed its healthcheck"
+
       - name: Sign in to ghcr.io
         env:
           TOKEN: ${{ github.token }}
@@ -252,12 +328,36 @@ jobs:
             index:org.opencontainers.image.licenses=AGPL-3.0-or-later
             index:org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             index:org.opencontainers.image.revision=${{ github.sha }}
+      - name: Build and push the node image
+        id: push-node
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: node
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          tags: ${{ needs.prepare.outputs.node_tags }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.tag }}
+            COMMIT=${{ github.sha }}
+          annotations: |
+            index:org.opencontainers.image.title=Cha Dash node
+            index:org.opencontainers.image.description=Cha Dash's node: Docker control and owned stacks on one host, within its local policy
+            index:org.opencontainers.image.source=https://github.com/ban-red/cha-dash
+            index:org.opencontainers.image.licenses=AGPL-3.0-or-later
+            index:org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            index:org.opencontainers.image.revision=${{ github.sha }}
       - name: Summary
         env:
           DIGEST: ${{ steps.push.outputs.digest }}
           TAGS: ${{ needs.prepare.outputs.tags }}
+          NODE_DIGEST: ${{ steps.push-node.outputs.digest }}
+          NODE_TAGS: ${{ needs.prepare.outputs.node_tags }}
         run: |
           { echo "### Image"; echo; echo "\`$IMAGE@$DIGEST\`"; echo; sed 's/^/- `/; s/$/`/' <<<"$TAGS"; } >> "$GITHUB_STEP_SUMMARY"
+          { echo "### Node image"; echo; echo "\`$NODE_IMAGE@$NODE_DIGEST\`"; echo; sed 's/^/- `/; s/$/`/' <<<"$NODE_TAGS"; } >> "$GITHUB_STEP_SUMMARY"
       - name: Sign out of ghcr.io
         if: always()
         run: docker logout ghcr.io
@@ -278,6 +378,7 @@ jobs:
       actions: read             # download this run's binaries
     env:
       DIGEST: ${{ needs.build.outputs.digest }}
+      NODE_DIGEST: ${{ needs.build.outputs.node_digest }}
       IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -301,6 +402,12 @@ jobs:
           [[ "$DIGEST" == sha256:* ]] || { echo "::error::No image digest from the build job"; exit 1; }
           "$COSIGN" sign --yes "$IMAGE@$DIGEST"
           "$COSIGN" verify "$IMAGE@$DIGEST" \
+            --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$OIDC_ISSUER" > /dev/null
+      - name: Sign the node image
+        run: |
+          [[ "$NODE_DIGEST" == sha256:* ]] || { echo "::error::No node image digest from the build job"; exit 1; }
+          "$COSIGN" sign --yes "$NODE_IMAGE@$NODE_DIGEST"
+          "$COSIGN" verify "$NODE_IMAGE@$NODE_DIGEST" \
             --certificate-identity "$IDENTITY" --certificate-oidc-issuer "$OIDC_ISSUER" > /dev/null
       - name: Sign the checksums
         env:
@@ -341,6 +448,7 @@ jobs:
       PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
       TAGS: ${{ needs.prepare.outputs.tags }}
       DIGEST: ${{ needs.build.outputs.digest }}
+      NODE_DIGEST: ${{ needs.build.outputs.node_digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -354,7 +462,8 @@ jobs:
           find "$RUNNER_TEMP/download" -type f -exec cp {} "$RUNNER_TEMP/assets/" \;
           cd "$RUNNER_TEMP/assets"
           for want in SHA256SUMS SHA256SUMS.cosign.bundle "chadash-$VERSION-linux-amd64" "chadash-$VERSION-linux-arm64" \
-              "chadash-$VERSION-linux-armv7" "chadash-$VERSION-darwin-amd64" "chadash-$VERSION-darwin-arm64"; do
+              "chadash-$VERSION-linux-armv7" "chadash-$VERSION-darwin-amd64" "chadash-$VERSION-darwin-arm64" \
+              "chadash-node-$VERSION-linux-amd64" "chadash-node-$VERSION-linux-arm64" "chadash-node-$VERSION-linux-armv7"; do
             [ -f "$want" ] || { echo "::error::$want is missing"; exit 1; }
           done
           sha256sum -c SHA256SUMS
@@ -370,9 +479,10 @@ jobs:
             echo "### Get it"
             echo
             echo "- **Image:** \`$IMAGE:$VERSION\`${also:+ (also $also)}, for linux/amd64, linux/arm64 and linux/arm/v7 (best-effort). Index digest \`$DIGEST\`."
+            echo "- **Node image:** \`$NODE_IMAGE:$VERSION\` with the same tags, for the same platforms. Index digest \`$NODE_DIGEST\`."
             echo "- **Docker Compose:** [deploy/README.md]($base/deploy/README.md). Trying the beta? Start with [docs/beta.md]($base/docs/beta.md)."
             echo "- **Unraid:** the template in [deploy/unraid]($base/deploy/unraid/README.md)."
-            echo "- **Binaries** (below): static Linux builds for amd64, arm64 and armv7, and macOS builds for development."
+            echo "- **Binaries** (below): static Linux builds for amd64, arm64 and armv7, and macOS builds for development. \`chadash-node-*\` are the node, Linux only."
             echo
             echo "### Verify"
             echo
@@ -380,6 +490,9 @@ jobs:
             echo
             echo '```sh'
             echo "cosign verify $IMAGE:$VERSION \\"
+            echo "  --certificate-identity https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG \\"
+            echo "  --certificate-oidc-issuer $OIDC_ISSUER"
+            echo "cosign verify $NODE_IMAGE:$VERSION \\"
             echo "  --certificate-identity https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG \\"
             echo "  --certificate-oidc-issuer $OIDC_ISSUER"
             echo

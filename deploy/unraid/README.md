@@ -46,7 +46,7 @@ Then **Connect your home**. For this server, add the **Unraid** integration with
 
 **On Unraid you usually need no Docker access at all.** The Unraid integration already sees the containers Unraid manages, their state and their autostart order.
 
-If you also want the **Docker** integration, for containers Unraid doesn't manage or for `chadash.*` label discovery, give it a read-only socket proxy, the way `compose.yaml` does:
+If you also want the **Docker** integration, for containers Unraid doesn't manage or for `chadash.*` label discovery, give it a read-only socket proxy, the way `compose.socket-proxy.yaml` does (chadash-node on Unraid arrives in v0.3):
 
 - run [`wollomatic/socket-proxy`](../README.md#docker-on-another-host) with the same GET-only allowlist, and don't publish its port;
 - put it and chadash on one custom Docker network (`docker network create chadash`, then set both containers' *Network Type* to it), and allow only `-allowfrom=chadash`;

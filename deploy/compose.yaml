@@ -1,4 +1,4 @@
-# Cha Dash: the hub, plus a read-only Docker socket proxy.
+# Cha Dash: the hub, plus chadash-node for this host's Docker.
 #
 #   docker compose up -d
 #   docker compose logs chadash | grep setup
@@ -18,7 +18,9 @@ services:
       - "3696:3696"
     volumes:
       - data:/data                  # database + vault key: back them up together
-    # environment:
+      - pairing:/pairing            # the hub writes the node's pairing token here
+    environment:
+      CHADASH_NODE_PAIRING_FILE: /pairing/token
     #   CHADASH_TRUSTED_PROXIES: 172.30.0.0/16   # behind a reverse proxy (README)
     #   CHADASH_PUBLIC_URL: https://dash.lab.example   # for passkeys, over HTTPS (README)
     read_only: true
@@ -27,57 +29,42 @@ services:
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
-    networks:
-      - default                     # the published port, and integrations later
-      - docker-proxy                # reaches socket-proxy:2375, nothing else
-    # The healthcheck comes from the image: `/chadash healthcheck`.
+    # The hub never gets the Docker socket. The healthcheck comes from the
+    # image: `/chadash healthcheck`.
 
-  # Lets Cha Dash *see* the containers on this host (v0.1). Optional: delete this
-  # service if you don't want it. It allows GET requests for containers, images,
-  # system info, events, networks and volumes, and nothing else: no POST, no
-  # exec, no logs, no file access. Only the chadash service can reach it.
-  socket-proxy:
-    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+  # chadash-node: reads and controls this host's Docker for the hub, within
+  # its local policy (README, "The node"). It dials the hub over the compose
+  # network and pairs with the token in the shared volume; nothing else can
+  # pair. It holds the Docker socket; the hub never does. Delete this service
+  # if you don't want Cha Dash to see this host's containers.
+  chadash-node:
+    image: ghcr.io/ban-red/chadash-node:latest
     restart: unless-stopped
-    # The socket's group ID differs from host to host, so the proxy runs as uid 0
-    # with every capability dropped. That works everywhere. To run it unprivileged,
-    # use "65534:<gid>" with the gid from `stat -c %g /var/run/docker.sock`.
+    depends_on: [chadash]
+    # The socket's group differs from host to host, so the node runs as uid 0
+    # (the socket's owner) with every capability dropped, which works
+    # everywhere. Group 65532 lets it read the pairing token and write its
+    # identity. To run it unprivileged instead: user "65532:65532" and
+    # group_add with the gid from `stat -c %g /var/run/docker.sock`.
     user: "0:0"
+    group_add: ["65532"]
     read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777     # the healthcheck's state file
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
-    mem_limit: 64m
+    mem_limit: 128m
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - docker-proxy
-    command:
-      - -listenip=0.0.0.0
-      - -allowfrom=chadash
-      # Paths are anchored regexps, with or without an API version prefix.
-      - -allowHEAD=/(v1\.[0-9]+/)?_ping
-      - -allowGET=/(v1\.[0-9]+/)?(_ping|version|info|events)
-      - -allowGET=/(v1\.[0-9]+/)?containers/json
-      - -allowGET=/(v1\.[0-9]+/)?containers/[a-zA-Z0-9][a-zA-Z0-9_.-]*/(json|stats)
-      - -allowGET=/(v1\.[0-9]+/)?images/json
-      - -allowGET=/(v1\.[0-9]+/)?images/[a-zA-Z0-9][a-zA-Z0-9_.:/@-]*/json
-      # Not used by the hub today (spike 4.4); uncomment if a future integration needs them.
-      # - -allowGET=/(v1\.[0-9]+/)?networks(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
-      # - -allowGET=/(v1\.[0-9]+/)?volumes(/[a-zA-Z0-9][a-zA-Z0-9_.-]*)?
-      - -allowhealthcheck
-      - -watchdoginterval=3600      # exit if the socket goes away (e.g. a Docker
-      - -stoponwatchdog             # upgrade), so the restart policy reconnects it
-      - -shutdowngracetime=5
-    healthcheck:
-      test: ["CMD", "/healthcheck"]
-      interval: 30s
-      timeout: 5s
-      retries: 2
+      - /var/run/docker.sock:/var/run/docker.sock
+      - node:/etc/chadash-node      # its identity; add policy.yaml here (README)
+      - pairing:/pairing:ro
+    environment:
+      CHADASH_NODE_HUB: ws://chadash:3696/node
+      CHADASH_NODE_NAME: local      # the hub reads this host as node://local
+    # The healthcheck comes from the image: `/chadash-node healthcheck`.
 
 volumes:
   data:
-
-networks:
-  docker-proxy:
-    internal: true                  # no route out, and no published ports
+  node:
+  pairing:

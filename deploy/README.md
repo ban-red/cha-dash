@@ -4,7 +4,8 @@ Docker Compose is the main way to run Cha Dash ([ADR-0007](../docs/adr/0007-dock
 
 | File | What it is |
 |---|---|
-| [`compose.yaml`](compose.yaml) | The hub, plus an optional read-only Docker socket proxy |
+| [`compose.yaml`](compose.yaml) | The hub, plus chadash-node for this host's Docker |
+| [`compose.socket-proxy.yaml`](compose.socket-proxy.yaml) | An override that swaps the node for a read-only Docker socket proxy (reads only) |
 | [`compose.demo.yaml`](compose.demo.yaml) | An override that runs the built-in Demo Home simulator |
 | [`unraid/`](unraid/README.md) | A Community Applications template for Unraid |
 
@@ -53,7 +54,7 @@ You need Docker with the Compose plugin, on amd64 or arm64.
 | Service | What it does | Hardening |
 |---|---|---|
 | `chadash` | The hub: UI, API and realtime, on port **3696** | Non-root (uid 65532), read-only root filesystem, no capabilities, `no-new-privileges`. It writes only to `/data` and a 64 MB `/tmp` in memory. The healthcheck is built into the binary |
-| `socket-proxy` | Read-only access to this host's Docker API, for the hub only. See [Docker access](#docker-access) | GET and HEAD only, on an internal network with no route out. Read-only root filesystem, no capabilities, 64 MB memory cap |
+| `chadash-node` | This host's Docker, for the hub: reads, logs and actions, within its [local policy](#the-node). It dials the hub on the compose network; it listens on nothing | Read-only root filesystem, no capabilities, `no-new-privileges`, 128 MB memory cap. It runs as uid 0, the Docker socket's owner, because the socket's group differs from host to host; with no capabilities that's access to the socket and nothing more. The hub never gets the socket |
 
 **Your changes go in `compose.override.yaml`** next to `compose.yaml`. Compose loads it automatically, and `compose.yaml` stays as shipped, so you can replace it on upgrade. The examples below are all override files. The `!override` and `!reset` tags in some of them need Compose 2.24 or newer.
 
@@ -82,6 +83,7 @@ services:
 | `CHADASH_DEMO_SEED` | `1` | Changes the demo's noise, uptimes and IDs, but not its topology or incidents (flag `--demo-seed`) |
 | `CHADASH_DATA_DIR` | `/data` | The data directory. Leave it alone in Docker; mount a volume at `/data` instead |
 | `CHADASH_LISTEN` | `:3696` | The address inside the container. Leave it alone in Docker; change the published port instead |
+| `CHADASH_NODE_PAIRING_FILE` | none (`/pairing/token` in `compose.yaml`) | Turns on pairing for the local node: the hub writes a pairing token there on first run, in the volume it shares with `chadash-node`. Empty: no node can pair |
 
 **Another port.** Change the published side only, so the container keeps 3696 ([ADR-0009](../docs/adr/0009-default-port-3696.md)). `!override` replaces the list instead of adding to it:
 
@@ -131,25 +133,62 @@ secrets:
 
 A key file that others can read (Docker Swarm mounts secrets `0444`) is accepted with a warning.
 
-## Docker access
+## The node
 
-The `socket-proxy` service lets Cha Dash **see** the containers on this host. The hub starts reading through it in v0.1; changing anything in Docker is the node's job, later, and never the hub's ([03 · Architecture](../docs/plan/03-architecture.md#how-docker-access-evolves)).
+`chadash-node` is Cha Dash's hands on a Docker host ([ADR-0006](../docs/adr/0006-owned-stacks-and-thin-node.md)). In v0.2 one node runs beside the hub, on the hub's own host; remote nodes come in v0.3. The hub never mounts the Docker socket: everything Docker goes through the node, and the node only does what its policy allows.
 
-| Allowed | Not allowed |
-|---|---|
-| `GET` containers (list, inspect, stats), images (list, inspect), `info`, `version`, `events`, networks, volumes; `HEAD /_ping` | Every `POST`, `PUT` and `DELETE`: no start, stop, create or pull. No exec, attach, logs, file copies or exports |
+**Pairing is automatic.** On first start the hub writes a pairing token, `cdp_<secret>.<hub key>`, to `/pairing/token` in the `pairing` volume, which only the hub and the node mount. The node reads it, checks the hub's key before it says anything, and presents the secret; the hub enrolls and approves it as `local`. Nothing else on the network can pair: a container without the volume has no secret, and the hub refuses keys it doesn't know. The channel is mutual TLS 1.3 inside the WebSocket on port 3696, with each side's Ed25519 key pinned ([ADR-0014](../docs/adr/0014-node-transport.md)).
 
-- **Only `chadash` can connect**, by name, over the internal `docker-proxy` network. Nothing is published.
-- **The socket is mounted read-only**, and the proxy filters every request by method and path.
-- **It runs as uid 0 with every capability dropped.** The socket's group ID differs from host to host, and root inside the container can open a root-owned socket anywhere. Access to the socket is what matters, and the allowlist is what limits it. To run it unprivileged anyway, set `user: "65534:<gid>"`, with the gid from `stat -c %g /var/run/docker.sock`.
+**Then add Docker** with the endpoint `node://local` (the first-run wizard offers it). It reads the same containers and stacks the socket proxy did, and offers actions: start and stop, restart, recreate, pull, remove and logs.
 
-**Don't want it?** Switch it off without editing `compose.yaml`:
+**The local policy** lives at `/etc/chadash-node/policy.yaml`. Without one the node uses the default below. To change it, write the file next to `compose.yaml` and mount it read-only:
 
 ```yaml
+# compose.override.yaml
 services:
-  socket-proxy:
-    profiles: [docker]   # only starts with `docker compose --profile docker up -d`
+  chadash-node:
+    volumes:
+      - ./policy.yaml:/etc/chadash-node/policy.yaml:ro
 ```
+
+```yaml
+# policy.yaml: the default, spelled out
+docker:
+  allow: [read, logs, lifecycle, update]   # also: remove, exec (exec needs exec: true too)
+  protect: []                              # container or compose service names no write may touch
+  redact_env: true                         # inspect leaves without environment values
+stacks: { root: /opt/stacks, allow: [read, deploy, adopt] }
+exec: false
+# hub: { pin: "ed25519:…", pin_rotation: false }   # fix the hub's key
+```
+
+| Grant | Lets Cha Dash |
+|---|---|
+| `docker.read` | list and inspect containers, read engine info, events and stats |
+| `docker.logs` | stream container logs |
+| `docker.lifecycle` | start, stop and restart containers |
+| `docker.update` | pull a container's image and recreate it |
+| `docker.remove` | remove containers (off by default) |
+| `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
+| `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks) |
+
+The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: Cha Dash never restarts or removes itself until self-update lands in v0.3. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
+
+**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a token, instead of the file), `PAIRING_FILE` (`/pairing/token`), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`.
+
+**Running it unprivileged.** Set `user: "65532:65532"` and `group_add: ["<gid>"]`, with the gid from `stat -c %g /var/run/docker.sock`.
+
+**Revoking it.** `POST /api/nodes/<id>/revoke` (admin) cuts it off at once; its key never works again. Deleting the `node` volume and restarting pairs a fresh node, which replaces the old one.
+
+**Don't want the node?** Start with the socket-proxy override instead. Cha Dash then reads Docker here but can't change anything:
+
+```sh
+docker compose -f compose.yaml -f compose.socket-proxy.yaml up -d
+```
+
+and add Docker with the endpoint `tcp://socket-proxy:2375`. That proxy allows `GET` on containers (list, inspect, stats), images, `info`, `version` and `events`, only from `chadash`, over an internal network.
+
+**Upgrading from 0.1.** Pull the new `compose.yaml`, then `docker compose up -d --remove-orphans` (the old `socket-proxy` service goes). Edit your Docker instance's endpoint from `tcp://socket-proxy:2375` to `node://local`. To keep the proxy instead, add `-f compose.socket-proxy.yaml` to your commands.
 
 ### Docker on another host
 
@@ -198,7 +237,7 @@ Cha Dash only reads in v0.1, so every credential it holds should only read. Each
 |---|---|---|
 | Proxmox VE | A user, a role with `Datastore.Audit`, `Sys.Audit` and `VM.Audit` (plus `VM.GuestAgent.Audit` on 9.x), and a privilege-separated token, one per instance | No |
 | Proxmox Backup Server | A user and its token, both with the Audit role | No |
-| Docker | The socket proxy above | No: GET only |
+| Docker | chadash-node, within its local policy ([The node](#the-node)); or a read-only socket proxy | Through the node, only what its policy grants; through a proxy, no (GET only) |
 | Unraid | An API key with read access to `info`, `array`, `docker`, `share` and `me` (Unraid API 4.37.4 or later) | No |
 | OPNsense | The API key of a user with only *Reporting: Traffic* | No |
 | Frigate | A viewer account, on the authenticated port 8971 | No |
@@ -285,7 +324,7 @@ Caddy gets the certificate and sets the forwarded headers on its own.
 
 ## Demo mode
 
-Demo mode runs the **Demo Home simulator**: a made-up homelab with five Proxmox endpoints, an Unraid NAS, Home Assistant, cameras and six scripted incidents. It reads nothing real and needs no Docker access, so the socket proxy stays off.
+Demo mode runs the **Demo Home simulator**: a made-up homelab with five Proxmox endpoints, an Unraid NAS, Home Assistant, cameras and six scripted incidents. It reads nothing real and needs no Docker access, so the node stays off.
 
 ```sh
 curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.demo.yaml

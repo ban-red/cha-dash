@@ -25,7 +25,7 @@ When code contributions open, expect a few house rules:
 
 ## Developing
 
-The hub is one Go binary with the Vue SPA embedded. JavaScript is development tooling only; nothing from it ships except the built SPA.
+The hub is one Go binary with the Vue SPA embedded. The node (`cmd/chadash-node`) is a second binary and image, built from the same module. JavaScript is development tooling only; nothing from it ships except the built SPA.
 
 **Prerequisites**
 - **Go.** `go.mod` pins Go 1.27.1. Any Go from 1.21 on downloads that toolchain by itself the first time you run a `go` command.
@@ -69,7 +69,11 @@ It builds the hub, waits until it's healthy, and starts the Vite dev server (whi
 bun run build        # the SPA, into internal/webui/dist/
 CGO_ENABLED=0 go build -tags webui -trimpath -o chadash ./cmd/chadash
 docker build -t chadash:dev .        # the image, from the same steps
+CGO_ENABLED=0 go build -trimpath -o chadash-node ./cmd/chadash-node   # the node
+docker build --target node -t chadash-node:dev .                      # its image
 ```
+
+**The node links the Docker client** (`github.com/moby/moby/client`), and with stacks the Compose SDK and go-git. The hub must never: `cmd/chadash`'s `TestHubFootprint` fails if `go list -deps ./cmd/chadash` names any of them.
 
 **`-tags webui` embeds the SPA** from `internal/webui/dist/`, so build the SPA first. Without the tag the hub serves a placeholder page, which is all `go test` and `go run` need.
 
@@ -77,10 +81,11 @@ docker build -t chadash:dev .        # the image, from the same steps
 
 | Job | Checks |
 |---|---|
-| Go | gofmt, `go vet`, `go test -race` (and again with `-tags devlogin`), staticcheck, govulncheck |
+| Go | gofmt, `go vet`, `go test -race` (and again with `-tags devlogin`), staticcheck, govulncheck; the Dockerfile's `hub` and `node-build` stages COPY every directory their binary imports |
 | JavaScript | frozen `bun install`, typecheck, tests, design tokens up to date |
-| Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui` |
-| Image | amd64 and arm64 builds (no push), a smoke run, **image ≤ 40 MB compressed** |
+| Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui`, and chadash-node |
+| Image | amd64 and arm64 builds of the hub and the node (no push), a smoke run of each, **hub image ≤ 40 MB compressed**, **node binary ≤ 40 MB** |
+| Footprint (non-blocking) | the hub's RSS budgets, and the node binary's size |
 
 The budgets come from [03 · Architecture](docs/plan/03-architecture.md#performance-budgets-enforced-in-ci-where-possible). Raising one takes a reason in the pull request.
 
@@ -91,9 +96,11 @@ The maintainer cuts releases by pushing a version tag. [`.github/workflows/relea
 | Job | What it does | Permissions |
 |---|---|---|
 | Prepare | Checks the tag (`vMAJOR.MINOR.PATCH`, optionally `-beta.N` or `-rc.N`), works out the image tags, and fails early if `CHANGELOG.md` has no section for the version | `contents: read` |
-| Build and push | The binaries from the Dockerfile's `binary` stage (linux amd64, arm64 and armv7; darwin amd64 and arm64), checked and summed into `SHA256SUMS`; a smoke-tested linux/amd64 image; then the linux/amd64, arm64 and arm/v7 image pushed to `ghcr.io/ban-red/chadash` with provenance and an SBOM | `contents: read`, `packages: write` |
-| Sign | cosign keyless signing of the image (by digest) and of `SHA256SUMS`, each verified straight after | `packages: write`, `id-token: write`, `actions: read` |
+| Build and push | The binaries from the Dockerfile's `binary` stage (linux amd64, arm64 and armv7; darwin amd64 and arm64) and `node-binary` stage (linux only), checked and summed into `SHA256SUMS`; smoke-tested linux/amd64 hub and node images; then both pushed for linux/amd64, arm64 and arm/v7 to `ghcr.io/ban-red/chadash` and `ghcr.io/ban-red/chadash-node`, with provenance and SBOMs | `contents: read`, `packages: write` |
+| Sign | cosign keyless signing of both images (by digest) and of `SHA256SUMS`, each verified straight after | `packages: write`, `id-token: write`, `actions: read` |
 | Draft release | The draft, marked prerelease for `-beta` and `-rc`: notes from `CHANGELOG.md` plus install and verify instructions, with the binaries, `SHA256SUMS` and its signature attached | `contents: write`, `actions: read` |
+
+The node image gets the same tags as the hub.
 
 | Tag pushed | Image tags |
 |---|---|
@@ -117,7 +124,7 @@ The maintainer cuts releases by pushing a version tag. [`.github/workflows/relea
 
 **If something goes wrong,** don't move or reuse a pushed tag: images may already be published under it. Fix it on `main` and tag the next beta. Re-running the workflow for the same tag is safe; it rebuilds and pushes the same image tags again, and updates the draft instead of adding a second one.
 
-**The first release only:** ghcr.io makes a new package private. Open the package's settings, make it public, and check it's linked to this repository. If the package already existed, give the repository write access under *Manage Actions access*, or the push is refused.
+**The first release only** (and the first with the node, for `chadash-node`): ghcr.io makes a new package private. Open the package's settings, make it public, and check it's linked to this repository. If the package already existed, give the repository write access under *Manage Actions access*, or the push is refused.
 
 **At 0.1.0,** the first stable release: point the Unraid template at `latest` and drop `Status:Beta` from its category ([deploy/unraid](deploy/unraid/README.md#for-the-maintainer-listing-it-in-ca)), take the `beta` override out of [docs/beta.md](docs/beta.md) and [deploy/README.md](deploy/README.md), and fill in *Supported versions* in [SECURITY.md](SECURITY.md).
 

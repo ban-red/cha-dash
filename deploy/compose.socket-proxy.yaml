@@ -1,0 +1,58 @@
+# The v0.1 way to let Cha Dash see this host's containers, without the node:
+# a read-only Docker socket proxy. It allows GET requests for containers,
+# images, system info, events, networks and volumes, and nothing else: no
+# POST, no exec, no logs, no file access. Cha Dash can then read Docker here
+# but never change anything (Docker actions need chadash-node).
+#
+#   docker compose -f compose.yaml -f compose.socket-proxy.yaml up -d
+#
+# Then add Docker with the endpoint tcp://socket-proxy:2375. For another
+# Docker host, run the same proxy there (README, "Docker on another host").
+
+services:
+  chadash-node:
+    profiles: [node]                # off unless `--profile node`
+  chadash:
+    networks:
+      - default
+      - docker-proxy                # reaches socket-proxy:2375, nothing else
+
+  socket-proxy:
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    restart: unless-stopped
+    # The socket's group ID differs from host to host, so the proxy runs as uid 0
+    # with every capability dropped. That works everywhere. To run it unprivileged,
+    # use "65534:<gid>" with the gid from `stat -c %g /var/run/docker.sock`.
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-proxy
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=chadash
+      # Paths are anchored regexps, with or without an API version prefix.
+      - -allowHEAD=/(v1\.[0-9]+/)?_ping
+      - -allowGET=/(v1\.[0-9]+/)?(_ping|version|info|events)
+      - -allowGET=/(v1\.[0-9]+/)?containers/json
+      - -allowGET=/(v1\.[0-9]+/)?containers/[a-zA-Z0-9][a-zA-Z0-9_.-]*/(json|stats)
+      - -allowGET=/(v1\.[0-9]+/)?images/json
+      - -allowGET=/(v1\.[0-9]+/)?images/[a-zA-Z0-9][a-zA-Z0-9_.:/@-]*/json
+      - -allowhealthcheck
+      - -watchdoginterval=3600      # exit if the socket goes away (e.g. a Docker
+      - -stoponwatchdog             # upgrade), so the restart policy reconnects it
+      - -shutdowngracetime=5
+    healthcheck:
+      test: ["CMD", "/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 2
+
+networks:
+  docker-proxy:
+    internal: true                  # no route out, and no published ports

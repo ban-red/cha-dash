@@ -24,6 +24,7 @@ env:
   # one takes a reason in the pull request.
   INITIAL_JS_BUDGET_KB: "150"   # entry script + modulepreloads, gzip -6, 1 kB = 1000 bytes
   IMAGE_BUDGET_MB: "40"         # the whole image, gzip -6
+  NODE_BINARY_BUDGET_MB: "40"   # chadash-node, stripped (ADR-0016, ADR-0020); 1 MB = 1000000 bytes
 
 defaults:
   run:
@@ -78,16 +79,35 @@ jobs:
         run: |
           go test -p 1 -count=1 -run '^TestBudget' -v ./internal/server/ ./internal/demo/ | tee budgets.txt
           { echo "### Performance budgets (${{ matrix.arch }})"; echo; sed -n 's/^ *budget_test.go:[0-9]*: /- /p' budgets.txt; } >> "$GITHUB_STEP_SUMMARY"
-      - name: The Dockerfile copies every package the hub imports
+      - name: The Dockerfile copies every package the hub and the node import
+        # Each binary's build stage must COPY every top-level directory its
+        # `go list -deps` names: the hub's stage (hub) and the node's
+        # (node-build), checked separately.
         run: |
-          missing=""
-          for dir in $(go list -deps ./cmd/chadash | sed -n 's|^dash\.cha\.sh/\([^/]*\).*|\1|p' | sort -u); do
-            grep -qE "^COPY $dir $dir\$" Dockerfile || missing="$missing $dir"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error::Add COPY lines to the Dockerfile for:$missing"
-            exit 1
-          fi
+          python3 - <<'PY'
+          import re, subprocess, sys
+          lines = open("Dockerfile", encoding="utf-8").read().splitlines()
+          def stage(name):
+              out, inside = [], False
+              for l in lines:
+                  if l.startswith("FROM "):
+                      inside = l.rstrip().endswith(" AS " + name)
+                  elif inside:
+                      out.append(l.strip())
+              return out
+          failed = False
+          for pkg, name in (("./cmd/chadash", "hub"), ("./cmd/chadash-node", "node-build")):
+              deps = subprocess.run(["go", "list", "-deps", pkg], check=True, capture_output=True, text=True).stdout.split()
+              dirs = sorted({m.group(1) for d in deps if (m := re.match(r"dash\.cha\.sh/([^/]+)", d))})
+              body = stage(name)
+              if not body:
+                  sys.exit(f"::error::No '{name}' stage in the Dockerfile")
+              missing = [d for d in dirs if f"COPY {d} {d}" not in body]
+              if missing:
+                  print(f"::error::Add COPY lines to the Dockerfile's {name} stage for: {' '.join(missing)}")
+                  failed = True
+          sys.exit(1 if failed else 0)
+          PY
       - name: dev login (-tags devlogin)
         # Only `bun run dev` builds with this tag; release builds must not.
         run: |
@@ -132,6 +152,11 @@ jobs:
           GOOS=linux GOARCH=arm GOARM=7 go build -tags webui -trimpath -ldflags "-s -w" \
             -o "$RUNNER_TEMP/chadash-armv7" ./cmd/chadash
           ls -l "$RUNNER_TEMP/chadash-armv7"
+      - name: Build chadash-node for linux/arm/v7
+        run: |
+          GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags "-s -w" \
+            -o "$RUNNER_TEMP/chadash-node-armv7" ./cmd/chadash-node
+          ls -l "$RUNNER_TEMP/chadash-node-armv7"
       - name: Build the node spike for linux/arm/v7
         working-directory: spikes/node-compose
         run: |
@@ -256,6 +281,13 @@ jobs:
         run: |
           ./chadash version
           ls -l chadash
+      - name: Build chadash-node
+        run: |
+          CGO_ENABLED=0 go build -trimpath \
+            -ldflags "-s -w -X dash.cha.sh/internal/buildinfo.Version=dev -X dash.cha.sh/internal/buildinfo.Commit=${GITHUB_SHA}" \
+            -o chadash-node ./cmd/chadash-node
+          ./chadash-node version
+          ls -l chadash-node
 
   # One leg per published platform; nothing is pushed. Every leg builds
   # without emulation: Bun and Go run on the runner's own platform, and Go
@@ -381,6 +413,61 @@ jobs:
             echo "::error::The ${PLATFORM} image is over the ${IMAGE_BUDGET_MB} MB budget"
             exit 1
           fi
+      - name: Build the node ${{ matrix.platform }}
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: node
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: chadash-node:ci
+          provenance: false
+          build-args: |
+            VERSION=dev
+            COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=node-${{ matrix.goarch }}
+          cache-to: type=gha,scope=node-${{ matrix.goarch }},mode=max
+      - name: Node image and binary match the platform
+        env:
+          WANT_GOARCH: ${{ matrix.goarch }}
+          WANT_GOARM: ${{ matrix.goarm }}
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          got=$(docker image inspect -f '{{.Os}}/{{.Architecture}}' chadash-node:ci)
+          [ "$got" = "linux/$WANT_GOARCH" ] || fail "The node image is $got, not linux/$WANT_GOARCH"
+          user=$(docker image inspect -f '{{.Config.User}}' chadash-node:ci)
+          [ "$user" = "65532:65532" ] || fail "The node image runs as '$user', not 65532:65532"
+          id=$(docker create --platform "$PLATFORM" chadash-node:ci)
+          docker cp "$id:/chadash-node" "$RUNNER_TEMP/chadash-node"
+          docker rm "$id" >/dev/null
+          settings=$(go version -m "$RUNNER_TEMP/chadash-node" | awk '$1 == "build" { print $2 }')
+          for want in GOOS=linux "GOARCH=$WANT_GOARCH" ${WANT_GOARM:+"GOARM=$WANT_GOARM"} CGO_ENABLED=0; do
+            grep -qxF -e "$want" <<<"$settings" || fail "The node binary wasn't built with $want"
+          done
+          bytes=$(stat -c %s "$RUNNER_TEMP/chadash-node")
+          mb=$(awk -v b="$bytes" 'BEGIN { printf "%.1f", b / 1000000 }')
+          echo "chadash-node ${PLATFORM}: ${mb} MB (budget ${NODE_BINARY_BUDGET_MB} MB)" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$bytes" -le $((NODE_BINARY_BUDGET_MB * 1000000)) ] || fail "chadash-node is over the ${NODE_BINARY_BUDGET_MB} MB budget"
+      - name: Node smoke test
+        # As deploy/compose.yaml runs it, minus the socket and the hub: it must
+        # start, wait for a pairing token, and report through its healthcheck.
+        if: matrix.smoke
+        run: |
+          docker run --rm chadash-node:ci version
+          docker run -d --name node-smoke --user 0:0 --group-add 65532 \
+            --read-only --tmpfs /tmp:size=16m,mode=1777 \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            chadash-node:ci
+          healthy=
+          for _ in $(seq 30); do
+            if docker exec node-smoke /chadash-node healthcheck 2>/dev/null; then healthy=1; break; fi
+            sleep 1
+          done
+          logs=$(docker logs node-smoke 2>&1)
+          echo "$logs"
+          docker rm -f node-smoke >/dev/null
+          [ -n "$healthy" ] || { echo "::error::The node never passed its healthcheck"; exit 1; }
+          grep -q 'waiting for the hub' <<<"$logs" || { echo "::error::The node didn't wait for its pairing token"; exit 1; }
 
   # Real Linux numbers for the footprint spike, which so far has only macOS
   # upper bounds (ADR-0016). It checks the hub's RSS budgets (the empty hub;
@@ -409,6 +496,15 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - name: Node binary size
+        # ADR-0016 and ADR-0020: chadash-node at most 40 MB, stripped. The
+        # node's idle RSS (also 40 MB) needs a real daemon; it's measured by
+        # hand until a runner job can run one.
+        run: |
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/chadash-node" ./cmd/chadash-node
+          bytes=$(stat -c %s "$RUNNER_TEMP/chadash-node")
+          echo "Budget: chadash-node $(awk -v b="$bytes" 'BEGIN { printf "%.1f", b / 1000000 }') MB (at most ${NODE_BINARY_BUDGET_MB} MB)" | tee -a "$OUT"
+          [ "$bytes" -le $((NODE_BINARY_BUDGET_MB * 1000000)) ] || { echo "::error::chadash-node is over budget"; exit 1; }
       - name: Measure the hub
         # About 9 minutes on an M4 Pro. Most of that is paced in real time (a
         # demo tick every 60 ms), so a slower runner shouldn't take much longer.
