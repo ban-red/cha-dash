@@ -1,8 +1,10 @@
 package authz
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/httpx"
@@ -95,7 +97,18 @@ type Route struct {
 	// builds (dev-login), or added by a wave 7 track that hasn't merged yet.
 	// The router test skips them when they're absent.
 	Optional bool
+	// Token is what an API token needs to call the route, on top of Access
+	// (which a token's user must pass too): a read scope such as
+	// ScopeGraphRead, or TokenAny when every token may (the action engine
+	// then decides per action, or the handler narrows to the token's own).
+	// Empty means session only: a token is refused with 403 session_only.
+	// Signing in, step-up, passkeys, users, tokens and every setting are
+	// session only, so a token can never mint a token or raise itself.
+	Token string
 }
+
+// TokenAny marks a route every API token may call (subject to Access).
+const TokenAny = "(any token)"
 
 // Routes is every HTTP route the hub serves and who may call it. Guard
 // refuses a route that isn't here, and the authz route test fails on one,
@@ -126,7 +139,7 @@ var Routes = []Route{
 
 	// The signed-in user's own account, whatever the role.
 	{Pattern: "GET /api/auth/session", Access: SignedIn},
-	{Pattern: "GET /api/version", Access: SignedIn},
+	{Pattern: "GET /api/version", Access: SignedIn, Token: TokenAny},
 	{Pattern: "POST /api/auth/passkeys/register/begin", Access: SignedIn},
 	{Pattern: "POST /api/auth/passkeys/register/finish", Access: SignedIn},
 	{Pattern: "GET /api/auth/passkeys", Access: SignedIn},
@@ -136,30 +149,30 @@ var Routes = []Route{
 	{Pattern: "POST /api/auth/step-up", Access: SignedIn},
 
 	// Boards and live data.
-	{Pattern: "GET /api/boards", Access: SignedIn},
-	{Pattern: "GET /api/boards/{id}/layout", Access: SignedIn},
+	{Pattern: "GET /api/boards", Access: SignedIn, Token: ScopeGraphRead},
+	{Pattern: "GET /api/boards/{id}/layout", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /ws", Access: SignedIn},
-	{Pattern: "GET /api/demo", Access: SignedIn},
-	{Pattern: "GET /api/boards/{id}/discovery", Access: Viewer},
+	{Pattern: "GET /api/demo", Access: SignedIn, Token: ScopeGraphRead},
+	{Pattern: "GET /api/boards/{id}/discovery", Access: Viewer, Token: ScopeGraphRead},
 	{Pattern: "PUT /api/boards/{id}/layout", Access: Admin},
 	{Pattern: "POST /api/boards/{id}/discovery/dismiss", Access: Admin},
 	{Pattern: "POST /api/boards/{id}/discovery/restore", Access: Admin},
 
 	// Actions: the engine authorizes each one (Policy), so the routes only
 	// need a session. Added by the action engine track.
-	{Pattern: "POST /api/actions/plan", Access: SignedIn},
-	{Pattern: "POST /api/plans/{id}/approve", Access: SignedIn},
-	{Pattern: "GET /api/tasks/{id}", Access: SignedIn},
+	{Pattern: "POST /api/actions/plan", Access: SignedIn, Token: TokenAny},
+	{Pattern: "POST /api/plans/{id}/approve", Access: SignedIn, Token: TokenAny},
+	{Pattern: "GET /api/tasks/{id}", Access: SignedIn, Token: TokenAny},
 	// Cancelling: your own task, or anyone's with tasks.all (the engine asks
 	// the policy). Listing what could be planned on a target: filtered by
 	// the policy, per action.
-	{Pattern: "POST /api/tasks/{id}/cancel", Access: SignedIn},
-	{Pattern: "GET /api/actions", Access: SignedIn},
+	{Pattern: "POST /api/tasks/{id}/cancel", Access: SignedIn, Token: TokenAny},
+	{Pattern: "GET /api/actions", Access: SignedIn, Token: TokenAny},
 
 	// Identity across sources: reads for viewers, decisions for admins.
-	{Pattern: "GET /api/correlate/links", Access: Viewer},
-	{Pattern: "GET /api/correlate/suggestions", Access: Viewer},
-	{Pattern: "GET /api/correlate/decisions", Access: Viewer},
+	{Pattern: "GET /api/correlate/links", Access: Viewer, Token: ScopeGraphRead},
+	{Pattern: "GET /api/correlate/suggestions", Access: Viewer, Token: ScopeGraphRead},
+	{Pattern: "GET /api/correlate/decisions", Access: Viewer, Token: ScopeGraphRead},
 	{Pattern: "POST /api/correlate/suggestions/{id}/confirm", Access: Admin},
 	{Pattern: "POST /api/correlate/suggestions/{id}/reject", Access: Admin},
 	{Pattern: "POST /api/correlate/decisions", Access: Admin},
@@ -209,7 +222,7 @@ var Routes = []Route{
 	// compose files (adopted ones especially) often hold credentials in
 	// plain text, and stacks are Settings in the Roles table. Deploying,
 	// rolling back and adopting are actions, admin+ by authz.Decide.
-	{Pattern: "GET /api/stacks", Access: Viewer},
+	{Pattern: "GET /api/stacks", Access: Viewer, Token: ScopeGraphRead},
 	{Pattern: "GET /api/stacks/secrets", Access: Admin},
 	{Pattern: "PUT /api/stacks/secrets/{name}", Access: Admin},
 	{Pattern: "DELETE /api/stacks/secrets/{name}", Access: Admin},
@@ -235,11 +248,33 @@ var Routes = []Route{
 	{Pattern: "POST /api/notify/push/subscriptions", Access: SignedIn},
 	{Pattern: "DELETE /api/notify/push/subscriptions/{id}", Access: SignedIn},
 	{Pattern: "POST /api/notify/push/unsubscribe", Access: SignedIn},
+	// Reads for scripts: the Home Graph and the Inbox as the caller's role
+	// sees them over realtime (household gets its projection). Sessions can
+	// call them too; the web app uses the socket.
+	{Pattern: "GET /api/graph", Access: SignedIn, Token: ScopeGraphRead},
+	{Pattern: "GET /api/inbox", Access: SignedIn, Token: ScopeInboxRead},
+
+	// Settings → API tokens: every role manages its own; admins and the
+	// owner see and revoke everyone's (tokens.go). Session only: a token
+	// can't mint, list or revoke tokens.
+	{Pattern: "GET /api/tokens", Access: SignedIn},
+	{Pattern: "POST /api/tokens", Access: SignedIn},
+	{Pattern: "DELETE /api/tokens/{id}", Access: SignedIn},
+	{Pattern: "GET /api/tokens/scopes", Access: SignedIn},
+
+	// Plans waiting for a person (a token's T2 plans). The list and the
+	// decisions are an approver's, in a session (the engine asks the policy:
+	// admin+, a step-up from T2); one approval is readable by the token that
+	// asked, so it can poll, and by approvers.
+	{Pattern: "GET /api/approvals", Access: Admin},
+	{Pattern: "GET /api/approvals/{id}", Access: SignedIn, Token: TokenAny},
+	{Pattern: "POST /api/approvals/{id}/approve", Access: Admin},
+	{Pattern: "POST /api/approvals/{id}/deny", Access: Admin},
 
 	// Settings → Audit. Added by the audit track.
-	{Pattern: "GET /api/audit", Access: Admin},
-	{Pattern: "GET /api/audit/export", Access: Admin},
-	{Pattern: "GET /api/audit/verify", Access: Admin},
+	{Pattern: "GET /api/audit", Access: Admin, Token: ScopeAuditRead},
+	{Pattern: "GET /api/audit/export", Access: Admin, Token: ScopeAuditRead},
+	{Pattern: "GET /api/audit/verify", Access: Admin, Token: ScopeAuditRead},
 }
 
 var routeIndex = func() map[string]Route {
@@ -266,6 +301,13 @@ func Lookup(pattern string) (Route, bool) {
 // row fails closed and loudly. Requests mux would answer with 404 or 405
 // itself pass straight through.
 //
+// A request carrying an API token (Authorization: Bearer cdt_…) is
+// authenticated by that token alone, whatever cookie came with it: only on
+// /api/ routes, and only on rows whose Token admits it (TokenRoute), as the
+// token's user narrowed to its scopes. Bad tokens are answered 401 and
+// rate-limited per client (auth.RequireToken). A token is a credential the
+// browser never sends by itself, so token requests need no CSRF defence.
+//
 // Guard sits inside the cross-origin protection, so CSRF checks run first.
 func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 	if log == nil {
@@ -287,6 +329,28 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 			mux.ServeHTTP(w, r) // a node authenticates in the channel, by key
 			return
 		}
+		if _, ok := auth.BearerToken(r); ok {
+			// An API token: it alone is the credential, whatever cookie
+			// came with it, and only on /api/ routes.
+			if !strings.HasPrefix(r.URL.Path, "/api/") {
+				httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "API tokens work only on /api/ routes.")
+				return
+			}
+			a.RequireToken(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				id, _ := auth.FromContext(r.Context())
+				if err := TokenRoute(route, id.User.Role, id.Token.Scopes); err != nil {
+					var ref *Refusal
+					code, msg := "forbidden", err.Error()
+					if errors.As(err, &ref) && errors.Is(ref.Err, ErrSessionOnly) {
+						code = "session_only"
+					}
+					httpx.Error(w, http.StatusForbidden, code, msg)
+					return
+				}
+				mux.ServeHTTP(w, r)
+			})).ServeHTTP(w, r)
+			return
+		}
 		a.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			id, _ := auth.FromContext(r.Context())
 			if !route.Access.Allows(id.User.Role) {
@@ -298,13 +362,58 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 	})
 }
 
+// TokenRoute decides whether an API token whose user has role and whose
+// scopes are scopes may call route: nil, or a *Refusal unwrapping to
+// ErrSessionOnly (the route never takes a token) or ErrForbidden (the role
+// or the scopes don't reach it).
+func TokenRoute(route Route, role string, scopes []string) error {
+	switch {
+	case route.Access == Public:
+		return nil
+	case route.Token == "" || route.Access == NodeKey:
+		return &Refusal{Err: ErrSessionOnly, Msg: "API tokens can't use this; sign in to Cha Dash instead."}
+	case !route.Access.Allows(role):
+		return forbid("%s This token acts as its user, so it can't either.", route.Access.refusal())
+	case route.Token == TokenAny:
+		return nil
+	}
+	sc, err := ParseScope(route.Token)
+	if err != nil || !covered(scopes, sc, "") {
+		return forbid("This token doesn't have the %s scope.", route.Token)
+	}
+	return nil
+}
+
+// TokenActor is the actor an API token's identity acts as: kind token, the
+// token's ID, named after the token and its user ("backup script (sam)"),
+// with the user's current role. It can't step up.
+func TokenActor(id auth.Identity) Actor {
+	return Actor{
+		Kind:     KindToken,
+		ID:       id.Token.ID,
+		Name:     TokenActorName(id.Token.Name, id.User.Username),
+		Role:     id.User.Role,
+		Via:      "api",
+		IP:       id.IP,
+		User:     id.User.ID,
+		UserName: id.User.Username,
+	}
+}
+
+// TokenActorName names a token's actor in the audit log and the Inbox.
+func TokenActorName(token, user string) string { return token + " (" + user + ")" }
+
 // ActorFrom is the actor behind a request that passed Guard (or
-// auth.Require): the signed-in user, their session and its step-up grant.
-// The action engine and the audit log read it.
+// auth.Require): the signed-in user, their session and its step-up grant,
+// or the API token and the user it acts for (TokenActor). The action engine
+// and the audit log read it.
 func ActorFrom(r *http.Request) (Actor, bool) {
 	id, ok := auth.FromContext(r.Context())
 	if !ok {
 		return Actor{}, false
+	}
+	if id.Token != nil {
+		return TokenActor(id), true
 	}
 	return Actor{
 		Kind:        KindUser,

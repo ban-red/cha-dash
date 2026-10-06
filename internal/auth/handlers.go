@@ -11,10 +11,14 @@ import (
 	"dash.cha.sh/internal/httpx"
 )
 
-// Identity is the signed-in user attached to a request by Require.
+// Identity is the signed-in user attached to a request by Require, or the
+// user an API token acts for, attached by RequireToken.
 type Identity struct {
-	User    User
+	User User
+	// Session is the cookie session; zero for an API token.
 	Session Session
+	// Token is the API token the request carried; nil for a session.
+	Token *TokenRef
 	// IP is the client address, behind trusted proxies, for audit records.
 	IP string
 }

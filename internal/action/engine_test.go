@@ -15,6 +15,7 @@ import (
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/store"
 )
@@ -57,6 +58,7 @@ type env struct {
 	clock  *clock
 	policy Policy
 	e      *Engine
+	inbox  *livedoc.Doc // nil: no Inbox
 	// consumed lists the sessions whose step-up grant a T4 spent.
 	consumed []string
 }
@@ -117,7 +119,7 @@ func newEnv(t *testing.T, policy Policy, defs ...Def) *env {
 func (e *env) start() {
 	e.t.Helper()
 	eng, err := New(e.t.Context(), Options{Store: e.st, Audit: e.audit, Registry: e.reg, Policy: e.policy, Graph: e.g,
-		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now,
+		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now, Inbox: e.inbox,
 		ConsumeStepUp: func(_ context.Context, session string) error { e.consumed = append(e.consumed, session); return nil }})
 	if err != nil {
 		e.t.Fatal(err)

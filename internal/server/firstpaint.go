@@ -51,7 +51,7 @@ func InboxView(b *boards.Service, g *graph.Graph, log *slog.Logger) func(ctx con
 	}
 	return func(ctx context.Context, role string) topics.InboxView {
 		if authz.SeesInboxDetail(role) {
-			return topics.InboxView{Detail: true}
+			return topics.InboxView{Detail: true, Approvals: authz.SeesApprovals(role)}
 		}
 		if !authz.SignedIn.Allows(role) {
 			return topics.InboxView{}

@@ -32,12 +32,15 @@ type TaskActor struct {
 // Task is one approved plan running, or finished: the API's and the tasks
 // topic's shape.
 type Task struct {
-	ID         string     `json:"id"`
-	Plan       string     `json:"plan"`
-	Action     string     `json:"action"`
-	Label      string     `json:"label"`
-	Target     string     `json:"target"`
-	Actor      TaskActor  `json:"actor"`
+	ID     string    `json:"id"`
+	Plan   string    `json:"plan"`
+	Action string    `json:"action"`
+	Label  string    `json:"label"`
+	Target string    `json:"target"`
+	Actor  TaskActor `json:"actor"`
+	// ApprovedBy is the person who approved it for its actor, when it
+	// waited for one (an API token's T2 plan).
+	ApprovedBy *TaskActor `json:"approved_by,omitempty"`
 	State      string     `json:"state"`
 	Step       string     `json:"step,omitempty"`
 	Progress   *float64   `json:"progress,omitempty"` // 0–1
@@ -63,6 +66,10 @@ func (t *Task) Finished() bool {
 
 func (t *Task) clone() Task {
 	c := *t
+	if t.ApprovedBy != nil {
+		ab := *t.ApprovedBy
+		c.ApprovedBy = &ab
+	}
 	c.Log = append([]string(nil), t.Log...)
 	if t.Progress != nil {
 		p := *t.Progress

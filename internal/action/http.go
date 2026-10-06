@@ -17,7 +17,12 @@ const maxIdempotencyKey = 128
 // action or per read scope:
 //
 //	POST /api/actions/plan        {"action","target","params"?} → 200 Plan
-//	POST /api/plans/{id}/approve  {"hash","typed"?}, optional Idempotency-Key → 202 {"task"}
+//	POST /api/plans/{id}/approve  {"hash","typed"?}, optional Idempotency-Key → 202 {"task"},
+//	                              or 202 {"task": null, "approval"} when the plan waits for a person
+//	GET  /api/approvals           → 200 {"approvals": [Approval]} (ScopeApprovals)
+//	GET  /api/approvals/{id}      → 200 Approval (the actor that asked, or ScopeApprovals)
+//	POST /api/approvals/{id}/approve  {"hash","typed"?} → 202 {"task"} (ScopeApprovals at the plan's tier)
+//	POST /api/approvals/{id}/deny     {"reason"?} → 200 {"approval"} (ScopeApprovals)
 //	GET  /api/tasks/{id}          → 200 Task (your own, or anyone's with ScopeTasksAll)
 //	POST /api/tasks/{id}/cancel   → 202 {"task"}; 404, 409 finished, 409 not_cancellable (audited as task.cancel)
 //	GET  /api/actions?target=     → 200 [Offer]: what the actor could plan on target (see ActionsFor)
@@ -74,12 +79,76 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 		if !httpx.DecodeJSON(w, r, &req) {
 			return
 		}
-		t, err := e.Approve(r.Context(), a, r.PathValue("id"), req, key)
+		t, apv, err := e.ApproveOrSubmit(r.Context(), a, r.PathValue("id"), req, key)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		if apv != nil {
+			httpx.WriteJSON(w, http.StatusAccepted, map[string]any{"task": nil, "approval": apv})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusAccepted, map[string]Task{"task": t})
+	})))
+
+	mux.Handle("GET /api/approvals", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a, ok := actorOf(w, r)
+		if !ok {
+			return
+		}
+		list, err := e.Approvals(r.Context(), a)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string][]Approval{"approvals": list})
+	})))
+	mux.Handle("GET /api/approvals/{id}", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a, ok := actorOf(w, r)
+		if !ok {
+			return
+		}
+		apv, err := e.Approval(r.Context(), a, r.PathValue("id"))
+		if errors.Is(err, ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such approval.")
+			return
+		} else if err != nil {
+			fail(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, apv)
+	})))
+	mux.Handle("POST /api/approvals/{id}/approve", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a, ok := actorOf(w, r)
+		if !ok {
+			return
+		}
+		var req ApproveRequest
+		if !httpx.DecodeJSON(w, r, &req) {
+			return
+		}
+		t, err := e.Grant(r.Context(), a, r.PathValue("id"), req)
 		if err != nil {
 			fail(w, err)
 			return
 		}
 		httpx.WriteJSON(w, http.StatusAccepted, map[string]Task{"task": t})
+	})))
+	mux.Handle("POST /api/approvals/{id}/deny", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a, ok := actorOf(w, r)
+		if !ok {
+			return
+		}
+		var req DenyRequest
+		if !httpx.DecodeJSON(w, r, &req) {
+			return
+		}
+		apv, err := e.Deny(r.Context(), a, r.PathValue("id"), req)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]Approval{"approval": apv})
 	})))
 	mux.Handle("GET /api/tasks/{id}", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a, ok := actorOf(w, r)

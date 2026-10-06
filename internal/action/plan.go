@@ -121,7 +121,7 @@ func (e *Engine) Plan(ctx context.Context, a Actor, req PlanRequest) (*Plan, err
 	actor, _ := json.Marshal(a)
 	_, err = e.st.Writer().ExecContext(ctx, `INSERT INTO plans (id, hash, session_id, actor_id, actor, action, target, params, tier, state, document, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Hash, a.Session, a.ID, string(actor), d.ID, t.ID, string(params), tier.String(), t.State, string(doc), now.UnixMilli(), p.ExpiresAt.UnixMilli())
+		p.ID, p.Hash, a.binding(), a.ID, string(actor), d.ID, t.ID, string(params), tier.String(), t.State, string(doc), now.UnixMilli(), p.ExpiresAt.UnixMilli())
 	if err != nil {
 		return nil, fmt.Errorf("action: save plan: %w", err)
 	}
@@ -358,30 +358,59 @@ func (e *Engine) loadPlan(ctx context.Context, id string) (*storedPlan, error) {
 	return &p, nil
 }
 
-// Approve runs a plan: same session, the plan's hash, a fresh step-up where
-// the tier needs one, and an unchanged target. With an idempotency key, a
-// repeated approval returns the task the first one started. Refusals are
-// *Refusal and are audited.
+// Approve runs a plan: the session (or token) that made it, the plan's
+// hash, a fresh step-up where the tier needs one, and an unchanged target.
+// With an idempotency key, a repeated approval returns the task the first
+// one started. Refusals are *Refusal and are audited. A plan that must wait
+// for a person (ApprovalPolicy) isn't run: Approve returns *AwaitingApproval
+// carrying the approval; ApproveOrSubmit returns it without the error.
 func (e *Engine) Approve(ctx context.Context, a Actor, planID string, req ApproveRequest, idemKey string) (Task, error) {
+	t, apv, err := e.ApproveOrSubmit(ctx, a, planID, req, idemKey)
+	if err == nil && apv != nil {
+		return Task{}, &AwaitingApproval{Approval: *apv}
+	}
+	return t, err
+}
+
+// AwaitingApproval is Approve's answer for a plan that waits for a person:
+// not a failure, the approval to follow.
+type AwaitingApproval struct{ Approval Approval }
+
+func (a *AwaitingApproval) Error() string { return "action: awaiting approval (" + a.Approval.ID + ")" }
+
+// ApproveOrSubmit is Approve, with the approval returned beside the task:
+// exactly one of the task and the approval is set when err is nil. Asking
+// again for a plan already waiting returns its approval, in whatever state
+// it's in now.
+func (e *Engine) ApproveOrSubmit(ctx context.Context, a Actor, planID string, req ApproveRequest, idemKey string) (Task, *Approval, error) {
 	if idemKey != "" {
 		if t, ok, err := e.idempotent(ctx, a, planID, idemKey); err != nil || ok {
-			return t, err
+			return t, nil, err
 		}
 	}
 	p, err := e.loadPlan(ctx, planID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Task{}, e.refuse(ctx, a, "unknown", "", nil, nil, "", &Refusal{Status: http.StatusNotFound, Code: "not_found", Message: "There's no such plan."})
+		return Task{}, nil, e.refuse(ctx, a, "unknown", "", nil, nil, "", &Refusal{Status: http.StatusNotFound, Code: "not_found", Message: "There's no such plan."})
 	} else if err != nil {
-		return Task{}, err
+		return Task{}, nil, err
 	}
 	d, _ := e.reg.Get(p.action)
-	refuse := func(r *Refusal) (Task, error) {
-		return Task{}, e.refuse(ctx, a, p.action, p.target, p.params, d, p.tier.String(), r)
+	refuse := func(r *Refusal) (Task, *Approval, error) {
+		return Task{}, nil, e.refuse(ctx, a, p.action, p.target, p.params, d, p.tier.String(), r)
 	}
 	now := e.now()
-	switch {
-	case p.session == "" || p.session != a.Session || p.actorID != a.ID:
+	if p.session == "" || p.session != a.binding() || p.actorID != a.ID {
+		if a.Kind == KindToken {
+			return refuse(&Refusal{Status: http.StatusForbidden, Code: "forbidden", Message: "Only the token that made this plan can approve it. A person approves it from the Inbox."})
+		}
 		return refuse(&Refusal{Status: http.StatusForbidden, Code: "forbidden", Message: "Only the session that made this plan can approve it."})
+	}
+	if apv, err := e.approvalOfPlan(ctx, p.id); err == nil {
+		return Task{}, &apv, nil // asked already
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return Task{}, nil, err
+	}
+	switch {
 	case p.approved:
 		return refuse(&Refusal{Status: http.StatusGone, Code: "plan_expired", Message: "This plan has already run. Plan it again."})
 	case !now.Before(p.expires):
@@ -411,18 +440,51 @@ func (e *Engine) Approve(ctx context.Context, a Actor, planID string, req Approv
 	if p.tier == T4 && !a.StepUpUntil.Add(-StepUpTTL).After(p.created) {
 		return refuse(forbidden(ErrStepUpRequired))
 	}
+	if ap, ok := e.policy.(ApprovalPolicy); ok && ap.NeedsApproval(a, p.tier) {
+		apv, err := e.submit(ctx, a, p, t)
+		return Task{}, apv, err
+	}
 
+	task, ref, err := e.launch(ctx, a, p, d, t, idemKey, nil, nil, nil)
+	if ref != nil {
+		return refuse(ref)
+	}
+	if err != nil {
+		return Task{}, nil, err
+	}
+	if p.tier == T4 && e.consume != nil && a.Session != "" {
+		// The grant is spent: the next T4 asks again, even within its five minutes.
+		if err := e.consume(ctx, a.Session); err != nil && e.log != nil {
+			e.log.Warn("action: ending the step-up grant after a T4 failed", "err", err)
+		}
+	}
+	return task, nil, nil
+}
+
+// launch starts p's task on t for actor, the plan's originator, as
+// approved now: by actor itself, or by approvedBy (a person deciding an
+// approval). inTx runs in the transaction that marks the plan used and
+// creates the task, so an approval's decision commits with them; afterCommit
+// runs once it has, before the task starts (so its audit record comes
+// first). A refusal
+// (locked, already run) is returned for the caller to audit.
+func (e *Engine) launch(ctx context.Context, actor Actor, p *storedPlan, d *Def, t Target, idemKey string, approvedBy *Actor,
+	inTx func(tx *sql.Tx, task Task) error, afterCommit func(task Task)) (Task, *Refusal, error) {
+	r := Request{Action: d.ID, Target: t, Params: p.params, Actor: actor, Plan: p.id}
 	task := Task{
 		ID: "t_" + strings.ToLower(rand.Text()), Plan: p.id, Action: d.ID, Label: p.doc.Label, Target: t.ID,
-		Actor: TaskActor{Kind: a.Kind, Name: a.Name}, State: StateQueued, Cancellable: d.Cancellable,
+		Actor: TaskActor{Kind: actor.Kind, Name: actor.Name}, State: StateQueued, Cancellable: d.Cancellable,
+	}
+	if approvedBy != nil {
+		task.ApprovedBy = &TaskActor{Kind: approvedBy.Kind, Name: approvedBy.Name}
 	}
 	r.Task = task.ID
 	if !e.lock(t.ID, task.ID) {
-		return refuse(&Refusal{Status: http.StatusConflict, Code: "locked", Message: "Something else is already running on this. Try again when it's done."})
+		return Task{}, &Refusal{Status: http.StatusConflict, Code: "locked", Message: "Something else is already running on this. Try again when it's done."}, nil
 	}
-	created := now.UTC().Truncate(time.Millisecond)
+	created := e.now().UTC().Truncate(time.Millisecond)
 	doc, _ := json.Marshal(task)
-	err = e.st.WriteTx(ctx, func(tx *sql.Tx) error {
+	err := e.st.WriteTx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `UPDATE plans SET approved_at = ? WHERE id = ? AND approved_at IS NULL`, created.UnixMilli(), p.id)
 		if err != nil {
 			return err
@@ -431,33 +493,39 @@ func (e *Engine) Approve(ctx context.Context, a Actor, planID string, req Approv
 			return errSpent
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO tasks (id, plan_id, actor_id, state, document, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-			task.ID, p.id, a.ID, task.State, string(doc), created.UnixMilli()); err != nil {
+			task.ID, p.id, actor.ID, task.State, string(doc), created.UnixMilli()); err != nil {
 			return err
 		}
 		if idemKey != "" {
-			_, err = tx.ExecContext(ctx, `INSERT INTO idempotency_keys (actor_id, key, plan_id, task_id, created_at) VALUES (?, ?, ?, ?, ?)`,
-				a.ID, idemKey, p.id, task.ID, created.UnixMilli())
+			if _, err := tx.ExecContext(ctx, `INSERT INTO idempotency_keys (actor_id, key, plan_id, task_id, created_at) VALUES (?, ?, ?, ?, ?)`,
+				actor.ID, idemKey, p.id, task.ID, created.UnixMilli()); err != nil {
+				return err
+			}
 		}
-		return err
+		if inTx != nil {
+			return inTx(tx, task)
+		}
+		return nil
 	})
 	if err != nil {
 		e.unlock(t.ID, task.ID)
-		if errors.Is(err, errSpent) {
-			return refuse(&Refusal{Status: http.StatusGone, Code: "plan_expired", Message: "This plan has already run. Plan it again."})
+		var ref *Refusal
+		switch {
+		case errors.Is(err, errSpent):
+			return Task{}, &Refusal{Status: http.StatusGone, Code: "plan_expired", Message: "This plan has already run. Plan it again."}, nil
+		case errors.As(err, &ref):
+			return Task{}, ref, nil
 		}
-		return Task{}, fmt.Errorf("action: start task: %w", err)
+		return Task{}, nil, fmt.Errorf("action: start task: %w", err)
 	}
-	if p.tier == T4 && e.consume != nil && a.Session != "" {
-		// The grant is spent: the next T4 asks again, even within its five minutes.
-		if err := e.consume(ctx, a.Session); err != nil && e.log != nil {
-			e.log.Warn("action: ending the step-up grant after a T4 failed", "err", err)
-		}
+	if afterCommit != nil {
+		afterCommit(task)
 	}
 	if !e.start(d, r, task, p.tier, p.doc.Undo, created) {
 		e.unlock(t.ID, task.ID)
-		return Task{}, errors.New("action: the engine is shutting down")
+		return Task{}, nil, errors.New("action: the engine is shutting down")
 	}
-	return task, nil
+	return task, nil, nil
 }
 
 var errSpent = errors.New("action: plan already approved")

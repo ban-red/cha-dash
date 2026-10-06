@@ -76,8 +76,9 @@ func ParseTier(s string) (Tier, error) {
 	return 0, fmt.Errorf("action: unknown tier %q", s)
 }
 
-// Actor is who asks: a signed-in user today, an API token or an agent
-// later. internal/authz decides what an Actor may do.
+// Actor is who asks: a signed-in user, an API token, or (later) an agent.
+// internal/authz decides what an Actor may do. A plan's actor is its
+// originator: the plans table keeps it, and an approval names it.
 type Actor struct {
 	Kind    string `json:"kind"` // user, token, agent, system
 	ID      string `json:"id,omitempty"`
@@ -86,6 +87,9 @@ type Actor struct {
 	Via     string `json:"via,omitempty"` // web, api, mcp
 	Session string `json:"session,omitempty"`
 	IP      string `json:"ip,omitempty"`
+	// User and UserName are the user a token (or agent) acts for.
+	User     string `json:"user,omitempty"`
+	UserName string `json:"user_name,omitempty"`
 	// StepUpUntil is when the session's step-up grant ends; zero for none.
 	StepUpUntil time.Time `json:"-"`
 }
@@ -93,8 +97,22 @@ type Actor struct {
 // Actor kinds.
 const (
 	KindUser   = "user"
+	KindToken  = "token" // an API token, acting for its user
+	KindAgent  = "agent" // an agent's token (ADR-0017; not issued yet)
 	KindSystem = "system"
 )
+
+// binding is what may approve a plan the actor made: its session, or for a
+// token, the token itself. "" binds to nothing, so nothing can approve.
+func (a Actor) binding() string {
+	switch {
+	case a.Session != "":
+		return a.Session
+	case (a.Kind == KindToken || a.Kind == KindAgent) && a.ID != "":
+		return a.Kind + ":" + a.ID
+	}
+	return ""
+}
 
 // Policy decides whether an actor may act. internal/authz implements it;
 // The hub runs authz's through authz.Policy.ForEngine; OwnerOnly is for tests.
@@ -104,6 +122,14 @@ type Policy interface {
 	// scope such as ScopeAuditRead; target is the resource ID, or "". The
 	// Def being authorized, if any, is DefFromContext(ctx).
 	Authorize(ctx context.Context, a Actor, scope, target string, tier Tier) error
+}
+
+// ApprovalPolicy is an optional extension of Policy: plans by the actors it
+// names wait for a person (an approval in a session) instead of running when
+// their maker approves them. internal/authz implements it: an API token's
+// plans from T2 up, every agent's plan. Without it, nothing waits.
+type ApprovalPolicy interface {
+	NeedsApproval(a Actor, tier Tier) bool
 }
 
 // Policy answers.
@@ -120,6 +146,11 @@ const (
 	ScopeTasksAll  = "tasks.all"
 	// ActionCancel is the audit log's name for cancelling a task.
 	ActionCancel = "task.cancel"
+	// ScopeApprovals is deciding (approving or denying) a plan that waits
+	// for a person, asked at the plan's tier to approve and at T0 to deny or
+	// to read others' approvals. The policy gives it to people in a session,
+	// admin and up, with a step-up from T2.
+	ScopeApprovals = "approvals.decide"
 )
 
 type defKey struct{}

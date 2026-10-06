@@ -124,8 +124,10 @@ type Service struct {
 	// failures is the per-account budget for wrong passwords, keyed by user
 	// ID, so changing address doesn't buy more guesses at one account.
 	failures *limiter
-	now      func() time.Time
-	params   argonParams
+	// tokenFailures is the per-client budget for bad API tokens.
+	tokenFailures *limiter
+	now           func() time.Time
+	params        argonParams
 
 	// Passkeys: the relying party from CHADASH_PUBLIC_URL (or why it can't be
 	// one), and the ceremonies begun but not yet finished.
@@ -156,8 +158,10 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.P
 		proxies:  proxies,
 		limiter:  newLimiter(10, 6*time.Second), // 10 attempts, then one per 6 s, per client IP
 		failures: newLimiter(20, time.Minute),   // 20 wrong passwords, then one a minute, per account
-		now:      time.Now,
-		params:   defaultParams,
+		// 10 bad API tokens, then one per 6 s, per client IP.
+		tokenFailures: newLimiter(10, 6*time.Second),
+		now:           time.Now,
+		params:        defaultParams,
 	}
 	for _, o := range opts {
 		o(s)

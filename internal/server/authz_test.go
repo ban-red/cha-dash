@@ -69,9 +69,13 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		}
 		d.Vault, d.Integrations, d.Onboarding, d.Security, d.Demo = v, m, ob, sec, drv
 		d.Correlator = correlate.New(correlate.Options{Topics: tp, Store: d.Store, Log: d.Log})
+		reg2 := action.NewRegistry()
+		if err := reg2.Register("test", testActions()...); err != nil {
+			t.Fatal(err)
+		}
 		eng, err := action.New(t.Context(), action.Options{
-			Store: d.Store, Audit: audit.New(d.Store), Registry: action.NewRegistry(), Graph: tp.Graph,
-			Policy:   authz.NewPolicy(d.Store, d.Log).ForEngine(),
+			Store: d.Store, Audit: audit.New(d.Store), Registry: reg2, Graph: tp.Graph, Inbox: tp.Inbox,
+			Policy:   authz.NewPolicy(d.Store, d.Log, authz.WithTokens(d.Auth.TokenAccess)).ForEngine(),
 			Sessions: action.Sessions{StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
 			Log:      d.Log,
 		})
@@ -81,6 +85,7 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		t.Cleanup(eng.Close)
 		d.Actions = eng
 		d.Audit = audit.New(d.Store)
+		d.Topics = tp
 		hub, err := nodes.New(t.Context(), nodes.Options{Store: d.Store, Vault: v, Log: d.Log})
 		if err != nil {
 			t.Fatal(err)
@@ -192,6 +197,15 @@ func TestRouteMatrix(t *testing.T) {
 		_, clients[role] = addUser(t, e, clients[auth.RoleOwner], "a-"+role, role)
 	}
 	anon := &http.Client{}
+	// API tokens: one per role holding "*" (everything its role allows),
+	// one holding only an action scope, and the household's "*" token sent
+	// together with the owner's session cookie: the token alone counts.
+	tokens := map[string]*http.Client{}
+	for role, c := range clients {
+		tokens[role] = withToken(nil, mintToken(t, e, c, "matrix", "*"))
+	}
+	narrow := withToken(nil, mintToken(t, e, clients[auth.RoleOwner], "narrow", "test.thing.poke"))
+	mixed := withToken(clients[auth.RoleOwner].Jar, mintToken(t, e, clients[auth.RoleHousehold], "mixed", "*"))
 
 	checked := 0
 	for _, row := range authz.Routes {
@@ -255,6 +269,41 @@ func TestRouteMatrix(t *testing.T) {
 				t.Errorf("%s as %s: refused, but the table allows it", row.Pattern, role)
 			case !row.Access.Allows(role) && !denied:
 				t.Errorf("%s as %s: %d %s, but the table refuses it", row.Pattern, role, status, b)
+			}
+		}
+		// Tokens: session-only routes refuse every one; the others behave as
+		// the token's user's role, narrowed by its scopes.
+		for role, c := range tokens {
+			status, code, b := hit(c)
+			switch {
+			case !strings.HasPrefix(path, "/api/"):
+				if status != http.StatusUnauthorized {
+					t.Errorf("%s with %s's token: %d %s, want 401 (tokens work only on /api/)", row.Pattern, role, status, b)
+				}
+			case row.Token == "":
+				if status != http.StatusForbidden || code != "session_only" {
+					t.Errorf("%s with %s's token: %d %s, want 403 session_only", row.Pattern, role, status, b)
+				}
+			case !row.Access.Allows(role):
+				if status != http.StatusForbidden || code != "forbidden" {
+					t.Errorf("%s with %s's token: %d %s, but the role can't", row.Pattern, role, status, b)
+				}
+			case status == http.StatusUnauthorized || status == http.StatusForbidden && code != "step_up_required":
+				t.Errorf("%s with %s's token: %d %s, but the table allows it", row.Pattern, role, status, b)
+			}
+		}
+		if strings.HasPrefix(path, "/api/") && row.Token != "" {
+			status, code, b := hit(narrow)
+			needsScope := row.Token != authz.TokenAny
+			if denied := status == http.StatusForbidden && code == "forbidden"; denied != needsScope {
+				t.Errorf("%s with a token without read scopes: %d %s", row.Pattern, status, b)
+			}
+		}
+		if strings.HasPrefix(path, "/api/") {
+			// The owner's cookie doesn't lift the household token.
+			status, code, b := hit(mixed)
+			if row.Token == "" && code != "session_only" || row.Token != "" && !row.Access.Allows(auth.RoleHousehold) && code != "forbidden" {
+				t.Errorf("%s with a household token and the owner's cookie: %d %s", row.Pattern, status, b)
 			}
 		}
 	}

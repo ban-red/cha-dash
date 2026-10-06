@@ -16,6 +16,22 @@ type InboxView struct {
 	Detail bool
 	// Relevant reports whether a resource is on one of the viewer's boards.
 	Relevant func(resource string) bool
+	// Approvals: with Detail, the viewer also sees plans waiting for a
+	// person (class "approval"), which only approvers (admin and owner) can
+	// act on. Without it they're left out; the household never sees them.
+	Approvals bool
+}
+
+// ApprovalClass is the class of an Inbox item for a plan waiting for a
+// person (internal/action's approvals).
+const ApprovalClass = "approval"
+
+// isApproval reports whether an incident is an approval item.
+func isApproval(raw json.RawMessage) bool {
+	var head struct {
+		Class string `json:"class"`
+	}
+	return json.Unmarshal(raw, &head) == nil && head.Class == ApprovalClass
 }
 
 // householdFields are the members of an incident the projection keeps,
@@ -112,7 +128,7 @@ func householdAction(raw json.RawMessage) (json.RawMessage, bool) {
 // ProjectInbox applies v to an inbox document (a Snapshot's), in place: the
 // clock stays, and the incidents are those v shows.
 func ProjectInbox(doc map[string]any, v InboxView) map[string]any {
-	if v.Detail {
+	if v.Detail && v.Approvals {
 		return doc
 	}
 	items, ok := doc[Incidents].(map[string]json.RawMessage)
@@ -121,7 +137,11 @@ func ProjectInbox(doc map[string]any, v InboxView) map[string]any {
 	}
 	kept := make(map[string]json.RawMessage, len(items))
 	for id, raw := range items {
-		if p, ok := ProjectIncident(raw, v.Relevant); ok {
+		if v.Detail {
+			if !isApproval(raw) {
+				kept[id] = raw
+			}
+		} else if p, ok := ProjectIncident(raw, v.Relevant); ok {
 			kept[id] = p
 		}
 	}
@@ -137,8 +157,11 @@ func (s *Set) InboxSource(view func(ctx context.Context) InboxView) realtime.Sou
 	return realtime.ProjectedDocSource{Doc: s.Inbox, Topic: Inbox, Coll: Incidents,
 		Project: func(ctx context.Context) func(string, json.RawMessage) (json.RawMessage, bool) {
 			v := view(ctx)
-			if v.Detail {
+			if v.Detail && v.Approvals {
 				return nil
+			}
+			if v.Detail {
+				return func(_ string, raw json.RawMessage) (json.RawMessage, bool) { return raw, !isApproval(raw) }
 			}
 			return func(_ string, raw json.RawMessage) (json.RawMessage, bool) { return ProjectIncident(raw, v.Relevant) }
 		}}

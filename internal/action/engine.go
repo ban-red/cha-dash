@@ -54,8 +54,15 @@ type Options struct {
 	// the admins about every T4). It runs on the task's goroutine, so it
 	// must return quickly. Nil skips it.
 	OnTaskDone func(TaskDone)
-	Log        *slog.Logger
-	Now        func() time.Time // nil means time.Now
+	// Inbox receives an item (class "approval") for each plan waiting for a
+	// person, kept current as it's decided. Nil: approvals work, but only
+	// the API lists them.
+	Inbox *livedoc.Doc
+	// ApprovalTTL is how long a plan waits for a person; zero means
+	// ApprovalTTL.
+	ApprovalTTL time.Duration
+	Log         *slog.Logger
+	Now         func() time.Time // nil means time.Now
 }
 
 // Engine runs the lifecycle. It's safe for concurrent use.
@@ -68,8 +75,11 @@ type Engine struct {
 	sessions Sessions
 	consume  func(ctx context.Context, session string) error
 	onDone   func(TaskDone)
-	log      *slog.Logger
-	now      func() time.Time
+	inbox    *livedoc.Doc
+	// approvalTTL is how long a plan waits for a person.
+	approvalTTL time.Duration
+	log         *slog.Logger
+	now         func() time.Time
 
 	// tasks is the tasks topic's document: {"tasks": {id: Task}}.
 	tasks *livedoc.Doc
@@ -82,6 +92,10 @@ type Engine struct {
 	live   map[string]*liveTask // tasks in the topic, running or recent
 	locks  map[string]string    // resource ID → the task holding it
 	closed bool
+	// timers expire approvals; resolvedItems are decided approvals' Inbox
+	// items and when they were decided, pruned after RecentTasks.
+	timers        map[string]*time.Timer
+	resolvedItems map[string]time.Time
 }
 
 // TaskDone is a task that has ended, for Options.OnTaskDone.
@@ -111,9 +125,15 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 	}
 	e := &Engine{
 		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, onDone: o.OnTaskDone, log: o.Log, now: o.Now,
-		tasks: livedoc.New(tasksColl),
-		live:  map[string]*liveTask{},
-		locks: map[string]string{},
+		inbox: o.Inbox, approvalTTL: o.ApprovalTTL,
+		tasks:         livedoc.New(tasksColl),
+		live:          map[string]*liveTask{},
+		locks:         map[string]string{},
+		timers:        map[string]*time.Timer{},
+		resolvedItems: map[string]time.Time{},
+	}
+	if e.approvalTTL <= 0 {
+		e.approvalTTL = ApprovalTTL
 	}
 	if e.log == nil {
 		e.log = slog.New(slog.DiscardHandler)
@@ -126,6 +146,9 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 		return nil, err
 	}
 	if err := e.load(ctx); err != nil {
+		return nil, err
+	}
+	if err := e.loadApprovals(ctx); err != nil {
 		return nil, err
 	}
 	return e, nil
@@ -152,6 +175,10 @@ func (e *Engine) Run(ctx context.Context) {
 func (e *Engine) Close() {
 	e.mu.Lock()
 	e.closed = true
+	for id, t := range e.timers {
+		t.Stop()
+		delete(e.timers, id)
+	}
 	e.mu.Unlock()
 	e.cancel()
 	e.wg.Wait()

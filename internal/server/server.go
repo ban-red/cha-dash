@@ -32,6 +32,11 @@
 //	POST /api/tasks/{id}/cancel, GET /api/actions?target=
 //	                           the action engine (session; the policy decides, see action.Engine.Register)
 //	GET  /api/audit, /api/audit/export, /api/audit/verify   the audit log (admin; audit.read)
+//	GET  /api/approvals, GET /api/approvals/{id}, POST …/{id}/approve, POST …/{id}/deny
+//	                           plans waiting for a person (admin decides; the token that asked may read its own)
+//	GET|POST /api/tokens, DELETE /api/tokens/{id}, GET /api/tokens/scopes
+//	                           API tokens: your own; admins and the owner see and revoke any (session only)
+//	GET  /api/graph, GET /api/inbox   the Home Graph and the Inbox as plain reads (session, or a token's graph.read / inbox.read)
 //	GET  /node                 chadash-node's channel (the node's pinned key, not a session; see nodes.Hub)
 //	GET  /api/nodes, POST /api/nodes/{id}/revoke   nodes and revoking one (admin)
 //	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)
@@ -43,6 +48,8 @@
 // Roles in parentheses are the least a route admits ("session": any signed-in
 // role). The table that decides is internal/authz/routes.go, enforced by
 // authz.Guard in front of the mux; a route without a row there is refused.
+// The same table says which routes take an API token (Authorization:
+// Bearer cdt_…) and with which scope; every other route is session only.
 //
 // Every response gets security headers; state-changing requests from other
 // origins are refused (net/http CrossOriginProtection), and the WebSocket
@@ -81,6 +88,7 @@ import (
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
+	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/internal/vault"
 	"dash.cha.sh/internal/webui"
 )
@@ -136,6 +144,9 @@ type Deps struct {
 	// Notify is notifications (channels, rules, devices, the delivery
 	// log). Nil leaves /api/notify unmounted.
 	Notify *notify.Service
+	// Topics are the live documents GET /api/graph and GET /api/inbox read
+	// (the realtime topics). Nil leaves both unmounted.
+	Topics *topics.Set
 }
 
 // New builds the root handler.
@@ -167,6 +178,27 @@ func New(d Deps) (http.Handler, error) {
 	users := authz.NewUsers(d.Auth, d.Log)
 	users.Audit = rec
 	users.Register(mux, session)
+	tokens := authz.NewTokens(d.Auth, d.Log)
+	tokens.Audit = rec
+	if d.Actions != nil {
+		reg, eng := d.Actions.Registry(), d.Actions
+		tokens.Actions = func() []authz.TokenAction {
+			ids := reg.IDs()
+			out := make([]authz.TokenAction, 0, len(ids))
+			for _, id := range ids {
+				if def, ok := reg.Get(id); ok {
+					out = append(out, authz.TokenAction{ID: id, Title: def.Title, Tier: authz.Tier(def.Tier.String())})
+				}
+			}
+			return out
+		}
+		// Revoking a token withdraws the plans it left waiting for a person.
+		tokens.OnRevoke = func(ctx context.Context, id string) { eng.Withdraw(ctx, id, "The token that asked was revoked.") }
+	}
+	tokens.Register(mux, session)
+	if d.Topics != nil {
+		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
+	}
 	if d.Integrations != nil {
 		d.Integrations.Register(mux, session)
 	}
@@ -272,11 +304,11 @@ func compressAPI(next http.Handler) http.Handler {
 
 // noCompress are the API routes whose responses can carry a secret, or take
 // one in: sign-in, passkey ceremonies and the session; first-run setup with
-// its token; and an integration sign-in, whose poll hands the new token to
-// the form once. Compressing a secret next to anything an attacker might
+// its token; an integration sign-in, whose poll hands the new token to the
+// form once; and creating an API token, whose response carries its secret. Compressing a secret next to anything an attacker might
 // influence is what BREACH needs, so these stay identity whatever their size
 // (internal/httpx/gzip.go has the full reasoning).
-var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authorize"}
+var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authorize", "/api/tokens"}
 
 // compressible reports whether GzipJSON may handle a request for path.
 func compressible(path string) bool {

@@ -35,6 +35,12 @@ func (s Sessions) FromContext(ctx context.Context) (Actor, bool) {
 	if !ok {
 		return Actor{}, false
 	}
+	if id.Token != nil {
+		// An API token acts for its user, can't step up, and binds its
+		// plans to itself (authz.TokenActor names it the same way).
+		return Actor{Kind: KindToken, ID: id.Token.ID, Name: id.Token.Name + " (" + id.User.Username + ")", Role: id.User.Role, Via: "api",
+			IP: id.IP, User: id.User.ID, UserName: id.User.Username}, true
+	}
 	a := Actor{Kind: KindUser, ID: id.User.ID, Name: id.User.Username, Role: id.User.Role, Via: "web", Session: id.Session.ID}
 	if s.StepUpUntil != nil {
 		a.StepUpUntil = s.StepUpUntil(id)

@@ -447,6 +447,8 @@ func (e *Engine) load(ctx context.Context) error {
 // tables.
 func (e *Engine) prune(ctx context.Context) {
 	e.trim()
+	e.ExpireApprovals(ctx)
+	e.pruneApprovalItems()
 	now := e.now()
 	for _, q := range []struct {
 		sql string

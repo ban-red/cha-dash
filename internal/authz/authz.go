@@ -8,6 +8,13 @@
 //     asks for a step-up where the tier needs one.
 //   - users.go: the users API, whose rules (an admin manages everyone but the
 //     owner; handing over ownership is T3) are decisions too.
+//   - tokens.go: the API tokens API, and which scopes a role may hand a token.
+//
+// API tokens act as their user, never above the user's current role, and
+// narrowed by their scopes (read scopes such as graph.read, and action IDs
+// or patterns). They can't step up, so T3 and T4 are out of reach; their
+// plans from T2 up wait for a person (NeedsApproval), who approves them in a
+// session (DecideApproval).
 //
 // Roles and their tier caps:
 //
@@ -84,12 +91,15 @@ func (t Tier) rank() int {
 type Actor struct {
 	Kind, ID, Name, Role, Via, Session, IP string
 	StepUpUntil                            time.Time
+	// User and UserName are the user an API token acts for (kind token).
+	User, UserName string
 }
 
 // Actor kinds.
 const (
 	KindUser  = "user"
 	KindToken = "token" // an API token (wave 10); it can't step up
+	KindAgent = "agent" // an agent's token (ADR-0017, later); every plan waits for a person
 )
 
 // Errors. A refusal unwraps to one of these and reads as a sentence the web
@@ -97,6 +107,9 @@ const (
 var (
 	ErrForbidden      = errors.New("forbidden")
 	ErrStepUpRequired = errors.New("step-up required")
+	// ErrSessionOnly: an API token called a route only a signed-in person
+	// may (TokenRoute).
+	ErrSessionOnly = errors.New("session only")
 )
 
 // Refusal is a decision against the actor.
@@ -154,6 +167,10 @@ func tierCap(role string) Tier {
 // incidents about what its boards show. An unknown role sees nothing.
 func SeesInboxDetail(role string) bool { return rank(role) >= rank(auth.RoleViewer) }
 
+// SeesApprovals reports whether role sees plans waiting for a person (an
+// API token's T2 plans) in the Inbox: the approvers, admin and owner.
+func SeesApprovals(role string) bool { return rank(role) >= rank(auth.RoleAdmin) }
+
 // HouseholdCap is the highest tier an action marked household: true may have
 // and still be open to the household role.
 const HouseholdCap = T1
@@ -163,6 +180,61 @@ const HouseholdCap = T1
 const FreshStepUp = time.Minute
 
 // ── Scopes ───────────────────────────────────────────────────────────────────
+
+// Read scopes: what an API token may read, beside the action scopes (action
+// IDs and patterns) that say what it may plan. A token's user must be
+// allowed the read too; audit.read and tasks.all are Admin and Owner only.
+// "*" grants every read and every action the user's role allows.
+const (
+	// ScopeGraphRead: the Home Graph, boards and their layouts, correlation
+	// links and suggestions, the stacks list, the demo clock.
+	ScopeGraphRead = "graph.read"
+	// ScopeInboxRead: the Inbox, as the user's role sees it.
+	ScopeInboxRead = "inbox.read"
+	// ScopeAuditRead: the audit log, its export and its verification.
+	ScopeAuditRead = "audit.read"
+	// ScopeTasksAll: everyone's tasks, not only the token's own.
+	ScopeTasksAll = "tasks.all"
+	// ScopeApprovals is the engine's scope for deciding a plan that waits
+	// for a person (action.ScopeApprovals); never a token's.
+	ScopeApprovals = "approvals.decide"
+)
+
+// ReadScope describes a read scope for Settings → API tokens.
+type ReadScope struct {
+	Scope       string `json:"scope"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+	// MinRole is the least role whose tokens may hold it.
+	MinRole string `json:"min_role"`
+}
+
+// ReadScopes is the read vocabulary, in the order the page shows it.
+var ReadScopes = []ReadScope{
+	{ScopeGraphRead, "Read the Home Graph", "Resources and relations, boards and their layouts, correlation links, the stacks list.", auth.RoleHousehold},
+	{ScopeInboxRead, "Read the Inbox", "Open and recent incidents, repairs and suggestions, as your role sees them.", auth.RoleHousehold},
+	{ScopeAuditRead, "Read the audit log", "Every recorded change, its export and the chain check.", auth.RoleAdmin},
+	{ScopeTasksAll, "See everyone's tasks", "Tasks other people and tokens started, not only this token's own.", auth.RoleAdmin},
+}
+
+// ValidTokenScope checks a scope a token of a user with role may hold:
+// a read scope the role may use, an action ID or pattern, optionally
+// qualified, or "*". It returns a sentence for the person when it can't.
+func ValidTokenScope(scope, role string) error {
+	sc, err := ParseScope(scope)
+	if err != nil {
+		return forbid("%q isn't a scope. Use an action ID such as docker.container.restart, a pattern such as proxmox.guest.*, or a read scope.", scope)
+	}
+	for _, r := range ReadScopes {
+		if sc.Action == r.Scope && rank(role) < rank(r.MinRole) {
+			return forbid("Your role (%s) can't use %s, so a token of yours can't either.", role, r.Scope)
+		}
+	}
+	if sc.Action == ScopeApprovals {
+		return forbid("Tokens can't approve plans: a person approves them, in a session.")
+	}
+	return nil
+}
 
 // Scope is a parsed scope: an action ID (or pattern) and its qualifiers.
 type Scope struct {
@@ -289,6 +361,9 @@ func Decide(a Actor, req Request, env Env) error {
 	if tr >= T3.rank() && a.Kind == KindToken {
 		return forbid("API tokens can't run %s actions; they need a person to confirm.", req.Tier)
 	}
+	if tr >= T4.rank() && a.Kind == KindAgent {
+		return forbid("Agents can never propose %s actions.", req.Tier)
+	}
 	switch req.Tier {
 	case T4:
 		if !covered(env.T4, sc, req.Target) {
@@ -301,6 +376,39 @@ func Decide(a Actor, req Request, env Env) error {
 		if !a.StepUpUntil.After(env.Now) {
 			return &Refusal{Err: ErrStepUpRequired, Msg: "Confirm it's you first."}
 		}
+	}
+	return nil
+}
+
+// NeedsApproval reports whether a plan an actor of kind makes at tier
+// waits for a person instead of running when its maker approves it: an API
+// token's plans from T2 up ("API-originated actions above T1 always require
+// human approval", 02 · Experience), and every plan of an agent's (ADR-0017).
+func NeedsApproval(kind string, tier Tier) bool {
+	switch kind {
+	case KindToken:
+		return tier.rank() >= T2.rank()
+	case KindAgent:
+		return true
+	}
+	return false
+}
+
+// DecideApproval decides whether a may approve or deny a plan that waits for
+// a person, at the plan's tier (T0 to deny): only a person signed in to a
+// session, never a token; an admin or the owner; and from T2 up, with a
+// step-up grant (passkey, or the password where the step-up rule allows it).
+// The engine also wants that grant to be newer than the request, so it's
+// bound to this approval; and it asks Decide whether a may run the action
+// itself.
+func DecideApproval(a Actor, tier Tier, now time.Time) error {
+	switch {
+	case a.Kind != KindUser || a.Session == "":
+		return forbid("Only a person signed in to Cha Dash can approve or deny this, never a token.")
+	case rank(a.Role) < rank(auth.RoleAdmin):
+		return forbid("Only an admin or the owner can approve or deny plans that wait for a person.")
+	case tier.rank() >= T2.rank() && !a.StepUpUntil.After(now):
+		return &Refusal{Err: ErrStepUpRequired, Msg: "Confirm it's you first: approving this needs a fresh check."}
 	}
 	return nil
 }
@@ -318,6 +426,7 @@ type Policy struct {
 	log    *slog.Logger
 	now    func() time.Time
 	grants func(context.Context, Actor) ([]string, error)
+	tokens func(context.Context, string) (auth.TokenAccess, error)
 }
 
 // PolicyOption adjusts NewPolicy.
@@ -327,6 +436,14 @@ type PolicyOption func(*Policy)
 // for no narrowing (wave 10's API tokens).
 func WithGrants(f func(context.Context, Actor) ([]string, error)) PolicyOption {
 	return func(p *Policy) { p.grants = f }
+}
+
+// WithTokens resolves API token actors (kind token): f returns what the
+// token may do now (auth.Service.TokenAccess). The token's current scopes
+// narrow the actor, its user's current role replaces the one recorded, and
+// a revoked or expired token is refused. Without it every token is refused.
+func WithTokens(f func(ctx context.Context, id string) (auth.TokenAccess, error)) PolicyOption {
+	return func(p *Policy) { p.tokens = f }
 }
 
 // WithClock replaces time.Now, for tests.
@@ -363,6 +480,12 @@ func (p *Policy) Authorize(ctx context.Context, a Actor, scope, target string, t
 // rather than allows.
 func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 	env := Env{Now: p.now()}
+	if a.Kind == KindToken {
+		var err error
+		if a, env.Grants, err = p.token(ctx, a); err != nil {
+			return err
+		}
+	}
 	if req.Tier == T4 {
 		t4, err := p.T4Enabled(ctx)
 		if err != nil {
@@ -371,7 +494,7 @@ func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 		}
 		env.T4 = t4
 	}
-	if p.grants != nil {
+	if p.grants != nil && a.Kind != KindToken {
 		g, err := p.grants(ctx, a)
 		if err != nil {
 			p.log.Error("authz: reading the actor's grants failed; refusing", "err", err, "actor", a.ID)
@@ -380,6 +503,58 @@ func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 		env.Grants = g
 	}
 	return Decide(a, req, env)
+}
+
+// token resolves a token actor: its user's current role and the token's
+// scopes, or a refusal when it's revoked, expired or can't be read.
+func (p *Policy) token(ctx context.Context, a Actor) (Actor, []string, error) {
+	if p.tokens == nil {
+		if p.grants == nil {
+			return a, nil, forbid("API tokens aren't accepted here.")
+		}
+		// Grants alone (tests, or a caller that resolves tokens itself).
+		g, err := p.grants(ctx, a)
+		if err != nil {
+			p.log.Error("authz: reading the actor's grants failed; refusing", "err", err, "actor", a.ID)
+			return a, nil, forbid("The hub couldn't check what you're allowed to do.")
+		}
+		if g == nil {
+			g = []string{}
+		}
+		return a, g, nil
+	}
+	acc, err := p.tokens(ctx, a.ID)
+	if err != nil {
+		p.log.Error("authz: reading an API token failed; refusing", "err", err, "token", a.ID)
+		return a, nil, forbid("The hub couldn't check what this token is allowed to do.")
+	}
+	if !acc.OK {
+		return a, nil, forbid("This API token has been revoked or has expired.")
+	}
+	a.Role, a.StepUpUntil = acc.Role, time.Time{}
+	return a, acc.Scopes, nil
+}
+
+// ReadScope decides a read that isn't an action (audit.read, tasks.all):
+// Admin and Owner, and for a token, one whose scopes include it.
+func (p *Policy) ReadScope(ctx context.Context, a Actor, scope string) error {
+	var grants []string
+	if a.Kind == KindToken {
+		var err error
+		if a, grants, err = p.token(ctx, a); err != nil {
+			return err
+		}
+	}
+	if rank(a.Role) < rank(auth.RoleAdmin) {
+		return forbid("Only admins and the owner can see this.")
+	}
+	if a.Kind == KindToken {
+		sc, _ := ParseScope(scope)
+		if !covered(grants, sc, "") {
+			return forbid("This token doesn't have the %s scope.", scope)
+		}
+	}
+	return nil
 }
 
 // T4Enabled returns the scopes T4 is enabled for.

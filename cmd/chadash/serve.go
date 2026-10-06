@@ -290,7 +290,11 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 	eng, err := action.New(ctx, action.Options{
-		Store: st, Audit: auditLog, Registry: actions, Policy: authz.NewPolicy(st, log).ForEngine(), Graph: g,
+		Store: st, Audit: auditLog, Registry: actions, Graph: g,
+		// API tokens act as their user, narrowed to their scopes; their T2
+		// plans wait in the Inbox for a person (tp.Inbox).
+		Policy:   authz.NewPolicy(st, log, authz.WithTokens(authSvc.TokenAccess)).ForEngine(),
+		Inbox:    tp.Inbox,
 		Sessions: action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
 		// A T4 spends the grant that allowed it, and tells the admins.
 		ConsumeStepUp: authSvc.ClearStepUp,
@@ -336,6 +340,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Nodes:          nodeHub,
 		Stacks:         stk,
 		Notify:         nt,
+		Topics:         tp,
 	})
 	if err != nil {
 		eng.Close()
