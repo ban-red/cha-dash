@@ -5,12 +5,21 @@
  * focus stays in the input, the active option is `aria-activedescendant`, and
  * arrows, Page Up/Down, Enter and Esc do what they say.
  *
+ * Actions (the Run group): for the resource in focus (the tile that had focus
+ * when it opened, or the top result once you type), what the hub would plan
+ * on it (`GET /api/actions?target=`, filtered by your role) plus its open
+ * incidents' actions; typing also finds any open incident's action by name.
+ * Choosing one runs the normal safety ladder. Unavailable ones stay listed,
+ * marked, with the hub's sentence.
+ *
  * Its own chunk, loaded on first use, and mounted only while open.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { listActions } from '../lib/actions';
 import { navigate } from '../lib/router';
 import { currentTheme, setTheme } from '../lib/theme';
-import { buildCommands, searchCommands, type Command } from '../model/commands';
+import { label } from '../model/graph';
+import { actionCommands, buildCommands, searchCommands, type ActionOffer, type Command } from '../model/commands';
 import { integrations, loadInstances } from '../stores/integrations';
 import { useBoard } from '../stores/board';
 import { useLive } from '../stores/live';
@@ -27,6 +36,13 @@ const active = ref(0);
 const input = ref<HTMLInputElement | null>(null);
 const list = ref<HTMLElement | null>(null);
 let lastFocus: Element | null = null;
+
+/** The resource of the tile that had focus when the bar opened, if any. */
+const focused = ref<string | undefined>();
+const offers = ref<{ target: string; list: ActionOffer[] }>({ target: '', list: [] });
+const cache = new Map<string, ActionOffer[]>();
+let pending: AbortController | undefined;
+let timer: ReturnType<typeof setTimeout> | undefined;
 
 const commands = computed(() =>
   buildCommands({
@@ -52,7 +68,60 @@ const commands = computed(() =>
   }),
 );
 
-const sections = computed(() => searchCommands(commands.value, query.value));
+/** The resource in focus: the top result once something is typed, else the focused tile's. */
+const subject = computed<string | undefined>(() => {
+  if (!query.value.trim()) return focused.value;
+  const top = searchCommands(commands.value, query.value)[0]?.items[0];
+  return top?.id.startsWith('resource:') ? top.id.slice('resource:'.length) : undefined;
+});
+const subjectName = computed(() => (subject.value ? label(live.graph.value?.resources[subject.value]) || subject.value : ''));
+
+// What the hub would plan on the subject: asked once per resource, a moment after it settles.
+watch(
+  subject,
+  (target) => {
+    clearTimeout(timer);
+    pending?.abort();
+    if (!target || live.stale.value) return;
+    const known = cache.get(target);
+    if (known) {
+      offers.value = { target, list: known };
+      return;
+    }
+    timer = setTimeout(async () => {
+      const ctrl = new AbortController();
+      pending = ctrl;
+      const list = await listActions(target, ctrl.signal);
+      if (ctrl.signal.aborted) return;
+      cache.set(target, list);
+      if (subject.value === target) offers.value = { target, list };
+    }, 120);
+  },
+  { immediate: true },
+);
+
+const actions = computed(() =>
+  actionCommands({
+    graph: live.graph.value,
+    inbox: ui.can.value.inbox ? live.inbox.value : undefined,
+    subject: subject.value,
+    offers: offers.value.target === subject.value ? offers.value.list : [],
+    onlySubject: !query.value.trim(),
+    can: ui.can.value,
+    act: (incident, action) => ui.act(incident, action),
+    run: (o, target) => void ui.runAction({ action: o.id, target, label: o.label, tier: o.tier }),
+    refuse: (why) => ui.toast(why, 'error'),
+  }),
+);
+/** For screen readers: what the Run group now offers for the resource in focus. */
+const announce = computed(() => {
+  if (!subject.value || offers.value.target !== subject.value) return '';
+  const n = actions.value.length;
+  return n ? `${n} ${n === 1 ? 'action' : 'actions'} for ${subjectName.value}.` : '';
+});
+
+const sections = computed(() => searchCommands([...actions.value, ...commands.value], query.value));
+const groupTitle = (g: string) => (g === 'Run' ? (subject.value && !query.value.trim() ? `Run on ${subjectName.value}` : 'Run') : g);
 const flat = computed(() => sections.value.flatMap((s) => s.items));
 const current = computed<Command | undefined>(() => flat.value[active.value]);
 const optionId = (c: Command) => `po-${flat.value.indexOf(c)}`;
@@ -75,6 +144,13 @@ function run(c: Command | undefined) {
   if (!c) return;
   ui.closePalette();
   c.run();
+}
+
+/** The resource behind an element: its tile's item id is `<type>@<resource>`. */
+function resourceOf(el: Element | null): string | undefined {
+  const item = el instanceof HTMLElement ? el.closest<HTMLElement>('[data-item]')?.dataset['item'] : undefined;
+  const at = item?.indexOf('@') ?? -1;
+  return item && at > 0 ? item.slice(at + 1) : undefined;
 }
 
 function onKey(e: KeyboardEvent) {
@@ -125,10 +201,15 @@ function onKey(e: KeyboardEvent) {
 
 onMounted(() => {
   lastFocus = document.activeElement;
+  const r = resourceOf(lastFocus);
+  if (r && live.graph.value?.resources[r]) focused.value = r;
   input.value?.focus();
-  void loadInstances().catch(() => undefined);
+  // Integrations are admin settings: below admin the hub answers 403, so don't ask.
+  if (ui.can.value.integrations) void loadInstances().catch(() => undefined);
 });
 onBeforeUnmount(() => {
+  clearTimeout(timer);
+  pending?.abort();
   // Give focus back, unless the command moved it somewhere (a tile, a sheet).
   const now = document.activeElement;
   if ((!now || now === document.body || now === input.value) && lastFocus instanceof HTMLElement && lastFocus.isConnected) lastFocus.focus();
@@ -163,24 +244,27 @@ onBeforeUnmount(() => {
         </div>
         <div id="palette-list" ref="list" class="pl" role="listbox" aria-label="Results">
           <div v-for="sec in sections" :key="sec.group" role="group" :aria-labelledby="`pg-${sec.group}`">
-            <div :id="`pg-${sec.group}`" class="grp" role="presentation">{{ sec.group }}</div>
+            <div :id="`pg-${sec.group}`" class="grp" role="presentation">{{ groupTitle(sec.group) }}</div>
             <div
               v-for="c in sec.items"
               :id="optionId(c)"
               :key="c.id"
               role="option"
-              class="opt"
+              :class="['opt', { off: c.disabled }]"
               :aria-selected="c === current"
+              :aria-disabled="c.disabled ? 'true' : undefined"
+              :title="c.disabled"
               @pointermove="active = flat.indexOf(c)"
               @click="run(c)"
             >
-              <span class="ol">{{ c.label }}</span>
+              <span class="ol">{{ c.label }}<span v-if="c.disabled" class="sr">. Unavailable: {{ c.disabled }}</span></span>
               <span v-if="c.hint" class="oh">{{ c.hint }}</span>
               <kbd v-if="c.kbd" class="kbd" aria-hidden="true">{{ c.kbd }}</kbd>
             </div>
           </div>
           <div v-if="!flat.length" class="none" role="presentation">No matches for “{{ query }}”. Try a host, a service or a command.</div>
         </div>
+        <div class="sr" role="status" aria-live="polite">{{ announce }}</div>
         <div class="pfoot" aria-hidden="true">
           <span><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> move</span>
           <span><kbd class="kbd">↵</kbd> open</span>
@@ -280,6 +364,15 @@ onBeforeUnmount(() => {
 .pl .opt[aria-selected='true'] {
   background: color-mix(in oklch, var(--text) 9%, transparent);
   color: var(--text);
+}
+.pl .opt.off {
+  cursor: default;
+}
+.pl .opt.off .ol {
+  color: var(--text-3);
+}
+.pl .opt.off[aria-selected='true'] .ol {
+  color: var(--text-2);
 }
 .pl .ol {
   min-width: 0;

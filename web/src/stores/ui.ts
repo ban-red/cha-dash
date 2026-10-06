@@ -6,8 +6,7 @@
  * - Every action is planned by the hub's action engine, and the plan's
  *   `confirm` picks the rung: run, run with Undo, hold, or type the name.
  *   Step-up runs first when the plan asks for it. Demo mode goes the same
- *   way; the demo Fix endpoint is only a fallback for a hub from before the
- *   engine.
+ *   way: the Demo Home's fixes are engine actions.
  * - Availability comes from the hub: an action's `unavailable` sentence (or
  *   `plan_ready: false`) disables it, and planning refuses with a sentence.
  *   The page only hides what the viewer's role can't use (model/roles.ts).
@@ -107,7 +106,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
 
   /** Open a settings pane over the front page (closing the Inbox and the command bar). */
   function openSettings(pane: SettingsPane = 'integrations', id?: string, query?: Record<string, string | undefined>): void {
-    if (!can.value.settings) return;
+    if (!can.value.settings || !can.value.panes.includes(pane)) return;
     state.inboxOpen = false;
     state.paletteOpen = false;
     navigate(settingsPath(pane, id, query));
@@ -130,6 +129,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     state,
     toast,
     openRecipe: (instance) => openSettings('integrations', instance),
+    canOpenRecipe: () => can.value.integrations,
     ...(hooks.pollMs !== undefined ? { pollMs: hooks.pollMs } : {}),
   });
 
@@ -158,7 +158,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
       if (r.why) toast(r.why, 'error');
       return;
     }
-    const req: ActionRequest = { action: action.id, target: action.target, label: action.label, tier: action.tier, incident, suggested: action === incident.suggested };
+    const req: ActionRequest = { action: action.id, target: action.target, label: action.label, tier: action.tier, incident };
     if (action.params) req.params = action.params;
     if (action.detail) req.detail = action.detail;
     const impact = action.impact ?? incident.blast_radius;
@@ -242,6 +242,10 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     cancelConfirm,
     /** Plan and run any action (not tied to an incident). */
     runAction: actions.run,
+    /** Stop a running, cancellable task. */
+    cancelTask: actions.cancelTask,
+    /** Tasks with a cancel request in flight. */
+    cancelling: actions.cancelling,
     /** Tasks from the `tasks` topic, plus the ones this tab started. */
     tasks: actions.tasks,
     running: actions.running,

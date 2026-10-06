@@ -160,6 +160,39 @@ describe('the first paint', () => {
     w.unmount();
   });
 
+  it('works for every role: household renders its boards from the projected inbox and asks for nothing it can’t have', async () => {
+    for (const role of ['household', 'viewer', 'operator']) {
+      FakeSocket.reset();
+      const f = fakeFetch({ 'GET /api/demo': { status: 200, body: { enabled: true, now: withIncidents.now, seed: 1 } } });
+      const s = snapshot();
+      s.user = { id: 'u9', username: 'kid', role };
+      if (role === 'household') {
+        // What the hub sends household (topics.ProjectIncident): problems only, no detail.
+        const kept: Record<string, unknown> = {};
+        for (const [id, i] of Object.entries(s.inbox.incidents)) {
+          if (i.class !== 'problem' || i.category === 'security') continue;
+          const { facts: _f, causes: _c, blast_radius: _b, suggested: _s, alternatives: _a, resolution: _r, ...rest } = i;
+          kept[id] = { ...rest, summary: '', resolves_when: '', causes: [], blast_radius: [] };
+        }
+        s.inbox = { ...s.inbox, incidents: kept as typeof s.inbox.incidents };
+      }
+      inlineIntoPage(s);
+      const w = mount(App, { attachTo: document.body });
+      await until(() => document.querySelector('.tile') !== null, `the board for ${role}`);
+      await flushPromises();
+      expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+      // Routes below admin answer 403: the page never asks them.
+      const asked = f.calls.map((c) => c.path);
+      expect(asked.filter((p) => /^\/api\/(onboarding|integrations|users|audit|boards\/[^/]+\/discovery)/.test(p))).toEqual([]);
+      if (role === 'household') {
+        expect(document.querySelector('.attn-sec')).toBeNull();
+        expect(document.querySelector('.briefing .pill')).toBeNull();
+      }
+      w.unmount();
+      document.body.innerHTML = '';
+    }
+  });
+
   it('starts the usual way without a snapshot', async () => {
     const f = fakeFetch({ 'GET /api/setup': { status: 200, body: { required: false } }, 'GET /api/auth/session': { status: 401, body: {} } });
     const w = mount(App, { attachTo: document.body });

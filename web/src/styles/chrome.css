@@ -202,6 +202,10 @@
   font-size: var(--type-small);
   color: var(--text-2);
 }
+.working-cancel {
+  flex: none;
+  margin-left: auto;
+}
 .prog {
   display: inline-block;
   width: 12px;

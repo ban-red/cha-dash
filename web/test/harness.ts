@@ -15,7 +15,7 @@ import { FakeSocket, factory } from './fake-socket';
 export function harness(data?: Record<string, unknown>, opts: { demo?: boolean } = {}) {
   FakeSocket.reset();
   const live = createLive({ url: 'ws://hub.test/ws', createSocket: factory, tick: false });
-  // GET /api/demo said demo mode: incidents' actions run through the demo Fix endpoint.
+  // GET /api/demo said demo mode: UTC times; actions still run on the engine.
   live.demo.value = opts.demo === true;
   const session = createSession();
   session.state.phase = 'ready';
@@ -23,7 +23,7 @@ export function harness(data?: Record<string, unknown>, opts: { demo?: boolean }
   const signOut = vi.fn(async () => undefined);
   const ui = createUi(live, { signOut, role: () => session.state.user?.role, pollMs: 10 });
   const board = createBoardStore({ waitForGraph: async () => live.graph.value });
-  const discovery = createDiscovery(live, board);
+  const discovery = createDiscovery(live, board, () => ui.can.value.editBoards);
   live.start();
   const ws = FakeSocket.last;
   if (data) ws.handshake(data);

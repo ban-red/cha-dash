@@ -9,10 +9,11 @@
  *   its board render from it at once, and the socket supersedes it;
  * - the last-known snapshot: written while live, and the page opens on it
  *   when the hub was unreachable at start-up (session.state.offline);
- * - demo mode (GET /api/demo): UTC times, and the demo Fix fallback;
+ * - demo mode (GET /api/demo): UTC times;
  * - the viewer's role: what the page hides (model/roles.ts; the hub enforces);
  * - label discovery for the board on screen (stores/discovery.ts);
- * - the first-run wizard (onboarding/), when the hub says to show it.
+ * - the first-run wizard (onboarding/), when the hub says to show it (admin
+ *   and owner: the wizard adds integrations).
  *
  * The Inbox, the confirm dialogs (hold, typed), step-up, the command bar and
  * Settings load on first use, keeping the first paint small.
@@ -69,7 +70,7 @@ function waitForGraph(): Promise<GraphDoc | undefined> {
 }
 const board = createBoardStore({ waitForGraph, now: () => live.now.value });
 provideBoard(board);
-provideDiscovery(createDiscovery(live, board));
+provideDiscovery(createDiscovery(live, board, () => ui.can.value.editBoards));
 
 // Signed in with the hub's first-paint snapshot: render from it now; the socket supersedes it.
 const inline = session.takeInline();
@@ -169,7 +170,8 @@ let stopPersist: (() => void) | undefined;
 onMounted(() => {
   live.start();
   if (!restored) void demo();
-  if (!restored) void loadOnboarding();
+  // The wizard adds integrations: admin and owner only (the route is 403 below).
+  if (!restored && ui.can.value.integrations) void loadOnboarding();
   const want = view.value.name === 'front' ? view.value.board : undefined;
   if (!seeded || (want !== undefined && want !== board.state.boardId)) void board.load(want);
   document.addEventListener('keydown', onKey);

@@ -319,10 +319,11 @@ describe('layers', () => {
     });
   }
 
-  it('the running-task presence', async () => {
-    const hs = page(TaskPresence, { ...docs(withIncidents), tasks: { tasks: { t1: taskFor(planFor('pve.guest.restart', 'pve:jupiter-nas/lxc/100'), { id: 't1', progress: 0.5 }) } } });
+  it('the running-task presence, with Cancel for a cancellable task', async () => {
+    const hs = page(TaskPresence, { ...docs(withIncidents), tasks: { tasks: { t1: taskFor(planFor('pve.guest.restart', 'pve:jupiter-nas/lxc/100'), { id: 't1', progress: 0.5, cancellable: true }) } } });
     await settle();
     expect(document.querySelector('.tp')?.textContent).toContain('Restart debian-nas');
+    expect(document.querySelector('.tp-cancel')?.getAttribute('aria-label')).toBe('Cancel Restart debian-nas');
     expect(hs.ui.running.value).toHaveLength(1);
     expect(await axeViolations()).toEqual([]);
   });

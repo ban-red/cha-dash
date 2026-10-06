@@ -4,6 +4,8 @@
  *   POST /api/actions/plan        {action, target, params?} → 200 Plan
  *   POST /api/plans/{id}/approve  {hash, typed?}            → 202 {task}
  *   GET  /api/tasks/{id}                                    → Task
+ *   POST /api/tasks/{id}/cancel                             → 202 {task} (only a cancellable task you may see)
+ *   GET  /api/actions?target=<id>                           → [Offer]: what the hub would plan on it, for you
  *   POST /api/auth/step-up/begin                            → WebAuthn request options, or {method: "password"}
  *   POST /api/auth/step-up        assertion | {password}    → {until}
  *
@@ -131,6 +133,34 @@ export async function approve(p: Plan, typed?: string): Promise<Task> {
 
 export async function getTask(id: string): Promise<Task> {
   return api<Task>(`/api/tasks/${encodeURIComponent(id)}`);
+}
+
+/** Stop a running task (its action must allow it). Refusals: `not_found`, `finished`, `not_cancellable`. */
+export async function cancelTask(id: string): Promise<Task | undefined> {
+  const res = await api<{ task?: Task }>(`/api/tasks/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+  return res?.task;
+}
+
+/** One action the hub would plan on a target for this viewer (`GET /api/actions?target=`). */
+export interface Offer {
+  id: string;
+  label: string;
+  tier: Tier;
+  available: boolean;
+  /** Why not, when `available` is false. */
+  unavailable?: string;
+  recipe?: string;
+  household?: boolean;
+}
+
+/** What the hub would plan on a resource for this viewer, filtered by their role. Empty on any failure. */
+export async function listActions(target: string, signal?: AbortSignal): Promise<Offer[]> {
+  try {
+    const res = await api<Offer[]>(`/api/actions?target=${encodeURIComponent(target)}`, signal ? { signal } : {});
+    return Array.isArray(res) ? res.filter((o) => o && typeof o.id === 'string' && typeof o.label === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 export const isDone = (t: Pick<Task, 'state'>) => t.state === 'succeeded' || t.state === 'failed' || t.state === 'cancelled';

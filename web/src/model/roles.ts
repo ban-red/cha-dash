@@ -8,9 +8,15 @@
  * |-----------|-----------------------------|--------------------------------------------|
  * | owner     | every tier (T4 where on)    | everything                                 |
  * | admin     | T0–T3                       | all but security; users other than owner   |
- * | operator  | T0–T2                       | none                                       |
- * | viewer    | T0                          | none                                       |
- * | household | T0 + `household: true`      | none; boards only, no Inbox detail         |
+ * | operator  | T0–T2                       | their own passkeys                         |
+ * | viewer    | T0                          | their own passkeys                         |
+ * | household | T0 + `household: true`      | their own passkeys; boards only, no Inbox  |
+ *
+ * Every role may manage its own passkeys (the hub's passkey routes are open
+ * to any signed-in role, and "Passkey only" needs one for every role), so
+ * Settings opens for everyone, on Security alone below admin. Everything
+ * else in Settings (integrations, import, backup, users, audit, the
+ * first-run wizard) answers 403 below admin, and is never shown there.
  */
 import type { SettingsPane } from '../lib/router';
 import type { Tier } from './types';
@@ -44,10 +50,14 @@ export interface Permissions {
   role: Role;
   /** The Inbox (and Needs attention): everyone but household. */
   inbox: boolean;
-  /** Settings at all. */
+  /** Settings at all (below admin, only Security: your passkeys). */
   settings: boolean;
-  /** Edit layout: boards are an admin setting. */
+  /** Integrations, the first-run wizard and anything that opens an integration's settings (a recipe, Reconnect). */
+  integrations: boolean;
+  /** Edit layout, and add or dismiss label-discovered services: boards are an admin setting. */
   editBoards: boolean;
+  /** Answer the correlator's suggestions (Merge, Keep separate). */
+  decide: boolean;
   /** Settings → Security's hub-wide settings (security level, step-up). Owner only. */
   securitySettings: boolean;
   /** Settings → Users. */
@@ -63,12 +73,14 @@ export interface Permissions {
 export function permissions(role: string | undefined): Permissions {
   const r = asRole(role);
   const admin = r === 'owner' || r === 'admin';
-  const panes: SettingsPane[] = admin ? ['integrations', 'import', 'backup', 'users', 'audit', 'security'] : [];
+  const panes: SettingsPane[] = admin ? ['integrations', 'import', 'backup', 'users', 'audit', 'security'] : ['security'];
   return {
     role: r,
     inbox: r !== 'household',
-    settings: admin,
+    settings: true,
+    integrations: admin,
     editBoards: admin,
+    decide: admin,
     securitySettings: r === 'owner',
     users: admin,
     audit: admin,

@@ -5,6 +5,7 @@
  * service). "Merge" (or "Link them") and "Keep separate" answer it on the
  * hub, which remembers the answer; the item then resolves live. The hub
  * merges on its own only when it's certain: the same ID, the same address.
+ * Answering is for admins and the owner; everyone else reads the question.
  */
 import { ref } from 'vue';
 import Glyph from './marks/Glyph.vue';
@@ -34,7 +35,8 @@ async function answer(verdict: 'confirm' | 'reject'): Promise<void> {
       <div class="ib-title">{{ incident.title }}</div>
       <div class="m">{{ incident.summary }}</div>
       <p v-if="incident.suggested?.detail" class="sub sugg-detail">{{ incident.suggested.detail }}</p>
-      <div class="sugg-acts">
+      <p v-if="!ui.can.value.decide" class="sub sugg-detail">An admin or the owner can answer this.</p>
+      <div v-else class="sugg-acts">
         <button type="button" class="btn primary sm" :disabled="busy || live.stale.value" @click="answer('confirm')">
           {{ incident.suggested?.label ?? 'Merge' }}
         </button>

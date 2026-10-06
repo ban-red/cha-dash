@@ -12,7 +12,8 @@
  *   aren't shown. `link.open` actions open their link.
  *
  * Progress comes from the task working on it (the `tasks` topic): its current
- * step and progress. The resolution arrives live from the `inbox` topic.
+ * step and progress, and Cancel while it runs when its action allows it. The
+ * resolution arrives live from the `inbox` topic.
  */
 import { computed } from 'vue';
 import Glyph from './marks/Glyph.vue';
@@ -41,6 +42,7 @@ const ringOffset = computed(() => {
   if (pct.value !== undefined) return 31.4 * (1 - pct.value / 100);
   return incident.phase === fix.value?.phase ? 23 : 12;
 });
+const canCancel = computed(() => !!task.value?.cancellable && taskRunning.value && !live.stale.value);
 const workingWords = computed(() => {
   const t = task.value;
   if (t && taskRunning.value) {
@@ -73,7 +75,7 @@ const id = computed(() => `ib-${incident.id}`);
     </div>
     <span class="when" :title="isResolved ? 'resolved' : 'opened'"><span v-if="isRepair && !isResolved" class="ib-kind">Repair · </span>{{ whenText }}</span>
 
-    <div v-if="!expanded && isRepair && !isResolved" class="ib-quick">
+    <div v-if="!expanded && isRepair && !isResolved && ui.can.value.integrations" class="ib-quick">
       <button type="button" class="btn sm" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect</button>
     </div>
 
@@ -84,16 +86,27 @@ const id = computed(() => `ib-${incident.id}`);
           <circle class="arc" cx="6" cy="6" r="5" stroke-dasharray="31.4" :stroke-dashoffset="ringOffset" />
         </svg>
         <span>{{ workingWords }}</span>
+        <button
+          v-if="canCancel && task"
+          type="button"
+          class="btn sm ghost working-cancel"
+          :disabled="ui.cancelling[task.id]"
+          :aria-label="`Cancel ${task.label}`"
+          @click="ui.cancelTask(task)"
+        >
+          {{ ui.cancelling[task.id] ? 'Cancelling…' : 'Cancel' }}
+        </button>
       </div>
 
       <div v-else-if="isRepair" class="col">
         <h4>Repair · T0</h4>
-        <p class="action-detail">
+        <p v-if="ui.can.value.integrations" class="action-detail">
           Cha Dash can’t read this integration, but the service itself may be fine. Reconnect opens its settings with the field that failed, so you can paste a new
           credential and test it before saving.
         </p>
+        <p v-else class="action-detail">Cha Dash can’t read this integration, but the service itself may be fine. Ask an admin or the owner to reconnect it.</p>
         <div class="acts">
-          <button type="button" class="btn primary" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect<span class="tier">T0</span></button>
+          <button v-if="ui.can.value.integrations" type="button" class="btn primary" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect<span class="tier">T0</span></button>
           <button
             v-if="demoRepairAction"
             type="button"
@@ -130,7 +143,7 @@ const id = computed(() => `ib-${incident.id}`);
         <p v-if="primary.hidden" class="sub">Your role can see this but not run “{{ action.label }}”. Ask an admin or the owner.</p>
         <p v-else-if="!primary.ok && primary.why && !live.stale.value && fix?.state !== 'failed'" class="sub">{{ primary.why }}</p>
         <p v-if="fix?.state === 'failed'" class="err" role="alert">{{ fix.error }}</p>
-        <button v-if="recipe && ui.can.value.settings" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe)">Open its settings</button>
+        <button v-if="recipe && ui.can.value.integrations" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe)">Open its settings</button>
       </div>
 
       <div v-if="facts.length">

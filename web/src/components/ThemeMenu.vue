@@ -4,7 +4,7 @@
  * inside its own `data-theme`, so it shows that theme's real tokens.
  */
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { navigate } from '../lib/router';
+import { navigate, settingsPath } from '../lib/router';
 import { currentTheme, setTheme, THEMES, type ThemeId } from '../lib/theme';
 import { permissions } from '../model/roles';
 import { useSession } from '../stores/session';
@@ -12,6 +12,8 @@ import { useSession } from '../stores/session';
 const emit = defineEmits<{ signOut: [] }>();
 const session = useSession();
 const canSettings = () => permissions(session.state.user?.role).settings;
+/** The first Settings pane this role has: Integrations for admins, Security (passkeys) for everyone else. */
+const settingsHref = () => settingsPath(permissions(session.state.user?.role).panes[0] ?? 'security');
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
 const first = ref<HTMLButtonElement[]>([]);
@@ -83,7 +85,7 @@ function onArrow(e: KeyboardEvent, i: number) {
       <div class="theme-foot">
         <span>Signed in as {{ session.state.user?.username ?? '—' }}</span>
         <span class="theme-acts">
-          <a v-if="canSettings()" class="btn sm ghost" href="/settings/integrations" @click.prevent="(open = false), navigate('/settings/integrations')">Settings</a>
+          <a v-if="canSettings()" class="btn sm ghost" :href="settingsHref()" @click.prevent="(open = false), navigate(settingsHref())">Settings</a>
           <button type="button" class="btn sm ghost" @click="emit('signOut')">Sign out</button>
         </span>
       </div>

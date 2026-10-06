@@ -28,7 +28,9 @@ import { computed, reactive, watch } from 'vue';
 import {
   actionError,
   approve as approvePlan,
+  cancelTask as cancelRequest,
   getTask,
+  hubWords,
   isDone,
   needsStepUp,
   plan as planAction,
@@ -47,9 +49,7 @@ export interface ActionRequest {
   detail?: string;
   /** The incident this works on: its progress shows there. */
   incident?: Incident;
-  /** It is the incident's suggested action (the only one the demo fallback can run). */
-  suggested?: boolean;
-  /** Fallback blast radius when no plan carries one (the demo fallback). */
+  /** Fallback blast radius when no plan carries one. */
   impact?: Impact[];
   /** Running a plan's undo: no second undo toast. */
   isUndo?: boolean;
@@ -60,8 +60,7 @@ export type ConfirmKind = 'hold' | 'type' | 'review';
 export interface ConfirmRequest {
   kind: ConfirmKind;
   req: ActionRequest;
-  /** Missing only in the demo fallback, which has no plan. */
-  plan?: Plan;
+  plan: Plan;
   /** The action as the dialog shows it: label, tier, detail, impact. */
   action: Action;
   incident?: Incident;
@@ -90,6 +89,8 @@ export interface ActionsDeps {
   state: { confirm: ConfirmRequest | undefined; stepUp: StepUpRequest | undefined };
   toast: (text: string, tone?: 'ok' | 'error', ms?: number, action?: ToastAction) => void;
   openRecipe: (instance: string) => void;
+  /** The viewer may open an integration's settings (where its recipe is). */
+  canOpenRecipe?: () => boolean;
   /** Poll interval for a hub without the `tasks` topic. */
   pollMs?: number;
 }
@@ -186,24 +187,24 @@ export function createActions(deps: ActionsDeps) {
   }
 
   function fail(req: ActionRequest, f: ActionFailure): void {
-    const link = f.code === 'unavailable' && f.recipe ? { label: 'Open its settings', run: () => deps.openRecipe(f.recipe!) } : undefined;
+    const canRecipe = deps.canOpenRecipe?.() ?? true;
+    const link = f.code === 'unavailable' && f.recipe && canRecipe ? { label: 'Open its settings', run: () => deps.openRecipe(f.recipe!) } : undefined;
     toast(f.message, 'error', link ? 10_000 : 6000, link);
     setFix(req, { state: 'failed', error: f.message, ...(f.recipe ? { recipe: f.recipe } : {}) });
   }
 
-  /** The action as a dialog shows it, from the plan (or the request when there's none). */
-  function shown(req: ActionRequest, p?: Plan): Action {
-    const a: Action = { id: p?.action ?? req.action, label: p?.label ?? req.label, tier: p?.tier ?? req.tier ?? 'T2', target: p?.target ?? req.target };
+  /** The action as a dialog shows it, from the plan. */
+  function shown(req: ActionRequest, p: Plan): Action {
+    const a: Action = { id: p.action, label: p.label, tier: p.tier, target: p.target };
     if (req.detail) a.detail = req.detail;
-    const impact = p?.impact ?? req.impact;
+    const impact = p.impact ?? req.impact;
     if (impact) a.impact = impact;
     return a;
   }
 
-  function open(kind: ConfirmKind, req: ActionRequest, p?: Plan, note?: string): void {
+  function open(kind: ConfirmKind, req: ActionRequest, p: Plan, note?: string): void {
     clearSending(req);
-    const c: ConfirmRequest = { kind, req, action: shown(req, p) };
-    if (p) c.plan = p;
+    const c: ConfirmRequest = { kind, req, plan: p, action: shown(req, p) };
     if (req.incident) c.incident = req.incident;
     if (note) c.note = note;
     state.confirm = c;
@@ -223,10 +224,7 @@ export function createActions(deps: ActionsDeps) {
     try {
       p = await planAction(req.action, req.target, req.params);
     } catch (err) {
-      const f = actionError(err);
-      // TODO(v0.2, wave 8): remove with POST /api/demo/incidents/{id}/fix, once the Demo Home's actions are on the engine everywhere.
-      if (f.code === 'not_found' && live.demo.value && req.incident && req.suggested) return demoFallback(req);
-      fail(req, f);
+      fail(req, actionError(err));
       return;
     }
     climb(req, p);
@@ -257,10 +255,6 @@ export function createActions(deps: ActionsDeps) {
   async function confirmed(typed?: string): Promise<void> {
     const c = state.confirm;
     if (!c) return;
-    if (!c.plan) {
-      state.confirm = undefined;
-      return demoRun(c.req);
-    }
     if (c.kind === 'type') {
       // The typed dialog stays open while it runs, so a mismatch is said at the field.
       c.busy = true;
@@ -383,6 +377,27 @@ export function createActions(deps: ActionsDeps) {
     },
   );
 
+  /**
+   * Stop a running task (POST /api/tasks/{id}/cancel). The hub allows it for
+   * a task the viewer may see whose action is cancellable; the task then ends
+   * as cancelled on the topic, and a task started here says so in a toast.
+   * Refusals are the hub's sentence.
+   */
+  const cancelling = reactive<Record<string, boolean>>({});
+  async function cancelTask(t: Task): Promise<void> {
+    if (cancelling[t.id] || isDone(t)) return;
+    cancelling[t.id] = true;
+    try {
+      const after = await cancelRequest(t.id);
+      if (after && !fromTopic.value[t.id]) known[t.id] = after;
+      if (!mine.has(t.id)) toast(`Cancelling: ${t.label}.`);
+    } catch (err) {
+      toast(hubWords(err, `${t.label} couldn’t be cancelled.`), 'error');
+    } finally {
+      delete cancelling[t.id];
+    }
+  }
+
   /** A hub without the `tasks` topic: ask for the task until it ends (at most 10 minutes). */
   function poll(id: string, deadline = Date.now() + 10 * 60_000): void {
     const every = deps.pollMs ?? 1500;
@@ -400,30 +415,7 @@ export function createActions(deps: ActionsDeps) {
     }, every);
   }
 
-  // ── the demo fallback ──
-  // TODO(v0.2, wave 8): remove. The Demo Home registers its actions with the
-  // engine; this only runs when planning a demo incident's suggested action
-  // answers 404 (a hub from before the engine).
-
-  function demoFallback(req: ActionRequest): void {
-    clearSending(req);
-    const tier = req.tier ?? 'T2';
-    if (tier === 'T0' || tier === 'T1') void demoRun(req);
-    else if (tier === 'T2') open('hold', req);
-    else fail(req, { code: 'unavailable', status: 404, message: `${req.label} needs the action engine, which this hub doesn’t run yet.` });
-  }
-
-  async function demoRun(req: ActionRequest): Promise<void> {
-    if (!req.incident) return;
-    try {
-      await live.fix(req.incident.id);
-      toast(`Started: ${req.label}.`);
-    } catch {
-      toast(live.fixes[req.incident.id]?.error ?? 'That didn’t start. Try again.', 'error');
-    }
-  }
-
-  return { tasks, running, taskFor, run, confirmed, cancel, stepUp, stepUpDone, withStepUp, busy };
+  return { tasks, running, taskFor, run, confirmed, cancel, cancelTask, cancelling, stepUp, stepUpDone, withStepUp, busy };
 }
 
 export type Actions = ReturnType<typeof createActions>;

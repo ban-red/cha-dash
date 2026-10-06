@@ -1,11 +1,12 @@
 /**
  * Live state: the realtime client feeding one reactive document with the
- * `graph`, `metrics`, `inbox` and `tasks` topics, plus connection status, the
- * hub's clock, and the demo Fix endpoint (a fallback for hubs from before the
- * action engine; stores/actions.ts).
+ * `graph`, `metrics`, `inbox` and `tasks` topics, plus connection status and
+ * the hub's clock. `fixes` is the per-incident state of actions run on the
+ * engine (stores/actions.ts).
  *
- * Demo and real hubs fill the same topics; the only difference the page sees
- * is `demo` (from GET /api/demo): times in UTC, and the demo Fix fallback.
+ * Demo and real hubs fill the same topics, and the Demo Home's fixes run on
+ * the engine like any action; the only difference the page sees is `demo`
+ * (from GET /api/demo): times in UTC.
  * `restore()` fills the document from a last-known snapshot when the page
  * opens while the hub is unreachable; the first live snapshot replaces it.
  * `hydrate()` fills it from the snapshot the hub inlined into index.html,
@@ -16,7 +17,6 @@
  * re-renders the widgets that read the series it touched.
  */
 import { computed, inject, provide, reactive, ref, type InjectionKey } from 'vue';
-import { ApiError, api } from '../lib/api';
 import { RealtimeClient, sameOriginWs, type ConnectionInfo, type WebSocketFactory } from '../realtime/client';
 import type { BackoffOptions } from '../realtime/backoff';
 import type { GraphDoc, InboxDoc, LiveDoc, MetricsDoc } from '../model/types';
@@ -186,32 +186,6 @@ export function createLive(opts: LiveOptions = {}) {
   /** Nothing has ever arrived: show skeletons, not zeros. */
   const loading = computed(() => !doc.graph && conn.status !== 'live');
 
-  /**
-   * Press an open incident's suggested action through the demo Fix endpoint.
-   * Only a fallback now: stores/actions.ts uses it when planning a demo
-   * incident's action answers 404 (a hub from before the engine).
-   * TODO(v0.2, wave 8): remove with the endpoint.
-   */
-  async function fix(id: string): Promise<void> {
-    fixes[id] = { state: 'sending' };
-    try {
-      await api(`/api/demo/incidents/${encodeURIComponent(id)}/fix`, { method: 'POST' });
-      const phase = doc.inbox?.incidents?.[id]?.phase;
-      fixes[id] = phase !== undefined ? { state: 'accepted', phase } : { state: 'accepted' };
-    } catch (err) {
-      let error = 'The hub couldn’t start that. Try again.';
-      if (err instanceof ApiError) {
-        if (err.status === 404) error = 'Actions run only in demo mode for now.';
-        else if (err.status === 409) error = 'That’s already being handled, or it has resolved.';
-        else if (err.status === 403) error = 'Only the owner can run actions.';
-        else if (err.status === 0) error = 'Can’t reach the hub.';
-        else if (err.status === 429) error = 'Too many actions at once. Try again shortly.';
-      }
-      fixes[id] = { state: 'failed', error };
-      throw err;
-    }
-  }
-
   return {
     doc,
     conn,
@@ -235,7 +209,6 @@ export function createLive(opts: LiveOptions = {}) {
     loading,
     start,
     stop,
-    fix,
     setHubTime,
     retry: () => client.reconnectNow(),
     /** For tests: move the ticking clock. */

@@ -3,9 +3,13 @@
  * `POST /api/actions/plan` answers a plan whose tier and label come from the
  * Demo Home's incidents (confirm by tier: T0 none, T1 undo, T2 hold, T3/T4
  * type), and `POST /api/plans/{id}/approve` answers 202 with a running task.
- * Override either per test; `plans` and `approvals` record what was asked.
+ * `POST /api/tasks/{id}/cancel` answers 202 with the task cancelling, and
+ * `GET /api/actions?target=` lists `offers` for a target (none by default).
+ * Override each per test; `plans`, `approvals`, `cancels` and `listed` record
+ * what was asked. The Demo Home's fixes are engine actions, so demo mode
+ * uses the same routes.
  */
-import type { Plan } from '../src/lib/actions';
+import type { Offer, Plan } from '../src/lib/actions';
 import type { Action, Task, Tier } from '../src/model/types';
 import type { Handler } from './fake-fetch';
 import { withIncidents } from './fixtures';
@@ -66,6 +70,10 @@ export interface EngineOptions {
   plan?: (action: string, target: string) => Partial<Plan> | { status: number; body?: unknown } | undefined;
   /** Answer an approve differently: return {status, body} to refuse, or a Task override. */
   approve?: (planId: string, body: { hash: string; typed?: string }, n: number) => { status: number; body?: unknown } | Partial<Task> | undefined;
+  /** Answer a cancel differently: return {status, body} to refuse. */
+  cancel?: (taskId: string) => { status: number; body?: unknown } | undefined;
+  /** What GET /api/actions?target= lists, per target. */
+  offers?: Record<string, Offer[]>;
 }
 
 const isResponse = (x: unknown): x is { status: number; body?: unknown } => typeof (x as { status?: unknown })?.status === 'number' && !('state' in (x as object));
@@ -73,6 +81,8 @@ const isResponse = (x: unknown): x is { status: number; body?: unknown } => type
 export function engine(opts: EngineOptions = {}) {
   const plans: { action: string; target: string; params?: unknown }[] = [];
   const approvals: { plan: string; hash: string; typed?: string }[] = [];
+  const cancels: string[] = [];
+  const listed: string[] = [];
   const issued = new Map<string, Plan>();
   const routes: Record<string, Handler> = {
     'POST /api/actions/plan': (body) => {
@@ -93,8 +103,20 @@ export function engine(opts: EngineOptions = {}) {
       const p = issued.get(id) ?? planFor('unknown', 'unknown', { id });
       return { status: 202, body: { task: taskFor(p, over ?? {}) } };
     },
+    'POST /api/tasks/*': (_body, url) => {
+      const id = decodeURIComponent(url.pathname.split('/')[3] ?? '');
+      cancels.push(id);
+      const over = opts.cancel?.(id);
+      if (over) return over;
+      return { status: 202, body: { task: { id, state: 'running', label: id, action: 'x', target: 'y', cancellable: true } } };
+    },
+    'GET /api/actions': (_body, url) => {
+      const target = url.searchParams.get('target') ?? '';
+      listed.push(target);
+      return { status: 200, body: opts.offers?.[target] ?? [] };
+    },
   };
-  return { routes, plans, approvals };
+  return { routes, plans, approvals, cancels, listed };
 }
 
 /** The hub's error envelope. */

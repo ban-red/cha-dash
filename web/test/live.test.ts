@@ -145,18 +145,4 @@ describe('live store fed with the sim snapshots', () => {
     await vi.waitFor(() => expect(checkSession).toHaveBeenCalled());
     await vi.waitFor(() => expect(live.conn.status).toBe('stopped'));
   });
-
-  it('posts Fix to the demo endpoint and records the outcome', async () => {
-    const { live } = liveWithFixtures();
-    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 202 })).mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { code: 'not_found', message: 'no such endpoint' } }), { status: 404 }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    await live.fix('pbs-datastore-filling');
-    expect(fetchMock.mock.calls[0]![0]).toBe('/api/demo/incidents/pbs-datastore-filling/fix');
-    expect((fetchMock.mock.calls[0]![1] as RequestInit).method).toBe('POST');
-    expect(live.fixes['pbs-datastore-filling']).toEqual({ state: 'accepted', phase: 'high' });
-    await expect(live.fix('plex-token-revoked')).rejects.toThrow();
-    expect(live.fixes['plex-token-revoked']).toEqual({ state: 'failed', error: 'Actions run only in demo mode for now.' });
-  });
 });

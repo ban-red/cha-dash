@@ -1,18 +1,21 @@
 /**
  * What the command bar (⌘K) can do, built from what the page knows: boards,
  * resources in the Home Graph, integrations, the Inbox, edit mode, themes,
- * settings and signing out. Pure data plus `run` callbacks; searching is
- * lib/fuzzy.ts, ranking and grouping are here so they're testable without Vue.
+ * settings and signing out, plus actions on resources (`actionCommands`):
+ * every open incident's suggested action and alternatives, and what the hub
+ * lists for the resource in focus (`GET /api/actions?target=`). Pure data
+ * plus `run` callbacks; searching is lib/fuzzy.ts, ranking and grouping are
+ * here so they're testable without Vue.
  */
 import { rank, type Searchable } from '../lib/fuzzy';
 import { THEMES, type ThemeId } from '../lib/theme';
 import { distinct, label, placeOf } from './graph';
-import type { GraphDoc, InboxDoc } from './types';
+import type { Action, GraphDoc, InboxDoc, Incident, Tier } from './types';
 import type { Instance } from './integrations';
 import type { SettingsPane } from '../lib/router';
 import type { Permissions } from './roles';
 
-export type CommandGroup = 'Actions' | 'Inbox' | 'Boards' | 'Resources' | 'Integrations' | 'Settings' | 'Theme' | 'Account';
+export type CommandGroup = 'Run' | 'Actions' | 'Inbox' | 'Boards' | 'Resources' | 'Integrations' | 'Settings' | 'Theme' | 'Account';
 
 export interface Command extends Searchable {
   id: string;
@@ -21,11 +24,13 @@ export interface Command extends Searchable {
   hint?: string;
   /** Shown as a key cap. */
   kbd?: string;
+  /** Can't run here: the sentence why (the option is shown, marked unavailable). */
+  disabled?: string;
   run: () => void;
 }
 
 /** Groups in the order they show when nothing is typed. */
-export const GROUP_ORDER: readonly CommandGroup[] = ['Actions', 'Inbox', 'Boards', 'Integrations', 'Settings', 'Theme', 'Account', 'Resources'];
+export const GROUP_ORDER: readonly CommandGroup[] = ['Run', 'Actions', 'Inbox', 'Boards', 'Integrations', 'Settings', 'Theme', 'Account', 'Resources'];
 
 const KIND_WORDS: Record<string, string> = {
   app: 'service',
@@ -59,7 +64,7 @@ export interface CommandContext {
   theme?: ThemeId;
   username?: string;
   /** What the viewer's role may use (model/roles.ts); everything when absent. */
-  can?: Pick<Permissions, 'inbox' | 'settings' | 'editBoards' | 'panes'>;
+  can?: Pick<Permissions, 'inbox' | 'settings' | 'integrations' | 'editBoards' | 'panes'>;
   do: {
     openInbox: (incident?: string) => void;
     toggleEdit: () => void;
@@ -72,12 +77,97 @@ export interface CommandContext {
   };
 }
 
-type CommandInput = Omit<Command, 'hint'> & { hint?: string | undefined };
+type CommandInput = Omit<Command, 'hint' | 'disabled'> & { hint?: string | undefined; disabled?: string | undefined };
 
-/** Drop an undefined hint (exact optional properties). */
+/** Drop an undefined hint or reason (exact optional properties). */
 function cmd(c: CommandInput): Command {
-  const { hint, ...rest } = c;
-  return hint === undefined ? rest : { ...rest, hint };
+  const { hint, disabled, ...rest } = c;
+  const out: Command = rest;
+  if (hint !== undefined) out.hint = hint;
+  if (disabled !== undefined) out.disabled = disabled;
+  return out;
+}
+
+/** One action the hub lists for a resource (lib/actions.ts `Offer`). */
+export interface ActionOffer {
+  id: string;
+  label: string;
+  tier: Tier;
+  available: boolean;
+  unavailable?: string;
+  household?: boolean;
+}
+
+export interface ActionContext {
+  graph?: GraphDoc | undefined;
+  inbox?: InboxDoc | undefined;
+  /** The resource in focus (the focused tile, or the top search result), whose offers these are. */
+  subject?: string | undefined;
+  offers?: readonly ActionOffer[];
+  /** Only the subject's actions (nothing typed yet), or every open incident's too. */
+  onlySubject?: boolean;
+  /** Whether the viewer's role can run a tier (model/roles.ts); everything when absent. */
+  can?: Pick<Permissions, 'act'>;
+  /** Run an incident's action (its progress shows at the incident). */
+  act: (incident: Incident, action: Action) => void;
+  /** Run an action the hub listed, through the same ladder. */
+  run: (offer: ActionOffer, target: string) => void;
+  /** Say why an unavailable action can't run. */
+  refuse: (why: string) => void;
+}
+
+/**
+ * Actions as commands, in the Run group: every open incident's suggested
+ * action and alternatives the role may run (not links), then the hub's
+ * offers for the subject that no incident already covers. An offer the hub
+ * says is unavailable stays listed, disabled, with its sentence. Each runs
+ * the normal safety ladder: the hub plans it, and the plan's tier decides
+ * how it's confirmed.
+ */
+export function actionCommands(ctx: ActionContext): Command[] {
+  const out: CommandInput[] = [];
+  const seen = new Set<string>();
+  const nameOf = (id: string) => label(ctx.graph?.resources[id]) || id;
+  const allowed = (tier: Tier | string, household?: boolean) => !ctx.can || ctx.can.act(tier, household);
+  for (const i of Object.values(ctx.inbox?.incidents ?? {})) {
+    if (i.status !== 'open' || i.class === 'suggestion') continue;
+    for (const a of [i.suggested, ...(i.alternatives ?? [])]) {
+      if (!a || a.id === 'link.open' || !allowed(a.tier, a.household)) continue;
+      if (ctx.onlySubject && a.target !== ctx.subject) continue;
+      const key = `${a.id}@${a.target}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const why = a.unavailable ?? (a.plan_ready === false ? 'Cha Dash can’t run this here yet.' : undefined);
+      out.push({
+        id: `act:${key}`,
+        group: 'Run',
+        label: a.label,
+        keywords: `${a.id} ${a.target} ${nameOf(a.target)} ${i.title}`,
+        hint: why ? 'unavailable' : a.tier,
+        disabled: why,
+        run: () => (why ? ctx.refuse(why) : ctx.act(i, a)),
+      });
+    }
+  }
+  const subject = ctx.subject;
+  if (subject) {
+    for (const o of ctx.offers ?? []) {
+      const key = `${o.id}@${subject}`;
+      if (seen.has(key) || !allowed(o.tier, o.household)) continue;
+      seen.add(key);
+      const why = o.available ? undefined : (o.unavailable ?? 'Cha Dash can’t run this here yet.');
+      out.push({
+        id: `act:${key}`,
+        group: 'Run',
+        label: o.label,
+        keywords: `${o.id} ${subject} ${nameOf(subject)}`,
+        hint: why ? 'unavailable' : o.tier,
+        disabled: why,
+        run: () => (why ? ctx.refuse(why) : ctx.run(o, subject)),
+      });
+    }
+  }
+  return out.map(cmd);
 }
 
 export function buildCommands(ctx: CommandContext): Command[] {
@@ -158,7 +248,7 @@ function allowed(c: CommandInput, can: CommandContext['can']): boolean {
   if (!can) return true;
   if (c.group === 'Inbox' || c.id === 'inbox') return can.inbox;
   if (c.id === 'edit') return can.editBoards;
-  if (c.group === 'Integrations') return can.settings;
+  if (c.group === 'Integrations') return can.integrations;
   if (c.group === 'Settings') {
     const pane = c.id === 'settings:import' ? 'import' : c.id.replace(/^settings:/, '');
     return can.settings && (can.panes as readonly string[]).includes(pane);

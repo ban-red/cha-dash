@@ -179,6 +179,8 @@ export interface Task {
   error?: { code: string; message: string } | null;
   undo?: UndoSpec | null;
   audit?: string;
+  /** Its action allows POST /api/tasks/{id}/cancel while it runs. */
+  cancellable?: boolean;
 }
 
 /** The `tasks` topic: `{"tasks": {id: Task}}`, running plus the last 24 hours, at most 50. */

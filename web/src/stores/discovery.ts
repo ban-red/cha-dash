@@ -19,7 +19,12 @@ import type { Live } from './live';
 
 const NONE: ReadonlySet<string> = new Set();
 
-export function createDiscovery(live: Live, board: BoardStore) {
+/**
+ * `canEdit` says whether the viewer may change boards (admin and owner): only
+ * they can add the suggestions or dismiss them, and only they may read the
+ * dismissals, so nobody else is asked or fetches anything.
+ */
+export function createDiscovery(live: Live, board: BoardStore, canEdit: () => boolean = () => true) {
   const dismissed = shallowRef<ReadonlySet<string>>(NONE);
   /** The board whose dismissals are loaded ('' for none yet). */
   const loadedFor = shallowRef('');
@@ -27,7 +32,7 @@ export function createDiscovery(live: Live, board: BoardStore) {
 
   const usable = computed(() => {
     const s = board.state;
-    return !live.stale.value && !s.lastKnown && !s.unsaved && s.status === 'ready' && Boolean(s.boardId);
+    return canEdit() && !live.stale.value && !s.lastKnown && !s.unsaved && s.status === 'ready' && Boolean(s.boardId);
   });
   /** Anything to ask about, dismissals aside: the cue to fetch them. */
   const candidates = computed(() => usable.value && labelServices(live.graph.value, board.board.value, board.tiles.value, NONE).length > 0);

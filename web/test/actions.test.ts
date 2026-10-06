@@ -2,7 +2,8 @@
  * The safety ladder on the action engine (stores/actions.ts through
  * stores/ui.ts): plan → the plan's rung → step-up when asked → approve, every
  * refusal code, the Undo toast, tasks over the `tasks` topic (and polled
- * without it), the demo fallback, and what each role sees.
+ * without it), cancelling a task, the Demo Home on the engine, and what each
+ * role sees.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
@@ -384,23 +385,86 @@ describe('tasks', () => {
   });
 });
 
-describe('the demo fallback (for a hub from before the engine)', () => {
-  it('uses POST /api/demo/incidents/{id}/fix only when planning a demo incident answers 404', async () => {
-    const hub = fakeFetch({ 'POST /api/demo/incidents/backup-failed/fix': { status: 202, body: {} } });
+describe('the Demo Home on the engine', () => {
+  it('plans and approves demo fixes like any action, and never uses a demo-only endpoint', async () => {
+    const e = engine();
+    const hub = fakeFetch(e.routes);
     const h = start({ demo: true });
     h.ui.act(h.inc(BACKUP));
     await flushPromises();
-    expect(hub.calls.map((c) => `${c.method} ${c.path}`)).toEqual(['POST /api/actions/plan', 'POST /api/demo/incidents/backup-failed/fix']);
-    expect(h.live.fixes[BACKUP]?.state).toBe('accepted');
-
-    // T2 still holds first, then uses the endpoint.
     h.ui.act(h.inc(PRUNE));
     await flushPromises();
-    expect(h.ui.state.confirm).toMatchObject({ kind: 'hold' });
-    expect(h.ui.state.confirm?.plan).toBeUndefined();
+    expect(h.ui.state.confirm).toMatchObject({ kind: 'hold', plan: { action: 'pbs.datastore.prune' } });
     h.ui.confirmed();
     await flushPromises();
-    expect(hub.calls.at(-1)?.path).toBe('/api/demo/incidents/pbs-datastore-filling/fix');
+    expect(hub.calls.map((c) => `${c.method} ${c.path.replace(/plans\/[^/]+/, 'plans/{id}')}`)).toEqual([
+      'POST /api/actions/plan',
+      'POST /api/plans/{id}/approve',
+      'POST /api/actions/plan',
+      'POST /api/plans/{id}/approve',
+    ]);
+    expect(e.plans.map((x) => x.action)).toEqual(['pve.guest.backup', 'pbs.datastore.prune']);
+    expect(hub.calls.some((c) => c.path.startsWith('/api/demo'))).toBe(false);
+  });
+
+  it('shows the hub’s sentence when planning a demo fix answers 404', async () => {
+    const hub = fakeFetch({ 'POST /api/actions/plan': refuse(404, 'not_found', 'There’s no action called "pve.guest.backup".') });
+    const h = start({ demo: true });
+    h.ui.act(h.inc(BACKUP));
+    await flushPromises();
+    expect(h.live.fixes[BACKUP]).toEqual({ state: 'failed', error: 'There’s no action called "pve.guest.backup".' });
+    expect(hub.calls.map((c) => c.path)).toEqual(['/api/actions/plan']);
+  });
+});
+
+describe('cancelling a task', () => {
+  const push = (h: ReturnType<typeof start>, task: ReturnType<typeof taskFor>) =>
+    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 2, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', task.id), value: task }] });
+
+  it('offers Cancel on the presence and at the incident only while a cancellable task runs', async () => {
+    const e = engine();
+    fakeFetch(e.routes);
+    const h = start();
+    h.mountIn(InboxSheet);
+    h.mountIn(TaskPresence);
+    h.ui.openInbox(BACKUP);
+    await flushPromises();
+    h.ui.act(h.inc(BACKUP));
+    await flushPromises();
+    const p = planFor('pve.guest.backup', 'pve:minig5/qemu/100');
+    // Not cancellable: no button anywhere.
+    push(h, taskFor(p));
+    await nextTick();
+    expect(document.querySelector('.tp-cancel')).toBeNull();
+    expect(document.querySelector('.working-cancel')).toBeNull();
+
+    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 3, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', `t_${p.id}`, 'cancellable'), value: true }] });
+    await nextTick();
+    const presence = document.querySelector<HTMLButtonElement>('.tp-cancel')!;
+    const atIncident = document.querySelector<HTMLButtonElement>('.ib.open .working-cancel')!;
+    expect(presence.getAttribute('aria-label')).toBe('Cancel Back up homeassistant now');
+    expect(atIncident.textContent?.trim()).toBe('Cancel');
+    atIncident.click();
+    await flushPromises();
+    expect(e.cancels).toEqual([`t_${p.id}`]);
+
+    // The hub cancels it: it ends as cancelled, the buttons go, the toast says so.
+    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 4, patch: [{ op: 'replace', path: toPointer('tasks', 'tasks', `t_${p.id}`, 'state'), value: 'cancelled' }] });
+    await nextTick();
+    expect(document.querySelector('.tp-cancel')).toBeNull();
+    expect(h.ui.state.toasts.at(-1)?.text).toBe('Cancelled: Back up homeassistant now.');
+  });
+
+  it('shows the hub’s sentence when it refuses', async () => {
+    const e = engine({ cancel: () => refuse(409, 'not_cancellable', 'Back up homeassistant now can’t be stopped once it has started.') });
+    fakeFetch(e.routes);
+    const h = start();
+    const task = taskFor(planFor('pve.guest.backup', 'pve:minig5/qemu/100'), { cancellable: true });
+    await h.ui.cancelTask(task);
+    expect(h.ui.state.toasts.at(-1)).toMatchObject({ text: 'Back up homeassistant now can’t be stopped once it has started.', tone: 'error' });
+    // A finished task isn't asked about.
+    await h.ui.cancelTask({ ...task, state: 'succeeded' });
+    expect(e.cancels).toHaveLength(1);
   });
 });
 
@@ -410,7 +474,15 @@ describe('roles', () => {
     expect(['owner', 'admin', 'operator', 'viewer', 'household'].map((r) => [0, 1, 2, 3, 4].filter((n) => p(r).act(`T${n}`)).length)).toEqual([5, 4, 3, 1, 1]);
     expect(p('household').act('T1', true)).toBe(true);
     expect(p('household').inbox).toBe(false);
-    expect(p('operator').settings).toBe(false);
+    // Below admin, Settings is your passkeys only; integrations, the wizard and decisions are admin.
+    for (const r of ['operator', 'viewer', 'household']) {
+      expect(p(r).settings).toBe(true);
+      expect(p(r).panes).toEqual(['security']);
+      expect(p(r).integrations).toBe(false);
+      expect(p(r).editBoards).toBe(false);
+      expect(p(r).decide).toBe(false);
+    }
+    expect(p('admin').integrations && p('admin').decide).toBe(true);
     expect(p('admin').panes).toEqual(['integrations', 'import', 'backup', 'users', 'audit', 'security']);
     expect(p('admin').securitySettings).toBe(false);
     expect(p('owner').securitySettings).toBe(true);
@@ -439,7 +511,7 @@ describe('roles', () => {
     expect(o.ui.canRun(inc).hidden).toBe(true);
   });
 
-  it('household sees boards only: no Needs attention, no Inbox, no Edit layout, no Settings', async () => {
+  it('household sees boards only: no Needs attention, no Inbox, no Edit layout, Settings only for passkeys', async () => {
     const h = start({ role: 'household' });
     const na = h.mountIn(NeedsAttention);
     expect(na.find('.attn-sec').exists()).toBe(false);
@@ -457,14 +529,18 @@ describe('roles', () => {
       can: h.ui.can.value,
       do: { openInbox: vi.fn(), toggleEdit: vi.fn(), openBoard: vi.fn(), reveal: vi.fn(), openSettings: vi.fn(), addIntegration: vi.fn(), setTheme: vi.fn(), signOut: vi.fn() },
     });
-    expect(cmds.filter((c) => ['Inbox', 'Settings', 'Integrations'].includes(c.group) || c.id === 'inbox' || c.id === 'edit')).toEqual([]);
+    expect(cmds.filter((c) => ['Inbox', 'Integrations'].includes(c.group) || c.id === 'inbox' || c.id === 'edit')).toEqual([]);
+    expect(cmds.filter((c) => c.group === 'Settings').map((c) => c.id)).toEqual(['settings:security']);
+    h.ui.openSettings('security');
+    expect(route.value.path).toBe('/settings/security');
     expect(cmds.some((c) => c.id === 'signout')).toBe(true);
   });
 
-  it('⌘K lists the Users and Audit panes for owners and admins only', () => {
+  it('⌘K lists the Users and Audit panes for owners and admins only; everyone gets their passkeys', () => {
     const d = { openInbox: vi.fn(), toggleEdit: vi.fn(), openBoard: vi.fn(), reveal: vi.fn(), openSettings: vi.fn(), addIntegration: vi.fn(), setTheme: vi.fn(), signOut: vi.fn() };
     const ids = (role: string) => buildCommands({ can: permissions(role), do: d }).filter((c) => c.group === 'Settings').map((c) => c.id);
     expect(ids('admin')).toEqual(['settings:integrations', 'settings:import', 'settings:backup', 'settings:users', 'settings:audit', 'settings:security']);
-    expect(ids('operator')).toEqual([]);
+    expect(ids('operator')).toEqual(['settings:security']);
+    expect(ids('household')).toEqual(['settings:security']);
   });
 });

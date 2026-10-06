@@ -297,7 +297,12 @@ describe('the step-up dialog', () => {
     const h = harness(docs(withIncidents));
     const done = vi.fn();
     h.ui.state.stepUp = { reason: 'Remove debian-nas', fresh: false, resolve: done };
-    h.ui.state.confirm = { kind: 'type', req: { action: 'x', target: 'y', label: 'Remove debian-nas' }, action: { id: 'x', label: 'Remove debian-nas', tier: 'T3', target: 'y' } };
+    h.ui.state.confirm = {
+      kind: 'type',
+      req: { action: 'x', target: 'y', label: 'Remove debian-nas' },
+      plan: { id: 'p_1', hash: 'sha256:1', action: 'x', label: 'Remove debian-nas', target: 'y', tier: 'T3', confirm: 'type', confirm_text: 'debian-nas', step_up: 'required' },
+      action: { id: 'x', label: 'Remove debian-nas', tier: 'T3', target: 'y' },
+    };
     h.mountIn(StepUpDialog);
     await settle();
     const dlg = document.querySelector<HTMLDialogElement>('dialog.stepup')!;
