@@ -1,0 +1,62 @@
+# internal/stacks
+
+The hub's side of owned stacks:
+- the stacks API over the nodes (`nodes.Caller`);
+- drafts in the hub's database;
+- stack secrets in the vault;
+- the stack actions the engine runs.
+
+The node does the work ([`internal/node/stacks`](../node/stacks/README.md)). This package speaks its verbs through [`internal/stackproto`](../stackproto) and never links the Compose SDK or go-git.
+
+## Routes
+
+| Route | Role | Notes |
+|---|---|---|
+| `GET /api/stacks` | viewer | Per node: `{node, name, online, error, root, stacks, detected}`. A node that's offline or fails says so in `error` and still lists its drafts |
+| `GET /api/stacks/{node}/{stack}` | admin | The committed file, `.env` key names, `x-chadash`, services, history (50), head, draft, and referenced secrets with `set`. A stack that's only a draft answers with `exists: false` |
+| `PUT /api/stacks/{node}/{stack}` | admin | `{content, revision}` saves a draft. A stale revision gets `409 conflict` with `revision`. A protected stack gets `409 protected` |
+| `DELETE /api/stacks/{node}/{stack}/draft` | admin | Discards the draft |
+| `POST /api/stacks/{node}/{stack}/validate` | admin | `{content}` → `{ok, messages, secrets, plan, diff}`. The node validates. The hub adds an error for each referenced secret the vault lacks, and plans only when both pass. Saves nothing |
+| `GET /api/stacks/secrets` | admin | Stack secret names. Values never leave |
+| `PUT`/`DELETE /api/stacks/secrets/{name}` | admin | Set or delete one, audited as `settings.stacks.secret.update`/`.delete` with the name only |
+
+Node errors map to HTTP:
+- `not_found` → 404;
+- `invalid` → 422;
+- `protected`, `drift`, `conflict`, `busy`, `not_managed` → 409;
+- an offline node → `503 node_unavailable`;
+- anything else → `502 node_error`.
+
+**Why these roles.** The Roles table puts stacks under Settings, admin+. Listing names and status is a read, so viewers get it. A stack's files are admin+ because compose files, adopted ones especially, often hold credentials in plain text. The actions are admin+ too: `authz.Decide` treats every `stack.*` scope as a setting, although an operator may run other T2 actions.
+
+## Actions
+
+| Action | Tier | Target | Undo |
+|---|---|---|---|
+| `stack.deploy` | T2 | `stack:<node>/<name>` | `stack.rollback` to the commit it replaced |
+| `stack.rollback` | T2 | same, `{"commit"}` | `stack.rollback` back to the commit it replaced |
+| `stack.adopt` | T1 | same | `stack.unadopt` (none when it accepts edits) |
+| `stack.unadopt` | T1 | same | `stack.adopt` |
+
+How the actions work:
+- **Resolve** reads the stack from its node. For a deploy it also validates and plans the draft, so the plan's steps name the services ("Pull nginx:1.28", "Recreate web …", the gate, "roll back on its own"). The result travels in `Target.Ref`.
+- **The target's state** hashes the head commit, managed, drift and the draft's SHA-256. An approval after anyone saves a new draft or deploys is `409 plan_changed`.
+- **Blast radius** is the graph's `stack` resources for the project (the Docker integration's `docker:<key>/stack/<name>`) and `GraphImpact` from each.
+- **Execute** reads the draft, checks it's the one planned, and reads each referenced secret from the vault for that one call. It sends the deploy with `expect_head`, so a deploy in between is refused, and streams the node's progress into the task.
+- **Outcomes.** `deployed` succeeds and clears the draft, if it's still the same revision. `blocked`, `rolled_back` and `stuck` fail the task with that code and the node's sentence. `stuck` also opens an Inbox item, `stack.<node>.<name>.stuck`, at severity `down`; the next deploy or rollback that passes the gate resolves it.
+
+## Drafts live in the hub
+
+Table `stack_drafts` (migration `00009`): one per node and stack, with a revision for optimistic saves.
+- They live in the hub, not as an uncommitted file on the node. The stacks root then only changes by commit, so a file on disk that differs from its last commit always means an edit made outside Cha Dash, and drift stays exact.
+- Drafts survive the node being offline.
+- They're kept when a deploy fails, so the work isn't lost.
+- They hold `${secret:…}` references, never values.
+
+## Secrets
+
+Stack secrets are vault entries named `stacks/<name>`, a namespace of their own. Whatever a compose file references, it can't reach an integration's credentials (`instance/…`). They're read only for `stack.plan` (validation's plan) and deploys, sent to the node with that request, and cleared from memory afterwards. `TestScenarioBadDeployRollsBackOnItsOwn` checks that the value went only with `stack.plan` and `stack.deploy`. It also checks that no response, task or audit event holds it.
+
+## Tests
+
+The tests run this package against the real node module, in process, over a `Caller` that marshals JSON and flattens errors to text as a transport would, on `stackstest.Docker`. Only the test binary links the node module.

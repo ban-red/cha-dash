@@ -203,6 +203,19 @@ var Routes = []Route{
 	// nodes.revoke).
 	{Pattern: "GET /api/nodes", Access: Admin},
 	{Pattern: "POST /api/nodes/{id}/revoke", Access: Admin},
+	// Settings → Stacks (track 9B). The list (names and status) is a read,
+	// for viewers; a stack's files, history and drafts are admin+, because
+	// compose files (adopted ones especially) often hold credentials in
+	// plain text, and stacks are Settings in the Roles table. Deploying,
+	// rolling back and adopting are actions, admin+ by authz.Decide.
+	{Pattern: "GET /api/stacks", Access: Viewer},
+	{Pattern: "GET /api/stacks/secrets", Access: Admin},
+	{Pattern: "PUT /api/stacks/secrets/{name}", Access: Admin},
+	{Pattern: "DELETE /api/stacks/secrets/{name}", Access: Admin},
+	{Pattern: "GET /api/stacks/{node}/{stack}", Access: Admin},
+	{Pattern: "PUT /api/stacks/{node}/{stack}", Access: Admin},
+	{Pattern: "DELETE /api/stacks/{node}/{stack}/draft", Access: Admin},
+	{Pattern: "POST /api/stacks/{node}/{stack}/validate", Access: Admin},
 
 	// Settings → Audit. Added by the audit track.
 	{Pattern: "GET /api/audit", Access: Admin},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -25,6 +26,7 @@ import (
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
+	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/internal/vault"
@@ -84,6 +86,12 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		}
 		t.Cleanup(hub.Close)
 		d.Nodes = hub
+		stk, err := stacks.New(stacks.Options{Store: d.Store, Vault: v, Caller: noNodes{}, Log: d.Log,
+			Nodes: func(context.Context) ([]stacks.Node, error) { return nil, nil }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Stacks = stk
 	})
 	return e, st
 }
@@ -127,6 +135,14 @@ func (e *env) call(t *testing.T, c *http.Client, method, path string, v any) (in
 }
 
 const testPassword = "correct horse battery"
+
+// noNodes is a nodes.Caller with no nodes behind it: the stacks routes are
+// on the router, and the matrix never reaches a node.
+type noNodes struct{}
+
+func (noNodes) Call(context.Context, string, string, any, func(json.RawMessage)) (json.RawMessage, error) {
+	return nil, errors.New("no nodes")
+}
 
 // addUser has the owner create an account with role and returns its ID and
 // a signed-in client for it.

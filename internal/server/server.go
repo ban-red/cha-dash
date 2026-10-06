@@ -34,6 +34,7 @@
 //	GET  /api/audit, /api/audit/export, /api/audit/verify   the audit log (admin; audit.read)
 //	GET  /node                 chadash-node's channel (the node's pinned key, not a session; see nodes.Hub)
 //	GET  /api/nodes, POST /api/nodes/{id}/revoke   nodes and revoking one (admin)
+//	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
 //	                           with the first-paint snapshot for any signed-in role)
@@ -76,6 +77,7 @@ import (
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
+	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
 	"dash.cha.sh/internal/webui"
@@ -125,6 +127,10 @@ type Deps struct {
 	// Nodes serves chadash-node's channel at /node and the nodes API. Nil
 	// leaves both unmounted.
 	Nodes *nodes.Hub
+	// Stacks is the owned-stacks API over the nodes. Nil leaves
+	// /api/stacks unmounted. Its actions are registered with the engine by
+	// the caller (stacks.Service.Actions).
+	Stacks *stacks.Service
 }
 
 // New builds the root handler.
@@ -191,6 +197,10 @@ func New(d Deps) (http.Handler, error) {
 			a, _ := authz.ActorFrom(r)
 			return audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
 		})
+	}
+	if d.Stacks != nil {
+		d.Stacks.Audit = rec
+		d.Stacks.Register(mux, session)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")

@@ -273,6 +273,9 @@ func Decide(a Actor, req Request, env Env) error {
 	if rank(a.Role) < 0 {
 		return forbid("Your account has no role that allows this.")
 	}
+	if settingsAction(sc.Action) && rank(a.Role) < rank(auth.RoleAdmin) {
+		return forbid("Only an admin or the owner can change stacks: they're settings, whatever the tier.")
+	}
 	if a.Role == auth.RoleHousehold {
 		if tr > 0 && !(req.Household && tr <= HouseholdCap.rank()) {
 			return forbid("Household accounts can only run actions meant for the household.")
@@ -395,3 +398,9 @@ func (p *Policy) T4Enabled(ctx context.Context) ([]string, error) {
 	}
 	return scopes, nil
 }
+
+// settingsAction reports whether an action changes settings rather than
+// operating the lab: owned stacks (stack.deploy, stack.rollback, stack.adopt,
+// stack.unadopt) are Settings in the Roles table, so admin+ whatever their
+// tier, although an operator may run other T2 actions.
+func settingsAction(id string) bool { return strings.HasPrefix(id, "stack.") }

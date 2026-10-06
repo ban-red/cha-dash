@@ -70,6 +70,23 @@ func TestTierCaps(t *testing.T) {
 	}
 }
 
+func TestStackActionsAreAdminOnly(t *testing.T) {
+	env := Env{Now: time.Now()}
+	for _, role := range []string{auth.RoleOperator, auth.RoleViewer, auth.RoleHousehold} {
+		if err := Decide(Actor{Kind: KindUser, Role: role}, Request{Scope: "stack.deploy", Tier: T2}, env); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s deploying a stack: %v", role, err)
+		}
+	}
+	for _, role := range []string{auth.RoleAdmin, auth.RoleOwner} {
+		if err := Decide(Actor{Kind: KindUser, Role: role}, Request{Scope: "stack.deploy", Tier: T2}, env); err != nil {
+			t.Errorf("%s deploying a stack: %v", role, err)
+		}
+	}
+	if err := Decide(Actor{Kind: KindUser, Role: auth.RoleOperator}, Request{Scope: "docker.container.restart", Tier: T2}, env); err != nil {
+		t.Errorf("operators keep other T2 actions: %v", err)
+	}
+}
+
 func TestStepUp(t *testing.T) {
 	const scope = "proxmox.guest.snapshot.delete"
 	env := Env{Now: now, T4: []string{scope}}
