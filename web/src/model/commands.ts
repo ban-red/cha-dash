@@ -214,6 +214,7 @@ export function buildCommands(ctx: CommandContext): Command[] {
 
   out.push(
     { id: 'settings:integrations', group: 'Settings', label: 'Settings: Integrations', keywords: 'connections tokens keys', run: () => d.openSettings('integrations') },
+    { id: 'settings:stacks', group: 'Settings', label: 'Settings: Stacks', keywords: 'compose docker deploy rollback adopt yaml', run: () => d.openSettings('stacks') },
     { id: 'settings:import', group: 'Settings', label: 'Import from Homepage', keywords: 'settings services.yaml docker.yaml migrate', run: () => d.openSettings('import') },
     { id: 'settings:backup', group: 'Settings', label: 'Settings: Backup', keywords: 'export import restore yaml home file secrets', run: () => d.openSettings('backup') },
     { id: 'settings:users', group: 'Settings', label: 'Settings: Users', keywords: 'people roles accounts household owner admin', run: () => d.openSettings('users') },

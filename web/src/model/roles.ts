@@ -73,7 +73,7 @@ export interface Permissions {
 export function permissions(role: string | undefined): Permissions {
   const r = asRole(role);
   const admin = r === 'owner' || r === 'admin';
-  const panes: SettingsPane[] = admin ? ['integrations', 'import', 'backup', 'users', 'audit', 'security'] : ['security'];
+  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'import', 'backup', 'users', 'audit', 'security'] : ['security'];
   return {
     role: r,
     inbox: r !== 'household',

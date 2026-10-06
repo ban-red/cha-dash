@@ -11,6 +11,9 @@
  *   /settings/integrations/new         pick an integration to add
  *   /settings/integrations/new/{type}  the add form for one integration
  *   /settings/integrations/{id}        edit an instance (?field=… focuses a field)
+ *   /settings/stacks                   owned compose stacks per node, detected projects, stack secrets
+ *   /settings/stacks/new               a new stack (saved as a draft)
+ *   /settings/stacks/{node}/{name}     one stack: editor, plan, deploy, history
  *   /settings/import                   import from Homepage
  *   /settings/backup                   export this hub, import a Home file
  *   /settings/users                    users and roles (owner, admin)
@@ -27,9 +30,9 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'import' | 'backup' | 'users' | 'audit' | 'security';
+export type SettingsPane = 'integrations' | 'stacks' | 'import' | 'backup' | 'users' | 'audit' | 'security';
 
-const PANES: readonly string[] = ['import', 'backup', 'users', 'audit', 'security'];
+const PANES: readonly string[] = ['stacks', 'import', 'backup', 'users', 'audit', 'security'];
 
 export type View =
   | { name: 'front'; board?: string }
@@ -55,6 +58,11 @@ export function resolve(r: Route): View {
   if (parts[0] === 'boards' && parts[1]) return { name: 'front', board: parts[1] };
   if (parts[0] !== 'settings') return { name: 'front' };
   const pane = (PANES.includes(parts[1] ?? '') ? parts[1] : 'integrations') as SettingsPane;
+  if (pane === 'stacks') {
+    // A stack is `{node}/{name}`, so its id carries the slash.
+    if (parts[2] === 'new' && !parts[3]) return { name: 'settings', pane, add: '' };
+    return parts[2] && parts[3] ? { name: 'settings', pane, id: `${parts[2]}/${parts[3]}` } : { name: 'settings', pane };
+  }
   if (pane !== 'integrations') return { name: 'settings', pane };
   if (parts[2] === 'new') return parts[3] ? { name: 'settings', pane, add: parts[3] } : { name: 'settings', pane, add: '' };
   return parts[2] ? { name: 'settings', pane, id: parts[2] } : { name: 'settings', pane };
@@ -90,6 +98,12 @@ export function settingsPath(pane: SettingsPane = 'integrations', id?: string, q
   for (const [k, v] of Object.entries(query ?? {})) if (v) q.set(k, v);
   const qs = q.toString();
   return qs ? `${p}?${qs}` : p;
+}
+
+/** Path for one stack, or the stacks list without one. The new-stack form is `/settings/stacks/new`. */
+export function stackPath(node?: string, name?: string): string {
+  if (!node || !name) return '/settings/stacks';
+  return `/settings/stacks/${encodeURIComponent(node)}/${encodeURIComponent(name)}`;
 }
 
 let started = false;
