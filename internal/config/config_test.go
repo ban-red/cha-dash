@@ -178,3 +178,21 @@ func TestLoggerFormat(t *testing.T) {
 		t.Fatalf("info should be filtered at warn level, got %q", buf.String())
 	}
 }
+
+func TestNodePairingFile(t *testing.T) {
+	c, err := load(t, nil)
+	if err != nil || c.NodePairingFile != "" {
+		t.Fatalf("default: %q %v", c.NodePairingFile, err)
+	}
+	c, err = load(t, map[string]string{"CHADASH_NODE_PAIRING_FILE": "/pairing//token"})
+	if err != nil || c.NodePairingFile != "/pairing/token" {
+		t.Fatalf("env: %q %v", c.NodePairingFile, err)
+	}
+	c, err = load(t, nil, "--node-pairing-file", "/run/pair")
+	if err != nil || c.NodePairingFile != "/run/pair" {
+		t.Fatalf("flag: %q %v", c.NodePairingFile, err)
+	}
+	if _, err := load(t, map[string]string{"CHADASH_NODE_PAIRING_FILE": "pairing/token"}); err == nil {
+		t.Fatal("a relative path was accepted")
+	}
+}

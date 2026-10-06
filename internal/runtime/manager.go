@@ -53,6 +53,8 @@ type Options struct {
 	// availability. Nil runs no actions (demo mode, where instances write
 	// to a private graph).
 	Actions *action.Registry
+	// Nodes reaches chadash-node verbs (Deps.Nodes). Nil: no nodes.
+	Nodes integration.NodeCaller
 }
 
 // Manager owns every instance: it loads them at boot, runs a coordinator
@@ -520,7 +522,7 @@ func fieldTitle(man integration.Manifest, field string) string {
 // buildDeps assembles an instance's Deps. mi is nil for an unsaved config
 // under test: nothing is persisted then.
 func (m *Manager) buildDeps(mi *managed, gen int, cfg integration.Config, log *slog.Logger, emit integration.Emitter) (integration.Deps, *Client, func()) {
-	o := DepsOptions{Config: cfg, Emit: emit, Log: log, Now: m.o.Now, UserAgent: m.o.UserAgent, RootCAs: m.o.RootCAs}
+	o := DepsOptions{Config: cfg, Emit: emit, Log: log, Now: m.o.Now, UserAgent: m.o.UserAgent, RootCAs: m.o.RootCAs, Nodes: m.o.Nodes}
 	if mi != nil {
 		o.UpdateConfig = func(ctx context.Context, mutate func(map[string]any)) error {
 			return m.updateConfig(ctx, mi, gen, mutate)
@@ -544,6 +546,8 @@ type DepsOptions struct {
 	// State is the instance's key-value state. Nil: one in memory, dropped
 	// with the Deps (an unsaved config under test).
 	State integration.State
+	// Nodes is Deps.Nodes. Nil: no nodes.
+	Nodes integration.NodeCaller
 }
 
 // NewDeps builds the Deps an instance gets: its own HTTP client with the
@@ -615,9 +619,10 @@ func NewDeps(o DepsOptions) (integration.Deps, *Client, func()) {
 			}
 			return c.Client, nil
 		},
-		Emit: o.Emit,
-		Log:  log,
-		Now:  o.Now,
+		Emit:  o.Emit,
+		Log:   log,
+		Now:   o.Now,
+		Nodes: o.Nodes,
 		UpdateConfig: func(ctx context.Context, mutate func(map[string]any)) error {
 			if o.UpdateConfig == nil {
 				return nil

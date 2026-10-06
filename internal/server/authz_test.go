@@ -21,6 +21,7 @@ import (
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
@@ -77,6 +78,12 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		t.Cleanup(eng.Close)
 		d.Actions = eng
 		d.Audit = audit.New(d.Store)
+		hub, err := nodes.New(t.Context(), nodes.Options{Store: d.Store, Vault: v, Log: d.Log})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(hub.Close)
+		d.Nodes = hub
 	})
 	return e, st
 }
@@ -186,7 +193,7 @@ func TestRouteMatrix(t *testing.T) {
 		// Is it on the router? The API's fallback answers what isn't. Public
 		// routes are probed anonymously (one of them is sign-out).
 		prober := clients[auth.RoleOwner]
-		if row.Access == authz.Public {
+		if row.Access == authz.Public || row.Access == authz.NodeKey {
 			prober = anon
 		}
 		status, _, b := hit(prober)
@@ -197,6 +204,16 @@ func TestRouteMatrix(t *testing.T) {
 			continue
 		}
 		checked++
+		if row.Access == authz.NodeKey {
+			// No session asked, and a person's session gains nothing: a
+			// plain request (no upgrade, no node key) is refused either way.
+			for role, c := range map[string]*http.Client{"anonymous": anon, auth.RoleOwner: clients[auth.RoleOwner]} {
+				if status, _, b := hit(c); status == http.StatusUnauthorized || status < 400 {
+					t.Errorf("%s as %s: %d %s", row.Pattern, role, status, b)
+				}
+			}
+			continue
+		}
 		if row.Access == authz.Public {
 			if status == http.StatusUnauthorized {
 				t.Errorf("%s is public but asked for a session", row.Pattern)

@@ -27,6 +27,7 @@ import (
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
@@ -99,6 +100,8 @@ type app struct {
 	correlator *correlate.Correlator
 	// actions is the action engine, under internal/authz's policy.
 	actions *action.Engine
+	// nodes serves chadash-node at /node: the registry, pairing, the caller.
+	nodes *nodes.Hub
 
 	stop context.CancelFunc // ends the background work below
 	bg   sync.WaitGroup     // the demo driver or the inbox clock, and the correlator
@@ -111,6 +114,10 @@ const inboxClock = 30 * time.Second
 // sidecarEndpoint is the compose sidecar's socket proxy the onboarding
 // wizard looks for; tests point it at a fake.
 var sidecarEndpoint = onboarding.SidecarEndpoint
+
+// localNodeEndpoint is the Docker endpoint of the node deploy/compose.yaml
+// pairs on the hub's host (CHADASH_NODE_NAME=local).
+const localNodeEndpoint = "node://local"
 
 func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, err error) {
 	log.Info("starting "+buildinfo.String(), "data_dir", cfg.DataDir, "web_app", webui.Embedded)
@@ -189,6 +196,19 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if cfg.Demo {
 		itp = topics.New(graph.New(), time.Now())
 	}
+	// chadash-node: the registry and the /node channel. Its status goes
+	// where the integrations publish (a private graph in demo mode).
+	auditLog := audit.New(st)
+	nodeHub, err := nodes.New(ctx, nodes.Options{Store: st, Vault: v, Graph: itp.Graph, Audit: auditLog,
+		PairingFile: cfg.NodePairingFile, Proxies: proxies, Log: log.With("component", "nodes")})
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			nodeHub.Close()
+		}
+	}()
 	// The action engine's registry. Instances register their actions in it
 	// (one source per integration), except in demo mode: there they write to
 	// a private graph the engine never sees, and the Demo Home's fixes are
@@ -199,7 +219,10 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		instanceActions = nil
 	}
 	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log, Posture: sec.Posture(),
-		Actions: instanceActions})
+		Actions: instanceActions,
+		// Integrations reach the node's Docker verbs only (the Docker
+		// integration's node:// endpoint and its actions).
+		Nodes: nodes.Restrict(nodeHub, "engine.", "container.")})
 	if err != nil {
 		return nil, err
 	}
@@ -209,14 +232,19 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	corr := correlate.New(correlate.Options{Topics: itp, Store: st, Log: log})
 
-	ob, err := onboarding.New(onboarding.Options{Store: st, Integrations: mgr, Demo: cfg.Demo, Sidecar: sidecarEndpoint, Log: log})
+	// With local node pairing on (the compose file's default), the hub's own
+	// Docker is read through the node, not a socket proxy.
+	sidecar := sidecarEndpoint
+	if cfg.NodePairingFile != "" {
+		sidecar = localNodeEndpoint
+	}
+	ob, err := onboarding.New(onboarding.Options{Store: st, Integrations: mgr, Demo: cfg.Demo, Sidecar: sidecar, Log: log})
 	if err != nil {
 		return nil, err
 	}
 
 	// The action engine and its audit log. In demo mode the Demo Home's
 	// incident fixes are its actions.
-	auditLog := audit.New(st)
 	if drv != nil {
 		if err := actions.Register(demo.ActionSource, drv.Actions()...); err != nil {
 			return nil, err
@@ -268,13 +296,14 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Security:       sec,
 		Actions:        eng,
 		Audit:          auditLog,
+		Nodes:          nodeHub,
 	})
 	if err != nil {
 		eng.Close()
 		return nil, err
 	}
 
-	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr, actions: eng}
+	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr, actions: eng, nodes: nodeHub}
 	bg, stop := context.WithCancel(ctx)
 	a.stop = stop
 	if err := mgr.Start(bg); err != nil {
@@ -300,6 +329,7 @@ func (a *app) close() error {
 	a.integrations.Close()
 	a.bg.Wait()
 	a.actions.Close() // running tasks record how they ended before the store closes
+	a.nodes.Close()
 	a.hub.Close()
 	return a.store.Close()
 }

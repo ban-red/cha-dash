@@ -64,6 +64,12 @@ type Config struct {
 	DemoWallClock bool
 	DemoAt        time.Duration
 	DemoSeed      int64
+
+	// NodePairingFile turns on local pairing for chadash-node: the hub
+	// writes a pairing token there on first run (a volume shared with the
+	// node in deploy/compose.yaml). Empty: off, and only nodes the registry
+	// already knows may connect.
+	NodePairingFile string
 }
 
 // DefaultDemoAt is when the demo day starts: 14:05, the moment every
@@ -95,6 +101,7 @@ func (c Config) Logger(w io.Writer) *slog.Logger {
 type Loader struct {
 	listen, dataDir, keyFile, level, format, proxies, origins string
 	publicURL                                                 string
+	nodePairing                                               string
 	demo                                                      bool
 	demoAt, demoSeed                                          string
 	envErrs                                                   []error // env values a flag default can't hold
@@ -117,6 +124,7 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 	fs.StringVar(&l.proxies, "trusted-proxies", env("CHADASH_TRUSTED_PROXIES", ""), "comma-separated proxy IPs/CIDRs whose X-Forwarded-* headers are trusted (env CHADASH_TRUSTED_PROXIES)")
 	fs.StringVar(&l.origins, "allowed-origins", env("CHADASH_ALLOWED_ORIGINS", ""), "comma-separated extra origins, e.g. https://dash.example.com (env CHADASH_ALLOWED_ORIGINS)")
 	fs.StringVar(&l.publicURL, "public-url", env("CHADASH_PUBLIC_URL", ""), "the address you open Cha Dash at, e.g. https://dash.example.com; passkeys need it, over HTTPS (env CHADASH_PUBLIC_URL)")
+	fs.StringVar(&l.nodePairing, "node-pairing-file", env("CHADASH_NODE_PAIRING_FILE", ""), "where to write the local node's pairing token, in a volume shared with chadash-node; empty turns pairing off (env CHADASH_NODE_PAIRING_FILE)")
 
 	demo := false
 	if v := env("CHADASH_DEMO", ""); v != "" {
@@ -141,6 +149,13 @@ func (l *Loader) Config() (Config, error) {
 		SecretKeyFile: l.keyFile,
 		LogFormat:     strings.ToLower(l.format),
 		Demo:          l.demo,
+	}
+	if p := strings.TrimSpace(l.nodePairing); p != "" {
+		if !filepath.IsAbs(p) {
+			errs = append(errs, fmt.Errorf("node pairing file %q: want an absolute path", p))
+		} else {
+			c.NodePairingFile = filepath.Clean(p)
+		}
 	}
 
 	// The demo settings are checked even when demo mode is off, so a typo

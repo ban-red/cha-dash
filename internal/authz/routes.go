@@ -24,6 +24,12 @@ const (
 	Admin
 	// Owner admits the owner only.
 	Owner
+	// NodeKey routes are for chadash-node, not people: the node proves its
+	// pinned Ed25519 key inside the channel and internal/nodes checks it
+	// against the registry. Guard passes them through without a session,
+	// like public routes, and no person's role ever satisfies one. What a
+	// node may do on its host is its own policy file's business.
+	NodeKey
 )
 
 func (a Access) String() string {
@@ -40,6 +46,8 @@ func (a Access) String() string {
 		return "admin+"
 	case Owner:
 		return "owner"
+	case NodeKey:
+		return "node key"
 	}
 	return "unknown"
 }
@@ -61,7 +69,7 @@ func (a Access) Allows(role string) bool {
 	case Owner:
 		return r >= rank(auth.RoleOwner)
 	}
-	return false
+	return false // NodeKey: never a person
 }
 
 func (a Access) refusal() string {
@@ -111,6 +119,10 @@ var Routes = []Route{
 	{Pattern: "POST /api/auth/dev-login", Access: Public, Optional: true}, // -tags devlogin, loopback only
 	{Pattern: "/api/", Access: Public},                                    // the API's 404
 	{Pattern: "/", Access: Public},                                        // the web app; first paint checks the session itself
+
+	// chadash-node's channel: authenticated by the node's pinned key inside
+	// mutual TLS, never by a session (internal/nodes).
+	{Pattern: "GET /node", Access: NodeKey},
 
 	// The signed-in user's own account, whatever the role.
 	{Pattern: "GET /api/auth/session", Access: SignedIn},
@@ -187,6 +199,11 @@ var Routes = []Route{
 	{Pattern: "PUT /api/users/{id}", Access: Admin},
 	{Pattern: "POST /api/users/{id}/transfer-ownership", Access: Owner},
 
+	// Nodes: the list is admin+, and so is revoking one (audited as
+	// nodes.revoke).
+	{Pattern: "GET /api/nodes", Access: Admin},
+	{Pattern: "POST /api/nodes/{id}/revoke", Access: Admin},
+
 	// Settings → Audit. Added by the audit track.
 	{Pattern: "GET /api/audit", Access: Admin},
 	{Pattern: "GET /api/audit/export", Access: Admin},
@@ -234,8 +251,8 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 			httpx.Error(w, http.StatusInternalServerError, "no_authz_rule", "This route has no authorization rule yet, so it's refused.")
 			return
 		}
-		if route.Access == Public {
-			mux.ServeHTTP(w, r)
+		if route.Access == Public || route.Access == NodeKey {
+			mux.ServeHTTP(w, r) // a node authenticates in the channel, by key
 			return
 		}
 		a.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

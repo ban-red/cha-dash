@@ -32,6 +32,8 @@
 //	POST /api/tasks/{id}/cancel, GET /api/actions?target=
 //	                           the action engine (session; the policy decides, see action.Engine.Register)
 //	GET  /api/audit, /api/audit/export, /api/audit/verify   the audit log (admin; audit.read)
+//	GET  /node                 chadash-node's channel (the node's pinned key, not a session; see nodes.Hub)
+//	GET  /api/nodes, POST /api/nodes/{id}/revoke   nodes and revoking one (admin)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
 //	                           with the first-paint snapshot for any signed-in role)
@@ -70,6 +72,7 @@ import (
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/importer"
 	"dash.cha.sh/internal/importer/homepage"
+	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
@@ -119,6 +122,9 @@ type Deps struct {
 	// Audit records changes to users and settings; actions record their
 	// own through the engine. Nil records nothing.
 	Audit *audit.Log
+	// Nodes serves chadash-node's channel at /node and the nodes API. Nil
+	// leaves both unmounted.
+	Nodes *nodes.Hub
 }
 
 // New builds the root handler.
@@ -179,6 +185,12 @@ func New(d Deps) (http.Handler, error) {
 	}
 	if d.Actions != nil {
 		d.Actions.Register(mux, d.Auth.Require, d.Log)
+	}
+	if d.Nodes != nil {
+		d.Nodes.Register(mux, session, func(r *http.Request) audit.Actor {
+			a, _ := authz.ActorFrom(r)
+			return audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
+		})
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")

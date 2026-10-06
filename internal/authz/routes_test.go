@@ -154,8 +154,30 @@ func TestEveryRouteHasARow(t *testing.T) {
 		if _, ok := found[r.Pattern]; !ok && !r.Optional {
 			t.Errorf("routes.go lists %q, but nothing registers it: remove the row, or mark it Optional if another track adds it", r.Pattern)
 		}
-		if r.Access < Public || r.Access > Owner {
+		if r.Access < Public || r.Access > NodeKey {
 			t.Errorf("%q: access %d", r.Pattern, r.Access)
 		}
+	}
+}
+
+// TestNodeKeyRoutes: the node channel needs no session and no role admits
+// it; it's the only such row.
+func TestNodeKeyRoutes(t *testing.T) {
+	for _, role := range []string{"", "household", "viewer", "operator", "admin", "owner"} {
+		if NodeKey.Allows(role) {
+			t.Errorf("NodeKey allows role %q", role)
+		}
+	}
+	var keyed []string
+	for _, r := range Routes {
+		if r.Access == NodeKey {
+			keyed = append(keyed, r.Pattern)
+		}
+	}
+	if len(keyed) != 1 || keyed[0] != "GET /node" {
+		t.Fatalf("node-key routes = %v", keyed)
+	}
+	if NodeKey.String() != "node key" {
+		t.Fatal(NodeKey.String())
 	}
 }

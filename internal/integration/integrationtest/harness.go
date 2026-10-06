@@ -44,6 +44,9 @@ type Harness struct {
 	// State is the instance's key-value state, in memory. Every Connect of
 	// the harness shares it, so connecting again is a restart.
 	State integration.State
+	// Nodes is Deps.Nodes: a fake chadash-node for the Docker integration's
+	// node transport. Set before Connect.
+	Nodes integration.NodeCaller
 
 	mu     sync.Mutex
 	now    time.Time
@@ -129,7 +132,7 @@ func (h *Harness) Connect(integ integration.Integration, config map[string]any, 
 	h.mu.Unlock()
 	cfg := integration.Config{InstanceID: h.ID, Name: "Test", Values: full}
 	deps, _, release := runtime.NewDeps(runtime.DepsOptions{
-		Config: cfg, Emit: h.Emitter, Now: h.Now, RootCAs: h.RootCAs, State: h.State,
+		Config: cfg, Emit: h.Emitter, Now: h.Now, RootCAs: h.RootCAs, State: h.State, Nodes: h.Nodes,
 		Log: slog.New(slog.NewTextHandler(&lockedWriter{h: h}, &slog.HandlerOptions{Level: slog.LevelDebug})),
 		UpdateConfig: func(_ context.Context, mutate func(map[string]any)) error {
 			h.mu.Lock()

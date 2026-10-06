@@ -33,6 +33,8 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -234,6 +236,34 @@ type Deps struct {
 	// State keeps what the instance accumulates across restarts. Never nil:
 	// an unsaved config under test gets one in memory.
 	State State
+	// Nodes reaches chadash-node's Docker verbs, for the Docker
+	// integration's node transport (reads, and its actions). Nil when the
+	// hub serves no nodes. See NodeCaller.
+	Nodes NodeCaller
+}
+
+// NodeCaller runs a verb on a connected chadash-node: node is the node's
+// name ("local") or ID, progress receives stream items (log lines) and may
+// be nil. internal/nodes implements it with the same signature as its
+// Caller; integrations see only this interface, since they import nothing
+// but this package. The hub restricts it to the Docker verbs (engine.*,
+// container.*), and the node's own policy decides the rest.
+//
+// A failure the node or the hub reports has a code: NodeErrorCode reads it
+// ("forbidden" by the node's policy, "not_found", "conflict",
+// "unavailable", "not_connected").
+type NodeCaller interface {
+	Call(ctx context.Context, node, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error)
+}
+
+// NodeErrorCode is the code of an error a NodeCaller returned, or "" for
+// one without (a context error, say).
+func NodeErrorCode(err error) string {
+	var c interface{ ErrorCode() string }
+	if errors.As(err, &c) {
+		return c.ErrorCode()
+	}
+	return ""
 }
 
 // MaxStateBytes caps one State value.
