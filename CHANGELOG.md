@@ -14,6 +14,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Stack secrets are `${secret:name}` references, resolved in memory at deploy time and never written to disk or git. They're write-only: set or delete them, but values are never shown again.
 - Stack actions are admin+, whatever their tier: stacks are settings.
 
+### Seerr approvals and v0.1 carry-overs (wave 10, track 10D)
+- **Approve or decline Seerr requests** (also Overseerr and Jellyseerr). Pending requests show up as resources, so ⌘K finds them ("Movie request #42 by …") and lists Approve (one tap, with a toast) and Decline (hold to confirm, since Seerr tells the person who asked). Both check Seerr's answer afterwards and land in the audit log. A request someone already handled in Seerr says so instead.
+- Tier 1 specs can now define actions: a target addressed by an ID checked against a pattern, a read that proves it exists, preconditions, one templated write and a check afterwards. Secrets never go into paths or bodies. The format stays internal until v1.0.
+- **⌘K → Add widget** opens edit mode with the widget picker for the board on screen.
+- **Undo a dismissal.** Dismissing discovered services in the Inbox shows a toast with Undo, and edit mode lists the dismissed ones ("Dismissed · N") to offer again.
+- **Up next can include unmonitored releases.** Edit the calendar tile and tick "Include unmonitored releases"; they're marked as such. A Homepage calendar imported with `unmonitored` per source keeps it. Sonarr, Radarr and Lidarr now read unmonitored releases too, marked, and never in place of monitored ones.
+- **Discovered containers become their catalog widget.** A container whose Homepage widget label or image is a known integration is suggested as that integration's widget (the Sonarr queue, Now playing, Home Assistant, or the service tile with its stat) when that integration is connected, and the Inbox says which to connect otherwise.
+
 ### Added
 
 - **Seven more integrations, all read-only**, each tested against responses written from its API's documentation:

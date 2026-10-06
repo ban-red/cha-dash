@@ -32,7 +32,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/integration/integrationtest` | A harness for contract tests: an integration on the runtime's real HTTP clients and emitter, publishing into a private graph; `Harness.Actions` runs its actions through a real engine (plan, approve, execute, verify, audit) and `Writes` records what a fake upstream was asked to change |
 | `internal/security` | The security posture (`relaxed`, `standard`, `strict`; one settings row): the severity transform for `category: security` incidents and its API |
 | `internal/runtime` | Runs instances: a coordinator each, the per-instance HTTP client (TLS policy, session cache), secrets from the vault, the fact emitter, the integrations API, and `Actions`, which registers running instances' actions with the engine (control credential, routing by target, the self-aware T4, incidents' availability) |
-| `internal/spec` | The Tier 1 spec engine: YAML specs with gjson extraction and expr-lang expressions |
+| `internal/spec` | The Tier 1 spec engine: YAML specs with gjson extraction and expr-lang expressions; fan-out resources (`each`); actions on param-addressed targets (`actions.go`, an `integration.Actor`) |
 | `integrations/<id>` | Tier 0 integrations, one folder each, with a `recipe.md` for the least-privilege credential. Linked in by `cmd/chadash/integrations.go` |
 | `specs` | The bundled Tier 1 specs (`<id>.yaml`), embedded and registered at init |
 | `internal/demo` | Demo mode: runs the Demo Home simulator (`sim/`) and maps it onto the topics; its incident fixes are engine actions (`Driver.Actions`), the only way to run them |
@@ -123,6 +123,7 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `PUT /api/boards/{id}/layout` | admin | `{"revision","format_version","layout","tiles"?}`, where `revision` is the one the edit started from → `200 {"revision": n+1}`. Missing or `null` `tiles` carry the latest over; `{}` clears them. Stale → `409 {"error":{"code":"conflict",…},"revision": current}`. `422` if `revision` < 0, `format_version` < 1, `layout` isn't an object, or a tile is invalid. Up to 1 MiB |
 | `GET /api/boards/{id}/discovery` | viewer | `{"dismissed":[resource id]}`: label-discovered services the owner said no to |
 | `POST /api/boards/{id}/discovery/dismiss` | admin | `{"resources":[…]}` (1–200) → `{"dismissed":[…]}`. Idempotent; each board keeps its newest 1000 |
+| `POST /api/boards/{id}/discovery/restore` | admin | `{"resources":[…]}` (1–200) → `{"dismissed":[…]}`, what's still dismissed: Undo on a dismissal, and edit mode's "offer again". Restoring one that isn't dismissed changes nothing. `404` unknown board, `422` invalid |
 | `POST /api/import/homepage?dry_run=1` | admin | `{"services_yaml","docker_yaml","settings_yaml"}` (only `services_yaml` is required) → `200 {"plan","hints","unmapped"}`; the plan's `changes` say what applying would create, update or leave alone. Writes nothing. `422` for invalid YAML (the message names the file and line, never the text). Up to 1 MiB |
 | `POST /api/import/homepage` | admin | The same body → `200 {"board_id","instance_ids","changes"}`, applied in one transaction. Re-importing the same files changes nothing |
 | `GET /api/import/homepage` | admin | `{"record"}`: the last import's links, discovery entries and instance ids (its tiles live in the board). `404` before the first import |
@@ -237,7 +238,7 @@ checks); an **instance** is one configured connection to it. The framework
 owns the boilerplate, so an integration only connects, tests, and turns what it
 reads into facts.
 
-**Bundled:** 33 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, Docker through chadash-node, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential.
+**Bundled:** 33 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, Docker through chadash-node, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential. Seerr, a spec, approves and declines requests (spec actions, below).
 - **Tier 0** (`integrations/<id>`, 25 with `checks` and `weather`): adguard, audiobookshelf, checks, docker, frigate, homeassistant, immich, jellyfin, lidarr, nextcloud, nzbget, opnsense, pbs, pihole, plex, prowlarr, proxmox, qbittorrent, radarr, sonarr, traefik, transmission, unraid, uptimekuma, weather.
 - **Tier 1 specs** (`specs/<id>.yaml`, 9): bazarr, karakeep, linkding, mealie, paperlessngx, sabnzbd, seerr (also Overseerr and Jellyseerr, as `aliases`), speedtesttracker, tautulli.
 - v0.2's breadth set (wave 8) is lidarr, transmission, nzbget, nextcloud, audiobookshelf, paperlessngx and speedtesttracker, plus seerr covering Overseerr and Jellyseerr. `cmd/chadash`'s `TestIntegrationsLinkedIn` lists every ID; `TestEveryIntegrationHasARecipe` checks each has a recipe.
@@ -306,6 +307,7 @@ apiVersion: chadash/v1alpha1
 kind: Integration
 meta: { id: seerr, name: Seerr, aliases: [Overseerr, Jellyseerr], icon: seerr, version: 0.1.0, tier: bronze, capabilities: [media.requests] }   # aliases: optional, other names it goes by
 config:                           # url and tls are always added; types: string, url, secret, integer, number, boolean
+                                  # (strings may have enum, an anchored pattern and max_length)
   api_key: { type: secret, title: API key, required: true }
 source:
   headers: { X-Api-Key: "{{ secret.api_key }}" }   # templates: config.x, secret.x, instance.id, instance.name
@@ -329,11 +331,44 @@ resources:
     labels: { chadash.group: Media }                            # literal
     caps: [media.requests]
     links: [{ title: Seerr, url: config.url }]
-metrics:
+  - id: request                   # fan-out: one resource per element of a list, at most 50
+    each: pending.items           # expr → list; its expressions see the element as item
+    key: string(item.id)          # expr → slug ([A-Za-z0-9._-], ≤ 64); the ID is <spec>:<instance>/request/<key>
+    part_of: app                  # optional: an earlier resource without each
+    kind: media_request
+    name: '"Request #" + string(item.id)'
+metrics:                          # only on resources without each
   - { resource: app, key: requests.pending, value: counts.pending, unit: count, min: 0, max: 100, band: [0, 5], warn: 0, crit: 0 }
 repairs:
   - { when: 'status.version startsWith "0."', code: unsupported_version, message: '"too old"' }
+targets:                          # actions' targets, addressed by a param: <spec>:<instance>/<target>/<param>
+  request:
+    kind: media_request
+    pattern: '^[1-9][0-9]{0,9}$'  # anchored, and must refuse "", ".", ".." and "/" (checked at load)
+    read:                         # resolves the target: 404/410 not_found, 401/403 unavailable
+      path: /api/v1/request/{{ target.id }}   # {{ target.id }} only; no query, %, .. or secrets
+      extract: { status: status }             # not id or name
+    name: '"Request #" + target.id'           # expr over {config, instance, target: {id, <extracts>}}
+    state: string(target.status)              # what an approval must find unchanged
+actions:                          # up to 16; the instance then implements integration.Actor
+  - id: seerr.request.approve     # <spec>.<target>.<verb>
+    target: request
+    title: Approve
+    tier: T1                      # T0 … T4
+    label: '"Approve " + target.name'         # optional; default title + the target's name
+    params: { note: { type: string, max_length: 200 } }   # optional; never secret or url
+    preconditions:                # the first that holds refuses with its message
+      - { when: 'target.status != 1', message: 'target.name + " isn''t pending."' }
+    request:
+      method: POST                # POST, PUT or DELETE
+      path: /api/v1/request/{{ target.id }}/approve   # also {{ params.x }}: required, and an integer, an enum or with a pattern
+      body: { note: params.note } # optional JSON object of exprs over {config, instance, target, params}; not for DELETE
+    verify: { until: 'target.status == 2', message: '"Not approved."', timeout: 30s }   # re-reads every 2 s; ≤ 1m
+    undo: seerr.request.decline   # optional: another action on the same target, without params
+    household: false
 ```
+
+**Spec actions.** The target's ID carries its param (`seerr:<instance>/request/42`), so the runtime routes it by the ID's prefix and it resolves through the read whether or not the graph has it; a fan-out resource may publish the same IDs so ⌘K finds them. The param is checked against the pattern before anything is sent, and every path value is escaped as one segment and can't be `.` or `..`. The read's values (with `id` and `name`) ride in `Target.Ref`, never persisted or shown, so preconditions and labels don't read again. Headers are `source.headers`: the instance's one credential acts (no control credential). Response bodies never reach a log, an error or a task; errors are fixed sentences without the URL. Failures are `forbidden` (401/403), `not_found`, `upstream` (other statuses), `unreachable`, `verify_failed` with the spec's message, and `spec_failed` for an expression that can't evaluate.
 
 A 401 or 403 is an auth Repair; a 404 or 410 is an `api_changed` Repair that
 names the version the spec detected so far, unless one of the spec's repairs
