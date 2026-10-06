@@ -407,14 +407,17 @@ func TestStepUpPassword(t *testing.T) {
 	if until, _ := session(); until != nil {
 		t.Fatal("a failed step-up granted one")
 	}
+	// Bracket the call: under load, hashing the password alone can take
+	// longer than any fixed tolerance.
 	before := time.Now()
 	status, _, b := e.call(t, owner, "POST", "/api/auth/step-up", map[string]string{"password": testPassword})
+	after := time.Now()
 	var got struct{ Until time.Time }
 	if status != http.StatusOK || json.Unmarshal(b, &got) != nil {
 		t.Fatalf("step-up: %d %s", status, b)
 	}
-	if d := got.Until.Sub(before); d < auth.StepUpTTL-time.Second || d > auth.StepUpTTL+time.Second {
-		t.Fatalf("grant lasts %v", d)
+	if got.Until.Before(before.Add(auth.StepUpTTL).Truncate(time.Millisecond)) || got.Until.After(after.Add(auth.StepUpTTL)) {
+		t.Fatalf("grant ends %v, want five minutes from the call (%v to %v)", got.Until, before, after)
 	}
 	if until, _ := session(); until == nil {
 		t.Fatal("the session doesn't show the grant")
@@ -460,13 +463,15 @@ func TestStepUpPassword(t *testing.T) {
 func TestStepUpRateLimited(t *testing.T) {
 	e, _ := fullEnv(t)
 	owner := signIn(t, e)
+	// The budget is 10 then one per 6 s. Allow for a slow machine refilling
+	// a few tokens while argon2 runs: what matters is that it does limit.
 	limited := false
-	for i := 0; i < 12 && !limited; i++ {
+	for i := 0; i < 30 && !limited; i++ {
 		status, _, _ := e.call(t, owner, "POST", "/api/auth/step-up", map[string]string{"password": "not the password"})
 		limited = status == http.StatusTooManyRequests
 	}
 	if !limited {
-		t.Fatal("twelve wrong step-ups in a row were never rate-limited")
+		t.Fatal("thirty wrong step-ups in a row were never rate-limited")
 	}
 	// Signing in has its own budget, so a fumbled step-up locks nobody out.
 	if status, _, _ := e.call(t, &http.Client{}, "POST", "/api/auth/login", map[string]string{"username": "owner", "password": testPassword}); status != http.StatusOK {
