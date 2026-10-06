@@ -9,6 +9,11 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | Package | Job |
 |---|---|
 | `cmd/chadash` | Entry point: `serve`, `healthcheck`, `version`, `export`, `import`, `audit verify`. Wires everything together in `newApp` |
+| `cmd/chadash-node` | The node binary: `serve`, `healthcheck`, `keygen`, `show-key`, `version`; settings from `CHADASH_NODE_*`. Links the Docker client, which the hub never does (`TestHubFootprint`) |
+| `internal/nodeproto` | The hub↔node wire protocol, imported by both (ADR-0014): Ed25519 keys and pins, mutual TLS 1.3 inside the WebSocket with ALPN version negotiation, length-prefixed JSON frames with a size limit, and `Session` (RPC both ways, streamed items, cancellation, keepalive pings every 30 s) |
+| `internal/node` | The node runtime: the local policy file and its permission keys, the `Module`/`Verb` seam modules implement, the `Dispatcher` that enforces the policy on every verb, the identity on disk, the dial loop with pairing and key rotation, the health file |
+| `internal/node/docker` | The node's Docker module: capability verbs over the Docker Engine API (moby client), with `docker.protect` and `redact_env` |
+| `internal/nodes` | The hub's side of the node: `/node`, the registry of node keys (`nodes`, `node_hub_keys`), the hub's own keys in the vault, local pairing, revocation, status in the Home Graph (`node:<id>`), the nodes API, and `Caller` (`Hub.Call`) for running node verbs |
 | `internal/server` | HTTP routes, the middleware chain, graceful `Serve` |
 | `internal/auth` | First-run setup token, argon2id passwords, passkeys (WebAuthn), cookie sessions, step-up grants, attempt limiting; the users store and its invariants (one owner, disabled never deleted). `Identify` reads a session without renewing it |
 | `internal/authz` | Every permission decision: the five roles, the route table and `Guard` that enforces it, action decisions by tier and scope (`Decide`, and `Policy` for the action engine), `ActorFrom` for a request, and the users API |
@@ -36,12 +41,13 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/webui` | Serves the SPA, embedded with `-tags webui`; a placeholder page otherwise. `WithInline` attaches a per-request first-paint snapshot, embedded only in `index.html`. Compressible files of 1 KiB or more are gzipped once and kept (their own ETag, `Vary: Accept-Encoding`; ranges get identity bytes); the personalised page is gzipped per request |
 | `internal/firstpaint` | Builds the snapshot inlined into the first paint, for any signed-in role: user, board (layout and tiles), graph, metrics for its resources, open incidents as the role's inbox topic shows them. HTML-escaped, capped at 512 KiB |
 | `internal/vault` | Envelope-encrypted secrets |
-| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table, `00007` plans, tasks and idempotency keys, `00008` the audit log |
+| `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table, `00007` plans, tasks and idempotency keys, `00008` the audit log, `00010` node identities and the hub's node keys |
 | `internal/httpx` | Client IP and scheme behind trusted proxies, `ProxyCheck` (notices an untrusted reverse proxy), JSON I/O, shared middleware; `GzipJSON` compresses `/api` JSON of 1 KiB or more (never auth, setup or sign-in flows, upgrades or ranges; the BREACH reasoning is at the top of `gzip.go`) |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
 
 Dependencies point down: `cmd → server → {auth, authz, boards, demo, realtime, importer/homepage, runtime} → {importer, integration, security, topics, graph, livedoc, vault, store} → …`. `security → authz → auth`: decisions live in `authz`, which reads identities from `auth`; `auth` never imports either.
+The node binary imports `node`, `node/docker` and `nodeproto`; the hub imports `nodes` and `nodeproto`, never `node`. Integrations reach nodes only through `integration.NodeCaller` in their Deps, which `cmd/chadash` fills with `nodes.Restrict(hub, "engine.", "container.")`.
 `integration` imports `action` (an Actor's `Def`s) and `action` imports `audit`, `auth`, `graph`, `livedoc` and `realtime`, never `integration`; the runtime, which owns instances, sits between them (`runtime.Actions`).
 Integrations import only `integration`; `runtime` imports them never (they
 register themselves), and `cmd/chadash` links them in.
@@ -73,6 +79,7 @@ Precedence is flag > env > default. Nothing is required.
 | `--demo` | `CHADASH_DEMO` | off; `1`/`true` runs the Demo Home simulator |
 | `--demo-at` | `CHADASH_DEMO_AT` | `14:05`; a time of day (`HH:MM[:SS]`, UTC) on the demo's day, or `now` for the real clock |
 | `--demo-seed` | `CHADASH_DEMO_SEED` | `1` |
+| `--node-pairing-file` | `CHADASH_NODE_PAIRING_FILE` | none; where the hub writes chadash-node's pairing token (an absolute path in a volume shared with the node). Empty: no node can pair |
 | `healthcheck --timeout` | — | `3s` |
 
 The demo settings are validated even when demo mode is off, so a typo shows
@@ -151,6 +158,9 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `GET /api/audit` | `audit.read` (admin and owner) | `?actor=&action=&target=&result=&since=&before=&limit=&cursor=` → `{"events","next"?}`, newest first. `action` ending in `.` or `*` is a prefix; `since`/`before` are RFC 3339; `limit` 1–500 (default 100); pass `next` back as `cursor`. `422 invalid` otherwise |
 | `GET /api/audit/export` | `audit.read` | Every event as NDJSON, oldest first, as an attachment: each line the stored canonical JSON plus `hash` |
 | `GET /api/audit/verify` | `audit.read` | `{"ok","checked","first_break"?:{"seq","id"?,"reason"}}` |
+| `GET /node` | node key | chadash-node's channel: a WebSocket carrying mutual TLS 1.3, where the node proves its pinned key; no session, and no person's role admits it (`authz.NodeKey`). The registry decides; local pairing enrolls the compose network's node. `429` after five failed pairings from an address in a minute |
+| `GET /api/nodes` | admin | `{"nodes":[{"id","name","public_key","fingerprint","state","enrolled_via","approved_by","approved_at","revoked_by","revoked_at","last_seen_at","address","version","hub_pins","verbs","created_at","connected","hub_key_current"}],"hub_pin","pairing"}`. Never a secret |
+| `POST /api/nodes/{id}/revoke` | admin | → `200` the node, revoked; its live session ends at once and its key never works again. `404`, `409 already_revoked`. Audited as `nodes.revoke` |
 | `GET /ws` | session | WebSocket; see [`realtime/protocol.go`](realtime/protocol.go) and the topics below |
 | `/api/*` (other) | — | JSON `404`; so are the demo routes outside demo mode |
 | `GET /…` | none | The web app. Unknown paths get `index.html` (history-mode routing). For any signed-in session, `index.html` carries the first-paint snapshot as `<script type="application/json" id="chadash-snapshot">` (non-executable, so the CSP holds), served `no-store` with `Vary: Cookie`, its inbox as that role's inbox topic shows it; signed out, the generic shell (`no-cache`, ETag) |
@@ -217,7 +227,7 @@ checks); an **instance** is one configured connection to it. The framework
 owns the boilerplate, so an integration only connects, tests, and turns what it
 reads into facts.
 
-**Bundled:** 33 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential.
+**Bundled:** 33 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, Docker through chadash-node, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential.
 - **Tier 0** (`integrations/<id>`, 25 with `checks` and `weather`): adguard, audiobookshelf, checks, docker, frigate, homeassistant, immich, jellyfin, lidarr, nextcloud, nzbget, opnsense, pbs, pihole, plex, prowlarr, proxmox, qbittorrent, radarr, sonarr, traefik, transmission, unraid, uptimekuma, weather.
 - **Tier 1 specs** (`specs/<id>.yaml`, 9): bazarr, karakeep, linkding, mealie, paperlessngx, sabnzbd, seerr (also Overseerr and Jellyseerr, as `aliases`), speedtesttracker, tautulli.
 - v0.2's breadth set (wave 8) is lidarr, transmission, nzbget, nextcloud, audiobookshelf, paperlessngx and speedtesttracker, plus seerr covering Overseerr and Jellyseerr. `cmd/chadash`'s `TestIntegrationsLinkedIn` lists every ID; `TestEveryIntegrationHasARecipe` checks each has a recipe.
@@ -255,6 +265,7 @@ What wave 5 integrations must do:
 - **Use `d.HTTP`** (or `d.NewHTTPClient`, e.g. with a `Session` for cookie logins) for every request, so the TLS policy, timeouts, the response cap and same-origin redirects apply. Put keys in headers, never in paths.
 - **State across restarts** goes in `d.State` (`Load`/`Save` of small JSON values, at most 64 KiB each), backed by the `integration_state` table and deleted with the instance; an unsaved config under test gets an in-memory one. OPNsense keeps its 30-day WAN totals there. Never put secrets in it.
 - **A Unix socket** (Docker's `unix://`) is `HTTPOptions.UnixSocket` on `d.NewHTTPClient`.
+- **chadash-node** is `d.Nodes` (`integration.NodeCaller`, nil when the hub serves no nodes): `Call(ctx, node, verb, req, progress)` runs one of the node's Docker verbs; `integration.NodeErrorCode(err)` reads a refusal's code (`forbidden`, `not_found`, `conflict`, `unavailable`, `not_connected`). Only the Docker integration uses it, for its `node://` endpoint and its actions.
 - **Return errors from `Sync`** and let the runtime classify them: `CheckResponse` for HTTP status, `&integration.AuthError{Field: …}` for an auth failure reported inside a 200 (say which secret when you know), `&integration.RepairError{Code: integration.CodeAPIChanged, …}` for a vanished endpoint or `CodeUnsupportedVersion`, `&integration.ConfigError{…}` for a config that can't work. Don't retry or sleep: the coordinator backs off.
 - **Publish complete scopes** with `d.Emit.Replace(scope, facts)`: resources (namespaced, stable IDs), relations (`d.Emit.Self()` `monitors` what you read), metrics (keys like the simulator's, unknown as `integration.Unknown()`, never 0). Use one scope, or one per refresh rate.
 - **Respect the interest.** `want.Watched` false means nobody's looking: report health, skip the expensive parts. Set `Manifest.Poll` (interval while watched, idle interval, timeout) to the spike's polling plan.
@@ -484,7 +495,8 @@ endpoint is `unsupported_version`, not "the API changed"). Responses must be JSO
 - Passkeys: deleting one doesn't end the sessions it started (sessions don't record which credential began them, and there's no "sign out everywhere" yet). No attestation checks or FIDO metadata. The Signal API's `signalAllAcceptedCredentials` and `signalCurrentUserDetails`. Passkey-only accounts.
 - Revoking live WebSockets when a session is logged out or expires. A socket stays open until it reconnects.
 - Auth events (sign-ins, passkey changes) and settings changes in the audit log; only actions are recorded so far.
-- Action follow-ups: locks beyond the target resource, incidents' `plan_ready`/`unavailable`, API tokens and agents as actors (a plan's approval is bound to a session today).
+- Node follow-ups: remote enrollment with join tokens and Inbox approval (v0.3; `Hello.Token` is refused today), a UI for nodes and for hub key rotation (`Hub.RotateKey`, `Stranded`, `RetireOldKeys` exist, no routes), a trigger for node key rotation (`Client.RotateKey` exists), direct mode (the hub dials the node), exec, relay, host metrics, registry credentials for pulls, measuring the node's idle RSS against a real daemon.
+- Action follow-ups: locks beyond the target resource, API tokens and agents as actors (a plan's approval is bound to a session today).
 - Vault key rotation and a keyed-hash fingerprint for spotting reused secrets. The importer finds reuse within one import with its own per-import HMAC key; reuse against secrets already in the vault needs the vault's fingerprint.
 - Importer follow-ups: turning the record's `runs_on` links into confirmed correlation decisions; mapping `homepage.widget.type` of a label-discovered container to a catalog widget.
 - Graph persistence (the last-known cache). Correlator follow-ups are in its [README](correlate/README.md): DNS ↔ IP matching, the nginx-proxy hop, MACs, cross-source `backed_up_by`.

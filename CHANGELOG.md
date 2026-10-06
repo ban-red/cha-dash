@@ -35,12 +35,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Household accounts see only what their boards need.** The live inbox they receive holds problems about what's on their boards, with a title and a status, and no facts, causes or blast radius.
 - **Roles below admin no longer see broken screens.** Settings opens on your own passkeys, and the setup guide, integrations, repairs' Reconnect and the "merge?" questions are left to admins and the owner.
 - **The Demo Home's fixes run only through the action engine**, with the same plans, confirmations, tasks and audit records as a real home. The old demo-only endpoint is gone.
+- **chadash-node**, a second image (`ghcr.io/ban-red/chadash-node`) that runs beside the hub in `compose.yaml` and holds this host's Docker socket. The hub never does. It dials the hub over the compose network and pairs on its own, with a secret the hub writes into a volume they share; nothing else can pair.
+- **The node's local policy** (`/etc/chadash-node/policy.yaml`) decides what Cha Dash may do on the host: by default it reads, streams logs, starts, stops, restarts, pulls and recreates, but never removes or execs, and never touches Cha Dash itself. The hub can't widen it.
+- **Docker reads through the node:** the Docker integration takes `node://local` as its endpoint, with the same containers, stacks and IDs as before. New installs find it in the first-run wizard.
+- **Docker actions through the node:** start and stop (with undo), restart, recreate and pull (held to confirm, listing what depends on the container), remove (typed to confirm, saying which volumes stay), and the last 50 log lines. The node's policy has the last word, and the plan says when it refuses.
+- **Compose `depends_on`** shows up as dependencies between containers, so a plan to restart a database lists the apps that use it.
+
+### Changed
+
+- **`compose.yaml` runs chadash-node instead of the read-only socket proxy.** To keep the proxy and skip the node, start with `compose.socket-proxy.yaml` as well (deploy/README.md). An existing install keeps its Docker instance on `tcp://socket-proxy:2375` until you switch it to `node://local`.
 
 ### Security
 
 - **Sign-in rate limits are harder to get around.** IPv6 clients are limited per /64 rather than per address. A flood of new addresses no longer resets everyone's budget. And each account allows 20 wrong passwords, then one a minute, wherever they come from; passkeys aren't affected.
 - **Settings → Security warns about a reverse proxy Cha Dash doesn't trust**, and about a sign-in over plain HTTP when `CHADASH_PUBLIC_URL` is https. Both are logged once, too. Until the proxy is in `CHADASH_TRUSTED_PROXIES`, every sign-in shares one rate limit and the session cookie isn't marked Secure.
 - **An instance with certificate checks off keeps saying so** in Settings → Integrations, not only when you test it.
+- **The node channel is mutual TLS 1.3 inside the WebSocket**, each side known by a pinned Ed25519 key, with keepalive pings, size limits and version negotiation. Pairing checks the hub's key before the node sends its secret. Nodes can be revoked (`POST /api/nodes/{id}/revoke`), and keys rotate over the live channel.
 - **The recipe for Docker on another host** explains that the proxy serves container inspects, environment variables included, to anything connecting from Cha Dash's address. It suggests publishing on one interface or using a VPN, and shows how to turn inspects off.
 
 ## [0.1.0-beta.1] - 2026-10-04
