@@ -41,6 +41,7 @@
 //	GET  /api/nodes, POST /api/nodes/{id}/revoke   nodes and revoking one (admin)
 //	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)
 //	/api/notify/…              notifications: channels, rules, delivery log (admin); the VAPID key and your own push subscriptions (session; see notify.Service.Register)
+//	GET  /api/icons, GET /api/icons/{id}   icons the hub cached for tiles (session; see icons)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
 //	                           with the first-paint snapshot for any signed-in role)
@@ -79,6 +80,7 @@ import (
 	"dash.cha.sh/internal/export"
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/icons"
 	"dash.cha.sh/internal/importer"
 	"dash.cha.sh/internal/importer/homepage"
 	"dash.cha.sh/internal/nodes"
@@ -147,6 +149,9 @@ type Deps struct {
 	// Topics are the live documents GET /api/graph and GET /api/inbox read
 	// (the realtime topics). Nil leaves both unmounted.
 	Topics *topics.Set
+	// Icons is the hub's icon cache for tiles. Nil leaves /api/icons
+	// unmounted.
+	Icons *icons.Service
 }
 
 // New builds the root handler.
@@ -213,7 +218,24 @@ func New(d Deps) (http.Handler, error) {
 			wrap = func(h http.Handler) http.Handler { return session(reloadAfter(h, d.Integrations, d.Log)) }
 		}
 		homepage.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log)
-		export.Register(mux, wrap, export.New(d.Store, d.Vault, export.Options{HubVersion: buildinfo.Version}), d.Log)
+		exp := export.New(d.Store, d.Vault, export.Options{HubVersion: buildinfo.Version})
+		exp.Audit = rec
+		// A Home file can carry the security settings and correlation
+		// decisions: the running hub takes them up at once.
+		exp.AfterApply = func(ctx context.Context) {
+			ctx = context.WithoutCancel(ctx)
+			if d.Security != nil {
+				if err := d.Security.Reload(ctx); err != nil {
+					d.Log.Error("reloading the security settings after an import failed", "err", err)
+				}
+			}
+			if d.Correlator != nil {
+				if err := d.Correlator.Sync(ctx); err != nil {
+					d.Log.Warn("correlating after an import failed", "err", err)
+				}
+			}
+		}
+		export.Register(mux, wrap, exp, d.Log)
 	}
 	if d.Demo != nil {
 		d.Demo.Register(mux, session)
@@ -242,6 +264,9 @@ func New(d Deps) (http.Handler, error) {
 	if d.Notify != nil {
 		d.Notify.Audit = rec
 		d.Notify.Register(mux, session)
+	}
+	if d.Icons != nil {
+		d.Icons.Register(mux, session, d.Log)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")

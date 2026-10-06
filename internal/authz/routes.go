@@ -158,6 +158,12 @@ var Routes = []Route{
 	{Pattern: "POST /api/boards/{id}/discovery/dismiss", Access: Admin},
 	{Pattern: "POST /api/boards/{id}/discovery/restore", Access: Admin},
 
+	// Icons the hub cached for tiles (internal/icons): boards show them, so
+	// every signed-in role. What gets fetched comes from the owner's tiles
+	// and instances, never from these requests.
+	{Pattern: "GET /api/icons", Access: SignedIn},
+	{Pattern: "GET /api/icons/{id}", Access: SignedIn},
+
 	// Actions: the engine authorizes each one (Policy), so the routes only
 	// need a session. Added by the action engine track.
 	{Pattern: "POST /api/actions/plan", Access: SignedIn, Token: TokenAny},

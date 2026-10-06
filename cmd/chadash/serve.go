@@ -27,6 +27,8 @@ import (
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/icons"
+	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
@@ -180,11 +182,14 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		}
 		log.Info("demo mode: running the Demo Home simulator", "seed", cfg.DemoSeed, "sim_time", drv.Now().Format(time.RFC3339))
 	} else if _, err := g.Update(func(tx *graph.Tx) error {
-		// The hub knows about itself, so the graph is never empty and later
-		// the "this would take Cha Dash down" checks have a node to start from.
+		// The hub knows about itself, so the graph is never empty and the
+		// "this would take Cha Dash down" checks have a node to start from.
+		// Integrations that can tell where it runs relate it there (Docker,
+		// Unraid, Proxmox: chadash:hub runs_on …); self marks it, as the
+		// Demo Home's app:chadash is marked.
 		return tx.Upsert(graph.Resource{
-			ID: "chadash:hub", Kind: "app", Name: "Cha Dash",
-			Attrs: map[string]any{"version": buildinfo.Version},
+			ID: integration.HubResource, Kind: "app", Name: "Cha Dash",
+			Attrs: map[string]any{"version": buildinfo.Version, "self": true},
 			State: "running", Health: graph.HealthOK,
 		})
 	}); err != nil {
@@ -319,6 +324,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Server:         "chadash/" + buildinfo.Version,
 		Log:            log,
 	})
+	// Tiles' icons, fetched and served by the hub (the CSP keeps tiles from
+	// loading them). Never fetched in demo mode, which reads nothing real.
+	icn := icons.New(icons.Options{Store: st, Log: log.With("component", "icons"), Fetch: !cfg.Demo})
 	h, err := server.New(server.Deps{
 		Log:            log,
 		Store:          st,
@@ -341,6 +349,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Stacks:         stk,
 		Notify:         nt,
 		Topics:         tp,
+		Icons:          icn,
 	})
 	if err != nil {
 		eng.Close()
@@ -366,6 +375,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	a.bg.Go(func() { corr.Run(bg) })
 	a.bg.Go(func() { eng.Run(bg) })
 	a.bg.Go(func() { nt.Run(bg) })
+	a.bg.Go(func() { icn.Run(bg) })
 	return a, nil
 }
 

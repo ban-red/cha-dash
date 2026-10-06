@@ -21,6 +21,7 @@ import (
 	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/icons"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
@@ -103,6 +104,7 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 			t.Fatal(err)
 		}
 		d.Notify = nt
+		d.Icons = icons.New(icons.Options{Store: d.Store, Log: d.Log})
 	})
 	return e, st
 }
