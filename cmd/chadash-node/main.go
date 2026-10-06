@@ -26,6 +26,7 @@ import (
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/node"
 	"dash.cha.sh/internal/node/docker"
+	"dash.cha.sh/internal/node/stacks"
 	"dash.cha.sh/internal/nodeproto"
 )
 
@@ -143,8 +144,23 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 		return err
 	}
 	defer dm.Close()
-	// More modules (stacks) are added here.
-	disp, err := node.NewDispatcher(policy, dm)
+	// Owned stacks: the stacks root under go-git and the Compose SDK, on the
+	// same daemon. The node's own compose project is view-only.
+	sdk, err := stacks.NewSDK(cfg.DockerHost)
+	if err != nil {
+		return err
+	}
+	var protected []string
+	if project, err := dm.SelfProject(ctx); err != nil {
+		log.Warn("couldn't tell which compose project the node runs in; only the default protections apply", "err", err)
+	} else if project != "" {
+		protected = []string{project}
+	}
+	sm, err := stacks.New(stacks.Options{Root: policy.Stacks.Root, Docker: sdk, Protected: protected, Log: log.With("module", "stacks")})
+	if err != nil {
+		return err
+	}
+	disp, err := node.NewDispatcher(policy, dm, sm)
 	if err != nil {
 		return err
 	}

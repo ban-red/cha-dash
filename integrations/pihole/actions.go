@@ -100,7 +100,7 @@ func (in *instance) Execute(ctx context.Context, req action.Request, run *action
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 		return action.Fail("auth", "Pi-hole refused the password.")
 	case resp.StatusCode < 200 || resp.StatusCode > 299:
-		return fmt.Errorf("Pi-hole answered POST /api/dns/blocking with %s", resp.Status)
+		return action.Fail("upstream", fmt.Sprintf("Pi-hole answered POST /api/dns/blocking with %s", resp.Status))
 	}
 	run.Logf("Pi-hole accepted blocking=%v", body["blocking"])
 	return nil
@@ -119,7 +119,7 @@ func (in *instance) verify(ctx context.Context, req action.Request, run *action.
 			return false, err
 		}
 		if b.Blocking != want {
-			return false, fmt.Errorf("Pi-hole reports blocking %s", cmp(b.Blocking, "unknown"))
+			return false, fmt.Errorf("blocking is %s on Pi-hole", cmp(b.Blocking, "unknown"))
 		}
 		return true, nil
 	})

@@ -21,7 +21,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"dash.cha.sh/internal/authz"
@@ -74,8 +73,6 @@ type Service struct {
 	// Audit records secret changes (names only, never values). Set by the
 	// server; nil records nothing.
 	Audit *authz.Recorder
-
-	mu sync.Mutex
 }
 
 // New returns the service.

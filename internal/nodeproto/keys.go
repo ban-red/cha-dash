@@ -28,7 +28,7 @@ func Pin(pub ed25519.PublicKey) string {
 func ParsePin(pin string) (ed25519.PublicKey, error) {
 	rest, ok := strings.CutPrefix(strings.TrimSpace(pin), pinPrefix)
 	if !ok {
-		return nil, errors.New("nodeproto: a pin starts with ed25519:")
+		return nil, errors.New("nodeproto: a pin must start with ed25519")
 	}
 	b, err := base64.RawURLEncoding.DecodeString(rest)
 	if err != nil || len(b) != ed25519.PublicKeySize {

@@ -392,7 +392,7 @@ func (in *instance) verify(ctx context.Context, req action.Request, run *action.
 		rt, err := in.find(ctx, kind, key)
 		switch {
 		case errors.Is(err, action.ErrNotFound):
-			return false, fmt.Errorf("Unraid doesn't list %s", name)
+			return false, fmt.Errorf("%s isn't listed by Unraid any more", name)
 		case err != nil:
 			return false, err
 		case want(rt.state):

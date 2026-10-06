@@ -150,7 +150,7 @@ func (in *instance) Execute(ctx context.Context, req action.Request, run *action
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 		return action.Fail("auth", "Home Assistant refused the token, or its user may not run scripts.")
 	case resp.StatusCode < 200 || resp.StatusCode > 299:
-		return fmt.Errorf("Home Assistant answered script.turn_on with %s: %s", resp.Status, strings.TrimSpace(string(msg)))
+		return action.Fail("upstream", fmt.Sprintf("Home Assistant answered script.turn_on with %s: %s", resp.Status, strings.TrimSpace(string(msg))))
 	}
 	run.Logf("Home Assistant started %s", entity)
 	return nil

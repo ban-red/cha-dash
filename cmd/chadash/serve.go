@@ -33,6 +33,7 @@ import (
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/server"
+	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/internal/vault"
@@ -243,6 +244,33 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
+	// Owned stacks on the nodes. Not in demo mode: the Demo Home has no
+	// nodes, and its scripted fixes (stack.rollback among them) are the
+	// actions there.
+	var stk *stacks.Service
+	if !cfg.Demo {
+		stk, err = stacks.New(stacks.Options{Store: st, Vault: v, Caller: nodeHub, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "stacks"),
+			Nodes: func(ctx context.Context) ([]stacks.Node, error) {
+				list, err := nodeHub.List(ctx)
+				if err != nil {
+					return nil, err
+				}
+				out := make([]stacks.Node, 0, len(list))
+				for _, n := range list {
+					if n.RevokedAt == nil {
+						out = append(out, stacks.Node{ID: n.ID, Name: n.Name, Online: n.Connected})
+					}
+				}
+				return out, nil
+			}})
+		if err != nil {
+			return nil, err
+		}
+		if err := actions.Register(stacks.ActionSource, stk.Actions()...); err != nil {
+			return nil, err
+		}
+	}
+
 	// The action engine and its audit log. In demo mode the Demo Home's
 	// incident fixes are its actions.
 	if drv != nil {
@@ -297,6 +325,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Actions:        eng,
 		Audit:          auditLog,
 		Nodes:          nodeHub,
+		Stacks:         stk,
 	})
 	if err != nil {
 		eng.Close()

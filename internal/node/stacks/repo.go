@@ -194,13 +194,6 @@ func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// head returns the HEAD commit, or nil before the first commit.
-func (rp *repo) head() (*object.Commit, error) {
-	rp.mu.Lock()
-	defer rp.mu.Unlock()
-	return rp.headLocked()
-}
-
 func (rp *repo) headLocked() (*object.Commit, error) {
 	if rp.r == nil {
 		return nil, nil

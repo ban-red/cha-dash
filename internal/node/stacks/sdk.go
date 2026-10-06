@@ -24,14 +24,19 @@ type SDK struct {
 
 var _ Docker = (*SDK)(nil)
 
-// NewSDK connects to the daemon the usual way (DOCKER_HOST, or the default
-// socket).
-func NewSDK() (*SDK, error) {
+// NewSDK connects to host (unix:///var/run/docker.sock, tcp://…), or the
+// usual way when it's empty (DOCKER_HOST, or the default socket). The node
+// passes the host its Docker module uses, so both reach the same daemon.
+func NewSDK(host string) (*SDK, error) {
 	cli, err := command.NewDockerCli()
 	if err != nil {
 		return nil, err
 	}
-	if err := cli.Initialize(&flags.ClientOptions{}); err != nil {
+	opts := &flags.ClientOptions{}
+	if host != "" {
+		opts.Hosts = []string{host}
+	}
+	if err := cli.Initialize(opts); err != nil {
 		return nil, err
 	}
 	return &SDK{cli: cli}, nil

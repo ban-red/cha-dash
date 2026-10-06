@@ -89,7 +89,7 @@ func TestPauseVerifies(t *testing.T) {
 	ctx, cancel := acttest.Short(t)
 	defer cancel()
 	// Blocking stays on (the fixture): the check fails, saying what it saw.
-	if err := pause.Verify(ctx, action.Request{Action: ActPause, Target: action.Target{ID: "pihole:i_test/app", Name: "Test"}}, nil); err == nil || err.Error() != "Pi-hole reports blocking enabled" {
+	if err := pause.Verify(ctx, action.Request{Action: ActPause, Target: action.Target{ID: "pihole:i_test/app", Name: "Test"}}, nil); err == nil || err.Error() != "blocking is enabled on Pi-hole" {
 		t.Fatalf("verify = %v", err)
 	}
 }
