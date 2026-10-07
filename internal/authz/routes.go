@@ -220,9 +220,11 @@ var Routes = []Route{
 	{Pattern: "POST /api/users/{id}/transfer-ownership", Access: Owner},
 
 	// Nodes: the list is admin+, and so is revoking one (audited as
-	// nodes.revoke).
+	// nodes.revoke) and regenerating the pairing secret (audited as
+	// nodes.pairing.regenerate; the secret stays in the pairing file).
 	{Pattern: "GET /api/nodes", Access: Admin},
 	{Pattern: "POST /api/nodes/{id}/revoke", Access: Admin},
+	{Pattern: "POST /api/nodes/pairing/regenerate", Access: Admin},
 	// Settings → Stacks (track 9B). The list (names and status) is a read,
 	// for viewers; a stack's files, history and drafts are admin+, because
 	// compose files (adopted ones especially) often hold credentials in

@@ -38,7 +38,7 @@
 //	                           API tokens: your own; admins and the owner see and revoke any (session only)
 //	GET  /api/graph, GET /api/inbox   the Home Graph and the Inbox as plain reads (session, or a token's graph.read / inbox.read)
 //	GET  /node                 chadash-node's channel (the node's pinned key, not a session; see nodes.Hub)
-//	GET  /api/nodes, POST /api/nodes/{id}/revoke   nodes and revoking one (admin)
+//	GET  /api/nodes, POST /api/nodes/{id}/revoke, POST /api/nodes/pairing/regenerate   nodes, revoking one, a fresh pairing secret (admin)
 //	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)
 //	/api/notify/…              notifications: channels, rules, delivery log (admin); the VAPID key and your own push subscriptions (session; see notify.Service.Register)
 //	GET  /api/icons, GET /api/icons/{id}   icons the hub cached for tiles (session; see icons)

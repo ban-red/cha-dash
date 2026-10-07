@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,6 +104,12 @@ type nodeRun struct {
 // startNode runs a node with its identity in dir.
 func (e *env) startNode(dir, name, pairing string, policy node.Policy) *nodeRun {
 	e.t.Helper()
+	return e.startNodeWith(dir, name, pairing, policy, nil)
+}
+
+// startNodeWith is startNode with a hook to adjust the client's config.
+func (e *env) startNodeWith(dir, name, pairing string, policy node.Policy, adjust func(*node.Config)) *nodeRun {
+	e.t.Helper()
 	ident, err := node.OpenIdentity(filepath.Join(dir, "identity"))
 	if err != nil {
 		e.t.Fatal(err)
@@ -111,8 +118,12 @@ func (e *env) startNode(dir, name, pairing string, policy node.Policy) *nodeRun 
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	c, err := node.NewClient(node.Config{HubURL: e.url(), Name: name, Build: "test", Identity: ident, Dispatcher: d, Pairing: pairing,
-		Session: nodeproto.SessionOptions{KeepAlive: time.Second}})
+	cfg := node.Config{HubURL: e.url(), Name: name, Build: "test", Identity: ident, Dispatcher: d, Pairing: pairing,
+		Session: nodeproto.SessionOptions{KeepAlive: time.Second}}
+	if adjust != nil {
+		adjust(&cfg)
+	}
+	c, err := node.NewClient(cfg)
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -323,22 +334,342 @@ func TestRevoke(t *testing.T) {
 	}
 }
 
+// TestRePairAfterLosingTheIdentity: a node that lost its identity can't
+// replace the enrolled one by pairing under its name (review finding 1);
+// once an admin revokes the old node, the secret is regenerated, the node
+// reads it from the file and pairs as a new node.
 func TestRePairAfterLosingTheIdentity(t *testing.T) {
 	e := newEnv(t, true)
 	n := e.startNode(t.TempDir(), "local", e.token(), node.DefaultPolicy())
 	eventually(t, "connect", func() bool { return e.hub.Connected("local") })
 	first, _ := e.hub.ByName(t.Context(), "local")
 	n.stop()
-	// The identity volume is gone: a new key pairs under the same name.
-	e.startNode(t.TempDir(), "local", e.token(), node.DefaultPolicy())
+	// The identity volume is gone: a new key tries the same name, with the
+	// pairing file's current (fresh, unspent) secret.
+	dir := t.TempDir()
+	stale := e.token()
+	fresh := e.startNodeWith(dir, "local", stale, node.DefaultPolicy(), func(c *node.Config) { c.PairingFile = e.pairing })
+	eventually(t, "the conflict", func() bool { return e.refusedWith(nodeproto.CodeConflict) > 0 })
+	if cur, _ := e.hub.Get(t.Context(), first.ID); cur.State != StateApproved {
+		t.Fatalf("pairing replaced the enrolled node: it's %s", cur.State)
+	}
+	if fresh.client.Connected() {
+		t.Fatal("a second key paired under a live node's name")
+	}
+	if e.token() != stale {
+		t.Fatal("a refused pairing spent the secret")
+	}
+	// The admin revokes the old node, which regenerates the secret. The new
+	// node started with the old token, but reads the file when it pairs.
+	fresh.stop()
+	if _, err := e.hub.Revoke(t.Context(), first.ID, audit.Actor{Kind: "user", ID: "u_owner", Name: "owner"}); err != nil {
+		t.Fatal(err)
+	}
+	if e.token() == stale {
+		t.Fatal("revoking didn't regenerate the secret")
+	}
+	e.hub.limit.succeeded("127.0.0.1") // the conflicts counted as failures
+	e.startNodeWith(dir, "local", stale, node.DefaultPolicy(), func(c *node.Config) { c.PairingFile = e.pairing })
 	eventually(t, "the new node", func() bool {
 		r, err := e.hub.ByName(t.Context(), "local")
 		return err == nil && r.ID != first.ID && e.hub.Connected(r.ID)
 	})
-	old, _ := e.hub.Get(t.Context(), first.ID)
-	if old.State != StateRevoked {
-		t.Fatalf("the old key is %s", old.State)
+}
+
+// refusedWith counts refused enrollments with code.
+func (e *env) refusedWith(code string) int {
+	n := 0
+	for _, ev := range e.events("nodes.enroll") {
+		if ev.Result == audit.Refused && ev.Error != nil && ev.Error.Code == code {
+			n++
+		}
 	}
+	return n
+}
+
+// TestPairingSecretIsSingleUse: the enrollment a secret admits spends it,
+// and a fresh one is in the file (review finding 1).
+func TestPairingSecretIsSingleUse(t *testing.T) {
+	e := newEnv(t, true)
+	spent := e.token()
+	e.startNode(t.TempDir(), "local", spent, node.DefaultPolicy())
+	eventually(t, "connect", func() bool { return e.hub.Connected("local") })
+	next := e.token()
+	if next == spent {
+		t.Fatal("the pairing file still holds the spent secret")
+	}
+	if fi, err := os.Stat(e.pairing); err != nil || fi.Mode().Perm() != PairingFileMode {
+		t.Fatalf("pairing file after the rewrite: %v %v", fi, err)
+	}
+	// Another key with the spent secret is refused, under any name.
+	e.startNode(t.TempDir(), "other", spent, node.DefaultPolicy())
+	eventually(t, "the refusal", func() bool { return e.refusedWith(nodeproto.CodeBadPairing) > 0 })
+	if _, err := e.hub.ByName(t.Context(), "other"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("the spent secret enrolled a node: %v", err)
+	}
+	// The fresh one works, once.
+	e.startNode(t.TempDir(), "third", next, node.DefaultPolicy())
+	eventually(t, "the third node", func() bool { return e.hub.Connected("third") })
+	if e.token() == next {
+		t.Fatal("the second enrollment didn't spend its secret either")
+	}
+}
+
+// TestRevokeRegeneratesTheSecret: after a revoke, the secret anyone could
+// have read before is dead; the admin route regenerates it too, audited
+// (review finding 1).
+func TestRevokeRegeneratesTheSecret(t *testing.T) {
+	e := newEnv(t, true)
+	e.startNode(t.TempDir(), "local", e.token(), node.DefaultPolicy())
+	eventually(t, "connect", func() bool { return e.hub.Connected("local") })
+	rec, _ := e.hub.ByName(t.Context(), "local")
+	before := e.token() // what a copy of the volume would hold now
+	resp, err := http.Post(e.srv.URL+"/api/nodes/"+rec.ID+"/revoke", "application/json", nil)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("revoke: %v %v", resp.Status, err)
+	}
+	resp.Body.Close()
+	if e.token() == before {
+		t.Fatal("revoking didn't regenerate the pairing secret")
+	}
+	// Re-pairing with what was read before the revoke is refused.
+	e.startNode(t.TempDir(), "local", before, node.DefaultPolicy())
+	eventually(t, "the refusal", func() bool { return e.refusedWith(nodeproto.CodeBadPairing) > 0 })
+	if _, err := e.hub.ByName(t.Context(), "local"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("re-paired with the old secret: %v", err)
+	}
+	// An admin regenerates; the new secret pairs.
+	old := e.token()
+	resp, err = http.Post(e.srv.URL+"/api/nodes/pairing/regenerate", "application/json", nil)
+	if err != nil || resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("regenerate: %v %v", resp.Status, err)
+	}
+	resp.Body.Close()
+	if e.token() == old {
+		t.Fatal("regenerate kept the secret")
+	}
+	evs := e.events("nodes.pairing.regenerate")
+	if len(evs) != 1 || evs[0].Actor.Name != "owner" || evs[0].Result != audit.OK || strings.Contains(string(evs[0].Params), e.token()[4:20]) {
+		t.Fatalf("audit %+v", evs)
+	}
+	e.hub.limit.succeeded("127.0.0.1")
+	e.startNode(t.TempDir(), "local", e.token(), node.DefaultPolicy())
+	eventually(t, "the re-paired node", func() bool {
+		r, err := e.hub.ByName(t.Context(), "local")
+		return err == nil && r.ID != rec.ID && e.hub.Connected(r.ID)
+	})
+	// Pairing off: the route says so.
+	off := newEnv(t, false)
+	resp, _ = http.Post(off.srv.URL+"/api/nodes/pairing/regenerate", "application/json", nil)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("regenerate with pairing off: %s", resp.Status)
+	}
+}
+
+// TestFreshInstallPairsByItself: the hub writes the file on first start,
+// a restart before the node pairs keeps it, the node's first connection
+// spends it, and a restart after that writes a fresh one while the node
+// reconnects with its key.
+func TestFreshInstallPairsByItself(t *testing.T) {
+	e := newEnv(t, true)
+	tok := e.token()
+	v, _ := vault.New(e.st, make([]byte, 32))
+	restart := func() {
+		h, err := New(t.Context(), Options{Store: e.st, Vault: v, PairingFile: e.pairing})
+		if err != nil {
+			t.Fatal(err)
+		}
+		h.Close()
+	}
+	restart()
+	if e.token() != tok {
+		t.Fatal("a restart before any node paired replaced the secret the node is about to read")
+	}
+	dir := t.TempDir()
+	n := e.startNodeWith(dir, "local", tok, node.DefaultPolicy(), func(c *node.Config) { c.PairingFile = e.pairing })
+	eventually(t, "connect", func() bool { return e.hub.Connected("local") })
+	n.stop()
+	afterPair := e.token()
+	restart()
+	if e.token() == afterPair {
+		t.Fatal("a restart after pairing kept the secret")
+	}
+	e.startNode(dir, "local", "", node.DefaultPolicy())
+	eventually(t, "reconnect with the key", func() bool { return e.hub.Connected("local") })
+	if list, _ := e.hub.List(t.Context()); len(list) != 1 {
+		t.Fatalf("nodes %v", list)
+	}
+}
+
+// TestPairingFrom: the secret is accepted only from the allowed ranges.
+func TestPairingFrom(t *testing.T) {
+	e := newEnv(t, true)
+	e.hub.o.PairingFrom = []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
+	e.startNode(t.TempDir(), "local", e.token(), node.DefaultPolicy())
+	eventually(t, "the refusal", func() bool { return len(e.events("nodes.enroll")) > 0 })
+	ev := e.events("nodes.enroll")[0]
+	if ev.Result != audit.Refused || ev.Error == nil || !strings.Contains(ev.Error.Message, "address") {
+		t.Fatalf("audit %+v", ev)
+	}
+	if !e.hub.pairing.Check(mustSecret(t, e.token())) {
+		t.Fatal("a refused pairing spent the secret")
+	}
+	if !addrIn("10.1.2.3", DefaultPairingFrom) || !addrIn("::ffff:192.168.1.2", DefaultPairingFrom) || addrIn("203.0.113.9", DefaultPairingFrom) || addrIn("nonsense", DefaultPairingFrom) {
+		t.Fatal("DefaultPairingFrom")
+	}
+}
+
+func mustSecret(t *testing.T, tok string) string {
+	t.Helper()
+	s, _, err := nodeproto.ParsePairing(tok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// TestNextKeySquatting: a node can't announce another node's key (or the
+// hub's) as its next one, and a key is found by its holder first (review
+// finding 3).
+func TestNextKeySquatting(t *testing.T) {
+	e := newEnv(t, true)
+	e.startNode(t.TempDir(), "a", e.token(), node.DefaultPolicy())
+	eventually(t, "a", func() bool { return e.hub.Connected("a") })
+	e.startNode(t.TempDir(), "b", e.token(), node.DefaultPolicy())
+	eventually(t, "b", func() bool { return e.hub.Connected("b") })
+	a, _ := e.hub.ByName(t.Context(), "a")
+	b, _ := e.hub.ByName(t.Context(), "b")
+	rotate := e.hub.sessionOptions(b).Handler
+	for what, pin := range map[string]string{"a's key": a.PublicKey, "b's own key": b.PublicKey, "the hub's key": e.hub.Pin()} {
+		msg, _ := json.Marshal(nodeproto.RotateMsg{Next: pin})
+		if _, err := rotate(t.Context(), nodeproto.VerbNodeRotate, msg, nil); nodeproto.CodeOf(err) != nodeproto.CodeConflict {
+			t.Fatalf("announcing %s = %v, want conflict", what, err)
+		}
+	}
+	k, _ := nodeproto.GenerateKey()
+	pin := nodeproto.PinOf(k)
+	msg, _ := json.Marshal(nodeproto.RotateMsg{Next: pin})
+	if _, err := rotate(t.Context(), nodeproto.VerbNodeRotate, msg, nil); err != nil {
+		t.Fatal(err)
+	}
+	// a can't take b's announced key either.
+	if err := e.hub.reg.setNext(t.Context(), a.ID, pin); !errors.Is(err, errKeyInUse) {
+		t.Fatalf("a squatting b's next key = %v", err)
+	}
+	// A row written before the rule: b announces a's key. a's key still
+	// finds a.
+	if _, err := e.st.Writer().ExecContext(t.Context(), `UPDATE nodes SET next_key = ? WHERE id = ?`, a.PublicKey, b.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, known, err := e.hub.reg.lookup(t.Context(), a.PublicKey)
+	if err != nil || !known || got.ID != a.ID {
+		t.Fatalf("lookup of a's key = %s %v %v", got.ID, known, err)
+	}
+}
+
+// TestUnknownKeysAreLimited: refusing keys the hub doesn't know counts
+// against the address, and an oversized hello is refused before the hub
+// knows the key (review finding 6).
+func TestUnknownKeysAreLimited(t *testing.T) {
+	e := newEnv(t, true)
+	p := node.DefaultPolicy()
+	p.Hub.Pin = e.hub.Pin()
+	e.startNode(t.TempDir(), "local", "", p)
+	eventually(t, "the refusals to count", func() bool { return e.failures("127.0.0.1") > 0 })
+
+	// A hello over HandshakeMaxFrame.
+	e2 := newEnv(t, true)
+	key, _ := nodeproto.GenerateKey()
+	ident, _ := nodeproto.NewIdentity(key)
+	ch, err := nodeproto.Dial(t.Context(), e2.url(), nodeproto.DialOptions{Identity: ident, Pins: []string{e2.hub.Pin()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ch.Close()
+	big := nodeproto.Hello{Name: strings.Repeat("n", nodeproto.HandshakeMaxFrame)}
+	if err := nodeproto.SendFrame(t.Context(), ch, nodeproto.OpHello, big, nil); err != nil {
+		t.Fatal(err)
+	}
+	f, err := nodeproto.RecvFrame(t.Context(), ch, 5*time.Second)
+	if err == nil && (f.Op != nodeproto.OpRefused || f.Error == nil || f.Error.Code != nodeproto.CodeProtocol) {
+		t.Fatalf("an oversized hello got %+v", f)
+	}
+	eventually(t, "the failure to count", func() bool { return e2.failures("127.0.0.1") > 0 })
+}
+
+func (e *env) failures(addr string) int {
+	e.hub.limit.mu.Lock()
+	defer e.hub.limit.mu.Unlock()
+	if a := e.hub.limit.seen[addr]; a != nil {
+		return a.n
+	}
+	return 0
+}
+
+func TestHandshakeGate(t *testing.T) {
+	g := newGate(2, 3)
+	first, second, third := g.enter("a"), g.enter("a"), g.enter("a")
+	if !first || !second || third {
+		t.Fatal("per address")
+	}
+	if !g.enter("b") || g.enter("c") {
+		t.Fatal("overall")
+	}
+	g.leave("a")
+	if !g.enter("c") || g.enter("a") {
+		t.Fatal("after leaving")
+	}
+	g.leave("a")
+	g.leave("b")
+	g.leave("c")
+	if len(g.perAddr) != 0 || g.total != 0 {
+		t.Fatalf("leaks: %v %d", g.perAddr, g.total)
+	}
+}
+
+func TestRefusalLogSampling(t *testing.T) {
+	now := time.Unix(1000, 0)
+	s := &sampler{every: time.Minute, now: func() time.Time { return now }}
+	if ok, _ := s.take(); !ok {
+		t.Fatal("the first line")
+	}
+	for range 3 {
+		if ok, _ := s.take(); ok {
+			t.Fatal("logged within the minute")
+		}
+	}
+	now = now.Add(time.Minute)
+	if ok, held := s.take(); !ok || held != 3 {
+		t.Fatalf("after a minute: %v %d", ok, held)
+	}
+}
+
+// TestAllowedVerbs: integrations get the Docker verbs they use, by exact
+// name, and nothing else (review finding 7).
+func TestAllowedVerbs(t *testing.T) {
+	var got []string
+	c := Allow(callerFunc(func(verb string) { got = append(got, verb) }), IntegrationVerbs...)
+	for _, v := range []string{"container.restart", "engine.self", "container.logs"} {
+		if _, err := c.Call(t.Context(), "local", v, nil, nil); err != nil {
+			t.Fatalf("%s: %v", v, err)
+		}
+	}
+	for _, v := range []string{"container.exec", "stack.deploy", "engine.anything", "container.restartx", "hub.pin"} {
+		if _, err := c.Call(t.Context(), "local", v, nil, nil); nodeproto.CodeOf(err) != nodeproto.CodeForbidden {
+			t.Fatalf("%s = %v, want forbidden", v, err)
+		}
+	}
+	if len(got) != 3 {
+		t.Fatalf("passed through %v", got)
+	}
+}
+
+type callerFunc func(verb string)
+
+func (f callerFunc) Call(_ context.Context, _, verb string, _ any, _ func(json.RawMessage)) (json.RawMessage, error) {
+	f(verb)
+	return json.RawMessage("{}"), nil
 }
 
 func TestNodeKeyRotation(t *testing.T) {
@@ -465,6 +796,22 @@ func TestPairingFile(t *testing.T) {
 	b, _ = os.ReadFile(path)
 	if !strings.HasSuffix(strings.TrimSpace(string(b)), nodeproto.PinOf(k2)) {
 		t.Fatal("the pin wasn't updated")
+	}
+	// Redeem: a wrong secret runs nothing; a refused enrollment keeps the
+	// secret; a successful one spends it and writes a fresh one.
+	ran := false
+	if ok, err := p2.Redeem("nope-nope-nope-nope", func() error { ran = true; return nil }); ok || !errors.Is(err, errBadSecret) || ran {
+		t.Fatalf("wrong secret: %v %v %v", ok, err, ran)
+	}
+	if ok, err := p2.Redeem(secret, func() error { return errNameTaken }); ok || !errors.Is(err, errNameTaken) || !p2.Check(secret) {
+		t.Fatalf("refused enrollment: %v %v", ok, err)
+	}
+	if ok, err := p2.Redeem(secret, func() error { return nil }); !ok || err != nil || p2.Check(secret) {
+		t.Fatalf("redeem: %v %v", ok, err)
+	}
+	b, _ = os.ReadFile(path)
+	if next, _, err := nodeproto.ParsePairing(string(b)); err != nil || next == secret || !p2.Check(next) {
+		t.Fatal("the file doesn't hold the fresh secret")
 	}
 	os.WriteFile(path, []byte("garbage"), 0o640)
 	if _, err := OpenPairing(path, nodeproto.PinOf(k1)); err == nil {

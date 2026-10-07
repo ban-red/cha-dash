@@ -207,7 +207,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// where the integrations publish (a private graph in demo mode).
 	auditLog := audit.New(st)
 	nodeHub, err := nodes.New(ctx, nodes.Options{Store: st, Vault: v, Graph: itp.Graph, Audit: auditLog,
-		PairingFile: cfg.NodePairingFile, Proxies: proxies, Log: log.With("component", "nodes")})
+		PairingFile: cfg.NodePairingFile, PairingFrom: cfg.NodePairingFrom, Proxies: proxies, Log: log.With("component", "nodes")})
 	if err != nil {
 		return nil, err
 	}
@@ -227,9 +227,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log, Posture: sec.Posture(),
 		Actions: instanceActions,
-		// Integrations reach the node's Docker verbs only (the Docker
+		// Integrations reach only the node verbs they use, by name (the Docker
 		// integration's node:// endpoint and its actions).
-		Nodes: nodes.Restrict(nodeHub, "engine.", "container.")})
+		Nodes: nodes.Allow(nodeHub, nodes.IntegrationVerbs...)})
 	if err != nil {
 		return nil, err
 	}

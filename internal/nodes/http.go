@@ -13,6 +13,7 @@ import (
 //	GET  /node                     the node channel (authenticated by key, not session)
 //	GET  /api/nodes                {"nodes": [Status]}                    (admin)
 //	POST /api/nodes/{id}/revoke    the revoked node; 404, 409 already revoked (admin)
+//	POST /api/nodes/pairing/regenerate  204: a fresh pairing secret in the file; 409 pairing off (admin)
 //
 // session attaches the signed-in identity (authz.Guard decides roles);
 // actor names who's asking, for the audit log.
@@ -39,6 +40,18 @@ func (h *Hub) Register(mux *http.ServeMux, session func(http.Handler) http.Handl
 			httpx.Error(w, http.StatusInternalServerError, "internal", "The node couldn't be revoked.")
 		default:
 			httpx.WriteJSON(w, http.StatusOK, rec)
+		}
+	})))
+	mux.Handle("POST /api/nodes/pairing/regenerate", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := h.RegeneratePairing(r.Context(), actor(r))
+		switch {
+		case errors.Is(err, ErrPairingOff):
+			httpx.Error(w, http.StatusConflict, "pairing_off", "Local pairing is off on this hub (CHADASH_NODE_PAIRING_FILE).")
+		case err != nil:
+			h.log.Error("regenerating the pairing secret failed", "err", err)
+			httpx.Error(w, http.StatusInternalServerError, "internal", "The pairing secret couldn't be regenerated.")
+		default:
+			w.WriteHeader(http.StatusNoContent)
 		}
 	})))
 }

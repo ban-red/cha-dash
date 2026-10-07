@@ -70,6 +70,11 @@ type Config struct {
 	// node in deploy/compose.yaml). Empty: off, and only nodes the registry
 	// already knows may connect.
 	NodePairingFile string
+	// NodePairingFrom are the client addresses a node may pair from
+	// (CHADASH_NODE_PAIRING_FROM, comma-separated CIDRs). Nil: private,
+	// loopback, link-local and CGNAT ranges (nodes.DefaultPairingFrom);
+	// "any" allows every address.
+	NodePairingFrom []netip.Prefix
 }
 
 // DefaultDemoAt is when the demo day starts: 14:05, the moment every
@@ -101,7 +106,7 @@ func (c Config) Logger(w io.Writer) *slog.Logger {
 type Loader struct {
 	listen, dataDir, keyFile, level, format, proxies, origins string
 	publicURL                                                 string
-	nodePairing                                               string
+	nodePairing, nodePairingFrom                              string
 	demo                                                      bool
 	demoAt, demoSeed                                          string
 	envErrs                                                   []error // env values a flag default can't hold
@@ -125,6 +130,7 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 	fs.StringVar(&l.origins, "allowed-origins", env("CHADASH_ALLOWED_ORIGINS", ""), "comma-separated extra origins, e.g. https://dash.example.com (env CHADASH_ALLOWED_ORIGINS)")
 	fs.StringVar(&l.publicURL, "public-url", env("CHADASH_PUBLIC_URL", ""), "the address you open Cha Dash at, e.g. https://dash.example.com; passkeys need it, over HTTPS (env CHADASH_PUBLIC_URL)")
 	fs.StringVar(&l.nodePairing, "node-pairing-file", env("CHADASH_NODE_PAIRING_FILE", ""), "where to write the local node's pairing token, in a volume shared with chadash-node; empty turns pairing off (env CHADASH_NODE_PAIRING_FILE)")
+	fs.StringVar(&l.nodePairingFrom, "node-pairing-from", env("CHADASH_NODE_PAIRING_FROM", ""), "comma-separated CIDRs a node may pair from, or any; default private and loopback ranges (env CHADASH_NODE_PAIRING_FROM)")
 
 	demo := false
 	if v := env("CHADASH_DEMO", ""); v != "" {
@@ -184,6 +190,18 @@ func (l *Loader) Config() (Config, error) {
 	}
 	if c.LogFormat != "text" && c.LogFormat != "json" {
 		errs = append(errs, fmt.Errorf("log format %q: want text or json", l.format))
+	}
+	if v := strings.TrimSpace(l.nodePairingFrom); strings.EqualFold(v, "any") {
+		c.NodePairingFrom = []netip.Prefix{netip.MustParsePrefix("0.0.0.0/0"), netip.MustParsePrefix("::/0")}
+	} else {
+		for _, s := range splitList(v) {
+			p, err := parsePrefix(s)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("node pairing from %q: want an IP or CIDR, or any", s))
+				continue
+			}
+			c.NodePairingFrom = append(c.NodePairingFrom, p)
+		}
 	}
 	for _, s := range splitList(l.proxies) {
 		p, err := parsePrefix(s)

@@ -196,3 +196,21 @@ func TestNodePairingFile(t *testing.T) {
 		t.Fatal("a relative path was accepted")
 	}
 }
+
+func TestNodePairingFrom(t *testing.T) {
+	c, err := load(t, nil)
+	if err != nil || c.NodePairingFrom != nil {
+		t.Fatalf("default: %v %v", c.NodePairingFrom, err)
+	}
+	c, err = load(t, map[string]string{"CHADASH_NODE_PAIRING_FROM": "172.18.0.0/16, 10.0.0.5"})
+	if err != nil || len(c.NodePairingFrom) != 2 || c.NodePairingFrom[0].String() != "172.18.0.0/16" || c.NodePairingFrom[1].String() != "10.0.0.5/32" {
+		t.Fatalf("env: %v %v", c.NodePairingFrom, err)
+	}
+	c, err = load(t, map[string]string{"CHADASH_NODE_PAIRING_FROM": "any"})
+	if err != nil || len(c.NodePairingFrom) != 2 || c.NodePairingFrom[0].Bits() != 0 {
+		t.Fatalf("any: %v %v", c.NodePairingFrom, err)
+	}
+	if _, err := load(t, map[string]string{"CHADASH_NODE_PAIRING_FROM": "lan"}); err == nil {
+		t.Fatal("a bad range was accepted")
+	}
+}

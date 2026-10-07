@@ -17,9 +17,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -44,25 +44,33 @@ type Caller interface {
 // nodeproto.CodeNotConnected.
 var ErrNotConnected error = nodeproto.Errorf(nodeproto.CodeNotConnected, "the node isn't connected to the hub")
 
-// Restrict wraps c so only verbs with one of prefixes get through: the
-// integrations' Deps get the Docker verbs ("engine.", "container."), never
-// stacks or anything a later module adds.
-func Restrict(c Caller, prefixes ...string) Caller {
-	return restricted{c, prefixes}
+// Allow wraps c so only the named verbs get through, matched exactly: the
+// integrations' Deps get the Docker verbs they use (IntegrationVerbs),
+// never stacks, exec or anything a later module adds.
+func Allow(c Caller, verbs ...string) Caller {
+	return allowed{c, slices.Clone(verbs)}
 }
 
-type restricted struct {
-	c        Caller
-	prefixes []string
+// IntegrationVerbs are the node verbs integrations may call: the Docker
+// integration's reads (its node:// endpoint) and its actions. A verb the
+// node gains later stays out until it's added here.
+var IntegrationVerbs = []string{
+	"engine.version", "engine.info", "engine.events", "engine.self",
+	"container.list", "container.inspect", "container.stats", "container.can", "container.logs",
+	"container.start", "container.stop", "container.restart",
+	"container.pull", "container.recreate", "container.remove",
 }
 
-func (r restricted) Call(ctx context.Context, node, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error) {
-	for _, p := range r.prefixes {
-		if strings.HasPrefix(verb, p) {
-			return r.c.Call(ctx, node, verb, req, progress)
-		}
+type allowed struct {
+	c     Caller
+	verbs []string
+}
+
+func (a allowed) Call(ctx context.Context, node, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error) {
+	if !slices.Contains(a.verbs, verb) {
+		return nil, nodeproto.Errorf(nodeproto.CodeForbidden, "the hub doesn't let this caller use %s", verb)
 	}
-	return nil, nodeproto.Errorf(nodeproto.CodeForbidden, "the hub doesn't let this caller use %s", verb)
+	return a.c.Call(ctx, node, verb, req, progress)
 }
 
 // Options configure a Hub.
@@ -77,6 +85,10 @@ type Options struct {
 	// PairingFile turns local pairing on: the file is created on first run
 	// (see Pairing). Empty: off, and unknown nodes are always refused.
 	PairingFile string
+	// PairingFrom are the client addresses a node may pair from (nil:
+	// DefaultPairingFrom). A known node connects from anywhere; this only
+	// bounds where the pairing secret is accepted.
+	PairingFrom []netip.Prefix
 	// Proxies resolve the client address recorded for each node.
 	Proxies httpx.Proxies
 	// Session tunes keepalive and limits (nodeproto's defaults when zero).
@@ -93,6 +105,8 @@ type Hub struct {
 	keys    *hubKeys
 	pairing *Pairing
 	limit   *limiter
+	gate    *gate
+	quiet   *sampler // refusals of unknown keys: one Info line a minute
 
 	ctx    context.Context // ends with Close; sessions run under it
 	cancel context.CancelFunc
@@ -124,9 +138,17 @@ func New(ctx context.Context, o Options) (*Hub, error) {
 	h := &Hub{
 		o: o, log: o.Log, reg: &registry{st: o.Store, now: o.Now},
 		keys:  &hubKeys{st: o.Store, vault: o.Vault, now: o.Now},
-		limit: newLimiter(o.Now), live: map[string]*conn{},
+		limit: newLimiter(o.Now), gate: newGate(maxHandshakesPerAddr, maxHandshakes),
+		quiet: &sampler{every: time.Minute, now: o.Now}, live: map[string]*conn{},
+	}
+	if h.o.PairingFrom == nil {
+		h.o.PairingFrom = DefaultPairingFrom
 	}
 	if err := h.keys.load(ctx); err != nil {
+		return nil, err
+	}
+	recs, err := h.reg.list(ctx)
+	if err != nil {
 		return nil, err
 	}
 	if o.PairingFile != "" {
@@ -134,14 +156,18 @@ func New(ctx context.Context, o Options) (*Hub, error) {
 		if err != nil {
 			return nil, err
 		}
+		// A node paired before: the secret in the file may be one it spent
+		// (or one copied out since). A fresh one costs nothing, since the
+		// enrolled node never needs it again.
+		if slices.ContainsFunc(recs, func(r Record) bool { return r.EnrolledVia == ViaLocal }) {
+			if err := p.Regenerate(); err != nil {
+				return nil, err
+			}
+		}
 		h.pairing = p
 		h.log.Info("local node pairing is on", "file", p.Path())
 	}
 	h.ctx, h.cancel = context.WithCancel(context.WithoutCancel(ctx))
-	recs, err := h.reg.list(ctx)
-	if err != nil {
-		return nil, err
-	}
 	for _, r := range recs {
 		h.publish(r, false)
 	}
@@ -173,9 +199,23 @@ var nameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$`)
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	addr := h.o.Proxies.ClientIP(r).String()
 	if !h.limit.allowed(addr) {
-		httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many failed node enrollments from this address; wait a minute.")
+		httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many failed node handshakes from this address; wait a minute.")
 		return
 	}
+	// Until the node is admitted it holds a handshake slot: a few per
+	// address, a few dozen in all, each for at most HandshakeTimeout twice.
+	if !h.gate.enter(addr) {
+		httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many node handshakes in progress; try again shortly.")
+		return
+	}
+	inGate := true
+	release := func() {
+		if inGate {
+			inGate = false
+			h.gate.leave(addr)
+		}
+	}
+	defer release()
 	h.mu.Lock()
 	if h.closed {
 		h.mu.Unlock()
@@ -185,19 +225,24 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.wg.Add(1)
 	h.mu.Unlock()
 	defer h.wg.Done()
-	ch, accepted, err := nodeproto.Accept(w, r, nodeproto.AcceptOptions{Identity: h.keys.pick})
+	// The hello is read under a small frame limit: a stranger can't make the
+	// hub buffer a session-sized frame before it knows the key.
+	ch, accepted, err := nodeproto.Accept(w, r, nodeproto.AcceptOptions{Identity: h.keys.pick, MaxFrame: nodeproto.HandshakeMaxFrame})
 	if err != nil {
 		h.log.Debug("node handshake failed", "client", addr, "err", err)
+		h.limit.failed(addr)
 		return
 	}
 	defer ch.Close()
 	f, err := nodeproto.RecvFrame(h.ctx, ch, nodeproto.HandshakeTimeout)
 	if err != nil || f.Op != nodeproto.OpHello {
+		h.limit.failed(addr)
 		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeProtocol, "the node must say hello first"))
 		return
 	}
 	var hello nodeproto.Hello
 	if err := json.Unmarshal(f.Data, &hello); err != nil {
+		h.limit.failed(addr)
 		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeProtocol, "a malformed hello"))
 		return
 	}
@@ -214,24 +259,44 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return // enroll refused it
 		}
 	case !known && hello.Token != "":
+		h.limit.failed(addr)
 		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeUnknownNode, "remote enrollment with join tokens arrives in v0.3; pair this node on the hub's compose network"))
 		return
 	case !known:
+		h.limit.failed(addr)
 		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeUnknownNode, "this hub doesn't know the node's key"))
 		return
 	case rec.State == StateRevoked:
+		h.limit.failed(addr)
 		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeRevoked, "this node was revoked"))
 		return
 	case rec.State == StatePending:
 		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeUnknownNode, "this node is waiting for approval"))
 		return
 	}
+	h.limit.succeeded(addr)
+	release()
+	ch.SetMaxFrame(nodeproto.DefaultMaxFrame)
 	h.serve(ch, rec, hello, accepted, addr)
 }
 
+// refuse tells a node no. Refusals of keys the hub doesn't know are anyone
+// on the network knocking, so they log at Info at most once a minute (with
+// a count of the rest) and otherwise at Debug.
 func (h *Hub) refuse(ch *nodeproto.Channel, id string, e *nodeproto.Error) {
 	_ = nodeproto.SendFrame(h.ctx, ch, nodeproto.OpRefused, nil, e)
-	h.log.Info("refused a node", "node", id, "code", e.Code, "reason", e.Message, "fingerprint", nodeproto.Fingerprint(ch.PeerPin))
+	attrs := []any{"node", id, "code", e.Code, "reason", e.Message, "fingerprint", nodeproto.Fingerprint(ch.PeerPin)}
+	if id == "" {
+		ok, held := h.quiet.take()
+		if !ok {
+			h.log.Debug("refused a node", attrs...)
+			return
+		}
+		if held > 0 {
+			attrs = append(attrs, "similar_refusals_not_logged", held)
+		}
+	}
+	h.log.Info("refused a node", attrs...)
 }
 
 // enroll handles an unknown key that presents the pairing secret.
@@ -245,30 +310,39 @@ func (h *Hub) enroll(ch *nodeproto.Channel, hello nodeproto.Hello, addr string) 
 		h.refuse(ch, "", e)
 		return Record{}, e
 	}
-	switch {
-	case h.pairing == nil:
-		return fail(nodeproto.Errorf(nodeproto.CodeUnknownNode, "local pairing is off on this hub"))
-	case !h.pairing.Check(hello.Pairing):
-		return fail(nodeproto.Errorf(nodeproto.CodeBadPairing, "the pairing secret doesn't match this hub's"))
-	}
 	name := hello.Name
 	if name == "" {
 		name = "local"
 	}
-	if !nameRE.MatchString(name) {
+	switch {
+	case h.pairing == nil:
+		return fail(nodeproto.Errorf(nodeproto.CodeUnknownNode, "local pairing is off on this hub"))
+	case !addrIn(addr, h.o.PairingFrom):
+		return fail(nodeproto.Errorf(nodeproto.CodeUnknownNode, "this hub doesn't accept pairing from the node's address (CHADASH_NODE_PAIRING_FROM)"))
+	case !nameRE.MatchString(name):
 		return fail(nodeproto.Errorf(nodeproto.CodeProtocol, "a node name is 1–63 letters, digits, dots, dashes or underscores"))
 	}
-	rec, superseded, err := h.reg.enrollApproved(h.ctx, name, ch.PeerPin, ViaLocal, ApprovedByPairing)
-	if err != nil {
+	// The secret is spent by the enrollment it admits, and only then: a
+	// refusal (a name in use) leaves it for the node that should have it.
+	var rec Record
+	redeemed, err := h.pairing.Redeem(hello.Pairing, func() error {
+		var err error
+		rec, err = h.reg.enrollApproved(h.ctx, name, ch.PeerPin, ViaLocal, ApprovedByPairing)
+		return err
+	})
+	switch {
+	case errors.Is(err, errBadSecret):
+		return fail(nodeproto.Errorf(nodeproto.CodeBadPairing, "the pairing secret doesn't match this hub's (it's single-use: a node that paired already spent it)"))
+	case errors.Is(err, errNameTaken):
+		// Pairing never replaces a node: that would let anyone with the
+		// secret take over node://local. An admin revokes the old one first.
+		return fail(nodeproto.Errorf(nodeproto.CodeConflict, "a node called %q is already enrolled; revoke it on the hub before pairing another under that name", name))
+	case !redeemed:
 		h.log.Error("enrolling a node failed", "err", err)
 		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeFailed, "the hub couldn't record the node"))
 		return Record{}, err
-	}
-	if superseded != "" {
-		h.cut(superseded, "re-paired under the same name")
-		h.record(audit.Entry{Actor: actor, Action: "nodes.revoke", Target: "node:" + superseded,
-			Params: params(map[string]string{"reason": "re-paired under the same name", "by": rec.ID}), Result: audit.OK})
-		h.graphRemove(superseded)
+	case err != nil:
+		h.log.Error("writing a fresh pairing secret failed; no other node can pair until it's regenerated", "err", err)
 	}
 	h.record(audit.Entry{Actor: actor, Action: "nodes.enroll", Target: "node:" + rec.ID,
 		Params: params(map[string]string{"name": rec.Name, "via": ViaLocal, "fingerprint": rec.Fingerprint}), Result: audit.OK})
@@ -358,6 +432,12 @@ func (h *Hub) sessionOptions(rec Record) nodeproto.SessionOptions {
 		if err := json.Unmarshal(p, &m); err != nil || !nodeproto.ValidPin(m.Next) {
 			return nil, nodeproto.Errorf(nodeproto.CodeInvalid, "node.rotate needs the next key's pin")
 		}
+		// A next key must be new: never a key some node already holds or
+		// announced (that would let one node squat on another's key), nor
+		// one of the hub's own.
+		if h.keys.has(m.Next) {
+			return nil, nodeproto.Errorf(nodeproto.CodeConflict, "the hub couldn't record the next key: it's one of the hub's keys")
+		}
 		if err := h.reg.setNext(ctx, id, m.Next); err != nil {
 			return nil, nodeproto.Errorf(nodeproto.CodeConflict, "the hub couldn't record the next key: %v", err)
 		}
@@ -434,7 +514,37 @@ func (h *Hub) Revoke(ctx context.Context, id string, by audit.Actor) (Record, er
 	h.record(audit.Entry{Actor: by, Action: "nodes.revoke", Target: "node:" + id,
 		Params: params(map[string]string{"name": rec.Name, "fingerprint": rec.Fingerprint}), Result: audit.OK})
 	h.log.Info("revoked a node", "node", id, "name", rec.Name, "by", by.Name)
+	// Whatever the revoked node (or whoever had its volume) read of the
+	// pairing file is dead now too.
+	if h.pairing != nil {
+		if err := h.pairing.Regenerate(); err != nil {
+			h.log.Error("regenerating the pairing secret after a revoke failed", "err", err)
+		}
+	}
 	return rec, nil
+}
+
+// ErrPairingOff is RegeneratePairing on a hub without local pairing.
+var ErrPairingOff = errors.New("nodes: local pairing is off")
+
+// RegeneratePairing replaces the pairing secret: the old one stops working
+// at once, and the pairing file holds the new one for the next node to
+// pair. The secret itself never leaves the file.
+func (h *Hub) RegeneratePairing(_ context.Context, by audit.Actor) error {
+	if h.pairing == nil {
+		return ErrPairingOff
+	}
+	err := h.pairing.Regenerate()
+	e := audit.Entry{Actor: by, Action: "nodes.pairing.regenerate", Target: "hub", Params: params(map[string]string{}), Result: audit.OK}
+	if err != nil {
+		e.Result, e.Error = audit.Failed, &audit.Error{Code: "failed", Message: "The pairing file couldn't be written."}
+	}
+	h.record(e)
+	if err != nil {
+		return err
+	}
+	h.log.Info("regenerated the pairing secret", "by", by.Name)
+	return nil
 }
 
 // RotateKey makes a new hub key and pushes its pin to every connected node
@@ -451,7 +561,7 @@ func (h *Hub) RotateKey(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	if h.pairing != nil {
-		if err := h.pairing.write(pin); err != nil {
+		if err := h.pairing.setPin(pin); err != nil {
 			return 0, err
 		}
 	}

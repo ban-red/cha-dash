@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"slices"
 	"sync"
 	"time"
@@ -30,6 +31,11 @@ type Config struct {
 	// Its pin is trusted; its secret is sent only while the node isn't
 	// enrolled.
 	Pairing string
+	// PairingFile, when set, is re-read each time the node is about to
+	// pair, so a secret the hub regenerated (it's single-use) reaches the
+	// node without a restart. Only its secret is used: the hub keys the
+	// node trusts change through the channel, never through this file.
+	PairingFile string
 	// HTTPClient makes the outer connection; nil is http.DefaultClient.
 	HTTPClient *http.Client
 	Session    nodeproto.SessionOptions
@@ -145,8 +151,10 @@ func (c *Client) connectOnce(ctx context.Context) (time.Duration, error) {
 		Versions: nodeproto.Versions, Name: c.cfg.Name, Build: c.cfg.Build,
 		Node: st.Node, HubPins: c.pins(), Verbs: c.cfg.Dispatcher.Info(),
 	}
-	if (st.Node == "" || repair) && c.secret != "" {
-		hello.Node, hello.Pairing = "", c.secret
+	if st.Node == "" || repair {
+		if secret := c.pairingSecret(); secret != "" {
+			hello.Node, hello.Pairing = "", secret
+		}
 	}
 	if err := nodeproto.SendFrame(ctx, ch, nodeproto.OpHello, hello, nil); err != nil {
 		ch.Close()
@@ -206,6 +214,24 @@ func (c *Client) connectOnce(ctx context.Context) (time.Duration, error) {
 	return c.backoff, err
 }
 
+// pairingSecret is the secret to pair with: the pairing file's current
+// one when it reads, else the one the node started with.
+func (c *Client) pairingSecret() string {
+	if c.cfg.PairingFile != "" {
+		if b, err := os.ReadFile(c.cfg.PairingFile); err == nil {
+			if secret, _, err := nodeproto.ParsePairing(string(b)); err == nil {
+				c.mu.Lock()
+				c.secret = secret
+				c.mu.Unlock()
+				return secret
+			}
+		}
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.secret
+}
+
 func (c *Client) grow() time.Duration {
 	d := c.backoff
 	c.backoff = min(c.backoff*2, 30*time.Second)
@@ -228,7 +254,7 @@ func (c *Client) refused(rotating bool, e *nodeproto.Error) (time.Duration, erro
 	c.cfg.Health.Set(StateRefused, e.Code)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if e.Code == nodeproto.CodeUnknownNode && c.secret != "" && !c.repair {
+	if e.Code == nodeproto.CodeUnknownNode && (c.secret != "" || c.cfg.PairingFile != "") && !c.repair {
 		c.repair = true // pair again on the next attempt, right away
 		return 0, fmt.Errorf("node: the hub doesn't know this node (%s); pairing again", e.Message)
 	}

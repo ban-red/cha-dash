@@ -117,6 +117,13 @@ func (k *hubKeys) newest() string {
 	return k.keys[len(k.keys)-1].Pin
 }
 
+// has reports whether pin is one of the hub's live keys.
+func (k *hubKeys) has(pin string) bool {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return slices.ContainsFunc(k.keys, func(key hubKey) bool { return key.Pin == pin })
+}
+
 // pick is the identity to present to a node that trusts accepted: the
 // newest key among them, else the newest key (the node will refuse it, and
 // that's the right answer for a node that pins none of ours).

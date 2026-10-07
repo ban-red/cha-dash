@@ -99,14 +99,37 @@ func msPtr(v sql.NullInt64) *time.Time {
 	return &t
 }
 
-// lookup finds a node by its current or next key.
+// lookup finds a node by its current key, else by its announced next key.
+// The current key wins: setNext refuses a next key that's anyone's key, but
+// rows written before that rule (or a race) must never let an announced
+// key shadow the node that holds it.
 func (g *registry) lookup(ctx context.Context, pin string) (Record, bool, error) {
-	r, err := scanRecord(g.st.Reader().QueryRowContext(ctx,
-		`SELECT `+recordCols+` FROM nodes WHERE public_key = ? OR next_key = ?`, pin, pin))
-	if errors.Is(err, sql.ErrNoRows) {
-		return Record{}, false, nil
+	for _, col := range []string{"public_key", "next_key"} {
+		rows, err := g.st.Reader().QueryContext(ctx, `SELECT `+recordCols+` FROM nodes WHERE `+col+` = ? LIMIT 2`, pin)
+		if err != nil {
+			return Record{}, false, err
+		}
+		var found []Record
+		for rows.Next() {
+			r, err := scanRecord(rows)
+			if err != nil {
+				rows.Close()
+				return Record{}, false, err
+			}
+			found = append(found, r)
+		}
+		err = rows.Err()
+		rows.Close()
+		switch {
+		case err != nil:
+			return Record{}, false, err
+		case len(found) > 1:
+			return Record{}, false, fmt.Errorf("nodes: %d nodes announce the same next key", len(found))
+		case len(found) == 1:
+			return found[0], true, nil
+		}
 	}
-	return r, err == nil, err
+	return Record{}, false, nil
 }
 
 func (g *registry) get(ctx context.Context, id string) (Record, error) {
@@ -146,33 +169,35 @@ func (g *registry) list(ctx context.Context) ([]Record, error) {
 
 func newNodeID() string { return "n_" + strings.ToLower(rand.Text()) }
 
-// enrollApproved adds a node that the pairing secret approved. A live node
-// with the same name is revoked in the same transaction (the node lost its
-// identity and paired again), and its ID returned.
-func (g *registry) enrollApproved(ctx context.Context, name, pin, via, by string) (Record, string, error) {
+// errNameTaken is an enrollment under the name of a live node.
+var errNameTaken = errors.New("nodes: a live node has that name")
+
+// enrollApproved adds a node that the pairing secret approved. A live (not
+// revoked) node with the same name refuses it with errNameTaken: pairing
+// never replaces a node, an admin revokes the old one first.
+func (g *registry) enrollApproved(ctx context.Context, name, pin, via, by string) (Record, error) {
 	now := g.now().UnixMilli()
 	id := newNodeID()
-	var superseded string
 	err := g.st.WriteTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx, `SELECT id FROM nodes WHERE name = ? AND state <> 'revoked'`, name).Scan(&superseded)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		var live string
+		err := tx.QueryRowContext(ctx, `SELECT id FROM nodes WHERE name = ? AND state <> 'revoked'`, name).Scan(&live)
+		switch {
+		case err == nil:
+			return errNameTaken
+		case !errors.Is(err, sql.ErrNoRows):
 			return err
-		}
-		if superseded != "" {
-			if _, err := tx.ExecContext(ctx, `UPDATE nodes SET state = 'revoked', revoked_by = ?, revoked_at = ?, next_key = NULL, updated_at = ? WHERE id = ?`,
-				by, now, now, superseded); err != nil {
-				return err
-			}
 		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO nodes (id, name, public_key, state, enrolled_via, approved_by, approved_at, created_at, updated_at)
 			VALUES (?, ?, ?, 'approved', ?, ?, ?, ?, ?)`, id, name, pin, via, by, now, now, now)
 		return err
 	})
-	if err != nil {
-		return Record{}, "", fmt.Errorf("nodes: enrolling: %w", err)
+	if errors.Is(err, errNameTaken) {
+		return Record{}, err
 	}
-	r, err := g.get(ctx, id)
-	return r, superseded, err
+	if err != nil {
+		return Record{}, fmt.Errorf("nodes: enrolling: %w", err)
+	}
+	return g.get(ctx, id)
 }
 
 // seen records a connection: when, from where, which build, which hub keys
@@ -199,20 +224,35 @@ func (g *registry) seen(ctx context.Context, id, pin, address, version string, h
 	return rotated, err
 }
 
-// setNext records a node's next key.
+// errKeyInUse is a next key that's already some node's key or next key.
+var errKeyInUse = errors.New("nodes: that key belongs to a node already")
+
+// setNext records a node's next key. It must be a key no node holds or has
+// announced, its own included: otherwise a node could park another's key
+// as its next one and be found by it.
 func (g *registry) setNext(ctx context.Context, id, pin string) error {
 	now := g.now().UnixMilli()
-	res, err := g.st.Writer().ExecContext(ctx, `UPDATE nodes SET next_key = ?, updated_at = ? WHERE id = ? AND state = 'approved'`, pin, now, id)
-	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE") {
-			return errors.New("nodes: that key belongs to another node")
+	return g.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM nodes WHERE public_key = ? OR next_key = ?)
+			+ (SELECT count(*) FROM node_hub_keys WHERE pin = ?)`, pin, pin, pin).Scan(&n); err != nil {
+			return err
 		}
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+		if n > 0 {
+			return errKeyInUse
+		}
+		res, err := tx.ExecContext(ctx, `UPDATE nodes SET next_key = ?, updated_at = ? WHERE id = ? AND state = 'approved'`, pin, now, id)
+		if err != nil {
+			if strings.Contains(err.Error(), "UNIQUE") {
+				return errKeyInUse
+			}
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 // addHubPin records that a node took a hub key.
