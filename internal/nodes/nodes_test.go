@@ -588,12 +588,13 @@ func TestUnknownKeysAreLimited(t *testing.T) {
 	}
 	defer ch.Close()
 	big := nodeproto.Hello{Name: strings.Repeat("n", nodeproto.HandshakeMaxFrame)}
-	if err := nodeproto.SendFrame(t.Context(), ch, nodeproto.OpHello, big, nil); err != nil {
-		t.Fatal(err)
-	}
-	f, err := nodeproto.RecvFrame(t.Context(), ch, 5*time.Second)
-	if err == nil && (f.Op != nodeproto.OpRefused || f.Error == nil || f.Error.Code != nodeproto.CodeProtocol) {
-		t.Fatalf("an oversized hello got %+v", f)
+	// The hub may hang up before the whole frame is written (a broken
+	// pipe here): that's a refusal too.
+	if err := nodeproto.SendFrame(t.Context(), ch, nodeproto.OpHello, big, nil); err == nil {
+		f, err := nodeproto.RecvFrame(t.Context(), ch, 5*time.Second)
+		if err == nil && (f.Op != nodeproto.OpRefused || f.Error == nil || f.Error.Code != nodeproto.CodeProtocol) {
+			t.Fatalf("an oversized hello got %+v", f)
+		}
 	}
 	eventually(t, "the failure to count", func() bool { return e2.failures("127.0.0.1") > 0 })
 }
