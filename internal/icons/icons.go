@@ -46,6 +46,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -60,9 +61,11 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode"
 
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
+	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/store"
 )
 
@@ -491,6 +494,13 @@ func Allowed(a netip.Addr) bool {
 	case slices.Contains(metadataAddrs, a):
 		return false
 	}
+	// NAT64 and 6to4 carry an IPv4 address, which gets the same rule: a
+	// translator would connect to it.
+	for _, v4 := range httpx.EmbeddedIPv4(a) {
+		if !Allowed(v4) {
+			return false
+		}
+	}
 	return true
 }
 
@@ -624,12 +634,6 @@ func cleanErr(err error) string {
 	return truncate(err.Error(), 200)
 }
 
-var (
-	svgEvent    = regexp.MustCompile(`\son[a-z]+\s*=`)
-	svgExternal = regexp.MustCompile(`(href|src)\s*=\s*["']\s*(https?:|//|javascript:)|url\(\s*["']?\s*(https?:|//|javascript:)`)
-	svgRefused  = []string{"<script", "<foreignobject", "<!doctype", "<!entity", "javascript:", "<iframe", "<embed", "<object", "@import", "<?xml-stylesheet"}
-)
-
 // Check returns the icon type of b: PNG, ICO, WebP or a safe SVG. Anything
 // else is refused.
 func Check(b []byte) (string, error) {
@@ -646,6 +650,85 @@ func Check(b []byte) (string, error) {
 	return TypeSVG, checkSVG(b)
 }
 
+// SVG namespaces the checker knows. Elements must be SVG (or in no
+// namespace, for an icon without xmlns); Inkscape's and Sodipodi's are
+// inert editor data, and anything goes inside <metadata> but XHTML.
+const (
+	nsSVG      = "http://www.w3.org/2000/svg"
+	nsXLink    = "http://www.w3.org/1999/xlink"
+	nsXML      = "http://www.w3.org/XML/1998/namespace"
+	nsXHTML    = "http://www.w3.org/1999/xhtml"
+	nsInkscape = "http://www.inkscape.org/namespaces/inkscape"
+	nsSodipodi = "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+)
+
+// svgElements are the elements an icon may use: shapes, text, paint
+// servers, clipping and masking, reuse by fragment, and filters that read
+// nothing from outside. No script, no foreignObject, no links, no
+// animation (<animate>, <set> and friends can rewrite an href), no feImage.
+var svgElements = setOf(
+	"svg", "g", "defs", "symbol", "use", "switch", "title", "desc", "metadata", "style",
+	"path", "circle", "ellipse", "line", "polyline", "polygon", "rect",
+	"text", "tspan", "textPath",
+	"linearGradient", "radialGradient", "stop", "pattern", "clipPath", "mask", "marker",
+	"image", // only with an embedded raster (data:image/png and the like)
+	"filter", "feBlend", "feColorMatrix", "feComponentTransfer", "feComposite", "feConvolveMatrix",
+	"feDiffuseLighting", "feDisplacementMap", "feDistantLight", "feDropShadow", "feFlood",
+	"feFuncA", "feFuncB", "feFuncG", "feFuncR", "feGaussianBlur", "feMerge", "feMergeNode",
+	"feMorphology", "feOffset", "fePointLight", "feSpecularLighting", "feSpotLight", "feTile", "feTurbulence",
+)
+
+// svgAttrs are the attributes (without a namespace) an icon may use:
+// geometry, presentation, text, paint-server and filter parameters. Plus
+// aria-* and data-*. Every value is checked for url() and javascript:
+// whatever its name.
+var svgAttrs = setOf(
+	"id", "class", "style", "lang", "version", "baseProfile", "viewBox", "preserveAspectRatio", "zoomAndPan",
+	"width", "height", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry", "fx", "fy", "fr",
+	"d", "points", "pathLength", "transform", "transform-origin", "transform-box", "href",
+	"dx", "dy", "rotate", "textLength", "lengthAdjust", "startOffset", "method", "spacing", "side",
+	"gradientUnits", "gradientTransform", "spreadMethod", "offset",
+	"patternUnits", "patternContentUnits", "patternTransform", "clipPathUnits", "maskUnits", "maskContentUnits",
+	"refX", "refY", "markerUnits", "markerWidth", "markerHeight", "orient",
+	"requiredFeatures", "requiredExtensions", "systemLanguage", "role", "focusable", "tabindex", "type", "media",
+	"fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-opacity", "stroke-linecap",
+	"stroke-linejoin", "stroke-miterlimit", "stroke-dasharray", "stroke-dashoffset", "opacity",
+	"color", "color-interpolation", "color-interpolation-filters", "color-rendering", "color-profile",
+	"display", "visibility", "overflow", "clip", "clip-path", "clip-rule", "mask", "mask-type", "filter",
+	"flood-color", "flood-opacity", "lighting-color", "stop-color", "stop-opacity",
+	"marker", "marker-start", "marker-mid", "marker-end", "paint-order", "vector-effect",
+	"shape-rendering", "image-rendering", "text-rendering", "isolation", "mix-blend-mode", "pointer-events",
+	"enable-background", "font", "font-family", "font-size", "font-size-adjust", "font-stretch", "font-style",
+	"font-variant", "font-weight", "letter-spacing", "word-spacing", "kerning", "text-anchor", "text-decoration",
+	"dominant-baseline", "alignment-baseline", "baseline-shift", "writing-mode", "direction", "unicode-bidi",
+	"glyph-orientation-horizontal", "glyph-orientation-vertical",
+	"filterUnits", "primitiveUnits", "filterRes", "in", "in2", "result", "stdDeviation", "edgeMode", "mode",
+	"operator", "k1", "k2", "k3", "k4", "values", "tableValues", "slope", "intercept", "amplitude", "exponent",
+	"scale", "xChannelSelector", "yChannelSelector", "radius", "order", "kernelMatrix", "divisor", "bias",
+	"targetX", "targetY", "preserveAlpha", "kernelUnitLength", "surfaceScale", "diffuseConstant",
+	"specularConstant", "specularExponent", "limitingConeAngle", "azimuth", "elevation",
+	"pointsAtX", "pointsAtY", "pointsAtZ", "z", "baseFrequency", "numOctaves", "seed", "stitchTiles",
+)
+
+func setOf(names ...string) map[string]bool {
+	m := make(map[string]bool, len(names))
+	for _, n := range names {
+		m[n] = true
+	}
+	return m
+}
+
+// embeddedRaster is the one non-fragment href allowed, on <image>: a
+// raster image embedded in the file.
+var embeddedRaster = regexp.MustCompile(`^data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=\s]*$`)
+
+// checkSVG parses b as XML and refuses anything outside the allowlists:
+// an element or attribute not on them, an event handler (on*), a reference
+// that isn't to a fragment of the file itself (#id) in href or url(), a
+// javascript: URL (entities decoded), CSS that can load something
+// (@import, image-set, escapes), a DOCTYPE or entity, a processing
+// instruction other than the XML declaration, or anything that isn't
+// well-formed. Icons are also served with a sandboxing CSP (iconCSP).
 func checkSVG(b []byte) error {
 	t := bytes.TrimPrefix(b, []byte("\xef\xbb\xbf"))
 	t = bytes.TrimSpace(t)
@@ -653,16 +736,192 @@ func checkSVG(b []byte) error {
 	if !(strings.HasPrefix(lower, "<svg") || strings.HasPrefix(lower, "<?xml") || strings.HasPrefix(lower, "<!--")) || !strings.Contains(lower, "<svg") {
 		return refused("not a PNG, ICO, WebP or SVG image")
 	}
-	for _, bad := range svgRefused {
-		if strings.Contains(lower, bad) {
-			return refused("an SVG with %s is refused", strings.TrimPrefix(bad, "<"))
+	dec := xml.NewDecoder(bytes.NewReader(t))
+	dec.Strict = true // and no Entity map: only XML's five, so &nbsp; or a declared one fails
+	var (
+		stack    []string // open elements
+		inMeta   int      // depth inside <metadata>, 0 outside
+		inStyle  bool
+		sawRoot  bool
+		sawFirst bool // any token yet: the XML declaration must come first
+	)
+	for {
+		tok, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return refused("an SVG that isn't well-formed XML is refused")
+		}
+		first := !sawFirst
+		sawFirst = true
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			name := tok.Name.Local
+			if !sawRoot {
+				if name != "svg" || (tok.Name.Space != "" && tok.Name.Space != nsSVG) {
+					return refused("not a PNG, ICO, WebP or SVG image")
+				}
+				sawRoot = true
+			} else if len(stack) == 0 {
+				return refused("an SVG with more than one root element is refused")
+			}
+			if err := checkSVGElement(tok, inMeta > 0); err != nil {
+				return err
+			}
+			stack = append(stack, name)
+			if inMeta > 0 || (name == "metadata" && isSVGSpace(tok.Name.Space)) {
+				inMeta++
+			}
+			inStyle = name == "style" && isSVGSpace(tok.Name.Space)
+		case xml.EndElement:
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			if inMeta > 0 {
+				inMeta--
+			}
+			inStyle = false
+		case xml.CharData:
+			if inStyle {
+				if err := checkCSS(string(tok)); err != nil {
+					return err
+				}
+			} else if len(stack) == 0 && len(bytes.TrimSpace(tok)) > 0 {
+				return refused("an SVG with text outside its root element is refused")
+			}
+		case xml.ProcInst:
+			if tok.Target != "xml" || !first {
+				return refused("an SVG with a processing instruction (<?%s) is refused", tok.Target)
+			}
+		case xml.Directive:
+			return refused("an SVG with a DOCTYPE or entity declaration is refused")
+		case xml.Comment:
 		}
 	}
-	if svgEvent.MatchString(lower) {
-		return refused("an SVG with an event handler is refused")
-	}
-	if svgExternal.MatchString(lower) {
-		return refused("an SVG with an external reference is refused")
+	if !sawRoot {
+		return refused("not a PNG, ICO, WebP or SVG image")
 	}
 	return nil
 }
+
+func isSVGSpace(ns string) bool { return ns == "" || ns == nsSVG }
+
+// checkSVGElement checks one element and its attributes. Inside <metadata>,
+// elements of other vocabularies (RDF, Dublin Core) are inert and allowed,
+// but not XHTML's; so are Inkscape's and Sodipodi's anywhere. An inert
+// element's attributes needn't be on the allowlist, but their values are
+// checked all the same.
+func checkSVGElement(el xml.StartElement, inMeta bool) error {
+	name := el.Name.Local
+	inert := true
+	switch {
+	case isSVGSpace(el.Name.Space):
+		inert = false
+		if !svgElements[name] {
+			return refused("an SVG with <%s> is refused", clipName(name))
+		}
+	case el.Name.Space == nsInkscape || el.Name.Space == nsSodipodi || el.Name.Space == "inkscape" || el.Name.Space == "sodipodi":
+	case inMeta && el.Name.Space != nsXHTML:
+	default:
+		return refused("an SVG with <%s> from another vocabulary is refused", clipName(name))
+	}
+	for _, a := range el.Attr {
+		if err := checkSVGAttr(name, inert, a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkSVGAttr(element string, inert bool, a xml.Attr) error {
+	local := a.Name.Local
+	if strings.HasPrefix(strings.ToLower(local), "on") {
+		return refused("an SVG with an event handler is refused")
+	}
+	switch a.Name.Space {
+	case "xmlns": // a namespace declaration
+		return nil
+	case "":
+		switch {
+		case inert:
+		case local == "xmlns", svgAttrs[local], strings.HasPrefix(local, "aria-"), strings.HasPrefix(local, "data-"):
+		default:
+			return refused("an SVG with a %s attribute is refused", clipName(local))
+		}
+	case nsXLink, "xlink":
+		if local != "href" && local != "title" && local != "type" && local != "role" && local != "arcrole" && local != "show" && local != "actuate" {
+			return refused("an SVG with xlink:%s is refused", clipName(local))
+		}
+	case nsXML, "xml":
+		if local != "space" && local != "lang" {
+			return refused("an SVG with xml:%s is refused", clipName(local))
+		}
+	case nsInkscape, nsSodipodi, "inkscape", "sodipodi":
+	default:
+		if inert {
+			break // RDF's about and resource on metadata, say
+		}
+		return refused("an SVG with an attribute from another vocabulary (%s) is refused", clipName(local))
+	}
+	v := a.Value // encoding/xml has decoded entities and character references
+	if hasScriptURL(v) {
+		return refused("an SVG with a javascript: URL is refused")
+	}
+	if local == "href" {
+		ref := strings.Trim(v, " \t\n\r\f")
+		switch {
+		case strings.HasPrefix(ref, "#"):
+		case element == "image" && embeddedRaster.MatchString(ref):
+		default:
+			return refused("an SVG with an external reference is refused")
+		}
+	}
+	return checkCSS(v)
+}
+
+// hasScriptURL reports whether v holds a javascript: (or vbscript:) URL,
+// ignoring the whitespace and control characters a URL parser drops.
+func hasScriptURL(v string) bool {
+	var b strings.Builder
+	for _, r := range v {
+		if r > ' ' && r != 0x7f {
+			b.WriteRune(unicode.ToLower(r))
+		}
+	}
+	s := b.String()
+	return strings.Contains(s, "javascript:") || strings.Contains(s, "vbscript:")
+}
+
+// checkCSS checks CSS (a style attribute, a <style> element, or a
+// presentation attribute, which is parsed as CSS): every url() must name a
+// fragment of the file, and nothing else may load: no @import, no
+// image-set(), and no backslash escapes, which can spell either.
+func checkCSS(css string) error {
+	if hasScriptURL(css) {
+		return refused("an SVG with a javascript: URL is refused")
+	}
+	lower := strings.ToLower(css)
+	for _, bad := range []string{"@import", "image-set", "@font-face", "expression(", "-moz-binding", "behavior:"} {
+		if strings.Contains(lower, bad) {
+			return refused("an SVG with %s in its CSS is refused", bad)
+		}
+	}
+	if strings.ContainsRune(css, '\\') {
+		return refused("an SVG with a CSS escape is refused")
+	}
+	for rest := lower; ; {
+		i := strings.Index(rest, "url(")
+		if i < 0 {
+			return nil
+		}
+		rest = rest[i+len("url("):]
+		arg := strings.TrimLeft(rest, " \t\n\r\f\"'")
+		if !strings.HasPrefix(arg, "#") {
+			return refused("an SVG with an external reference is refused")
+		}
+	}
+}
+
+// clipName keeps a refusal's sentence short whatever a file names.
+func clipName(s string) string { return truncate(s, 40) }
