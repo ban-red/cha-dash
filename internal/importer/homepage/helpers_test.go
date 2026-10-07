@@ -90,7 +90,7 @@ func newHub(t *testing.T) *hub {
 	}
 	h := &hub{st: st, vault: v, svc: importer.New(st, v), logs: logs}
 	mux := http.NewServeMux()
-	Register(mux, func(h http.Handler) http.Handler { return h }, h.svc, log)
+	Register(mux, func(h http.Handler) http.Handler { return h }, h.svc, log, nil)
 	h.srv = httptest.NewServer(mux)
 	t.Cleanup(h.srv.Close)
 	return h

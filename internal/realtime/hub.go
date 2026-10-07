@@ -33,6 +33,18 @@ type Options struct {
 	ReadLimit      int64         // 64 KiB per client frame
 	Server         string        // reported in hello
 	Log            *slog.Logger
+	// Recheck asks whether the identity a connection opened with (on its
+	// context, from the upgrade request) still stands: the session exists
+	// and the user's role is unchanged. It runs every RecheckEvery and
+	// before each new subscription; false or an error closes the socket
+	// with 1008 (policy violation), and the client reconnects as whoever it
+	// is now. Nil never rechecks.
+	Recheck      func(ctx context.Context) (bool, error)
+	RecheckEvery time.Duration // 60 s
+	// MaxLifetime closes a connection this long after it opened, however
+	// it's doing (1000, "reconnect"); the client reconnects and is
+	// identified afresh. 12 h.
+	MaxLifetime time.Duration
 }
 
 func (o *Options) defaults() {
@@ -45,6 +57,8 @@ func (o *Options) defaults() {
 	set(&o.HelloTimeout, 10*time.Second)
 	set(&o.WriteTimeout, 10*time.Second)
 	set(&o.Coalesce, 250*time.Millisecond)
+	set(&o.RecheckEvery, time.Minute)
+	set(&o.MaxLifetime, 12*time.Hour)
 	if o.SendQueue <= 0 {
 		o.SendQueue = 64
 	}
@@ -64,7 +78,11 @@ func (o *Options) defaults() {
 
 // Hub accepts WebSocket connections and serves subscriptions from a Source.
 // Authentication happens before ServeHTTP (the server wraps it in the
-// session middleware); the hub checks Origin.
+// session middleware); the hub checks Origin. The identity read then rides
+// on the connection's context for as long as it's open, so the server
+// closes sockets whose identity stops standing (CloseWhere on sign-out and
+// account changes, Options.Recheck on a timer), and every socket ends after
+// Options.MaxLifetime.
 type Hub struct {
 	src   Source
 	opts  Options
@@ -120,6 +138,29 @@ func (h *Hub) Close() {
 	wg.Wait()
 }
 
+// CloseWhere closes, with 1008 (policy violation) and reason, every open
+// connection whose context match picks: the server closes a session's
+// sockets when it signs out, and a user's when their role changes or
+// they're disabled. It returns how many it closed. match gets the
+// connection's context, which carries the upgrade request's values (the
+// signed-in identity).
+func (h *Hub) CloseWhere(match func(ctx context.Context) bool, reason string) int {
+	h.mu.Lock()
+	var hit []*conn
+	for c := range h.conns {
+		if match(c.ctx) {
+			hit = append(hit, c)
+		}
+	}
+	h.mu.Unlock()
+	var wg sync.WaitGroup
+	for _, c := range hit {
+		wg.Go(func() { c.closeWith(websocket.StatusPolicyViolation, reason) })
+	}
+	wg.Wait()
+	return len(hit)
+}
+
 func (h *Hub) add(c *conn) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -162,6 +203,15 @@ func (c *conn) closeWith(code websocket.StatusCode, reason string) {
 func (c *conn) serve() {
 	log := c.h.opts.Log
 	c.wg.Go(c.writeLoop)
+	// A socket reads its identity once, at the upgrade. It's closed when
+	// that identity stops standing (recheckLoop, Hub.CloseWhere) and after
+	// MaxLifetime whatever happens, so the client reconnects and is
+	// identified afresh.
+	life := time.AfterFunc(c.h.opts.MaxLifetime, func() { c.closeWith(websocket.StatusNormalClosure, "reconnect") })
+	defer life.Stop()
+	if c.h.opts.Recheck != nil {
+		c.wg.Go(c.recheckLoop)
+	}
 	defer func() {
 		c.cancel()
 		c.wg.Wait()
@@ -194,6 +244,45 @@ func (c *conn) serve() {
 			c.trySend(errorMsg{Op: "error", Code: codeBadRequest, Msg: "already said hello"})
 		default:
 			c.trySend(errorMsg{Op: "error", Code: codeUnknownOp, Msg: fmt.Sprintf("unknown op %q", m.Op)})
+		}
+	}
+}
+
+// reasonRevoked is the close reason when the socket's identity no longer
+// stands.
+const reasonRevoked = "session ended or changed"
+
+// stillValid asks Options.Recheck about the connection's identity. An
+// error counts as no: the client reconnects and is checked afresh.
+func (c *conn) stillValid() bool {
+	if c.h.opts.Recheck == nil {
+		return true
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, 5*time.Second)
+	defer cancel()
+	ok, err := c.h.opts.Recheck(ctx)
+	if err != nil && c.ctx.Err() == nil {
+		c.h.opts.Log.Warn("realtime: rechecking a socket's session failed; closing it", "err", err)
+	}
+	return ok && err == nil
+}
+
+// recheckLoop closes the connection once its identity stops standing:
+// signed out, expired, disabled or given another role.
+func (c *conn) recheckLoop() {
+	t := time.NewTicker(c.h.opts.RecheckEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-t.C:
+			if !c.stillValid() {
+				if c.ctx.Err() == nil {
+					c.closeWith(websocket.StatusPolicyViolation, reasonRevoked)
+				}
+				return
+			}
 		}
 	}
 }
@@ -312,6 +401,12 @@ func (c *conn) send(ctx context.Context, v any) error {
 
 func (c *conn) subscribe(m clientMsg) {
 	fail := func(code, msg string) { c.trySend(errorMsg{Op: "error", ID: m.ID, Code: code, Msg: msg}) }
+	// A new feed is opened for the identity the socket has; make sure it
+	// still has it.
+	if !c.stillValid() {
+		c.closeWith(websocket.StatusPolicyViolation, reasonRevoked)
+		return
+	}
 	switch {
 	case m.ID <= 0:
 		fail(codeBadRequest, "id must be a positive integer")

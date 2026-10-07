@@ -61,6 +61,7 @@ func (e *Engine) storedTask(ctx context.Context, id string) (Task, string, error
 	}
 	var t Task
 	err := json.Unmarshal([]byte(doc), &t)
+	t.Log = nil // never stored (see save); older rows may still hold some
 	return t, owner, err
 }
 
@@ -278,8 +279,12 @@ func (e *Engine) updateTask(id string, persist bool, fn func(t *Task)) {
 	}
 }
 
-// save writes a task to the tasks table.
+// save writes a task to the tasks table, without its log: log lines are
+// whatever a source read back (a container's logs can hold secrets), so
+// they live only in the live task and the tasks topic, and are gone after
+// a restart.
 func (e *Engine) save(t Task) {
+	t.Log = nil
 	doc, _ := json.Marshal(t)
 	var finished any
 	if t.FinishedAt != nil {
@@ -398,6 +403,7 @@ func (e *Engine) recover(ctx context.Context) error {
 			return err
 		}
 		o.task.State, o.task.FinishedAt, o.task.Error, o.task.Audit = StateFailed, &now, fail, &ev.ID
+		o.task.Log = nil // never stored (see save); older rows may still hold some
 		doc, _ := json.Marshal(o.task)
 		if _, err := e.st.Writer().ExecContext(ctx, `UPDATE tasks SET state = ?, document = ?, finished_at = ? WHERE id = ?`,
 			o.task.State, string(doc), now.UnixMilli(), o.id); err != nil {
@@ -426,6 +432,7 @@ func (e *Engine) load(ctx context.Context) error {
 		}
 		var t Task
 		if json.Unmarshal([]byte(doc), &t) == nil {
+			t.Log = nil // rows stored before logs stopped being saved
 			e.live[id] = &liveTask{task: t, actorID: owner, created: time.UnixMilli(created)}
 		}
 	}

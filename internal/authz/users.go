@@ -63,11 +63,12 @@ func (u *Users) create(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
+	params := map[string]string{"username": clipString(req.Username, 100), "role": clipString(req.Role, 20)}
 	user, err := u.auth.CreateUser(r.Context(), req.Username, req.Password, req.Role)
-	if u.refused(w, err) {
+	if u.refused(w, r, err, "users.create", "", params) {
 		return
 	}
-	u.Audit.Change(r, "users.create", "user:"+user.ID, map[string]string{"username": req.Username, "role": req.Role}, T1, nil)
+	u.Audit.Change(r, "users.create", "user:"+user.ID, params, T1, nil)
 	httpx.WriteJSON(w, http.StatusCreated, user)
 }
 
@@ -80,20 +81,23 @@ func (u *Users) update(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	target, err := u.auth.GetUser(r.Context(), r.PathValue("id"))
-	if u.refused(w, err) {
+	target := "user:" + clipString(r.PathValue("id"), 100)
+	cur, err := u.auth.GetUser(r.Context(), r.PathValue("id"))
+	if u.refused(w, r, err, "users.update", target, req) {
 		return
 	}
 	// An admin manages every account but the owner's.
-	if target.Role == auth.RoleOwner && actor.Role != auth.RoleOwner {
-		httpx.Error(w, http.StatusForbidden, "forbidden", "Only the owner can change the owner's account.")
+	if cur.Role == auth.RoleOwner && actor.Role != auth.RoleOwner {
+		const msg = "Only the owner can change the owner's account."
+		u.Audit.Refuse(r, "users.update", target, req, T1, "forbidden", msg)
+		httpx.Error(w, http.StatusForbidden, "forbidden", msg)
 		return
 	}
-	user, err := u.auth.UpdateUser(r.Context(), target.ID, req.Role, req.Disabled)
-	if u.refused(w, err) {
+	user, err := u.auth.UpdateUser(r.Context(), cur.ID, req.Role, req.Disabled)
+	if u.refused(w, r, err, "users.update", target, req) {
 		return
 	}
-	u.Audit.Change(r, "users.update", "user:"+target.ID, req, T1, nil)
+	u.Audit.Change(r, "users.update", "user:"+cur.ID, req, T1, nil)
 	httpx.WriteJSON(w, http.StatusOK, user)
 }
 
@@ -108,32 +112,42 @@ func (u *Users) transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, err := u.auth.TransferOwnership(r.Context(), actor.ID, r.PathValue("id"))
-	if u.refused(w, err) {
+	if u.refused(w, r, err, "users.transfer-ownership", target, nil) {
 		return
 	}
 	u.Audit.Change(r, "users.transfer-ownership", target, nil, T3, nil)
 	httpx.WriteJSON(w, http.StatusOK, user)
 }
 
-// refused answers err, if there is one.
-func (u *Users) refused(w http.ResponseWriter, err error) bool {
+// refused answers err, if there is one, and audits the refusal as action
+// on target (params as asked, never a password). Internal errors aren't
+// refusals and aren't audited.
+func (u *Users) refused(w http.ResponseWriter, r *http.Request, err error, action, target string, params any) bool {
 	var verr *auth.ValidationError
+	status, code, msg := 0, "", ""
 	switch {
 	case err == nil:
 		return false
 	case errors.As(err, &verr):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
+		status, code, msg = http.StatusUnprocessableEntity, "invalid", verr.Msg
 	case errors.Is(err, auth.ErrUserNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", "There's no such user.")
+		status, code, msg = http.StatusNotFound, "not_found", "There's no such user."
 	case errors.Is(err, auth.ErrUserExists):
-		httpx.Error(w, http.StatusConflict, "conflict", "That username is taken.")
+		status, code, msg = http.StatusConflict, "conflict", "That username is taken."
 	case errors.Is(err, auth.ErrOwnerProtected):
-		httpx.Error(w, http.StatusConflict, "owner_protected", "The owner can't be demoted or disabled. Hand over ownership first.")
+		status, code, msg = http.StatusConflict, "owner_protected", "The owner can't be demoted or disabled. Hand over ownership first."
 	case errors.Is(err, auth.ErrNotOwner):
-		httpx.Error(w, http.StatusConflict, "conflict", "You're no longer the owner.")
+		status, code, msg = http.StatusConflict, "conflict", "You're no longer the owner."
 	default:
 		u.internal(w, "users: request failed", err)
+		return true
 	}
+	tier := T1
+	if action == "users.transfer-ownership" {
+		tier = T3
+	}
+	u.Audit.Refuse(r, action, target, params, tier, code, msg)
+	httpx.Error(w, status, code, msg)
 	return true
 }
 

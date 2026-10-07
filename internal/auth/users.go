@@ -148,7 +148,9 @@ func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disab
 		}
 	}
 	var out UserInfo
+	changed := false
 	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		changed = false // a retried transaction starts over
 		cur, err := s.getUser(ctx, tx, id)
 		if err != nil {
 			return err
@@ -158,11 +160,13 @@ func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disab
 		}
 		now := s.now().UnixMilli()
 		if role != nil && *role != cur.Role {
+			changed = true
 			if _, err := tx.ExecContext(ctx, `UPDATE users SET role = ?, updated_at = ? WHERE id = ?`, *role, now, id); err != nil {
 				return err
 			}
 		}
 		if disabled != nil && *disabled != cur.Disabled {
+			changed = changed || *disabled
 			if *disabled {
 				if _, err := tx.ExecContext(ctx, `UPDATE users SET disabled_at = ?, updated_at = ? WHERE id = ?`, now, now, id); err != nil {
 					return err
@@ -181,6 +185,10 @@ func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disab
 		return UserInfo{}, err
 	}
 	s.log.Info("user updated", "user", out.Username, "role", out.Role, "disabled", out.Disabled)
+	if changed {
+		// What the user's open sockets were allowed no longer holds.
+		s.emit(Event{Kind: EventUserChanged, UserID: id})
+	}
 	return out, nil
 }
 
@@ -221,5 +229,7 @@ func (s *Service) TransferOwnership(ctx context.Context, fromID, toID string) (U
 		return UserInfo{}, err
 	}
 	s.log.Warn("ownership transferred", "from", fromID, "to", out.Username)
+	s.emit(Event{Kind: EventUserChanged, UserID: fromID})
+	s.emit(Event{Kind: EventUserChanged, UserID: toID})
 	return out, nil
 }

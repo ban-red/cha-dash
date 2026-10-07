@@ -31,12 +31,14 @@ func TestAuditVerifyCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	l := audit.New(st)
+	var last audit.Event
 	for _, a := range []string{"a.b", "a.c", "a.d"} {
-		if _, err := l.Append(t.Context(), audit.Entry{Actor: audit.Actor{Kind: "user", Name: "sam"}, Action: a, Result: audit.OK}); err != nil {
+		if last, err = l.Append(t.Context(), audit.Entry{Actor: audit.Actor{Kind: "user", Name: "sam"}, Action: a, Result: audit.OK}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if code, stdout, stderr := runCmd(t, env, "audit", "verify"); code != 0 || stdout != "The audit log holds. Events checked: 3.\n" {
+	// The head is printed, so the owner can record it elsewhere.
+	if code, stdout, stderr := runCmd(t, env, "audit", "verify"); code != 0 || !strings.HasPrefix(stdout, "The audit log holds. Events checked: 3.\nHead: seq=3 hash="+last.Hash+"\n") {
 		t.Fatalf("intact: %d %q %s", code, stdout, stderr)
 	}
 

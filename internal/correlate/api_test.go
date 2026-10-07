@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"dash.cha.sh/internal/audit"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/store"
@@ -152,6 +154,16 @@ func (c client) do(method, path string, body any) (int, []byte) {
 func TestAPI(t *testing.T) {
 	set, c, _ := live(t, proxyHop(t))
 	syncOK(t, c)
+	auditSt, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "audit.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { auditSt.Close() })
+	if _, err := auditSt.Migrate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	auditLog := audit.New(auditSt)
+	c.Audit = &authz.Recorder{Log: auditLog}
 	mux := http.NewServeMux()
 	wrapped := 0
 	c.Register(mux, func(h http.Handler) http.Handler { wrapped++; return h }, nil)
@@ -211,5 +223,23 @@ func TestAPI(t *testing.T) {
 	}
 	if code, body := api.do("GET", "/api/correlate/suggestions", nil); code != 200 || string(body) != "[]\n" {
 		t.Fatalf("empty suggestions: %d %q", code, body)
+	}
+
+	// Each decision that went through is audited, with the pair and the
+	// verdict; refusals (404, 422) record nothing.
+	page, err := auditLog.Query(t.Context(), audit.Filter{Action: "correlate."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, ev := range page.Events {
+		got = append(got, ev.Action+" "+ev.Target)
+	}
+	want := []string{"correlate.decision.delete decision:" + split.ID, "correlate.decision.create decision:" + split.ID, "correlate.suggestion.confirm suggestion:" + ss[0].ID}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("audited %v, want %v", got, want)
+	}
+	if p := string(page.Events[1].Params); !strings.Contains(p, `"verdict":"reject"`) || !strings.Contains(p, `"type":"same_as"`) {
+		t.Fatalf("decision params = %s", p)
 	}
 }

@@ -2,6 +2,7 @@ package action
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"sync"
@@ -46,9 +47,13 @@ type Options struct {
 	// Sessions turns the signed-in session into an Actor, for the HTTP
 	// routes and the tasks topic.
 	Sessions Sessions
-	// ConsumeStepUp ends a session's step-up grant once a T4 action has
-	// used it, so the next T4 asks again. Nil leaves grants to lapse.
-	ConsumeStepUp func(ctx context.Context, session string) error
+	// ConsumeStepUp spends a session's step-up grant for a T4 action, so
+	// the next T4 asks again: inside tx, the transaction that marks the
+	// plan used and creates the task, and only if the grant is still the
+	// one that lasts until until (auth.Service.SpendStepUp). False refuses
+	// the approval (step_up_required): another approval spent it first.
+	// Nil leaves grants to lapse.
+	ConsumeStepUp func(ctx context.Context, tx *sql.Tx, session string, until time.Time) (bool, error)
 	// OnTaskDone is told about every task that ends, after its audit
 	// record, with the tier it ran at and who ran it (internal/notify tells
 	// the admins about every T4). It runs on the task's goroutine, so it
@@ -73,7 +78,7 @@ type Engine struct {
 	policy   Policy
 	graph    *graph.Graph
 	sessions Sessions
-	consume  func(ctx context.Context, session string) error
+	consume  func(ctx context.Context, tx *sql.Tx, session string, until time.Time) (bool, error)
 	onDone   func(TaskDone)
 	inbox    *livedoc.Doc
 	// approvalTTL is how long a plan waits for a person.

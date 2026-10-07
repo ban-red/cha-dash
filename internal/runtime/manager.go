@@ -22,6 +22,7 @@ import (
 	"unicode/utf8"
 
 	"dash.cha.sh/internal/action"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/store"
@@ -64,6 +65,11 @@ type Manager struct {
 	o   Options
 	reg *integration.Registry
 	log *slog.Logger
+
+	// Audit records creating, changing and deleting instances (names, the
+	// fields that changed and the URL's host; never a secret). Nil records
+	// nothing. Set it before serving.
+	Audit *authz.Recorder
 
 	mu     sync.Mutex
 	insts  map[string]*managed

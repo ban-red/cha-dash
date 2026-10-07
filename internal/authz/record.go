@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -9,9 +10,12 @@ import (
 	"dash.cha.sh/internal/audit"
 )
 
-// Recorder appends changes made outside the action engine (users and
-// settings) to the audit log, so the log holds every change, not just
-// actions. A nil Recorder records nothing.
+// Recorder appends changes made outside the action engine (users, settings,
+// integrations, boards, imports) to the audit log, so the log holds every
+// change, not just actions. A nil Recorder records nothing.
+//
+// Params are names and IDs only: never a secret, a password or a whole URL
+// (callers keep a URL's host at most).
 type Recorder struct {
 	Log    *audit.Log
 	Logger *slog.Logger
@@ -24,25 +28,52 @@ func (c *Recorder) Change(r *http.Request, action, target string, params any, ti
 	if c == nil || c.Log == nil {
 		return
 	}
-	a, _ := ActorFrom(r)
-	e := audit.Entry{
-		Actor:  audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP},
-		Action: action, Target: target, Tier: string(tier), Result: audit.OK,
+	var e *audit.Error
+	if refusal != nil {
+		code := "forbidden"
+		if errors.Is(refusal, ErrStepUpRequired) {
+			code = "step_up_required"
+		}
+		e = &audit.Error{Code: code, Message: refusal.Error()}
 	}
+	c.record(r, action, target, params, tier, e)
+}
+
+// Refuse records an attempt refused for a reason other than an authz
+// decision (validation, the owner's protected account, someone else's
+// token), with the code and sentence the caller answered.
+func (c *Recorder) Refuse(r *http.Request, action, target string, params any, tier Tier, code, message string) {
+	if c == nil || c.Log == nil {
+		return
+	}
+	c.record(r, action, target, params, tier, &audit.Error{Code: code, Message: message})
+}
+
+func (c *Recorder) record(r *http.Request, action, target string, params any, tier Tier, refusal *audit.Error) {
+	a, _ := ActorFrom(r)
+	e := audit.Entry{Actor: AuditActor(a), Action: action, Target: target, Tier: string(tier), Result: audit.OK}
 	if params != nil {
 		if raw, err := json.Marshal(params); err == nil {
 			e.Params = raw
 		}
 	}
 	if refusal != nil {
-		code := "forbidden"
-		if errors.Is(refusal, ErrStepUpRequired) {
-			code = "step_up_required"
-		}
-		e.Result, e.Error = audit.Refused, &audit.Error{Code: code, Message: refusal.Error()}
+		e.Result, e.Error = audit.Refused, refusal
 	}
-	if _, err := c.Log.Append(r.Context(), e); err != nil && c.Logger != nil {
+	// WithoutCancel: a client that hangs up mid-request mustn't keep a
+	// change that already happened out of the log.
+	if _, err := c.Log.Append(context.WithoutCancel(r.Context()), e); err != nil && c.Logger != nil {
 		// The change has happened; failing it now would only hide that.
 		c.Logger.Error("audit: recording a change failed", "err", err, "action", action)
 	}
+}
+
+// AuditActor is a's audit record. A token's (or an agent's) names the user
+// it acts for in on_behalf_of.
+func AuditActor(a Actor) audit.Actor {
+	out := audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
+	if a.Kind == KindToken || a.Kind == KindAgent {
+		out.OnBehalfOf = a.User
+	}
+	return out
 }

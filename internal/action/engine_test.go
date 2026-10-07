@@ -2,6 +2,7 @@ package action
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,8 +60,10 @@ type env struct {
 	policy Policy
 	e      *Engine
 	inbox  *livedoc.Doc // nil: no Inbox
-	// consumed lists the sessions whose step-up grant a T4 spent.
+	// consumed lists the sessions whose step-up grant a T4 spent; spent
+	// holds each one's grant, as auth's conditional update would.
 	consumed []string
+	spent    map[string]time.Time
 }
 
 var (
@@ -120,7 +123,17 @@ func (e *env) start() {
 	e.t.Helper()
 	eng, err := New(e.t.Context(), Options{Store: e.st, Audit: e.audit, Registry: e.reg, Policy: e.policy, Graph: e.g,
 		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now, Inbox: e.inbox,
-		ConsumeStepUp: func(_ context.Context, session string) error { e.consumed = append(e.consumed, session); return nil }})
+		ConsumeStepUp: func(_ context.Context, _ *sql.Tx, session string, until time.Time) (bool, error) {
+			if e.spent == nil {
+				e.spent = map[string]time.Time{}
+			}
+			if prev, ok := e.spent[session]; ok && prev.Equal(until) {
+				return false, nil // spent already
+			}
+			e.spent[session] = until
+			e.consumed = append(e.consumed, session)
+			return true, nil
+		}})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -275,6 +288,38 @@ func TestRegistry(t *testing.T) {
 	}
 }
 
+// rawSchema is a params schema given as JSON.
+type rawSchema string
+
+func (s rawSchema) MarshalJSON() ([]byte, error)       { return []byte(s), nil }
+func (rawSchema) Secrets() []string                    { return nil }
+func (rawSchema) Validate(map[string]any) []FieldError { return nil }
+
+// Secret params are redacted at the top level only, so a Def with a secret
+// any deeper is refused when it registers.
+func TestRegistryRefusesNestedSecrets(t *testing.T) {
+	exec := func(context.Context, Request, *TaskRun) error { return nil }
+	r := NewRegistry()
+	ok := rawSchema(`{"type":"object","properties":{"password":{"type":"string","writeOnly":true},"name":{"type":"string"}}}`)
+	if err := r.Register("x", Def{ID: "a.ok", Execute: exec, Params: ok}); err != nil {
+		t.Fatalf("a top-level secret was refused: %v", err)
+	}
+	for name, s := range map[string]rawSchema{
+		"object": `{"type":"object","properties":{"auth":{"type":"object","properties":{"token":{"type":"string","writeOnly":true}}}}}`,
+		"array":  `{"type":"object","properties":{"keys":{"type":"array","items":{"type":"string","writeOnly":true}}}}`,
+		"oneOf":  `{"type":"object","properties":{"x":{"oneOf":[{"type":"string","writeOnly":true}]}}}`,
+		"root":   `{"type":"object","additionalProperties":{"type":"string","writeOnly":true}}`,
+	} {
+		err := r.Register("y", Def{ID: "a.nested", Execute: exec, Params: s})
+		if err == nil || !strings.Contains(err.Error(), "below the top level") {
+			t.Errorf("%s: Register = %v", name, err)
+		}
+	}
+	if _, ok := r.Get("a.nested"); ok {
+		t.Fatal("a refused Def was registered")
+	}
+}
+
 func TestOwnerOnly(t *testing.T) {
 	now := time.Date(2026, 10, 4, 14, 0, 0, 0, time.UTC)
 	granted := owner
@@ -366,6 +411,15 @@ func TestPlanApproveRun(t *testing.T) {
 	}
 	if strings.Join(calls, ",") != "execute:proxmox:i_x/qemu/201,verify" {
 		t.Fatalf("calls = %v", calls)
+	}
+	// Log lines (what a source read back: container logs can hold
+	// secrets) live in the live task only, never in the stored document.
+	var stored string
+	if err := e.st.Reader().QueryRow(`SELECT document FROM tasks WHERE id = ?`, task.ID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stored, "rebooting") || strings.Contains(stored, `"log"`) || !strings.Contains(stored, `"state":"succeeded"`) {
+		t.Fatalf("stored task document = %s", stored)
 	}
 	ev := e.lastEvent()
 	if ev.ID != *done.Audit || ev.Result != audit.OK || ev.Task != task.ID || ev.Action != "proxmox.guest.reboot" || ev.Tier != "T2" ||
@@ -574,6 +628,25 @@ func TestTypeToConfirmAndStepUp(t *testing.T) {
 	// The T4 spent the grant; the T3 before it didn't.
 	if !slices.Equal(e.consumed, []string{owner.Session}) {
 		t.Fatalf("consumed step-up grants = %v", e.consumed)
+	}
+
+	// Two T4 plans approved with one grant: the first spends it, and the
+	// second is refused even though the actor it carries still has it
+	// (the race the conditional update closes).
+	p1 := e.mustPlan(owner, "proxmox.host.reboot", "proxmox:i_x/node/io")
+	p2 := e.mustPlan(owner, "proxmox.host.reboot", "proxmox:i_x/node/io")
+	e.clock.Advance(time.Second)
+	again := owner
+	again.StepUpUntil = e.clock.Now().Add(StepUpTTL)
+	task, err = e.approve(again, p1, "io", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.wait(task.ID)
+	_, err = e.approve(again, p2, "io", "")
+	refusal(t, err, "step_up_required")
+	if got := e.lastEvent(); got.Result != audit.Refused || got.Error == nil || got.Error.Code != "step_up_required" {
+		t.Fatalf("the refused second T4 was audited as %+v", got)
 	}
 
 	// With T4 off, it's forbidden outright.

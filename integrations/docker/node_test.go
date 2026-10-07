@@ -470,6 +470,14 @@ func TestDockerActionsThroughTheNode(t *testing.T) {
 	if task := e.run(p, ""); task.State != action.StateSucceeded || !slices.Contains(task.Log, "hello from the container") {
 		t.Fatalf("logs: %+v", task)
 	}
+	// Logs read data back (container logs can hold secrets), so the policy
+	// keeps them from viewers and household; nothing else is marked.
+	for _, id := range e.eng.Registry().IDs() {
+		d, _ := e.eng.Registry().Get(id)
+		if d.ReadsData != (id == "docker.container.logs") || d.Household {
+			t.Errorf("%s: ReadsData %v, Household %v", id, d.ReadsData, d.Household)
+		}
+	}
 
 	// The node's policy refusing remove makes it unavailable, with its sentence.
 	e.node.mu.Lock()

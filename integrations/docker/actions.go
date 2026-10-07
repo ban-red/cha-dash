@@ -30,6 +30,10 @@ import (
 //	docker.container.remove     T3    —      container.remove     docker.remove
 //	docker.container.logs       T0    —      container.logs       docker.logs
 //
+// Logs is T0 but marked ReadsData: what it reads back can hold secrets, so
+// the policy wants Operator or above (never viewer or household), and its
+// lines stay in the live task, never in the stored task document.
+//
 // Blast radius is the engine's walk of the Home Graph: compose depends_on
 // (published as depends_on relations), Traefik routes (routes_to) and what
 // runs on or is part of the container. Remove's plan lists the volumes it
@@ -70,6 +74,10 @@ func (in *instance) Actions() []action.Def {
 			// to T4 then (self-aware T4). Node verbs don't stop cleanly
 			// mid-way, so none is Cancellable.
 			Disrupts: s.verb == "stop" || s.verb == "restart" || s.verb == "recreate" || s.verb == "remove",
+			// Logs read data back, and container logs often hold secrets
+			// (tokens printed at start-up, connection strings): Operator
+			// and up only, though the action is T0.
+			ReadsData: s.verb == "logs",
 		}
 		switch s.verb {
 		case "start":

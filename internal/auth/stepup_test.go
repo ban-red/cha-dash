@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -164,6 +165,46 @@ func TestClearStepUp(t *testing.T) {
 	}
 	if got, _ := h.sessionInfo(c); got != nil {
 		t.Fatalf("after ClearStepUp = %v", got)
+	}
+}
+
+// SpendStepUp ends a grant only while it's still the one named: a second
+// spend of the same grant (a racing T4 approval) changes nothing.
+func TestSpendStepUp(t *testing.T) {
+	h := newHarness(t)
+	c := h.owner()
+	if resp, body := h.do(c, "POST", "/api/auth/step-up", map[string]string{"password": "correct horse battery"}); resp.StatusCode != http.StatusOK {
+		t.Fatalf("step-up = %d %v", resp.StatusCode, body)
+	}
+	var id string
+	var until int64
+	if err := h.st.Reader().QueryRow(`SELECT id, step_up_until FROM sessions`).Scan(&id, &until); err != nil {
+		t.Fatal(err)
+	}
+	spend := func(at time.Time) bool {
+		t.Helper()
+		var ok bool
+		err := h.st.WriteTx(t.Context(), func(tx *sql.Tx) error {
+			var err error
+			ok, err = h.svc.SpendStepUp(t.Context(), tx, id, at)
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if spend(time.UnixMilli(until + 1)) {
+		t.Fatal("a different grant was spent")
+	}
+	if !spend(time.UnixMilli(until)) {
+		t.Fatal("the grant wasn't spent")
+	}
+	if spend(time.UnixMilli(until)) {
+		t.Fatal("the same grant was spent twice")
+	}
+	if got, _ := h.sessionInfo(c); got != nil {
+		t.Fatalf("after SpendStepUp = %v", got)
 	}
 }
 

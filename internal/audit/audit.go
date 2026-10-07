@@ -18,8 +18,11 @@
 // and no "hash". Within it:
 //
 //   - at is UTC RFC 3339 with milliseconds: 2026-10-04T14:07:11.250Z.
-//   - actor is {"kind","id","name","via","session","ip"} in that order; empty
-//     members are left out, except kind and name.
+//   - actor is {"kind","id","name","via","session","ip","on_behalf_of"} in
+//     that order; empty members are left out, except kind and name.
+//     on_behalf_of (the user an API token acts for) was added in v0.2 after
+//     the first events were written; because it's left out when empty, an
+//     event without it has exactly the bytes, and the hash, it always had.
 //   - params is an object whose keys are sorted at every depth, numbers
 //     written exactly as received; secret-typed params are "[redacted]".
 //   - target, tier and task are strings, "" when there's none; error is
@@ -35,6 +38,17 @@
 //
 // Nothing here updates or deletes an event: TestNoUpdateOrDelete greps the
 // code, and the table's triggers refuse it.
+//
+// # What the chain can't show
+//
+// The chain has no external anchor and no key. Anyone who can write the
+// SQLite file can drop the triggers, cut events off the end, or rewrite
+// events and recompute every hash after them, and Verify will still say the
+// chain holds. It detects accidents and edits by someone who doesn't bother
+// to recompute, not a determined attacker with the file. To notice those,
+// record the head (Head: seq and hash, which Verify reports and the export
+// sends as X-Chadash-Audit-Head) somewhere the hub can't write, and check a
+// later chain still contains it. A keyed (HMAC) chain is future work.
 package audit
 
 import (
@@ -74,6 +88,9 @@ type Actor struct {
 	Via     string `json:"via,omitempty"` // web, api, mcp, cli
 	Session string `json:"session,omitempty"`
 	IP      string `json:"ip,omitempty"`
+	// OnBehalfOf is the user an API token (or an agent) acts for. Left out
+	// when empty, so events recorded before it existed keep their bytes.
+	OnBehalfOf string `json:"on_behalf_of,omitempty"`
 }
 
 // Error is why an attempt was refused or failed.

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 )
 
@@ -130,6 +131,9 @@ func (h handlers) putLayout(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		h.internal(w, "saving a layout failed", err)
 	default:
+		// The revision is what history holds; the layout itself is there.
+		h.s.Audit.Change(r, "boards.layout.save", "board:"+r.PathValue("id"),
+			map[string]any{"revision": rev, "from_revision": *req.Revision, "tiles": tiles != nil}, authz.T1, nil)
 		httpx.WriteJSON(w, http.StatusOK, map[string]int64{"revision": rev})
 	}
 }
@@ -152,15 +156,16 @@ func (h handlers) getDiscovery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handlers) dismiss(w http.ResponseWriter, r *http.Request) {
-	h.dismissals(w, r, h.s.Dismiss, "saving a dismissal failed")
+	h.dismissals(w, r, h.s.Dismiss, "saving a dismissal failed", "boards.discovery.dismiss")
 }
 
 func (h handlers) restore(w http.ResponseWriter, r *http.Request) {
-	h.dismissals(w, r, h.s.Restore, "restoring a dismissal failed")
+	h.dismissals(w, r, h.s.Restore, "restoring a dismissal failed", "boards.discovery.restore")
 }
 
-// dismissals runs Dismiss or Restore on the body's resources.
-func (h handlers) dismissals(w http.ResponseWriter, r *http.Request, do func(context.Context, string, []string) ([]string, error), what string) {
+// dismissals runs Dismiss or Restore on the body's resources, audited as
+// action.
+func (h handlers) dismissals(w http.ResponseWriter, r *http.Request, do func(context.Context, string, []string) ([]string, error), what, action string) {
 	var req struct {
 		Resources []string `json:"resources"`
 	}
@@ -176,6 +181,7 @@ func (h handlers) dismissals(w http.ResponseWriter, r *http.Request, do func(con
 	case err != nil:
 		h.internal(w, what, err)
 	default:
+		h.s.Audit.Change(r, action, "board:"+r.PathValue("id"), map[string]any{"resources": req.Resources}, authz.T1, nil)
 		httpx.WriteJSON(w, http.StatusOK, dismissedBody{Dismissed: refs})
 	}
 }

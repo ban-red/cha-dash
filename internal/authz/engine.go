@@ -34,11 +34,11 @@ func (e enginePolicy) Authorize(ctx context.Context, a action.Actor, scope, targ
 		// Deciding a plan that waits for a person, at its tier (T0 to deny).
 		return engineErr(DecideApproval(actor, Tier(tier.String()), e.p.now()))
 	}
-	household := false
+	req := Request{Scope: scope, Target: target, Tier: Tier(tier.String())}
 	if d, ok := action.DefFromContext(ctx); ok && d != nil {
-		household = d.Household
+		req.Household, req.ReadsData = d.Household, d.ReadsData
 	}
-	return engineErr(e.p.Decide(ctx, actor, Request{Scope: scope, Target: target, Tier: Tier(tier.String()), Household: household}))
+	return engineErr(e.p.Decide(ctx, actor, req))
 }
 
 // NeedsApproval implements action.ApprovalPolicy (NeedsApproval).

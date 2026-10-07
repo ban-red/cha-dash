@@ -29,6 +29,7 @@ import (
 	"regexp"
 	"time"
 
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/runtime"
@@ -78,6 +79,9 @@ type Options struct {
 type Service struct {
 	o      Options
 	client *http.Client
+	// Audit records the wizard's state changes and every discovery (what
+	// it was asked to probe). Nil records nothing. Set it before serving.
+	Audit *authz.Recorder
 }
 
 // New returns a Service.
@@ -207,6 +211,7 @@ func (s *Service) handlePut(w http.ResponseWriter, r *http.Request) {
 		s.o.Log.Error("onboarding: saving the state failed", "err", err)
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
 	default:
+		s.Audit.Change(r, "settings.onboarding.update", "settings:onboarding", u, authz.T1, nil)
 		httpx.WriteJSON(w, http.StatusOK, st)
 	}
 }
@@ -226,5 +231,7 @@ func (s *Service) handleDiscover(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}
+	// The hub probed the network on someone's behalf: what it was asked to.
+	s.Audit.Change(r, "onboarding.discover", "settings:onboarding", req, authz.T0, nil)
 	httpx.WriteJSON(w, http.StatusOK, res)
 }

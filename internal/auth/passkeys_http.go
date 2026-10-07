@@ -117,6 +117,7 @@ func (s *Service) handleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("passkey registered", "user", id.User.Username, "passkey", p.ID, "name", p.Name, "rp_id", p.RPID)
+	s.emit(Event{Kind: EventPasskeyRegistered, UserID: id.User.ID, SessionID: id.Session.ID, Passkey: p.ID, Name: p.Name, Request: r})
 	httpx.WriteJSON(w, http.StatusCreated, map[string]string{"id": p.ID, "name": p.Name})
 }
 
@@ -265,6 +266,7 @@ func (s *Service) handleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		s.internalError(w, "could not rename passkey", err)
 	default:
+		s.emit(Event{Kind: EventPasskeyRenamed, UserID: id.User.ID, SessionID: id.Session.ID, Passkey: p.ID, Name: p.Name, Request: r})
 		httpx.WriteJSON(w, http.StatusOK, p)
 	}
 }
@@ -282,6 +284,7 @@ func (s *Service) handleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, "could not delete passkey", err)
 	default:
 		s.log.Info("passkey deleted", "user", id.User.Username, "passkey", pk)
+		s.emit(Event{Kind: EventPasskeyDeleted, UserID: id.User.ID, SessionID: id.Session.ID, Passkey: pk, Request: r})
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

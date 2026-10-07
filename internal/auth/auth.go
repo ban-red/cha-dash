@@ -139,6 +139,10 @@ type Service struct {
 	// stepUpMode is the owner's step-up rule (SetStepUpMode).
 	stepUpMode stepUpModeFunc
 
+	// events are told about sign-outs, account changes, step-ups and
+	// passkey changes (OnEvent).
+	events listeners
+
 	mu         sync.Mutex
 	setupToken string // empty once an owner exists
 }
@@ -380,9 +384,14 @@ func (s *Service) touchSession(ctx context.Context, sess *Session) (renewed bool
 	return false
 }
 
-func (s *Service) deleteSession(ctx context.Context, token string) error {
-	_, err := s.st.Writer().ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, tokenHash(token))
-	return err
+// deleteSession deletes the session behind token and returns its ID and
+// user ("" when there was none).
+func (s *Service) deleteSession(ctx context.Context, token string) (id, userID string, err error) {
+	err = s.st.Writer().QueryRowContext(ctx, `DELETE FROM sessions WHERE token_hash = ? RETURNING id, user_id`, tokenHash(token)).Scan(&id, &userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", nil
+	}
+	return id, userID, err
 }
 
 func tokenHash(token string) []byte {

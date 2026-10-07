@@ -77,6 +77,11 @@ Flags:
 	}
 	if rep.OK {
 		fmt.Fprintf(stdout, "The audit log holds. Events checked: %d.\n", rep.Checked)
+		if rep.Head != nil {
+			// The chain can't vouch for its own end: anyone with the file can
+			// cut or rewrite it. Recorded elsewhere, the head can.
+			fmt.Fprintf(stdout, "Head: %s\nRecord the head somewhere the hub can't write; a later chain must still contain it.\n", rep.Head)
+		}
 		return 0
 	}
 	b := rep.FirstBreak

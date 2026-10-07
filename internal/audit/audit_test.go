@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -314,10 +315,21 @@ func TestHTTP(t *testing.T) {
 			t.Errorf("%s: %d", bad, code)
 		}
 	}
-	if code, body := get("/api/audit/export"); code != 200 || strings.Count(body, "\n") != 2 {
-		t.Fatalf("export: %d %q", code, body)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/audit/export", nil))
+	if rec.Code != 200 || strings.Count(rec.Body.String(), "\n") != 2 {
+		t.Fatalf("export: %d %q", rec.Code, rec.Body.String())
 	}
-	if code, body := get("/api/audit/verify"); code != 200 || body != "{\"ok\":true,\"checked\":2}\n" {
+	var head Head
+	if err := json.Unmarshal([]byte(lastLine(rec.Body.String())), &head); err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.Header().Get(HeadHeader); got != "seq=2 hash="+head.Hash || head.Seq != 2 {
+		t.Fatalf("export head header = %q, last line %+v", got, head)
+	}
+	code, body := get("/api/audit/verify")
+	var rep Report
+	if err := json.Unmarshal([]byte(body), &rep); err != nil || code != 200 || !rep.OK || rep.Checked != 2 || rep.Head == nil || *rep.Head != head {
 		t.Fatalf("verify: %d %q", code, body)
 	}
 	allowed = false
@@ -385,5 +397,71 @@ func moduleRoot(t *testing.T) string {
 			t.Fatal("no go.mod above the test")
 		}
 		dir = parent
+	}
+}
+
+func lastLine(s string) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	return lines[len(lines)-1]
+}
+
+// legacyEvent is an event exactly as the hub wrote it before actor gained
+// on_behalf_of: a token's action, canonical bytes and hash pinned.
+const (
+	legacyEvent = `{"id":"a_legacy","seq":1,"at":"2026-10-04T14:00:01.000Z","actor":{"kind":"token","id":"tok_old","name":"backup script (sam)","via":"api","ip":"192.0.2.10"},"action":"docker.container.restart","target":"docker:i_y/container/sonarr","params":{},"tier":"T1","result":"ok","error":null,"duration_ms":12,"task":"t_1","prev_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000"}`
+	legacyHash  = "sha256:d5487208fa224eddb36f33e47e6fa9b028579dded781f007f207e054e3ca5581"
+)
+
+// Adding on_behalf_of to the canonical form mustn't change an older event's
+// bytes or hash: it's left out when empty.
+func TestLegacyEventKeepsItsHash(t *testing.T) {
+	if HashOf([]byte(legacyEvent)) != legacyHash {
+		t.Fatal("the pinned hash doesn't match the pinned event")
+	}
+	var ev Event
+	if err := json.Unmarshal([]byte(legacyEvent), &ev); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Canonical(ev)
+	if err != nil || string(c) != legacyEvent {
+		t.Fatalf("re-canonicalised:\n%s\nwant\n%s", c, legacyEvent)
+	}
+	// Stored as the old hub stored it, the chain still verifies, and the
+	// next event (with on_behalf_of) chains on to it.
+	l, st := newLog(t)
+	if _, err := st.Writer().Exec(`INSERT INTO audit_events (seq, id, at, actor_id, actor, action, target, result, event, prev_hash, hash)
+		VALUES (1, 'a_legacy', ?, 'tok_old', 'backup script (sam)', 'docker.container.restart', 'docker:i_y/container/sonarr', 'ok', ?, ?, ?)`,
+		ev.At.UnixMilli(), legacyEvent, ZeroHash, legacyHash); err != nil {
+		t.Fatal(err)
+	}
+	next := appendN(t, l, Entry{Actor: Actor{Kind: "token", ID: "tok_new", Name: "backup script (sam)", Via: "api", OnBehalfOf: "u_sam"}, Action: "a.b", Result: OK})[0]
+	if next.PrevHash != legacyHash {
+		t.Fatalf("next prev_hash = %s", next.PrevHash)
+	}
+	body, _ := Canonical(next)
+	if !strings.Contains(string(body), `"via":"api","on_behalf_of":"u_sam"}`) {
+		t.Fatalf("on_behalf_of isn't last in actor: %s", body)
+	}
+	rep, err := l.Verify(t.Context())
+	if err != nil || !rep.OK || rep.Checked != 2 || rep.Head == nil || rep.Head.Seq != 2 || rep.Head.Hash != next.Hash {
+		t.Fatalf("verify = %+v, %v", rep, err)
+	}
+}
+
+// The export's head is read with the events, and an empty log has none.
+func TestExportHead(t *testing.T) {
+	l, _ := newLog(t)
+	var got Head
+	called := false
+	if err := l.ExportWithHead(t.Context(), io.Discard, func(h Head) { got, called = h, true }); err != nil || !called || got != (Head{}) {
+		t.Fatalf("empty log head = %+v (called %v), %v", got, called, err)
+	}
+	evs := appendN(t, l, Entry{Actor: sam, Action: "a.b", Result: OK}, Entry{Actor: sam, Action: "a.c", Result: OK})
+	var buf bytes.Buffer
+	if err := l.ExportWithHead(t.Context(), &buf, func(h Head) { got = h }); err != nil {
+		t.Fatal(err)
+	}
+	if got != (Head{Seq: 2, Hash: evs[1].Hash}) || got.String() != "seq=2 hash="+evs[1].Hash {
+		t.Fatalf("head = %+v", got)
 	}
 }

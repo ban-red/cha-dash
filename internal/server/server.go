@@ -86,6 +86,7 @@ import (
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
+	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/stacks"
@@ -97,10 +98,13 @@ import (
 
 // Deps are the subsystems the HTTP layer exposes.
 type Deps struct {
-	Log      *slog.Logger
-	Store    *store.Store
-	Auth     *auth.Service
-	Realtime http.Handler // the WebSocket hub; mounted behind the session check
+	Log   *slog.Logger
+	Store *store.Store
+	Auth  *auth.Service
+	// Realtime is the WebSocket hub, mounted behind the session check. When
+	// it's a *realtime.Hub, sign-outs and account changes close the sockets
+	// they end (build it with Recheck: SocketRecheck for the timer half).
+	Realtime http.Handler
 	// Web serves the SPA (webui.New in the hub). Nil serves Placeholder.
 	Web     http.Handler
 	Proxies httpx.Proxies
@@ -178,8 +182,15 @@ func New(d Deps) (http.Handler, error) {
 	// decided by authz.Guard, in front of the whole mux, from the table in
 	// internal/authz/routes.go: a new route needs a row there.
 	session := d.Auth.Require
-	boards.New(d.Store).Register(mux, session, d.Log)
 	rec := &authz.Recorder{Log: d.Audit, Logger: d.Log}
+	bs := boards.New(d.Store)
+	bs.Audit = rec
+	bs.Register(mux, session, d.Log)
+	auditAuthEvents(d.Auth, rec)
+	if hub, ok := d.Realtime.(*realtime.Hub); ok {
+		// Sign-outs and account changes close the sockets they end.
+		closeSocketsOnAuthEvents(d.Auth, hub)
+	}
 	users := authz.NewUsers(d.Auth, d.Log)
 	users.Audit = rec
 	users.Register(mux, session)
@@ -192,7 +203,7 @@ func New(d Deps) (http.Handler, error) {
 			out := make([]authz.TokenAction, 0, len(ids))
 			for _, id := range ids {
 				if def, ok := reg.Get(id); ok {
-					out = append(out, authz.TokenAction{ID: id, Title: def.Title, Tier: authz.Tier(def.Tier.String())})
+					out = append(out, authz.TokenAction{ID: id, Title: def.Title, Tier: authz.Tier(def.Tier.String()), Household: def.Household, ReadsData: def.ReadsData})
 				}
 			}
 			return out
@@ -205,9 +216,11 @@ func New(d Deps) (http.Handler, error) {
 		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
 	}
 	if d.Integrations != nil {
+		d.Integrations.Audit = rec
 		d.Integrations.Register(mux, session)
 	}
 	if d.Correlator != nil {
+		d.Correlator.Audit = rec
 		d.Correlator.Register(mux, session, d.Log)
 	}
 	if d.Vault != nil {
@@ -217,7 +230,7 @@ func New(d Deps) (http.Handler, error) {
 			// rather than at the manager's next periodic reload.
 			wrap = func(h http.Handler) http.Handler { return session(reloadAfter(h, d.Integrations, d.Log)) }
 		}
-		homepage.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log)
+		homepage.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log, rec)
 		exp := export.New(d.Store, d.Vault, export.Options{HubVersion: buildinfo.Version})
 		exp.Audit = rec
 		// A Home file can carry the security settings and correlation
@@ -241,6 +254,7 @@ func New(d Deps) (http.Handler, error) {
 		d.Demo.Register(mux, session)
 	}
 	if d.Onboarding != nil {
+		d.Onboarding.Audit = rec
 		d.Onboarding.Register(mux, session)
 	}
 	if d.Security != nil {
@@ -254,7 +268,7 @@ func New(d Deps) (http.Handler, error) {
 	if d.Nodes != nil {
 		d.Nodes.Register(mux, session, func(r *http.Request) audit.Actor {
 			a, _ := authz.ActorFrom(r)
-			return audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
+			return authz.AuditActor(a)
 		})
 	}
 	if d.Stacks != nil {

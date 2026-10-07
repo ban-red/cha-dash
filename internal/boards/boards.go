@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/store"
 )
 
@@ -71,6 +72,9 @@ const EmptyTiles = "{}"
 type Service struct {
 	st  *store.Store
 	now func() int64 // Unix milliseconds
+	// Audit records layout saves and discovery dismissals made through the
+	// API. Nil records nothing.
+	Audit *authz.Recorder
 }
 
 // New returns a Service over st.

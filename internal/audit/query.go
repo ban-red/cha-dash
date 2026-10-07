@@ -133,8 +133,16 @@ func (l *Log) Query(ctx context.Context, f Filter) (Page, error) {
 // stored canonical JSON with ,"hash":"…" spliced in before its closing
 // brace (see the package doc).
 func (l *Log) Export(ctx context.Context, w io.Writer) error {
+	return l.ExportWithHead(ctx, w, nil)
+}
+
+// ExportWithHead is Export, calling head first with the chain's head as of
+// the export (the last event it will write; zero for an empty log), read
+// in the same transaction as the events. The HTTP export puts it in a
+// header before the body starts.
+func (l *Log) ExportWithHead(ctx context.Context, w io.Writer, head func(Head)) error {
 	bw := bufio.NewWriter(w)
-	err := l.each(ctx, func(r row, body []byte, hash string) error {
+	err := l.eachWithHead(ctx, head, func(r row, body []byte, hash string) error {
 		if len(body) == 0 || body[len(body)-1] != '}' {
 			return fmt.Errorf("audit: event %d isn't a JSON object", r.seq)
 		}
@@ -157,11 +165,26 @@ type Break struct {
 	Reason string `json:"reason"`
 }
 
+// Head is the last event of a chain: its seq and hash. Written down
+// somewhere the hub can't reach, it lets an owner notice a chain that was
+// cut short or rewritten later (the chain alone can't: see the package
+// doc).
+type Head struct {
+	Seq  int64  `json:"seq"`
+	Hash string `json:"hash"`
+}
+
+// String is "seq=<n> hash=<hash>", the X-Chadash-Audit-Head header's form.
+func (h Head) String() string { return "seq=" + strconv.FormatInt(h.Seq, 10) + " hash=" + h.Hash }
+
 // Report is the result of Verify.
 type Report struct {
 	OK         bool   `json:"ok"`
 	Checked    int64  `json:"checked"`
 	FirstBreak *Break `json:"first_break,omitempty"`
+	// Head is the last event that checks out: the chain's head when OK.
+	// Nil for an empty log.
+	Head *Head `json:"head,omitempty"`
 }
 
 type row struct {
@@ -210,6 +233,7 @@ func (l *Log) Verify(ctx context.Context) (Report, error) {
 		}
 		rep.Checked++
 		prev, want = hash, want+1
+		rep.Head = &Head{Seq: r.seq, Hash: hash}
 		return nil
 	})
 	if err != nil && !errors.Is(err, stop) {
@@ -221,11 +245,25 @@ func (l *Log) Verify(ctx context.Context) (Report, error) {
 
 // each calls fn for every event, oldest first, inside one read transaction.
 func (l *Log) each(ctx context.Context, fn func(r row, body []byte, hash string) error) error {
+	return l.eachWithHead(ctx, nil, fn)
+}
+
+// eachWithHead is each, first calling head (when not nil) with the last
+// event as the same transaction sees it.
+func (l *Log) eachWithHead(ctx context.Context, head func(Head), fn func(r row, body []byte, hash string) error) error {
 	tx, err := l.st.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	if head != nil {
+		var h Head
+		err := tx.QueryRowContext(ctx, `SELECT seq, hash FROM audit_events ORDER BY seq DESC LIMIT 1`).Scan(&h.Seq, &h.Hash)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("audit: %w", err)
+		}
+		head(h)
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT seq, id, at, actor_id, actor, action, target, result, event, prev_hash, hash
 		FROM audit_events ORDER BY seq`)
 	if err != nil {

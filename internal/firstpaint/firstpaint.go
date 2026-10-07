@@ -60,6 +60,11 @@ type Builder struct {
 	// gives it (topics.InboxView). Nil shows it whole, so a hub that
 	// inlines snapshots for roles below viewer must set it.
 	Inbox func(ctx context.Context, role string) topics.InboxView
+	// WholeGraph says whether a role sees the whole graph, as the graph
+	// topic gives it (authz.SeesWholeGraph); the others get
+	// topics.HouseholdGraph. Nil shows it whole, so a hub that inlines
+	// snapshots for roles below viewer must set it.
+	WholeGraph func(role string) bool
 }
 
 // User is who the snapshot is for: the signed-in user, as GET
@@ -144,6 +149,9 @@ func (b *Builder) Snapshot(ctx context.Context, u User) (Snapshot, error) {
 	}
 
 	_, s.Graph = b.Topics.Graph.Snapshot(nil)
+	if b.WholeGraph != nil && !b.WholeGraph(u.Role) {
+		s.Graph = topics.HouseholdGraph(s.Graph)
+	}
 	_, metrics := b.Topics.Metrics.Snapshot()
 	s.Metrics = trimMetrics(metrics, s.Graph)
 	_, inbox := b.Topics.Inbox.Snapshot()

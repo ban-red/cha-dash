@@ -76,6 +76,12 @@ func (h handler) export(w http.ResponseWriter, r *http.Request, passphrase strin
 	}
 	h.log.Info("exported the hub", "boards", out.Boards, "instances", out.Instances, "settings", out.Settings,
 		"placeholders", out.Secrets, "bundled", out.Bundled, "missing", len(out.Missing))
+	// An export carries the hub's whole configuration, and with a
+	// passphrase its secrets too: who took one is worth keeping.
+	h.svc.Audit.Change(r, "export.home", "hub", map[string]any{
+		"boards": out.Boards, "instances": out.Instances, "settings": out.Settings,
+		"placeholders": out.Secrets, "bundled": out.Bundled,
+	}, authz.T0, nil)
 	name := "chadash-home-" + h.svc.now().UTC().Format("2006-01-02")
 	if out.Bundled > 0 || passphrase != "" {
 		name += "-with-secrets"
@@ -143,6 +149,11 @@ func (h handler) importFile(w http.ResponseWriter, r *http.Request) {
 	}
 	h.auditSecurity(r, applied.Plan, refusal)
 	s := applied.Plan.Summary
+	h.svc.Audit.Change(r, "import.chadash", "hub", map[string]any{
+		"board_ids": applied.BoardIDs, "instance_ids": applied.InstanceIDs,
+		"created": s.Create, "updated": s.Update, "unchanged": s.Unchanged, "stale": s.Stale,
+		"secrets_restored": s.SecretsRestored, "secrets_needed": s.SecretsNeeded,
+	}, authz.T1, nil)
 	h.log.Info("home file imported", "boards", len(applied.BoardIDs), "instances", len(applied.InstanceIDs),
 		"created", s.Create, "updated", s.Update, "unchanged", s.Unchanged, "stale", s.Stale,
 		"secrets_restored", s.SecretsRestored, "secrets_needed", s.SecretsNeeded)

@@ -331,7 +331,11 @@ func auditParams(p json.RawMessage) json.RawMessage {
 }
 
 func auditActor(a Actor) audit.Actor {
-	return audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
+	out := audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
+	if a.Kind == KindToken || a.Kind == KindAgent {
+		out.OnBehalfOf = a.User // the user the token acts for
+	}
+	return out
 }
 
 // ── approve ──────────────────────────────────────────────────────────────
@@ -461,18 +465,29 @@ func (e *Engine) ApproveOrSubmit(ctx context.Context, a Actor, planID string, re
 		return Task{}, apv, err
 	}
 
-	task, ref, err := e.launch(ctx, a, p, d, t, idemKey, nil, nil, nil)
+	var spend func(tx *sql.Tx, task Task) error
+	if p.tier == T4 && e.consume != nil && a.Session != "" {
+		// The grant is spent in the transaction that starts the task, and
+		// only if nobody spent it first: the next T4 asks again, even within
+		// its five minutes, and two approvals racing on one grant can't both
+		// run.
+		spend = func(tx *sql.Tx, _ Task) error {
+			ok, err := e.consume(ctx, tx, a.Session, a.StepUpUntil)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return forbidden(ErrStepUpRequired)
+			}
+			return nil
+		}
+	}
+	task, ref, err := e.launch(ctx, a, p, d, t, idemKey, nil, spend, nil)
 	if ref != nil {
 		return refuse(ref)
 	}
 	if err != nil {
 		return Task{}, nil, err
-	}
-	if p.tier == T4 && e.consume != nil && a.Session != "" {
-		// The grant is spent: the next T4 asks again, even within its five minutes.
-		if err := e.consume(ctx, a.Session); err != nil && e.log != nil {
-			e.log.Warn("action: ending the step-up grant after a T4 failed", "err", err)
-		}
 	}
 	return task, nil, nil
 }

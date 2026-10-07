@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/livedoc"
@@ -52,6 +53,10 @@ var (
 // into the graph, suggestions into the inbox, and the causes it can add to
 // other instances' incidents. Safe for concurrent use.
 type Correlator struct {
+	// Audit records decisions made through the API (merge, split, answer a
+	// suggestion, forget one). Nil records nothing. Set it before serving.
+	Audit *authz.Recorder
+
 	t        *topics.Set
 	db       decisions
 	log      *slog.Logger

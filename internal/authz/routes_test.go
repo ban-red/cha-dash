@@ -181,3 +181,34 @@ func TestNodeKeyRoutes(t *testing.T) {
 		t.Fatal(NodeKey.String())
 	}
 }
+
+// Every row that can change something (any method but GET) says what it
+// audits (Audited) or why it audits nothing (AuditExempt), never both, and
+// neither map names a route the table doesn't have.
+func TestEveryUnsafeRouteIsAudited(t *testing.T) {
+	unsafe := map[string]bool{}
+	for _, r := range Routes {
+		method, _, ok := strings.Cut(r.Pattern, " ")
+		if !ok || method == "GET" {
+			continue // GET rows, and the catch-alls ("/", "/api/"), which serve reads and 404s
+		}
+		unsafe[r.Pattern] = true
+		action, audited := Audited[r.Pattern]
+		reason, exempt := AuditExempt[r.Pattern]
+		switch {
+		case audited && exempt:
+			t.Errorf("%s is both audited (%s) and exempt", r.Pattern, action)
+		case !audited && !exempt:
+			t.Errorf("%s changes something but neither audits nor says why not: add it to Audited or AuditExempt (audited.go)", r.Pattern)
+		case audited && action == "", exempt && strings.TrimSpace(reason) == "":
+			t.Errorf("%s: empty entry", r.Pattern)
+		}
+	}
+	for _, m := range []map[string]string{Audited, AuditExempt} {
+		for p := range m {
+			if !unsafe[p] {
+				t.Errorf("%s is listed in audited.go but isn't an unsafe route in the table", p)
+			}
+		}
+	}
+}

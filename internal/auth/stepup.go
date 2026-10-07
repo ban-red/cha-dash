@@ -217,6 +217,7 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 	client := s.proxies.ClientIP(r).String()
 	fail := func(reason string, err error) {
 		s.log.Info("step-up failed", "user", id.User.Username, "client", client, "reason", reason, "err", err)
+		s.emit(Event{Kind: EventStepUpFailed, UserID: id.User.ID, SessionID: id.Session.ID, Reason: reason, Request: r})
 		httpx.Error(w, http.StatusForbidden, "step_up_failed", "That didn't confirm it's you. Try again.")
 	}
 	if raw, isPassword := probe["password"]; isPassword {
@@ -322,11 +323,24 @@ func (s *Service) grantStepUp(w http.ResponseWriter, r *http.Request, id Identit
 		return
 	}
 	s.log.Info("step-up granted", "user", id.User.Username, "session", id.Session.ID, "method", method)
+	s.emit(Event{Kind: EventStepUp, UserID: id.User.ID, SessionID: id.Session.ID, Method: method, Request: r})
 	httpx.WriteJSON(w, http.StatusOK, map[string]time.Time{"until": time.UnixMilli(until.UnixMilli()).UTC()})
 }
 
-// ClearStepUp ends a session's step-up grant. The action engine calls it
-// after a T4 approval, so T4 always asks again.
+// SpendStepUp ends a session's step-up grant inside tx, but only if it is
+// still the grant until names: a T4 approval spends it in the transaction
+// that starts the task, so two approvals racing on one grant can't both
+// run. False means the grant had already been spent or replaced.
+func (s *Service) SpendStepUp(ctx context.Context, tx *sql.Tx, sessionID string, until time.Time) (bool, error) {
+	res, err := tx.ExecContext(ctx, `UPDATE sessions SET step_up_until = NULL WHERE id = ? AND step_up_until = ?`, sessionID, until.UnixMilli())
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n == 1, err
+}
+
+// ClearStepUp ends a session's step-up grant, whatever it is.
 func (s *Service) ClearStepUp(ctx context.Context, sessionID string) error {
 	_, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET step_up_until = NULL WHERE id = ?`, sessionID)
 	return err

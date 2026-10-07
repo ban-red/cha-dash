@@ -69,7 +69,8 @@ func newEnvWith(t *testing.T, adjust func(*Deps)) *env {
 		t.Fatal(err)
 	}
 	g := graph.New()
-	hub := realtime.New(realtime.GraphSource{Graph: g}, realtime.Options{Coalesce: 10 * time.Millisecond, Log: log})
+	hub := realtime.New(realtime.GraphSource{Graph: g}, realtime.Options{Coalesce: 10 * time.Millisecond, Log: log,
+		Recheck: SocketRecheck(a), RecheckEvery: 100 * time.Millisecond})
 	deps := Deps{Log: log, Store: st, Auth: a, Realtime: hub, AllowedOrigins: []string{"https://dash.example.com"}}
 	if adjust != nil {
 		adjust(&deps)

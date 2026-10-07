@@ -27,10 +27,12 @@ type TokenAction struct {
 	ID    string
 	Title string
 	Tier  Tier
+	// Household and ReadsData are the Def's marks (see Request).
+	Household, ReadsData bool
 }
 
 // Tokens serves Settings → API tokens. Every signed-in role manages its own
-// tokens; admins and the owner see everyone's and may revoke any. The routes
+// tokens; the owner sees and may revoke everyone's, admins everyone's but the owner's. The routes
 // are session only (Guard refuses tokens), so a token can't mint, list or
 // revoke tokens. auth stores them; the rules here are decisions: which
 // scopes a role may hand a token, how long one may live, whose tokens a
@@ -59,9 +61,9 @@ func NewTokens(a *auth.Service, log *slog.Logger) *Tokens {
 
 // Register mounts:
 //
-//	GET    /api/tokens          → 200 {"tokens": [token]}: your own; admins and the owner, everyone's
+//	GET    /api/tokens          → 200 {"tokens": [token]}: your own; the owner, everyone's; admins, everyone's but the owner's
 //	POST   /api/tokens          {name, scopes, expires_in_days?} → 201 {"token", "secret"}: the secret, once
-//	DELETE /api/tokens/{id}     → 200 {"token"}, revoked at once; your own, or any for admins and the owner
+//	DELETE /api/tokens/{id}     → 200 {"token"}, revoked at once; your own, or any you can see (above; 404 otherwise)
 //	GET    /api/tokens/scopes   → 200 the scope vocabulary for the picker, per your role
 //
 // wrap attaches the session; Guard admits every signed-in role and no token.
@@ -86,7 +88,44 @@ func (t *Tokens) list(w http.ResponseWriter, r *http.Request) {
 		t.internal(w, "listing API tokens failed", err)
 		return
 	}
+	if user == "" && a.Role != auth.RoleOwner {
+		// An admin sees everyone's tokens but the owner's, as they manage
+		// every account but the owner's.
+		owner, err := t.ownerID(r.Context())
+		if err != nil {
+			t.internal(w, "reading the owner failed", err)
+			return
+		}
+		list = slices.DeleteFunc(list, func(tok auth.APIToken) bool { return tok.UserID == owner })
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string][]auth.APIToken{"tokens": list})
+}
+
+// ownerID is the owner's user ID ("" before setup).
+func (t *Tokens) ownerID(ctx context.Context) (string, error) {
+	users, err := t.auth.ListUsers(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, u := range users {
+		if u.Role == auth.RoleOwner {
+			return u.ID, nil
+		}
+	}
+	return "", nil
+}
+
+// visible reports whether a may see and revoke tok: their own; anyone's
+// for an admin, except the owner's, which only the owner sees.
+func (t *Tokens) visible(ctx context.Context, a Actor, tok auth.APIToken) (bool, error) {
+	switch {
+	case tok.UserID == a.ID || a.Role == auth.RoleOwner:
+		return true, nil
+	case !seesAllTokens(a.Role):
+		return false, nil
+	}
+	owner, err := t.ownerID(ctx)
+	return tok.UserID != owner, err
 }
 
 func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
@@ -103,20 +142,26 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 	if req.ExpiresInDays != nil {
 		days = *req.ExpiresInDays
 	}
+	// Refusals are audited too: asking for a scope your role can't hand
+	// out is worth seeing. Only the name and the scopes asked for.
+	refuse := func(msg string) {
+		t.Audit.Refuse(r, "tokens.create", "", map[string]any{"name": clipString(req.Name, 100), "scopes": clipScopes(req.Scopes)}, T1, "invalid", msg)
+		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", msg)
+	}
 	if days < 1 || days > MaxTokenDays {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "A token must expire within 1 to 365 days.")
+		refuse("A token must expire within 1 to 365 days.")
 		return
 	}
 	scopes, err := cleanScopes(req.Scopes, a.Role)
 	if err != nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", err.Error())
+		refuse(err.Error())
 		return
 	}
 	tok, secret, err := t.auth.CreateToken(r.Context(), a.ID, req.Name, scopes, t.now().Add(time.Duration(days)*24*time.Hour))
 	var ve *auth.ValidationError
 	switch {
 	case errors.As(err, &ve):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", ve.Msg)
+		refuse(ve.Msg)
 		return
 	case err != nil:
 		t.internal(w, "creating an API token failed", err)
@@ -155,7 +200,17 @@ func (t *Tokens) revoke(w http.ResponseWriter, r *http.Request) {
 	a, _ := ActorFrom(r)
 	id := r.PathValue("id")
 	tok, err := t.auth.GetToken(r.Context(), id)
-	if errors.Is(err, auth.ErrTokenNotFound) || (err == nil && tok.UserID != a.ID && !seesAllTokens(a.Role)) {
+	seen := err == nil
+	if err == nil {
+		if seen, err = t.visible(r.Context(), a, tok); err != nil {
+			t.internal(w, "reading the owner failed", err)
+			return
+		}
+	}
+	if errors.Is(err, auth.ErrTokenNotFound) || (err == nil && !seen) {
+		// Someone else's token you may not touch reads as missing, so IDs
+		// don't leak; the attempt is audited.
+		t.Audit.Refuse(r, "tokens.revoke", "token:"+clipString(id, 100), nil, T1, "not_found", "There's no such token.")
 		httpx.Error(w, http.StatusNotFound, "not_found", "There's no such token.")
 		return
 	} else if err != nil {
@@ -210,10 +265,12 @@ func (t *Tokens) scopes(w http.ResponseWriter, r *http.Request) {
 			switch {
 			case act.Tier.rank() >= T3.rank():
 				o.Available, o.Unavailable = false, "Tokens can't run T3 or T4 actions: they need a person to confirm in a session."
-			case a.Role == auth.RoleHousehold && act.Tier.rank() > 0:
+			case a.Role == auth.RoleHousehold && (!act.Household || act.Tier.rank() > HouseholdCap.rank()):
 				o.Available, o.Unavailable = false, "Household tokens run only actions meant for the household."
 			case a.Role != auth.RoleHousehold && act.Tier.rank() > tierCap(a.Role).rank():
 				o.Available, o.Unavailable = false, "Your role ("+a.Role+") can't run "+string(act.Tier)+" actions."
+			case act.ReadsData && !act.Household && rank(a.Role) < rank(auth.RoleOperator):
+				o.Available, o.Unavailable = false, "Only operators, admins and the owner can run this: what it reads back can hold secrets."
 			}
 			actions = append(actions, o)
 			if fam, _, ok := strings.Cut(act.ID, "."); ok && !seen[fam] {
@@ -228,6 +285,26 @@ func (t *Tokens) scopes(w http.ResponseWriter, r *http.Request) {
 		"default_days": DefaultTokenDays, "max_days": MaxTokenDays,
 		"approval": "Actions up to T1 run when the token approves its own plan. T2 actions wait in the Inbox until an admin or the owner approves them. T3 and T4 are never open to tokens.",
 	})
+}
+
+// clipString bounds what a request named before it goes in the audit log.
+func clipString(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
+}
+
+// clipScopes bounds a requested scope list for the audit log.
+func clipScopes(in []string) []string {
+	out := make([]string, 0, min(len(in), MaxTokenScopes))
+	for i, s := range in {
+		if i == MaxTokenScopes {
+			break
+		}
+		out = append(out, clipString(s, 200))
+	}
+	return out
 }
 
 func (t *Tokens) internal(w http.ResponseWriter, msg string, err error) {

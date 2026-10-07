@@ -98,3 +98,62 @@ func TestHouseholdInboxOverRealtime(t *testing.T) {
 		t.Fatal("household gets no metrics")
 	}
 }
+
+// Household's graph, over the socket and GET /api/graph alike: no
+// chadash-node resources, no addresses. Viewers get it whole.
+func TestHouseholdGraph(t *testing.T) {
+	tp := topics.New(graph.New(), time.Now())
+	if _, err := tp.Graph.Update(func(tx *graph.Tx) error {
+		if err := tx.Upsert(graph.Resource{ID: "node:n1", Kind: "node", Name: "local", Attrs: map[string]any{"fingerprint": "SHA256:fake"}}); err != nil {
+			return err
+		}
+		return tx.Upsert(graph.Resource{ID: "host:pve", Kind: "host", Name: "pve", Attrs: map[string]any{"ip": "192.0.2.10"}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e := newEnvWith(t, func(d *Deps) {
+		hub := realtime.New(tp.SourceWith(realtime.Mux{topics.Graph: tp.GraphSource(GraphViewer())}), realtime.Options{Log: d.Log})
+		t.Cleanup(hub.Close)
+		d.Realtime, d.Topics = hub, tp
+	})
+	owner := signIn(t, e)
+	_, household := addUser(t, e, owner, "kid", "household")
+	_, viewer := addUser(t, e, owner, "gran", "viewer")
+	snap := func(c *http.Client) string {
+		t.Helper()
+		ws := openSocket(t, e, c)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		b, _ := json.Marshal(map[string]any{"op": "sub", "id": 1, "topics": []string{"graph"}})
+		if err := ws.Write(ctx, websocket.MessageText, b); err != nil {
+			t.Fatal(err)
+		}
+		for {
+			_, msg, err := ws.Read(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(msg), `"op":"snap"`) {
+				return string(msg)
+			}
+		}
+	}
+	read := func(c *http.Client) string {
+		t.Helper()
+		status, _, b := e.call(t, c, "GET", "/api/graph", nil)
+		if status != http.StatusOK {
+			t.Fatalf("GET /api/graph: %d %s", status, b)
+		}
+		return string(b)
+	}
+	for name, got := range map[string]string{"socket": snap(household), "read": read(household)} {
+		if strings.Contains(got, "node:n1") || strings.Contains(got, "SHA256:fake") || strings.Contains(got, "192.0.2.10") || !strings.Contains(got, "host:pve") {
+			t.Errorf("household's graph (%s): %s", name, got)
+		}
+	}
+	for name, got := range map[string]string{"socket": snap(viewer), "read": read(viewer)} {
+		if !strings.Contains(got, "node:n1") || !strings.Contains(got, "192.0.2.10") {
+			t.Errorf("viewer's graph (%s) isn't whole: %s", name, got)
+		}
+	}
+}

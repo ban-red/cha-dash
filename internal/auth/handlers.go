@@ -227,10 +227,15 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(CookieName); err == nil && c.Value != "" {
-		if err := s.deleteSession(r.Context(), c.Value); err != nil {
+		id, user, err := s.deleteSession(r.Context(), c.Value)
+		if err != nil {
 			s.log.Error("could not delete session", "err", err)
 			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
 			return
+		}
+		if id != "" {
+			// Its open sockets close too (the server wiring listens).
+			s.emit(Event{Kind: EventSessionEnded, SessionID: id, UserID: user, Request: r})
 		}
 	}
 	s.clearCookie(w, r)

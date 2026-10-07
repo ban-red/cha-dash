@@ -309,6 +309,8 @@ func (s *Service) handlePutDraft(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}
+	// Never the content: compose files often hold credentials.
+	s.Audit.Change(r, "settings.stacks.draft.update", "stack:"+node+"/"+name, map[string]any{"revision": d.Revision, "bytes": len(req.Content)}, authz.T1, nil)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"draft": d})
 }
 
@@ -322,6 +324,7 @@ func (s *Service) handleDeleteDraft(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}
+	s.Audit.Change(r, "settings.stacks.draft.delete", "stack:"+node+"/"+name, nil, authz.T1, nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

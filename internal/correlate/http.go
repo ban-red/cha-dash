@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
 )
@@ -73,6 +74,7 @@ func (h handlers) answer(v Verdict) http.Handler {
 			h.fail(w, "answering a suggestion failed", err)
 			return
 		}
+		h.c.Audit.Change(r, "correlate.suggestion."+string(v), "suggestion:"+r.PathValue("id"), decisionParams(d), authz.T1, nil)
 		httpx.WriteJSON(w, http.StatusOK, d)
 	})
 }
@@ -101,6 +103,7 @@ func (h handlers) decide(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "saving a decision failed", err)
 		return
 	}
+	h.c.Audit.Change(r, "correlate.decision.create", "decision:"+d.ID, decisionParams(d), authz.T1, nil)
 	httpx.WriteJSON(w, http.StatusCreated, d)
 }
 
@@ -109,7 +112,14 @@ func (h handlers) forget(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "forgetting a decision failed", err)
 		return
 	}
+	h.c.Audit.Change(r, "correlate.decision.delete", "decision:"+r.PathValue("id"), nil, authz.T1, nil)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// decisionParams is a decision as the audit log keeps it: the pair, the
+// relation and the verdict.
+func decisionParams(d Decision) map[string]any {
+	return map[string]any{"from": d.From, "type": d.Type, "to": d.To, "verdict": d.Verdict}
 }
 
 func nonNil[T any](s []T) []T {

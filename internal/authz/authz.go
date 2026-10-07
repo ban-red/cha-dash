@@ -22,7 +22,11 @@
 //	admin      T0–T3
 //	operator   T0–T2
 //	viewer     T0
-//	household  T0, plus actions marked household: true up to T1
+//	household  only actions marked household: true, up to T1
+//
+// An action that reads data back (Request.ReadsData: a container's logs)
+// needs Operator or above whatever its tier, since what it reads can hold
+// secrets.
 //
 // T3 needs a step-up grant on the session (auth.StepUpTTL, five minutes). T4
 // needs a fresh one, granted within FreshStepUp, and the engine clears it
@@ -166,6 +170,12 @@ func tierCap(role string) Tier {
 // no Inbox detail"): it gets topics.ProjectIncident's projection, limited to
 // incidents about what its boards show. An unknown role sees nothing.
 func SeesInboxDetail(role string) bool { return rank(role) >= rank(auth.RoleViewer) }
+
+// SeesWholeGraph reports whether role sees the whole Home Graph, on the
+// graph topic, GET /api/graph and the first paint. Household doesn't: it
+// gets topics.HouseholdGraph (no chadash-node resources, no addresses or
+// key fingerprints), which still renders every board.
+func SeesWholeGraph(role string) bool { return rank(role) >= rank(auth.RoleViewer) }
 
 // SeesApprovals reports whether role sees plans waiting for a person (an
 // API token's T2 plans) in the Inbox: the approvers, admin and owner.
@@ -331,8 +341,13 @@ type Request struct {
 	Target string // the resource, e.g. "proxmox:i_x/qemu/201"
 	Tier   Tier
 	// Household: the action is marked household: true, so the household
-	// role may run it (up to HouseholdCap).
+	// role may run it (up to HouseholdCap). Household runs nothing else, T0
+	// included.
 	Household bool
+	// ReadsData: the action reads data back (a container's logs), which can
+	// hold secrets, so it needs Operator or above whatever its tier, unless
+	// it's also marked Household.
+	ReadsData bool
 }
 
 // Env is what a decision depends on beyond the actor and the request.
@@ -364,11 +379,16 @@ func Decide(a Actor, req Request, env Env) error {
 		return forbid("Only an admin or the owner can change stacks: they're settings, whatever the tier.")
 	}
 	if a.Role == auth.RoleHousehold {
-		if tr > 0 && !(req.Household && tr <= HouseholdCap.rank()) {
+		// Only actions meant for the household, at every tier: a T0 can
+		// still read what household shouldn't see.
+		if !req.Household || tr > HouseholdCap.rank() {
 			return forbid("Household accounts can only run actions meant for the household.")
 		}
 	} else if tr > tierCap(a.Role).rank() {
 		return forbid("Your role (%s) can't run %s actions.", a.Role, req.Tier)
+	}
+	if req.ReadsData && !req.Household && rank(a.Role) < rank(auth.RoleOperator) {
+		return forbid("Only operators, admins and the owner can run %s: what it reads back can hold secrets.", sc.Action)
 	}
 	if env.Grants != nil && !covered(env.Grants, sc, req.Target) {
 		return forbid("This token isn't allowed to run %s.", sc.Action)

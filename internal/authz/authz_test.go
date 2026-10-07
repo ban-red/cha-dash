@@ -54,7 +54,7 @@ func TestTierCaps(t *testing.T) {
 		auth.RoleAdmin:     T3,
 		auth.RoleOperator:  T2,
 		auth.RoleViewer:    T0,
-		auth.RoleHousehold: T0,
+		auth.RoleHousehold: "", // nothing unmarked, not even T0 (TestHousehold)
 	}
 	env := Env{Now: now, T4: []string{scope}}
 	for role, cap := range caps {
@@ -141,12 +141,42 @@ func TestT4OffUnlessEnabled(t *testing.T) {
 func TestHousehold(t *testing.T) {
 	h := user(auth.RoleHousehold)
 	env := Env{Now: now}
-	want(t, "read", Decide(h, Request{Scope: "pihole.app.status", Tier: T0}, env), nil)
+	// Household runs only what's marked for it, T0 included: a T0 can read
+	// back what household shouldn't see.
+	want(t, "unmarked T0", Decide(h, Request{Scope: "pihole.app.status", Tier: T0}, env), ErrForbidden)
+	want(t, "marked T0", Decide(h, Request{Scope: "pihole.app.status", Tier: T0, Household: true}, env), nil)
 	want(t, "unmarked T1", Decide(h, Request{Scope: "pihole.app.pause", Tier: T1}, env), ErrForbidden)
 	want(t, "marked T1", Decide(h, Request{Scope: "pihole.app.pause", Tier: T1, Household: true}, env), nil)
 	want(t, "marked T2", Decide(h, Request{Scope: "docker.container.restart", Tier: T2, Household: true}, env), ErrForbidden)
 	// The mark only opens actions to household; it never lifts a viewer.
 	want(t, "viewer, marked T1", Decide(user(auth.RoleViewer), Request{Scope: "pihole.app.pause", Tier: T1, Household: true}, env), ErrForbidden)
+}
+
+// An action that reads data back (container logs) is Operator and up,
+// whatever its tier; marked Household as well, the mark opens it.
+func TestReadsData(t *testing.T) {
+	env := Env{Now: now}
+	logs := Request{Scope: "docker.container.logs", Target: "docker:i_a/container/web", Tier: T0, ReadsData: true}
+	for role, allowed := range map[string]bool{
+		auth.RoleOwner: true, auth.RoleAdmin: true, auth.RoleOperator: true,
+		auth.RoleViewer: false, auth.RoleHousehold: false,
+	} {
+		var target error
+		if !allowed {
+			target = ErrForbidden
+		}
+		want(t, role+" reading logs", Decide(user(role), logs, env), target)
+	}
+	// Without the mark, viewers keep plain T0 actions.
+	want(t, "viewer, plain T0", Decide(user(auth.RoleViewer), Request{Scope: "proxmox.guest.status", Tier: T0}, env), nil)
+	marked := logs
+	marked.Household = true
+	want(t, "household, marked", Decide(user(auth.RoleHousehold), marked, env), nil)
+	// A token of an operator holding the scope may; a viewer's may not.
+	tok := Actor{Kind: KindToken, ID: "tok_1", Role: auth.RoleViewer}
+	want(t, "viewer's token", Decide(tok, logs, Env{Now: now, Grants: []string{"*"}}), ErrForbidden)
+	tok.Role = auth.RoleOperator
+	want(t, "operator's token", Decide(tok, logs, Env{Now: now, Grants: []string{"docker.container.*"}}), nil)
 }
 
 func TestGrantsAndTokens(t *testing.T) {

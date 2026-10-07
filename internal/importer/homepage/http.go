@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/importer"
 )
@@ -22,15 +23,20 @@ const MaxBodyBytes = 1 << 20
 //
 // A dry run's plan carries changes too: what applying it would create,
 // update or leave alone. Secret values never appear in a response or a log.
-func Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler, svc *importer.Service, log *slog.Logger) {
-	h := handler{svc: svc, log: log}
+//
+// An applied import is audited as import.homepage (rec; nil records
+// nothing): the board and instance IDs and how many objects it created and
+// updated, never a value from the files.
+func Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler, svc *importer.Service, log *slog.Logger, rec *authz.Recorder) {
+	h := handler{svc: svc, log: log, audit: rec}
 	mux.Handle("POST /api/import/homepage", wrap(http.HandlerFunc(h.post)))
 	mux.Handle("GET /api/import/homepage", wrap(http.HandlerFunc(h.get)))
 }
 
 type handler struct {
-	svc *importer.Service
-	log *slog.Logger
+	svc   *importer.Service
+	log   *slog.Logger
+	audit *authz.Recorder
 }
 
 func (h handler) post(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +89,10 @@ func (h handler) post(w http.ResponseWriter, r *http.Request) {
 	}
 	h.log.Info("homepage import applied", "board", applied.BoardID, "instances", len(applied.InstanceIDs),
 		"secrets", res.Plan.SecretsMoved, "created", created, "updated", updated)
+	h.audit.Change(r, "import.homepage", "board:"+applied.BoardID, map[string]any{
+		"board_id": applied.BoardID, "instance_ids": applied.InstanceIDs,
+		"created": created, "updated": updated, "secrets_moved": res.Plan.SecretsMoved,
+	}, authz.T1, nil)
 	httpx.WriteJSON(w, http.StatusOK, applied)
 }
 

@@ -18,7 +18,9 @@ import (
 // session, never without one, and nil when building it fails or it's over
 // the cap (the page then loads from the socket as usual). The inbox in it is
 // the one the role's inbox topic shows (Builder.Inbox); a builder without
-// that view inlines nothing for roles that don't see the Inbox in full.
+// that view inlines nothing for roles that don't see the Inbox in full. The
+// graph likewise follows Builder.WholeGraph (household's view below
+// viewer), and a builder without it inlines nothing for household.
 func firstPaint(d Deps, r *http.Request) []byte {
 	id, ok := d.Auth.Identify(r)
 	if !ok || !authz.SignedIn.Allows(id.User.Role) {
@@ -26,6 +28,9 @@ func firstPaint(d Deps, r *http.Request) []byte {
 	}
 	if d.FirstPaint.Inbox == nil && !authz.SeesInboxDetail(id.User.Role) {
 		return nil
+	}
+	if d.FirstPaint.WholeGraph == nil && !authz.SeesWholeGraph(id.User.Role) {
+		return nil // no household view of the graph to inline
 	}
 	b, err := d.FirstPaint.Build(r.Context(), firstpaint.User{ID: id.User.ID, Username: id.User.Username, Role: id.User.Role})
 	var big *firstpaint.TooLargeError
@@ -68,6 +73,16 @@ func InboxView(b *boards.Service, g *graph.Graph, log *slog.Logger) func(ctx con
 			r, ok := g.Get(graph.RID(id))
 			return ok && sc.Shows(id, string(r.Kind))
 		}}
+	}
+}
+
+// GraphViewer says whether a realtime connection sees the whole graph
+// (authz.SeesWholeGraph for the role of the identity on its context); the
+// graph topic gives the others household's view (topics.Set.GraphSource).
+func GraphViewer() func(ctx context.Context) bool {
+	return func(ctx context.Context) bool {
+		id, ok := auth.FromContext(ctx)
+		return ok && authz.SeesWholeGraph(id.User.Role)
 	}
 }
 

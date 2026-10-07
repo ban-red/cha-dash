@@ -248,8 +248,12 @@ type Def struct {
 	// qualify it by target (proxmox.guest.reboot:host=io).
 	Scope string
 	// Household marks an action the Household role may run (pausing
-	// Pi-hole, say).
+	// Pi-hole, say). Household runs nothing else, T0 included.
 	Household bool
+	// ReadsData marks an action that reads data back to whoever runs it (a
+	// container's logs), which can hold secrets: the policy wants Operator
+	// or above whatever its tier, unless it's also Household.
+	ReadsData bool
 	// Async marks a long-running action (a PVE task, a deploy): its default
 	// timeout is AsyncTimeout rather than DefaultTimeout.
 	Async bool

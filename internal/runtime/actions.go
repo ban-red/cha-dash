@@ -363,7 +363,7 @@ func (a *Actions) mux(integ string, proto action.Def) action.Def {
 	id := proto.ID
 	d := action.Def{
 		ID: id, Title: proto.Title, Targets: proto.Targets, Params: proto.Params, Tier: proto.Tier, Scope: proto.Scope,
-		Household: proto.Household, Async: proto.Async, Disrupts: proto.Disrupts, Timeout: proto.Timeout, VerifyTimeout: proto.VerifyTimeout,
+		Household: proto.Household, ReadsData: proto.ReadsData, Async: proto.Async, Disrupts: proto.Disrupts, Timeout: proto.Timeout, VerifyTimeout: proto.VerifyTimeout,
 	}
 	d.Resolve = func(ctx context.Context, target string) (action.Target, error) {
 		ai, def, ok := a.route(integ, id, target)

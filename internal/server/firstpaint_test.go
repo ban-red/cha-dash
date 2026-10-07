@@ -11,6 +11,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/graph"
@@ -45,7 +46,10 @@ func firstPaintEnv(t *testing.T) (*env, *store.Store, *firstpaint.Builder) {
 		st = d.Store
 		tp := topics.New(graph.New(), time.Date(2026, 10, 3, 14, 5, 0, 0, time.UTC))
 		if _, err := tp.Graph.Update(func(tx *graph.Tx) error {
-			return tx.Upsert(graph.Resource{ID: "app:x", Kind: "app", Name: `</script><script>alert(1)</script>`})
+			if err := tx.Upsert(graph.Resource{ID: "node:n1", Kind: "node", Name: "local", Attrs: map[string]any{"fingerprint": "SHA256:fake", "address": "192.0.2.7"}}); err != nil {
+				return err
+			}
+			return tx.Upsert(graph.Resource{ID: "app:x", Kind: "app", Name: `</script><script>alert(1)</script>`, Attrs: map[string]any{"ip": "192.0.2.8", "version": "1.2"}})
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -60,7 +64,7 @@ func firstPaintEnv(t *testing.T) (*env, *store.Store, *firstpaint.Builder) {
 			return nil
 		})
 		d.Web = webui.Handler(webFS())
-		fp = &firstpaint.Builder{Topics: tp, Boards: boards.New(d.Store), Inbox: InboxView(boards.New(d.Store), tp.Graph, nil)}
+		fp = &firstpaint.Builder{Topics: tp, Boards: boards.New(d.Store), Inbox: InboxView(boards.New(d.Store), tp.Graph, nil), WholeGraph: authz.SeesWholeGraph}
 		d.FirstPaint = fp
 	})
 	return e, st, fp
@@ -168,6 +172,9 @@ func TestFirstPaintForEveryRole(t *testing.T) {
 		if n := len(incidents(snap)); n != 3 {
 			t.Fatalf("%s: %d incidents, want all 3", role, n)
 		}
+		if snap.Graph.Resources["node:n1"] == nil || snap.Graph.Resources["app:x"].Attrs["ip"] != "192.0.2.8" {
+			t.Fatalf("%s: the graph isn't whole: %+v", role, snap.Graph.Resources)
+		}
 		if resp.Header.Get("Cache-Control") != "no-store" || resp.Header.Get("Vary") == "" {
 			t.Fatalf("%s: headers %v", role, resp.Header)
 		}
@@ -181,6 +188,14 @@ func TestFirstPaintForEveryRole(t *testing.T) {
 	got := incidents(snap)
 	if len(got) != 1 || got["x-down"] == nil {
 		t.Fatalf("household sees %v", got)
+	}
+	// The graph as household's graph topic shows it: no node, no addresses.
+	if _, ok := snap.Graph.Resources["node:n1"]; ok || snap.Graph.Resources["app:x"] == nil ||
+		snap.Graph.Resources["app:x"].Attrs["ip"] != nil || snap.Graph.Resources["app:x"].Attrs["version"] != "1.2" {
+		t.Fatalf("household's graph: %+v", snap.Graph.Resources)
+	}
+	if strings.Contains(body, "192.0.2.") || strings.Contains(body, "SHA256:fake") {
+		t.Fatal("household's page carries an address or a fingerprint")
 	}
 	for _, hidden := range []string{"exit_code", "out of memory", "x.restart"} {
 		if strings.Contains(string(got["x-down"]), hidden) {

@@ -302,7 +302,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Inbox:    tp.Inbox,
 		Sessions: action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
 		// A T4 spends the grant that allowed it, and tells the admins.
-		ConsumeStepUp: authSvc.ClearStepUp,
+		ConsumeStepUp: authSvc.SpendStepUp,
 		OnTaskDone:    nt.TaskDone,
 		Log:           log,
 	})
@@ -314,15 +314,21 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// when the web app is built in (the placeholder page has no use for it).
 	var firstPaint *firstpaint.Builder
 	if webui.Embedded {
-		firstPaint = &firstpaint.Builder{Topics: tp, Boards: bs, Demo: drv != nil, Inbox: server.InboxView(bs, g, log)}
+		firstPaint = &firstpaint.Builder{Topics: tp, Boards: bs, Demo: drv != nil, Inbox: server.InboxView(bs, g, log), WholeGraph: authz.SeesWholeGraph}
 	}
 	hub := realtime.New(watch.Source(tp.SourceWith(realtime.Mux{
 		action.TasksTopic: eng.TasksSource(),
 		topics.Inbox:      tp.InboxSource(server.InboxViewer(bs, g, log)),
+		// Household gets the graph without chadash-node's resources and
+		// without addresses (topics.HouseholdGraph).
+		topics.Graph: tp.GraphSource(server.GraphViewer()),
 	})), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,
 		Log:            log,
+		// A socket's identity is rechecked every minute (and sign-outs and
+		// account changes close it at once: server.New wires that).
+		Recheck: server.SocketRecheck(authSvc),
 	})
 	// Tiles' icons, fetched and served by the hub (the CSP keeps tiles from
 	// loading them). Never fetched in demo mode, which reads nothing real.

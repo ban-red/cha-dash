@@ -10,13 +10,16 @@ import (
 	"dash.cha.sh/internal/httpx"
 )
 
+// HeadHeader carries the chain's head (Head.String) on the NDJSON export.
+const HeadHeader = "X-Chadash-Audit-Head"
+
 // Register mounts the audit log's read endpoints, each wrapped by wrap,
 // which must admit only those allowed to read it (Admin and Owner):
 //
 //	GET /api/audit?actor=&action=&target=&result=&since=&before=&limit=&cursor=
 //	    → {"events": [...], "next"?}, newest first; pass next back as cursor
-//	GET /api/audit/export   every event as NDJSON, oldest first
-//	GET /api/audit/verify   {"ok", "checked", "first_break"?}
+//	GET /api/audit/export   every event as NDJSON, oldest first; the head in X-Chadash-Audit-Head
+//	GET /api/audit/verify   {"ok", "checked", "first_break"?, "head"?}
 func (l *Log) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler, log *slog.Logger) {
 	mux.Handle("GET /api/audit", wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -63,7 +66,14 @@ func (l *Log) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler,
 	mux.Handle("GET /api/audit/export", wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-ndjson")
 		w.Header().Set("Content-Disposition", `attachment; filename="chadash-audit.ndjson"`)
-		if err := l.Export(r.Context(), w); err != nil && r.Context().Err() == nil {
+		// The head as of the export, in a header: an owner can record it
+		// somewhere the hub can't write and compare later exports with it.
+		head := func(h Head) {
+			if h.Seq > 0 {
+				w.Header().Set(HeadHeader, h.String())
+			}
+		}
+		if err := l.ExportWithHead(r.Context(), w, head); err != nil && r.Context().Err() == nil {
 			// Headers are gone by now; the truncated file is the signal, and
 			// verify says where.
 			log.Error("audit: export failed", "err", err)

@@ -1,6 +1,7 @@
 package action
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"slices"
@@ -43,6 +44,13 @@ func (r *Registry) Register(source string, defs ...Def) error {
 		case d.Tier > T4:
 			return fmt.Errorf("action: %s: %s has tier %d", source, d.ID, d.Tier)
 		}
+		if where, err := nestedSecret(d.Params); err != nil {
+			return fmt.Errorf("action: %s: %s: params schema: %w", source, d.ID, err)
+		} else if where != "" {
+			// The audit log and plans redact top-level secret params only
+			// (Schema.Secrets), so a secret any deeper would be kept.
+			return fmt.Errorf("action: %s: %s has a secret param below the top level (%s); secret params must be top-level properties", source, d.ID, where)
+		}
 		seen[d.ID] = true
 	}
 	r.mu.Lock()
@@ -59,6 +67,70 @@ func (r *Registry) Register(source string, defs ...Def) error {
 		r.source[d.ID] = source
 	}
 	return nil
+}
+
+// nestedSecret returns where s declares a write-only (secret) property
+// anywhere but directly under the top-level object's properties, or "".
+func nestedSecret(s Schema) (string, error) {
+	if s == nil {
+		return "", nil
+	}
+	raw, err := s.MarshalJSON()
+	if err != nil {
+		return "", err
+	}
+	var root map[string]any
+	if err := json.Unmarshal(raw, &root); err != nil {
+		return "", err
+	}
+	for k, v := range root {
+		if k != "properties" {
+			if p := writeOnlyIn(v, "/"+k); p != "" {
+				return p, nil
+			}
+			continue
+		}
+		props, _ := v.(map[string]any)
+		for name, prop := range props {
+			pm, _ := prop.(map[string]any)
+			for pk, pv := range pm {
+				if pk == "writeOnly" {
+					continue // a top-level secret: redacted
+				}
+				if p := writeOnlyIn(pv, "/properties/"+name+"/"+pk); p != "" {
+					return p, nil
+				}
+			}
+		}
+	}
+	return "", nil
+}
+
+// writeOnlyIn finds "writeOnly": true anywhere in v.
+func writeOnlyIn(v any, path string) string {
+	switch t := v.(type) {
+	case map[string]any:
+		if w, _ := t["writeOnly"].(bool); w {
+			return path
+		}
+		keys := make([]string, 0, len(t))
+		for k := range t {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		for _, k := range keys {
+			if p := writeOnlyIn(t[k], path+"/"+k); p != "" {
+				return p
+			}
+		}
+	case []any:
+		for i, e := range t {
+			if p := writeOnlyIn(e, fmt.Sprintf("%s/%d", path, i)); p != "" {
+				return p
+			}
+		}
+	}
+	return ""
 }
 
 // Unregister removes a source's actions.

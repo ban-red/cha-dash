@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -44,10 +45,39 @@ type GraphSource struct {
 	Graph *graph.Graph
 	// MaxPending bounds each feed's undelivered operations before it lags.
 	MaxPending int
+	// View, when set, says how the subscribing viewer (its connection's
+	// context) sees the graph: which resources (Filter, combined with the
+	// topic's kinds) and how each looks (Project). Nil, or a zero
+	// GraphView: the whole graph as it is.
+	View func(ctx context.Context) GraphView
 }
 
-// Open implements Source.
+// GraphView is one viewer's view of the graph.
+type GraphView struct {
+	// Filter drops resources (and with them their relations); nil keeps all.
+	Filter graph.Filter
+	// Project returns what the viewer sees of a resource; it must not
+	// modify its argument, and returns it unchanged when there's nothing
+	// to hide. Nil shows resources as they are.
+	Project func(*graph.Resource) *graph.Resource
+}
+
+// Open implements Source: the whole graph, whatever View says.
 func (s GraphSource) Open(topic string, notify chan<- struct{}) (Feed, error) {
+	return s.open(GraphView{}, topic, notify)
+}
+
+// OpenContext implements ContextSource: the graph as View shows it to the
+// viewer in ctx.
+func (s GraphSource) OpenContext(ctx context.Context, topic string, notify chan<- struct{}) (Feed, error) {
+	var v GraphView
+	if s.View != nil {
+		v = s.View(ctx)
+	}
+	return s.open(v, topic, notify)
+}
+
+func (s GraphSource) open(v GraphView, topic string, notify chan<- struct{}) (Feed, error) {
 	var f graph.Filter
 	switch {
 	case topic == "graph":
@@ -63,7 +93,55 @@ func (s GraphSource) Open(topic string, notify chan<- struct{}) (Feed, error) {
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownTopic, topic)
 	}
-	return graphFeed{s.Graph.Watch(f, notify, s.MaxPending)}, nil
+	if v.Filter != nil {
+		if kinds := f; kinds != nil {
+			f = func(r *graph.Resource) bool { return kinds(r) && v.Filter(r) }
+		} else {
+			f = v.Filter
+		}
+	}
+	feed := graphFeed{s.Graph.Watch(f, notify, s.MaxPending)}
+	if v.Project != nil {
+		return projectedGraphFeed{feed, v.Project}, nil
+	}
+	return feed, nil
+}
+
+// projectedGraphFeed shows each resource through project: in snapshots,
+// and in the whole resources diffs carry (graph diffs replace resources
+// whole, never fields).
+type projectedGraphFeed struct {
+	graphFeed
+	project func(*graph.Resource) *graph.Resource
+}
+
+func (f projectedGraphFeed) Snapshot() (uint64, any) {
+	seq, doc := f.w.Snapshot()
+	return seq, ProjectGraph(doc, f.project)
+}
+
+func (f projectedGraphFeed) Drain() (uint64, []jsonpatch.Op, error) {
+	seq, ops, err := f.graphFeed.Drain()
+	for i, op := range ops {
+		if r, ok := op.Value.(*graph.Resource); ok && strings.HasPrefix(op.Path, "/resources/") {
+			ops[i].Value = f.project(r)
+		}
+	}
+	return seq, ops, err
+}
+
+// ProjectGraph returns doc with every resource passed through project
+// (relations as they are). doc's resources are shared: project must copy
+// what it changes.
+func ProjectGraph(doc graph.Doc, project func(*graph.Resource) *graph.Resource) graph.Doc {
+	if project == nil {
+		return doc
+	}
+	out := graph.Doc{Resources: make(map[graph.RID]*graph.Resource, len(doc.Resources)), Relations: doc.Relations}
+	for id, r := range doc.Resources {
+		out.Resources[id] = project(r)
+	}
+	return out
 }
 
 type graphFeed struct{ w *graph.Watcher }

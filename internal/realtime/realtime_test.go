@@ -492,6 +492,93 @@ func TestHubCloseSendsGoingAway(t *testing.T) {
 	}
 }
 
+type whoKey struct{}
+
+// newWhoServer serves h with ?who= on each connection's context, as the
+// server's session middleware puts the identity there.
+func newWhoServer(t *testing.T, opts Options) (*Hub, string) {
+	t.Helper()
+	h := New(GraphSource{Graph: graph.New()}, opts)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), whoKey{}, r.URL.Query().Get("who"))))
+	}))
+	t.Cleanup(func() {
+		h.Close()
+		srv.Close()
+	})
+	return h, "ws" + strings.TrimPrefix(srv.URL, "http")
+}
+
+func who(ctx context.Context) string { s, _ := ctx.Value(whoKey{}).(string); return s }
+
+// CloseWhere closes exactly the connections it picks, with 1008.
+func TestCloseWhere(t *testing.T) {
+	h, url := newWhoServer(t, Options{})
+	sam, kim := dial(t, url+"?who=sam"), dial(t, url+"?who=kim")
+	sam.hello()
+	kim.hello()
+	if n := h.CloseWhere(func(ctx context.Context) bool { return who(ctx) == "sam" }, "signed out"); n != 1 {
+		t.Fatalf("closed %d", n)
+	}
+	if s := closeStatus(t, sam); s != websocket.StatusPolicyViolation {
+		t.Fatalf("sam: close status = %v", s)
+	}
+	kim.send(frame{"op": "ping"})
+	expectOp(t, kim.next(), "pong")
+}
+
+// Recheck runs on a timer and before each subscription; a no closes the
+// socket with 1008.
+func TestRecheck(t *testing.T) {
+	var revoked sync.Map
+	opts := Options{RecheckEvery: 50 * time.Millisecond, Recheck: func(ctx context.Context) (bool, error) {
+		_, gone := revoked.Load(who(ctx))
+		return !gone, nil
+	}}
+	t.Run("timer", func(t *testing.T) {
+		_, url := newWhoServer(t, opts)
+		c := dial(t, url+"?who=sam")
+		c.hello()
+		c.send(frame{"op": "sub", "id": 1, "topics": []string{"graph"}})
+		expectOp(t, c.next(), "snap")
+		revoked.Store("sam", true)
+		if s := closeStatus(t, c); s != websocket.StatusPolicyViolation {
+			t.Fatalf("close status = %v", s)
+		}
+	})
+	t.Run("subscribe", func(t *testing.T) {
+		slow := opts
+		slow.RecheckEvery = time.Hour
+		_, url := newWhoServer(t, slow)
+		c := dial(t, url+"?who=kim")
+		c.hello()
+		revoked.Store("kim", true)
+		c.send(frame{"op": "sub", "id": 1, "topics": []string{"graph"}})
+		if s := closeStatus(t, c); s != websocket.StatusPolicyViolation {
+			t.Fatalf("close status = %v", s)
+		}
+	})
+	t.Run("error", func(t *testing.T) {
+		_, url := newWhoServer(t, Options{RecheckEvery: 50 * time.Millisecond, Recheck: func(context.Context) (bool, error) { return true, errors.New("disk on fire") }})
+		c := dial(t, url)
+		c.hello()
+		if s := closeStatus(t, c); s != websocket.StatusPolicyViolation {
+			t.Fatalf("close status = %v", s)
+		}
+	})
+}
+
+// Every socket ends after MaxLifetime, so the client reconnects and is
+// identified afresh.
+func TestMaxLifetime(t *testing.T) {
+	_, url := newWhoServer(t, Options{MaxLifetime: 100 * time.Millisecond})
+	c := dial(t, url)
+	c.hello()
+	if s := closeStatus(t, c); s != websocket.StatusNormalClosure {
+		t.Fatalf("close status = %v", s)
+	}
+}
+
 func TestUnknownTopicErrorIsTyped(t *testing.T) {
 	_, err := GraphSource{Graph: graph.New()}.Open("graph:kind/", nil)
 	if !errors.Is(err, ErrUnknownTopic) {

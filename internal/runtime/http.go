@@ -2,10 +2,14 @@ package runtime
 
 import (
 	"errors"
+	"maps"
 	"net/http"
+	"net/url"
 	"runtime"
+	"slices"
 	"time"
 
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
@@ -108,6 +112,9 @@ func (m *Manager) handleCreate(w http.ResponseWriter, r *http.Request) {
 		m.writeError(w, err)
 		return
 	}
+	p := auditParams(req.Config, req.Secrets, req.Enabled)
+	p["integration"], p["name"] = req.Integration, req.Name
+	m.Audit.Change(r, "settings.integrations.instance.create", "integration:"+id, p, authz.T1, nil)
 	httpx.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
@@ -126,15 +133,48 @@ func (m *Manager) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		m.writeError(w, err)
 		return
 	}
+	p := auditParams(req.Config, req.Secrets, req.Enabled)
+	p["integration"], p["name"] = v.Integration, v.Name
+	if req.Name != nil {
+		p["renamed"] = true
+	}
+	m.Audit.Change(r, "settings.integrations.instance.update", "integration:"+id, p, authz.T1, nil)
 	httpx.WriteJSON(w, http.StatusOK, v)
 }
 
 func (m *Manager) handleDelete(w http.ResponseWriter, r *http.Request) {
-	if err := m.Delete(r.Context(), r.PathValue("id")); err != nil {
+	id := r.PathValue("id")
+	before, _ := m.Get(id) // for the audit record; Delete answers a missing one
+	if err := m.Delete(r.Context(), id); err != nil {
 		m.writeError(w, err)
 		return
 	}
+	m.Audit.Change(r, "settings.integrations.instance.delete", "integration:"+id,
+		map[string]any{"integration": before.Integration, "name": before.Name}, authz.T1, nil)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// auditParams is what the audit log keeps of an instance's create or
+// update: which config and secret fields were sent (names only, never a
+// value), the URL's host (a URL can carry credentials or a path worth
+// keeping private) and whether it's enabled.
+func auditParams(config, secrets map[string]any, enabled *bool) map[string]any {
+	p := map[string]any{}
+	if config != nil {
+		p["config_fields"] = slices.Sorted(maps.Keys(config))
+		if raw, ok := config["url"].(string); ok {
+			if u, err := url.Parse(raw); err == nil && u.Hostname() != "" {
+				p["url_host"] = u.Hostname()
+			}
+		}
+	}
+	if len(secrets) > 0 {
+		p["secret_fields"] = slices.Sorted(maps.Keys(secrets))
+	}
+	if enabled != nil {
+		p["enabled"] = *enabled
+	}
+	return p
 }
 
 func (m *Manager) handleTest(w http.ResponseWriter, r *http.Request) {
