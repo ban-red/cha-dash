@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### v0.2 review fixes
+- **Esc on "Confirm it's you"** closes only that dialog. Settings and the Inbox behind it stay open.
+- **Hold-to-confirm works with screen readers, voice control and switch access.** A click that isn't a hold turns the button into a two-step **Confirm**, and the next press confirms. Holding still works as before.
+- **Task progress is read out once**, when its step changes and when it ends, without percentages.
+- **The "What this affects" list is readable at rest** instead of faded. In an approval it's never dimmed.
+- **Keyboard focus stays put** in Settings and approvals: it moves into a confirm or form when it opens and back when it closes, and stays on a working button through the step-up. Settings keeps Tab inside the sheet, and a blocked Deploy can be reached and says why.
+- **A user's role, the notification grace and the Security choices save with a Save button**, so moving through them with the arrow keys no longer saves or asks you to confirm it's you.
+- The audit log says when older events fail to load, names each Details button after its event, and says how many events match a filter. A notification rule's checkbox goes back when its save fails. A stack secret's Set button is named "Set <name>".
+- **Listing a resource's actions is faster and bounded**: at most 4 reads at a time and 3 seconds in all. An action whose state couldn't be read in time shows as unavailable with a reason instead of holding up ⌘K. Proxmox guests list in about 2 API calls instead of 20.
+- **Task logs stream line by line** on the live connection instead of resending the whole log each time. The live log keeps 25 to 50 lines.
+
+### Security (v0.2 review)
+- **A browser's push subscription can't be taken over** by another account: subscribing an endpoint someone else registered is refused. Turn notifications off in the first account to move a browser.
+- **NAT64 and 6to4 addresses** are checked by the IPv4 address inside them, for Web Push and the icon fetcher.
+- **SVG icons are parsed as XML and checked against an allowlist** of elements and attributes, so encoded `javascript:`, animation tricks and external references are refused.
+- **Links are http(s) only**: a tile or widget link with any other scheme (`javascript:`, `data:`) renders without a link. A notification click can only open a page on the hub.
+
 ### Notifications (wave 10, track 10A)
 - **Settings → Notifications**: Web Push to your browsers, ntfy, and signed webhooks. Each channel has a test button that sends one now and says how it went, and the delivery log shows every message, failures included.
 - **Symptom-first defaults.** Something down is sent at once. Something that needs attention waits 5 minutes first, so a flap that clears by itself never pages anyone. An integration to reconnect and a stuck stack notify once each. Hints never notify, and neither do security findings at the Relaxed level. Resolutions are sent for things that were down.
