@@ -245,8 +245,14 @@ func (in *instance) resolveGuest(ctx context.Context, target string) (action.Tar
 	if err != nil || (typ != "qemu" && typ != "lxc") {
 		return action.Target{}, action.ErrNotFound
 	}
-	var res []resource
-	if err := in.get(ctx, "/cluster/resources", url.Values{"type": {"vm"}}, &res); err != nil {
+	// Every guest action resolves the same way: while the hub lists a
+	// guest's actions, they share one read (action.Memo).
+	res, err := action.Memo(ctx, ID+"/"+in.key+"/cluster/resources/vm", func(ctx context.Context) ([]resource, error) {
+		var res []resource
+		err := in.get(ctx, "/cluster/resources", url.Values{"type": {"vm"}}, &res)
+		return res, err
+	})
+	if err != nil {
 		return action.Target{}, readRefusal(err)
 	}
 	for _, r := range res {
@@ -290,10 +296,13 @@ type guestStatus struct {
 	QMPStatus string `json:"qmpstatus"` // qemu: running, paused, …
 }
 
+// While the hub lists a guest's actions, they share one read (action.Memo).
 func (in *instance) current(ctx context.Context, g guestTarget) (guestStatus, error) {
-	var s guestStatus
-	err := in.get(ctx, g.path("status", "current"), nil, &s)
-	return s, err
+	return action.Memo(ctx, ID+"/"+in.key+"/status/"+g.String(), func(ctx context.Context) (guestStatus, error) {
+		var s guestStatus
+		err := in.get(ctx, g.path("status", "current"), nil, &s)
+		return s, err
+	})
 }
 
 // when refuses with check's sentence, or when the guest is locked (a
