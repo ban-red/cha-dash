@@ -269,7 +269,9 @@ describe('Notify me on this device', () => {
     expect(opts.applicationServerKey).toHaveLength(65);
     expect(f.last('POST', '/api/notify/push/subscriptions')!.body).toEqual({ endpoint: 'https://push.example/wpush/abc', expirationTime: null, keys: { p256dh: 'BPfake', auth: 'fakeauth' } });
     expect(h.ui.state.toasts.at(-1)?.text).toBe('This device will get notifications.');
-    expect(w.text()).toContain('Firefox on Linuxthis device');
+    // "this device" waits on the endpoint's SHA-256 (crypto.subtle), which
+    // settles on its own schedule under load.
+    await vi.waitFor(() => expect(w.text()).toContain('Firefox on Linuxthis device'));
     expect(w.find('.nd-switch').attributes('aria-pressed')).toBe('true');
     // And off again: the hub forgets it, then the browser does.
     await w.find('.nd-switch').trigger('click');
