@@ -116,6 +116,7 @@ var provenElsewhere = map[string]string{
 	"DELETE /api/correlate/decisions/{id}":         "correlate.TestAPI",
 	"PUT /api/settings/security":                   "TestChangesAreAudited",
 	"POST /api/nodes/{id}/revoke":                  "nodes.TestRevoke",
+	"POST /api/nodes/pairing/regenerate":           "nodes.TestRevokeRegeneratesTheSecret",
 	"POST /api/approvals/{id}/approve":             "action.TestTokenT2WaitsForAPerson",
 	"POST /api/approvals/{id}/deny":                "action.TestApprovalDenyExpireWithdraw",
 }
