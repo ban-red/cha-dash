@@ -15,6 +15,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"dash.cha.sh/internal/httpx"
 )
 
 // Outbound requests. Every message leaves through one of two hardened
@@ -57,6 +59,13 @@ func allowed(p targetPolicy, ip netip.Addr) bool {
 	if ip == netip.AddrFrom4([4]byte{255, 255, 255, 255}) {
 		return false
 	}
+	// NAT64 and 6to4 carry an IPv4 address, which gets the same rule: a
+	// translator would connect to it.
+	for _, v4 := range httpx.EmbeddedIPv4(ip) {
+		if !allowed(p, v4) {
+			return false
+		}
+	}
 	if p == policyLAN {
 		return true
 	}
@@ -79,6 +88,9 @@ var nonPublic = []netip.Prefix{
 	netip.MustParsePrefix("192.0.0.0/24"),
 	netip.MustParsePrefix("198.18.0.0/15"),
 	netip.MustParsePrefix("240.0.0.0/4"),
+	// Local-use NAT64 (RFC 8215) is never the public internet. The
+	// well-known 64:ff9b::/96 and 6to4's 2002::/16 are allowed when the
+	// IPv4 address they carry is (httpx.EmbeddedIPv4).
 	netip.MustParsePrefix("64:ff9b:1::/48"),
 }
 

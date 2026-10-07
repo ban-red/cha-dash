@@ -40,6 +40,10 @@ type sentence string
 
 func (s sentence) Error() string { return string(s) }
 
+// errEndpointTaken refuses a push subscription whose endpoint another user
+// registered.
+var errEndpointTaken = sentence("This browser already gets notifications for another account. Turn them off there first.")
+
 // Defaults.
 const (
 	// DefaultGroupWindow is how long the service collects messages before
@@ -616,8 +620,8 @@ type SubscribeInput struct {
 }
 
 // Subscribe stores (or refreshes) a device for a user. An endpoint another
-// user registered moves to this one: it's the same browser, signed in as
-// someone else now.
+// user registered is refused with errEndpointTaken and left as it is: the
+// other account removes it first (signing out of a shared browser does).
 func (s *Service) Subscribe(ctx context.Context, userID string, in SubscribeInput) (Device, error) {
 	if _, err := s.checkEndpoint(in.Endpoint); err != nil {
 		return Device{}, &invalidError{[]FieldError{{"/endpoint", err.Error()}}}
@@ -642,10 +646,20 @@ func (s *Service) Subscribe(ctx context.Context, userID string, in SubscribeInpu
 		return Device{}, sentence(fmt.Sprintf("This account already has %d devices; remove one first.", maxDevices))
 	}
 	id := newID("ps_")
-	if _, err := s.st.Writer().ExecContext(ctx, `INSERT INTO notify_push_subscriptions (id, user_id, endpoint, p256dh, auth, label, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, label = excluded.label, last_error = NULL`,
-		id, userID, in.Endpoint, p256dh, authKey, label, s.now().UnixMilli()); err != nil {
+	// A known endpoint is refreshed only for the user who registered it.
+	// Someone else's is refused: rebinding it would take over their
+	// device's notifications.
+	res, err := s.st.Writer().ExecContext(ctx, `INSERT INTO notify_push_subscriptions (id, user_id, endpoint, p256dh, auth, label, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, label = excluded.label, last_error = NULL
+		WHERE notify_push_subscriptions.user_id = excluded.user_id`,
+		id, userID, in.Endpoint, p256dh, authKey, label, s.now().UnixMilli())
+	if err != nil {
 		return Device{}, err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return Device{}, err
+	} else if n == 0 {
+		return Device{}, errEndpointTaken
 	}
 	devs, err := s.Devices(ctx, userID)
 	if err != nil {

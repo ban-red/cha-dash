@@ -58,7 +58,7 @@ func (s *Service) fail(w http.ResponseWriter, err error, notFound string) {
 		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": httpx.ErrorDetail{Code: "invalid", Message: inv.Error()}, "fields": inv.fields})
 	case errors.Is(err, errNotFound):
 		httpx.Error(w, http.StatusNotFound, "not_found", notFound)
-	case errors.Is(err, errNameTaken):
+	case errors.Is(err, errNameTaken), errors.Is(err, errEndpointTaken):
 		httpx.Error(w, http.StatusConflict, "conflict", err.Error())
 	case errors.Is(err, errBuiltin):
 		httpx.Error(w, http.StatusConflict, "builtin", err.Error())

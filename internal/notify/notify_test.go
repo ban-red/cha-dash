@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -837,17 +838,84 @@ func TestSubscribeValidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The same browser, now signed in as someone else: it moves.
-	if _, err := e.s.Subscribe(t.Context(), "u_home", d.input("https://push.example/x")); err != nil {
-		t.Fatal(err)
-	}
-	if devs, _ := e.s.Devices(t.Context(), "u_view"); len(devs) != 0 {
-		t.Fatalf("u_view still has %+v", devs)
-	}
-	if err := e.s.RemoveDevice(t.Context(), "u_view", dev.ID); !errors.Is(err, errNotFound) {
+	if err := e.s.RemoveDevice(t.Context(), "u_home", dev.ID); !errors.Is(err, errNotFound) {
 		t.Fatalf("removed someone else's device: %v", err)
 	}
-	if err := e.s.Unsubscribe(t.Context(), "u_home", "https://push.example/x"); err != nil {
+	if err := e.s.Unsubscribe(t.Context(), "u_home", "https://push.example/x"); !errors.Is(err, errNotFound) {
+		t.Fatalf("unsubscribed someone else's device: %v", err)
+	}
+}
+
+// pushRow is a push subscription as stored.
+type pushRow struct {
+	ID, User, Label string
+	P256dh, Auth    []byte
+}
+
+func (e *env) pushRow(t *testing.T, endpoint string) pushRow {
+	t.Helper()
+	var r pushRow
+	if err := e.s.st.Reader().QueryRowContext(t.Context(), `SELECT id, user_id, label, p256dh, auth FROM notify_push_subscriptions WHERE endpoint = ?`, endpoint).
+		Scan(&r.ID, &r.User, &r.Label, &r.P256dh, &r.Auth); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// Another user can't rebind a registered endpoint, which would take over
+// that device's notifications; its own user can refresh it.
+func TestSubscribeRefusesSomeoneElsesEndpoint(t *testing.T) {
+	e := newEnv(t)
+	e.s.allowLoopbackPush = false
+	const endpoint = "https://push.example/a"
+	a := newDevice()
+	if _, err := e.s.Subscribe(t.Context(), "u_view", a.input(endpoint)); err != nil {
+		t.Fatal(err)
+	}
+	before := e.pushRow(t, endpoint)
+
+	// u_home, with keys of their own, names u_view's endpoint.
+	in := newDevice().input(endpoint)
+	in.Label = "Attacker's phone"
+	if _, err := e.s.Subscribe(t.Context(), "u_home", in); !errors.Is(err, errEndpointTaken) {
+		t.Fatalf("subscribing someone else's endpoint: %v", err)
+	}
+	if after := e.pushRow(t, endpoint); !reflect.DeepEqual(after, before) {
+		t.Fatalf("the row changed: %+v, was %+v", after, before)
+	}
+	if devs, _ := e.s.Devices(t.Context(), "u_home"); len(devs) != 0 {
+		t.Fatalf("u_home has %+v", devs)
+	}
+	if devs, _ := e.s.Devices(t.Context(), "u_view"); len(devs) != 1 {
+		t.Fatalf("u_view has %+v", devs)
+	}
+	// The API answers 409 with the sentence.
+	rec := httptest.NewRecorder()
+	e.s.fail(rec, errEndpointTaken, "")
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "another account") {
+		t.Fatalf("API answer: %d %s", rec.Code, rec.Body)
+	}
+
+	// The same user re-subscribing (the browser rotated its keys) updates
+	// the row in place.
+	b := newDevice()
+	in = b.input(endpoint)
+	in.Label = "Firefox on macOS"
+	dev, err := e.s.Subscribe(t.Context(), "u_view", in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after := e.pushRow(t, endpoint)
+	if after.ID != before.ID || dev.ID != before.ID || after.User != "u_view" || after.Label != "Firefox on macOS" ||
+		bytes.Equal(after.P256dh, before.P256dh) || bytes.Equal(after.Auth, before.Auth) || !bytes.Equal(after.Auth, b.auth) {
+		t.Fatalf("re-subscribing: %+v, was %+v", after, before)
+	}
+
+	// Once u_view removes it, the browser can be registered by u_home.
+	if err := e.s.Unsubscribe(t.Context(), "u_view", endpoint); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Subscribe(t.Context(), "u_home", newDevice().input(endpoint)); err != nil {
 		t.Fatal(err)
 	}
 }
