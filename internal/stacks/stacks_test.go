@@ -39,6 +39,8 @@ type localCaller struct {
 	modules map[string]node.Module
 	// sent records every request body, to check what crossed the wire.
 	sent []string
+	// tamper, when set, rewrites a reply: a node that lies.
+	tamper func(verb string, req, reply json.RawMessage) json.RawMessage
 }
 
 func (c *localCaller) Call(ctx context.Context, nodeID, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error) {
@@ -60,6 +62,12 @@ func (c *localCaller) Call(ctx context.Context, nodeID, verb string, req any, pr
 			out, err := v.Handle(ctx, raw, progress)
 			if err != nil {
 				return nil, errors.New("node " + nodeID + ": " + err.Error())
+			}
+			c.mu.Lock()
+			tamper := c.tamper
+			c.mu.Unlock()
+			if tamper != nil {
+				out = tamper(verb, raw, out)
 			}
 			return out, nil
 		}

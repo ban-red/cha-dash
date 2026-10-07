@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -145,14 +146,15 @@ func load(ctx context.Context, s stackRef, content string, o loadOptions) (*type
 		return v, ok
 	}
 	var subErr error
-	details := types.ConfigDetails{
-		WorkingDir:  s.dir,
-		ConfigFiles: []types.ConfigFile{{Filename: s.path(), Content: []byte(content)}},
-		Environment: env,
+	details := func() types.ConfigDetails {
+		return types.ConfigDetails{
+			WorkingDir:  s.dir,
+			ConfigFiles: []types.ConfigFile{{Filename: s.path(), Content: []byte(content)}},
+			Environment: maps.Clone(env),
+		}
 	}
-	p, err := loader.LoadWithContext(ctx, details, func(lo *loader.Options) {
+	common := func(lo *loader.Options) {
 		lo.SetProjectName(s.name, true)
-		lo.SkipResolveEnvironment = false
 		next := lo.Interpolate.Substitute
 		if next == nil {
 			next = template.Substitute
@@ -167,6 +169,30 @@ func load(ctx context.Context, s stackRef, content string, o loadOptions) (*type
 			}
 			return next(out, m)
 		}
+	}
+	// First pass: the model without reading any other file (no env_file,
+	// label_file, include or extends), so references that leave the
+	// stack's directory are refused before the loader opens them (guard.go).
+	pre, err := loader.LoadWithContext(ctx, details(), func(lo *loader.Options) {
+		common(lo)
+		lo.SkipInclude, lo.SkipExtends = true, true
+		lo.SkipResolveEnvironment, lo.SkipResolveLabels = true, true
+		lo.SkipConsistencyCheck = true
+	})
+	if subErr != nil {
+		return nil, subErr
+	}
+	if err != nil {
+		return nil, err
+	}
+	var doc yaml.Node
+	hasInclude := yaml.Unmarshal([]byte(content), &doc) == nil && hasKey(&doc, "include")
+	if err := checkFileRefs(pre, s.dir, hasInclude); err != nil {
+		return nil, err
+	}
+	p, err := loader.LoadWithContext(ctx, details(), func(lo *loader.Options) {
+		common(lo)
+		lo.SkipResolveEnvironment = false
 	})
 	if subErr != nil {
 		return nil, subErr
@@ -223,9 +249,11 @@ func envInfo(dir string) stackproto.EnvInfo {
 // ── validation ───────────────────────────────────────────────────────────
 
 // validate checks a proposed file: it must parse and load as compose, its
-// secret references must be well-formed, and x-chadash must make sense.
-// It also warns about what the deploy pipeline handles poorly.
-func validate(ctx context.Context, s stackRef, content string) stackproto.ValidateResponse {
+// secret references must be well-formed, x-chadash must make sense, and the
+// guard must allow what it does on the host (refusals are errors, the
+// root-equivalent rest warnings). It also warns about what the deploy
+// pipeline handles poorly.
+func validate(ctx context.Context, s stackRef, content string, g Guard) stackproto.ValidateResponse {
 	out := stackproto.ValidateResponse{Messages: []stackproto.Message{}, Secrets: secretRefs(content), Meta: map[string]any{}}
 	add := func(sev, msg string, line int, svc string) {
 		out.Messages = append(out.Messages, stackproto.Message{Severity: sev, Message: msg, Line: line, Service: svc})
@@ -255,6 +283,11 @@ func validate(ctx context.Context, s stackRef, content string) stackproto.Valida
 		add(stackproto.SeverityError, "The file has no services.", 0, "")
 	}
 	lines := serviceLines(&doc)
+	refused, flagged, _ := g.check(p, s.dir)
+	for _, m := range slices.Concat(refused, flagged) {
+		m.Line = lines[m.Service]
+		out.Messages = append(out.Messages, m)
+	}
 	for _, name := range sortedKeys(p.Services) {
 		svc := p.Services[name]
 		line := lines[name]
@@ -279,8 +312,8 @@ func validate(ctx context.Context, s stackRef, content string) stackproto.Valida
 			}
 		}
 	}
-	if len(p.Profiles) > 0 || hasKey(&doc, "include") {
-		add(stackproto.SeverityWarning, "include and profiles aren't supported by the node yet; deploys use the file as it is.", 0, "")
+	if len(p.Profiles) > 0 {
+		add(stackproto.SeverityWarning, "profiles aren't supported by the node yet; deploys use the file as it is.", 0, "")
 	}
 	out.OK = !slices.ContainsFunc(out.Messages, func(m stackproto.Message) bool { return m.Severity == stackproto.SeverityError })
 	return out

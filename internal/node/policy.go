@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -30,7 +31,7 @@ const DefaultPolicyPath = "/etc/chadash-node/policy.yaml"
 //	docker.remove     remove a container (not by default)
 //	docker.exec       exec into a container (not by default; also needs exec: true)
 //	stacks.read       list stacks, read compose files, diff, history
-//	stacks.deploy     deploy and roll back a stack
+//	stacks.deploy     deploy and roll back a stack (root on this host: see StacksPolicy)
 //	stacks.adopt      adopt a running compose project in place
 //	host.metrics      host CPU, memory, disk (later)
 //	host.smart        SMART detail (later; needs CAP_SYS_RAWIO)
@@ -74,10 +75,38 @@ type DockerPolicy struct {
 }
 
 // StacksPolicy is the stacks section (the stacks module reads it).
+//
+// stacks.deploy runs compose files the hub sends, and a compose file can
+// mount the host's disk, run privileged or join the host's namespaces: an
+// admin who can deploy is root on this host, by design. Some things are
+// refused whatever the policy says (the Docker socket, "/", the node's own
+// directories and volumes, the pairing volume, env_file outside the stack's
+// directory, include and extends from other files). Deny narrows the rest:
+//
+//	privileged       privileged: true, or security_opt that turns confinement off
+//	host_namespaces  network_mode, pid, ipc, uts, userns_mode or cgroup "host" (or another container's)
+//	devices          devices, device_cgroup_rules, gpus
+//	cap_add          any cap_add
+//	host_binds       host paths outside bind_roots (bind mounts, local-driver volumes, file secrets and configs)
+//
+// Nothing is denied by default, so stacks that need a VPN's NET_ADMIN or a
+// media library's bind mount work; plans flag each of these as
+// root-equivalent instead. Removing deploy from allow turns deploying off.
 type StacksPolicy struct {
 	Root  string   `yaml:"root"`
 	Allow []string `yaml:"allow"`
+	// Deny lists compose features a deploy may not use (StackDenials).
+	Deny []string `yaml:"deny"`
+	// BindRoots are the host paths binds may use when host_binds is
+	// denied: every host path a stack names must be inside one of them.
+	BindRoots []string `yaml:"bind_roots"`
 }
+
+// StackDenials are the valid entries of stacks.deny.
+var StackDenials = []string{"privileged", "host_namespaces", "devices", "cap_add", "host_binds"}
+
+// Denies reports whether stacks.deny lists feature.
+func (s StacksPolicy) Denies(feature string) bool { return slices.Contains(s.Deny, feature) }
 
 // HostPolicy is the host section.
 type HostPolicy struct {
@@ -177,6 +206,19 @@ func (p Policy) Validate() error {
 	}
 	check("docker", p.Docker.Allow)
 	check("stacks", p.Stacks.Allow)
+	for _, d := range p.Stacks.Deny {
+		if !slices.Contains(StackDenials, d) {
+			errs = append(errs, fmt.Errorf("policy: stacks.deny: unknown feature %q (want one of %s)", d, strings.Join(StackDenials, ", ")))
+		}
+	}
+	for _, r := range p.Stacks.BindRoots {
+		if !filepath.IsAbs(r) || filepath.Clean(r) == "/" {
+			errs = append(errs, fmt.Errorf("policy: stacks.bind_roots: %q must be an absolute path other than /", r))
+		}
+	}
+	if len(p.Stacks.BindRoots) > 0 && !p.Stacks.Denies("host_binds") {
+		errs = append(errs, errors.New("policy: stacks.bind_roots only means something with host_binds in stacks.deny"))
+	}
 	if p.Hub.Pin != "" && !nodeproto.ValidPin(p.Hub.Pin) {
 		errs = append(errs, errors.New("policy: hub.pin must be ed25519:<base64url key>"))
 	}

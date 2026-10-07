@@ -73,7 +73,7 @@ const (
 const (
 	CodeNotFound    = "not_found"
 	CodeInvalid     = "invalid"     // the request or the compose file is invalid
-	CodeProtected   = "protected"   // Cha Dash's own stack: view and diff only
+	CodeProtected   = "protected"   // Cha Dash's own stack (view and diff only), or a deploy that would touch a protected container
 	CodeDrift       = "drift"       // the file on disk differs from the last commit
 	CodeConflict    = "conflict"    // ExpectHead doesn't match: someone deployed meanwhile
 	CodeBusy        = "busy"        // another operation holds the stack
@@ -296,6 +296,11 @@ type Plan struct {
 	// the file is unchanged: a different Compose version stamped them, so
 	// the first deploy recreates everything once.
 	RecreateAll bool `json:"recreate_all,omitempty"`
+	// RootEquivalent lists what the file does that amounts to root on the
+	// node's host (privileged, host namespaces, devices, cap_add, host
+	// paths), one sentence each, for the deploy confirmation. The node's
+	// policy (stacks.deny) can refuse these; it allowed them here.
+	RootEquivalent []string `json:"root_equivalent,omitempty"`
 }
 
 // ServicePlan is one service's fate.

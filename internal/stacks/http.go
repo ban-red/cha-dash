@@ -378,7 +378,10 @@ func (s *Service) validate(ctx context.Context, node, name, content string) (*Va
 	if v.Messages == nil {
 		v.Messages = []stackproto.Message{}
 	}
-	if v.Secrets, err = s.secretStates(ctx, res.Secrets); err != nil {
+	// The names come from the hub's own reading of the content, never the
+	// node's list: the node mustn't pick which secrets are sent to it.
+	refs := secretRefs(content)
+	if v.Secrets, err = s.secretStates(ctx, refs); err != nil {
 		return nil, err
 	}
 	for _, sec := range v.Secrets {
@@ -393,14 +396,14 @@ func (s *Service) validate(ctx context.Context, node, name, content string) (*Va
 	if !v.OK {
 		return v, nil
 	}
-	secrets, err := s.resolveSecrets(ctx, res.Secrets)
+	secrets, err := s.resolveSecrets(ctx, refs)
 	if err != nil {
 		return nil, err
 	}
 	var plan stackproto.Plan
 	err = s.call(ctx, node, stackproto.VerbPlan, stackproto.PlanRequest{Stack: name, Content: content, Secrets: secrets}, &plan, s.timeout, nil)
 	clear(secrets)
-	if e := stackproto.ErrorFrom(err); e != nil && e.Code == stackproto.CodeInvalid {
+	if e := stackproto.ErrorFrom(err); e != nil && (e.Code == stackproto.CodeInvalid || e.Code == stackproto.CodeProtected) {
 		v.OK = false
 		v.Messages = append(v.Messages, stackproto.Message{Severity: stackproto.SeverityError, Message: e.Message})
 		return v, nil

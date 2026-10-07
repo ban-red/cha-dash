@@ -436,7 +436,42 @@ func (m *Module) writable(ctx context.Context, id string) (client.ContainerInspe
 	if m.policy.Protected(name, service) {
 		return res, node.Forbidden("%s is protected by this node's policy", name)
 	}
+	// The hub beside the node, whatever its service is called (engine.self
+	// finds it by service or image in the node's compose project).
+	if s, err := m.SelfInfo(ctx); err == nil && s.Hub != nil && s.Hub.ID == c.ID {
+		return res, node.Forbidden("%s is the Cha Dash hub; the node never acts on it", name)
+	}
 	return res, nil
+}
+
+// Mount is one of the node's own container's mounts.
+type Mount struct {
+	Type        string // bind, volume, …
+	Name        string // the volume's name, for a volume
+	Source      string // the path on the host
+	Destination string // the path in the node's container
+}
+
+// SelfMounts lists the node's own container's mounts, so the stacks module
+// can refuse a compose file that would mount the node's identity, the
+// pairing volume or the socket. None when the node can't tell which
+// container it is.
+func (m *Module) SelfMounts(ctx context.Context) ([]Mount, error) {
+	if m.self == "" {
+		return nil, nil
+	}
+	res, err := m.cli.ContainerInspect(ctx, m.self, client.ContainerInspectOptions{})
+	if cerrdefs.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	var out []Mount
+	for _, mt := range res.Container.Mounts {
+		out = append(out, Mount{Type: string(mt.Type), Name: mt.Name, Source: mt.Source, Destination: mt.Destination})
+	}
+	return out, nil
 }
 
 // can answers whether a write would be allowed on a container, before the

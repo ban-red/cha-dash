@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -326,7 +327,14 @@ func gateSteps(soak string) []action.Step {
 
 func deploySteps(r action.Request) []action.Step {
 	ref := refOf(r)
-	steps := []action.Step{{Label: "Check every image can be pulled (a dry run); nothing stops if one can't"}}
+	steps := []action.Step{}
+	if ref.Plan != nil && len(ref.Plan.RootEquivalent) > 0 {
+		// The node's policy allows these; the person confirming should know
+		// what they amount to before the hold ring.
+		steps = append(steps, action.Step{Label: "Root-equivalent on the node's host, which its policy allows: " +
+			strings.Join(ref.Plan.RootEquivalent, "; ") + ". Whoever can deploy this file controls that host."})
+	}
+	steps = append(steps, action.Step{Label: "Check every image can be pulled (a dry run); nothing stops if one can't"})
 	if ref.Plan != nil {
 		var pulls []string
 		for _, sp := range ref.Plan.Services {
@@ -423,11 +431,17 @@ func (s *Service) executeDeploy(ctx context.Context, r action.Request, run *acti
 		return action.Fail("conflict", "The draft changed since this was planned. Plan the deploy again.")
 	}
 	run.Step("Read the secrets the file references")
-	secrets, err := s.resolveSecrets(ctx, secretRefs(draft.Content))
+	refs := secretRefs(draft.Content)
+	secrets, err := s.resolveSecrets(ctx, refs)
 	if err != nil {
 		return action.Fail("secret_missing", firstSentenceOf(err))
 	}
 	defer clear(secrets)
+	// The draft is the hub's content, so these names are the stack's: a
+	// later rollback may send them again, and nothing else.
+	if err := s.grantSecrets(ctx, ref.Node, ref.Stack, refs); err != nil {
+		return err
+	}
 	var res stackproto.DeployResult
 	err = s.call(ctx, ref.Node, stackproto.VerbDeploy, stackproto.DeployRequest{
 		Stack: ref.Stack, Content: draft.Content, Secrets: secrets, ExpectHead: ref.Head,
@@ -451,12 +465,21 @@ func (s *Service) executeDeploy(ctx context.Context, r action.Request, run *acti
 func (s *Service) executeRollback(ctx context.Context, r action.Request, run *action.TaskRun) error {
 	ref := refOf(r)
 	commit := commitOf(r)
-	// The old version may reference other secrets than today's file.
+	// The old version may reference other secrets than today's file. Its
+	// text and its list of names come from the node, so the hub sends only
+	// names an earlier deploy already granted to this stack on this node.
 	var old stackproto.Stack
 	if err := s.call(ctx, ref.Node, stackproto.VerbGet, stackproto.GetRequest{Stack: ref.Stack, At: commit}, &old, s.timeout, nil); err != nil {
 		return nodeFail(err)
 	}
-	secrets, err := s.resolveSecrets(ctx, old.Secrets)
+	names := sortedUnique(append(slices.Clone(old.Secrets), secretRefs(old.Content)...))
+	var notGranted errSecretNotGranted
+	if err := s.grantedOnly(ctx, ref.Node, ref.Stack, names); errors.As(err, &notGranted) {
+		return action.Fail("secret_not_granted", notGranted.Error())
+	} else if err != nil {
+		return err
+	}
+	secrets, err := s.resolveSecrets(ctx, names)
 	if err != nil {
 		return action.Fail("secret_missing", firstSentenceOf(err))
 	}

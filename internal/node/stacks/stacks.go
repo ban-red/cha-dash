@@ -61,6 +61,22 @@ type Options struct {
 	// with a matching image (a prefix); nil means DefaultProtectImages.
 	Protected     []string
 	ProtectImages []string
+	// SelfProject names the compose project the node runs in, which is
+	// view-only like Protected. It's asked again (at most once a minute)
+	// until it answers, so a Docker hiccup at start doesn't leave Cha Dash's
+	// own stack deployable. Nil: none.
+	SelfProject func(ctx context.Context) (string, error)
+	// ProtectContainer reports whether a container is protected by the
+	// node's policy (docker.protect, and the hub and the node always): a
+	// deploy or rollback that would recreate or remove one is refused. Nil:
+	// node.AlwaysProtected only.
+	ProtectContainer func(name, service string) bool
+	// Guard is what the node refuses or flags in a compose file (guard.go).
+	Guard Guard
+	// PrivateDirs are the node's own directories on its filesystem (its
+	// identity, the pairing volume): a running project whose compose file
+	// is under one of them is never read or adopted.
+	PrivateDirs []string
 	// Wait bounds up --wait; Soak is how long every container must then
 	// stay up; RollbackSoak is the same after an automatic rollback (the
 	// previous version has proven itself, so it's shorter). Poll is how
@@ -80,6 +96,10 @@ type Module struct {
 	repo          *repo
 	protected     []string
 	protectImages []string
+	selfProject   func(ctx context.Context) (string, error)
+	protect       func(name, service string) bool
+	guard         Guard
+	privateDirs   []string
 	wait, soak    time.Duration
 	rollbackSoak  time.Duration
 	poll          time.Duration
@@ -89,6 +109,10 @@ type Module struct {
 
 	mu    sync.Mutex
 	locks map[string]*sync.Mutex
+
+	selfMu   sync.Mutex
+	self     string    // the node's compose project, once known
+	selfNext time.Time // when to ask again
 }
 
 var _ node.Module = (*Module)(nil)
@@ -101,6 +125,7 @@ func New(o Options) (*Module, error) {
 	}
 	m := &Module{
 		root: o.Root, docker: o.Docker, protected: o.Protected, protectImages: o.ProtectImages,
+		selfProject: o.SelfProject, protect: o.ProtectContainer, guard: o.Guard, privateDirs: o.PrivateDirs,
 		wait: o.Wait, soak: o.Soak, rollbackSoak: o.RollbackSoak, poll: o.Poll,
 		log: o.Log, now: o.Now, sleep: o.Sleep, locks: map[string]*sync.Mutex{},
 	}
@@ -114,6 +139,11 @@ func New(o Options) (*Module, error) {
 	m.root = root
 	if m.protectImages == nil {
 		m.protectImages = DefaultProtectImages
+	}
+	if m.protect == nil {
+		m.protect = func(name, service string) bool {
+			return node.Policy{}.Protected(name, service)
+		}
 	}
 	if m.wait <= 0 {
 		m.wait = DefaultWait
@@ -269,7 +299,7 @@ func healthOf(c Container) string {
 // protectedReason says why a stack is view-only, or "".
 func (m *Module) protectedReason(name string, contents []string, cs []Container) string {
 	const why = "This is Cha Dash's own stack. It can be viewed and diffed here, but deploying it from Cha Dash waits for self-update (v0.3)."
-	if slices.Contains(m.protected, name) {
+	if slices.Contains(m.protected, name) || (name != "" && m.selfProjectName() == name) {
 		return why
 	}
 	match := func(img string) bool {
@@ -293,6 +323,84 @@ func (m *Module) protectedReason(name string, contents []string, cs []Container)
 		}
 	}
 	return ""
+}
+
+// selfProjectName is the node's own compose project, asking Docker again
+// (at most once a minute) until it knows.
+func (m *Module) selfProjectName() string {
+	if m.selfProject == nil {
+		return ""
+	}
+	m.selfMu.Lock()
+	defer m.selfMu.Unlock()
+	if m.self != "" || m.now().Before(m.selfNext) {
+		return m.self
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	p, err := m.selfProject(ctx)
+	if err != nil || p == "" {
+		m.selfNext = m.now().Add(time.Minute)
+		if err != nil {
+			m.log.Warn("stacks: couldn't tell which compose project the node runs in; asking again in a minute", "err", err)
+		}
+		return ""
+	}
+	m.self = p
+	return p
+}
+
+// protectedTouched names the protected containers a plan would recreate or
+// remove, or "": docker.protect holds for stack verbs as for container ones.
+func (m *Module) protectedTouched(services []stackproto.ServicePlan, running []Container) string {
+	touched := map[string]bool{}
+	for _, sp := range services {
+		if sp.Action == stackproto.ActionRecreate || sp.Action == stackproto.ActionRemove {
+			touched[sp.Name] = true
+		}
+	}
+	var hit []string
+	for _, c := range running {
+		if touched[c.Service] && m.protect(c.Name, c.Service) {
+			hit = append(hit, strings.TrimPrefix(c.Name, "/"))
+		}
+	}
+	if len(hit) == 0 {
+		return ""
+	}
+	slices.Sort(hit)
+	return fmt.Sprintf("This would recreate or remove %s, which this node's policy protects (docker.protect), so the node refuses it.", strings.Join(slices.Compact(hit), ", "))
+}
+
+// privatePath reports whether a file on the node's filesystem is in one of
+// its private directories.
+func (m *Module) privatePath(path string) bool {
+	path = filepath.Clean(path)
+	real, err := filepath.EvalSymlinks(path)
+	for _, d := range slices.Concat(m.privateDirs, AlwaysPrivate) {
+		if d == "" {
+			continue
+		}
+		d = filepath.Clean(d)
+		if within(path, d) || err == nil && within(real, d) {
+			return true
+		}
+	}
+	return false
+}
+
+// readableExternal reports whether the node may read a running project's
+// compose file: an absolute .yaml or .yml path outside its own directories.
+func (m *Module) readableExternal(f string) bool {
+	return filepath.IsAbs(f) && composeFileName(f) && !m.privatePath(f)
+}
+
+// composeFileName reports whether a path looks like a compose file. A
+// running project's labels name its file, and anything that can start a
+// container can set them: the node reads only YAML files it may show.
+func composeFileName(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".yaml" || ext == ".yml"
 }
 
 // imagesOf reads each service's image from a file's text, without loading
@@ -436,6 +544,9 @@ func (m *Module) unadoptable(p Project) string {
 		return fmt.Sprintf("It uses %d compose files (overrides); the node manages stacks with exactly one.", len(p.ConfigFiles))
 	}
 	f := p.ConfigFiles[0]
+	if !m.readableExternal(f) {
+		return "Its compose file isn't one the node will read: it must be a .yaml or .yml file outside the node's own directories."
+	}
 	if st, err := os.Stat(f); err != nil || !st.Mode().IsRegular() {
 		return fmt.Sprintf("The node can't see %s. Mount its directory into chadash-node to adopt it.", f)
 	}
@@ -527,6 +638,9 @@ func (m *Module) detectedExternal(ctx context.Context, name string) (stackRef, b
 	for _, p := range ps {
 		if p.Name == name && len(p.ConfigFiles) == 1 {
 			f := p.ConfigFiles[0]
+			if !m.readableExternal(f) {
+				return stackRef{}, false
+			}
 			if _, err := os.Stat(f); err != nil {
 				return stackRef{}, false
 			}
@@ -543,7 +657,7 @@ func (m *Module) validate(ctx context.Context, req stackproto.ValidateRequest, _
 	if err != nil {
 		return stackproto.ValidateResponse{}, err
 	}
-	return validate(ctx, s, req.Content), nil
+	return validate(ctx, s, req.Content, m.guard), nil
 }
 
 func (m *Module) plan(ctx context.Context, req stackproto.PlanRequest, _ emitter) (stackproto.Plan, error) {
@@ -563,12 +677,30 @@ func (m *Module) plan(ctx context.Context, req stackproto.PlanRequest, _ emitter
 	if err != nil {
 		return stackproto.Plan{}, err
 	}
+	refused, _, flagged := m.guard.check(p, s.dir)
+	if len(refused) > 0 {
+		return stackproto.Plan{}, stackproto.Errorf(stackproto.CodeInvalid, "%s", scrub(refused[0].Message, req.Secrets))
+	}
 	cs, _ := m.containers(ctx, s.name)
 	services, err := planServices(p, cs)
 	if err != nil {
 		return stackproto.Plan{}, err
 	}
-	return planOf(head, req.Content != committed, services), nil
+	if why := m.protectedTouched(services, cs); why != "" {
+		return stackproto.Plan{}, stackproto.Errorf(stackproto.CodeProtected, "%s", why)
+	}
+	pl := planOf(head, req.Content != committed, services)
+	pl.RootEquivalent = scrubAll(flagged, req.Secrets)
+	return pl, nil
+}
+
+// scrubAll scrubs secret values out of each line.
+func scrubAll(lines []string, secrets map[string]string) []string {
+	var out []string
+	for _, l := range lines {
+		out = append(out, scrub(l, secrets))
+	}
+	return out
 }
 
 func secretsOrEmpty(s stackproto.Secrets) map[string]string {

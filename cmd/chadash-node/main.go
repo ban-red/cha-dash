@@ -19,6 +19,8 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -150,13 +152,15 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	var protected []string
-	if project, err := dm.SelfProject(ctx); err != nil {
-		log.Warn("couldn't tell which compose project the node runs in; only the default protections apply", "err", err)
-	} else if project != "" {
-		protected = []string{project}
-	}
-	sm, err := stacks.New(stacks.Options{Root: policy.Stacks.Root, Docker: sdk, Protected: protected, Log: log.With("module", "stacks")})
+	// The node's own project is asked for lazily, and again until Docker
+	// answers, so a slow daemon at start doesn't leave it deployable.
+	sm, err := stacks.New(stacks.Options{
+		Root: policy.Stacks.Root, Docker: sdk, SelfProject: dm.SelfProject,
+		ProtectContainer: policy.Protected,
+		Guard:            stackGuard(ctx, cfg, policy, dm, log),
+		PrivateDirs:      []string{cfg.Dir, cfg.identityDir(), filepath.Dir(cfg.PairingFile)},
+		Log:              log.With("module", "stacks"),
+	})
 	if err != nil {
 		return err
 	}
@@ -171,14 +175,58 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	// The secret is single-use and the hub regenerates it, so a token that
+	// came from the file is read again whenever the node pairs.
+	pairingFile := ""
+	if cfg.Pairing == "" {
+		pairingFile = cfg.PairingFile
+	}
 	c, err := node.NewClient(node.Config{
 		HubURL: hubURL, Name: cfg.Name, Build: buildinfo.Version, Identity: ident, Dispatcher: disp,
-		Pairing: pairing, Log: log, Health: health,
+		Pairing: pairing, PairingFile: pairingFile, Log: log, Health: health,
 	})
 	if err != nil {
 		return err
 	}
 	return c.Run(ctx)
+}
+
+// stackGuard is what no stack may touch on this host: the node's own
+// directories, the pairing file's, and the Docker socket, both as the node
+// sees them and, when it runs in a container, as the host does (its
+// mounts' sources and volume names). The policy's stacks.deny and
+// bind_roots narrow the rest.
+func stackGuard(ctx context.Context, cfg config, policy node.Policy, dm *docker.Module, log *slog.Logger) stacks.Guard {
+	g := stacks.Guard{Deny: policy.Stacks.Deny, BindRoots: policy.Stacks.BindRoots}
+	local := []string{cfg.Dir, cfg.identityDir(), filepath.Dir(cfg.PairingFile)}
+	if sock, ok := strings.CutPrefix(cfg.DockerHost, "unix://"); ok {
+		local = append(local, sock)
+	}
+	g.PrivatePaths = append(g.PrivatePaths, local...)
+	mctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	mounts, err := dm.SelfMounts(mctx)
+	if err != nil {
+		log.Warn("couldn't read the node's own mounts; stacks are kept off its usual paths only", "err", err)
+	}
+	for _, mt := range mounts {
+		if !slices.ContainsFunc(local, func(p string) bool { return within(mt.Destination, p) || within(p, mt.Destination) }) {
+			continue
+		}
+		if mt.Source != "" {
+			g.PrivatePaths = append(g.PrivatePaths, mt.Source)
+		}
+		if mt.Name != "" {
+			g.PrivateVolumes = append(g.PrivateVolumes, mt.Name)
+		}
+	}
+	return g
+}
+
+// within reports whether path is dir or inside it.
+func within(path, dir string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(path))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, "../")
 }
 
 // waitForPairing returns the pairing token: CHADASH_NODE_PAIRING, or the

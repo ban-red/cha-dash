@@ -372,6 +372,61 @@ func (s *Service) resolveSecrets(ctx context.Context, names []string) (stackprot
 	return out, nil
 }
 
+// grantSecrets records that the hub sends names to a stack on a node. A
+// deploy sends what its draft (the hub's own content) references; a
+// rollback may only send names granted this way (stack_secret_grants).
+func (s *Service) grantSecrets(ctx context.Context, node, stack string, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	now := s.now().UnixMilli()
+	return s.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		for _, n := range sortedUnique(names) {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO stack_secret_grants (node, stack, name, granted_at) VALUES (?, ?, ?, ?)
+				ON CONFLICT (node, stack, name) DO NOTHING`, node, stack, n, now); err != nil {
+				return fmt.Errorf("stacks: record secret grant: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+// errSecretNotGranted is a rollback naming a secret no deploy ever sent to
+// that stack on that node.
+type errSecretNotGranted struct{ name, stack string }
+
+func (e errSecretNotGranted) Error() string {
+	return fmt.Sprintf("The version to restore references the secret %q, which Cha Dash never deployed to %s, so it isn't sent. Deploy that version from a draft instead.", e.name, e.stack)
+}
+
+// grantedOnly keeps the rollback from sending any secret the stack wasn't
+// granted: the node says which names the old version references, and a
+// node can't be trusted to ask only for its own.
+func (s *Service) grantedOnly(ctx context.Context, node, stack string, names []string) error {
+	granted := map[string]bool{}
+	rows, err := s.st.Reader().QueryContext(ctx, `SELECT name FROM stack_secret_grants WHERE node = ? AND stack = ?`, node, stack)
+	if err != nil {
+		return fmt.Errorf("stacks: read secret grants: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return err
+		}
+		granted[n] = true
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, n := range sortedUnique(names) {
+		if !granted[n] {
+			return errSecretNotGranted{name: n, stack: stack}
+		}
+	}
+	return nil
+}
+
 func sortedUnique(in []string) []string {
 	out := slices.Clone(in)
 	slices.Sort(out)

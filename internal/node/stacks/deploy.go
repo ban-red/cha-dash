@@ -157,7 +157,7 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 
 	// 1. Validate.
 	em.step("Validate the file")
-	v := validate(ctx, a.s, a.content)
+	v := validate(ctx, a.s, a.content, m.guard)
 	if !v.OK {
 		for _, msg := range v.Messages {
 			if msg.Severity == stackproto.SeverityError {
@@ -175,6 +175,12 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 		return res, stackproto.Errorf(stackproto.CodeInvalid, "%s", scrub(loadMessage(err), a.secrets))
 	}
 	meta := metaOf(a.content)
+	// The guard again, on the file as it will run: validation saw
+	// placeholders, and a secret's value can be a path.
+	refused, _, flagged := m.guard.check(p, a.s.dir)
+	if len(refused) > 0 {
+		return res, stackproto.Errorf(stackproto.CodeInvalid, "%s", scrub(refused[0].Message, a.secrets))
+	}
 
 	// 2. Plan.
 	em.step("Plan from the running containers")
@@ -182,7 +188,11 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 	if err != nil {
 		return res, err
 	}
+	if why := m.protectedTouched(services, a.running); why != "" {
+		return res, stackproto.Errorf(stackproto.CodeProtected, "%s", why)
+	}
 	res.Plan = planOf(a.head, a.content != a.prev || !a.hadPrev, services)
+	res.Plan.RootEquivalent = scrubAll(flagged, a.secrets)
 	if a.hadPrev && a.content == a.prev {
 		res.Outcome = stackproto.OutcomeUnchanged
 		res.Reason = "The file is the same as the last commit, so there's nothing to deploy."
@@ -258,6 +268,10 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 	bp, err := load(ctx, a.s, back, loadOptions{secrets: a.secrets})
 	if err != nil {
 		res.Outcome, res.Reason = stackproto.OutcomeStuck, fmt.Sprintf("%s; and the previous file no longer loads: %s", reason, loadMessage(err))
+		return done()
+	}
+	if refused, _, _ := m.guard.check(bp, a.s.dir); len(refused) > 0 {
+		res.Outcome, res.Reason = stackproto.OutcomeStuck, fmt.Sprintf("%s; and the node's policy refuses the previous file now: %s", reason, refused[0].Message)
 		return done()
 	}
 	prevMeta := metaOf(a.prev)
