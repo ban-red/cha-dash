@@ -251,6 +251,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     tasks: actions.tasks,
     running: actions.running,
     taskFor: actions.taskFor,
+    /** This tab started the task (its end is toasted). */
+    startedHere: actions.startedHere,
     stepUp: actions.stepUp,
     stepUpDone: actions.stepUpDone,
     withStepUp: actions.withStepUp,

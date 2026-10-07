@@ -12,7 +12,8 @@
  *   aren't shown. `link.open` actions open their link.
  *
  * Progress comes from the task working on it (the `tasks` topic): its current
- * step and progress, and Cancel while it runs when its action allows it. The
+ * step and progress, and Cancel while it runs when its action allows it. It
+ * isn't a live region: TaskPresence announces step changes once, for every view. The
  * resolution arrives live from the `inbox` topic.
  */
 import { computed } from 'vue';
@@ -80,7 +81,7 @@ const id = computed(() => `ib-${incident.id}`);
     </div>
 
     <div v-if="expanded && !isResolved" :id="id" class="flow">
-      <div v-if="working" class="working" role="status">
+      <div v-if="working" class="working">
         <svg class="prog" viewBox="0 0 12 12" aria-hidden="true">
           <circle class="track" cx="6" cy="6" r="5" />
           <circle class="arc" cx="6" cy="6" r="5" stroke-dasharray="31.4" :stroke-dashoffset="ringOffset" />

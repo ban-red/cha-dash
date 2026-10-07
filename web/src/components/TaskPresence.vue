@@ -6,8 +6,14 @@
  * incident the task works on, when there is one. A task whose action allows
  * it (`cancellable`) has a Cancel button beside it: the hub stops it, and it
  * ends as cancelled.
+ *
+ * It is also the one place task progress is announced: a single polite live
+ * region that speaks when a task's step changes and when it ends (unless
+ * this tab started it, when a toast says so). Percentages stay visual; the
+ * Inbox and the stack editor show progress without live regions of their own.
  */
-import { computed } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
+import { isDone } from '../lib/actions';
 import { incidents } from '../model/inbox';
 import type { Task } from '../model/types';
 import { useLive } from '../stores/live';
@@ -29,17 +35,49 @@ const incident = computed(() => {
   return incidents(live.inbox.value).find((i) => i.status === 'open' && ui.taskFor(i)?.id === t.id);
 });
 
+const stepOf = (t: Task) => (t.state === 'queued' ? 'waiting its turn' : t.state === 'verifying' ? 'checking it worked' : t.step || 'working');
 const words = computed(() => {
   const t = first.value;
   if (!t) return '';
-  const step = t.state === 'queued' ? 'waiting its turn' : t.state === 'verifying' ? 'checking it worked' : t.step || 'working';
   const p = pct(t);
-  return `${t.label} · ${step}${p !== undefined ? ` · ${p}%` : ''}`;
+  return `${t.label} · ${stepOf(t)}${p !== undefined ? ` · ${p}%` : ''}`;
 });
+
+// ── the announcer ──
+/** What was last said about each task: its state and step, or 'done'. */
+const said = new Map<string, string>();
+const announcement = ref('');
+watch(
+  () => Object.values(ui.tasks.value).map((t) => `${t.id}|${t.state}|${t.step ?? ''}`).join('\n'),
+  async () => {
+    const lines: string[] = [];
+    for (const t of Object.values(ui.tasks.value)) {
+      const before = said.get(t.id);
+      if (isDone(t)) {
+        if (before !== undefined && before !== 'done' && !ui.startedHere(t.id)) {
+          lines.push(t.state === 'succeeded' ? `Done: ${t.label}.` : t.state === 'cancelled' ? `Cancelled: ${t.label}.` : t.error?.message || `${t.label} didn’t work.`);
+        }
+        said.set(t.id, 'done');
+        continue;
+      }
+      const key = `${t.state}|${t.step ?? ''}`;
+      if (key === before) continue;
+      said.set(t.id, key);
+      // A task first seen is its start: the "Started" toast, or not news (it was running when the page opened).
+      if (before !== undefined) lines.push(`${t.label}: ${stepOf(t)}.`);
+    }
+    if (!lines.length) return;
+    announcement.value = '';
+    await nextTick();
+    announcement.value = lines.join(' ');
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
-  <div class="task-presence" role="status" aria-live="polite">
+  <div class="task-presence">
+    <span class="sr" role="status" aria-live="polite" data-task-announcer>{{ announcement }}</span>
     <div v-if="first" class="tp-row">
       <button type="button" class="tp glass" :disabled="!incident" :title="incident ? 'Show it in the Inbox' : undefined" @click="incident && ui.openInbox(incident.id)">
         <svg class="prog" viewBox="0 0 12 12" aria-hidden="true">

@@ -26,3 +26,13 @@ export function trapTab(e: KeyboardEvent, root: HTMLElement | null | undefined):
     first.focus();
   }
 }
+
+/**
+ * A modal layer is open above a sheet: the confirm, the step-up, or any
+ * native modal <dialog>. Settings and the Inbox listen for Esc on the
+ * document, so they check this before closing themselves.
+ */
+export function layerAbove(state: { confirm?: unknown; stepUp?: unknown }): boolean {
+  if (state.confirm || state.stepUp) return true;
+  return typeof document !== 'undefined' && document.querySelector('dialog[open], .layer-top:not(.inert)') !== null;
+}

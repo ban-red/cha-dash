@@ -106,7 +106,11 @@ describe('Settings → Notifications for an admin', () => {
     await rules[2]!.find('input').setValue(false);
     await settle();
     expect(f.last('PUT', '/api/notify/rules/repair')!.body).toEqual({ enabled: false });
+    // The grace saves on Save, not as the select changes.
     await rules[1]!.find('select').setValue('15');
+    await settle();
+    expect(f.last('PUT', '/api/notify/rules/incident.attention')).toBeUndefined();
+    await rules[1]!.find('button[aria-label^="Save the wait"]').trigger('click');
     await settle();
     expect(f.last('PUT', '/api/notify/rules/incident.attention')!.body).toEqual({ grace_minutes: 15 });
     // Untick a channel: the rule now names the others.

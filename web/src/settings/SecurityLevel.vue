@@ -6,8 +6,10 @@
  * and re-publishes every open finding when it changes, so the Inbox, the
  * Briefing and Needs attention follow at once over the realtime feed.
  *
- * A native radio group: arrows move between the levels, and choosing one
- * saves it. A failed save puts the choice back and says why.
+ * A native radio group: arrows move between the levels, and Save sends the
+ * one picked, so arrowing through them never saves (WCAG 3.2.2). A failed
+ * save puts the choice back and says why. Save is aria-disabled rather than
+ * disabled while it works, so it keeps focus.
  *
  * Above it go the hub's deployment notes, such as a reverse proxy it doesn't
  * trust (internal/httpx/proxycheck.go). They clear when the hub restarts.
@@ -39,12 +41,15 @@ const name = useId();
 const view = ref<SecurityView | null>(null);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
+/** The level picked, saved or not. */
+const choice = ref('');
 const saving = ref(false);
 const saveError = ref('');
 
 async function load(): Promise<void> {
   try {
     view.value = await api<SecurityView>('/api/settings/security');
+    choice.value = view.value?.posture ?? '';
     status.value = 'ready';
   } catch (err) {
     status.value = 'error';
@@ -52,18 +57,19 @@ async function load(): Promise<void> {
   }
 }
 
-async function choose(level: SecurityLevelInfo): Promise<void> {
+async function save(): Promise<void> {
   const v = view.value;
-  if (!v || v.posture === level.id) return;
-  const before = v.posture;
-  v.posture = level.id;
+  const level = v?.levels.find((l) => l.id === choice.value);
+  if (!v || !level || v.posture === level.id || saving.value) return;
   saving.value = true;
   saveError.value = '';
   try {
-    view.value = await api<SecurityView>('/api/settings/security', { method: 'PUT', body: { posture: level.id } });
+    const res = await api<SecurityView>('/api/settings/security', { method: 'PUT', body: { posture: level.id } });
+    view.value = res ?? { ...v, posture: level.id };
+    choice.value = view.value.posture;
     ui.toast(`Security level: ${level.label.split(' · ')[0]}.`);
   } catch (err) {
-    v.posture = before;
+    choice.value = v.posture;
     saveError.value = errorWords(err, 'The security level wasn’t changed.');
   } finally {
     saving.value = false;
@@ -85,14 +91,26 @@ onMounted(load);
     <div v-else-if="status === 'error'" class="st-note bad" role="alert"><Glyph kind="down" /><span>{{ loadError }}</span></div>
     <fieldset v-else-if="view" class="sl-group" :aria-busy="saving">
       <legend class="sr">Security level</legend>
-      <label v-for="l in view.levels" :key="l.id" :class="['sl-card', { on: view.posture === l.id }]">
-        <input type="radio" :name="name" :value="l.id" :checked="view.posture === l.id" :aria-describedby="`${name}-${l.id}`" @change="choose(l)" />
+      <label v-for="l in view.levels" :key="l.id" :class="['sl-card', { on: choice === l.id }]">
+        <input type="radio" :name="name" :value="l.id" :checked="choice === l.id" :disabled="saving" :aria-describedby="`${name}-${l.id}`" @change="choice = l.id" />
         <span class="sl-text">
           <span class="sl-label">{{ l.label }}<span v-if="l.default" class="chip">default</span></span>
           <span :id="`${name}-${l.id}`" class="sl-desc">{{ l.description }}</span>
         </span>
       </label>
     </fieldset>
+    <div v-if="status === 'ready' && view" class="st-acts">
+      <button
+        type="button"
+        class="btn sm"
+        aria-label="Save security level"
+        :aria-disabled="choice === view.posture || saving ? 'true' : undefined"
+        :aria-busy="saving || undefined"
+        @click="save"
+      >
+        Save
+      </button>
+    </div>
     <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
   </section>
 </template>

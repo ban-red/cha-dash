@@ -12,6 +12,7 @@
  */
 import { computed, nextTick, onMounted, ref, useId, useTemplateRef } from 'vue';
 import Glyph from './marks/Glyph.vue';
+import '../styles/act-dialog.css';
 import { useModal } from '../board/useModal';
 import { HUB_WARNING, hitsHub, hubFirst, impactName, relationWords } from '../model/words';
 import { isHub } from '../model/hub';

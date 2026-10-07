@@ -10,6 +10,7 @@ import Glyph from '../components/marks/Glyph.vue';
 import { ago } from '../lib/format';
 import { hubWords } from '../lib/actions';
 import { StepUpCancelled } from '../stores/actions';
+import { focusFirst } from '../lib/focus';
 import { useUi } from '../stores/ui';
 import { SECRET_NAME_RE, deleteSecret, listSecrets, putSecret, type StackSecret } from './stacks';
 
@@ -50,6 +51,9 @@ async function replace(s: StackSecret): Promise<void> {
 }
 
 async function save(): Promise<void> {
+  // aria-disabled, not disabled, while saving: the button keeps focus, so the
+  // step-up dialog hands it back there when it closes.
+  if (saving.value) return;
   const n = name.value.trim();
   nameError.value = SECRET_NAME_RE.test(n) ? '' : 'Letters, digits and . _ -, starting with a letter or digit; at most 64.';
   formError.value = value.value ? '' : 'Type the value to store.';
@@ -70,7 +74,19 @@ async function save(): Promise<void> {
   }
 }
 
+/** Open the confirm group and put focus on its Cancel, the safe choice. */
+function askDelete(s: StackSecret): void {
+  confirmDelete.value = s.name;
+  void focusFirst(`${uid}-dc-${s.name}`);
+}
+
+function cancelDelete(s: StackSecret): void {
+  confirmDelete.value = '';
+  void focusFirst(`${uid}-del-${s.name}`, 'sks-h');
+}
+
 async function remove(s: StackSecret): Promise<void> {
+  if (deleting.value) return;
   deleting.value = s.name;
   rowError.value = { ...rowError.value, [s.name]: '' };
   try {
@@ -78,6 +94,8 @@ async function remove(s: StackSecret): Promise<void> {
     confirmDelete.value = '';
     ui.toast(`Deleted ${s.name}.`);
     await load();
+    // The row is gone: back to the list's heading.
+    void focusFirst('sks-h');
   } catch (err) {
     if (!(err instanceof StepUpCancelled)) rowError.value = { ...rowError.value, [s.name]: hubWords(err, `${s.name} wasn’t deleted.`) };
   } finally {
@@ -90,7 +108,7 @@ onMounted(load);
 
 <template>
   <section id="stack-secrets" class="st-section" aria-labelledby="sks-h">
-    <header><h3 id="sks-h">Stack secrets</h3></header>
+    <header><h3 id="sks-h" tabindex="-1">Stack secrets</h3></header>
     <p class="st-lede">
       Reference one in a compose file as <code>${secret:name}</code>. Cha Dash fills it in at deploy time and never writes it to disk or git. Values can be
       replaced, never read back.
@@ -112,14 +130,14 @@ onMounted(load);
             <span v-if="rowError[s.name]" class="err" role="alert">{{ rowError[s.name] }}</span>
           </span>
           <span class="end">
-            <button type="button" class="btn sm ghost" :aria-label="`Replace ${s.name}`" @click="replace(s)">{{ s.set ? 'Replace' : 'Set' }}</button>
-            <button v-if="confirmDelete !== s.name" type="button" class="btn sm ghost" :aria-label="`Delete ${s.name}`" @click="confirmDelete = s.name">Delete</button>
+            <button type="button" class="btn sm ghost" :aria-label="`${s.set ? 'Replace' : 'Set'} ${s.name}`" @click="replace(s)">{{ s.set ? 'Replace' : 'Set' }}</button>
+            <button v-if="confirmDelete !== s.name" :id="`${uid}-del-${s.name}`" type="button" class="btn sm ghost" :aria-label="`Delete ${s.name}`" @click="askDelete(s)">Delete</button>
           </span>
         </div>
         <div v-if="confirmDelete === s.name" class="st-confirm sks-confirm" role="group" :aria-label="`Delete ${s.name}?`">
           <span>Delete <b class="st-mono">{{ s.name }}</b>? Stacks that reference it won’t deploy until it’s set again.</span>
-          <button type="button" class="btn danger solid sm" :disabled="deleting === s.name" @click="remove(s)">Delete</button>
-          <button type="button" class="btn sm" @click="confirmDelete = ''">Cancel</button>
+          <button type="button" class="btn danger solid sm" :aria-disabled="deleting === s.name ? 'true' : undefined" :aria-busy="deleting === s.name || undefined" @click="remove(s)">Delete</button>
+          <button :id="`${uid}-dc-${s.name}`" type="button" class="btn sm" @click="cancelDelete(s)">Cancel</button>
         </div>
       </li>
     </ul>
@@ -151,7 +169,7 @@ onMounted(load);
       </div>
       <p v-if="formError" class="err" role="alert">{{ formError }}</p>
       <div class="st-acts">
-        <button type="submit" class="btn" :disabled="saving" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : 'Save secret' }}</button>
+        <button type="submit" class="btn" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : 'Save secret' }}</button>
       </div>
     </form>
   </section>

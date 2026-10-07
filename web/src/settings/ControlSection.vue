@@ -112,7 +112,7 @@ function onToggle(e: Event): void {
 .ctl summary::before {
   content: '›';
   color: var(--text-2);
-  transition: transform 120ms;
+  transition: transform var(--motion-press-duration) var(--motion-press-easing);
 }
 .ctl details[open] > summary::before {
   transform: rotate(90deg);

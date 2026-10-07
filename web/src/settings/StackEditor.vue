@@ -589,19 +589,19 @@ onBeforeUnmount(() => {
         </button>
         <button v-if="!fresh && detail?.draft && !confirmDiscard" type="button" class="btn ghost" :disabled="saving" @click="confirmDiscard = true">Discard draft</button>
         <template v-if="!fresh && canHold">
-          <button type="button" class="btn primary sk-deploy" :disabled="!!deployBlock" :aria-describedby="deployBlock ? `${uid}-why` : undefined" @click="deploy">
+          <button type="button" class="btn primary sk-deploy" :aria-disabled="deployBlock ? 'true' : undefined" :aria-describedby="deployBlock ? `${uid}-why` : undefined" @click="deploy">
             Deploy<span class="tier">T2</span>
           </button>
           <span v-if="deployBlock" :id="`${uid}-why`" class="st-meta sk-why">{{ deployBlock }}</span>
         </template>
       </div>
       <p v-else-if="!fresh && canHold" class="st-acts sk-acts">
-        <button type="button" class="btn primary sk-deploy" disabled :aria-describedby="`${uid}-why`">Deploy<span class="tier">T2</span></button>
+        <button type="button" class="btn primary sk-deploy" aria-disabled="true" :aria-describedby="`${uid}-why`">Deploy<span class="tier">T2</span></button>
         <span :id="`${uid}-why`" class="st-meta sk-why">{{ deployBlock }}</span>
       </p>
 
-      <!-- the task working on it, and how it ended -->
-      <div v-if="task" :class="['sk-task', running ? 'live' : outcome?.tone]" role="status" aria-live="polite">
+      <!-- the task working on it, and how it ended (TaskPresence announces it; not a live region here) -->
+      <div v-if="task" :class="['sk-task', running ? 'live' : outcome?.tone]">
         <template v-if="running">
           <div class="sk-task-h">
             <Glyph kind="prog" />

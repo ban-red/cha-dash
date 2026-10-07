@@ -17,7 +17,7 @@
  *
  * Its own chunk, loaded when the Inbox first shows an approval.
  */
-import { computed, ref, useId } from 'vue';
+import { computed, nextTick, ref, useId, useTemplateRef } from 'vue';
 import Glyph from './marks/Glyph.vue';
 import HoldToConfirm from './HoldToConfirm.vue';
 import { api } from '../lib/api';
@@ -48,6 +48,23 @@ const progress = ref(0);
 const attempt = ref(0);
 const denying = ref(false);
 const reason = ref('');
+const root = useTemplateRef<HTMLElement>('root');
+
+/** Put focus on a control in this item, after Vue has drawn it. */
+async function focusIn(selector: string): Promise<void> {
+  await nextTick();
+  root.value?.querySelector<HTMLElement>(selector)?.focus();
+}
+
+function startDeny(): void {
+  denying.value = true;
+  void focusIn('.apv-deny input');
+}
+
+function backFromDeny(): void {
+  denying.value = false;
+  void focusIn('.apv-deny-btn');
+}
 
 async function approve(): Promise<void> {
   const a = apv.value;
@@ -65,6 +82,9 @@ async function approve(): Promise<void> {
     busy.value = '';
     progress.value = 0;
     attempt.value++;
+    // The ring is rebuilt for another try; keep focus on it rather than the page.
+    const a = document.activeElement;
+    if (!a || a === document.body || !a.isConnected || root.value?.contains(a)) void focusIn('.hold, .apv-approve');
   }
 }
 
@@ -88,7 +108,7 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
 </script>
 
 <template>
-  <div class="ib open apv" role="group" :aria-labelledby="`${uid}-t`">
+  <div ref="root" class="ib open apv" role="group" :aria-labelledby="`${uid}-t`">
     <Glyph kind="attn" label="waiting for approval" />
     <div>
       <div :id="`${uid}-t`" class="ib-title">{{ incident.title }}</div>
@@ -122,8 +142,8 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
             <HoldToConfirm :key="attempt" label="approve" :hint="`${uid}-hint`" @progress="progress = $event" @confirm="approve" />
             <span :id="`${uid}-hint`" class="hint">hold to approve · then confirm it’s you</span>
           </template>
-          <button v-else type="button" class="btn primary" :disabled="!!busy || live.stale.value" @click="approve">Approve<span class="tier">{{ tier }}</span></button>
-          <button type="button" class="btn ghost sm" :disabled="!!busy || live.stale.value" @click="denying = true">Deny</button>
+          <button v-else type="button" class="btn primary apv-approve" :disabled="!!busy || live.stale.value" @click="approve">Approve<span class="tier">{{ tier }}</span></button>
+          <button type="button" class="btn ghost sm apv-deny-btn" :disabled="!!busy || live.stale.value" @click="startDeny">Deny</button>
         </div>
         <form v-else class="apv-deny" novalidate @submit.prevent="deny">
           <div class="field">
@@ -132,7 +152,7 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
           </div>
           <div class="st-acts">
             <button type="submit" class="btn sm" :disabled="!!busy">Deny it</button>
-            <button type="button" class="btn ghost sm" @click="denying = false">Back</button>
+            <button type="button" class="btn ghost sm" @click="backFromDeny">Back</button>
           </div>
         </form>
         <p v-if="busy === 'approve'" class="sub" role="status">Approving…</p>
@@ -144,6 +164,10 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
 </template>
 
 <style>
+/* The approver reads every row before holding: no resting dim here. */
+.apv-blast li {
+  color: var(--text);
+}
 .apv-meta {
   display: flex;
   flex-wrap: wrap;

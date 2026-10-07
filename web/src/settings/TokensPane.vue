@@ -23,6 +23,7 @@ import { hubWords } from '../lib/actions';
 import { useSession } from '../stores/session';
 import { useUi } from '../stores/ui';
 import { copyText } from './recipe';
+import { focusFirst } from '../lib/focus';
 
 export interface HubToken {
   id: string;
@@ -135,6 +136,7 @@ const chosen = computed<string[]>(() => {
 });
 
 async function create(): Promise<void> {
+  if (saving.value || !catalog.value) return;
   nameError.value = draft.name.trim() ? '' : 'Name it after what will use it, such as “backup script”.';
   createError.value = '';
   if (nameError.value) return;
@@ -170,6 +172,12 @@ async function copy(): Promise<void> {
 function done(): void {
   fresh.value = undefined;
   copied.value = false;
+  void focusFirst(`${uid}-new`, 'tk-h');
+}
+
+function cancelCreate(): void {
+  creating.value = false;
+  void focusFirst(`${uid}-new`, 'tk-h');
 }
 
 // ── revoke ──
@@ -177,13 +185,28 @@ const revoking = ref('');
 const busy = ref('');
 const rowError = reactive<Record<string, string>>({});
 
+/** Open the confirm group and put focus on its Cancel, the safe choice. */
+function askRevoke(t: HubToken): void {
+  revoking.value = t.id;
+  void focusFirst(`${uid}-rvc-${t.id}`);
+}
+
+function cancelRevoke(t: HubToken): void {
+  revoking.value = '';
+  void focusFirst(`${uid}-rvb-${t.id}`, 'tk-h');
+}
+
 async function revoke(t: HubToken): Promise<void> {
+  // aria-disabled, not disabled, while busy: the button keeps focus.
+  if (busy.value) return;
   busy.value = t.id;
   rowError[t.id] = '';
   try {
     const res = await api<{ token?: HubToken }>(`/api/tokens/${encodeURIComponent(t.id)}`, { method: 'DELETE' });
     tokens.value = tokens.value.map((x) => (x.id === t.id ? { ...x, ...(res?.token ?? { revoked_at: new Date().toISOString() }) } : x));
     revoking.value = '';
+    // The row stays, revoked, without its Revoke button: back to the list's heading.
+    void focusFirst('tk-h');
     ui.toast(`Revoked “${t.name}”. Anything using it stops working now.`);
   } catch (err) {
     rowError[t.id] = hubWords(err, 'The token wasn’t revoked.');
@@ -201,8 +224,8 @@ onMounted(load);
 <template>
   <section class="st-section" aria-labelledby="tk-h">
     <header>
-      <h3 id="tk-h">{{ seesAll ? 'Everyone’s tokens' : 'Your tokens' }}</h3>
-      <button v-if="!creating && !fresh" type="button" class="btn sm" @click="startCreate">New token</button>
+      <h3 id="tk-h" tabindex="-1">{{ seesAll ? 'Everyone’s tokens' : 'Your tokens' }}</h3>
+      <button v-if="!creating && !fresh" :id="`${uid}-new`" type="button" class="btn sm" @click="startCreate">New token</button>
     </header>
     <p class="st-lede">
       For scripts and automations. A token acts as you, never with more than your role allows, and only for what you pick here. Send it as
@@ -285,8 +308,8 @@ onMounted(load);
 
       <p v-if="createError" class="err" role="alert">{{ createError }}</p>
       <div class="st-acts">
-        <button type="submit" class="btn primary" :disabled="saving || !catalog" :aria-busy="saving || undefined">{{ saving ? 'Making…' : 'Make token' }}</button>
-        <button type="button" class="btn ghost" @click="creating = false">Cancel</button>
+        <button type="submit" class="btn primary" :aria-disabled="saving || !catalog ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Making…' : 'Make token' }}</button>
+        <button type="button" class="btn ghost" @click="cancelCreate">Cancel</button>
       </div>
     </form>
 
@@ -317,13 +340,13 @@ onMounted(load);
             <span v-if="rowError[t.id]" class="err" role="alert">{{ rowError[t.id] }}</span>
           </span>
           <span v-if="!t.revoked_at && revoking !== t.id" class="end">
-            <button type="button" class="btn sm ghost" :aria-label="`Revoke ${t.name}`" @click="revoking = t.id">Revoke</button>
+            <button :id="`${uid}-rvb-${t.id}`" type="button" class="btn sm ghost" :aria-label="`Revoke ${t.name}`" @click="askRevoke(t)">Revoke</button>
           </span>
         </div>
         <div v-if="revoking === t.id" class="st-confirm tk-revoke" role="group" :aria-labelledby="`${uid}-rv-${t.id}`">
           <span :id="`${uid}-rv-${t.id}`">Revoke <b>{{ t.name }}</b>? Anything using it stops working at once, and plans it left waiting for approval are withdrawn.</span>
-          <button type="button" class="btn danger solid" :disabled="busy === t.id" @click="revoke(t)">Revoke {{ t.name }}</button>
-          <button type="button" class="btn" @click="revoking = ''">Cancel</button>
+          <button type="button" class="btn danger solid" :aria-disabled="busy === t.id ? 'true' : undefined" :aria-busy="busy === t.id || undefined" @click="revoke(t)">Revoke {{ t.name }}</button>
+          <button :id="`${uid}-rvc-${t.id}`" type="button" class="btn" @click="cancelRevoke(t)">Cancel</button>
         </div>
       </li>
     </ul>

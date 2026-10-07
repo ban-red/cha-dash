@@ -64,7 +64,7 @@ describe('Settings → Security → Security level', () => {
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);
   });
 
-  it('saves a choice at once, and puts it back when the hub refuses', async () => {
+  it('saves a choice on Save, and puts it back when the hub refuses', async () => {
     let posture = 'relaxed';
     const f = fakeFetch({
       'GET /api/settings/security': { status: 200, body: view('relaxed') },
@@ -79,8 +79,12 @@ describe('Settings → Security → Security level', () => {
     const w = mountIn(SecurityLevel);
     await flushPromises();
     const radios = () => w.findAll<HTMLInputElement>('input[type="radio"]');
+    const save = () => w.find('button[aria-label="Save security level"]');
 
     await radios()[2]!.setValue(true);
+    await flushPromises();
+    expect(f.last('PUT', '/api/settings/security')).toBeUndefined();
+    await save().trigger('click');
     await flushPromises();
     expect(f.last('PUT', '/api/settings/security')!.body).toEqual({ posture: 'strict' });
     expect(radios().map((r) => r.element.checked)).toEqual([false, false, true]);
@@ -88,6 +92,7 @@ describe('Settings → Security → Security level', () => {
     expect(ui.state.toasts.at(-1)!.text).toBe('Security level: Strict.');
 
     await radios()[1]!.setValue(true);
+    await save().trigger('click');
     await flushPromises();
     expect(radios().map((r) => r.element.checked)).toEqual([false, false, true]);
     expect(w.find('.err[role="alert"]').text()).toContain('isn’t a security level');

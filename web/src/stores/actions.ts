@@ -415,7 +415,10 @@ export function createActions(deps: ActionsDeps) {
     }, every);
   }
 
-  return { tasks, running, taskFor, run, confirmed, cancel, cancelTask, cancelling, stepUp, stepUpDone, withStepUp, busy };
+  /** This tab started the task, so a toast says how it ended. */
+  const startedHere = (id: string) => mine.has(id);
+
+  return { tasks, running, taskFor, startedHere, run, confirmed, cancel, cancelTask, cancelling, stepUp, stepUpDone, withStepUp, busy };
 }
 
 export type Actions = ReturnType<typeof createActions>;

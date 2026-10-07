@@ -20,6 +20,7 @@ import SuggestionItem from './SuggestionItem.vue';
 const ApprovalItem = defineAsyncComponent(() => import('./ApprovalItem.vue'));
 import { hhmm } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
+import { layerAbove } from '../lib/trap';
 import { groupInbox, hintsHeading, incidents, isApproval, isSuggestion, type InboxGroups } from '../model/inbox';
 import { useDiscovery } from '../stores/discovery';
 import { useLive } from '../stores/live';
@@ -106,7 +107,8 @@ function toggle(id: string) {
 }
 
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape' && ui.state.inboxOpen && !ui.state.confirm) ui.closeInbox();
+  // A confirm, the step-up or another modal <dialog> above the Inbox takes its own Esc.
+  if (e.key === 'Escape' && ui.state.inboxOpen && !e.defaultPrevented && !layerAbove(ui.state)) ui.closeInbox();
 }
 function onResize() {
   compact.value = window.innerWidth < 640;

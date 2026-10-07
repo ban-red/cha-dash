@@ -129,7 +129,11 @@ describe('Settings → Users', () => {
     expect(rows.map((r) => r.find('.t').text().replace(/\s+/g, ' '))).toEqual(['owner you', 'sam', 'kid disabled']);
     expect(rows[1]!.find('.m').text().replace(/\s+/g, ' ')).toBe('Operator · no passkey · never signed in');
     expect(rows[0]!.find('select').exists()).toBe(false); // yourself, and the owner
+    // The role saves on Save, not as the select changes.
     await rows[1]!.find('select').setValue('admin');
+    await settle();
+    expect(f.last('PUT', '/api/users/u2')).toBeUndefined();
+    await rows[1]!.find('button[aria-label="Save role for sam"]').trigger('click');
     await settle();
     expect(f.last('PUT', '/api/users/u2')?.body).toEqual({ role: 'admin' });
     expect(h.ui.state.toasts.at(-1)?.text).toBe('sam is now admin.');
@@ -211,8 +215,12 @@ describe('Settings → Security → Confirming destructive actions', () => {
     const w = h.mountIn(StepUpSetting, { hasPasskey: false });
     await settle();
     const only = w.find('input[value="passkey_only"]');
+    const save = () => w.find('button[aria-label="Save how destructive actions are confirmed"]');
     await only.setValue(true);
     await only.trigger('change');
+    await settle();
+    expect(f.last('PUT', '/api/settings/security')).toBeUndefined();
+    await save().trigger('click');
     await settle();
     expect(h.ui.state.stepUp).toBeDefined();
     h.ui.stepUpDone(true);
@@ -225,6 +233,7 @@ describe('Settings → Security → Confirming destructive actions', () => {
     const either = w.find('input[value="passkey_or_password"]');
     await either.setValue(true);
     await either.trigger('change');
+    await save().trigger('click');
     await settle();
     h.ui.stepUpDone(false);
     await settle();

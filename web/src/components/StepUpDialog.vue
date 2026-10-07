@@ -6,11 +6,13 @@
  * and the hub allows the fallback, with a nudge to add one. Under "Passkey
  * only" with no passkey it explains and links to Settings → Security.
  *
- * A native modal <dialog>: focus moves in and stays, Esc cancels. Its own
+ * A native modal <dialog>: focus moves in and stays, Esc cancels it and
+ * nothing behind it (Settings and the Inbox stay open). Its own
  * chunk with the WebAuthn code, loaded the first time something needs it.
  */
 import { computed, nextTick, onMounted, ref, useId, useTemplateRef } from 'vue';
 import Glyph from './marks/Glyph.vue';
+import '../styles/act-dialog.css';
 import { useModal } from '../board/useModal';
 import { beginStepUp, stepUpWithPasskey, stepUpWithPassword } from '../lib/stepup';
 import { INSECURE_MESSAGE, passkeySupport, PasskeyError } from '../lib/webauthn';
@@ -111,7 +113,7 @@ onMounted(begin);
 </script>
 
 <template>
-  <dialog ref="dlg" class="act-dlg stepup" :aria-labelledby="`${uid}-h`" :aria-describedby="`${uid}-d`" @cancel.prevent="cancel">
+  <dialog ref="dlg" class="act-dlg stepup" :aria-labelledby="`${uid}-h`" :aria-describedby="`${uid}-d`" @cancel.prevent="cancel" @keydown.esc.stop>
     <form class="act-dlg-body" novalidate @submit.prevent="phase === 'password' ? usePassword() : usePasskey()">
       <header class="act-dlg-head">
         <Glyph kind="lock" />

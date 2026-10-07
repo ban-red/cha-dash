@@ -12,12 +12,19 @@
  * Secrets (an ntfy token, a webhook's signing secret) are typed once and
  * never shown again; the hub says only whether one is set. Its own chunk,
  * loaded with the pane.
+ *
+ * Checkboxes save as they're ticked, and go back to what the hub has when a
+ * save fails. The grace select only marks the choice; its Save sends it, so
+ * arrowing through it never saves (WCAG 3.2.2). Controls that may hold focus
+ * are aria-disabled rather than disabled while they work, and focus moves on
+ * purpose when a confirm group or the form opens and closes.
  */
 import { computed, onMounted, reactive, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import NotifyDevice from './NotifyDevice.vue';
 import { ago } from '../lib/format';
 import { hubWords } from '../lib/actions';
+import { focusFirst } from '../lib/focus';
 import { useUi } from '../stores/ui';
 import {
   KIND_WORDS,
@@ -68,24 +75,61 @@ async function load(): Promise<void> {
   }
 }
 
-async function setRule(r: NotifyRule, patch: Partial<RuleSettings>): Promise<void> {
+/** Save a change to a rule. Resolves whether it saved. */
+async function setRule(r: NotifyRule, patch: Partial<RuleSettings>): Promise<boolean> {
   ruleBusy.value = r.id;
   ruleError.value = { ...ruleError.value, [r.id]: '' };
   try {
     const updated = await updateRule(r.id, patch);
     rules.value = rules.value.map((x) => (x.id === r.id ? updated : x));
+    return true;
   } catch (err) {
     ruleError.value = { ...ruleError.value, [r.id]: hubWords(err, 'That didn’t save.') };
+    return false;
   } finally {
     ruleBusy.value = '';
   }
 }
 
-function toggleChannel(r: NotifyRule, id: string, checked: boolean): void {
+const ruleNow = (id: string) => rules.value.find((x) => x.id === id);
+
+/** While a rule saves, its checkboxes stay focusable but don't toggle. */
+function holdWhileBusy(r: NotifyRule, e: Event): void {
+  if (ruleBusy.value === r.id) e.preventDefault();
+}
+
+/**
+ * Tick or untick a rule's checkbox. Vue won't touch `checked` when the
+ * rule's value hasn't changed, so a failed save sets the box back itself.
+ */
+async function toggleRule(r: NotifyRule, key: 'enabled' | 'resolved', e: Event): Promise<void> {
+  const box = e.target as HTMLInputElement;
+  const ok = await setRule(r, key === 'enabled' ? { enabled: box.checked } : { resolved: box.checked });
+  if (!ok) box.checked = !!ruleNow(r.id)?.[key];
+}
+
+async function toggleChannel(r: NotifyRule, id: string, e: Event): Promise<void> {
+  const box = e.target as HTMLInputElement;
   const all = channels.value.map((c) => c.id);
   const current = r.channels ?? all;
-  const next = checked ? [...new Set([...current, id])] : current.filter((c) => c !== id);
-  void setRule(r, { channels: all.every((c) => next.includes(c)) ? null : next });
+  const next = box.checked ? [...new Set([...current, id])] : current.filter((c) => c !== id);
+  const ok = await setRule(r, { channels: all.every((c) => next.includes(c)) ? null : next });
+  if (!ok) {
+    const saved = ruleNow(r.id)?.channels;
+    box.checked = saved === null || saved === undefined || saved.includes(id);
+  }
+}
+
+/** Grace picked in a rule's select and not saved yet. */
+const graceDraft = reactive<Record<string, number>>({});
+const graceDirty = (r: NotifyRule) => graceDraft[r.id] !== undefined && graceDraft[r.id] !== r.grace_minutes;
+
+async function saveGrace(r: NotifyRule): Promise<void> {
+  const g = graceDraft[r.id];
+  if (g === undefined || g === r.grace_minutes || ruleBusy.value === r.id) return;
+  await setRule(r, { grace_minutes: g });
+  // Saved or not, the select shows what the hub has.
+  delete graceDraft[r.id];
 }
 
 const GRACE = [1, 2, 5, 10, 15, 30, 60];
@@ -97,6 +141,7 @@ const confirmDelete = ref('');
 const rowBusy = ref('');
 
 async function test(c: NotifyChannel): Promise<void> {
+  if (testing.value === c.id) return;
   testing.value = c.id;
   try {
     const res = await testChannel(c.id);
@@ -115,6 +160,7 @@ async function test(c: NotifyChannel): Promise<void> {
 }
 
 async function setEnabled(c: NotifyChannel, enabled: boolean): Promise<void> {
+  if (rowBusy.value === c.id) return;
   rowBusy.value = c.id;
   try {
     const updated = await updateChannel(c.id, { enabled });
@@ -126,13 +172,27 @@ async function setEnabled(c: NotifyChannel, enabled: boolean): Promise<void> {
   }
 }
 
+/** Open the confirm group and put focus on its Cancel, the safe choice. */
+function askDelete(c: NotifyChannel): void {
+  confirmDelete.value = c.id;
+  void focusFirst(`${uid}-dc-${c.id}`);
+}
+
+function cancelDelete(c: NotifyChannel): void {
+  confirmDelete.value = '';
+  void focusFirst(`${uid}-del-${c.id}`, 'nc-h');
+}
+
 async function remove(c: NotifyChannel): Promise<void> {
+  if (rowBusy.value === c.id) return;
   rowBusy.value = c.id;
   try {
     await deleteChannel(c.id);
     confirmDelete.value = '';
     ui.toast(`Deleted ${c.name}.`);
     await load();
+    // The row is gone: back to the list's heading.
+    void focusFirst('nc-h');
   } catch (err) {
     tested.value = { ...tested.value, [c.id]: { ok: false, text: hubWords(err, `${c.name} wasn’t deleted.`) } };
   } finally {
@@ -162,6 +222,17 @@ const formError = ref('');
 const saving = ref(false);
 const editingChannel = computed(() => channels.value.find((c) => c.id === editing.value));
 
+/** Where focus goes when the form closes: the Edit that opened it, or Add a channel. */
+function formOpener(): string[] {
+  return editing.value && editing.value !== 'new' ? [`${uid}-edit-${editing.value}`, `${uid}-addc`, 'nc-h'] : [`${uid}-addc`, 'nc-h'];
+}
+
+function closeForm(): void {
+  const back = formOpener();
+  editing.value = '';
+  void focusFirst(...back);
+}
+
 function openForm(c?: NotifyChannel): void {
   errors.value = {};
   formError.value = '';
@@ -173,6 +244,8 @@ function openForm(c?: NotifyChannel): void {
     editing.value = 'new';
     Object.assign(form, { kind: 'ntfy', name: '', server: 'https://ntfy.sh', topic: '', url: '', token: '', secret: '', clearToken: false });
   }
+  // The form's first field: the kind for a new channel, else the name.
+  void focusFirst(c ? `${uid}-name` : `${uid}-kind-ntfy`, `${uid}-name`);
 }
 
 function newSecret(): void {
@@ -199,7 +272,7 @@ function validate(): boolean {
 }
 
 async function save(): Promise<void> {
-  if (!validate()) return;
+  if (saving.value || !validate()) return;
   saving.value = true;
   formError.value = '';
   const body: ChannelInput = { name: form.name.trim() };
@@ -225,8 +298,10 @@ async function save(): Promise<void> {
       await updateChannel(editing.value, body);
       ui.toast(`Saved ${body.name}.`);
     }
+    const back = formOpener();
     editing.value = '';
     await load();
+    void focusFirst(...back);
   } catch (err) {
     const fields = (err as { body?: { fields?: { path: string; message: string }[] } }).body?.fields;
     if (fields?.length) {
@@ -299,9 +374,11 @@ onMounted(() => {
             <input
               type="checkbox"
               :checked="r.enabled"
-              :disabled="r.locked || ruleBusy === r.id"
+              :disabled="r.locked"
+              :aria-disabled="ruleBusy === r.id ? 'true' : undefined"
               :aria-describedby="`${uid}-${r.id}-d`"
-              @change="setRule(r, { enabled: ($event.target as HTMLInputElement).checked })"
+              @click="holdWhileBusy(r, $event)"
+              @change="toggleRule(r, 'enabled', $event)"
             />
             <span class="t">{{ r.label }}</span>
             <span v-if="r.locked" class="set-chip">always on</span>
@@ -309,19 +386,32 @@ onMounted(() => {
           <p :id="`${uid}-${r.id}-d`" class="m">{{ r.description }}</p>
           <div v-if="r.enabled" class="nr-opts">
             <label v-if="r.has_resolved" class="check-row">
-              <input type="checkbox" :checked="r.resolved" :disabled="ruleBusy === r.id" @change="setRule(r, { resolved: ($event.target as HTMLInputElement).checked })" />
+              <input
+                type="checkbox"
+                :checked="r.resolved"
+                :aria-disabled="ruleBusy === r.id ? 'true' : undefined"
+                @click="holdWhileBusy(r, $event)"
+                @change="toggleRule(r, 'resolved', $event)"
+              />
               <span>Also when it’s resolved</span>
             </label>
             <div v-if="r.grace_minutes !== undefined && r.grace_minutes > 0" class="field nr-grace">
               <label :for="`${uid}-${r.id}-g`">Wait before notifying</label>
-              <select
-                :id="`${uid}-${r.id}-g`"
-                :value="r.grace_minutes"
-                :disabled="ruleBusy === r.id"
-                @change="setRule(r, { grace_minutes: Number(($event.target as HTMLSelectElement).value) })"
-              >
-                <option v-for="g in GRACE" :key="g" :value="g">{{ g === 1 ? '1 minute' : `${g} minutes` }}</option>
-              </select>
+              <div class="nr-grace-row">
+                <select :id="`${uid}-${r.id}-g`" :value="graceDraft[r.id] ?? r.grace_minutes" @change="graceDraft[r.id] = Number(($event.target as HTMLSelectElement).value)">
+                  <option v-for="g in GRACE" :key="g" :value="g">{{ g === 1 ? '1 minute' : `${g} minutes` }}</option>
+                </select>
+                <button
+                  type="button"
+                  class="btn sm"
+                  :aria-label="`Save the wait for ${r.label}`"
+                  :aria-disabled="!graceDirty(r) || ruleBusy === r.id ? 'true' : undefined"
+                  :aria-busy="(ruleBusy === r.id && graceDirty(r)) || undefined"
+                  @click="saveGrace(r)"
+                >
+                  Save
+                </button>
+              </div>
             </div>
             <fieldset v-if="channels.length > 1" class="nr-chans">
               <legend>Send to</legend>
@@ -329,8 +419,9 @@ onMounted(() => {
                 <input
                   type="checkbox"
                   :checked="r.channels === null || r.channels.includes(c.id)"
-                  :disabled="ruleBusy === r.id"
-                  @change="toggleChannel(r, c.id, ($event.target as HTMLInputElement).checked)"
+                  :aria-disabled="ruleBusy === r.id ? 'true' : undefined"
+                  @click="holdWhileBusy(r, $event)"
+                  @change="toggleChannel(r, c.id, $event)"
                 />
                 <span>{{ c.name }}</span>
               </label>
@@ -343,8 +434,8 @@ onMounted(() => {
 
     <section class="st-section" aria-labelledby="nc-h">
       <header>
-        <h3 id="nc-h">Channels</h3>
-        <button v-if="status === 'ready' && editing !== 'new'" type="button" class="btn sm" @click="openForm()">Add a channel</button>
+        <h3 id="nc-h" tabindex="-1">Channels</h3>
+        <button v-if="status === 'ready' && editing !== 'new'" :id="`${uid}-addc`" type="button" class="btn sm" @click="openForm()">Add a channel</button>
       </header>
       <div v-if="status === 'ready' && !publicURL" class="st-note hatched">
         <Glyph kind="link" /><span>Messages carry no link back to Cha Dash until <code>CHADASH_PUBLIC_URL</code> is set. Web Push opens the right page either way.</span>
@@ -360,22 +451,31 @@ onMounted(() => {
               <span v-if="tested[c.id]" :class="tested[c.id]!.ok ? 'm' : 'err'" role="status">{{ tested[c.id]!.text }}</span>
             </span>
             <span class="end">
-              <button type="button" class="btn sm" :disabled="testing === c.id || !c.enabled" :aria-busy="testing === c.id || undefined" :aria-label="`Send a test to ${c.name}`" @click="test(c)">
+              <button
+                type="button"
+                class="btn sm"
+                :disabled="!c.enabled"
+                :aria-disabled="testing === c.id ? 'true' : undefined"
+                :aria-busy="testing === c.id || undefined" :aria-label="`Send a test to ${c.name}`" @click="test(c)">
                 {{ testing === c.id ? 'Sending…' : 'Test' }}
               </button>
-              <button type="button" class="btn sm ghost" :disabled="rowBusy === c.id" :aria-label="`${c.enabled ? 'Turn off' : 'Turn on'} ${c.name}`" @click="setEnabled(c, !c.enabled)">
+              <button
+                type="button"
+                class="btn sm ghost"
+                :aria-disabled="rowBusy === c.id ? 'true' : undefined"
+                :aria-label="`${c.enabled ? 'Turn off' : 'Turn on'} ${c.name}`" @click="setEnabled(c, !c.enabled)">
                 {{ c.enabled ? 'Turn off' : 'Turn on' }}
               </button>
               <template v-if="!c.builtin">
-                <button type="button" class="btn sm ghost" :aria-label="`Edit ${c.name}`" @click="openForm(c)">Edit</button>
-                <button v-if="confirmDelete !== c.id" type="button" class="btn sm ghost" :aria-label="`Delete ${c.name}`" @click="confirmDelete = c.id">Delete</button>
+                <button :id="`${uid}-edit-${c.id}`" type="button" class="btn sm ghost" :aria-label="`Edit ${c.name}`" @click="openForm(c)">Edit</button>
+                <button v-if="confirmDelete !== c.id" :id="`${uid}-del-${c.id}`" type="button" class="btn sm ghost" :aria-label="`Delete ${c.name}`" @click="askDelete(c)">Delete</button>
               </template>
             </span>
           </div>
           <div v-if="confirmDelete === c.id" class="st-confirm nc-confirm" role="group" :aria-label="`Delete ${c.name}?`">
             <span>Delete <b>{{ c.name }}</b> and its secret? Its deliveries stay in the log.</span>
-            <button type="button" class="btn danger solid sm" :disabled="rowBusy === c.id" @click="remove(c)">Delete</button>
-            <button type="button" class="btn sm" @click="confirmDelete = ''">Cancel</button>
+            <button type="button" class="btn danger solid sm" :aria-disabled="rowBusy === c.id ? 'true' : undefined" :aria-busy="rowBusy === c.id || undefined" @click="remove(c)">Delete</button>
+            <button :id="`${uid}-dc-${c.id}`" type="button" class="btn sm" @click="cancelDelete(c)">Cancel</button>
           </div>
         </li>
       </ul>
@@ -383,7 +483,7 @@ onMounted(() => {
       <form v-if="editing" class="st-form nc-form" novalidate :aria-labelledby="`${uid}-fh`" @submit.prevent="save">
         <h4 :id="`${uid}-fh`" class="nc-sub">{{ editing === 'new' ? 'Add a channel' : `Edit ${editingChannel?.name ?? ''}` }}</h4>
         <div v-if="editing === 'new'" class="choice-row" role="radiogroup" aria-label="Kind">
-          <label><input v-model="form.kind" type="radio" value="ntfy" name="nc-kind" />ntfy</label>
+          <label><input :id="`${uid}-kind-ntfy`" v-model="form.kind" type="radio" value="ntfy" name="nc-kind" />ntfy</label>
           <label><input v-model="form.kind" type="radio" value="webhook" name="nc-kind" />Webhook</label>
         </div>
         <div class="field">
@@ -445,8 +545,8 @@ onMounted(() => {
         </template>
         <p v-if="formError" class="err" role="alert">{{ formError }}</p>
         <div class="st-acts">
-          <button type="submit" class="btn" :disabled="saving" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : editing === 'new' ? 'Add channel' : 'Save' }}</button>
-          <button type="button" class="btn ghost" @click="editing = ''">Cancel</button>
+          <button type="submit" class="btn" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : editing === 'new' ? 'Add channel' : 'Save' }}</button>
+          <button type="button" class="btn ghost" @click="closeForm">Cancel</button>
         </div>
       </form>
     </section>
@@ -512,7 +612,17 @@ onMounted(() => {
   font-size: var(--type-small);
 }
 .nr-grace {
-  width: 12rem;
+  width: 16rem;
+  max-width: 100%;
+}
+.nr-grace-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.nr-grace-row select {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .nr-chans {
   display: flex;

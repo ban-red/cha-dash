@@ -18,6 +18,7 @@ import IntegrationsPane from './IntegrationsPane.vue';
 import ImportPane from './ImportPane.vue';
 import SecurityPane from './SecurityPane.vue';
 import { back, navigate, settingsPath, view, type SettingsPane } from '../lib/router';
+import { layerAbove, trapTab } from '../lib/trap';
 import { useUi } from '../stores/ui';
 
 // Rarely opened: each its own chunk, loaded with the pane.
@@ -72,9 +73,15 @@ function close(): void {
 }
 
 function onKey(e: KeyboardEvent): void {
-  if (e.key !== 'Escape' || e.defaultPrevented) return;
-  // A layer above Settings (the command bar, the Inbox, a confirm) handles its own Esc.
-  if (document.querySelector('.layer-palette, .layer-top:not(.inert), .layer:not(.inert) .inbox')) return;
+  if (e.defaultPrevented || (e.key !== 'Escape' && e.key !== 'Tab')) return;
+  // A layer above Settings (the command bar, the Inbox, a confirm, the
+  // step-up or any other modal <dialog>) handles its own keys.
+  if (layerAbove(ui.state) || document.querySelector('.layer-palette, .layer:not(.inert) .inbox')) return;
+  if (e.key === 'Tab') {
+    // aria-modal: Tab stays in the sheet, not on the task strip or toasts behind it.
+    trapTab(e, panel.value);
+    return;
+  }
   e.preventDefault();
   close();
 }

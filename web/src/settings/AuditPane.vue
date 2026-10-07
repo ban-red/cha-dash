@@ -8,7 +8,10 @@
  *   GET /api/audit/export                                                 NDJSON
  *
  * The log is hash-chained; the chain's state is said plainly at the top.
- * "Show older" pages with the `next` cursor (sent back as `cursor`).
+ * "Show older" pages with the `next` cursor (sent back as `cursor`); when
+ * that fails it says so beside the button, which then tries again. After a
+ * filter, a polite live region says how many events match. Each row's
+ * Details names its event for screen readers.
  * Its own chunk, loaded with the pane.
  */
 import { computed, onMounted, reactive, ref, useId } from 'vue';
@@ -16,6 +19,7 @@ import Glyph from '../components/marks/Glyph.vue';
 import { absolute, duration, fmtInt, hhmm, shortDate } from '../lib/format';
 import { api } from '../lib/api';
 import { hubWords } from '../lib/actions';
+import { focusFirst } from '../lib/focus';
 import { label } from '../model/graph';
 import { useLive } from '../stores/live';
 
@@ -60,6 +64,9 @@ const next = ref<string | undefined>(undefined);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 const more = ref(false);
+const olderError = ref('');
+/** What the live region says after a filter: how many events match. */
+const announce = ref('');
 const open = reactive(new Set<string>());
 const verify = ref<Verify | null>(null);
 const verifyError = ref('');
@@ -75,30 +82,51 @@ function query(cursor?: string): string {
   return q.toString();
 }
 
-async function load(): Promise<void> {
+async function load(opts: { say?: boolean } = {}): Promise<void> {
   status.value = 'loading';
   loadError.value = '';
+  olderError.value = '';
+  announce.value = '';
   try {
     const res = await api<{ events?: AuditEvent[]; next?: string | null }>(`/api/audit?${query()}`);
     events.value = res?.events ?? [];
     next.value = res?.next || undefined;
     status.value = 'ready';
+    if (opts.say) announce.value = countWords();
   } catch (err) {
     status.value = 'error';
     loadError.value = hubWords(err, 'The audit log couldn’t be loaded.');
   }
 }
 
+/** "12 events", "No events match", with a word when there are older ones. */
+function countWords(): string {
+  const n = events.value.length;
+  if (!n) return filtered.value ? 'No events match' : 'No events yet';
+  return `${fmtInt(n)} ${n === 1 ? 'event' : 'events'}${next.value ? ', and older ones with Show older' : ''}`;
+}
+
+function runFilter(): void {
+  void load({ say: true });
+}
+
 async function older(): Promise<void> {
-  if (!next.value) return;
+  // aria-disabled, not disabled, while loading: the button keeps focus.
+  if (!next.value || more.value) return;
   more.value = true;
+  olderError.value = '';
   try {
     const res = await api<{ events?: AuditEvent[]; next?: string | null }>(`/api/audit?${query(next.value)}`);
     const seen = new Set(events.value.map((e) => e.id));
-    events.value = [...events.value, ...(res?.events ?? []).filter((e) => !seen.has(e.id))];
+    const fresh = (res?.events ?? []).filter((e) => !seen.has(e.id));
+    events.value = [...events.value, ...fresh];
     next.value = res?.next || undefined;
+    // Carry on where the new events start; the button may be gone.
+    const first = fresh[0];
+    if (first) void focusFirst(`${uid}-dt-${first.id}`);
+    else if (!next.value) void focusFirst('au-ev-h');
   } catch (err) {
-    loadError.value = hubWords(err, 'Older events couldn’t be loaded.');
+    olderError.value = hubWords(err, 'Older events couldn’t be loaded.');
   } finally {
     more.value = false;
   }
@@ -119,7 +147,7 @@ async function check(): Promise<void> {
 
 function clear(): void {
   Object.assign(filters, { actor: '', action: '', target: '', result: '', since: '' });
-  void load();
+  void load({ say: true });
 }
 
 const filtered = computed(() => Object.values(filters).some((v) => v !== ''));
@@ -157,6 +185,8 @@ const today = computed(() => shortDate(live.now.value));
 const when = (at: string) => (shortDate(at) === today.value ? hhmm(at) : `${shortDate(at)} ${hhmm(at)}`);
 const toggle = (id: string) => (open.has(id) ? open.delete(id) : open.add(id));
 const short = (h: string | undefined) => (h ? h.replace(/^sha256:/, '').slice(0, 12) : '—');
+/** What a row's Details button opens, for its accessible name. */
+const summary = (e: AuditEvent) => `${e.action}${e.target ? ` · ${targetName(e.target)}` : ''}, ${resultOf(e).word}, ${when(e.at)}`;
 
 onMounted(() => {
   void load();
@@ -190,11 +220,11 @@ onMounted(() => {
 
   <section class="st-section" aria-labelledby="au-ev-h">
     <header>
-      <h3 id="au-ev-h">Events</h3>
+      <h3 id="au-ev-h" tabindex="-1">Events</h3>
       <span class="st-meta">newest first</span>
     </header>
 
-    <form class="au-filters" aria-label="Filter events" @submit.prevent="load">
+    <form class="au-filters" aria-label="Filter events" @submit.prevent="runFilter">
       <div class="field">
         <label :for="`${uid}-actor`">Who</label>
         <input :id="`${uid}-actor`" v-model="filters.actor" type="text" autocomplete="off" placeholder="username" />
@@ -227,6 +257,7 @@ onMounted(() => {
         <button v-if="filtered" type="button" class="btn sm ghost" @click="clear">Clear</button>
       </div>
     </form>
+    <p class="sr" role="status">{{ announce }}</p>
 
     <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
     <div v-else-if="status === 'error'" class="st-note bad" role="alert"><Glyph kind="down" /><span>{{ loadError }}</span></div>
@@ -248,7 +279,16 @@ onMounted(() => {
           </span>
           <span class="end">
             <time :datetime="e.at" :title="absolute(e.at)">{{ when(e.at) }}</time>
-            <button type="button" class="btn sm ghost" :aria-expanded="open.has(e.id)" :aria-controls="`${uid}-d-${e.id}`" @click="toggle(e.id)">Details</button>
+            <button
+              :id="`${uid}-dt-${e.id}`"
+              type="button"
+              class="btn sm ghost"
+              :aria-expanded="open.has(e.id)"
+              :aria-controls="open.has(e.id) ? `${uid}-d-${e.id}` : undefined"
+              @click="toggle(e.id)"
+            >
+              Details<span class="sr">: {{ summary(e) }}</span>
+            </button>
           </span>
         </div>
         <dl v-if="open.has(e.id)" :id="`${uid}-d-${e.id}`" class="kv au-detail">
@@ -262,8 +302,11 @@ onMounted(() => {
         </dl>
       </li>
     </ol>
-    <div v-if="status === 'ready' && next" class="st-acts">
-      <button type="button" class="btn sm" :disabled="more" :aria-busy="more || undefined" @click="older">{{ more ? 'Loading…' : 'Show older' }}</button>
+    <div v-if="status === 'ready' && next" class="st-acts au-older">
+      <button type="button" class="btn sm" :aria-disabled="more ? 'true' : undefined" :aria-busy="more || undefined" :aria-describedby="olderError ? `${uid}-older-e` : undefined" @click="older">
+        {{ more ? 'Loading…' : olderError ? 'Try again' : 'Show older' }}
+      </button>
+      <p v-if="olderError" :id="`${uid}-older-e`" class="err" role="alert">{{ olderError }}</p>
     </div>
   </section>
 </template>
@@ -296,6 +339,13 @@ onMounted(() => {
 }
 .au-row .end time {
   font-family: var(--font-num);
+}
+.au-older {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.au-older .err {
+  margin: 0;
 }
 .au-detail {
   margin: 0 var(--space-2) var(--space-3) calc(var(--space-2) + 22px);

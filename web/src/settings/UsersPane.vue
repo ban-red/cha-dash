@@ -13,6 +13,11 @@
  * can't do isn't offered; the hub enforces it either way, and any change it
  * wants a step-up for runs the step-up dialog and tries again.
  *
+ * A role select only marks the choice; its Save sends it, so arrowing
+ * through the roles never saves (WCAG 3.2.2). Buttons that may hold focus
+ * are aria-disabled rather than disabled while they work, so focus stays on
+ * them and the step-up dialog hands it back there.
+ *
  * Its own chunk, loaded with the pane.
  */
 import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
@@ -23,6 +28,7 @@ import { hubWords } from '../lib/actions';
 import { asRole, assignableRoles, ROLE_WORDS, type Role } from '../model/roles';
 import { StepUpCancelled } from '../stores/actions';
 import { MIN_PASSWORD, passwordLength, USERNAME_RE, useSession, type User } from '../stores/session';
+import { focusFirst } from '../lib/focus';
 import { useUi } from '../stores/ui';
 
 export interface HubUser {
@@ -77,6 +83,7 @@ function merge(id: string, next: Partial<HubUser> | undefined, fallback: Partial
 }
 
 async function change(u: HubUser, body: { role?: string; disabled?: boolean }, done: string): Promise<void> {
+  if (busy.value === u.id) return;
   busy.value = u.id;
   rowError[u.id] = '';
   try {
@@ -85,16 +92,24 @@ async function change(u: HubUser, body: { role?: string; disabled?: boolean }, d
     ui.toast(done);
   } catch (err) {
     if (!(err instanceof StepUpCancelled)) rowError[u.id] = hubWords(err, 'That wasn’t changed.');
-    // Put the select back to what the hub has.
-    users.value = [...users.value];
   } finally {
+    // Either way the select shows what the hub has.
+    if (body.role !== undefined) delete roleDraft[u.id];
     busy.value = '';
   }
 }
 
-function setRole(u: HubUser, e: Event): void {
-  const role = (e.target as HTMLSelectElement).value;
-  if (role === u.role) return;
+/** Roles picked in a row's select and not saved yet. */
+const roleDraft = reactive<Record<string, string>>({});
+const roleDirty = (u: HubUser) => roleDraft[u.id] !== undefined && roleDraft[u.id] !== u.role;
+
+function pickRole(u: HubUser, e: Event): void {
+  roleDraft[u.id] = (e.target as HTMLSelectElement).value;
+}
+
+function saveRole(u: HubUser): void {
+  const role = roleDraft[u.id];
+  if (role === undefined || role === u.role || busy.value === u.id) return;
   void change(u, { role }, `${u.username} is now ${ROLE_WORDS[asRole(role)].label.toLowerCase()}.`);
 }
 
@@ -117,7 +132,13 @@ async function startAdd(): Promise<void> {
   document.getElementById(`${uid}-un`)?.focus();
 }
 
+function cancelAdd(): void {
+  adding.value = false;
+  void focusFirst(`${uid}-add`, 'us-h');
+}
+
 async function add(): Promise<void> {
+  if (saving.value) return;
   addErrors.username = USERNAME_RE.test(draft.username) ? undefined : 'Letters, digits and . _ @ -, starting with a letter or digit; at most 64.';
   addErrors.password = passwordLength(draft.password) >= MIN_PASSWORD ? undefined : `At least ${MIN_PASSWORD} characters.`;
   addErrors.form = undefined;
@@ -132,6 +153,7 @@ async function add(): Promise<void> {
     ui.toast(`Added ${draft.username} as ${ROLE_WORDS[draft.role].label.toLowerCase()}. Give them their password in person.`);
     draft.password = '';
     adding.value = false;
+    void focusFirst(`${uid}-add`, 'us-h');
   } catch (err) {
     if (!(err instanceof StepUpCancelled)) addErrors.form = hubWords(err, 'The user wasn’t added.');
   } finally {
@@ -152,7 +174,13 @@ async function startTransfer(u: HubUser): Promise<void> {
   document.getElementById(`${uid}-tr-${u.id}`)?.focus();
 }
 
+function cancelTransfer(u: HubUser): void {
+  transferring.value = '';
+  void focusFirst(`${uid}-mo-${u.id}`, 'us-h');
+}
+
 async function transfer(u: HubUser): Promise<void> {
+  if (busy.value === u.id) return;
   if (typed.value.trim() !== u.username) {
     transferError.value = `Type ${u.username} exactly to confirm.`;
     return;
@@ -173,6 +201,8 @@ async function transfer(u: HubUser): Promise<void> {
       /* the next session check catches up */
     }
     await load();
+    // You're not the owner any more, so the row's controls changed: back to the heading.
+    void focusFirst('us-h');
   } catch (err) {
     if (!(err instanceof StepUpCancelled)) transferError.value = hubWords(err, 'Ownership wasn’t handed over.');
   } finally {
@@ -186,8 +216,8 @@ onMounted(load);
 <template>
   <section class="st-section" aria-labelledby="us-h">
     <header>
-      <h3 id="us-h">People</h3>
-      <button v-if="assignable.length && !adding" type="button" class="btn sm" @click="startAdd">Add a user</button>
+      <h3 id="us-h" tabindex="-1">People</h3>
+      <button v-if="assignable.length && !adding" :id="`${uid}-add`" type="button" class="btn sm" @click="startAdd">Add a user</button>
     </header>
     <p class="st-lede">
       Everyone who signs in to this hub, and what their role lets them do. There’s one owner; users are disabled rather than deleted, so the audit log keeps
@@ -215,8 +245,8 @@ onMounted(load);
       </div>
       <p v-if="addErrors.form" class="err" role="alert">{{ addErrors.form }}</p>
       <div class="st-acts">
-        <button type="submit" class="btn primary" :disabled="saving" :aria-busy="saving || undefined">{{ saving ? 'Adding…' : 'Add user' }}</button>
-        <button type="button" class="btn ghost" @click="adding = false">Cancel</button>
+        <button type="submit" class="btn primary" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Adding…' : 'Add user' }}</button>
+        <button type="button" class="btn ghost" @click="cancelAdd">Cancel</button>
       </div>
     </form>
 
@@ -243,16 +273,27 @@ onMounted(load);
           <span v-if="manageable(u) || canTransfer(u)" class="end us-acts">
             <template v-if="manageable(u)">
               <label :for="`${uid}-r-${u.id}`" class="sr">Role for {{ u.username }}</label>
-              <select :id="`${uid}-r-${u.id}`" class="us-role" :value="u.role" :disabled="busy === u.id || u.disabled" @change="setRole(u, $event)">
+              <select :id="`${uid}-r-${u.id}`" class="us-role" :value="roleDraft[u.id] ?? u.role" :disabled="u.disabled" @change="pickRole(u, $event)">
                 <option v-if="!assignable.includes(asRole(u.role))" :value="u.role" disabled>{{ ROLE_WORDS[asRole(u.role)].label }}</option>
                 <option v-for="r in assignable" :key="r" :value="r">{{ ROLE_WORDS[r].label }}</option>
               </select>
-              <button type="button" class="btn sm ghost" :disabled="busy === u.id" @click="toggleDisabled(u)">{{ u.disabled ? 'Enable' : 'Disable' }}</button>
+              <button
+                v-if="!u.disabled"
+                type="button"
+                class="btn sm"
+                :aria-label="`Save role for ${u.username}`"
+                :aria-disabled="!roleDirty(u) || busy === u.id ? 'true' : undefined"
+                :aria-busy="(busy === u.id && roleDirty(u)) || undefined"
+                @click="saveRole(u)"
+              >
+                Save
+              </button>
+              <button type="button" class="btn sm ghost" :aria-disabled="busy === u.id ? 'true' : undefined" @click="toggleDisabled(u)">{{ u.disabled ? 'Enable' : 'Disable' }}</button>
             </template>
-            <button v-if="canTransfer(u) && transferring !== u.id" type="button" class="btn sm ghost" @click="startTransfer(u)">Make owner…</button>
+            <button v-if="canTransfer(u) && transferring !== u.id" :id="`${uid}-mo-${u.id}`" type="button" class="btn sm ghost" @click="startTransfer(u)">Make owner…</button>
           </span>
         </div>
-        <form v-if="transferring === u.id" class="st-confirm us-transfer" role="group" :aria-labelledby="`${uid}-tr-h-${u.id}`" novalidate @submit.prevent="transfer(u)">
+        <form v-if="transferring === u.id" class="st-confirm us-transfer" :aria-labelledby="`${uid}-tr-h-${u.id}`" novalidate @submit.prevent="transfer(u)">
           <span :id="`${uid}-tr-h-${u.id}`">
             Hand ownership to <b>{{ u.username }}</b>? They get everything, including users and security; you become an admin. Only they can hand it back.
             <b>This can’t be undone from your side.</b>
@@ -262,8 +303,8 @@ onMounted(load);
             <input :id="`${uid}-tr-${u.id}`" v-model="typed" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" :aria-invalid="transferError ? true : undefined" :aria-describedby="transferError ? `${uid}-tr-e` : undefined" />
             <span v-if="transferError" :id="`${uid}-tr-e`" class="help bad" role="alert">{{ transferError }}</span>
           </div>
-          <button type="submit" class="btn danger solid" :disabled="typed.trim() !== u.username || busy === u.id">Make {{ u.username }} owner<span class="tier">T3</span></button>
-          <button type="button" class="btn" @click="transferring = ''">Cancel</button>
+          <button type="submit" class="btn danger solid" :disabled="typed.trim() !== u.username" :aria-disabled="busy === u.id ? 'true' : undefined" :aria-busy="busy === u.id || undefined">Make {{ u.username }} owner<span class="tier">T3</span></button>
+          <button type="button" class="btn" @click="cancelTransfer(u)">Cancel</button>
         </form>
       </li>
     </ul>

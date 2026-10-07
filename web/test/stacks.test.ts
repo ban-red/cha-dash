@@ -232,7 +232,7 @@ describe('Settings → Stacks: one stack', () => {
     expect(hist.map((x) => x.find('.sk-kind').text())).toEqual(['deploy', 'rollback', 'adopted']);
     expect(hist[0]!.find('button').exists()).toBe(false);
     expect(hist[1]!.find('button').text()).toContain('Roll back to this');
-    expect(w.find('.sk-deploy').attributes('disabled')).toBeUndefined();
+    expect(w.find('.sk-deploy').attributes('aria-disabled')).toBeUndefined();
     expect(await axeViolations()).toEqual([]);
   });
 
@@ -256,7 +256,7 @@ describe('Settings → Stacks: one stack', () => {
     expect(w.find('.sk-msg.error').text()).toContain('line 3');
     expect(w.find('.sk-msg.error').text()).toContain('services.web.image must be a string');
     expect(w.find('.sk-gutter span.e').text()).toBe('3');
-    expect(w.find('.sk-deploy').attributes('disabled')).toBeDefined();
+    expect(w.find('.sk-deploy').attributes('aria-disabled')).toBe('true');
     expect(w.find('.sk-why').text()).toBe('Save the draft first: Deploy runs the saved draft.');
     expect(await axeViolations()).toEqual([]);
   });
@@ -309,7 +309,7 @@ describe('Settings → Stacks: one stack', () => {
     expect(live.text()).toContain('Deploy media');
     expect(live.text()).toContain('Hold to the health gate: 20 s soak · 70%');
     expect(live.find('.sk-log').text()).toContain('soaking 20 s');
-    expect(w.find('.sk-deploy').attributes('disabled')).toBeDefined();
+    expect(w.find('.sk-deploy').attributes('aria-disabled')).toBe('true');
 
     h.ws.push({
       op: 'diff',
@@ -347,7 +347,7 @@ describe('Settings → Stacks: one stack', () => {
     await settle();
     expect(w.find('textarea').attributes('readonly')).toBeDefined();
     expect(w.find('.sk-prot').text()).toContain('Cha Dash’s own stack · view only until self-update');
-    expect(w.find('.sk-deploy').attributes('disabled')).toBeDefined();
+    expect(w.find('.sk-deploy').attributes('aria-disabled')).toBe('true');
     expect(w.find('.sk-why').text()).toBe('Cha Dash’s own stack · view only until self-update.');
     expect(w.findAll('button').some((b) => b.text() === 'Save draft')).toBe(false);
     expect(w.findAll('.sk-h button')).toHaveLength(0);
@@ -363,7 +363,7 @@ describe('Settings → Stacks: one stack', () => {
     await settle();
     await settle();
     expect(w.find('.sk-chips').text().replace(/\s+/g, ' ')).toContain('db_password · not set');
-    expect(w.find('.sk-deploy').attributes('disabled')).toBeDefined();
+    expect(w.find('.sk-deploy').attributes('aria-disabled')).toBe('true');
     const accept = w.findAll('button').find((b) => b.text().startsWith('Accept edits made outside Cha Dash'))!;
     await accept.trigger('click');
     await settle();
