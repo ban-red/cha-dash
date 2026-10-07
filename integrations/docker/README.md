@@ -242,6 +242,8 @@ Only `node://` instances implement them (`actions.go`, the `integration.Actor` i
 | `docker.container.remove` | T3 | — | `container.remove` | `docker.remove` |
 | `docker.container.logs` | T0 | — | `container.logs` (last 50 lines into the task log) | `docker.logs` |
 
+- **Logs are Operator and up.** Container logs often hold secrets (tokens printed at start-up, connection strings), so `docker.container.logs` is marked `ReadsData`: the policy refuses it to viewers and household although it's T0. Its lines live in the running task and the `tasks` topic only; the stored task never has them.
+
 - **Targets** are this instance's containers, `docker:<instance>/container/<name>`; another instance's are `not_found`. Resolve inspects through the node; the plan's hash covers the container's ID, state and image.
 - **Preconditions** refuse a start of a running container, a stop of a stopped one and a remove of a running one, then ask the node (`container.can`) whether its policy allows the verb on that container: a refusal is `409 unavailable` with the node's sentence ("vaultwarden is protected by this node's policy"). A node that isn't connected is `unavailable` too.
 - **Blast radius** is the engine's walk of the Home Graph: compose `depends_on`, Traefik's `routes_to`, `part_of` and `runs_on`.

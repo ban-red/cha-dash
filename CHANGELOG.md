@@ -16,7 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Failed sends are retried with backoff (30 s, 2 min, 10 min, 30 min), honouring `Retry-After`. Devices whose subscription expired are removed.
 - Webhooks are versioned JSON with an `X-Chadash-Signature` HMAC-SHA256 header; the format is in `internal/notify/README.md`. Links in messages need `CHADASH_PUBLIC_URL`.
 - **Settings → API tokens**: make tokens for scripts and automations. You pick what each may read (the Home Graph, the Inbox, the audit log) and run (every action your role allows, a family such as every Docker action, or single actions), and when it expires: 90 days by default, a year at most. The token is shown once, with Copy; Cha Dash keeps only a fingerprint. The list shows when and from where each token was last used. Revoke one and it stops working at once.
-- A token acts as you and never has more than your role, even if your role changes later. Owners and admins see everyone's tokens and can revoke any.
+- A token acts as you and never has more than your role, even if your role changes later. The owner sees everyone's tokens and can revoke any; admins, everyone's but the owner's.
 - Send it as `Authorization: Bearer cdt_…` to `/api/` routes. Tokens can't sign in, step up, or touch users, tokens or settings. New plain reads for scripts: `GET /api/graph` and `GET /api/inbox`.
 - **Actions from a token:** up to T1 they run when the token approves its own plan. **T2 actions wait in the Inbox** for an admin or the owner, who sees who asked, the plan's steps and what it affects, then approves with the hold ring and a fresh step-up, or denies it. The token can poll the request and the task. Unanswered requests expire after an hour; revoking the token withdraws them. T3 and T4 never run from a token.
 - Every step is in the audit log: the token's request, who approved or denied it, expiry, and the action itself, named after the token and its user.
@@ -86,6 +86,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Task logs stream line by line** on the live connection instead of resending the whole log each time. The live log keeps 25 to 50 lines.
 
 ### Security
+
+- **Open live connections now follow sign-outs and account changes.** Signing out, being disabled, a role change and a handover of ownership close that person's open tabs' live connections at once; the page reconnects as whoever it is now. Each connection also rechecks its session every minute (so an expired one ends) and reconnects after 12 hours.
+- **Container logs are for operators and up.** Reading a container's logs (`docker.container.logs`) was open to viewers and household because it's T0; logs often hold secrets, so it now needs Operator or above. Household accounts run only actions marked for the household, at every tier. Log lines stay in the live task and are no longer saved with it, so they're gone after a restart.
+- **More changes reach the audit log.** Integration connections (created, changed, deleted: names, the fields that changed and the URL's host, never a secret), passkeys added, renamed and removed, step-ups that worked and that failed, board layout saves and dismissed suggestions, "same thing?" decisions, the first-run wizard and its discovery, imports and exports (counts and IDs), and stack drafts. Refusals are recorded too: changing the owner's account, invalid users, a token scope your role can't hand out, revoking someone else's token. A change is recorded even when the browser hangs up mid-request.
+- **Admins no longer see or revoke the owner's API tokens**, as they can't change the owner's account.
+- **Two quick approvals can't share one T4 confirmation.** The step-up a critical action spends is now used up in the same step that starts it.
+- **A token's actions name its user** in the audit log (`on_behalf_of`). Older entries keep their exact bytes and hashes.
+- **Household accounts no longer get chadash-node's details or addresses** in the Home Graph (live, `GET /api/graph` and the first page load). Boards render as before.
+- **Record the audit log's head.** `chadash audit verify`, `GET /api/audit/verify` and the audit export (`X-Chadash-Audit-Head`) now show the last event's number and hash. The chain can't protect itself from someone who can write the database file; keep the head somewhere else and check later exports still contain it (SECURITY.md).
 
 - **A browser's push subscription can't be taken over** by another account: subscribing an endpoint someone else registered is refused. Turn notifications off in the first account to move a browser.
 - **NAT64 and 6to4 addresses** are checked by the IPv4 address inside them, for Web Push and the icon fetcher.

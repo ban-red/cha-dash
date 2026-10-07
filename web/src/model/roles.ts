@@ -22,8 +22,8 @@
  * never shown there.
  *
  * Every role also manages its own API tokens (a token never exceeds its
- * user's role), so API tokens is open below admin too. Owners and admins
- * see and revoke everyone's tokens, and approve the plans tokens leave
+ * user's role), so API tokens is open below admin too. The owner sees and
+ * revokes everyone's tokens, admins everyone's but the owner's; both approve the plans tokens leave
  * waiting (`approve`).
  */
 import type { SettingsPane } from '../lib/router';

@@ -19,7 +19,7 @@
  *   /settings/users                    users and roles (owner, admin)
  *   /settings/audit                    the audit log (owner, admin)
  *   /settings/notifications            this device's notifications; channels, rules, the delivery log (owner, admin)
- *   /settings/tokens                   API tokens: your own (owner and admins: everyone's)
+ *   /settings/tokens                   API tokens: your own (the owner: everyone's; admins: all but the owner's)
  *   /settings/security                 the security level, step-up, passkeys
  *
  * Settings is a layer over the front page, not a separate app, so the board,
