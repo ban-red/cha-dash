@@ -83,7 +83,8 @@ services:
 | `CHADASH_DEMO_SEED` | `1` | Changes the demo's noise, uptimes and IDs, but not its topology or incidents (flag `--demo-seed`) |
 | `CHADASH_DATA_DIR` | `/data` | The data directory. Leave it alone in Docker; mount a volume at `/data` instead |
 | `CHADASH_LISTEN` | `:3696` | The address inside the container. Leave it alone in Docker; change the published port instead |
-| `CHADASH_NODE_PAIRING_FILE` | none (`/pairing/token` in `compose.yaml`) | Turns on pairing for the local node: the hub writes a pairing token there on first run, in the volume it shares with `chadash-node`. Empty: no node can pair |
+| `CHADASH_NODE_PAIRING_FILE` | none (`/pairing/token` in `compose.yaml`) | Turns on pairing for the local node: the hub writes a pairing token there on first run, in the volume it shares with `chadash-node`, and a fresh one each time a node pairs or is revoked. Empty: no node can pair |
+| `CHADASH_NODE_PAIRING_FROM` | private and loopback ranges | Comma-separated addresses or CIDRs a node may pair from, or `any`. The compose network is private, so the default fits; an already-paired node connects from anywhere |
 
 **Another port.** Change the published side only, so the container keeps 3696 ([ADR-0009](../docs/adr/0009-default-port-3696.md)). `!override` replaces the list instead of adding to it:
 
@@ -137,7 +138,7 @@ A key file that others can read (Docker Swarm mounts secrets `0444`) is accepted
 
 `chadash-node` is Cha Dash's hands on a Docker host ([ADR-0006](../docs/adr/0006-owned-stacks-and-thin-node.md)). In v0.2 one node runs beside the hub, on the hub's own host; remote nodes come in v0.3. The hub never mounts the Docker socket: everything Docker goes through the node, and the node only does what its policy allows.
 
-**Pairing is automatic.** On first start the hub writes a pairing token, `cdp_<secret>.<hub key>`, to `/pairing/token` in the `pairing` volume, which only the hub and the node mount. The node reads it, checks the hub's key before it says anything, and presents the secret; the hub enrolls and approves it as `local`. Nothing else on the network can pair: a container without the volume has no secret, and the hub refuses keys it doesn't know. The channel is mutual TLS 1.3 inside the WebSocket on port 3696, with each side's Ed25519 key pinned ([ADR-0014](../docs/adr/0014-node-transport.md)).
+**Pairing is automatic.** On first start the hub writes a pairing token, `cdp_<secret>.<hub key>`, to `/pairing/token` in the `pairing` volume, which only the hub and the node mount. The node reads it, checks the hub's key before it says anything, and presents the secret; the hub enrolls and approves it as `local`. Nothing else on the network can pair: a container without the volume has no secret, and the hub refuses keys it doesn't know. The secret is single-use: pairing spends it and the hub writes a fresh one into the file, so a copy of the volume is worth nothing once the node has paired. Pairing is accepted only from private and loopback addresses (`CHADASH_NODE_PAIRING_FROM` on the hub widens or narrows that), and never under the name of a node that's already enrolled. The channel is mutual TLS 1.3 inside the WebSocket on port 3696, with each side's Ed25519 key pinned ([ADR-0014](../docs/adr/0014-node-transport.md)).
 
 **Then add Docker** with the endpoint `node://local` (the first-run wizard offers it). It reads the same containers and stacks the socket proxy did, and offers actions: start and stop, restart, recreate, pull, remove and logs.
 
@@ -158,6 +159,7 @@ docker:
   protect: []                              # container or compose service names no write may touch
   redact_env: true                         # inspect leaves without environment values
 stacks: { root: /opt/stacks, allow: [read, deploy, adopt] }
+# stacks: { deny: [privileged, host_namespaces, devices, cap_add, host_binds], bind_roots: [/mnt/media] }
 exec: false
 # hub: { pin: "ed25519:…", pin_rotation: false }   # fix the hub's key
 ```
@@ -172,13 +174,17 @@ exec: false
 | `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
 | `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks) |
 
-The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: Cha Dash never restarts or removes itself until self-update lands in v0.3. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
+The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: Cha Dash never restarts or removes itself until self-update lands in v0.3. Protection holds for stacks too: a deploy that would recreate or remove a protected container is refused. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
 
-**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a token, instead of the file), `PAIRING_FILE` (`/pairing/token`), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`.
+`redact_env` hides environment values only. A container's command line and labels come back as they are, so keep secrets out of them.
+
+**`stacks.deploy` is root on this host.** A compose file can mount the host's disk, run privileged or share the host's namespaces, and Cha Dash deploys what an admin saves. That's by design: media stacks need bind mounts and VPN containers need `cap_add`. The node always refuses what would hand a stack its own keys: the Docker socket, `/`, its own directories and volumes, the `pairing` volume, `volumes_from` another container, env files outside the stack's directory, and `include` or `extends` from other files. Everything else root-equivalent (privileged, host namespaces, devices, `cap_add`, host paths outside the stack's directory) is allowed but called out in the editor and in the deploy confirmation. To lock it down, list those in `stacks.deny`; with `host_binds` denied, `bind_roots` names the host paths stacks may still bind. Or remove `deploy` from `stacks.allow`.
+
+**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`.
 
 **Running it unprivileged.** Set `user: "65532:65532"` and `group_add: ["<gid>"]`, with the gid from `stat -c %g /var/run/docker.sock`.
 
-**Revoking it.** `POST /api/nodes/<id>/revoke` (admin) cuts it off at once; its key never works again. Deleting the `node` volume and restarting pairs a fresh node, which replaces the old one.
+**Revoking it.** `POST /api/nodes/<id>/revoke` (admin) cuts it off at once; its key never works again, and the hub writes a fresh pairing secret. To replace a node (say its `node` volume was lost), revoke the old one first: a node with a new key then pairs under the same name with the secret in the file. Pairing never replaces an enrolled node by itself. `POST /api/nodes/pairing/regenerate` (admin) writes a fresh secret at any time.
 
 **Don't want the node?** Start with the socket-proxy override instead. Cha Dash then reads Docker here but can't change anything:
 

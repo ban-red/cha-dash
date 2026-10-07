@@ -42,7 +42,8 @@ How the actions work:
 - **Resolve** reads the stack from its node. For a deploy it also validates and plans the draft, so the plan's steps name the services ("Pull nginx:1.28", "Recreate web …", the gate, "roll back on its own"). The result travels in `Target.Ref`.
 - **The target's state** hashes the head commit, managed, drift and the draft's SHA-256. An approval after anyone saves a new draft or deploys is `409 plan_changed`.
 - **Blast radius** is the graph's `stack` resources for the project (the Docker integration's `docker:<key>/stack/<name>`) and `GraphImpact` from each.
-- **Execute** reads the draft, checks it's the one planned, and reads each referenced secret from the vault for that one call. It sends the deploy with `expect_head`, so a deploy in between is refused, and streams the node's progress into the task.
+- **Steps** lead with what the node flags as root-equivalent on its host (`Plan.RootEquivalent`: privileged, host namespaces, devices, `cap_add`, host paths), when there is any, so the person holding the ring sees it.
+- **Execute** reads the draft, checks it's the one planned, and reads each referenced secret from the vault for that one call. It records the names as granted to that stack on that node, sends the deploy with `expect_head`, so a deploy in between is refused, and streams the node's progress into the task. A rollback sends only granted names (see Secrets).
 - **Outcomes.** `deployed` succeeds and clears the draft, if it's still the same revision. `blocked`, `rolled_back` and `stuck` fail the task with that code and the node's sentence. `stuck` also opens an Inbox item, `stack.<node>.<name>.stuck`, at severity `down`; the next deploy or rollback that passes the gate resolves it.
 
 ## Drafts live in the hub
@@ -55,7 +56,9 @@ Table `stack_drafts` (migration `00009`): one per node and stack, with a revisio
 
 ## Secrets
 
-Stack secrets are vault entries named `stacks/<name>`, a namespace of their own. Whatever a compose file references, it can't reach an integration's credentials (`instance/…`). They're read only for `stack.plan` (validation's plan) and deploys, sent to the node with that request, and cleared from memory afterwards. `TestScenarioBadDeployRollsBackOnItsOwn` checks that the value went only with `stack.plan` and `stack.deploy`. It also checks that no response, task or audit event holds it.
+Stack secrets are vault entries named `stacks/<name>`, a namespace of their own. Whatever a compose file references, it can't reach an integration's credentials (`instance/…`). They're read only for `stack.plan` (validation's plan), deploys and rollbacks, sent to the node with that request, and cleared from memory afterwards. `TestScenarioBadDeployRollsBackOnItsOwn` checks that the value went only with `stack.plan` and `stack.deploy`. It also checks that no response, task or audit event holds it.
+
+**The hub decides which secrets go.** For validation and deploys, the names come from the hub's own reading of the draft, never from the node's reply. A deploy records them in `stack_secret_grants` (migration `00014`) for that node and stack. A rollback restores a version that lives on the node, so the node says which names it needs; the hub sends them only if each was granted to that stack on that node, and otherwise fails with `secret_not_granted`, naming it. A node can't ask for another stack's secrets, or another node's. The vault namespace is unchanged (`stacks/<name>`): grants scope what goes where, so no secret had to move. `TestRollbackSendsOnlyGrantedSecrets` and `TestPlanSendsSecretsFromTheHubsReading` play a node that lies.
 
 ## Tests
 

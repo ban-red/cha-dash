@@ -17,8 +17,8 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 | `stack.list` | `stacks.read` | Managed stacks: status from Docker, drift, protected, last commit |
 | `stack.detect` | `stacks.read` | Running compose projects that aren't managed yet (found by their labels), plus root directories nobody adopted. Each says whether it can be adopted, and why not |
 | `stack.get` | `stacks.read` | One stack: the committed file (or the file at commit `at`), `.env` key names only, `x-chadash`, containers, the last 50 commits, referenced secrets |
-| `stack.validate` | `stacks.read` | Loads a proposed file with compose-go. Secret references are checked for syntax, never resolved. Returns messages with line numbers |
-| `stack.plan` | `stacks.read` | Compares config hashes (`compose.ServiceHash`) with the running containers' labels. Lists services to create, recreate (and pull) or remove, and a downtime estimate |
+| `stack.validate` | `stacks.read` | Loads a proposed file with compose-go. Secret references are checked for syntax, never resolved. The guard's refusals are errors and its root-equivalent findings warnings (see "What a stack may do on the host"). Returns messages with line numbers |
+| `stack.plan` | `stacks.read` | Compares config hashes (`compose.ServiceHash`) with the running containers' labels. Lists services to create, recreate (and pull) or remove, a downtime estimate, and `root_equivalent`: what the file does that amounts to root on the host. Refuses what the guard refuses (`invalid`) and recreating or removing a container `docker.protect` names (`protected`) |
 | `stack.deploy` | `stacks.deploy` | The seven steps below |
 | `stack.rollback` | `stacks.deploy` | An earlier commit's file as a new commit, pinned to the digests it last ran, through the same steps |
 | `stack.adopt` | `stacks.adopt` | Adopt in place: commit a root directory, or register an external path and start its shadow history. Nothing moves and nothing restarts. On a drifted stack it accepts the edits made outside Cha Dash |
@@ -28,8 +28,8 @@ Errors are `stackproto.Error{code, message}`, and `Error()` reads `<code>: <mess
 
 ## The deploy pipeline
 
-1. **Validate.** The loader, secret references, `x-chadash`. Every reference must come with the request.
-2. **Plan** from config hashes against the running containers. A file equal to the last commit is `unchanged`, and nothing happens.
+1. **Validate.** The loader, secret references, `x-chadash`, the guard. Every reference must come with the request. The guard runs again on the file loaded with the real secret values, since a value can be a path.
+2. **Plan** from config hashes against the running containers. A file equal to the last commit is `unchanged`, and nothing happens. A plan that recreates or removes a protected container (`docker.protect`, the hub, the node) is refused (`protected`).
 3. **Preflight.** A dry run through Compose's reconciler resolves every image, so a bad tag is `blocked` before anything stops. A registry the node can't reach reads "couldn't check", not "would fail".
 4. **Commit** the attempt (`Deploy media: recreate web · by sam via web · t_…`), recording the images running now.
 5. **Pull** what changed, then **up --wait**. Progress streams as `stackproto.Progress`.
@@ -41,6 +41,16 @@ Other rules:
 - `expect_head` refuses a deploy planned against an older commit (`conflict`).
 - A file on disk that differs from its last commit refuses a deploy (`drift`) until the edits are accepted with `stack.adopt`.
 
+## What a stack may do on the host
+
+`stacks.deploy` runs the compose files the hub sends, and a compose file can mount the host's disk, run privileged or share the host's namespaces. **An admin who can deploy is root on the node's host, by design** (stacks need bind mounts for media libraries and `cap_add` for VPN containers). The guard (`guard.go`) holds back what would hand a stack the node's own keys:
+
+- **Always refused**, whatever the policy says: binding the Docker socket (`/var/run/docker.sock`, `/run/docker.sock`, `CHADASH_NODE_DOCKER_HOST`'s path), `/`, the node's directory (`/etc/chadash-node`, its identity) or the pairing volume (`/pairing`), or any path that contains one of them; the node's own volumes (by name, read from its container's mounts) and their host paths; local-driver volumes and file secrets or configs on those paths; `volumes_from` another container; `env_file` and `label_file` outside the stack's directory; `include`; `extends` from another file. The references the loader would read are checked in a first pass that reads no other file, so a refused `env_file` is never opened.
+- **Denied by the policy, or flagged:** `privileged` (and `security_opt` that turns confinement off), `host_namespaces` (`network_mode`, `pid`, `ipc`, `uts`, `userns_mode` or `cgroup` set to `host` or another container), `devices` (also `device_cgroup_rules`, `gpus`), `cap_add`, and `host_binds` (host paths outside the stack's directory, or outside `stacks.bind_roots` when `host_binds` is denied). Nothing is denied by default; validation warns about each and the plan lists them as `root_equivalent`, which the hub shows at the top of the deploy confirmation.
+- **Adopting** reads a running project's compose file only if it's an absolute `.yaml` or `.yml` path outside the node's own directories: anything that can start a container can set the labels that name it.
+
+To lock a node down, list features in `stacks.deny` (with `bind_roots` for the paths stacks may use), or remove `deploy` from `stacks.allow`.
+
 ## Secrets
 
 - A file references a secret as `${secret:name}`. The hub reads the values from its vault (`stacks/<name>`) and sends them with plan, deploy and rollback requests.
@@ -51,7 +61,7 @@ Other rules:
 
 ## Protected stacks
 
-Cha Dash's own stack can be viewed and diffed, not deployed (`protected`), until self-update lands in v0.3. A stack is protected when its name is in `Options.Protected` (the node should pass its own compose project), or when a running container or the file uses an image starting with `ghcr.io/ban-red/chadash`.
+Cha Dash's own stack can be viewed and diffed, not deployed (`protected`), until self-update lands in v0.3. A stack is protected when its name is in `Options.Protected` or is the node's own compose project (`Options.SelfProject`, asked again at most once a minute until Docker answers), or when a running container or the file uses an image starting with `ghcr.io/ban-red/chadash`. Separately, `docker.protect` holds for stack verbs: a deploy, plan or rollback that would recreate or remove a protected container is refused (`Options.ProtectContainer`, the node's `Policy.Protected`).
 
 ## x-chadash
 
@@ -74,6 +84,7 @@ Unknown keys and bad values are warnings, never errors.
 - digest pinning, and history and rollback commits;
 - blocked, stuck, and a new stack that fails;
 - drift, conflict, protected, busy, and a missing secret;
+- the guard: every always-refused path and reference (and that a refused `env_file` is never read), each policy denial, root-equivalent warnings in validation and the plan, a secret whose value is a private path, `docker.protect` on deploy, plan and rollback, the node's own project learned late, and adoption refusing the node's files;
 - adopt in place (root and external), un-adopt, and accepting edits;
 - secrets never on disk.
 
