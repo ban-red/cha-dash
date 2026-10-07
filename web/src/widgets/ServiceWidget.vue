@@ -32,7 +32,7 @@ import StateNote from './parts/StateNote.vue';
 import { glyphFor } from '../model/status';
 import { attr, label, outgoing, placeOf, resolve } from '../model/graph';
 import { findCheck, hostOf, serviceStatus } from '../model/service';
-import { resourceLinks } from '../model/types';
+import { resourceLinks, safeUrl } from '../model/types';
 import { useBoard } from '../stores/board';
 import { useLive } from '../stores/live';
 import { originLabel, useTile } from '../stores/tiles';
@@ -71,7 +71,7 @@ const check = computed(() => checkFor(live.graph.value, live.metrics.value, r.va
 /** Without a config: the entry's slug ("homepage:servers/proxmoxpluto" → "proxmoxpluto"). */
 const fallback = computed(() => (target ?? '').split('/').pop()?.replace(/^[a-z]+:/, '') || 'Service');
 const name = computed(() => meta.value?.name ?? (r.value ? label(r.value) : fallback.value));
-const href = computed(() => meta.value?.href ?? resourceLinks(r.value)[0]?.url);
+const href = computed(() => safeUrl(meta.value?.href) ?? resourceLinks(r.value)[0]?.url);
 const type = computed(() => attr<string>(r.value, 'type'));
 const context = computed(() => {
   if (!hasStat.value) return size === 'wide' ? hostOf(meta.value?.href) : '';

@@ -21,6 +21,7 @@ import { computed, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
 import { hhmm, monogram } from '../lib/format';
+import { safeUrl } from '../model/types';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
 import { iconFor, iconMap, wantsIcon } from '../stores/icons';
@@ -63,7 +64,8 @@ const live = useLive();
 const tile = useTile();
 
 const shownName = computed(() => tile.config.value?.name ?? name);
-const shownHref = computed(() => tile.config.value?.href ?? href);
+/** The tile's link, from its config or its widget: http(s) only. */
+const shownHref = computed(() => safeUrl(tile.config.value?.href ?? href));
 const chromeless = computed(() => tile.config.value?.chromeless === true);
 
 const hubStale = computed(() => live.stale.value);

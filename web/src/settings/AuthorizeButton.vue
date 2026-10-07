@@ -10,6 +10,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import { ApiError } from '../lib/api';
+import { safeUrl } from '../model/types';
 import { beginAuthorize, errorWords, pollAuthorize } from '../stores/integrations';
 import { useForm } from './form';
 
@@ -54,8 +55,9 @@ async function start(): Promise<void> {
       tab?.close();
       return;
     }
-    link.value = a.url;
-    if (tab) tab.location.href = a.url;
+    link.value = safeUrl(a.url) ?? '';
+    if (tab && link.value) tab.location.href = link.value;
+    else tab?.close(); // not an http(s) address: nothing to open
     state.value = 'waiting';
     schedule(integration, a.id, a.interval_s, mine);
   } catch (err) {

@@ -23,7 +23,7 @@ import { prefersReducedMotion } from '../lib/motion';
 import { repairTarget } from '../model/integrations';
 import { label } from '../model/graph';
 import { permissions } from '../model/roles';
-import { resourceLinks, type Action, type Incident } from '../model/types';
+import { resourceLinks, safeUrl, type Action, type Incident } from '../model/types';
 import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type ToastAction } from './actions';
 import type { Live } from './live';
 
@@ -53,8 +53,6 @@ export interface Runnable {
   /** The viewer's role can't run it: don't show the button at all. */
   hidden?: boolean;
 }
-
-const safeUrl = (u: string | undefined) => (u && /^https?:\/\//i.test(u) ? u : undefined);
 
 export function createUi(live: Live, hooks: UiHooks = {}) {
   const state = reactive({

@@ -110,8 +110,20 @@ async function staleWhileRevalidate(request, event) {
  * Only same-origin paths are followed.
  */
 
-/** A path inside the app, or the front page. */
-const appPath = (p) => (typeof p === 'string' && p.startsWith('/') && !p.startsWith('//') ? p : '/');
+/**
+ * A path inside the app, or the front page. Resolved the way the browser
+ * will resolve it, so `/\evil.example` (which URL parsing reads as
+ * `//evil.example`) or `https://elsewhere` can't leave the origin.
+ */
+function appPath(p) {
+  if (typeof p !== 'string' || !p.startsWith('/')) return '/';
+  try {
+    const u = new URL(p, self.location.origin);
+    return u.origin === self.location.origin ? u.pathname + u.search + u.hash : '/';
+  } catch {
+    return '/';
+  }
+}
 
 self.addEventListener('push', (event) => {
   let msg = {};
@@ -138,7 +150,9 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const path = appPath(event.notification.data && event.notification.data.path);
-  const url = new URL(path, self.location.origin).href;
+  const target = new URL(path, self.location.origin);
+  // Belt and braces: only ever this origin.
+  const url = target.origin === self.location.origin ? target.href : new URL('/', self.location.origin).href;
   event.waitUntil(
     (async () => {
       const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

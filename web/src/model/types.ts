@@ -269,11 +269,18 @@ export function normalizeHealth(r: Resource | undefined): Health {
   return h;
 }
 
+/**
+ * A link the app may render: http or https only. A tile's config, an
+ * integration or an import can carry any string; `javascript:` and `data:`
+ * never reach an href.
+ */
+export const safeUrl = (u: unknown): string | undefined => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : undefined);
+
+/** A resource's links, only those with an http(s) URL (safeUrl). */
 export function resourceLinks(r: Resource | undefined): Link[] {
   if (!r) return [];
-  if (Array.isArray(r.links)) return r.links;
-  const fromAttrs = r.attrs?.['links'];
-  return Array.isArray(fromAttrs) ? (fromAttrs as Link[]) : [];
+  const all = Array.isArray(r.links) ? r.links : r.attrs?.['links'];
+  return Array.isArray(all) ? (all as Link[]).filter((l) => !!l && safeUrl(l.url) !== undefined) : [];
 }
 
 export const seriesKey = (resource: string, metric: string): string => `${resource}#${metric}`;

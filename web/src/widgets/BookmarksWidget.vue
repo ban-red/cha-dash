@@ -20,7 +20,7 @@ import Glyph from '../components/marks/Glyph.vue';
 import { monogram } from '../lib/format';
 import { attr, distinct, label, resolve } from '../model/graph';
 import { hostOf } from '../model/service';
-import { normalizeHealth, resourceLinks, type Resource } from '../model/types';
+import { normalizeHealth, resourceLinks, safeUrl, type Resource } from '../model/types';
 import { useLive } from '../stores/live';
 import Frame from './parts/Frame.vue';
 import { checkFor } from './read';
@@ -41,7 +41,7 @@ interface Link {
 }
 const candidates = computed(() =>
   distinct(live.graph.value)
-    .filter((r) => r.kind === 'app' && attr(r, 'self') !== true && resourceLinks(r).some((l) => /^https?:\/\//i.test(l.url)))
+    .filter((r) => r.kind === 'app' && attr(r, 'self') !== true && resourceLinks(r).some((l) => safeUrl(l.url)))
     .filter((r) => !group.value || [r.labels?.['chadash.group'], r.labels?.['homepage.group']].some((gname) => gname?.toLowerCase() === group.value))
     .sort((a, b) => label(a).localeCompare(label(b))),
 );
@@ -50,7 +50,7 @@ const visible = computed(() => (canRepair(role()) ? candidates.value : candidate
 const hidden = computed(() => candidates.value.length - visible.value.length);
 const links = computed<Link[]>(() =>
   visible.value.map((r) => {
-    const url = resourceLinks(r).find((l) => /^https?:\/\//i.test(l.url))!.url;
+    const url = resourceLinks(r).find((l) => safeUrl(l.url))!.url;
     const check = checkFor(live.graph.value, live.metrics.value, r);
     const checkDown = check?.resource ? normalizeHealth(check.resource).status === 'down' : check?.series ? check.series.value === null && !check.series.stale : false;
     return { id: r.id, name: label(r), url, host: hostOf(url), down: statusOf(r) === 'down' || checkDown };
