@@ -16,6 +16,8 @@ const opBytes = len(`{"op":"replace","path":"","value":},`)
 type differ struct {
 	old, new []member
 	matched  []bool
+	oldEl    []json.RawMessage
+	newEl    []json.RawMessage
 }
 
 // memberOps appends the ops that turn a member's old encoding into new, at
@@ -23,7 +25,8 @@ type differ struct {
 // disappears is added or removed whole. One that changes gets an op for each
 // top-level field that changed, when it is an object before and after and
 // those ops are smaller than replacing it whole. Field values are replaced
-// whole, arrays included. Op values share memory with new.
+// whole, except an array that only grew at its end, which gets appends.
+// Op values share memory with new.
 func (d *differ) memberOps(ops []jsonpatch.Op, path string, old, new json.RawMessage) []jsonpatch.Op {
 	switch {
 	case new == nil:
@@ -66,7 +69,28 @@ func (d *differ) memberOps(ops []jsonpatch.Op, path string, old, new json.RawMes
 			return append(ops[:start], whole)
 		}
 		matched[i], next = true, i+1
-		if !bytes.Equal(om[i].val, n.val) && !emit(jsonpatch.Replace, n.key, n.val) {
+		if bytes.Equal(om[i].val, n.val) {
+			continue
+		}
+		// An array that only grew at its end (a task's log) gets an append
+		// per new element, when that's smaller than replacing it.
+		if added, ok := d.appended(om[i].val, n.val); ok {
+			field := path + jsonpatch.Pointer(string(n.key))
+			cost := 0
+			for _, v := range added {
+				cost += opBytes + len(field) + 2 + len(v)
+			}
+			if cost < opBytes+len(field)+len(n.val) {
+				for _, v := range added {
+					ops = append(ops, jsonpatch.Op{Op: jsonpatch.Add, Path: field + "/-", Value: v})
+				}
+				if size += cost; size >= budget {
+					return append(ops[:start], whole)
+				}
+				continue
+			}
+		}
+		if !emit(jsonpatch.Replace, n.key, n.val) {
 			return append(ops[:start], whole)
 		}
 	}
@@ -223,4 +247,56 @@ func endsScalar(c byte) bool {
 		return true
 	}
 	return false
+}
+
+// appended returns the elements new adds at the end of old, when both are
+// arrays and new is old with at least one element appended. Elements share
+// memory with new.
+func (d *differ) appended(old, new json.RawMessage) ([]json.RawMessage, bool) {
+	var ok bool
+	if d.oldEl, ok = elements(old, d.oldEl[:0]); !ok {
+		return nil, false
+	}
+	if d.newEl, ok = elements(new, d.newEl[:0]); !ok || len(d.newEl) <= len(d.oldEl) {
+		return nil, false
+	}
+	for i, v := range d.oldEl {
+		if !bytes.Equal(v, d.newEl[i]) {
+			return nil, false
+		}
+	}
+	return d.newEl[len(d.oldEl):], true
+}
+
+// elements appends the elements of an encoded JSON array to es, without
+// copying them. ok is false for anything but an array, and for anything the
+// scan doesn't follow.
+func elements(b []byte, es []json.RawMessage) (_ []json.RawMessage, ok bool) {
+	i := skipSpace(b, 0)
+	if i >= len(b) || b[i] != '[' {
+		return es, false
+	}
+	i = skipSpace(b, i+1)
+	if i < len(b) && b[i] == ']' {
+		return es, skipSpace(b, i+1) == len(b)
+	}
+	for {
+		end, ok := skipValue(b, i)
+		if !ok {
+			return es, false
+		}
+		es = append(es, b[i:end:end])
+		i = skipSpace(b, end)
+		if i >= len(b) {
+			return es, false
+		}
+		switch b[i] {
+		case ',':
+			i = skipSpace(b, i+1)
+		case ']':
+			return es, skipSpace(b, i+1) == len(b)
+		default:
+			return es, false
+		}
+	}
 }

@@ -1,12 +1,14 @@
 // Package jsonpatch is the subset of RFC 6902 the hub speaks on the wire:
-// add, replace and remove on object members. Realtime diffs are patches
+// add, replace and remove on object members, and add at the end of an array
+// (path …/-). Realtime diffs are patches
 // against the snapshot a subscription received, so the browser can apply them
 // with any JSON Patch implementation.
 //
 // The hub's patches address object members: whole members (a resource, an
 // incident) or, for live documents, the top-level fields of one
-// (/series/<key>/value). They never index into an array; arrays are replaced
-// whole. Compact relies on that.
+// (/series/<key>/value). They never index into an array: an array is
+// replaced whole, or grows by appends (/tasks/<id>/log/-), which add an
+// element at its end. Compact relies on that.
 package jsonpatch
 
 import (
@@ -79,14 +81,19 @@ func Prefix(prefix string, ops []Op) []Op {
 // being made moot, which keeps every op inside a member after the op on the
 // member itself.
 //
-// Paths must address object members: Compact doesn't understand array
-// indices, which shift, so it must never see an op inside an array.
+// An append (add at …/-) is never folded: each one is kept, in order,
+// until an op on the array or a member above it makes it moot.
+//
+// Paths must otherwise address object members: Compact doesn't understand
+// array indices, which shift, so it must never see any other op inside an
+// array.
 func Compact(ops []Op) []Op {
 	type net struct {
 		path          string
 		before, after bool // member existed before the sequence / exists after it
 		value         any
 		moot          bool
+		append        bool // an append, kept as is
 	}
 	live := make(map[string]*net, len(ops))
 	below := map[string][]*net{} // a path → the nets created inside it
@@ -99,6 +106,14 @@ func Compact(ops []Op) []Op {
 			}
 		}
 		delete(below, o.Path)
+		if IsAppend(o) {
+			s := &net{path: o.Path, after: true, value: o.Value, append: true}
+			order = append(order, s)
+			for p := parentOf(o.Path); p != ""; p = parentOf(p) {
+				below[p] = append(below[p], s)
+			}
+			continue
+		}
 		s, ok := live[o.Path]
 		if !ok {
 			s = &net{path: o.Path, before: o.Op != Add}
@@ -118,6 +133,8 @@ func Compact(ops []Op) []Op {
 	for _, s := range order {
 		switch {
 		case s.moot:
+		case s.append:
+			out = append(out, Op{Op: Add, Path: s.path, Value: s.value})
 		case s.before && s.after:
 			out = append(out, Op{Op: Replace, Path: s.path, Value: s.value})
 		case !s.before && s.after:
@@ -128,6 +145,9 @@ func Compact(ops []Op) []Op {
 	}
 	return out
 }
+
+// IsAppend reports whether o adds an element at the end of an array.
+func IsAppend(o Op) bool { return o.Op == Add && strings.HasSuffix(o.Path, "/-") }
 
 // parentOf returns the pointer of p's parent: "/a" for "/a/b", "" for "/a".
 func parentOf(p string) string {
@@ -144,6 +164,15 @@ func Apply(doc map[string]any, ops []Op) error {
 		segs, err := split(o.Path)
 		if err != nil {
 			return err
+		}
+		if IsAppend(o) {
+			done, err := appendAt(doc, segs[:len(segs)-1], o.Value)
+			if err != nil {
+				return err
+			}
+			if done {
+				continue
+			}
 		}
 		parent := doc
 		for _, s := range segs[:len(segs)-1] {
@@ -175,6 +204,34 @@ func Apply(doc map[string]any, ops []Op) error {
 		}
 	}
 	return nil
+}
+
+// appendAt appends v to the array at segs (an append's path without its
+// final "-"). done is false when there's no array there: "-" is then an
+// object member's name.
+func appendAt(doc map[string]any, segs []string, v any) (done bool, _ error) {
+	if len(segs) == 0 {
+		return false, nil
+	}
+	parent := doc
+	for _, s := range segs[:len(segs)-1] {
+		next, ok := parent[s].(map[string]any)
+		if !ok {
+			return false, nil
+		}
+		parent = next
+	}
+	key := segs[len(segs)-1]
+	arr, ok := parent[key].([]any)
+	if !ok {
+		return false, nil
+	}
+	g, err := generic(v)
+	if err != nil {
+		return true, err
+	}
+	parent[key] = append(arr, g)
+	return true, nil
 }
 
 func split(p string) ([]string, error) {

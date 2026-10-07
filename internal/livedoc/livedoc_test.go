@@ -286,6 +286,8 @@ func TestChangedFieldsOnly(t *testing.T) {
 	step("a field disappears", put, `remove `+p+`/stale`, `replace `+p+`/value 3`)
 	s.History = append(s.History[1:], 9)
 	step("an array is replaced whole", put, `replace `+p+`/history `+js(s.History))
+	s.History = append(s.History, 10, 11)
+	step("an array that grew at its end gets appends", put, `add `+p+`/history/- 10`, `add `+p+`/history/- 11`)
 
 	step("a small member", func(tx *Tx) { tx.Put("series", "b", map[string]int{"x": 1, "y": 2}) }, `add /series/b {"x":1,"y":2}`)
 	step("most of a small member changes: whole is smaller", func(tx *Tx) { tx.Put("series", "b", map[string]int{"x": 3, "y": 4}) },
@@ -363,6 +365,7 @@ func TestPatchesReproduceDoc(t *testing.T) {
 	_, start := w.Snapshot()
 	client := generic(t, start)
 	var pending []jsonpatch.Op
+	appends := 0
 	for step := range 1000 {
 		update(t, d, func(tx *Tx) {
 			for range 1 + rng.IntN(5) {
@@ -397,7 +400,14 @@ func TestPatchesReproduceDoc(t *testing.T) {
 					}
 					for range 1 + rng.IntN(2) {
 						f := fieldNames[rng.IntN(len(fieldNames))]
-						if rng.IntN(4) == 0 {
+						if arr, ok := next[f].([]any); ok && rng.IntN(2) == 0 {
+							// Grow an array at its end (appends on the wire).
+							grown := append([]any(nil), arr...)
+							for range 1 + rng.IntN(3) {
+								grown = append(grown, scalar())
+							}
+							next[f] = grown
+						} else if rng.IntN(4) == 0 {
 							delete(next, f)
 						} else {
 							next[f] = scalar()
@@ -415,6 +425,11 @@ func TestPatchesReproduceDoc(t *testing.T) {
 				t.Fatal(err)
 			}
 			pending = append(pending, ops...)
+			for _, o := range ops {
+				if jsonpatch.IsAppend(o) {
+					appends++
+				}
+			}
 			drained = true
 		}
 		if rng.IntN(4) == 0 || step == 999 {
@@ -436,5 +451,8 @@ func TestPatchesReproduceDoc(t *testing.T) {
 	}
 	if _, now := d.Snapshot(); !reflect.DeepEqual(client, generic(t, now)) {
 		t.Fatalf("patched client %v\nwant %v", client, generic(t, now))
+	}
+	if appends == 0 {
+		t.Fatal("no appends were exercised")
 	}
 }

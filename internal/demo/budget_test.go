@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -12,7 +13,12 @@ import (
 
 	"github.com/coder/websocket"
 
+	"dash.cha.sh/internal/action"
+	"dash.cha.sh/internal/audit"
+	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/jsonpatch"
 	"dash.cha.sh/internal/realtime"
+	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
 )
 
@@ -173,3 +179,176 @@ func TestBudgetDiffRate(t *testing.T) {
 }
 
 func kB(b int) string { return fmt.Sprintf("%.1f kB", float64(b)/1000) }
+
+// budgetTaskLogBytes is the realtime budget for a log-heavy task: the diff
+// bytes one tab receives on the tasks topic while a task logs taskLogLines
+// lines of about 80 bytes, each delivered before the next (a pull's
+// progress, say). Appends (add …/log/-) keep most lines to one small op:
+// about 53 kB today. Resending the whole log with every line came to about
+// 790 kB.
+const (
+	budgetTaskLogBytes = 80_000
+	taskLogLines       = 200
+)
+
+func TestBudgetTaskLog(t *testing.T) {
+	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "chadash.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { st.Close() })
+	if _, err := st.Migrate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	step := make(chan struct{})
+	reg := action.NewRegistry()
+	if err := reg.Register("budget", action.Def{ID: "budget.pull", Title: "Pull", Tier: action.T1,
+		Resolve: func(_ context.Context, target string) (action.Target, error) {
+			return action.Target{ID: target, Kind: "app", Name: "web"}, nil
+		},
+		Execute: func(ctx context.Context, _ action.Request, run *action.TaskRun) error {
+			for i := range taskLogLines + 1 {
+				select {
+				case <-step:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				if i < taskLogLines {
+					run.Logf("pulling layer %04d: %5.1f MB of 812.4 MB, %3d%% done, eta %3ds, from registry.example", i, float64(i)*4.06, i/2, 200-i)
+				}
+			}
+			return nil
+		}}); err != nil {
+		t.Fatal(err)
+	}
+	owner := auth.Identity{User: auth.User{ID: demoOwner.ID, Username: demoOwner.Name, Role: "owner"}, Session: auth.Session{ID: demoOwner.Session}}
+	e, err := action.New(t.Context(), action.Options{Store: st, Audit: audit.New(st), Registry: reg, Policy: action.OwnerOnly{},
+		Sessions: action.Sessions{Lookup: func(context.Context) (auth.Identity, bool) { return owner, true }}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(e.Close)
+
+	hub := realtime.New(e.TasksSource(), realtime.Options{Coalesce: time.Millisecond, PingInterval: time.Hour})
+	srv := httptest.NewServer(hub)
+	t.Cleanup(func() {
+		hub.Close()
+		srv.Close()
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+	conn.SetReadLimit(-1)
+	send := func(v any) {
+		b, _ := json.Marshal(v)
+		if err := conn.Write(ctx, websocket.MessageText, b); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(map[string]any{"op": "hello", "v": realtime.ProtocolVersion})
+	if _, _, err := conn.Read(ctx); err != nil { // the hub's hello
+		t.Fatal(err)
+	}
+	send(map[string]any{"op": "sub", "id": 1, "topics": []string{action.TasksTopic}})
+
+	// The tab applies every frame, as the web app does, and counts diff bytes.
+	frames := make(chan int, 16) // each diff frame's size
+	var mu sync.Mutex
+	var doc map[string]any
+	var applyErr error
+	go func() {
+		for {
+			_, b, err := conn.Read(ctx)
+			if err != nil {
+				return
+			}
+			var f struct {
+				Op    string         `json:"op"`
+				Data  map[string]any `json:"data"`
+				Patch []jsonpatch.Op `json:"patch"`
+			}
+			if json.Unmarshal(b, &f) != nil {
+				continue
+			}
+			mu.Lock()
+			switch f.Op {
+			case "snap":
+				doc = f.Data
+			case "diff":
+				if err := jsonpatch.Apply(doc, f.Patch); err != nil && applyErr == nil {
+					applyErr = err
+				}
+			}
+			mu.Unlock()
+			if f.Op == "diff" {
+				frames <- len(b)
+			}
+		}
+	}()
+	next := func() int {
+		t.Helper()
+		select {
+		case n := <-frames:
+			return n
+		case <-time.After(5 * time.Second):
+			t.Fatal("no diff frame")
+			return 0
+		}
+	}
+	quiet := func() { // drain whatever is still in flight
+		for {
+			select {
+			case <-frames:
+			case <-time.After(100 * time.Millisecond):
+				return
+			}
+		}
+	}
+	quiet() // the snapshot
+
+	p, err := e.Plan(ctx, demoOwner, action.PlanRequest{Action: "budget.pull", Target: "app:web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := e.Approve(ctx, demoOwner, p.ID, action.ApproveRequest{Hash: p.Hash}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	quiet() // the task appearing and starting
+	total := 0
+	for range taskLogLines {
+		step <- struct{}{}
+		total += next()
+	}
+
+	// What the tab holds is the task's log.
+	mu.Lock()
+	var got []any
+	if tasks, ok := doc[action.TasksTopic].(map[string]any)["tasks"].(map[string]any); ok {
+		if tk, ok := tasks[task.ID].(map[string]any); ok {
+			got, _ = tk["log"].([]any)
+		}
+	}
+	err = applyErr
+	mu.Unlock()
+	if err != nil {
+		t.Fatalf("applying a diff: %v", err)
+	}
+	want, err := e.Task(ctx, demoOwner, task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 || len(got) != len(want.Log) || got[0] != want.Log[0] || got[len(got)-1] != want.Log[len(want.Log)-1] {
+		t.Fatalf("the tab's log (%d lines) isn't the task's (%d lines)", len(got), len(want.Log))
+	}
+	step <- struct{}{} // let it finish
+
+	t.Logf("one tab: %s of diffs while a task logs %d lines; budget %s", kB(total), taskLogLines, kB(budgetTaskLogBytes))
+	if total > budgetTaskLogBytes {
+		t.Errorf("a tab receives %s while a task logs %d lines, over the %s budget; is the whole log back on every line?", kB(total), taskLogLines, kB(budgetTaskLogBytes))
+	}
+}

@@ -16,9 +16,10 @@
 // /incidents/<key>). A member that changes, when it is a JSON object before
 // and after, gets ops for just the top-level fields that changed
 // (/series/<key>/value, /series/<key>/as_of), unless replacing it whole
-// would be no bigger. A field's value is always replaced whole, arrays
-// included, so patches never index into an array; jsonpatch.Compact relies
-// on that.
+// would be no bigger. A field's value is replaced whole, except an array
+// that only grew at its end (a task's log), which gets an append (add at
+// …/field/-) per new element when that's smaller. Patches never index into
+// an array; jsonpatch.Compact relies on that.
 package livedoc
 
 import (
@@ -158,7 +159,8 @@ func (d *Doc) Update(fn func(tx *Tx) error) (uint64, error) {
 			d.colls[k.coll][k.key] = v
 		}
 	}
-	slices.SortFunc(ops, func(a, b jsonpatch.Op) int { return strings.Compare(a.Path, b.Path) })
+	// Stable: appends to one array share a path and must keep their order.
+	slices.SortStableFunc(ops, func(a, b jsonpatch.Op) int { return strings.Compare(a.Path, b.Path) })
 	for w := range d.watchers {
 		w.publish(d.version, ops)
 	}

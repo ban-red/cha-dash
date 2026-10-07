@@ -44,7 +44,7 @@ type Task struct {
 	State      string     `json:"state"`
 	Step       string     `json:"step,omitempty"`
 	Progress   *float64   `json:"progress,omitempty"` // 0–1
-	Log        []string   `json:"log,omitempty"`      // the last LogLines lines
+	Log        []string   `json:"log,omitempty"`      // the latest lines, at most LogLines
 	StartedAt  *time.Time `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at"`
 	Error      *Error     `json:"error"`
@@ -100,14 +100,16 @@ func (r *TaskRun) Progress(f float64) {
 	r.e.updateTask(r.id, false, func(t *Task) { t.Progress = &f })
 }
 
-// Logf adds a line to the task's log. Only the last LogLines lines are
-// kept, each at most LogLineMax bytes. Never log a secret.
+// Logf adds a line to the task's log. At most LogLines lines are kept,
+// each at most LogLineMax bytes: once full, the older half is dropped, so
+// most lines reach the tasks topic as an append rather than the whole log
+// again. Never log a secret.
 func (r *TaskRun) Logf(format string, args ...any) {
 	line := clip(fmt.Sprintf(format, args...), LogLineMax)
 	r.e.updateTask(r.id, false, func(t *Task) {
 		t.Log = append(t.Log, line)
 		if n := len(t.Log); n > LogLines {
-			t.Log = append(t.Log[:0], t.Log[n-LogLines:]...)
+			t.Log = append(t.Log[:0], t.Log[n-LogLines/2:]...)
 		}
 	})
 }
