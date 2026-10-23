@@ -201,8 +201,8 @@ Tags indicate the target milestone. See [04 · Roadmap](04-roadmap.md).
   - Dockge stacks directories (same layout as ours) and Portainer stacks. `v0.3`
   - **Unraid stays Unraid.** Containers that Unraid's own Docker UI manages stay that way and are controlled through the Unraid API. An optional thin node on Unraid (`v0.3+`) adds host metrics, logs, exec, SMART and image-update checks alongside the API. It never takes ownership of Unraid's containers.
 - **Self-update.** On the hub's own host, the node updates the Cha Dash stack itself, so the hub can restart safely partway through. `v0.3`
-- Optional git remote for stacks: push to your own git, or pull and redeploy from a webhook. `v1.0`
-- Templates: "deploy Immich" from a curated catalog. `post-1.0` (?)
+- Optional git remote for stacks: push to your own git, or pull and redeploy from a signed webhook, through the same health-gated deploy. `v0.3`
+- No template catalog: stacks arrive by adopting what you run or writing compose ([04 · Roadmap → Not planned](04-roadmap.md#not-planned)).
 
 ### Self-hosting Cha Dash
 - **Docker Compose is the main install path.** Every install doc starts with a `compose.yaml`. `v0.1`
@@ -265,7 +265,7 @@ Tags indicate the target milestone. See [04 · Roadmap](04-roadmap.md).
 
 ### People and access
 - Owner, Admin, Operator, Viewer and Household roles. Per-action scopes, optionally per resource. `v0.2`
-- Passkeys and TOTP `v0.1`. OIDC (Authelia, Authentik, Pocket ID, Keycloak, Kanidm) `v0.2`. Forward-auth behind trusted proxies `v0.2`.
+- Passkeys and TOTP `v0.1`. OIDC (Authelia, Authentik, Pocket ID, Keycloak, Kanidm) `v0.3`. Forward-auth behind trusted proxies `v0.3`.
 - **Family board**: friendly status ("Movies are working ✓"), media, requests, guest Wi-Fi QR code, "report a problem", and a few whitelisted safe buttons. `v0.2`
 - **Kiosk tokens**: revocable, board-bound device tokens for wall tablets, with no full login on shared devices. `v0.2`
 

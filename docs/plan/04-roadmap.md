@@ -45,10 +45,10 @@ None right now. New open questions get a row here, and an ADR when they're settl
 | **M0** | Foundations | Open decisions settled, design direction picked, the layout engine feels right, Demo Home running |
 | **v0.1** | Front Page | A beautiful, live, read-only front page that **replaces the owner's Homepage** |
 | **v0.2** | Control | Safe actions on Docker, Proxmox and Unraid; **a local node and owned stacks on the hub's host**; audit, roles, notifications |
-| **v0.3** | Fleet | **Remote nodes on every Docker server**; stacks fleet-wide; history, the Atlas, cause hints |
+| **v0.3** | Fleet | **Remote nodes on every Docker server**; stacks fleet-wide; **git sync and deploy webhooks**; OIDC; history, the Atlas, cause hints |
 | **v0.4** | Care | Update Center with safe rollouts, backup assurance, incident timeline |
 | **v1.0** | Home | Public declarative integrations, TrueNAS, wall and TV modes, i18n, security review, stable config and API |
-| **Post-1.0** | Beyond | WASM plugins, MCP with approvals, multi-site, GitOps |
+| **Post-1.0** | Beyond | WASM plugins, MCP with approvals, multi-site |
 
 ---
 
@@ -181,7 +181,7 @@ Compare it for one day against a gridstack 14 prototype.
 
 **Notifications:** symptom-first defaults; Web Push, ntfy, Apprise, webhook, email, HA.
 
-**People:** OIDC, forward-auth behind trusted proxies, **Family board**, kiosk tokens.
+**People:** local users and roles. OIDC and forward-auth move to v0.3; the **Family board** and kiosk tokens follow in v0.2.x ([08 · v0.2](08-v0.2.md)).
 
 **Done when**
 - Every action is audited, authorized centrally (tested in CI), and gets the correct tier UX.
@@ -204,6 +204,17 @@ Compare it for one day against a gridstack 14 prototype.
 - Importers for **Dockge and Portainer**.
 - **Self-update** of Cha Dash via the hub host's node.
 
+**Git sync and deploy webhooks**
+- A stack, or a whole stacks root, can follow a branch on a git remote you own (Forgejo, Gitea, GitHub, any HTTPS or SSH remote). The remote's credential is a vault secret.
+- Each new commit goes through the same deploy pipeline as an edit in the web: plan, dry-run preflight, health gate, and rollback on failure. Cha Dash never runs a commit it hasn't planned.
+- Pull on a schedule, or when a **signed deploy webhook** arrives. Each stack gets its own webhook secret, checked as an HMAC-SHA256 signature in the formats Forgejo, Gitea and GitHub send. CI can call the same webhook to redeploy after it pushes an image.
+- Per stack, choose **deploy on push** or **draft and ask**, where the change waits in the Inbox for an admin. Either way, the audit log names the commit and the webhook.
+- Cha Dash's own commits (edits and rollbacks made in the web) can be pushed back. If the histories diverge, sync stops and the Inbox says so; it never force-pushes or merges on its own.
+
+**People**
+- **OIDC** with PKCE (Authelia, Authentik, Pocket ID, Keycloak, Kanidm), with group claims mapped to roles.
+- Forward-auth headers, trusted only from `CHADASH_TRUSTED_PROXIES`.
+
 **Graph v2**
 - Correlation across sources: Unraid, Docker, Traefik, apps.
 - Caddy and NPM discovery.
@@ -222,6 +233,8 @@ Compare it for one day against a gridstack 14 prototype.
 **Done when**
 - The dogfood home's Docker servers are all managed through nodes with **zero inbound ports**.
 - Cause hints are correct across the Demo Home incident suite.
+- A push to the dogfood stacks repo redeploys pvedocker's stack through the webhook, and a deliberately bad commit rolls back on its own.
+- The owner signs in through OIDC, and group claims land on the right roles.
 
 **Demo moment:** the Atlas view of the dogfood home, plus "Sonarr is failing *because* qBittorrent was OOM-killed."
 
@@ -260,7 +273,7 @@ Compare it for one day against a gridstack 14 prototype.
   - Gatus, Prometheus, NUT, Technitium, Synology (read)
   - Feeds, iCal
 - **Contexts:** wall and kiosk mode (dimming, night tint, burn-in care, rotation), TV mode, and a simplified level of detail for every widget.
-- **Git:** sync for config, and a git remote for stacks.
+- **Git:** sync for config. Stacks already sync from v0.3.
 - **Quality:**
   - i18n through Weblate
   - docs site and a public demo running on the simulator
@@ -288,6 +301,20 @@ Compare it for one day against a gridstack 14 prototype.
 - TRMNL / e-ink
 - Bring-your-own-LLM "Explain this"
 - Home Assistant add-on
+
+---
+
+## Not planned
+
+These belong to a full Docker manager or to CI, and good ones exist. Cha Dash stays a front page with safe control: it deep-links to the tool that does the job instead of rebuilding it.
+
+| Not planned | Why |
+|---|---|
+| **Building images** | That's CI's job: Forgejo, Gitea or GitHub Actions push the image, and Cha Dash deploys it through the deploy webhook or the Update Center. |
+| **A bundled vulnerability scanner** | Trivy or Grype plus their databases would blow the image-size budget. If it's needed, results from a scanner you already run can come in later as an integration. |
+| **A template catalog or app store** | Integration recipes and adopting existing compose projects cover how stacks arrive. A catalog is upkeep we can't sustain. |
+| **Swarm, Podman or Kubernetes** | Homelab scale is compose on 1–20 hosts ([01 · Vision → Non-goals](01-vision.md#non-goals)). |
+| **Full image, volume and network management** | The daily 80% is covered (pull, recreate, and remove with the volumes it keeps); the rest deep-links per the control line. |
 
 ---
 
