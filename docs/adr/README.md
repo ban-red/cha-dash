@@ -46,3 +46,5 @@
 | [0018](0018-go-module-path.md) | Go module path: `dash.cha.sh` | accepted | 2026-10-03 |
 | [0019](0019-bun-for-javascript-tooling.md) | Bun for JavaScript tooling | accepted | 2026-10-03 |
 | [0020](0020-node-deploys-with-compose-sdk-and-go-git.md) | The node deploys with the Compose SDK and go-git | accepted | 2026-10-03 |
+| [0021](0021-git-sync-and-deploy-webhooks.md) | Stacks follow git through the deploy pipeline; webhooks only poke | accepted | 2026-10-22 |
+| [0022](0022-oidc-and-forward-auth.md) | OIDC links to local users; the owner keeps a local way in | accepted | 2026-10-22 |

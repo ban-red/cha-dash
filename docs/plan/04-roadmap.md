@@ -31,6 +31,8 @@
 | 18 | **Go module path** | **Custom import path `dash.cha.sh`** (`module dash.cha.sh`) | `dash.cha.sh` must serve a `go-import` meta tag. See [docs/infra/vanity-import.md](../infra/vanity-import.md). Local builds work before that's live |
 | 19 | **JavaScript tooling** | **Bun** for packages, workspaces and scripts; `bun test` for plain TypeScript packages | Vite stays the dev server and bundler; Vue component tests use Vitest launched through Bun. [ADR-0019](../adr/0019-bun-for-javascript-tooling.md) |
 | 20 | **Node deploys** | **Compose SDK + go-git in the node:** hash plan, dry-run preflight, `up --wait` plus a restart-aware soak, rollback as a new commit | Validated by spike 4.6. [ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md) |
+| 21 | **Git sync and deploy webhooks** | **The remote is an input to the deploy pipeline**, never merged into the local repo; webhooks only trigger a fetch; a sync acts as the admin who set it up | [ADR-0021](../adr/0021-git-sync-and-deploy-webhooks.md). [09 · v0.3](09-v0.3.md#git-sync-and-deploy-webhooks) |
+| 22 | **OIDC and forward-auth** | **Link by issuer and subject**, roles from groups but never owner; the owner keeps local sign-in | [ADR-0022](../adr/0022-oidc-and-forward-auth.md). [09 · v0.3](09-v0.3.md#oidc-and-forward-auth) |
 
 ### Still open
 
@@ -192,6 +194,8 @@ Compare it for one day against a gridstack 14 prototype.
 ---
 
 ## v0.3: Fleet (remote nodes everywhere)
+
+> The detailed plan is in [09 · v0.3](09-v0.3.md) (draft; git sync, webhooks and OIDC so far).
 
 **Remote nodes**
 - Enrollment: "Add node" generates a compose snippet with a single-use token; keys are pinned; an admin approves in the Inbox.

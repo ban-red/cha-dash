@@ -544,7 +544,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 
 ### Hardening baseline
 - **First-run takeover protection:** a setup token printed to the logs is required to create the owner account.
-- **No unauthenticated network listeners**, for the hub or the node. `healthcheck` is a local subcommand.
+- **No unauthenticated network listeners or routes**, for the hub or the node. `healthcheck` is a local subcommand. Deploy webhooks (v0.3) authenticate by signature: they are a reviewed `Signature` row in the authz table and answer only once a hook exists ([ADR-0021](../adr/0021-git-sync-and-deploy-webhooks.md)).
 - **Strict CSP:** `default-src 'self'`, no inline scripts, no `unsafe-eval`. Vue templates are precompiled by Vite, so only the runtime build ships. No third-party origins: fonts, icons and service logos are bundled or cached locally.
 - **The hub never has Docker write access.** Only nodes do, and only within local policy.
 - **Secrets never reach the browser.** Container inspect output has env vars redacted on the server or node.
