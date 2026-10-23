@@ -201,7 +201,7 @@ Tags indicate the target milestone. See [04 · Roadmap](04-roadmap.md).
   - Dockge stacks directories (same layout as ours) and Portainer stacks. `v0.3`
   - **Unraid stays Unraid.** Containers that Unraid's own Docker UI manages stay that way and are controlled through the Unraid API. An optional thin node on Unraid (`v0.3+`) adds host metrics, logs, exec, SMART and image-update checks alongside the API. It never takes ownership of Unraid's containers.
 - **Self-update.** On the hub's own host, the node updates the Cha Dash stack itself, so the hub can restart safely partway through. `v0.3`
-- Optional git remote for stacks: push to your own git, or pull and redeploy from a signed webhook, through the same health-gated deploy. `v0.3`
+- Optional git remote for stacks: pull and redeploy from your own git, on a schedule or from a signed webhook, through the same health-gated deploy. `v0.3` Pushing the history back to a mirror is a later candidate.
 - No template catalog: stacks arrive by adopting what you run or writing compose ([04 · Roadmap → Not planned](04-roadmap.md#not-planned)).
 
 ### Self-hosting Cha Dash

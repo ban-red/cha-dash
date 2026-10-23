@@ -209,11 +209,10 @@ Compare it for one day against a gridstack 14 prototype.
 - **Self-update** of Cha Dash via the hub host's node.
 
 **Git sync and deploy webhooks**
-- A stack, or a whole stacks root, can follow a branch on a git remote you own (Forgejo, Gitea, GitHub, any HTTPS or SSH remote). The remote's credential is a vault secret.
+- A stack can follow a file on a branch of a git remote you own (Forgejo, Gitea, GitHub, GitLab, any HTTPS or SSH remote), and several stacks can share one remote. The remote's credential is a vault secret.
 - Each new commit goes through the same deploy pipeline as an edit in the web: plan, dry-run preflight, health gate, and rollback on failure. Cha Dash never runs a commit it hasn't planned.
-- Pull on a schedule, or when a **signed deploy webhook** arrives. Each stack gets its own webhook secret, checked as an HMAC-SHA256 signature in the formats Forgejo, Gitea and GitHub send. CI can call the same webhook to redeploy after it pushes an image.
-- Per stack, choose **deploy on push** or **draft and ask**, where the change waits in the Inbox for an admin. Either way, the audit log names the commit and the webhook.
-- Cha Dash's own commits (edits and rollbacks made in the web) can be pushed back. If the histories diverge, sync stops and the Inbox says so; it never force-pushes or merges on its own.
+- Pull on a schedule, or when a **signed deploy webhook** arrives. One webhook per remote and branch triggers every stack that follows it. It is checked as an HMAC-SHA256 signature in the formats GitHub, Gitea and Forgejo send, or as GitLab's token. CI can call the same webhook to redeploy after it pushes an image.
+- Per stack, choose **draft and ask** (the default), where the change waits in the Inbox for an admin, or **deploy on push**. Either way, the audit log names the commit and the webhook.
 
 **People**
 - **OIDC** with PKCE (Authelia, Authentik, Pocket ID, Keycloak, Kanidm), with group claims mapped to roles.
@@ -305,6 +304,7 @@ Compare it for one day against a gridstack 14 prototype.
 - TRMNL / e-ink
 - Bring-your-own-LLM "Explain this"
 - Home Assistant add-on
+- Mirror a node's stacks history to a git remote you own (fast-forward only)
 
 ---
 

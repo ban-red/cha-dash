@@ -360,7 +360,7 @@ Community specs install from the UI pinned to a hash. A spec can be **promoted t
 - Layout is `<root>/<stack>/compose.yaml` plus an optional `.env` for non-secret values.
 - Cha Dash metadata lives **inside** the compose file under `x-chadash:`: tags, update policy, health gates, household visibility. One file, still valid compose.
 - **The stacks root is a git repo**, managed by the node via go-git, so no git binary is needed. Every deploy is a commit (`deploy media · by sam via web · audit #4812`). History, diff and rollback are just git.
-- Optional remote push and pull, plus signed pull-and-redeploy webhooks, arrive in v0.3 ([04 · Roadmap](04-roadmap.md#v03-fleet-remote-nodes-everywhere)).
+- Optional pull from a git remote, plus signed pull-and-redeploy webhooks, arrive in v0.3 ([04 · Roadmap](04-roadmap.md#v03-fleet-remote-nodes-everywhere)).
 - **Secrets** stay as `${secret:name}` references in files. The node resolves them **in memory at deploy time** from the hub's vault. They are never written to the repo.
 - Compose runs **inside the node** through the Go Compose SDK (`docker/compose/v5/pkg/compose`). There's no docker CLI dependency.
 
