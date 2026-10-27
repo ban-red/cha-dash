@@ -178,6 +178,25 @@ jobs:
             -o "$RUNNER_TEMP/node-armv7" .
           ls -l "$RUNNER_TEMP/node-armv7"
 
+  # The workflows themselves, audited by zizmor: template injection, excessive
+  # permissions, unpinned or impostor actions, cache poisoning, … Accepted
+  # findings are in .github/zizmor.yml, each with its reason.
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ZIZMOR_VERSION: "1.31.1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+        with:
+          version: ${{ env.ZIZMOR_VERSION }}
+          advanced-security: false   # the token is read-only: report as annotations and in the log
+          annotations: true
+
   js:
     name: JavaScript
     runs-on: ubuntu-latest
