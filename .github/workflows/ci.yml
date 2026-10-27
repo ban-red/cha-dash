@@ -154,7 +154,10 @@ jobs:
         # 386 has armv7's 32-bit int and its alignment rules for 64-bit
         # atomics, and an amd64 kernel runs it natively: the suite runs as
         # 32-bit with no emulation. (The race detector doesn't support 386.)
-        run: GOARCH=386 go test ./...
+        # The performance budgets are skipped: they time GET / and the diff
+        # rate, which only means something one package at a time (the Go
+        # job's "Performance budgets" step), not beside every other package.
+        run: GOARCH=386 go test -skip '^TestBudget' ./...
       - name: GOARCH=arm GOARM=7 go vet
         run: GOARCH=arm GOARM=7 go vet ./...
       - name: Build the hub for linux/arm/v7
