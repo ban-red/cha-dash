@@ -61,6 +61,12 @@ linters:
       - path: ^(internal/auth|integrations)/
         linters: [gosec]
         text: G124
+      # Discovery probes the LAN for products by their front page: self-signed
+      # is the norm there, no credential is sent, and only a product name is
+      # read back (probeClient). The instance it proposes trusts on first use.
+      - path: ^internal/onboarding/discover\.go$
+        linters: [gosec]
+        text: G402
       # The stacks root is the owner's git checkout of compose files, read
       # like any checkout; stack secrets are resolved in memory and never
       # written there (internal/node/stacks/README.md).
