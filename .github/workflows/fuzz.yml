@@ -1,0 +1,47 @@
+name: Fuzz
+
+# The fuzz targets, five minutes each, nightly. Their seed corpora already
+# run in every `go test`. A failure keeps the input that found it, which
+# goes in the package's testdata/fuzz/ with the fix.
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: FuzzCheck           # SVG icons fetched from the network
+            package: ./internal/icons/
+          - target: FuzzCompact         # realtime diffs
+            package: ./internal/jsonpatch/
+          - target: FuzzBuild           # pasted Homepage YAML
+            package: ./internal/importer/homepage/
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Fuzz
+        env:
+          TARGET: ${{ matrix.target }}
+          PACKAGE: ${{ matrix.package }}
+        run: go test -run '^$' -fuzz "^${TARGET}\$" -fuzztime 5m "$PACKAGE"
+      - name: Keep the failing input
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: "**/testdata/fuzz/**"
+          if-no-files-found: ignore
