@@ -96,23 +96,15 @@ var nonPublic = []netip.Prefix{
 
 // newClient is a hardened client for policy p.
 func newClient(p targetPolicy) *http.Client {
-	d := &net.Dialer{
-		Timeout: dialTimeout,
-		Control: func(_, address string, _ syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return errRefusedTarget
-			}
-			ip, err := netip.ParseAddr(host)
-			if err != nil || !allowed(p, ip) {
-				return errRefusedTarget
-			}
-			return nil
-		},
-	}
+	dial := httpx.GuardDial(&net.Dialer{Timeout: dialTimeout}, func(ip netip.Addr) error {
+		if !allowed(p, ip) {
+			return errRefusedTarget
+		}
+		return nil
+	})
 	t := &http.Transport{
 		Proxy:                  nil,
-		DialContext:            d.DialContext,
+		DialContext:            dial,
 		TLSHandshakeTimeout:    10 * time.Second,
 		ResponseHeaderTimeout:  requestTimeout,
 		MaxResponseHeaderBytes: 16 << 10,
