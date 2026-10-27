@@ -84,6 +84,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - The audit log says when older events fail to load, names each Details button after its event, and says how many events match a filter. A notification rule's checkbox goes back when its save fails. A stack secret's Set button is named "Set <name>".
 - **Listing a resource's actions is faster and bounded**: at most 4 reads at a time and 3 seconds in all. An action whose state couldn't be read in time shows as unavailable with a reason instead of holding up ⌘K. Proxmox guests list in about 2 API calls instead of 20.
 - **Task logs stream line by line** on the live connection instead of resending the whole log each time. The live log keeps 25 to 50 lines.
+- **A tile's link is named for what it shows.** When a tile has no icon, the name of its link starts with the monogram on screen ("PH, open Photos"), so voice control can find it by what you see (WCAG 2.5.3, Label in Name).
 - **The audit log records a cancel before the end it caused.** It could show a cancelled task failing before anyone had cancelled it.
 - **A finished action always reads back as finished.** Just after a task ended, `GET /api/tasks/{id}` could briefly still report it as checking. A hub that stopped at that moment could later record a task that had succeeded as interrupted.
 - **A spec action whose check runs out of time says what didn't happen**, in the spec's own words (for example "not moved"), instead of "didn't answer in time", when earlier checks had answered.
