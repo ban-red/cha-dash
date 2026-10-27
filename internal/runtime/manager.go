@@ -1231,7 +1231,7 @@ func (m *Manager) runTest(ctx context.Context, mi *managed, gen int, integ integ
 		if err != nil {
 			return integration.Failed(err)
 		}
-		defer safeClose(inst)
+		defer func() { _ = safeClose(inst) }()
 		return inst.Test(ctx)
 	}()
 	if res.Latency == 0 {

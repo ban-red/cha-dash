@@ -21,7 +21,7 @@ func splitmix64(x uint64) uint64 {
 // hashKey is FNV-1a over s.
 func hashKey(s string) uint64 {
 	h := uint64(14695981039346656037)
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		h ^= uint64(s[i])
 		h *= 1099511628211
 	}

@@ -181,7 +181,7 @@ func TestNoClientCertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 	nc := websocket.NetConn(t.Context(), ws, websocket.MessageBinary)
-	tc := tls.Client(nc, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, NextProtos: alpn(Versions)}) //nolint:gosec // the test plays an anonymous client
+	tc := tls.Client(nc, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS13, NextProtos: alpn(Versions)}) // InsecureSkipVerify: the test plays an anonymous client
 	_ = tc.HandshakeContext(t.Context())
 	// TLS 1.3 clients finish before the server checks their certificate, so
 	// the refusal shows on the hub and on the client's first read.
