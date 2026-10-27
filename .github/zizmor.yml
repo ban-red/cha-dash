@@ -1,0 +1,15 @@
+# zizmor (the Workflows job in ci.yml) audits the workflows for security
+# problems. Findings accepted here carry their reason.
+rules:
+  # The CLA bot has to answer comments and pull requests from forks, which
+  # takes these triggers. cla.yml never checks out or runs pull request code,
+  # holds no secret but GITHUB_TOKEN, and runs only for exact comment texts.
+  dangerous-triggers:
+    ignore:
+      - cla.yml
+  # contributor-assistant/github-action is archived upstream. Replacing it
+  # is a decision about the CLA (ADR-0002), tracked in
+  # docs/plan/09-roadmap-2026.md; take this out when it's done.
+  archived-uses:
+    ignore:
+      - cla.yml
