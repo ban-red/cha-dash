@@ -1,6 +1,6 @@
 # Contributing to Cha Dash
 
-Thanks for your interest! Cha Dash is building its **M0 foundations**: the hub, the layout engine, the design tokens and the Demo Home simulator are in place, and the web app is on its way. The product plan lives in [`docs/plan/`](docs/plan/), and decisions are recorded in [`docs/adr/`](docs/adr/README.md).
+Thanks for your interest! Cha Dash is in beta: 0.1, the read-only Front Page, is out, and 0.2, Control, is nearly done. The product plan lives in [`docs/plan/`](docs/plan/), with the latest review in [09 · Roadmap review](docs/plan/09-roadmap-2026.md), and decisions are recorded in [`docs/adr/`](docs/adr/README.md).
 
 ## How to help right now
 
@@ -10,14 +10,14 @@ Thanks for your interest! Cha Dash is building its **M0 foundations**: the hub, 
 
 ## Code contributions
 
-We'll start accepting code once the M0 foundations land (see [docs/plan/04-roadmap.md](docs/plan/04-roadmap.md)).
+The M0 foundations have landed, so code contributions are open. For anything bigger than a fix, open an issue first so we can agree on the shape.
 
 **Contributor License Agreement.** Before your first pull request can be merged, you sign our [CLA](CLA.md) by posting a one-line comment; the CLA Assistant bot will prompt you.
 - You keep your copyright.
 - Your contribution can only ever be released under **OSI-approved open-source licences**, never proprietary ones.
 - The CLA lets the project change licence in future (for example, to a more permissive licence for institutions) without tracking down every contributor.
 
-When code contributions open, expect a few house rules:
+A few house rules:
 
 - **Integrations ship with recorded fixtures and contract tests** ([architecture → integration framework](docs/plan/03-architecture.md#integration-framework)).
 - **Every widget is designed for all its sizes and states** (loading, live, stale, error, empty) ([experience doc](docs/plan/02-experience.md#widget-anatomy-and-states)).
@@ -38,7 +38,10 @@ The hub is one Go binary with the Vue SPA embedded. The node (`cmd/chadash-node`
 bun install          # every JavaScript workspace: web/, packages/*, design/tokens
 bun run typecheck
 bun run test
+bun run lint         # oxlint, then ESLint for Vue templates
 go test ./...        # needs no SPA build
+go tool -modfile=tools/go.mod golangci-lint run      # the Go linters, pinned in tools/go.mod
+go fix ./...         # CI fails if the Go 1.27 modernizers would change anything
 ```
 
 After editing a theme in `design/tokens/themes/`, run `bun run generate` in `design/tokens`. CI fails when `dist/` is stale.
@@ -81,11 +84,16 @@ docker build --target node -t chadash-node:dev .                      # its imag
 
 | Job | Checks |
 |---|---|
-| Go | gofmt, `go vet`, `go test -race` (and again with `-tags devlogin`), staticcheck, govulncheck; the Dockerfile's `hub` and `node-build` stages COPY every directory their binary imports |
-| JavaScript | frozen `bun install`, typecheck, tests, design tokens up to date |
+| Go | gofmt, `go vet`, `go test -race` (and again with `-tags devlogin`), an empty `go fix -diff`, golangci-lint ([`.golangci.yml`](.golangci.yml), staticcheck included), govulncheck; the Dockerfile's `hub` and `node-build` stages COPY every directory their binary imports |
+| JavaScript | frozen `bun install`, typecheck, lint, tests, design tokens up to date |
+| Workflows | zizmor's security audits of `.github/workflows/`; accepted findings and their reasons are in [`.github/zizmor.yml`](.github/zizmor.yml) |
 | Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui`, and chadash-node |
 | Image | amd64 and arm64 builds of the hub and the node (no push), a smoke run of each, **hub image ≤ 40 MB compressed**, **node binary ≤ 40 MB** |
 | Footprint (non-blocking) | the hub's RSS budgets, and the node binary's size |
+
+CodeQL ([`codeql.yml`](.github/workflows/codeql.yml): Go, TypeScript and the workflows) runs on every pull request too, and OpenSSF Scorecard ([`scorecard.yml`](.github/workflows/scorecard.yml)) runs on `main`.
+
+**Dependencies** are updated by [Renovate](renovate.json5), in weekly grouped pull requests. A new release waits three days before Renovate proposes it, and `bun install` won't take it either ([`bunfig.toml`](bunfig.toml)). Go tools are `tool` directives in [`tools/go.mod`](tools/go.mod); run `go mod tidy` in that directory after changing them.
 
 The budgets come from [03 · Architecture](docs/plan/03-architecture.md#performance-budgets-enforced-in-ci-where-possible). Raising one takes a reason in the pull request.
 
@@ -111,7 +119,7 @@ The node image gets the same tags as the hub.
 **Cutting a beta:**
 
 1. **Start from `main` with CI green** on the commit you're going to tag.
-2. **Check `COSIGN_VERSION`** at the top of `release.yml`. It should be the current cosign release. A new major version changes the module path in the install step too (`github.com/sigstore/cosign/v3/...`).
+2. **Check `COSIGN_VERSION`** at the top of `release.yml`. It should be the current cosign release; Renovate proposes new ones. A new major version changes the module path in the install step too (`github.com/sigstore/cosign/v3/...`).
 3. **Write the changelog.** Move what's under `## [Unreleased]` in `CHANGELOG.md` into a new `## [0.1.0-beta.2] - YYYY-MM-DD` section, written for people who run Cha Dash. It becomes the release text, so links must be full URLs. Update the comparison links at the bottom. Preview it with `scripts/release-notes.sh 0.1.0-beta.2`.
 4. **Merge that to `main`** the usual way.
 5. **Tag the merge commit and push the tag:**
