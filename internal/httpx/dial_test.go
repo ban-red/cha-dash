@@ -55,8 +55,7 @@ func TestGuardDialRefusesLiteralsBeforeASocket(t *testing.T) {
 		if !errors.Is(err, errRefused) {
 			t.Errorf("dial(%s) = %v, want the rule's refusal", addr, err)
 		}
-		var op *net.OpError
-		if !errors.As(err, &op) {
+		if _, ok := errors.AsType[*net.OpError](err); !ok {
 			t.Errorf("dial(%s): %T isn't a *net.OpError", addr, err)
 		}
 	}

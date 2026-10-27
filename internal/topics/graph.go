@@ -3,6 +3,7 @@ package topics
 import (
 	"context"
 	"maps"
+	"slices"
 
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/realtime"
@@ -32,12 +33,7 @@ var householdHiddenAttrs = []string{
 
 // HouseholdFilter keeps every resource household may see.
 func HouseholdFilter(r *graph.Resource) bool {
-	for _, k := range HouseholdHiddenKinds {
-		if r.Kind == k {
-			return false
-		}
-	}
-	return true
+	return !slices.Contains(HouseholdHiddenKinds, r.Kind)
 }
 
 // HouseholdResource is household's view of r: r itself when it has none of

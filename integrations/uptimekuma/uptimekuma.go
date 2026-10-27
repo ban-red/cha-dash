@@ -33,7 +33,7 @@ func (Integration) Manifest() integration.Manifest {
 		ConfigSchema: integration.Object(
 			integration.URLProp(),
 			integration.TLSProp(),
-			integration.Prop("slug", &integration.Schema{Type: "string", Title: "Status page", Pattern: `^[A-Za-z0-9][A-Za-z0-9_-]*$`, MaxLength: intp(255),
+			integration.Prop("slug", &integration.Schema{Type: "string", Title: "Status page", Pattern: `^[A-Za-z0-9][A-Za-z0-9_-]*$`, MaxLength: new(255),
 				Description: "The status page's slug: the last part of its address, /status/<slug>. Its monitors are the ones Cha Dash shows."}),
 			integration.Prop("key", integration.Secret("API key").Describe("Optional: an API key (Settings → API Keys) adds response times and certificate expiry from /metrics. It opens nothing else.")),
 		).Require("url", "slug"),
@@ -41,8 +41,6 @@ func (Integration) Manifest() integration.Manifest {
 		Poll: integration.Poll{Interval: 60 * time.Second, Idle: 5 * time.Minute, Timeout: 30 * time.Second},
 	}
 }
-
-func intp(n int) *int { return &n }
 
 type config struct {
 	URL  string `json:"url"`

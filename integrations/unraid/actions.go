@@ -181,8 +181,7 @@ func (in *instance) find(ctx context.Context, kind, key string) (resolvedTarget,
 // readRefused turns a refused read into an unavailable action that says
 // which read scope to add.
 func (in *instance) readRefused(err error) error {
-	var fe *forbiddenError
-	if errors.As(err, &fe) {
+	if fe, ok := errors.AsType[*forbiddenError](err); ok {
 		r := reads[fe.op]
 		return action.Unavailable(fmt.Sprintf("The API key can't read %s (it needs %s: Read), so Cha Dash can't act on them. Give it %s: Read in Unraid under %s, or re-run the consent link in this instance's settings.",
 			r.what, r.resource, r.resource, keysPage), in.instanceID)

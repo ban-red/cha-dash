@@ -40,8 +40,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 		return a, ok
 	}
 	fail := func(w http.ResponseWriter, err error) {
-		var ref *Refusal
-		if errors.As(err, &ref) {
+		if ref, ok := errors.AsType[*Refusal](err); ok {
 			writeRefusal(w, ref)
 			return
 		}

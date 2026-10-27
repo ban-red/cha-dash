@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -222,9 +223,7 @@ func TestSync(t *testing.T) {
 			t.Fatalf("%s source = %s", id, r.Source)
 		}
 		out := map[string]any{"kind": string(r.Kind), "name": r.Name, "state": r.State, "health": string(r.Health)}
-		for k, v := range r.Attrs {
-			out[k] = v
-		}
+		maps.Copy(out, r.Attrs)
 		return out
 	}
 	value := func(id, key string) any {

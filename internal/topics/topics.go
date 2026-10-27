@@ -17,6 +17,7 @@ package topics
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	"dash.cha.sh/internal/graph"
@@ -69,9 +70,7 @@ func (s *Set) Source() realtime.Source {
 // packages own (the action engine's tasks).
 func (s *Set) SourceWith(extra realtime.Mux) realtime.Source {
 	m := s.Source().(realtime.Mux)
-	for name, src := range extra {
-		m[name] = src
-	}
+	maps.Copy(m, extra)
 	return m
 }
 

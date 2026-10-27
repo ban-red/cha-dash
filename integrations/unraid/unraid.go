@@ -194,8 +194,7 @@ func (in *instance) Test(ctx context.Context) integration.TestResult {
 		Info infoData `json:"info"`
 	}
 	if err := in.query(ctx, "ChadashVersion", qVersion, &v); err != nil {
-		var fe *forbiddenError
-		if errors.As(err, &fe) {
+		if fe, ok := errors.AsType[*forbiddenError](err); ok {
 			err = fe.repair()
 		}
 		return integration.Failed(err)
@@ -392,8 +391,7 @@ func (in *instance) syncVMs(ctx context.Context, now time.Time) error {
 
 // required makes a refused read the integration can't do without a Repair.
 func required(err error) error {
-	var fe *forbiddenError
-	if errors.As(err, &fe) {
+	if fe, ok := errors.AsType[*forbiddenError](err); ok {
 		return fe.repair()
 	}
 	return err
@@ -403,8 +401,7 @@ func required(err error) error {
 // published before stays.
 func (in *instance) partFailed(part string, err error) {
 	w := integration.Warning{Code: "read_failed", Severity: integration.WarnWarning, Message: "Couldn't read " + reads[opOf[part]].what + ": " + err.Error()}
-	var fe *forbiddenError
-	if errors.As(err, &fe) {
+	if fe, ok := errors.AsType[*forbiddenError](err); ok {
 		w = integration.Warning{Code: CodeMissingPermission, Severity: integration.WarnWarning,
 			Message: "The API key can't read " + reads[fe.op].what + ", so they're missing. Give it " + reads[fe.op].resource + ": Read in Unraid (" + keysPage + ")."}
 	}

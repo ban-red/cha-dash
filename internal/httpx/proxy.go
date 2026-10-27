@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"slices"
 	"strings"
 )
 
@@ -51,8 +52,8 @@ func (p Proxies) ClientIP(r *http.Request) netip.Addr {
 	}
 	hops := forwardedFor(r)
 	client := peer
-	for i := len(hops) - 1; i >= 0; i-- {
-		a, err := netip.ParseAddr(hops[i])
+	for _, hop := range slices.Backward(hops) {
+		a, err := netip.ParseAddr(hop)
 		if err != nil {
 			return client // malformed chain: stop at the last hop we could vouch for
 		}

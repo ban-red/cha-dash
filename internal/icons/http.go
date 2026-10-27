@@ -136,7 +136,7 @@ func (s *Service) serve(w http.ResponseWriter, r *http.Request, log *slog.Logger
 }
 
 func etagMatch(header, tag string) bool {
-	for _, t := range strings.Split(header, ",") {
+	for t := range strings.SplitSeq(header, ",") {
 		t = strings.TrimSpace(t)
 		if t == tag || t == "W/"+tag || t == "*" {
 			return true

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand/v2"
 	"reflect"
@@ -395,9 +396,7 @@ func TestPatchesReproduceDoc(t *testing.T) {
 						cur = object()
 					}
 					next := make(map[string]any, len(cur))
-					for f, v := range cur {
-						next[f] = v
-					}
+					maps.Copy(next, cur)
 					for range 1 + rng.IntN(2) {
 						f := fieldNames[rng.IntN(len(fieldNames))]
 						if arr, ok := next[f].([]any); ok && rng.IntN(2) == 0 {

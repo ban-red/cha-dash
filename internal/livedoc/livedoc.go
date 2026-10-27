@@ -149,9 +149,7 @@ func (d *Doc) Update(fn func(tx *Tx) error) (uint64, error) {
 	}
 
 	d.version++
-	for m, v := range tx.values {
-		d.values[m] = v
-	}
+	maps.Copy(d.values, tx.values)
 	for k, v := range tx.items {
 		if v == nil {
 			delete(d.colls[k.coll], k.key)

@@ -125,8 +125,8 @@ func (h handlers) putLayout(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", strings.TrimPrefix(err.Error(), "boards: "))
 	case errors.As(err, &conflict):
 		httpx.WriteJSON(w, http.StatusConflict, conflictBody{
-			ErrorBody: httpx.ErrorBody{Error: httpx.ErrorDetail{Code: "conflict", Message: "the layout changed since it was loaded; reload it and try again"}},
-			Revision:  conflict.Current,
+			Error:    httpx.ErrorDetail{Code: "conflict", Message: "the layout changed since it was loaded; reload it and try again"},
+			Revision: conflict.Current,
 		})
 	case err != nil:
 		h.internal(w, "saving a layout failed", err)

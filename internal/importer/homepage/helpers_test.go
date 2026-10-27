@@ -136,7 +136,7 @@ func fixtureSecrets(t *testing.T) []string {
 			out = append(out, v)
 		}
 	}
-	for _, line := range strings.Split(services, "\n") {
+	for line := range strings.SplitSeq(services, "\n") {
 		if strings.Contains(line, "username: FAKEopnsense") {
 			out = append(out, strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "username:")))
 		}

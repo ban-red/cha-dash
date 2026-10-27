@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -209,9 +210,7 @@ func (e *Emitter) Replace(scope string, f integration.Facts) error {
 	}); err != nil {
 		return err
 	}
-	for id, m := range marks {
-		e.marks[id] = m
-	}
+	maps.Copy(e.marks, marks)
 	for id := range prev.res {
 		if !next.res[id] && !e.ownedElsewhere(scope, id) {
 			delete(e.marks, id)

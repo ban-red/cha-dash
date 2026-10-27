@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -150,9 +151,7 @@ func (in *instance) versionOf(env map[string]any) string {
 // be evaluated part way through.
 func fill(env map[string]any, rs requests) map[string]any {
 	out := make(map[string]any, len(env)+len(rs))
-	for k, v := range env {
-		out[k] = v
-	}
+	maps.Copy(out, env)
 	for _, r := range rs {
 		if _, ok := out[r.Name]; !ok {
 			out[r.Name] = map[string]any{}
@@ -313,9 +312,7 @@ func (in *instance) Sync(ctx context.Context, _ integration.Interest) error {
 				break
 			}
 			ienv := make(map[string]any, len(env)+1)
-			for k, v := range env {
-				ienv[k] = v
-			}
+			maps.Copy(ienv, env)
 			ienv["item"] = item
 			k, err := run(c.key, ienv)
 			if err != nil {

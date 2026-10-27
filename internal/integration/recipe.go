@@ -332,10 +332,8 @@ func (p RecipeParam) check() error {
 	// Whatever is typed, nothing that changes a command gets through.
 	sample := p.Default
 	for _, c := range unsafeInCommand {
-		for _, v := range []string{sample + string(c), string(c) + sample, sample + string(c) + "x"} {
-			if re.MatchString(v) {
-				return fmt.Errorf("the pattern lets %q through, which can change a command", string(c))
-			}
+		if slices.ContainsFunc([]string{sample + string(c), string(c) + sample, sample + string(c) + "x"}, re.MatchString) {
+			return fmt.Errorf("the pattern lets %q through, which can change a command", string(c))
 		}
 	}
 	return nil

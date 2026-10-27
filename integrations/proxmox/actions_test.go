@@ -3,6 +3,7 @@ package proxmox
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -314,9 +315,7 @@ func actionsOn(t *testing.T, f *fakePVE, readOnly bool, extra map[string]any) (*
 		cfg["control_token_id"] = controlTok
 		secrets["control_token_secret"] = controlSecret
 	}
-	for k, v := range extra {
-		cfg[k] = v
-	}
+	maps.Copy(cfg, extra)
 	return h, h.Actions(Integration{}, cfg, secrets)
 }
 
