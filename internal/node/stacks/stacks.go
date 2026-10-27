@@ -841,13 +841,19 @@ func (m *Module) unadopt(_ context.Context, req stackproto.UnadoptRequest, _ emi
 	return stackproto.UnadoptResult{Commit: h.String()}, nil
 }
 
-// writeRootFile writes a file of the module's own under the root.
+// writeRootFile writes a file of the module's own under the root. It goes
+// through os.Root, so neither a ".." nor a symlink can take it outside.
 func (m *Module) writeRootFile(rel string, b []byte) error {
-	p := filepath.Join(m.root, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	r, err := os.OpenRoot(m.root)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(p, b, 0o644)
+	defer r.Close()
+	name := filepath.FromSlash(rel)
+	if err := r.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+		return err
+	}
+	return r.WriteFile(name, b, 0o644)
 }
 
 // by is " · by sam via web" for a commit subject.
