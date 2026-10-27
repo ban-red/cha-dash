@@ -243,13 +243,9 @@ func (s *Session) serve(ctx context.Context, cancel context.CancelFunc, f Frame)
 			return
 		}
 	}
-	e, ok := err.(*Error)
+	e, ok := errors.AsType[*Error](err)
 	if !ok {
-		if pe, ok := errors.AsType[*Error](err); ok {
-			e = pe
-		} else {
-			e = &Error{Code: CodeFailed, Message: err.Error()}
-		}
+		e = &Error{Code: CodeFailed, Message: err.Error()}
 	}
 	if ctx.Err() != nil && e.Code == CodeFailed {
 		e = Errorf(CodeFailed, "cancelled")
@@ -332,7 +328,8 @@ func (s *Session) Call(ctx context.Context, method string, params any, onItem fu
 		case <-s.done:
 			return nil, ErrClosed
 		case <-ctx.Done():
-			go func() {
+			// ctx is what just ended, so the cancel gets a context of its own.
+			go func() { //nolint:gosec // G118: see above
 				cctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				_ = s.send(cctx, Frame{Op: OpCancel, ID: id})

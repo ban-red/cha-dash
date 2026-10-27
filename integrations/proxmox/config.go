@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -70,8 +71,7 @@ func parseGuestConfig(raw map[string]any) *guestConfig {
 				c.hostpci = append(c.hostpci, first)
 			}
 		case netKeyRE.MatchString(k):
-			var n int
-			fmt.Sscanf(netKeyRE.FindStringSubmatch(k)[1], "%d", &n)
+			n, _ := strconv.Atoi(netKeyRE.FindStringSubmatch(k)[1]) // digits: the pattern matched
 			if mac := nicMAC(v); mac != "" && (netIdx < 0 || n < netIdx) {
 				c.mac, netIdx = mac, n
 			}

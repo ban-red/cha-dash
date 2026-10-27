@@ -427,7 +427,7 @@ func TestSession(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/login":
-			tok := "tok" + string(rune('0'+issued.Add(1)))
+			tok := "tok" + string('0'+issued.Add(1))
 			valid.Store(tok)
 			io.WriteString(w, tok)
 		default:

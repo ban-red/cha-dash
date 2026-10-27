@@ -352,7 +352,7 @@ func probeClient(dial func(ctx context.Context, network, addr string) (net.Conn,
 	}
 	tr := &http.Transport{
 		DialContext:            dial,
-		TLSClientConfig:        &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, // see above
+		TLSClientConfig:        &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec // G402: see above
 		TLSHandshakeTimeout:    probeTimeout,
 		ResponseHeaderTimeout:  probeTimeout,
 		DisableKeepAlives:      true,
