@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -123,7 +124,7 @@ func (sc Script) Validate() error {
 		byScenario[e.Scenario] = append(byScenario[e.Scenario], span{id, time.Duration(e.Open) - impl.lead(), impl.horizonOffset(time.Duration(e.Open), time.Duration(e.Fix))})
 	}
 	for s, spans := range byScenario {
-		slices.SortFunc(spans, func(a, b span) int { return int(a.from - b.from) })
+		slices.SortFunc(spans, func(a, b span) int { return cmp.Compare(a.from, b.from) })
 		for i := 1; i < len(spans); i++ {
 			prev := spans[i-1]
 			if prev.to < 0 || spans[i].from <= prev.to {
