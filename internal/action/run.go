@@ -99,17 +99,19 @@ func (e *Engine) Cancel(ctx context.Context, a Actor, id string) error {
 	if d, ok := e.reg.Get(t.Action); !ok || !d.Cancellable {
 		return refuse(&Refusal{Status: http.StatusConflict, Code: "not_cancellable", Message: fmt.Sprintf("%s can't be stopped once it has started.", t.Label)})
 	}
+	var cancel context.CancelFunc
 	e.mu.Lock()
-	lt, ok := e.live[id]
-	running := ok && lt.cancel != nil
-	if running {
-		lt.cancel()
+	if lt, ok := e.live[id]; ok {
+		cancel = lt.cancel
 	}
 	e.mu.Unlock()
-	if !running {
+	if cancel == nil {
 		return refuse(&Refusal{Status: http.StatusConflict, Code: "finished", Message: fmt.Sprintf("%s has already finished.", t.Label)})
 	}
+	// Recorded before the task hears of it, so the audit log reads in
+	// order: the cancel, then the task's end it caused.
 	record(t.Target, t.Action, audit.OK, nil)
+	cancel()
 	return nil
 }
 
