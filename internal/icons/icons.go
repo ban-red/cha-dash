@@ -59,7 +59,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode"
 
@@ -505,24 +504,21 @@ func Allowed(a netip.Addr) bool {
 }
 
 func (s *Service) newClient() *http.Client {
-	d := &net.Dialer{
-		Timeout: dialTimeout,
-		// Checked after the name resolved, on the address actually dialled,
-		// so a rebinding DNS answer can't slip one past.
-		Control: func(_, address string, _ syscall.RawConn) error {
-			ap, err := netip.ParseAddrPort(address)
-			if err != nil {
-				return &refusedError{msg: "the address couldn't be checked", final: true}
-			}
-			if !s.allowed(ap.Addr()) {
-				return &refusedError{msg: fmt.Sprintf("%s is an address icons are never fetched from (loopback, link-local or metadata)", ap.Addr()), final: true}
-			}
-			return nil
-		},
-	}
+	// Checked on IP literals before dialling, and on the address actually
+	// dialled after a name resolved, so a rebinding DNS answer can't slip
+	// one past.
+	dial := httpx.GuardDial(&net.Dialer{Timeout: dialTimeout}, func(a netip.Addr) error {
+		if !a.IsValid() {
+			return &refusedError{msg: "the address couldn't be checked", final: true}
+		}
+		if !s.allowed(a) {
+			return &refusedError{msg: fmt.Sprintf("%s is an address icons are never fetched from (loopback, link-local or metadata)", a), final: true}
+		}
+		return nil
+	})
 	tr := &http.Transport{
 		Proxy:                  nil,
-		DialContext:            d.DialContext,
+		DialContext:            dial,
 		TLSHandshakeTimeout:    dialTimeout,
 		ResponseHeaderTimeout:  fetchTimeout,
 		MaxResponseHeaderBytes: 32 << 10,
