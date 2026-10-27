@@ -146,8 +146,7 @@ func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tie
 		e.updateTask(id, true, func(t *Task) { t.State = StateVerifying })
 		err = e.call(ctx, d.verifyTimeout(), func(ctx context.Context) error { return d.Verify(ctx, r, run) })
 		if err != nil && !isCancel(ctx, err) {
-			var ae *Error
-			if !errors.As(err, &ae) {
+			if _, ok := errors.AsType[*Error](err); !ok {
 				err = Fail("verify_failed", "It ran, but the check afterwards failed: "+err.Error())
 			}
 		}
@@ -241,8 +240,7 @@ func (e *Engine) call(ctx context.Context, timeout time.Duration, fn func(contex
 	}()
 	err = fn(ctx)
 	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		var ae *Error
-		if !errors.As(err, &ae) {
+		if _, ok := errors.AsType[*Error](err); !ok {
 			err = Fail("timeout", fmt.Sprintf("It didn't finish within %s.", timeout))
 		}
 	}
@@ -254,8 +252,7 @@ func isCancel(ctx context.Context, err error) bool {
 }
 
 func errorOf(err error) *Error {
-	var ae *Error
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*Error](err); ok {
 		return ae
 	}
 	return Fail("failed", err.Error())

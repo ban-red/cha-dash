@@ -23,6 +23,7 @@ import (
 	"net/netip"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -184,8 +185,6 @@ func (e *env) remove(ids ...string) {
 	})
 }
 
-func ptr[T any](v T) *T { return &v }
-
 // ── fake ntfy ────────────────────────────────────────────────────────────
 
 type ntfyMsg struct {
@@ -237,9 +236,9 @@ const (
 
 func (e *env) addNtfy(srv *ntfyServer) Channel {
 	e.t.Helper()
-	c, err := e.s.CreateChannel(e.t.Context(), ChannelInput{Kind: ChannelNtfy, Name: ptr("Phones"),
+	c, err := e.s.CreateChannel(e.t.Context(), ChannelInput{Kind: ChannelNtfy, Name: new("Phones"),
 		Config:  json.RawMessage(`{"server":"` + srv.URL + `","topic":"lab-alerts"}`),
-		Secrets: map[string]*string{"token": ptr(fakeNtfyToken)}})
+		Secrets: map[string]*string{"token": new(fakeNtfyToken)}})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -388,12 +387,7 @@ func TestRepairsAndStuckStacks(t *testing.T) {
 }
 
 func slicesContain(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, v)
 }
 
 func TestEscalationNotifiesOnceAtDown(t *testing.T) {
@@ -488,11 +482,11 @@ func TestRulesTurnOffAndRoute(t *testing.T) {
 	n := newNtfy(t)
 	other := newNtfy(t)
 	e.addNtfy(n)
-	c2, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelNtfy, Name: ptr("Desk"), Config: json.RawMessage(`{"server":"` + other.URL + `","topic":"desk"}`)})
+	c2, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelNtfy, Name: new("Desk"), Config: json.RawMessage(`{"server":"` + other.URL + `","topic":"desk"}`)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.s.UpdateRule(t.Context(), RuleRepair, RuleUpdate{Enabled: ptr(false)}, "owner"); err != nil {
+	if _, err := e.s.UpdateRule(t.Context(), RuleRepair, RuleUpdate{Enabled: new(false)}, "owner"); err != nil {
 		t.Fatal(err)
 	}
 	only := json.RawMessage(`["` + c2.ID + `"]`)
@@ -505,10 +499,10 @@ func TestRulesTurnOffAndRoute(t *testing.T) {
 		t.Fatalf("phones %+v, desk %+v", n.msgs(), other.msgs())
 	}
 	// T4 can't be turned off.
-	if _, err := e.s.UpdateRule(t.Context(), RuleAction, RuleUpdate{Enabled: ptr(false)}, "owner"); !errors.Is(err, errLocked) {
+	if _, err := e.s.UpdateRule(t.Context(), RuleAction, RuleUpdate{Enabled: new(false)}, "owner"); !errors.Is(err, errLocked) {
 		t.Fatalf("err = %v", err)
 	}
-	if _, err := e.s.UpdateRule(t.Context(), RuleAttention, RuleUpdate{GraceMinutes: ptr(0)}, "owner"); err == nil {
+	if _, err := e.s.UpdateRule(t.Context(), RuleAttention, RuleUpdate{GraceMinutes: new(0)}, "owner"); err == nil {
 		t.Fatal("a zero grace was accepted")
 	}
 	bad := json.RawMessage(`["nc_nope"]`)
@@ -538,7 +532,7 @@ func TestRulesTurnOffAndRoute(t *testing.T) {
 func t4(state string, tier action.Tier) action.TaskDone {
 	fin := time.Date(2026, 10, 6, 2, 0, 5, 0, time.UTC)
 	t := action.Task{ID: "t_1", Action: "proxmox.node.shutdown", Label: "Shut down io", Target: "proxmox:i_x/node/io", State: state, FinishedAt: &fin,
-		Actor: action.TaskActor{Kind: "user", Name: "sam"}, Audit: ptr("ae_1")}
+		Actor: action.TaskActor{Kind: "user", Name: "sam"}, Audit: new("ae_1")}
 	if state == action.StateFailed {
 		t.Error = &action.Error{Code: "failed", Message: "io didn't answer."}
 	}
@@ -783,7 +777,7 @@ func TestWebPushPerViewer(t *testing.T) {
 		t.Fatalf("T4 push = %+v", g)
 	}
 	// Turning Web Push off stops it.
-	if _, _, err := e.s.UpdateChannel(t.Context(), WebPushChannel, ChannelInput{Enabled: ptr(false)}); err != nil {
+	if _, _, err := e.s.UpdateChannel(t.Context(), WebPushChannel, ChannelInput{Enabled: new(false)}); err != nil {
 		t.Fatal(err)
 	}
 	e.put(inc("nas", "problem", "down", "open", "open"))
@@ -1024,8 +1018,8 @@ func TestWebhookSignedPayload(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer srv.Close()
-	c, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelWebhook, Name: ptr("Home Assistant"),
-		Config: json.RawMessage(`{"url":"` + srv.URL + `/api/webhook/chadash"}`), Secrets: map[string]*string{"secret": ptr(fakeWebhookSecret)}})
+	c, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelWebhook, Name: new("Home Assistant"),
+		Config: json.RawMessage(`{"url":"` + srv.URL + `/api/webhook/chadash"}`), Secrets: map[string]*string{"secret": new(fakeWebhookSecret)}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1075,7 +1069,7 @@ func TestNoRedirectsAndNoMetadata(t *testing.T) {
 		http.Redirect(w, r, target.URL, http.StatusFound)
 	}))
 	defer redirect.Close()
-	c, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelNtfy, Name: ptr("Redirecting"), Config: json.RawMessage(`{"server":"` + redirect.URL + `","topic":"x"}`)})
+	c, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelNtfy, Name: new("Redirecting"), Config: json.RawMessage(`{"server":"` + redirect.URL + `","topic":"x"}`)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1084,7 +1078,7 @@ func TestNoRedirectsAndNoMetadata(t *testing.T) {
 		t.Fatalf("res = %+v, %v; target hit %d times", res, err, hits.Load())
 	}
 	// Link-local (cloud metadata) is refused when saving, and at dial time.
-	if _, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelNtfy, Name: ptr("Meta"), Config: json.RawMessage(`{"server":"http://169.254.169.254","topic":"x"}`)}); err == nil {
+	if _, err := e.s.CreateChannel(t.Context(), ChannelInput{Kind: ChannelNtfy, Name: new("Meta"), Config: json.RawMessage(`{"server":"http://169.254.169.254","topic":"x"}`)}); err == nil {
 		t.Fatal("a link-local server was accepted")
 	}
 	for _, ip := range []string{"169.254.169.254", "0.0.0.0", "224.0.0.1", "fe80::1", "::ffff:169.254.169.254"} {

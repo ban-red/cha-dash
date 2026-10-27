@@ -64,8 +64,8 @@ func (m *Manager) writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.As(err, &ve):
 		httpx.WriteJSON(w, http.StatusUnprocessableEntity, invalidBody{
-			ErrorBody: httpx.ErrorBody{Error: httpx.ErrorDetail{Code: "invalid", Message: ve.Error()}},
-			Fields:    ve.Fields,
+			Error:  httpx.ErrorDetail{Code: "invalid", Message: ve.Error()},
+			Fields: ve.Fields,
 		})
 	case errors.Is(err, ErrUnknownIntegration):
 		httpx.Error(w, http.StatusUnprocessableEntity, "unknown_integration", "this hub doesn't have that integration")

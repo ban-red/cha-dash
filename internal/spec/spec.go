@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"path"
 	"regexp"
 	"slices"
@@ -403,9 +404,7 @@ func compile(f file) (*Spec, error) {
 	program := func(where, src string) (*vm.Program, error) { return programIn(env, where, src) }
 	// An each template's expressions also see the element, as item.
 	itemEnv := make(map[string]any, len(env)+1)
-	for k, v := range env {
-		itemEnv[k] = v
-	}
+	maps.Copy(itemEnv, env)
 	itemEnv["item"] = map[string]any{}
 	var err error
 	if s.version, err = program("version", f.Version); err != nil {

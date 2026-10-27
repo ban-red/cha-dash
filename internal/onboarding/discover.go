@@ -166,16 +166,12 @@ func (s *Service) Discover(ctx context.Context, req DiscoverRequest) (DiscoverRe
 		go docker("docker", ep, ep)
 	}
 	for _, h := range req.Hosts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			var found []Candidate
 			var fmu sync.Mutex
 			var hw sync.WaitGroup
 			for _, p := range s.probes(h) {
-				hw.Add(1)
-				go func() {
-					defer hw.Done()
+				hw.Go(func() {
 					sem <- struct{}{}
 					defer func() { <-sem }()
 					if s.matches(ctx, p.url, p.hint.Match) {
@@ -183,12 +179,10 @@ func (s *Service) Discover(ctx context.Context, req DiscoverRequest) (DiscoverRe
 						found = append(found, p.candidate)
 						fmu.Unlock()
 					}
-				}()
+				})
 			}
 			// Docker's raw API, or a socket proxy, on its usual port.
-			hw.Add(1)
-			go func() {
-				defer hw.Done()
+			hw.Go(func() {
 				sem <- struct{}{}
 				defer func() { <-sem }()
 				if c, _ := s.testDocker(ctx, "tcp://"+net.JoinHostPort(h, "2375")); c != nil {
@@ -196,13 +190,13 @@ func (s *Service) Discover(ctx context.Context, req DiscoverRequest) (DiscoverRe
 					found = append(found, *c)
 					fmu.Unlock()
 				}
-			}()
+			})
 			hw.Wait()
 			for i := range found {
 				found[i].Source, found[i].Target = "host", h
 			}
 			record(Checked{Target: h, Source: "host"}, found...)
-		}()
+		})
 	}
 	wg.Wait()
 

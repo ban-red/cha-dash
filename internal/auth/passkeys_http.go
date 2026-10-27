@@ -292,8 +292,7 @@ func (s *Service) handleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 // passkeyRP resolves the relying party, answering 409 when passkeys can't work here.
 func (s *Service) passkeyRP(w http.ResponseWriter, r *http.Request) (relyingParty, bool) {
 	rp, err := s.relyingParty(r)
-	var unavailable *unavailableError
-	if errors.As(err, &unavailable) {
+	if unavailable, ok := errors.AsType[*unavailableError](err); ok {
 		httpx.Error(w, http.StatusConflict, "passkeys_unavailable", unavailable.msg)
 		return rp, false
 	}

@@ -189,8 +189,8 @@ func drain(resp *http.Response) {
 }
 
 func stripQuery(p string) string {
-	if i := strings.IndexByte(p, '?'); i >= 0 {
-		return p[:i]
+	if before, _, ok := strings.Cut(p, "?"); ok {
+		return before
 	}
 	return p
 }

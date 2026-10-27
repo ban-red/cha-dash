@@ -2,6 +2,7 @@ package topics
 
 import (
 	"encoding/json"
+	"maps"
 	"testing"
 )
 
@@ -14,9 +15,7 @@ func TestApprovalsOnlyForApprovers(t *testing.T) {
 	}}
 	count := func(v InboxView) int {
 		cp := map[string]any{Incidents: map[string]json.RawMessage{}}
-		for k, raw := range doc[Incidents].(map[string]json.RawMessage) {
-			cp[Incidents].(map[string]json.RawMessage)[k] = raw
-		}
+		maps.Copy(cp[Incidents].(map[string]json.RawMessage), doc[Incidents].(map[string]json.RawMessage))
 		return len(ProjectInbox(cp, v)[Incidents].(map[string]json.RawMessage))
 	}
 	if n := count(InboxView{Detail: true, Approvals: true}); n != 2 {

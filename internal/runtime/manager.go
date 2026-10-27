@@ -476,8 +476,7 @@ func (e *missingSecretError) Error() string {
 // import that named a secret it couldn't carry). Anything else wrong with
 // the config gives "".
 func missingSecret(man integration.Manifest, err error) string {
-	var ms *missingSecretError
-	if errors.As(err, &ms) {
+	if ms, ok := errors.AsType[*missingSecretError](err); ok {
 		return ms.field
 	}
 	var ve *ValidationError

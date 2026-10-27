@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -261,10 +262,8 @@ func (g *registry) addHubPin(ctx context.Context, id, pin string) error {
 	if err != nil {
 		return err
 	}
-	for _, p := range r.HubPins {
-		if p == pin {
-			return nil
-		}
+	if slices.Contains(r.HubPins, pin) {
+		return nil
 	}
 	b, _ := json.Marshal(append(r.HubPins, pin))
 	_, err = g.st.Writer().ExecContext(ctx, `UPDATE nodes SET hub_pins = ?, updated_at = ? WHERE id = ?`, string(b), g.now().UnixMilli(), id)

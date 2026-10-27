@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"dash.cha.sh/internal/integration"
@@ -92,10 +93,8 @@ func mentionsRef(v any) bool {
 			}
 		}
 	case []any:
-		for _, x := range t {
-			if mentionsRef(x) {
-				return true
-			}
+		if slices.ContainsFunc(t, mentionsRef) {
+			return true
 		}
 	}
 	return false

@@ -98,7 +98,7 @@ func URL(title string) *Schema { return &Schema{Type: "string", Title: title, Fo
 
 // Secret is a write-only, non-empty string field.
 func Secret(title string) *Schema {
-	return &Schema{Type: "string", Title: title, WriteOnly: true, MinLength: intp(1), MaxLength: intp(8192)}
+	return &Schema{Type: "string", Title: title, WriteOnly: true, MinLength: new(1), MaxLength: new(8192)}
 }
 
 // Integer is an integer field within [min, max].
@@ -178,8 +178,6 @@ func (s *Schema) Property(name string) *Schema {
 	}
 	return nil
 }
-
-func intp(n int) *int { return &n }
 
 var (
 	propNameRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)

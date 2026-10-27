@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -177,10 +178,8 @@ func (in *instance) do(ctx context.Context, c *http.Client, op, doc string, vars
 func (in *instance) failure(op string, errs []gqlError) error {
 	has := func(codes ...string) (gqlError, bool) {
 		for _, e := range errs {
-			for _, c := range codes {
-				if e.Extensions.Code == c {
-					return e, true
-				}
+			if slices.Contains(codes, e.Extensions.Code) {
+				return e, true
 			}
 		}
 		return gqlError{}, false

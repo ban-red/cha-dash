@@ -371,11 +371,11 @@ func sentence(s string) string {
 
 // lineOf is the 1-based line of the first occurrence of sub, or 0.
 func lineOf(content, sub string) int {
-	i := strings.Index(content, sub)
-	if i < 0 {
+	before, _, ok := strings.Cut(content, sub)
+	if !ok {
 		return 0
 	}
-	return strings.Count(content[:i], "\n") + 1
+	return strings.Count(before, "\n") + 1
 }
 
 // serviceLines maps each service to the line its key is on.

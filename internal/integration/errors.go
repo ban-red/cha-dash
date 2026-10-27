@@ -206,8 +206,7 @@ func Classify(err error) (code string, class Class, message string) {
 		errors.Is(err, syscall.ENETUNREACH), errors.As(err, &ope):
 		return CodeUnreachable, Transient, scrubURL(err)
 	}
-	var hostErr x509.HostnameError
-	if errors.As(err, &hostErr) {
+	if _, ok := errors.AsType[x509.HostnameError](err); ok {
 		return CodeTLSUntrusted, NeedsRepair, err.Error()
 	}
 	return CodeUpstream, Transient, scrubURL(err)

@@ -43,7 +43,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	tls := integration.TLSSchema().Describe("Certificate check for this target; defaults to the instance's.")
 	target := integration.Object(
-		integration.Prop("name", &integration.Schema{Type: "string", Title: "Name", MinLength: intp(1), MaxLength: intp(64)}),
+		integration.Prop("name", &integration.Schema{Type: "string", Title: "Name", MinLength: new(1), MaxLength: new(64)}),
 		integration.Prop("kind", integration.Enum("Check", "http", "tcp").WithDefault("http")),
 		integration.Prop("url", integration.URL("URL").Describe("http checks: the page to fetch.")),
 		integration.Prop("host", &integration.Schema{Type: "string", Title: "Host", Format: "hostname", Description: "tcp checks: the host to connect to."}),
@@ -54,7 +54,7 @@ func (Integration) Manifest() integration.Manifest {
 		integration.Prop("tls", tls),
 	).Require("name", "kind")
 	targets := integration.Array("Targets", target)
-	targets.MinItems, targets.MaxItems = intp(1), intp(MaxTargets)
+	targets.MinItems, targets.MaxItems = new(1), new(MaxTargets)
 	return integration.Manifest{
 		ID: ID, Name: "Checks", Icon: "checks", Version: "0.1.0", Tier: integration.Silver,
 		Capabilities: []integration.Capability{"checks.uptime"},
@@ -62,8 +62,6 @@ func (Integration) Manifest() integration.Manifest {
 		Poll:         integration.Poll{Interval: DefaultInterval, Background: true, Timeout: 90 * time.Second},
 	}
 }
-
-func intp(n int) *int { return &n }
 
 // target is one entry of the targets config key.
 type target struct {

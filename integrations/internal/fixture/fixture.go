@@ -3,6 +3,7 @@
 package fixture
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -52,9 +53,7 @@ func Dir(t testing.TB, id string) string {
 func New(t testing.TB, dir string, auth func(*http.Request) bool, routes map[string]Route) *Server {
 	t.Helper()
 	s := &Server{dir: dir, routes: map[string]Route{}}
-	for k, v := range routes {
-		s.routes[k] = v
-	}
+	maps.Copy(s.routes, routes)
 	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm() // so recorded POSTs keep their form
 		s.mu.Lock()
