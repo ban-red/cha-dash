@@ -47,3 +47,6 @@ internal/webui/dist/
 # Local hub binaries
 /chadash
 /bin/
+
+# ESLint cache (bun run lint)
+.eslintcache

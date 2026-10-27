@@ -297,7 +297,7 @@ describe('the step-up dialog', () => {
     dlg.querySelector('form')!.dispatchEvent(new Event('submit'));
     await settle();
     expect(get).toHaveBeenCalledTimes(1);
-    expect((f.last('POST', '/api/auth/step-up')?.body as { id: string }).id).toBe('cred-1');
+    expect((f.last('POST', '/api/auth/step-up')?.body as { id: string } | undefined)?.id).toBe('cred-1');
     expect(done).toHaveBeenCalledWith(true);
   });
 

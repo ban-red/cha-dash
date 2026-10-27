@@ -193,6 +193,9 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Typecheck
         run: bun run typecheck
+      - name: Lint
+        # oxlint, then ESLint for Vue templates (eslint.config.js)
+        run: bun run lint
       - name: Test
         run: bun run test
       - name: Design tokens are up to date

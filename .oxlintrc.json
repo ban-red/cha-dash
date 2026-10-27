@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "vue"],
+  "env": {
+    "browser": true
+  },
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "unicorn/no-useless-spread": "off",
+    "unicorn/no-useless-fallback-in-spread": "off"
+  },
+  "overrides": [
+    {
+      "files": ["web/public/*.js"],
+      "rules": { "eslint/no-unused-vars": ["error", { "caughtErrors": "none" }] }
+    },
+    {
+      "files": ["**/test/**"],
+      "rules": { "unicorn/no-thenable": "off" }
+    }
+  ],
+  "ignorePatterns": ["**/dist/**", "**/coverage/**", "internal/webui/dist/**", "spikes/**", "design/prototypes/**"]
+}
