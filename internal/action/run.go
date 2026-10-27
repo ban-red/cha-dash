@@ -197,9 +197,11 @@ func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tie
 	}
 }
 
-// finish records a task's end. The task shows as finished, its lock is
-// released and the topic is trimmed in one step, so whoever sees it
-// finished can lock the resource again.
+// finish records a task's end. The end is stored first; then the task
+// shows as finished, its lock is released and the topic is trimmed in one
+// step, so whoever sees it finished can lock the resource again, and reads
+// the same end from the table once it has left the live set (or after a
+// restart, which would otherwise take it for interrupted).
 func (e *Engine) finish(id, resource string, fn func(t *Task)) {
 	e.mu.Lock()
 	lt, ok := e.live[id]
@@ -207,7 +209,14 @@ func (e *Engine) finish(id, resource string, fn func(t *Task)) {
 		e.mu.Unlock()
 		return
 	}
-	fn(&lt.task)
+	end := lt.task.clone()
+	e.mu.Unlock()
+	fn(&end)
+	// Still live meanwhile: trimLocked only drops finished tasks.
+	e.save(end)
+
+	e.mu.Lock()
+	fn(&lt.task) // fn only sets fields, so it can be applied twice
 	lt.cancel = nil
 	if e.locks[resource] == id {
 		delete(e.locks, resource)
@@ -216,7 +225,6 @@ func (e *Engine) finish(id, resource string, fn func(t *Task)) {
 	drop := e.trimLocked()
 	e.mu.Unlock()
 
-	e.save(t)
 	e.tasks.Update(func(tx *livedoc.Tx) error {
 		if !slices.Contains(drop, id) {
 			tx.Put(tasksColl, id, t)
