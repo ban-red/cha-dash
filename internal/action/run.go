@@ -225,7 +225,7 @@ func (e *Engine) finish(id, resource string, fn func(t *Task)) {
 	drop := e.trimLocked()
 	e.mu.Unlock()
 
-	e.tasks.Update(func(tx *livedoc.Tx) error {
+	_, _ = e.tasks.Update(func(tx *livedoc.Tx) error {
 		if !slices.Contains(drop, id) {
 			tx.Put(tasksColl, id, t)
 		}
@@ -303,7 +303,7 @@ func (e *Engine) save(t Task) {
 
 // publish copies a live task into the topic.
 func (e *Engine) publish(id string) {
-	e.tasks.Update(func(tx *livedoc.Tx) error {
+	_, _ = e.tasks.Update(func(tx *livedoc.Tx) error {
 		e.mu.Lock()
 		defer e.mu.Unlock()
 		if lt, ok := e.live[id]; ok {
@@ -324,7 +324,7 @@ func (e *Engine) trim() {
 	if len(drop) == 0 {
 		return
 	}
-	e.tasks.Update(func(tx *livedoc.Tx) error {
+	_, _ = e.tasks.Update(func(tx *livedoc.Tx) error {
 		for _, id := range drop {
 			tx.Delete(tasksColl, id)
 		}

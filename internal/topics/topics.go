@@ -50,7 +50,7 @@ type Set struct {
 // clock reads now.
 func New(g *graph.Graph, now time.Time) *Set {
 	s := &Set{Graph: g, Metrics: livedoc.New(Series), Inbox: livedoc.New(Incidents)}
-	s.Inbox.Update(func(tx *livedoc.Tx) error {
+	_, _ = s.Inbox.Update(func(tx *livedoc.Tx) error {
 		SetNow(tx, now)
 		return nil
 	})
@@ -92,7 +92,7 @@ func (s *Set) RunClock(ctx context.Context, every time.Duration, now func() time
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			s.Inbox.Update(func(tx *livedoc.Tx) error {
+			_, _ = s.Inbox.Update(func(tx *livedoc.Tx) error {
 				SetNow(tx, now())
 				return nil
 			})

@@ -59,6 +59,9 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod   # go 1.27.3
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
       - name: gofmt
         run: |
           unformatted=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
@@ -113,10 +116,21 @@ jobs:
         run: |
           go vet -tags devlogin ./...
           go test -race -tags devlogin ./internal/auth/ ./internal/server/ ./cmd/chadash/
-      - name: staticcheck
-        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...   # 2026.2.1: Go 1.27 support
+      - name: go fix
+        # Since Go 1.26, go fix applies the modernizers (errors.AsType,
+        # new(expr), maps.Copy, …). -diff exits 1 if any would apply.
+        run: |
+          if ! go fix -diff ./... > "$RUNNER_TEMP/fix.diff"; then
+            cat "$RUNNER_TEMP/fix.diff"
+            echo "::error::Run go fix ./... and commit the result"
+            exit 1
+          fi
+      - name: golangci-lint
+        # staticcheck plus the bug-finding linters in .golangci.yml. The
+        # tools are pinned in tools/go.mod and built with this Go.
+        run: go tool -modfile=tools/go.mod golangci-lint run
       - name: govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+        run: go tool -modfile=tools/go.mod govulncheck ./...
 
   # linux/arm/v7 is best-effort (ADR-0016): tested as 32-bit and built here,
   # but nothing runs on armv7 hardware. Not a required check (see above).

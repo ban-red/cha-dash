@@ -45,7 +45,7 @@ func healthcheck(ctx context.Context, args []string, getenv func(string) string,
 		return 1
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<10))
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<10))
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintf(stderr, "chadash healthcheck: %s returned %s\n", url, resp.Status)
 		return 1
