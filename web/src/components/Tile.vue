@@ -101,6 +101,11 @@ const icon = computed(() => {
   return src && src !== broken.value ? src : undefined;
 });
 
+// The mark's link. An icon is a graphic, so its name is "Open Photos"; a
+// monogram is text people see and may say ("click PH"), so the name starts
+// with it (WCAG 2.5.3, Label in Name).
+const linkLabel = computed(() => (icon.value ? `Open ${shownName.value}` : `${mark.value}, open ${shownName.value}`));
+
 function onKey(e: KeyboardEvent) {
   if (!clickable) return;
   if (e.key === 'Enter' || e.key === ' ') {
@@ -120,7 +125,7 @@ function onKey(e: KeyboardEvent) {
     @keydown="onKey"
   >
     <div v-if="!chromeless" class="th">
-      <a v-if="shownHref" :class="['mono', { 'has-icon': icon }]" :href="shownHref" target="_blank" rel="noopener noreferrer" :aria-label="`Open ${shownName}`" @click.stop>
+      <a v-if="shownHref" :class="['mono', { 'has-icon': icon }]" :href="shownHref" target="_blank" rel="noopener noreferrer" :aria-label="linkLabel" @click.stop>
         <img v-if="icon" class="mono-img" :src="icon" alt="" @error="broken = icon ?? ''" />
         <template v-else>{{ mark }}</template>
       </a>
