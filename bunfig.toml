@@ -1,0 +1,8 @@
+[install]
+# Wait three days before installing a version published to npm: most
+# malicious releases (Shai-Hulud, the axios and ChainDrop compromises) were
+# caught and pulled within hours. Renovate holds its pull requests for the
+# same time (renovate.json5).
+minimumReleaseAge = 259200 # seconds
+# Exact versions, as every package.json here already pins them.
+exact = true

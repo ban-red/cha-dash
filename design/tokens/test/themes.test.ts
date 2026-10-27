@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
 import {
-  apca, buildCss, buildCssWithAssets, checkTheme, moreContrast, resolveTheme, separation, themeTokenNames, THRESHOLDS, wcag,
+  apca, buildCssWithAssets, checkTheme, moreContrast, resolveTheme, separation, themeTokenNames, THRESHOLDS, wcag,
   globalTokens, validateThemeDoc, type ThemeDoc,
 } from '../src/core.js';
 import { generate } from '../scripts/generate.ts';
