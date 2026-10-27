@@ -53,7 +53,7 @@ COPY web web
 RUN bun run build
 
 # ── 2. Hub binary ─────────────────────────────────────────────────────────────
-FROM --platform=$BUILDPLATFORM golang:1.27.1-trixie@sha256:3b77fc618ec235a1ab412de7737f120dd507c57e8d87de4cbb7994fb94275ed5 AS hub
+FROM --platform=$BUILDPLATFORM golang:1.27.3-trixie@sha256:c124b9ad3452f46061b5054607d26ea51730dae5372c5e469920063ba2bc6dcc AS hub
 
 # The final image's filesystem. /data is staged on its own so that only it is
 # owned by the runtime user; /tmp is for SQLite's temporary files.
@@ -115,7 +115,7 @@ COPY --from=hub /out/chadash /chadash
 # chadash-node: no SPA, and only the packages it imports (CI checks this
 # against `go list -deps ./cmd/chadash-node`). It links the Docker client,
 # which the hub never does (ADR-0006, ADR-0020).
-FROM --platform=$BUILDPLATFORM golang:1.27.1-trixie@sha256:3b77fc618ec235a1ab412de7737f120dd507c57e8d87de4cbb7994fb94275ed5 AS node-build
+FROM --platform=$BUILDPLATFORM golang:1.27.3-trixie@sha256:c124b9ad3452f46061b5054607d26ea51730dae5372c5e469920063ba2bc6dcc AS node-build
 
 # /etc/chadash-node holds the identity and the policy. It's group-writable
 # for 65532, so the node can run as uid 0 without capabilities (the socket's
