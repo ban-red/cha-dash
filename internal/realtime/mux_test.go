@@ -80,3 +80,37 @@ func TestDocFeedResync(t *testing.T) {
 		t.Fatalf("snapshot after resync: %d %v", seq, data)
 	}
 }
+
+// TestFirstChangeAfterSnapCoalesced: the snapshot counts as a frame, so a
+// change reaching a subscription's feeds one after the other (as a graph
+// change reaches each topic's feed in turn) arrives as one diff, also right
+// after subscribing.
+func TestFirstChangeAfterSnapCoalesced(t *testing.T) {
+	a, b := livedoc.New("items"), livedoc.New("items")
+	src := Mux{"a": DocSource{Doc: a, Topic: "a"}, "b": DocSource{Doc: b, Topic: "b"}}
+	_, url := newServer(t, src, Options{Coalesce: 300 * time.Millisecond})
+	c := dial(t, url)
+	c.hello()
+	c.send(frame{"op": "sub", "id": 1, "topics": []string{"a", "b"}})
+	expectOp(t, c.next(), "snap")
+
+	put := func(d *livedoc.Doc) {
+		_, _ = d.Update(func(tx *livedoc.Tx) error {
+			tx.Put("items", "x", 1)
+			return nil
+		})
+	}
+	put(a)
+	time.Sleep(30 * time.Millisecond) // a's notification is in; b's isn't yet
+	put(b)
+
+	d := c.next()
+	expectOp(t, d, "diff")
+	var paths []string
+	for _, op := range d["patch"].([]any) {
+		paths = append(paths, op.(frame)["path"].(string))
+	}
+	if want := []string{"/a/items/x", "/b/items/x"}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("first diff paths = %v, want %v in one frame", paths, want)
+	}
+}
