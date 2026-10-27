@@ -1,5 +1,7 @@
 # 04 · Roadmap, Decisions & Risks
 
+> **October 2026 review:** [09 · Roadmap review](09-roadmap-2026.md) (proposed) looks at the 2026 field and proposes changes to the milestones below, plus decisions 21–24.
+>
 > Milestones are defined by what they achieve and how we know they're done, not by dates. Each one ends with a **demo moment**: the thing we post on r/selfhosted.
 > **Dogfood rule:** every milestone has to work on the [owner's real homelab](05-dogfood-home.md) before it ships.
 
@@ -34,7 +36,14 @@
 
 ### Still open
 
-None right now. New open questions get a row here, and an ADR when they're settled.
+New open questions get a row here, and an ADR when they're settled. These four come from [09 · Roadmap review](09-roadmap-2026.md#7-decisions-this-needs), with its recommendations.
+
+| # | Question | Recommendation |
+|---|---|---|
+| 21 | When does MCP ship? (ADR-0017 says after 1.0) | v0.4, as `mcp/v0`: read and propose only, off by default. Supersedes only the timing in ADR-0017 |
+| 22 | What replaces the archived CLA Assistant action? | The hosted cla-assistant.io app, EasyCLA or a small in-repo check; the CLA itself (ADR-0002) stays |
+| 23 | Publish the spec format before 1.0? | Yes, as `v1alpha1` in v0.3, so a community spec repo can start |
+| 24 | Pledge "no enterprise tier" in the Pact? | Yes: roles, audit, SSO and every safety feature stay in the open-source core |
 
 ---
 
@@ -326,7 +335,7 @@ Compare it for one day against a gridstack 14 prototype.
 
 ## Open questions
 
-None right now. The M0 decisions (13–17) are settled.
+Decisions 21–24, from the [October 2026 review](09-roadmap-2026.md#7-decisions-this-needs); see [Still open](#still-open). The M0 decisions (13–17) are settled.
 
 *Answered:*
 - **Homepage config** is now the [importer fixture](../../testdata/importers/homepage/dogfood/README.md).
