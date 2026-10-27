@@ -105,6 +105,10 @@ func (s *Service) deliverDue(ctx context.Context) {
 		}
 		due = append(due, d)
 	}
+	// A read cut short still sends what it got; the rest stay due.
+	if err := rows.Err(); err != nil && ctx.Err() == nil {
+		s.log.Error("notify: reading due deliveries failed", "err", err)
+	}
 	rows.Close()
 	sem := make(chan struct{}, sendParallel)
 	var wg sync.WaitGroup
