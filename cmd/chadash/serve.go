@@ -77,7 +77,8 @@ func runServer(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 	}
 	defer a.close()
 
-	ln, err := net.Listen("tcp", cfg.Listen)
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", cfg.Listen)
 	if err != nil {
 		return err
 	}
