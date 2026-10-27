@@ -18,7 +18,7 @@
   Each is in [§ 5](#5-the-revised-milestones), with its evidence.
 - **This review found and fixed real defects:**
   - 14 reachable Go standard-library vulnerabilities.
-  - A task-state race in the action engine.
+  - Two ordering races in the action engine (a task's stored state, and the cancel's audit record).
   - A wrong failure message in spec verify.
   - A 32-bit sort bug that kept CI's armv7 job red.
   - An IPv6-dependent SSRF guard.
@@ -53,6 +53,7 @@ All of these are on the review branch as separate commits, each with its reasoni
 |---|---|---|
 | **Go 1.27.3, x/net v0.61.0** | govulncheck found 14 standard-library vulnerabilities the code reaches: compromised x509 intermediates, HTTP/1 and HTTP/2 desync and exhaustion, unbounded Range headers, an `html/template` escaping bug. CI's govulncheck would have failed on `main` | govulncheck v1.9.0 |
 | **The action engine stores a task's end before showing it finished** | A just-finished task trimmed from the live set read back as "verifying". A hub stopped in that window marked a succeeded task as interrupted, adding a second, contradictory audit record. `TestPlanApproveRun` failed intermittently | A stress run (`-count=40 -cpu 1,4`) |
+| **A cancel is audited before the end it causes** | Cancel signalled the task and then audited itself, so the cancelled task's "failed" record could land first, and the log read as failing before anyone cancelled it. `TestFailures` failed once in a full `-race` run | The final full `-race` run |
 | **Spec verify fails with the spec's sentence** | When the deadline cut a read after earlier reads had answered, the task said "didn't answer in time" instead of the spec's message. A new test reproduces it deterministically | The full `-race` run |
 | **32-bit script validation** | `int(a.from - b.from)` truncated nanosecond durations on 32-bit, so two incidents two days apart were refused as overlapping. CI's armv7 stand-in (`GOARCH=386`) was red on `main` | `GOARCH=386 go test` |
 | **One outbound dial guard for icons and notify** | The address check ran after `socket()`, so on a host without IPv6 a refused `[::1]` failed with a different error, and notify retried it four times | A test failing in an IPv6-less container |
@@ -184,7 +185,7 @@ Runs alongside every milestone. ✅ marks what this review did.
 | E3 | ✅ Fuzz targets and a nightly job → **more targets** | Parsers that take untrusted bytes. Done: icons, jsonpatch, the Homepage importer. Next: `nodeproto` frames before pairing, the export importer's sealed bundle, spec templates | v0.2.x |
 | E4 | **Browser end-to-end tests** with Playwright 1.64 against `chadash serve --demo` with the built SPA, plus `@axe-core/playwright` | happy-dom can't catch layout, focus or real WebSocket bugs. Use the stable "stories + gallery" `mount`, not the discontinued experimental CT packages | v0.2.x |
 | E5 | **Visual regression** for the Workbench with Vitest 5 browser mode `toMatchScreenshot`, baselines generated only in CI | 04's risk "design quality slips as contributors add widgets" | v0.3 |
-| E6 | **A flake budget**: a nightly `-count=20 -cpu 1,4` job over `action`, `realtime`, `notify`, `spec` and `nodes` | This review found three timing bugs that one run in CI doesn't show | v0.2.x |
+| E6 | **A flake budget**: a nightly `-count=20 -cpu 1,4` job over `action`, `realtime`, `notify`, `spec` and `nodes` | This review found four timing bugs that one run in CI doesn't show | v0.2.x |
 | E7 | **SLSA Build L3**: images built in a reusable workflow, `actions/attest` with `push-to-registry`, immutable releases, `gh attestation verify --signer-workflow` in the release notes | cosign and provenance are already in; L3 is a small step from here | v0.3 |
 | E8 | **Workflow hardening**: `cache-mode: none` on the release jobs; try `actions.lock` (public preview) beside the SHA pins | The May 2026 TanStack attack went through a poisoned Actions cache | v0.2.x |
 | E9 | **`/metrics`** (Prometheus) on a separate, off-by-default listener; never `pprof` on the main one | Homelabbers run Prometheus and Grafana; it's also what a footprint claim is checked with | v0.3 |
@@ -213,7 +214,7 @@ Each becomes a row in 04's "Still open" table now, and an ADR when settled. Numb
 | **Competitors ship control first** (Homepage, Homarr and Dozzle all grew actions or MCP in 2026) | High | High | Lead with what they can't copy quickly: the safety ladder, the correlated graph, owned stacks with rollback. Ship the v0.3 Update Center |
 | **The r/selfhosted "new project Friday" rule** (seen only in a search snippet) | Medium | Medium | Post the v0.2 demo moment on a Friday; let the repo's age pass the threshold first |
 | **Upstream tooling archived under us** (the CLA action now; Watchtower for others) | Medium | Medium | Renovate and zizmor's `archived-uses` audit flag it early; D2 |
-| **Flaky tests erode trust in CI** | Medium | Medium | E6. Three timing bugs found in this review, all in real code, not only tests |
+| **Flaky tests erode trust in CI** | Medium | Medium | E6. Four timing bugs found in this review, all in real code, not only tests |
 
 ---
 
