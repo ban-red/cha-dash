@@ -28,7 +28,7 @@ When code contributions open, expect a few house rules:
 The hub is one Go binary with the Vue SPA embedded. The node (`cmd/chadash-node`) is a second binary and image, built from the same module. JavaScript is development tooling only; nothing from it ships except the built SPA.
 
 **Prerequisites**
-- **Go.** `go.mod` pins Go 1.27.1. Any Go from 1.21 on downloads that toolchain by itself the first time you run a `go` command.
+- **Go.** `go.mod` pins Go 1.27.3. Any Go from 1.21 on downloads that toolchain by itself the first time you run a `go` command.
 - **Bun 1.4 or newer.** It is the package manager, workspace manager, script runner and test runner ([ADR-0019](docs/adr/0019-bun-for-javascript-tooling.md)). You don't need Node or pnpm.
 - **Docker**, only to build the image.
 

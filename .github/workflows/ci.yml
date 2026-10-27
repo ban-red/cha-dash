@@ -58,7 +58,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod   # go 1.27.1
+          go-version-file: go.mod   # go 1.27.3
       - name: gofmt
         run: |
           unformatted=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
