@@ -1,6 +1,7 @@
 package specs
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -76,9 +77,7 @@ func (a *app) set(route, body string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	routes := make(map[string]string, len(a.routes))
-	for k, v := range a.routes {
-		routes[k] = v
-	}
+	maps.Copy(routes, a.routes)
 	if body == "" {
 		delete(routes, route)
 	} else {

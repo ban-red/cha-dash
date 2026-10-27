@@ -183,8 +183,8 @@ func (m *Manager) authDeps(ctx context.Context, integ string) (integration.AuthD
 		return integration.AuthDeps{}, nil, err
 	}
 	c, err := NewHTTPClient(ClientOptions{
-		HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSVerify}, Timeout: authCallLimit},
-		UserAgent:   m.o.UserAgent, RootCAs: m.o.RootCAs,
+		TLS: integration.TLSPolicy{Mode: integration.TLSVerify}, Timeout: authCallLimit,
+		UserAgent: m.o.UserAgent, RootCAs: m.o.RootCAs,
 	})
 	if err != nil {
 		return integration.AuthDeps{}, nil, err

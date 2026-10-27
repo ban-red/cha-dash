@@ -103,7 +103,7 @@ func diskStorage(v string) string {
 // nicMAC is a NIC's MAC: "virtio=BC:24:11:…,bridge=vmbr0" (QEMU) or
 // "name=eth0,hwaddr=BC:24:11:…" (LXC).
 func nicMAC(v string) string {
-	for _, part := range strings.Split(v, ",") {
+	for part := range strings.SplitSeq(v, ",") {
 		k, val, ok := strings.Cut(part, "=")
 		if ok && macRE.MatchString(val) && (k == "hwaddr" || k == "macaddr" || !strings.Contains(k, "addr")) {
 			return strings.ToUpper(val)

@@ -57,8 +57,7 @@ func pathStack(w http.ResponseWriter, r *http.Request) (string, string, bool) {
 }
 
 func (s *Service) fail(w http.ResponseWriter, err error) {
-	var miss errSecretMissing
-	if errors.As(err, &miss) {
+	if miss, ok := errors.AsType[errSecretMissing](err); ok {
 		httpx.Error(w, http.StatusConflict, "secret_missing", miss.Error())
 		return
 	}
@@ -210,7 +209,7 @@ func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, 
 	exists := true
 	if e := stackproto.ErrorFrom(err); e != nil && e.Code == stackproto.CodeNotFound && draft != nil {
 		exists, err = false, nil
-		st = stackproto.Stack{Summary: stackproto.Summary{Name: name, Status: stackproto.StatusDown, Location: stackproto.LocationRoot, File: "compose.yaml"}}
+		st = stackproto.Stack{Name: name, Status: stackproto.StatusDown, Location: stackproto.LocationRoot, File: "compose.yaml"}
 	}
 	if err != nil {
 		return nil, err
@@ -296,8 +295,7 @@ func (s *Service) handlePutDraft(w http.ResponseWriter, r *http.Request) {
 		by = id.User.Username
 	}
 	d, err := s.saveDraft(r.Context(), node, name, req.Content, by, req.Revision)
-	var stale errStale
-	if errors.As(err, &stale) {
+	if stale, ok := errors.AsType[errStale](err); ok {
 		httpx.WriteJSON(w, http.StatusConflict, map[string]any{
 			"error":    map[string]string{"code": "conflict", "message": "Someone saved this draft since you started editing. Reload it to see their changes."},
 			"revision": stale.current,

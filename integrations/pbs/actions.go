@@ -158,8 +158,7 @@ var upids sync.Map
 func (in *instance) runPrune(ctx context.Context, r action.Request, run *action.TaskRun) error {
 	j, err := in.pruneJobFor(ctx, r)
 	if err != nil {
-		var ref *action.Refusal
-		if errors.As(err, &ref) {
+		if ref, ok := errors.AsType[*action.Refusal](err); ok {
 			return action.Fail(ref.Code, ref.Message)
 		}
 		return err
@@ -218,8 +217,7 @@ func (in *instance) write(ctx context.Context, method, path string, form url.Val
 }
 
 func writeFail(err error, store string) error {
-	var ae *apiError
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*apiError](err); ok {
 		switch ae.Code {
 		case http.StatusUnauthorized:
 			return action.Fail("auth", "Proxmox Backup Server rejected the control token. Enter it again in the instance's settings.")

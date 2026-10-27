@@ -96,12 +96,10 @@ start:
 		case <-lctx.Done():
 			break start
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer func() { <-sem }()
 			e.offer(lctx, a, d, target, s)
-		}()
+		})
 	}
 	for i := range slots {
 		if slots[i] == nil {

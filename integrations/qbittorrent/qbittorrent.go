@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -367,9 +368,7 @@ func (in *instance) fold(md maindata) {
 	for _, hash := range md.TorrentsRemoved {
 		delete(in.states, hash)
 	}
-	for k, v := range md.ServerState {
-		in.server[k] = v
-	}
+	maps.Copy(in.server, md.ServerState)
 	in.rid = md.RID
 }
 

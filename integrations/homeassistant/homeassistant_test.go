@@ -3,6 +3,7 @@ package homeassistant
 import (
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -184,9 +185,7 @@ func (f *fake) serveWS(w http.ResponseWriter, r *http.Request) {
 func connect(t *testing.T, h *integrationtest.Harness, f *fake, extra map[string]any) integration.Instance {
 	t.Helper()
 	cfg := map[string]any{"url": f.URL}
-	for k, v := range extra {
-		cfg[k] = v
-	}
+	maps.Copy(cfg, extra)
 	return h.Connect(Integration{}, cfg, map[string]string{"token": token})
 }
 
@@ -365,9 +364,7 @@ func TestHealth(t *testing.T) {
 		f := newFake(t)
 		var cfg map[string]any
 		json.Unmarshal(fixture(t, "config.json"), &cfg)
-		for k, v := range c.patch {
-			cfg[k] = v
-		}
+		maps.Copy(cfg, c.patch)
 		b, _ := json.Marshal(cfg)
 		f.set("/api/config", b)
 		h := integrationtest.New(t)

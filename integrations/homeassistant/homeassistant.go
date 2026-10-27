@@ -52,7 +52,7 @@ func (Integration) Manifest() integration.Manifest {
 				Description: "Optional: the meter that measures the whole house's energy. Default: the meter that rose most since midnight."}),
 			integration.Prop("scripts", &integration.Schema{Type: "array", Title: "Scripts Cha Dash may run",
 				Description: "Optional: the scripts (script.…) Cha Dash may run from tiles and ⌘K. Nothing else can be run: no other script, and no other service.",
-				Items:       &integration.Schema{Type: "string", Title: "Script", Pattern: scriptPattern}, MaxItems: intp(maxScripts)}),
+				Items:       &integration.Schema{Type: "string", Title: "Script", Pattern: scriptPattern}, MaxItems: new(maxScripts)}),
 		).Require("url", "token"),
 		Poll: integration.Poll{Interval: 60 * time.Second, Idle: 5 * time.Minute, Timeout: 30 * time.Second},
 	}

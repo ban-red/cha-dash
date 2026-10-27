@@ -1,5 +1,7 @@
 package sim
 
+import "slices"
+
 import "time"
 
 // Routines are the everyday rhythm of the home, independent of incidents:
@@ -431,7 +433,7 @@ func (s *Sim) detections(c camera, k int64) []Detection {
 		rate = c.dayRate
 	}
 	var out []Detection
-	for j := int64(0); j < 2; j++ {
+	for j := range int64(2) {
 		n := k*2 + j
 		if s.rng.u(key, n) >= rate/2 {
 			continue
@@ -472,9 +474,9 @@ func (s *Sim) lastDetection(c camera, t time.Time, label string) (Detection, boo
 	k0 := floorDiv(t.Unix(), 3600)
 	for k := k0; k > k0-72; k-- {
 		ds := s.detections(c, k)
-		for i := len(ds) - 1; i >= 0; i-- {
-			if !ds[i].At.After(t) && (label == "" || ds[i].Label == label) {
-				return ds[i], true
+		for _, d := range slices.Backward(ds) {
+			if !d.At.After(t) && (label == "" || d.Label == label) {
+				return d, true
 			}
 		}
 	}

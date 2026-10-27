@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -153,9 +154,7 @@ func (r *router) set(f func(r *router)) {
 func connect(t *testing.T, h *integrationtest.Harness, r *router, extra map[string]any) *instance {
 	t.Helper()
 	cfg := map[string]any{"url": r.URL, "tls": map[string]any{"mode": "verify"}}
-	for k, v := range extra {
-		cfg[k] = v
-	}
+	maps.Copy(cfg, extra)
 	return h.Connect(Integration{}, cfg, map[string]string{"key": key, "secret": secret}).(*instance)
 }
 

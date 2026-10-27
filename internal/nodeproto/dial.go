@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -46,9 +47,7 @@ func Dial(ctx context.Context, url string, o DialOptions) (*Channel, error) {
 	hctx, cancel := context.WithTimeout(ctx, HandshakeTimeout)
 	defer cancel()
 	h := http.Header{}
-	for k, v := range o.Header {
-		h[k] = v
-	}
+	maps.Copy(h, o.Header)
 	h.Set(PinsHeader, strings.Join(o.Pins, ","))
 	ws, resp, err := websocket.Dial(hctx, url, &websocket.DialOptions{HTTPClient: o.HTTPClient, HTTPHeader: h})
 	if err != nil {

@@ -320,8 +320,8 @@ func (w *world) confirmed(id graph.RID, typ graph.RelType, slot string) []cand {
 		if k.typ != typ || d.Verdict != Confirm || w.canon(d.From) != id || w.res[d.To] == nil {
 			continue
 		}
-		out = append(out, cand{Link: Link{From: d.From, Type: typ, To: d.To, Rule: cmp.Or(d.Rule, "user"), Confidence: Confirmed,
-			Evidence: "You confirmed this."}, slot: slot, score: scoreConfirmed})
+		out = append(out, cand{From: d.From, Type: typ, To: d.To, Rule: cmp.Or(d.Rule, "user"), Confidence: Confirmed,
+			Evidence: "You confirmed this.", slot: slot, score: scoreConfirmed})
 	}
 	slices.SortFunc(out, func(a, b cand) int { return cmp.Compare(a.Key(), b.Key()) })
 	return out

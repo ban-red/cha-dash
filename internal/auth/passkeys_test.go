@@ -99,10 +99,10 @@ func (p *softPasskey) create(t *testing.T, o creationOptions) []byte {
 		t.Fatal(err)
 	}
 	cose, err := webauthncbor.Marshal(webauthncose.EC2PublicKeyData{
-		PublicKeyData: webauthncose.PublicKeyData{KeyType: int64(webauthncose.EllipticKey), Algorithm: int64(webauthncose.AlgES256)},
-		Curve:         int64(webauthncose.P256),
-		XCoord:        pub[1:33],
-		YCoord:        pub[33:],
+		KeyType: int64(webauthncose.EllipticKey), Algorithm: int64(webauthncose.AlgES256),
+		Curve:  int64(webauthncose.P256),
+		XCoord: pub[1:33],
+		YCoord: pub[33:],
 	})
 	if err != nil {
 		t.Fatal(err)

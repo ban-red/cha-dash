@@ -3,6 +3,7 @@ package topics
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -23,12 +24,7 @@ const plexDown = `{"id":"plex-down","scenario":"oom","class":"problem","severity
 func TestProjectIncident(t *testing.T) {
 	only := func(ids ...string) func(string) bool {
 		return func(id string) bool {
-			for _, x := range ids {
-				if x == id {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(ids, id)
 		}
 	}
 	p, ok := ProjectIncident(json.RawMessage(plexDown), only("app:plex"))

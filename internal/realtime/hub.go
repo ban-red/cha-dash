@@ -225,8 +225,7 @@ func (c *conn) serve() {
 	for {
 		m, err := c.read(c.ctx)
 		if err != nil {
-			var perr protocolError
-			if errors.As(err, &perr) {
+			if perr, ok := errors.AsType[protocolError](err); ok {
 				c.trySend(errorMsg{Op: "error", Code: codeBadRequest, Msg: perr.msg})
 				continue
 			}

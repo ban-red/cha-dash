@@ -567,8 +567,7 @@ func (s *Service) Fetch(ctx context.Context, raw string) (string, []byte, error)
 	req.Header.Set("User-Agent", "chadash/"+buildinfo.Version+" (icon cache; +https://dash.cha.sh)")
 	resp, err := s.client.Do(req)
 	if err != nil {
-		var re *refusedError
-		if errors.As(err, &re) {
+		if re, ok := errors.AsType[*refusedError](err); ok {
 			return "", nil, re
 		}
 		return "", nil, fmt.Errorf("fetching the icon failed: %s", cleanErr(err))
@@ -616,8 +615,7 @@ func compatible(declared, actual string) bool {
 // cleanErr drops the URL from a client error: the message is stored and
 // shown, and a URL could carry anything.
 func cleanErr(err error) string {
-	var ue *url.Error
-	if errors.As(err, &ue) {
+	if ue, ok := errors.AsType[*url.Error](err); ok {
 		err = ue.Err
 	}
 	if errors.Is(err, context.DeadlineExceeded) {

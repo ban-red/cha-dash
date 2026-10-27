@@ -89,7 +89,7 @@ func (p *plextv) last() *http.Request {
 // deps is what the runtime hands a sign-in: a verifying client, trusting
 // the fake's certificate only because roots says so.
 func deps(t *testing.T, roots *x509.CertPool) integration.AuthDeps {
-	c, err := runtime.NewHTTPClient(runtime.ClientOptions{HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSVerify}}, RootCAs: roots})
+	c, err := runtime.NewHTTPClient(runtime.ClientOptions{TLS: integration.TLSPolicy{Mode: integration.TLSVerify}, RootCAs: roots})
 	if err != nil {
 		t.Fatal(err)
 	}

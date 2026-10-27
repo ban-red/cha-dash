@@ -100,8 +100,7 @@ func Errorf(code, format string, args ...any) *Error {
 
 // CodeOf is err's code: an *Error's own, or CodeFailed.
 func CodeOf(err error) string {
-	var e *Error
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[*Error](err); ok {
 		return e.Code
 	}
 	return CodeFailed

@@ -176,8 +176,7 @@ func (s *Service) call(ctx context.Context, node, verb string, req, resp any, ti
 
 // statusOf maps an error from a node to an HTTP status and code.
 func statusOf(err error) (int, string, string) {
-	var off errNodeOffline
-	if errors.As(err, &off) {
+	if off, ok := errors.AsType[errNodeOffline](err); ok {
 		return http.StatusServiceUnavailable, "node_unavailable", off.Error()
 	}
 	if errors.Is(err, context.DeadlineExceeded) {

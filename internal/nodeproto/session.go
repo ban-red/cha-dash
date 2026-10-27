@@ -245,8 +245,7 @@ func (s *Session) serve(ctx context.Context, cancel context.CancelFunc, f Frame)
 	}
 	e, ok := err.(*Error)
 	if !ok {
-		var pe *Error
-		if errors.As(err, &pe) {
+		if pe, ok := errors.AsType[*Error](err); ok {
 			e = pe
 		} else {
 			e = &Error{Code: CodeFailed, Message: err.Error()}

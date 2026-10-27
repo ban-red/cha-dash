@@ -154,18 +154,18 @@ func TestTLSPin(t *testing.T) {
 	srv := tlsServer(t, a)
 	pin := integration.Fingerprint(a.x509)
 
-	c := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin, Pin: pin}}})
+	c := client(t, ClientOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin, Pin: pin}})
 	if err := get(c, srv.URL); err != nil {
 		t.Fatal(err)
 	}
 	other := strings.Repeat("0", 64)
-	c = client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin, Pin: other}}})
+	c = client(t, ClientOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin, Pin: other}})
 	err := get(c, srv.URL)
 	var te *integration.TLSError
 	if !errors.As(err, &te) || te.Code != integration.CodeTLSPinMismatch || te.Fingerprint != pin || te.Expected != other {
 		t.Fatalf("mismatch: %v", err)
 	}
-	if _, err := NewHTTPClient(ClientOptions{HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin}}}); err == nil {
+	if _, err := NewHTTPClient(ClientOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin}}); err == nil {
 		t.Fatal("pin mode without a pin")
 	}
 }
@@ -174,7 +174,7 @@ func TestTLSPinCA(t *testing.T) {
 	ca := newCert(t, "PVE Cluster Manager CA", true, nil)
 	leaf := newCert(t, "mars-1", false, &ca)
 	pin := integration.Fingerprint(ca.x509)
-	opts := ClientOptions{HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin, Pin: pin}}}
+	opts := ClientOptions{TLS: integration.TLSPolicy{Mode: integration.TLSPin, Pin: pin}}
 
 	// A leaf signed by the pinned CA, which the server presents: accepted,
 	// whatever host the URL names.
@@ -196,10 +196,9 @@ func TestTLSTOFU(t *testing.T) {
 	srvA, srvB := tlsServer(t, a), tlsServer(t, b)
 
 	var pins []string
-	c := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{
+	c := client(t, ClientOptions{
 		TLS:   integration.TLSPolicy{Mode: integration.TLSTOFU},
-		OnPin: func(p string) { pins = append(pins, p) },
-	}})
+		OnPin: func(p string) { pins = append(pins, p) }})
 	if err := get(c, srvA.URL); err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +222,7 @@ func TestTLSTOFU(t *testing.T) {
 	}
 
 	// A stored pin from an earlier run: a mismatch is refused immediately.
-	c = client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSTOFU, Pin: want}}})
+	c = client(t, ClientOptions{TLS: integration.TLSPolicy{Mode: integration.TLSTOFU, Pin: want}})
 	if err := get(c, srvB.URL); code(err) != integration.CodeTLSPinMismatch {
 		t.Fatalf("stored pin, other certificate: %v", err)
 	}
@@ -234,7 +233,7 @@ func TestTLSTOFU(t *testing.T) {
 
 func TestTLSInsecure(t *testing.T) {
 	srv := tlsServer(t, newCert(t, "anything", false, nil))
-	c := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{TLS: integration.TLSPolicy{Mode: integration.TLSInsecure}}})
+	c := client(t, ClientOptions{TLS: integration.TLSPolicy{Mode: integration.TLSInsecure}})
 	if err := get(c, srv.URL); err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +260,7 @@ func TestRedirectsAndHeaders(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{Headers: map[string]string{"X-Extra": "1"}}})
+	c := client(t, ClientOptions{Headers: map[string]string{"X-Extra": "1"}})
 	if err := get(c, srv.URL+"/same"); err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +270,7 @@ func TestRedirectsAndHeaders(t *testing.T) {
 	if err := get(c, srv.URL+"/away"); err == nil || !strings.Contains(err.Error(), "another origin") {
 		t.Fatalf("cross-origin redirect: %v", err)
 	}
-	nc := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{Redirects: integration.NoRedirects}})
+	nc := client(t, ClientOptions{Redirects: integration.NoRedirects})
 	resp, err := nc.Get(srv.URL + "/same")
 	if err != nil || resp.StatusCode != http.StatusFound {
 		t.Fatalf("no redirects: %v %v", resp, err)
@@ -311,7 +310,7 @@ func TestUnixSocket(t *testing.T) {
 	go srv.Serve(ln)
 	t.Cleanup(func() { srv.Close() })
 
-	c := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{UnixSocket: sock}})
+	c := client(t, ClientOptions{UnixSocket: sock})
 	resp, err := c.Get("http://docker/_ping")
 	if err != nil {
 		t.Fatal(err)
@@ -322,7 +321,7 @@ func TestUnixSocket(t *testing.T) {
 		t.Fatalf("over the socket: %q", got)
 	}
 	// Nothing listening: a refusal like any other, not a hang.
-	gone := client(t, ClientOptions{HTTPOptions: integration.HTTPOptions{UnixSocket: filepath.Join(dir, "none.sock")}})
+	gone := client(t, ClientOptions{UnixSocket: filepath.Join(dir, "none.sock")})
 	if err := get(gone, "http://docker/_ping"); code(err) != integration.CodeUnreachable {
 		t.Fatalf("missing socket: %v (%s)", err, code(err))
 	}
@@ -350,7 +349,7 @@ func TestWebSocket(t *testing.T) {
 		conn.Close(websocket.StatusNormalClosure, "")
 	}))
 	defer srv.Close()
-	c := client(t, ClientOptions{MaxBody: 1024, HTTPOptions: integration.HTTPOptions{Session: fixedSession("tok")}})
+	c := client(t, ClientOptions{MaxBody: 1024, Session: fixedSession("tok")})
 	conn, _, err := websocket.Dial(t.Context(), srv.URL, &websocket.DialOptions{HTTPClient: c.Client})
 	if err != nil {
 		t.Fatal(err)
@@ -443,7 +442,7 @@ func TestSession(t *testing.T) {
 	loginURL.Store(srv.URL + "/login")
 
 	s := &session{}
-	c, err := NewHTTPClient(ClientOptions{HTTPOptions: integration.HTTPOptions{Session: s}})
+	c, err := NewHTTPClient(ClientOptions{Session: s})
 	if err != nil {
 		t.Fatal(err)
 	}
