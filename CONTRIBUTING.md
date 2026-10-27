@@ -46,6 +46,16 @@ go fix ./...         # CI fails if the Go 1.27 modernizers would change anything
 
 After editing a theme in `design/tokens/themes/`, run `bun run generate` in `design/tokens`. CI fails when `dist/` is stale.
 
+**End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, and the safety ladder on the action engine. Playwright's test runner needs Node.js (any current LTS); nothing else here does.
+
+```sh
+bun run build && CGO_ENABLED=0 go build -tags webui -o chadash ./cmd/chadash   # the binary they test
+(cd web && bunx playwright install chromium)                                  # once
+bun run e2e          # starts the hub on 127.0.0.1:3698 with a fresh data directory
+```
+
+`CHADASH_E2E_BIN` tests another binary, `CHADASH_E2E_PORT` moves the hub, and `CHADASH_E2E_CHROMIUM` points at a Chromium of your own where Playwright can't install one.
+
 **Running locally.** One command. The hub runs on the Demo Home simulator, so you need no homelab:
 
 ```sh
@@ -88,6 +98,7 @@ docker build --target node -t chadash-node:dev .                      # its imag
 | JavaScript | frozen `bun install`, typecheck, lint, tests, design tokens up to date |
 | Workflows | zizmor's security audits of `.github/workflows/`; accepted findings and their reasons are in [`.github/zizmor.yml`](.github/zizmor.yml) |
 | Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui`, and chadash-node |
+| End-to-end | the hub with the SPA embedded, in Chromium: first run, the front page on desktop and phone, **axe (WCAG 2.2 AA) in all six themes**, the command bar, a T1 action and a T2 confirmation |
 | Image | amd64 and arm64 builds of the hub and the node (no push), a smoke run of each, **hub image ≤ 40 MB compressed**, **node binary ≤ 40 MB** |
 | Footprint (non-blocking) | the hub's RSS budgets, and the node binary's size |
 

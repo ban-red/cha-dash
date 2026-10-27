@@ -50,3 +50,8 @@ internal/webui/dist/
 
 # ESLint cache (bun run lint)
 .eslintcache
+
+# Playwright (web/e2e): the signed-in state, results and the HTML report
+web/e2e/.auth/
+web/test-results/
+web/playwright-report/
