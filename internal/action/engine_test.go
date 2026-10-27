@@ -765,11 +765,16 @@ func TestFailures(t *testing.T) {
 	if err := e.e.Cancel(t.Context(), owner, task.ID); err != nil {
 		t.Fatal(err)
 	}
-	if ev := e.lastEvent(); ev.Action != ActionCancel || ev.Result != audit.OK || ev.Target != "app:plex" || ev.Task != task.ID || ev.Actor.ID != owner.ID {
-		t.Fatalf("cancel audited as %+v", ev)
-	}
 	if got := e.wait(task.ID); got.State != StateCancelled || got.Error.Code != "cancelled" {
 		t.Fatalf("cancelled task = %+v", got)
+	}
+	// The cancel is recorded before the end it caused.
+	evs := e.events()
+	if ev := evs[len(evs)-2]; ev.Action != ActionCancel || ev.Result != audit.OK || ev.Target != "app:plex" || ev.Task != task.ID || ev.Actor.ID != owner.ID {
+		t.Fatalf("cancel audited as %+v", ev)
+	}
+	if end := evs[len(evs)-1]; end.Action != "x.block" || end.Result != audit.Failed || end.Task != task.ID || end.Error == nil || end.Error.Code != "cancelled" {
+		t.Fatalf("the cancelled task's end audited as %+v", end)
 	}
 	refusal(t, e.e.Cancel(t.Context(), owner, task.ID), "finished")
 	// An action that doesn't allow it is refused, and audited.
