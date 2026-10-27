@@ -66,7 +66,7 @@ async function portFree(port: number): Promise<boolean> {
 }
 
 // ── Preflight ────────────────────────────────────────────────────────────────
-if (!Bun.which('go')) fail('Go is not installed. go.mod pins Go 1.27.1; any Go from 1.21 on fetches it.');
+if (!Bun.which('go')) fail('Go is not installed. go.mod pins Go 1.27.3; any Go from 1.21 on fetches it.');
 if (!existsSync(join(ROOT, 'node_modules'))) {
   say('Installing JavaScript dependencies (bun install)');
   const install = Bun.spawnSync(['bun', 'install', '--frozen-lockfile'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' });
