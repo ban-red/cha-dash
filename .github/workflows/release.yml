@@ -16,6 +16,10 @@ on:
 
 permissions: {}
 
+# No job restores or saves an Actions cache: a release is built from the tag
+# alone, so nothing a poisoned cache entry holds can reach what gets signed.
+cache-mode: none
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false     # never stop a release halfway through a push
