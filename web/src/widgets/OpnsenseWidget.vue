@@ -32,13 +32,14 @@ const live = useLive();
 
 const router = computed(() => {
   const t = target ? resolve(live.graph.value, target) : undefined;
-  return t?.kind === 'router' ? t : byKind(live.graph.value, 'router')[0];
+  // A router, or an instance that hasn't published one yet (its repair shows).
+  return t?.kind === 'router' || t?.kind === 'integration' ? t : byKind(live.graph.value, 'router')[0];
 });
 const s = useSubject(() => router.value?.id);
 const wan = computed(() => {
   const g = live.graph.value;
   const own = router.value ? incoming(g, router.value.id, 'part_of').find((r) => r.kind === 'wan') : undefined;
-  return own ?? byKind(g, 'wan')[0];
+  return own ?? (router.value?.kind === 'integration' ? undefined : byKind(g, 'wan')[0]);
 });
 const w = (key: string) => series(live.metrics.value, wan.value?.id ?? '', key);
 const rx = computed(() => w('rx.mbps'));

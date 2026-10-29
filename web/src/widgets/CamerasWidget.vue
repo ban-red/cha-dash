@@ -37,7 +37,8 @@ const ORDER = ['driveway', 'front_door', 'garden', 'garage'];
 const picked = computed(() => (target ? resolve(live.graph.value, target) : undefined));
 const frigate = computed(() => {
   const p = picked.value;
-  if (p?.kind === 'app') return p;
+  // An app, or an instance that hasn't published one yet (its repair shows).
+  if (p?.kind === 'app' || p?.kind === 'integration') return p;
   if (p?.kind === 'camera') return incoming(live.graph.value, p.id, 'exposes')[0];
   return resolve(live.graph.value, 'app:frigate');
 });
@@ -75,7 +76,7 @@ const status = computed<TileStatus>(() => {
 });
 const frozen = computed(() => live.stale.value || frigateDown.value);
 const tag = computed(() => {
-  if (!cams.value.length) return '';
+  if (!cams.value.length) return status.value === 'ok' ? '' : undefined;
   if (frigateDown.value) return undefined;
   if (troubled.value.length === 1) return `${label(troubled.value[0])} ${camStatus(troubled.value[0]!) === 'down' ? 'offline' : 'degraded'}`;
   if (troubled.value.length) return `${troubled.value.length} cameras need you`;
@@ -125,7 +126,11 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
     :as-of="frigateDown ? normalizeHealth(frigate).since : undefined"
     :incident="s.problem ?? s.repair ?? live.problems.value.find((i) => troubled.some((c) => c.id === i.target))"
   >
-    <template v-if="!cams.length">
+    <template v-if="!cams.length && s.needsRepair">
+      <div class="v sm word">—</div>
+      <StateNote :subject="s" />
+    </template>
+    <template v-else-if="!cams.length">
       <div class="v sm word">No cameras</div>
       <p class="lab">Connect Frigate to see your cameras here.</p>
     </template>

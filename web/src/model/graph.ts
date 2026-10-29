@@ -101,6 +101,18 @@ export function integrationOf(g: GraphDoc | undefined, id: string | undefined): 
   return id ? incoming(g, id, 'monitors').find((r) => r.kind === 'integration') : undefined;
 }
 
+/**
+ * What a tile bound to an integration instance (`bind.instance`) shows: the
+ * app the instance monitors, else the first thing it monitors, else (before
+ * its first sync, when it has published nothing) the instance itself, whose
+ * health and repair say why.
+ */
+export function boundTo(g: GraphDoc | undefined, instance: string): string | undefined {
+  const self = `integration:${instance}`;
+  const watched = outgoing(g, self, 'monitors');
+  return (watched.find((r) => r.kind === 'app') ?? watched[0])?.id ?? (g?.resources[self] ? self : undefined);
+}
+
 export function attr<T = unknown>(r: Resource | undefined, key: string): T | undefined {
   return r?.attrs?.[key] as T | undefined;
 }

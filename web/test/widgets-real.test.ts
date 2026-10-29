@@ -331,6 +331,56 @@ describe('service tile on real instances', () => {
   });
 });
 
+describe('a tile bound to an instance that has never synced', () => {
+  /** The import's item ids: dedicated widgets without a target, `arr` with the app it expects. */
+  const ITEMS: Record<string, string> = {
+    plex: 'plex',
+    homeassistant: 'homeassistant',
+    cameras: 'cameras',
+    opnsense: 'opnsense',
+    traefik: 'traefik',
+    uptimekuma: 'uptimekuma',
+    downloads: 'downloads',
+    arr: 'arr@sonarr:i_new/app',
+    service: 'service@homepage:media/new',
+  };
+  /** The home's healthy apps are all there to fall back to (Tautulli, Frigate, a router); the bound instance has only its own resource, needing repair. */
+  function broken(type: string): Data {
+    const d = home();
+    const g = d.graph;
+    g.resources['integration:i_new'] = { id: 'integration:i_new', kind: 'integration', name: 'New', health: { status: 'repair', reason: 'the token was rejected' }, attrs: { type } };
+    d.inbox.incidents['i_new.repair'] = { id: 'i_new.repair', class: 'repair', severity: 'attention', status: 'open', title: 'It rejected its credential', summary: '', target: 'integration:i_new', opened_at: NOW };
+    return d;
+  }
+
+  for (const [type, id] of Object.entries(ITEMS)) {
+    it(`${type}: says it needs repair, not another app's state`, () => {
+      const h = harness(broken(type));
+      h.board.tiles.value = { [id]: { bind: { instance: 'i_new' } } };
+      for (const size of WIDGETS[type]!.sizes) {
+        const w = h.mountIn(WidgetHost, { item: { id, type }, size });
+        const tile = w.find('article.tile');
+        expect(tile.attributes('aria-label'), `${type} ${size}`).toMatch(/needs repair/);
+        // The service tile says why in its own words, without a button.
+        if (type !== 'service' && size !== 'glyph' && !size.startsWith('strip')) expect(w.find('.note button').text(), `${type} ${size}`).toBe('Reconnect');
+        expect(w.text(), `${type} ${size}`).not.toMatch(/\bidle\b|WAN up|recording|undefined|NaN/);
+        w.unmount();
+      }
+    });
+  }
+
+  it('shows the bound instance’s app once it has one, over the first of its type', () => {
+    const d = broken('plex');
+    d.graph.resources['plex:i_new/app'] = { id: 'plex:i_new/app', kind: 'app', name: 'Plex', state: 'running', health: 'ok', attrs: { type: 'plex', movies: 12 } };
+    d.graph.relations['integration:i_new monitors plex:i_new/app'] = { from: 'integration:i_new', type: 'monitors', to: 'plex:i_new/app' };
+    const h = harness(d);
+    h.board.tiles.value = { plex: { bind: { instance: 'i_new' } } };
+    const w = h.mountIn(WidgetHost, { item: { id: 'plex', type: 'plex' }, size: 'wide' });
+    expect(w.text()).toContain('12 movies');
+    expect(w.find('article.tile').attributes('aria-label')).toMatch(/needs repair/);
+  });
+});
+
 describe('infrastructure widgets on real instances', () => {
   it('reads a Proxmox node without temperatures, with its guests and storage', () => {
     const { w } = mountReal('host', 'large');
