@@ -16,6 +16,7 @@ Written from [spike 4.2](../../spikes/unraid/README.md) and tested against its c
 |---|---|
 | `url` | The server's webGUI address, `http://` or `https://`. The API is `POST <url>/graphql`; a URL that already ends in `/graphql` works too |
 | `tls` | `{"mode": "verify" \| "pin" \| "tofu" \| "insecure", "pin": "<sha256>"}` |
+| `parity_control` | `true` to add the four parity actions in `control` mode (default off). It needs `array:update_any` on the key |
 | `mode` | `read_only` (the default, and what a config without it means) or `control`: the answer to "Read-only, or let Cha Dash control Unraid?". It decides which scopes the recipe's consent link asks for and whether the instance has actions. It can be switched later; nothing needs deleting |
 | `api_key` | Sent as the `x-api-key` header, and nowhere else |
 
@@ -127,6 +128,12 @@ Only a controllable instance (`mode: control`) has actions; a read-only one has 
 | `unraid.vm.resume` | T1 | `unraid.vm.pause` | `vms:update_any` | `vm { resume(id) }` | it reports `running` |
 | `unraid.vm.reboot` | T2 | — | `vms:update_any` | `vm { reboot(id) }` | it reports `running` (it may not have left `running` yet, so this checks little) |
 | `unraid.vm.force_stop` | T3 | — | `vms:update_any` | `vm { forceStop(id) }` (cuts the power) | it reports `stopped` |
+| `unraid.array.parity_start` | T2 | `unraid.array.parity_cancel` | **`array:update_any`** | `parityCheck { start(correct) }` (param `correct`, off by default) | the array reports a running check |
+| `unraid.array.parity_pause` | T1 | `unraid.array.parity_resume` | `array:update_any` | `parityCheck { pause }` | paused |
+| `unraid.array.parity_resume` | T1 | `unraid.array.parity_pause` | `array:update_any` | `parityCheck { resume }` | running |
+| `unraid.array.parity_cancel` | T2 | — | `array:update_any` | `parityCheck { cancel }` | no check running |
+
+The parity actions exist only when the instance has **Also let Cha Dash run parity checks** (`parity_control`) on, in `control` mode. Their target is the instance's `array` resource. A plain Control key lacks `array:update_any`, so they refuse as `unavailable` naming it; the recipe's parity link asks for it. Cha Dash never sends `array { setState }` (start or stop the array) or the disk add and remove mutations: they share the scope, and the four parity mutations are all the integration can send.
 
 The names and scopes of the last eight come from Unraid's published schema and resolvers at 4.37.2 (`DockerMutations`, `VmMutations`; every Docker and VM mutation is `UPDATE_ANY`, except `removeContainer`, which is `DELETE_ANY`). They are tested against the fake server only; run them against a throwaway container and VM before trusting them on jupiter. `docker:delete_any` comes only from the "full control" consent link: a plain Control key doesn't have it, so Remove refuses as `unavailable` and says which scope is missing.
 
@@ -135,7 +142,7 @@ The names and scopes of the last eight come from Unraid's published schema and r
 - **Preconditions** (`409 precondition`): already running or stopped; paused (resume it in Unraid); a VM that's shutting down; a container from a Compose Manager stack can't be updated (Unraid's update covers template containers only); pause needs a running target, unpause and resume a paused one, and reboot a running VM; remove needs a stopped container (Cha Dash won't remove a running one); force stop is refused on a VM that's already off.
 - **Timeouts:** mutations get a 15-minute HTTP client, since Unraid answers a stop or an update when it's done; an update may run 15 minutes, a VM shutdown 5, and verifying waits 1 to 3 minutes.
 - **Audit:** the target and empty params; the key never appears in a plan, task log or audit record.
-- **Not offered: parity check and array stop** (the plan's T2/T3, allowed to slip to v0.2.x). Both need `array:update_any`, which also lets a key add and remove disks, and the dogfooding rules keep writes off the array. They can come later with a separate, explicit opt-in.
+- **Not offered: array start and stop.** They need `array:update_any` like parity does, but a mistake takes the whole server down, so the dogfooding rules keep them off. Parity checks are offered behind their own switch (above).
 
 ## Repairs and warnings
 

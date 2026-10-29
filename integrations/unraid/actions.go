@@ -42,6 +42,12 @@ const (
 	ActVMResume         = "unraid.vm.resume"
 	ActVMReboot         = "unraid.vm.reboot"
 	ActVMForceStop      = "unraid.vm.force_stop"
+
+	// Parity checks: the array's only actions, and only when parity_control is on.
+	ActParityStart  = "unraid.array.parity_start"
+	ActParityPause  = "unraid.array.parity_pause"
+	ActParityResume = "unraid.array.parity_resume"
+	ActParityCancel = "unraid.array.parity_cancel"
 )
 
 // The mutations, one operation each. Field names are the published schema's
@@ -62,11 +68,18 @@ const (
 	mVMResume        = `mutation ChadashVMResume($id: PrefixedID!) { vm { resume(id: $id) } }`
 	mVMReboot        = `mutation ChadashVMReboot($id: PrefixedID!) { vm { reboot(id: $id) } }`
 	mVMForceStop     = `mutation ChadashVMForceStop($id: PrefixedID!) { vm { forceStop(id: $id) } }`
+
+	// The parity mutations answer a JSON scalar, so they select nothing.
+	mParityStart  = `mutation ChadashParityStart($correct: Boolean!) { parityCheck { start(correct: $correct) } }`
+	mParityPause  = `mutation ChadashParityPause { parityCheck { pause } }`
+	mParityResume = `mutation ChadashParityResume { parityCheck { resume } }`
+	mParityCancel = `mutation ChadashParityCancel { parityCheck { cancel } }`
 )
 
 // mutations lists every write the integration can send (tests check them).
 var mutations = []string{mContainerStart, mContainerStop, mContainerUpdate, mVMStart, mVMStop,
-	mContainerRestart, mContainerPause, mContainerUnpause, mContainerRemove, mVMPause, mVMResume, mVMReboot, mVMForceStop}
+	mContainerRestart, mContainerPause, mContainerUnpause, mContainerRemove, mVMPause, mVMResume, mVMReboot, mVMForceStop,
+	mParityStart, mParityPause, mParityResume, mParityCancel}
 
 // mutationTimeout bounds one mutation: Unraid answers a stop or an update
 // when it's done, which takes longer than a read's 15 s.
@@ -89,6 +102,8 @@ type writeScope struct {
 var (
 	writeDocker = writeScope{"DOCKER", "docker:update_any", "Docker", "change Docker containers", "starting, stopping, updating and pausing containers", "UPDATE", "Update"}
 	writeVMs    = writeScope{"VMS", "vms:update_any", "VMs", "start or stop VMs", "starting, stopping and pausing VMs", "UPDATE", "Update"}
+	// Not part of control: only with parity_control on, and a key made with the parity consent link.
+	writeArray = writeScope{"ARRAY", "array:update_any", "Array", "run parity checks", "starting, pausing, resuming and cancelling parity checks", "UPDATE", "Update"}
 	// Not part of control: only a key made with the "full control" consent link has it.
 	writeDockerDelete = writeScope{"DOCKER", "docker:delete_any", "Docker", "remove Docker containers", "removing containers", "DELETE", "Delete"}
 	controlScopes     = []writeScope{writeDocker, writeVMs}
@@ -161,7 +176,21 @@ func (in *instance) Actions() []action.Def {
 	for _, d := range []*action.Def{&cStop, &cUpdate, &vStop, &cRestart, &cPause, &cRemove, &vPause, &vReboot, &vForce} {
 		d.Disrupts = true
 	}
-	return []action.Def{cStart, cStop, cUpdate, cRestart, cPause, cUnpause, cRemove, vStart, vStop, vPause, vResume, vReboot, vForce}
+	defs := []action.Def{cStart, cStop, cUpdate, cRestart, cPause, cUnpause, cRemove, vStart, vStop, vPause, vResume, vReboot, vForce}
+	if !in.parity {
+		return defs
+	}
+	pStart := def(ActParityStart, "Start a parity check", "array", action.T2, "Ask Unraid to start a parity check on %s", "Wait for it to report running")
+	pStart.Undo = act.UndoBy(ActParityCancel, "Cancel the parity check")
+	pStart.Params = integration.Params(integration.Object(
+		integration.Prop("correct", integration.Boolean("Correct errors it finds").Describe("Writes the correction to the parity disk. Leave it off to only check.")),
+	))
+	pPause := def(ActParityPause, "Pause the parity check", "array", action.T1, "Ask Unraid to pause the parity check on %s", "Wait for it to report paused")
+	pPause.Undo = act.UndoBy(ActParityResume, "Resume the parity check")
+	pResume := def(ActParityResume, "Resume the parity check", "array", action.T1, "Ask Unraid to resume the parity check on %s", "Wait for it to report running")
+	pResume.Undo = act.UndoBy(ActParityPause, "Pause the parity check")
+	pCancel := def(ActParityCancel, "Cancel the parity check", "array", action.T2, "Ask Unraid to cancel the parity check on %s", "Wait for it to stop")
+	return append(defs, pStart, pPause, pResume, pCancel)
 }
 
 // resolver resolves this instance's containers or VMs with a fresh read, so
@@ -169,6 +198,16 @@ func (in *instance) Actions() []action.Def {
 func (in *instance) resolver(kind string) func(context.Context, string) (action.Target, error) {
 	return func(ctx context.Context, target string) (action.Target, error) {
 		rest, ok := strings.CutPrefix(target, in.prefix)
+		if kind == "array" && ok && rest == "array" {
+			rt, err := in.find(ctx, kind, "")
+			if err != nil {
+				return action.Target{}, err
+			}
+			in.actMu.Lock()
+			in.resolved[target] = rt
+			in.actMu.Unlock()
+			return action.Target{ID: target, Kind: kind, Name: rt.name, State: act.Fingerprint(kind, rt.name, rt.state), Ref: rt.ref}, nil
+		}
 		k, key, _ := strings.Cut(rest, "/")
 		if !ok || k != kind || key == "" {
 			return action.Target{}, action.ErrNotFound
@@ -186,6 +225,22 @@ func (in *instance) resolver(kind string) func(context.Context, string) (action.
 
 // find reads one container (by name) or VM (by UUID).
 func (in *instance) find(ctx context.Context, kind, key string) (resolvedTarget, error) {
+	if kind == "array" {
+		var r struct {
+			Array arrayData `json:"array"`
+		}
+		if err := in.query(ctx, "ChadashArray", qArray, &r); err != nil {
+			return resolvedTarget{}, in.readRefused(err)
+		}
+		p, state := r.Array.Parity, "IDLE"
+		switch {
+		case p.Paused != nil && *p.Paused || p.Status == "PAUSED":
+			state = "PAUSED"
+		case p.Running != nil && *p.Running || p.Status == "RUNNING":
+			state = "RUNNING"
+		}
+		return resolvedTarget{kind: kind, name: "the array", state: state, ref: "array"}, nil
+	}
 	if kind == "container" {
 		var r struct {
 			Docker struct {
@@ -279,6 +334,8 @@ func scopeFor(actionID string) writeScope {
 	switch {
 	case strings.HasPrefix(actionID, "unraid.vm."):
 		return writeVMs
+	case strings.HasPrefix(actionID, "unraid.array."):
+		return writeArray
 	case actionID == ActContainerRemove:
 		return writeDockerDelete
 	}
@@ -366,6 +423,25 @@ func (in *instance) preconditions(ctx context.Context, req action.Request) error
 		if vmState(rt.state) == "stopped" {
 			return action.Precondition(name + " is already shut down.")
 		}
+	case ActParityStart:
+		if rt.state != "IDLE" {
+			return action.Precondition("A parity check is already " + strings.ToLower(rt.state) + ".")
+		}
+	case ActParityPause:
+		switch rt.state {
+		case "PAUSED":
+			return action.Precondition("The parity check is already paused.")
+		case "IDLE":
+			return action.Precondition("No parity check is running.")
+		}
+	case ActParityResume:
+		if rt.state != "PAUSED" {
+			return action.Precondition("The parity check isn't paused.")
+		}
+	case ActParityCancel:
+		if rt.state == "IDLE" {
+			return action.Precondition("No parity check is running.")
+		}
 	}
 	return nil
 }
@@ -417,15 +493,37 @@ func (in *instance) Execute(ctx context.Context, req action.Request, run *action
 		op, doc, verb = "ChadashVMReboot", mVMReboot, "reboot"
 	case ActVMForceStop:
 		op, doc, verb = "ChadashVMForceStop", mVMForceStop, "force stop"
+	case ActParityStart:
+		op, doc, verb = "ChadashParityStart", mParityStart, "start a parity check on"
+	case ActParityPause:
+		op, doc, verb = "ChadashParityPause", mParityPause, "pause the parity check on"
+	case ActParityResume:
+		op, doc, verb = "ChadashParityResume", mParityResume, "resume the parity check on"
+	case ActParityCancel:
+		op, doc, verb = "ChadashParityCancel", mParityCancel, "cancel the parity check on"
 	default:
 		return action.Fail("unknown_action", "Unraid has no action "+req.Action+".")
 	}
 	if req.Target.Ref == "" {
 		return action.Fail("not_found", "Cha Dash couldn't find "+req.Target.Name+" in Unraid.")
 	}
+	// The parity mutations take no id; only start takes a flag.
+	vars := map[string]any{"id": req.Target.Ref}
+	if strings.HasPrefix(req.Action, "unraid.array.") {
+		vars = nil
+		if req.Action == ActParityStart {
+			var p struct {
+				Correct bool `json:"correct"`
+			}
+			if err := req.Decode(&p); err != nil {
+				return action.Fail("invalid_params", "The parity check options aren't valid.")
+			}
+			vars = map[string]any{"correct": p.Correct}
+		}
+	}
 	run.Step("Ask Unraid to " + verb + " " + req.Target.Name)
 	var data map[string]map[string]json.RawMessage
-	err := in.do(ctx, in.mutationClient(), op, doc, map[string]any{"id": req.Target.Ref}, &data)
+	err := in.do(ctx, in.mutationClient(), op, doc, vars, &data)
 	if err != nil {
 		return in.mutationFailed(req, verb, err)
 	}
@@ -494,6 +592,12 @@ func (in *instance) verify(ctx context.Context, req action.Request, run *action.
 		want, step, words = func(s string) bool { return vmState(s) == "paused" }, "Wait for it to report paused", "paused"
 	case ActVMResume, ActVMReboot:
 		want, step, words = func(s string) bool { return vmState(s) == "running" }, "Wait for it to report running", "running"
+	case ActParityStart, ActParityResume:
+		want, step, words = func(s string) bool { return s == "RUNNING" }, "Wait for the parity check to report running", "running"
+	case ActParityPause:
+		want, step, words = func(s string) bool { return s == "PAUSED" }, "Wait for the parity check to report paused", "paused"
+	case ActParityCancel:
+		want, step, words = func(s string) bool { return s == "IDLE" }, "Wait for the parity check to stop", "idle"
 	default:
 		return nil
 	}

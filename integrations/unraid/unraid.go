@@ -72,13 +72,15 @@ func (Integration) Manifest() integration.Manifest {
 			integration.Prop("mode", integration.Enum("Read-only, or let Cha Dash control Unraid?", ModeReadOnly, ModeControl).
 				Titled("Read-only", "Control: start, stop and update containers and VMs").WithDefault(ModeReadOnly).
 				Describe("Control needs a key with Docker and VM update scopes; the recipe's consent link asks for the scopes the choice needs. You can switch later without deleting the instance.")),
+			integration.Prop("parity_control", integration.Boolean("Also let Cha Dash run parity checks").
+				Describe("Control mode only. Starts, pauses, resumes and cancels parity checks. It needs a key with Array: Update, which Unraid also lets add and remove disks: use the recipe's parity link, and Cha Dash never sends anything but the four parity mutations.")),
 			integration.Prop("api_key", integration.Secret("API key").Describe("A key from the consent link below, or from "+keysPage+".")),
 		).Require("url", "api_key"),
 		Poll: integration.Poll{Interval: syncInterval, Timeout: syncTimeout},
 		// One key (decision 6): in control mode it acts with the grants Test
 		// reports as docker and vms, so those aren't a "write grant" warning.
 		// A read-only instance offers no actions at all.
-		Control: &integration.Control{Mode: "mode", ModeOn: ModeControl, Grants: []string{"docker", "vms"}},
+		Control: &integration.Control{Mode: "mode", ModeOn: ModeControl, Grants: []string{"docker", "vms", "array"}},
 	}
 }
 
@@ -118,6 +120,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 		d: d, name: cfg.Name, prefix: ID + ":" + key + "/", instanceID: cfg.InstanceID,
 		endpoint: ep.String(), web: web.String(), apiKey: cfg.String("api_key"),
 		control:  cfg.String("mode") == ModeControl,
+		parity:   cfg.String("mode") == ModeControl && cfg.Values["parity_control"] == true,
 		warnings: map[string]integration.Warning{},
 		resolved: map[string]resolvedTarget{},
 	}
@@ -140,7 +143,10 @@ type instance struct {
 	urlIP    string // the URL's host when it's an IP address
 	// control is the instance's mode: true when the owner chose to let Cha
 	// Dash control Unraid. Read-only instances have no actions.
-	control    bool
+	control bool
+	// parity is control with parity checks switched on: it adds the array
+	// scope (and the four parity actions) to what the key must grant.
+	parity     bool
 	instanceID string // for the recipe an unavailable action points to
 
 	// apiMu guards api, which Sync and Test write and actions read.
@@ -216,7 +222,7 @@ func (in *instance) Test(ctx context.Context) integration.TestResult {
 		return failed
 	default:
 		res.Grants = me.Me.grants()
-		warnings, missing := me.Me.check(in.control)
+		warnings, missing := me.Me.check(in.control, in.parity)
 		res.Warnings = append(res.Warnings, warnings...)
 		if missing != "" {
 			res.OK, res.ErrorCode, res.ErrorMessage = false, CodeMissingPermission, missing
@@ -542,7 +548,7 @@ func (m meData) can(resource, verb string) bool {
 // read is required (missing says so), Docker and shares are warnings, and
 // a controllable instance also wants to read VMs and to update Docker and
 // VMs (each missing one is a warning naming the actions it stops).
-func (m meData) check(control bool) (warnings []integration.Warning, missing string) {
+func (m meData) check(control, parity bool) (warnings []integration.Warning, missing string) {
 	if !m.canRead("ARRAY") {
 		missing = "The API key can't read the array (it needs ARRAY: Read). Add it in Unraid under " + keysPage + "."
 	}
@@ -557,7 +563,11 @@ func (m meData) check(control bool) (warnings []integration.Warning, missing str
 		}
 	}
 	if control {
-		for _, s := range controlScopes {
+		scopes := controlScopes
+		if parity {
+			scopes = append(slices.Clone(controlScopes), writeArray)
+		}
+		for _, s := range scopes {
 			if !m.can(s.resource, "UPDATE") {
 				warnings = append(warnings, integration.Warning{Code: CodeMissingPermission, Severity: integration.WarnWarning,
 					Message: "Cha Dash is set to control Unraid, but the API key can't " + s.what + " (it needs " + s.resource + ": Update), so " + s.actions + " will say so. " + addScopeHelp(s)})

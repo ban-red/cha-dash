@@ -1,6 +1,6 @@
 # 12 · Unraid control beyond start, stop and update
 
-> **Status: step 1 (from the published schema) and steps 4 and 5 are built; steps 2, 3 and 6 aren't.** Step 3 changed: there is no `full` mode (see Design). It builds on [08 · v0.2 → Unraid](08-v0.2.md) and [ADR-0010](../adr/0010-unraid-stays-unraid.md), and uses the "can slip to v0.2.x" row for parity and array in 08's action table.
+> **Status: step 1 (from the published schema) and steps 2, 4, 5 and 6 are built; step 3 was dropped. The live run (7) and the array start and stop are not done.** Step 3 changed: there is no `full` mode (see Design). It builds on [08 · v0.2 → Unraid](08-v0.2.md) and [ADR-0010](../adr/0010-unraid-stays-unraid.md), and uses the "can slip to v0.2.x" row for parity and array in 08's action table.
 
 ## What exists
 
@@ -50,11 +50,11 @@ Parity and array actions don't get a mode either. They need `array:update_any`, 
 ## Plan
 
 1. **Spike.** Names, arguments and scopes: done, from the published source (above). Still to do, against the dogfood server with a throwaway key, VM and container: what each mutation does live (does `removeContainer` stop a running container? how long does `reboot` take to leave `running`?), what happens with a missing scope, and what the consent page shows for `docker:delete_any`.
-2. **Grants in the action list.** Read grants once per sync window, not only before an action. Show unavailable actions with their missing scope. No new actions yet; this alone fixes the "key with more access" case.
+2. **Grants in the action list.** *Already true.* The action list (`internal/action/list.go`) runs each action's preconditions, so a missing scope shows as unavailable with its sentence before anything is planned.
 3. ~~**Modes.**~~ Dropped: no `full` mode (see Design). The second consent link already covers it.
 4. **Low-risk actions.** *Built.* Container restart (T2), pause and unpause; VM pause, resume and reboot (T2). Fake-server tests per action in `actions_test.go`.
 5. **Remove and force stop.** *Built.* T3, typed name; the plan says the image stays.
-6. **Parity.** The extra recipe choice, then pause, resume and start.
+6. **Parity.** *Built.* A `parity_control` switch on the connection (off by default, `control` mode only), a third consent link with `array:update_any`, and start (with a `correct` param, off), pause, resume and cancel on the `array` resource. Array start and stop stay out.
 7. **Live run.** A checklist like [08b](08-v0.2-live-runs.md), on a throwaway VM and container only. Never on jupiter's real guests.
 
 Docs move with each step: the integration README's scope and action tables, the recipe, `internal/README.md` if routes change, and `CHANGELOG.md`.

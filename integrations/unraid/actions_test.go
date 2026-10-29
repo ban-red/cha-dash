@@ -3,6 +3,7 @@ package unraid
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -427,6 +428,101 @@ func TestVMPauseResumeRebootForceStop(t *testing.T) {
 		t.Fatalf("plan = %+v", plan)
 	}
 	if m := l.took(); len(m) != 4 || !strings.HasPrefix(m[3], "ChadashVMForceStop ") {
+		t.Fatalf("mutations = %v", m)
+	}
+}
+
+// parityLab serves the array with the lab's parity check state, and applies
+// the four parity mutations to it.
+func (l *lab) parityLab() {
+	state := "IDLE"
+	l.srv.handlers["ChadashArray"] = func(map[string]any) []byte {
+		var doc map[string]map[string]map[string]any
+		if err := json.Unmarshal(fixture(l.t, "array.json"), &doc); err != nil {
+			l.t.Error(err)
+			return nil
+		}
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		p := doc["data"]["array"]["parityCheckStatus"].(map[string]any)
+		switch state {
+		case "RUNNING":
+			p["status"], p["running"], p["paused"] = "RUNNING", true, false
+		case "PAUSED":
+			p["status"], p["running"], p["paused"] = "PAUSED", false, true
+		}
+		b, _ := json.Marshal(doc)
+		return b
+	}
+	for op, next := range map[string]string{"ChadashParityStart": "RUNNING", "ChadashParityPause": "PAUSED", "ChadashParityResume": "RUNNING", "ChadashParityCancel": "IDLE"} {
+		l.srv.handlers[op] = func(vars map[string]any) []byte {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+			l.mutations = append(l.mutations, op+" "+fmt.Sprint(vars["correct"]))
+			state = next
+			return []byte(`{"data":{"parityCheck":{"x":{}}}}`)
+		}
+	}
+}
+
+func TestParityActions(t *testing.T) {
+	l := newLab(t)
+	l.parityLab()
+	// Control alone doesn't offer them.
+	in, _ := controlled(t, l)
+	if n := len(integration.ActionDefs(in)); n != 13 {
+		t.Fatalf("%d actions without parity_control", n)
+	}
+
+	h := integrationtest.New(t)
+	in = h.Connect(Integration{}, map[string]any{"url": l.srv.URL, "mode": ModeControl, "parity_control": true}, map[string]string{"api_key": apiKey}).(*instance)
+	if err := in.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	defs := integration.ActionDefs(in)
+	var ids []string
+	for _, d := range defs {
+		if strings.HasPrefix(d.ID, "unraid.array.") {
+			ids = append(ids, d.ID+"="+d.Tier.String())
+		}
+	}
+	if want := []string{"unraid.array.parity_start=T2", "unraid.array.parity_pause=T1", "unraid.array.parity_resume=T1", "unraid.array.parity_cancel=T2"}; !slices.Equal(ids, want) {
+		t.Fatalf("parity actions = %v", ids)
+	}
+	env := acttest.New(t, h.Set.Graph, defs...)
+	array := "unraid:i_test/array"
+
+	// The control key has no Array: Update.
+	r := env.Refusal(ActParityStart, array, nil)
+	if r.Code != "unavailable" || !strings.Contains(r.Message, "Array: Update (array:update_any)") {
+		t.Fatalf("refusal = %+v", r)
+	}
+	if m := l.took(); len(m) != 0 {
+		t.Fatalf("sent %v", m)
+	}
+
+	l.srv.set("ChadashMe", meBody(t, nil, append(append([]perm(nil), controlKey...), perm{"ARRAY", []string{"READ_ANY", "UPDATE_ANY"}})...))
+	in.actMu.Lock()
+	in.meAt = time.Time{}
+	in.actMu.Unlock()
+
+	if r := env.Refusal(ActParityPause, array, nil); r.Code != "precondition" || r.Message != "No parity check is running." {
+		t.Fatalf("refusal = %+v", r)
+	}
+	_, plan := env.Succeeded(ActParityStart, array, map[string]any{"correct": false})
+	if plan.Undo == nil || plan.Undo.Action != ActParityCancel {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if r := env.Refusal(ActParityStart, array, nil); r.Code != "precondition" || r.Message != "A parity check is already running." {
+		t.Fatalf("refusal = %+v", r)
+	}
+	env.Succeeded(ActParityPause, array, nil)
+	if r := env.Refusal(ActParityResume, "unraid:i_test/container/tautulli", nil); r.Code != "not_found" {
+		t.Fatalf("a container isn't a parity target: %+v", r)
+	}
+	env.Succeeded(ActParityResume, array, nil)
+	env.Succeeded(ActParityCancel, array, nil)
+	if m := l.took(); !slices.Equal(m, []string{"ChadashParityStart false", "ChadashParityPause <nil>", "ChadashParityResume <nil>", "ChadashParityCancel <nil>"}) {
 		t.Fatalf("mutations = %v", m)
 	}
 }

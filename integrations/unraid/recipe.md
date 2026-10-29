@@ -50,6 +50,12 @@ More than Cha Dash asks for by itself: copy one of these instead, if you want a 
 {{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,array:read_any,docker:read_any,docker:update_any,docker:delete_any,vms:read_any,vms:update_any,share:read_any,me:read_any
 ```
 
+**Control, and parity checks.** The Control scopes plus update access to Array, for **Also let Cha Dash run parity checks** in the form. Unraid also lets a key with Array update add and remove disks. Cha Dash only sends the four parity mutations (start, pause, resume, cancel), and never the array start and stop.
+
+```url
+{{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,array:read_any,array:update_any,docker:read_any,docker:update_any,vms:read_any,vms:update_any,share:read_any,me:read_any
+```
+
 ## Create the key
 
 Check what the page asks for: **read** access to Info, Array, Docker, VMs, Share and Me, and, for Control only, **update** access to Docker and VMs. Then create the key. Unraid shows it once: paste it into **API key**.
