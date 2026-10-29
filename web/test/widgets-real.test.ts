@@ -316,10 +316,12 @@ describe('service tile on real instances', () => {
     expect(w.find('.note').text()).toContain("Karakeep's API changed.");
   });
 
-  it('shows a plain URL as its status code, latency and uptime', () => {
+  it('shows a plain URL as Up or Down, then latency, uptime and status code', () => {
     const { w } = mountReal('service', 'wide', 'check:i_c/sonarr');
-    expect(w.find('.v').text()).toBe('200HTTP');
+    expect(w.find('.v').text()).toBe('Up');
     expect(w.find('.sub').text()).toBe('54 ms · 100% up · 24 h');
+    const down = mountReal('service', 'small', 'check:i_c/nas');
+    expect(down.w.find('.v').text()).toBe('Down');
     const g = mountReal('service', 'glyph', 'check:i_c/sonarr');
     expect(g.w.find('.gv .g-link').exists()).toBe(true);
   });

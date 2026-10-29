@@ -28,12 +28,12 @@
  * | audiobookshelf | `streams` | `books`, `podcasts` |
  * | paperlessngx | `documents` | `inbox` |
  * | speedtesttracker | `dl.mbps` | `ul.mbps`, `ping.ms` |
- * | a plain URL (`check`) | `attrs.status_code` (else latency) | latency, uptime 24 h |
+ * | a plain URL (`check`) | Up or Down, from its health | latency, uptime 24 h, status code |
  * | anything else | its first series that isn't a latency | the check's latency |
  */
 import { fmtInt, fmtNum, hhmm } from '../lib/format';
 import { attr, byKind, incoming, series } from '../model/graph';
-import type { GraphDoc, MetricsDoc, Resource, Series } from '../model/types';
+import { normalizeHealth, type GraphDoc, type MetricsDoc, type Resource, type Series } from '../model/types';
 import { LATENCY_KEYS, fmtUptime, latencyOf, metricWords, nextRelease, trendOf, typeOf, unitOf, uptimeOf } from './read';
 
 export interface Fact {
@@ -235,20 +235,26 @@ const READERS: Record<string, (c: Ctx) => Reading> = {
   speedtesttracker: (c) => metric(c, ['dl.mbps'], 'Mb/s ↓', { facts: [...mf(c, 'ul.mbps', 'Mb/s ↑'), ...mf(c, 'ping.ms', 'ms ping')] }),
 };
 
-/** A plain URL's built-in check (or an Uptime Kuma monitor): status code, latency, uptime. */
+/** A check's state in a word: what a tile leads with, rather than a status code. */
+const CHECK_WORDS: Partial<Record<string, string>> = { ok: 'Up', attention: 'Up', down: 'Down', maintenance: 'Paused', off: 'Off' };
+
+/**
+ * A plain URL's built-in check (or an Uptime Kuma monitor): Up or Down, then
+ * latency, uptime and the HTTP status code. Up includes a warning (an
+ * untrusted certificate still answers); "—" before the first check.
+ */
 function check(c: Ctx): Reading {
   const lat = latencyOf(c.m, c.r.id);
   const code = attr<number>(c.r, 'status_code');
   const uptime = uptimeOf(c.r, lat?.series);
-  const latency: Fact[] = lat ? [{ value: fmtInt(lat.series.value), label: 'ms' }] : [];
-  const up: Fact[] = [{ value: `${fmtUptime(uptime)}%`, label: 'up · 24 h' }];
-  if (typeof code === 'number') {
-    const out: Reading = { value: code, text: String(code), unit: 'HTTP', key: 'status_code', facts: [...latency, ...up] };
-    if (lat) out.series = lat.series;
-    return out;
-  }
-  const v = lat?.series.value ?? null;
-  const out: Reading = { value: v, text: fmtInt(v), unit: 'ms', key: lat?.key ?? 'http.ms', facts: up };
+  const word = CHECK_WORDS[normalizeHealth(c.r).status];
+  const facts: Fact[] = [
+    ...(lat ? [{ value: fmtInt(lat.series.value), label: 'ms' }] : []),
+    { value: `${fmtUptime(uptime)}%`, label: 'up · 24 h' },
+    ...(typeof code === 'number' ? [{ value: String(code), label: 'HTTP' }] : []),
+  ];
+  const known = word ? (typeof code === 'number' ? code : (lat?.series.value ?? 0)) : null;
+  const out: Reading = { value: known, text: word ?? '—', unit: '', key: typeof code === 'number' ? 'status_code' : (lat?.key ?? 'http.ms'), facts };
   if (lat) out.series = lat.series;
   return out;
 }

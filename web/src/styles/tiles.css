@@ -183,8 +183,12 @@ a.mono.has-icon:hover {
 }
 .v {
   display: flex;
+  /* A unit too long to sit beside the number ("subtitles missing" on a
+     small tile) drops to its own line; still too long, it ends in "…". */
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 3px;
+  gap: 2px 3px;
+  min-width: 0;
   white-space: nowrap;
   font: var(--weight-medium) var(--type-value) / 1 var(--font-num);
   letter-spacing: var(--tracking-value);
@@ -192,6 +196,10 @@ a.mono.has-icon:hover {
   color: var(--text);
 }
 .v .u {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.44em;
   font-weight: var(--weight-medium);
   letter-spacing: 0;

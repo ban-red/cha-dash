@@ -31,6 +31,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Checks say Up or Down.** A check's tile leads with Up or Down instead of an HTTP status code; the code, latency and uptime sit below it.
+- **A tile's address opens the service.** The address at the bottom of a check or service tile is a link that opens in a new tab.
+- **Long units wrap on small tiles.** A unit too long to sit beside its number ("subtitles missing") moves to the line below instead of running off the tile.
 - **A tile's status mark sits bottom right** when it stands alone, clear of the settings cog. With words beside it ("WAN down since 14:02") it stays with them.
 - **The certificate fingerprint field shows only for pin and tofu,** the two modes that use it.
 - **Optional groups are folded.** A group of optional settings, such as TLS, starts closed, with what it holds in its header ("verify", "pin · 3f2a1b9c…"). It opens by itself when a field inside needs fixing.

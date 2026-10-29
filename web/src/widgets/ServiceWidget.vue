@@ -180,7 +180,10 @@ const origin = computed(() => originLabel(meta.value));
         />
       </div>
       <div class="tf">
-        <span>{{ footer || (href ? hostOf(href) : '') }}</span>
+        <span v-if="footer">{{ footer }}</span>
+        <a v-else-if="href" class="svc-link" :href="href" target="_blank" rel="noopener noreferrer" @click.stop>
+          <span>{{ hostOf(href) || 'Open' }}</span><span aria-hidden="true"> ↗</span>
+        </a>
       </div>
     </template>
   </Frame>
