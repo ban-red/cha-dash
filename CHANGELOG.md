@@ -17,6 +17,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Import history, with Revert.** Every import is listed with what it made. Revert shows its plan first: it removes only what the import created and nobody changed since, keeps the rest and says why, and asks you to confirm it's you before removing connections.
 - The first-run wizard's Import step now runs inside the wizard, with the same preview. An empty board offers the ways in.
 
+### Fixed
+
+- **Docker through the node after a hub restart.** If the hub started before its node reconnected, the Docker instance showed "invalid config" for up to five minutes and its actions were unavailable. It now retries within seconds.
+- **Remove with volumes deletes the anonymous volumes.** After Cha Dash had recreated a container, removing it with its volumes kept the anonymous volume while the task said it was deleted. The node now deletes them itself and reports what it kept.
+- **Secret fields have one input.** Every secret in an integration's form showed a second, empty text box under it. What you typed there was never saved.
+- **Cha Dash knows the Proxmox guest it runs in, behind a Docker bridge.** Its Docker engine, reached through the node, was only suggested as running on the guest with its name. With the guest's cores and memory too, the link is made, so shutting down, stopping or rebooting Cha Dash's own guest is T4 (off by default) instead of an ordinary action. Setting `hub_vmid` is still the sure way.
+- A deploy that rolls back on its own now ends its log on the rollback's commit, not the attempt's.
+
 ## [0.2.0-beta.1] - 2026-10-29
 
 The first published beta of Cha Dash, and the first of v0.2: **Cha Dash starts changing things.** Actions on Docker, Proxmox VE, Proxmox Backup Server and Unraid run through one engine. Each one shows its plan and what it affects, asks for the confirmation its risk needs, offers undo where it can, runs as a task you can follow or cancel, and lands in a tamper-evident audit log. A second image, `ghcr.io/ban-red/chadash-node`, holds the host's Docker socket so the hub never does, follows a local policy you write, deploys compose stacks you own, and can take over stacks from Dockhand and Hawser. Roles, API tokens and notifications come with it.
