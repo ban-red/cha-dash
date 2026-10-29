@@ -6,6 +6,7 @@ Docker Compose is the main way to run Cha Dash ([ADR-0007](../docs/adr/0007-dock
 |---|---|
 | [`compose.yaml`](compose.yaml) | The hub, plus chadash-node for this host's Docker |
 | [`compose.socket-proxy.yaml`](compose.socket-proxy.yaml) | An override that swaps the node for a read-only Docker socket proxy (reads only) |
+| [`compose.node.yaml`](compose.node.yaml) | chadash-node alone, for another Docker host ([Nodes on other hosts](#nodes-on-other-hosts)) |
 | [`compose.demo.yaml`](compose.demo.yaml) | An override that runs the built-in Demo Home simulator |
 | [`unraid/`](unraid/README.md) | A Community Applications template for Unraid |
 
@@ -136,7 +137,7 @@ A key file that others can read (Docker Swarm mounts secrets `0444`) is accepted
 
 ## The node
 
-`chadash-node` is Cha Dash's hands on a Docker host ([ADR-0006](../docs/adr/0006-owned-stacks-and-thin-node.md)). In v0.2 one node runs beside the hub, on the hub's own host; remote nodes come in v0.3. The hub never mounts the Docker socket: everything Docker goes through the node, and the node only does what its policy allows.
+`chadash-node` is Cha Dash's hands on a Docker host ([ADR-0006](../docs/adr/0006-owned-stacks-and-thin-node.md)). In v0.2 one node runs beside the hub, on the hub's own host, and others can join it by hand ([Nodes on other hosts](#nodes-on-other-hosts)); enrollment from the hub, with approval in the Inbox, comes in v0.3. The hub never mounts the Docker socket: everything Docker goes through the node, and the node only does what its policy allows.
 
 **Pairing is automatic.** On first start the hub writes a pairing token, `cdp_<secret>.<hub key>`, to `/pairing/token` in the `pairing` volume, which only the hub and the node mount. The node reads it, checks the hub's key before it says anything, and presents the secret; the hub enrolls and approves it as `local`. Nothing else on the network can pair: a container without the volume has no secret, and the hub refuses keys it doesn't know. The secret is single-use: pairing spends it and the hub writes a fresh one into the file, so a copy of the volume is worth nothing once the node has paired. Pairing is accepted only from private and loopback addresses (`CHADASH_NODE_PAIRING_FROM` on the hub widens or narrows that), and never under the name of a node that's already enrolled. The channel is mutual TLS 1.3 inside the WebSocket on port 3696, with each side's Ed25519 key pinned ([ADR-0014](../docs/adr/0014-node-transport.md)).
 
@@ -195,6 +196,29 @@ docker compose -f compose.yaml -f compose.socket-proxy.yaml up -d
 and add Docker with the endpoint `tcp://socket-proxy:2375`. That proxy allows `GET` on containers (list, inspect, stats), images, `info`, `version` and `events`, only from `chadash`, over an internal network.
 
 **Upgrading from 0.1.** Pull the new `compose.yaml`, then `docker compose up -d --remove-orphans` (the old `socket-proxy` service goes). Edit your Docker instance's endpoint from `tcp://socket-proxy:2375` to `node://local`. To keep the proxy instead, add `-f compose.socket-proxy.yaml` to your commands.
+
+### Nodes on other hosts
+
+[`compose.node.yaml`](compose.node.yaml) runs chadash-node alone, for a Docker host the hub doesn't run on. Until v0.3 brings enrollment from the hub, it pairs with the hub's pairing token, passed once:
+
+1. **Read the token** on the hub's host. It's the one the hub writes for its own node; once that node has paired, the file holds a fresh one:
+   ```sh
+   docker run --rm -v chadash_pairing:/p:ro busybox cat /p/token
+   ```
+2. **On the other host**, fetch the file into a folder of its own and give it three settings in `.env`:
+   ```sh
+   curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.node.yaml
+   printf 'CHADASH_HUB=ws://<hub host>:3696/node\nCHADASH_NODE_NAME=<this host>\nCHADASH_PAIRING=<token>\n' > .env
+   docker compose -f compose.node.yaml up -d
+   ```
+3. **Check Settings** lists the node, then **delete the `CHADASH_PAIRING` line**. The token was spent when the node paired, so the line is worth nothing; the node reconnects on its identity in the `node` volume.
+4. **Add Docker** with the endpoint `node://<this host>`.
+
+What to know:
+- **The node dials the hub**, on port 3696; nothing listens on the node's host. The hub must be reachable from it, and it accepts pairing only from private and loopback addresses (`CHADASH_NODE_PAIRING_FROM`).
+- **A token pairs one node, under the name it asks for.** It's refused for a name already enrolled; revoke the old node first.
+- **Treat the token like a password until it's spent:** whoever presents it first becomes a node, approved at once. v0.3's join tokens add an approval in the Inbox.
+- The same [local policy](#the-node) applies. Mount it with the commented line in the file. Its stacks root defaults to `/opt/stacks`, mounted at the same path. To keep stacks elsewhere, set `stacks.root` in the policy and mount that path instead.
 
 ### Docker on another host
 

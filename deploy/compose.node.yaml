@@ -1,0 +1,50 @@
+# chadash-node on another Docker host: Cha Dash's hands there, for a hub
+# that runs elsewhere on your network. Nothing listens here: the node dials
+# the hub.
+#
+# Before remote enrollment lands (v0.3), a remote node pairs with a token the
+# hub writes on first start, passed to the node once. On the hub's host:
+#
+#   docker run --rm -v chadash_pairing:/p:ro busybox cat /p/token
+#
+# Then on this host, next to this file:
+#
+#   printf 'CHADASH_HUB=ws://<hub host>:3696/node\nCHADASH_NODE_NAME=<this host>\nCHADASH_PAIRING=<token>\n' > .env
+#   docker compose -f compose.node.yaml up -d
+#
+# Once Settings → Nodes lists the node, delete the CHADASH_PAIRING line from
+# .env. The token is single-use: the hub writes a fresh one as soon as it's
+# spent, so the line is worth nothing afterwards. The node keeps its identity
+# in the `node` volume and reconnects without it. README, "Nodes on other
+# hosts", has the details.
+
+name: chadash-node
+
+services:
+  chadash-node:
+    image: ghcr.io/ban-red/chadash-node:latest
+    restart: unless-stopped
+    # As in compose.yaml: uid 0, the socket's owner, with every capability
+    # dropped. To run it unprivileged instead: user "65532:65532" and
+    # group_add with the gid from `stat -c %g /var/run/docker.sock`.
+    user: "0:0"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777     # the healthcheck's state file
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - node:/etc/chadash-node      # its identity; add policy.yaml here (README)
+      - /opt/stacks:/opt/stacks     # owned stacks; the same path inside and out, so compose's relative paths work
+    #   - ./policy.yaml:/etc/chadash-node/policy.yaml:ro
+    environment:
+      CHADASH_NODE_HUB: ${CHADASH_HUB:?set CHADASH_HUB to the hub's ws://<host>:3696/node}
+      CHADASH_NODE_NAME: ${CHADASH_NODE_NAME:?set CHADASH_NODE_NAME to what the hub should call this host}
+      CHADASH_NODE_PAIRING: ${CHADASH_PAIRING:-}   # only until the node has paired
+    # The healthcheck comes from the image: `/chadash-node healthcheck`.
+
+volumes:
+  node:

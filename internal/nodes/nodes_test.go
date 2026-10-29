@@ -415,6 +415,45 @@ func TestPairingSecretIsSingleUse(t *testing.T) {
 	}
 }
 
+// TestNodeOnAnotherHost is deploy/compose.node.yaml's flow: the hub's own
+// node pairs from the shared file, then a node elsewhere pairs under its own
+// name with the token the hub wrote next, passed once (CHADASH_NODE_PAIRING,
+// no file). Both serve, and a restart that still carries the spent token
+// reconnects on the node's identity instead of pairing again.
+func TestNodeOnAnotherHost(t *testing.T) {
+	e := newEnv(t, true)
+	e.startNodeWith(t.TempDir(), "local", e.token(), node.DefaultPolicy(), func(c *node.Config) { c.PairingFile = e.pairing })
+	eventually(t, "the local node", func() bool { return e.hub.Connected("local") })
+
+	tok := e.token()
+	dir := t.TempDir()
+	remote := e.startNode(dir, "attic", tok, node.DefaultPolicy())
+	eventually(t, "the remote node", func() bool { return e.hub.Connected("attic") })
+	if e.token() == tok {
+		t.Fatal("the remote node's pairing didn't spend the token")
+	}
+	for _, name := range []string{"local", "attic"} {
+		if _, err := e.hub.Call(t.Context(), name, "container.list", nil, nil); err != nil {
+			t.Fatalf("call %s: %v", name, err)
+		}
+	}
+	rec, err := e.hub.ByName(t.Context(), "attic")
+	if err != nil || rec.State != StateApproved {
+		t.Fatalf("record %+v %v", rec, err)
+	}
+
+	remote.stop()
+	eventually(t, "the hub to notice", func() bool { return !e.hub.Connected("attic") })
+	e.startNode(dir, "attic", tok, node.DefaultPolicy())
+	eventually(t, "the remote node to reconnect", func() bool { return e.hub.Connected(rec.ID) })
+	if list, _ := e.hub.List(t.Context()); len(list) != 2 {
+		t.Fatalf("nodes after the restart: %v", list)
+	}
+	if n := e.refusedWith(nodeproto.CodeBadPairing); n != 0 {
+		t.Fatalf("the restart presented the spent token: %d refusals", n)
+	}
+}
+
 // TestRevokeRegeneratesTheSecret: after a revoke, the secret anyone could
 // have read before is dead; the admin route regenerates it too, audited
 // (review finding 1).
