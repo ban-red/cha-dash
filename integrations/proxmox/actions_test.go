@@ -515,7 +515,8 @@ func TestSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantTask(t, acts.Wait(task.ID), action.StateSucceeded)
-	f.writes.Expect(t, integrationtest.Write{Method: "POST", Path: "/api2/json/nodes/io/qemu/201/snapshot/pre-upgrade/rollback"})
+	// It was running, so it's started again after the rollback.
+	f.writes.Expect(t, integrationtest.Write{Method: "POST", Path: "/api2/json/nodes/io/qemu/201/snapshot/pre-upgrade/rollback", Form: form("start", "1")})
 	wantEvent(t, acts, actSnapRollback, gid("qemu/201"), "T3", "ok")
 
 	wantTask(t, acts.Run(actSnapDelete, gid("qemu/201"), map[string]any{"name": "pre-upgrade"}), action.StateSucceeded)

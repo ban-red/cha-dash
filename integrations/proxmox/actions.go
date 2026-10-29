@@ -161,7 +161,11 @@ func (in *instance) Actions() []action.Def {
 	rollback.Label = func(r action.Request) string { return fmt.Sprintf("Roll %s back to %s", r.Target.Name, snapName(r)) }
 	rollback.Preconditions = in.snapshotCheck(true)
 	rollback.Steps = func(r action.Request) []action.Step {
-		return []action.Step{{Label: fmt.Sprintf("Roll %s back to snapshot %s; what changed since is lost", r.Target.Name, snapName(r))}, {Label: "Check Proxmox VE finished the rollback"}}
+		return []action.Step{
+			{Label: fmt.Sprintf("Roll %s back to snapshot %s; what changed since is lost", r.Target.Name, snapName(r))},
+			{Label: "Proxmox VE stops it to roll back; if it was running, it's started again"},
+			{Label: "Check Proxmox VE finished the rollback"},
+		}
 	}
 	rollback.Execute = in.snapshotTask(http.MethodPost, "rollback", "roll back to")
 	rollback.Verify = in.taskOK
@@ -663,8 +667,16 @@ func (in *instance) snapshotTask(method, sub, verb string) func(context.Context,
 			segs = append(segs, sub)
 			priv = "VM.Snapshot and VM.Snapshot.Rollback"
 		}
+		// Without start, Proxmox VE leaves a guest it rolled back stopped
+		// (unless the snapshot holds RAM): start it again if it was running.
+		var form url.Values
+		if sub == "rollback" {
+			if st, err := in.current(ctx, g); err == nil && st.Status == "running" {
+				form = url.Values{"start": {"1"}}
+			}
+		}
 		run.Step(fmt.Sprintf("Asking %s to %s snapshot %s", g.node, verb, name))
-		return in.task(ctx, run, r, g.node, method, g.path(segs...), nil, verb+" snapshot "+name+" of "+r.Target.Name, priv)
+		return in.task(ctx, run, r, g.node, method, g.path(segs...), form, verb+" snapshot "+name+" of "+r.Target.Name, priv)
 	}
 }
 

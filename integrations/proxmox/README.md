@@ -155,7 +155,7 @@ Guest actions, per the Tiers table in [08 · v0.2](../../docs/plan/08-v0.2.md#ti
 | `proxmox.guest.reboot` | T2 | — | `POST …/status/reboot` `timeout=180` | reports `running` | `VM.PowerMgmt` |
 | `proxmox.guest.stop` (hard stop) | T2 | — | `POST …/status/stop` | reports `stopped` | `VM.PowerMgmt` |
 | `proxmox.guest.snapshot.create` (`name`, `description`?, `vmstate`?) | T1 | `snapshot.delete` (T3) | `POST …/snapshot` | listed | `VM.Snapshot` |
-| `proxmox.guest.snapshot.rollback` (`name`) | T3 | — | `POST …/snapshot/{name}/rollback` | the task ended OK | `VM.Snapshot`, `VM.Snapshot.Rollback` |
+| `proxmox.guest.snapshot.rollback` (`name`) | T3 | — | `POST …/snapshot/{name}/rollback`, with `start=1` when the guest was running (PVE leaves it stopped otherwise) | the task ended OK | `VM.Snapshot`, `VM.Snapshot.Rollback` |
 | `proxmox.guest.snapshot.delete` (`name`) | T3 | — | `DELETE …/snapshot/{name}` | not listed | `VM.Snapshot` |
 | `proxmox.guest.backup` (`storage`?, `mode`?) | T1 | — | `POST /nodes/{node}/vzdump` `vmid`, `storage`, `mode` | the task ended OK | `VM.Backup`, `Datastore.AllocateSpace` |
 
