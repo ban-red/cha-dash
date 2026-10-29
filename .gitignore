@@ -7,6 +7,7 @@ Thumbs.db
 
 # Local data & secrets — never commit
 /data/
+/data-real/
 .env
 .env.*
 !.env.example

@@ -4,7 +4,9 @@
  *
  * Builds and starts the hub on the Demo Home simulator (demo mode, data in ./data,
  * on 127.0.0.1:3696), waits until it's healthy, then starts the Vite dev server with
- * hot reload, which proxies /api and /ws to the hub. Ctrl-C stops both.
+ * hot reload, which proxies /api and /ws to the hub. Ctrl-C stops both. With --real
+ * the hub runs without the simulator, on your own integrations, with its data in
+ * ./data-real so the demo's stays apart.
  *
  * The hub is built with -tags devlogin, so the setup and sign-in screens offer
  * "Login as Local Dev": one click, no password. It signs in as the owner, creating
@@ -12,12 +14,14 @@
  * first-run form above it still works if you'd rather go through setup.
  *
  *   bun run dev              reuse ./data, so your owner account and layouts survive
- *   bun run dev --fresh      wipe ./data first: a brand-new instance, back at first-run setup
+ *   bun run dev --fresh      wipe the data directory first: a brand-new instance, back at first-run setup
+ *   bun run dev --real       no demo: a real home, from ./data-real (add --fresh to wipe that one)
  *   bun run dev --now        run the demo on the real clock in UTC, not from 14:05 shown as local time
  *   bun run dev --check      check prerequisites and ports, start nothing
  *
  * CHADASH_* variables pass through to the hub, e.g. `CHADASH_DEMO_SEED=2 bun run dev`.
- * If a hub already answers on :3696, it's reused and only the dev server starts.
+ * If a hub already answers on :3696, it's reused and only the dev server starts,
+ * in whatever mode it was started in: stop it to switch between demo and --real.
  */
 import { existsSync, rmSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -32,7 +36,13 @@ if (args.has('--help') || args.has('-h')) {
 
 const LISTEN = process.env.CHADASH_LISTEN ?? '127.0.0.1:3696';
 const HUB = `http://${LISTEN.startsWith(':') ? '127.0.0.1' + LISTEN : LISTEN}`;
-const DATA = process.env.CHADASH_DATA_DIR ?? join(ROOT, 'data');
+const REAL = args.has('--real');
+if (REAL && args.has('--now')) {
+  console.error('--now sets the demo clock, and --real runs no demo. Pick one.');
+  process.exit(2);
+}
+const DEFAULT_DATA = join(ROOT, REAL ? 'data-real' : 'data');
+const DATA = process.env.CHADASH_DATA_DIR ?? DEFAULT_DATA;
 const BIN = join(ROOT, 'bin', 'chadash-dev');
 const WEB_PORT = 3697; // matches web/vite.config.ts
 const WEB_URL = `http://localhost:${WEB_PORT}`;
@@ -119,10 +129,10 @@ async function pipe(stream: ReadableStream<Uint8Array>, label: string, onLine?: 
 
 if (!reuseHub) {
   if (args.has('--fresh')) {
-    if (process.env.CHADASH_DATA_DIR) fail('--fresh only wipes the default ./data. Unset CHADASH_DATA_DIR, or delete your directory yourself.');
+    if (process.env.CHADASH_DATA_DIR) fail(`--fresh only wipes the default ./${relative(ROOT, DEFAULT_DATA)}. Unset CHADASH_DATA_DIR, or delete your directory yourself.`);
     if (existsSync(DATA)) {
       rmSync(DATA, { recursive: true, force: true });
-      say('Wiped ./data: this is a brand-new instance');
+      say(`Wiped ./${relative(ROOT, DATA)}: this is a brand-new instance`);
     }
   }
 
@@ -139,8 +149,8 @@ if (!reuseHub) {
   };
   if (args.has('--now')) env.CHADASH_DEMO_AT = 'now';
 
-  say(`Starting the hub on the Demo Home at ${HUB}`);
-  const hub = Bun.spawn([BIN, 'serve', '--demo'], { cwd: ROOT, env, stdout: 'pipe', stderr: 'pipe' });
+  say(REAL ? `Starting the hub at ${HUB}, no demo, data in ./${relative(ROOT, DATA) || DATA}` : `Starting the hub on the Demo Home at ${HUB}`);
+  const hub = Bun.spawn([BIN, 'serve', ...(REAL ? [] : ['--demo'])], { cwd: ROOT, env, stdout: 'pipe', stderr: 'pipe' });
   children.push(hub);
   let firstRun = false;
   const watch = (line: string) => {
@@ -169,10 +179,10 @@ if (!reuseHub) {
   if (firstRun) {
     console.log(`\n  ${yellow('First run.')} Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}, or create an owner (admin) in the form\n`);
   } else {
-    console.log(`\n  Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}${dim(' (signs in as the owner). Start over with')} bun run dev --fresh\n`);
+    console.log(`\n  Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}${dim(' (signs in as the owner). Start over with')} ${REAL ? 'bun run dev:real --fresh' : 'bun run dev --fresh'}\n`);
   }
 } else {
-  say(`Reusing the hub already running at ${HUB} ${dim('(Login as Local Dev shows only if it was built by bun run dev)')}`);
+  say(`Reusing the hub already running at ${HUB}, in whatever mode it started in ${dim('(demo or --real; stop it to switch. Login as Local Dev shows only if bun run dev built it)')}`);
 }
 
 // ── Web ──────────────────────────────────────────────────────────────────────

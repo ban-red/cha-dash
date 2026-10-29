@@ -71,6 +71,7 @@ It builds the hub, waits until it's healthy, and starts the Vite dev server (whi
 | Command | What it does |
 |---|---|
 | `bun run dev:fresh` | Wipes `./data` first: a brand-new instance, no owner yet |
+| `bun run dev:real` | No Demo Home: the hub runs on your own integrations, with its data in `./data-real` (git-ignored, apart from the demo's `./data`). Add `--fresh` to wipe it. A hub already running on :3696 is reused in whatever mode it started in, so stop it to switch |
 | `bun run dev --now` | Runs the demo on the real clock in UTC, with the script at its own hours, instead of from 14:05 shown as your local time |
 | `bun run dev --check` | Checks prerequisites and ports, starts nothing |
 

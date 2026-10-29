@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "bun scripts/dev.ts",
     "dev:fresh": "bun scripts/dev.ts --fresh",
+    "dev:real": "bun scripts/dev.ts --real",
     "build": "bun run --filter @chadash/web build",
     "test": "bun run --filter '*' test",
     "e2e": "bun run --filter @chadash/web e2e",
