@@ -194,14 +194,8 @@ func (in *instance) preconditions(verb, policy string) func(context.Context, act
 	return func(ctx context.Context, req action.Request) error {
 		ref := refOf(req)
 		name := req.Target.Name
-		switch {
-		case verb == "start" && ref.State == "running":
-			return action.Precondition(name + " is already running.")
-		case verb == "stop" && ref.State != "running" && ref.State != "restarting" && ref.State != "paused":
-			return action.Precondition(name + " isn't running.")
-		case verb == "remove" && ref.State == "running":
-			return action.Precondition(name + " is running. Stop it first.")
-		}
+		// The node first: "stop it first" is no help when the policy
+		// refuses the verb whatever the state.
 		res, err := in.d.Nodes.Call(ctx, in.ep.node, "container.can", map[string]string{"id": ref.ID, "permission": policy}, nil)
 		if err != nil {
 			return action.Unavailable(in.unreachable(err), in.key)
@@ -211,17 +205,33 @@ func (in *instance) preconditions(verb, policy string) func(context.Context, act
 			Reason  string `json:"reason"`
 		}
 		if json.Unmarshal(res, &can) != nil || !can.Allowed {
-			return action.Unavailable(sentence(can.Reason), in.key)
+			return action.Unavailable(sentence(can.Reason, name), in.key)
+		}
+		switch {
+		case verb == "start" && ref.State == "running":
+			return action.Precondition(name + " is already running.")
+		case verb == "stop" && ref.State != "running" && ref.State != "restarting" && ref.State != "paused":
+			return action.Precondition(name + " isn't running.")
+		case verb == "remove" && ref.State == "running":
+			return action.Precondition(name + " is running. Stop it first.")
 		}
 		return nil
 	}
 }
 
-func sentence(s string) string {
+// sentence makes a node's reason a sentence: a capital and a full stop,
+// except where it starts with a name (keep), which is written as it is.
+func sentence(s string, keep ...string) string {
 	if s == "" {
 		return "chadash-node refuses this."
 	}
-	s = strings.ToUpper(s[:1]) + s[1:]
+	named := false
+	for _, k := range keep {
+		named = named || (k != "" && strings.HasPrefix(s, k))
+	}
+	if !named {
+		s = strings.ToUpper(s[:1]) + s[1:]
+	}
 	if !strings.HasSuffix(s, ".") {
 		s += "."
 	}

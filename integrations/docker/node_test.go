@@ -482,8 +482,21 @@ func TestDockerActionsThroughTheNode(t *testing.T) {
 	// The node's policy refusing remove makes it unavailable, with its sentence.
 	e.node.mu.Lock()
 	e.node.deny["docker.remove"] = "this node's policy doesn't allow docker.remove"
+	e.node.state["sonarr"] = "running"
 	e.node.mu.Unlock()
+	// Running, the policy still answers first: "stop it first" wouldn't help.
+	if _, err := e.plan("docker.container.remove", sonarr, ""); !isRefusal(err, "unavailable") || !strings.Contains(err.Error(), "This node's policy") {
+		t.Fatalf("remove of a running container under a policy without it = %v", err)
+	}
+	// A reason that starts with the container's name keeps it as written.
 	e.node.mu.Lock()
+	e.node.deny["docker.lifecycle"] = "sonarr is this node's own container; the node never acts on itself"
+	e.node.mu.Unlock()
+	if _, err := e.plan("docker.container.restart", sonarr, ""); !isRefusal(err, "unavailable") || !strings.Contains(err.Error(), "sonarr is this node's own container;") || strings.Contains(err.Error(), "Sonarr is") {
+		t.Fatalf("a reason led by the name = %v", err)
+	}
+	e.node.mu.Lock()
+	delete(e.node.deny, "docker.lifecycle")
 	e.node.state["sonarr"] = "exited"
 	e.node.mu.Unlock()
 	if _, err := e.plan("docker.container.remove", sonarr, ""); !isRefusal(err, "unavailable") || !strings.Contains(err.Error(), "docker.remove") {

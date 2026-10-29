@@ -59,6 +59,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A reverse proxy's 404 isn't "the API changed".** When a service behind a proxy was down, the proxy's 404 raised an API-changed repair. A 404 before anything else answered now reads as unreachable.
 - **Cha Dash's own stack is protected with an override file.** With a `compose.override.yaml`, Settings → Stacks listed it as "can't adopt" and accepted drafts under its name; deploying one was still refused. It's now shown as Cha Dash's own stack, and drafts are refused.
 - A deploy that rolls back on its own now ends its log on the rollback's commit, not the attempt's.
+- **A protected container says why it can't be removed.** Removing a running container the node protects asked you to stop it first, which the node also refused. It now says the node protects it, with the container's name as written.
 
 ## [0.2.0-beta.1] - 2026-10-29
 
