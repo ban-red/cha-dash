@@ -17,10 +17,11 @@
  * the CSP keeps images from other origins out), else the monogram. A tile
  * that needs you keeps the monogram, whose colour is the state.
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
 import { hhmm, monogram } from '../lib/format';
+import { focusScrollables } from '../lib/scrollable';
 import { safeUrl } from '../model/types';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
@@ -106,8 +107,15 @@ const icon = computed(() => {
 // with it (WCAG 2.5.3, Label in Name).
 const linkLabel = computed(() => (icon.value ? `Open ${shownName.value}` : `${mark.value}, open ${shownName.value}`));
 
-/** A control inside the tile (a row that opens its sheet, the mark's link) keeps its own click and keys. */
-const fromControl = (e: Event) => e.target !== e.currentTarget && (e.target as Element | null)?.closest?.('button, a, input, select, textarea, summary') != null;
+/** A control inside the tile (a row that opens its sheet, the mark's link, a list that scrolls) keeps its own click and keys. */
+const fromControl = (e: Event) =>
+  e.target !== e.currentTarget && (e.target as Element | null)?.closest?.('button, a, input, select, textarea, summary, [data-scrolls]') != null;
+
+// A list with more rows than room scrolls, so it takes keyboard focus meanwhile.
+const root = ref<HTMLElement | null>(null);
+let stopScrollables: (() => void) | undefined;
+onMounted(() => root.value && (stopScrollables = focusScrollables(root.value)));
+onBeforeUnmount(() => stopScrollables?.());
 
 function onClick(e: MouseEvent) {
   if (clickable && !fromControl(e)) emit('open');
@@ -124,6 +132,7 @@ function onKey(e: KeyboardEvent) {
 
 <template>
   <article
+    ref="root"
     :class="classes"
     :aria-label="label"
     :aria-busy="loading || undefined"

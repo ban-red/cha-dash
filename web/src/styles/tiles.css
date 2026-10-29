@@ -411,6 +411,11 @@ a.mono.has-icon:hover {
 }
 
 /* lists: incidents, agenda, containers */
+/* A list that scrolls takes focus (lib/scrollable.ts); its ring sits inside,
+   where the tile can't clip it. */
+.list[data-scrolls]:focus-visible {
+  outline-offset: -2px;
+}
 /* A tile's list scrolls when it has more rows than room; the wheel moves on
    to the page at either end. */
 .list {
