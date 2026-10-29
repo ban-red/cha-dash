@@ -204,6 +204,11 @@ func (in *instance) negotiate(ctx context.Context) error {
 	pingAPI := resp.Header.Get("Api-Version")
 	status := resp.StatusCode
 	drain(resp)
+	// A 5xx is an endpoint that's there but can't answer yet, such as a
+	// node that hasn't reconnected after a hub restart: retry it soon.
+	if status >= 500 {
+		return &integration.StatusError{Method: http.MethodGet, Path: "/_ping", Code: status}
+	}
 	if status != http.StatusOK && !denied(status) {
 		return &integration.ConfigError{Field: "endpoint",
 			Message: fmt.Sprintf("%s doesn't look like a Docker API: GET /_ping answered %d", in.ep.raw, status)}

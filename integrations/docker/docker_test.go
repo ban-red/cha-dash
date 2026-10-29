@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -573,6 +574,16 @@ func TestRepairs(t *testing.T) {
 	res := h.Connect(Integration{}, map[string]any{"endpoint": "tcp://" + ln.Addr().String()}, nil).Test(t.Context())
 	if res.OK || res.ErrorCode != integration.CodeInvalidConfig || !strings.Contains(res.ErrorMessage, "doesn't look like a Docker API") {
 		t.Fatalf("not docker: %+v", res)
+	}
+
+	// A node that isn't connected yet answers 503: retried soon, not a bad config.
+	busy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"node local isn't connected"}`, http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(busy.Close)
+	err = h.Connect(Integration{}, map[string]any{"endpoint": "tcp://" + strings.TrimPrefix(busy.URL, "http://")}, nil).Sync(t.Context(), integrationtest.Watched)
+	if code, class, _ := integration.Classify(err); code != integration.CodeUpstream || class != integration.Transient {
+		t.Fatalf("503 ping classified %s %v: %v", code, class, err)
 	}
 }
 
