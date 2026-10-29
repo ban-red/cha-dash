@@ -56,7 +56,7 @@ func TestIntegrationRoutes(t *testing.T) {
 	}
 
 	// An applied Homepage import starts its instances right away.
-	body := map[string]string{"services_yaml": "- Apps:\n  - Sonarr:\n      href: " + up.URL + "\n      siteMonitor: " + up.URL + "\n"}
+	body := map[string]string{"services_yaml": "- Apps:\n  - Status:\n      href: " + up.URL + "\n      siteMonitor: " + up.URL + "\n"}
 	if resp := e.request(t, c, "POST", "/api/import/homepage", body, nil); resp.StatusCode >= 300 {
 		t.Fatalf("import: %d", resp.StatusCode)
 	}

@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"go.yaml.in/yaml/v3"
 
@@ -57,6 +58,7 @@ func Build(in Input) (*importer.Result, importer.Secrets, error) {
 		sectionIDs: map[string]bool{},
 		itemIDs:    map[string]bool{},
 		singletons: map[string]bool{},
+		detected:   map[string]string{},
 		checkNames: map[string]bool{},
 		instNames:  map[string]bool{},
 		docker:     map[string]*importer.Instance{},
@@ -118,6 +120,8 @@ type builder struct {
 	sectionIDs map[string]bool
 	itemIDs    map[string]bool
 	singletons map[string]bool
+	// detected: instance id → the widget type guessed from the entry's icon or name.
+	detected map[string]string
 
 	checks      *importer.Instance
 	checkList   []any
@@ -559,6 +563,22 @@ func (b *builder) mapEntry(sec *section, e entry) {
 		}
 	}
 
+	// No widget, but the service is one Cha Dash has an integration for: set
+	// that up as if the entry had its widget, with its credentials still to add.
+	detected := ""
+	if len(widgets) == 0 {
+		if typ := detectApp(base, e.key); typ != "" && isHTTP(base.Href) && !isPlaceholder(base.Href) {
+			n := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+			for _, kv := range [][2]string{{"type", typ}, {"url", base.Href}} {
+				n.Content = append(n.Content,
+					&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: kv[0]},
+					&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: kv[1]})
+			}
+			widgets = append(widgets, n)
+			detected = typ
+		}
+	}
+
 	var tiles []importer.Tile
 	var primary string // the first instance's id
 	integrated := false
@@ -570,6 +590,9 @@ func (b *builder) mapEntry(sec *section, e entry) {
 		integrated = true // an instance, or a calendar bound to other instances
 		if primary == "" {
 			primary = inst
+		}
+		if detected != "" && i == 0 {
+			b.detected[inst] = detected
 		}
 		tiles = append(tiles, t)
 	}
@@ -585,15 +608,17 @@ func (b *builder) mapEntry(sec *section, e entry) {
 	first := &tiles[0]
 	monitor := str("siteMonitor")
 	ping := str("ping")
+	// A detected integration has no credentials yet, so its tile keeps the check too.
+	unwatched := !integrated || detected != ""
 	switch {
 	case monitor != "":
 		b.addCheck(first, name, sec, monitor, origin)
-	case ping != "" && !integrated && isHTTP(base.Href):
+	case ping != "" && unwatched && isHTTP(base.Href):
 		b.ignore(servicesFile, "ping", origin.String(), "ICMP ping isn't a check kind; the tile gets an HTTP check on its href instead")
 		b.addCheck(first, name, sec, base.Href, origin)
 	case ping != "":
 		b.unmapped(importer.Unmapped{Kind: "check", Origin: origin, Fields: []string{"ping"}, Reason: "ICMP ping isn't a check kind yet; add an HTTP or TCP check in Cha Dash"})
-	case !integrated && isHTTP(base.Href):
+	case unwatched && isHTTP(base.Href):
 		b.addCheck(first, name, sec, base.Href, origin)
 	}
 
@@ -1071,6 +1096,15 @@ func (b *builder) hints() {
 	}
 
 	for _, in := range p.Instances {
+		if typ, ok := b.detected[in.ID]; ok {
+			b.res.Hints = append(b.res.Hints, importer.Hint{
+				Code: "detected_integration", Severity: "info", Inbox: false,
+				Subjects: []importer.Subject{{Instance: in.ID, Origin: in.Origin}},
+				Message: fmt.Sprintf("%s has no widget in the Homepage file, but it looks like %s, so it was set up as one. Add %s on the instance in Cha Dash to connect it.",
+					in.Name, typ, cmp.Or(list(in.MissingSecrets), "its credentials")),
+			})
+			continue
+		}
 		if len(in.MissingSecrets) > 0 {
 			b.res.Hints = append(b.res.Hints, importer.Hint{
 				Code: "missing_secret", Severity: "attention", Inbox: false,
@@ -1208,6 +1242,63 @@ func isPlaceholder(v string) bool { return strings.Contains(v, "{{HOMEPAGE_") }
 func isHTTP(v string) bool {
 	u, err := url.Parse(v)
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+// detectApp guesses which widget type a widget-less entry is, from its icon
+// (the file name, or the name after an Iconify prefix such as
+// "simple-icons:unraid"), else its whole display name or key. Only exact
+// matches count: "Proxmox Backup" mustn't become Proxmox. "" when unsure.
+func detectApp(t importer.Tile, key string) string {
+	for _, c := range []string{iconName(t.Icon), normalizeApp(t.Name), normalizeApp(key)} {
+		if c == "" {
+			continue
+		}
+		if typ, ok := appAliases[c]; ok {
+			return typ
+		}
+		if _, ok := widgetSpecs[c]; ok {
+			return c
+		}
+	}
+	return ""
+}
+
+// iconName is an icon reference reduced to the app it names: the last path
+// segment without its query, extension, Iconify prefix or light/dark suffix.
+func iconName(icon string) string {
+	icon = strings.TrimSpace(icon)
+	if icon == "" || strings.HasPrefix(icon, "data:") {
+		return ""
+	}
+	if i := strings.IndexAny(icon, "?#"); i >= 0 {
+		icon = icon[:i]
+	}
+	if i := strings.LastIndexAny(icon, "/:"); i >= 0 {
+		icon = icon[i+1:]
+	}
+	for _, p := range []string{"mdi-", "si-", "sh-"} {
+		icon = strings.TrimPrefix(icon, p)
+	}
+	if i := strings.LastIndex(icon, "."); i > 0 {
+		icon = icon[:i]
+	}
+	icon = strings.ToLower(icon)
+	for _, suf := range []string{"-light", "-dark", "_light", "_dark"} {
+		icon = strings.TrimSuffix(icon, suf)
+	}
+	return normalizeApp(icon)
+}
+
+// normalizeApp lowercases and drops everything but letters and digits, so
+// "Home Assistant", "home-assistant" and "homeassistant" agree.
+func normalizeApp(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // tlsFor picks the TLS policy for an imported URL (importer.TLSFor).

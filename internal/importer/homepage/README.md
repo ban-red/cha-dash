@@ -23,6 +23,7 @@ The acceptance test is [`testdata/importers/homepage/dogfood`](../../../testdata
 | `widget:` or `widgets:` | One integration instance per widget (table below). The first one is the entry's tile; extra widgets get their own tiles and instance names like `Arr (radarr)`. |
 | Unknown widget type, or no type | **Unmapped** (`kind: widget`), with field *names* only. Its credentials aren't moved: they stay in the Homepage file. The entry still lands as a service tile. |
 | `siteMonitor` | A target in the built-in `checks` instance (`kind: http`, or `tcp` for `host:port`), every 60 s. |
+| No widget, but the icon or name is an app Cha Dash has an integration for | **Detected** (`detectApp`): set up as if the entry had that widget, with the href as `url` and the credentials still to add (`missing_secrets`, and a quiet `detected_integration` hint). Only exact matches count: the icon's file name (`unraid.png`, `simple-icons:unraid.svg`, `mdi-plex`), else the whole display name or key; `Proxmox Backup Notes` is not Proxmox. It needs an `http(s)` href, and an entry with any widget is left alone. The tile keeps its check, so it has a status before the credentials arrive. Cockpit and other apps with no integration stay plain checks. |
 | No integration widget, but an `http(s)` href | Also a check, against the href, so every tile has a status (Linkding on the dogfood home). |
 | `ping` | ICMP isn't a check kind. With an http(s) href and no widget, the href is checked instead (and `ping` is listed as ignored); otherwise unmapped (`kind: check`). |
 | `server` + `container` | An explicit `runs_on` link from the entry's instance and tile to that container on that Docker instance. An unknown server, or one half of the pair, is unmapped (`kind: container_link`). |
@@ -60,6 +61,8 @@ Integration IDs and config keys are the ones in [07 · v0.1 → Instance config 
 | `audiobookshelf` | `audiobookshelf` | `url` | `key` → `api_key` | `service` | |
 | `paperlessngx` | `paperlessngx` | `url` | `key` → `token` (a username and password are listed as ignored: the spec reads with a token) | `service` | |
 | `speedtest` | `speedtesttracker` | `url` | `key` → `token` (Homepage's `version: 2`; `version` is dropped as for every widget) | `service` | |
+| `sabnzbd` | `sabnzbd` | `url` | `key` → `api_key` | `downloads` | |
+| `linkding` (Homepage has no widget; used for detection below) | `linkding` | `url` | `key` → `token` | `service` | |
 | `calendar` | none: binds to instances | | | `calendar` | below |
 
 Every widget's `fields` becomes the tile option `fields`; `version` is dropped (integrations negotiate it). Any other widget field is listed under `ignored`.

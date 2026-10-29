@@ -35,6 +35,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - **Checks say Up or Down.** A check's tile leads with Up or Down instead of an HTTP status code; the code, latency and uptime sit below it.
+- **Homepage import recognises apps with no widget.** A service whose icon or name is Unraid, Linkding, Plex, Sonarr or any other app Cha Dash has an integration for now gets that integration, ready for its API key, instead of only a check in the shared "Homepage" checks instance. It keeps the check for its status. Import again from Settings → Bring in to pick this up; the old import can be reverted in History.
+- **A tile bound to an integration is named after it.** Rename the integration in Settings and its tile follows at once. In the tile editor the Name field is greyed out for these tiles.
+- **Edit layout is an icon in the top-right button row**, beside search and Settings. It toggles edit mode; the text button above the board is gone.
 - **A tile's address opens the service.** The address at the bottom of a check or service tile is a link that opens in a new tab.
 - **Long units wrap on small tiles.** A unit too long to sit beside its number ("subtitles missing") moves to the line below instead of running off the tile.
 - **A tile's status mark sits bottom right** when it stands alone, clear of the settings cog. With words beside it ("WAN down since 14:02") it stays with them.

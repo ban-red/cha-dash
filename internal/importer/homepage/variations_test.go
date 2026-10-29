@@ -185,8 +185,8 @@ func TestNestedGroupsWeightAndLayoutOrder(t *testing.T) {
         - NAS:
             href: https://nas.example
 - Media:
-    - Plex:
-        href: https://plex.example
+    - Telly:
+        href: https://telly.example
 `
 	settings := `
 layout:
@@ -214,7 +214,7 @@ layout:
 		t.Fatalf("sections = %v, want %v", got, want)
 	}
 	if ids := tileIDs(res.Plan); !slices.Equal(ids, []string{
-		"media|service@homepage:media/plex|Plex",
+		"media|service@homepage:media/telly|Telly",
 		"infra|service@homepage:infra/alpha|Alpha", // weight 50 sorts before Zeta (200)
 		"infra|service@homepage:infra/zeta|Zeta",
 		"infra-storage|service@homepage:infra-storage/nas|NAS",

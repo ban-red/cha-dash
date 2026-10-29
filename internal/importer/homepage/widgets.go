@@ -88,6 +88,25 @@ var widgetSpecs = map[string]widgetSpec{
 	// password are listed as ignored, and the instance asks for a token.
 	"paperlessngx": {integration: "paperlessngx", tile: "service", fields: token},
 	"speedtest":    {integration: "speedtesttracker", tile: "service", fields: token},
+	// Homepage has no widget for these, but Cha Dash has an integration, so a
+	// service recognised as one (see detectApp) is set up with it.
+	"linkding": {integration: "linkding", tile: "service", fields: token},
+	"sabnzbd":  {integration: "sabnzbd", tile: "downloads", fields: apiKey},
+}
+
+// appAliases are other names a service goes by: the normalised icon name or
+// service name on the left, a widgetSpecs key on the right. Every widgetSpecs
+// key is an alias of itself.
+var appAliases = map[string]string{
+	"homeassistant":    "homeassistant",
+	"speedtesttracker": "speedtest",
+	"pbs":              "proxmoxbackupserver",
+	"proxmoxve":        "proxmox",
+	"seerr":            "overseerr",
+	"paperless":        "paperlessngx",
+	"uptimekuma":       "uptimekuma",
+	"audiobookshelf":   "audiobookshelf",
+	"proxmoxbackup":    "proxmoxbackupserver",
 }
 
 // Fields every widget may carry. Version is Homepage's API-version switch;

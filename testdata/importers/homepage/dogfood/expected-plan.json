@@ -435,7 +435,7 @@
         "name": "Jupiter Unraid",
         "icon": "https://api.iconify.design/simple-icons:unraid.svg?color=%23888888",
         "href": "https://jupiter.lab.example/",
-        "instance": "i_kbnjctytomk34vem",
+        "instance": "i_egcyzkkspo2xh5gd",
         "check": "Jupiter Unraid",
         "origin": {
           "file": "services.yaml",
@@ -641,7 +641,7 @@
         "icon": "linkding.png",
         "href": "https://links.lab.example",
         "description": "Shared bookmarks",
-        "instance": "i_kbnjctytomk34vem",
+        "instance": "i_phpoq4quobimcpa7",
         "check": "Linkding",
         "origin": {
           "file": "services.yaml",
@@ -841,6 +841,26 @@
         }
       },
       {
+        "id": "i_egcyzkkspo2xh5gd",
+        "integration": "unraid",
+        "name": "Jupiter Unraid",
+        "config": {
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://jupiter.lab.example/"
+        },
+        "secret_fields": [],
+        "missing_secrets": [
+          "api_key"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Servers",
+          "entry": "Jupiter"
+        }
+      },
+      {
         "id": "i_4fnc3bq5ucxu3wwe",
         "integration": "proxmox",
         "name": "JupiterNas PVE",
@@ -1001,6 +1021,26 @@
           "file": "services.yaml",
           "group": "Data",
           "entry": "Tautulli"
+        }
+      },
+      {
+        "id": "i_phpoq4quobimcpa7",
+        "integration": "linkding",
+        "name": "Linkding",
+        "config": {
+          "tls": {
+            "mode": "verify"
+          },
+          "url": "https://links.lab.example"
+        },
+        "secret_fields": [],
+        "missing_secrets": [
+          "token"
+        ],
+        "origin": {
+          "file": "services.yaml",
+          "group": "Archive/Backup",
+          "entry": "Linkding"
         }
       },
       {
@@ -1406,7 +1446,7 @@
     "summary": {
       "sections": 8,
       "tiles": 22,
-      "instances": 21,
+      "instances": 23,
       "integrations": {
         "bazarr": 1,
         "checks": 1,
@@ -1414,6 +1454,7 @@
         "frigate": 1,
         "homeassistant": 1,
         "karakeep": 1,
+        "linkding": 1,
         "opnsense": 1,
         "plex": 1,
         "prowlarr": 1,
@@ -1423,12 +1464,13 @@
         "sonarr": 1,
         "tautulli": 1,
         "traefik": 1,
+        "unraid": 1,
         "uptimekuma": 1
       },
       "checks": 3,
       "links": 9,
       "secrets_moved": 18,
-      "hints": 6,
+      "hints": 8,
       "inbox_hints": 3,
       "unmapped": 0,
       "discovery": 3,
@@ -1500,6 +1542,12 @@
       },
       {
         "kind": "instance",
+        "id": "i_egcyzkkspo2xh5gd",
+        "name": "Jupiter Unraid",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
         "id": "i_4fnc3bq5ucxu3wwe",
         "name": "JupiterNas PVE",
         "action": "create"
@@ -1544,6 +1592,12 @@
         "kind": "instance",
         "id": "i_poxoqojnqiwrybc4",
         "name": "Tautulli",
+        "action": "create"
+      },
+      {
+        "kind": "instance",
+        "id": "i_phpoq4quobimcpa7",
+        "name": "Linkding",
         "action": "create"
       },
       {
@@ -1798,8 +1852,40 @@
           }
         }
       ]
+    },
+    {
+      "code": "detected_integration",
+      "severity": "info",
+      "inbox": false,
+      "message": "Jupiter Unraid has no widget in the Homepage file, but it looks like unraid, so it was set up as one. Add api_key on the instance in Cha Dash to connect it.",
+      "subjects": [
+        {
+          "instance": "i_egcyzkkspo2xh5gd",
+          "origin": {
+            "file": "services.yaml",
+            "group": "Servers",
+            "entry": "Jupiter"
+          }
+        }
+      ]
+    },
+    {
+      "code": "detected_integration",
+      "severity": "info",
+      "inbox": false,
+      "message": "Linkding has no widget in the Homepage file, but it looks like linkding, so it was set up as one. Add token on the instance in Cha Dash to connect it.",
+      "subjects": [
+        {
+          "instance": "i_phpoq4quobimcpa7",
+          "origin": {
+            "file": "services.yaml",
+            "group": "Archive/Backup",
+            "entry": "Linkding"
+          }
+        }
+      ]
     }
   ],
   "unmapped": [],
-  "plan_hash": "sha256:ac18c18d5bff181af6d0d32ade453bbd41b7282065c0969d84e19642d6618488"
+  "plan_hash": "sha256:7f9763bca4df3231a9816aea7c83e503a00775019cb3dbfa44cc5ee9a62d298b"
 }

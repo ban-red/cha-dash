@@ -46,7 +46,7 @@ func TestDogfoodRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if full.Instances != 21 || full.Secrets != 18 || full.Bundled != 18 {
+	if full.Instances != 23 || full.Secrets != 18 || full.Bundled != 18 {
 		t.Fatalf("export = %d instances, %d placeholders, %d bundled", full.Instances, full.Secrets, full.Bundled)
 	}
 	for _, out := range [][]byte{full.Data, plain.Data} {

@@ -110,6 +110,7 @@ func TestDogfoodPlan(t *testing.T) {
 			{"proxmox", "MiniG5 PVE (homeassistant/frigate)"},
 			{"proxmox", "Mars PVE Cluster (pvedocker, 2 nodes)"},
 			{"proxmox", "IO PVE (windows gaming vm, iolinux ubuntu vm)"},
+			{"unraid", "Jupiter Unraid"}, // no widget: recognised from its icon
 			{"proxmox", "JupiterNas PVE"},
 			{"traefik", "Traefik"},
 			{"uptimekuma", "UptimeKuma"},
@@ -118,6 +119,7 @@ func TestDogfoodPlan(t *testing.T) {
 			{"sonarr", "Sonarr"},
 			{"bazarr", "Bazarr"},
 			{"tautulli", "Tautulli"},
+			{"linkding", "Linkding"}, // no widget: recognised from its icon
 			{"karakeep", "Hoarder/Karakeep"},
 			{"qbittorrent", "qBittorrent"},
 			{"prowlarr", "Prowlarr"},
@@ -260,7 +262,7 @@ func TestDogfoodPlan(t *testing.T) {
 		for _, tl := range p.Tiles {
 			switch tl.Name {
 			case "Jupiter Unraid":
-				if tl.Href != "https://jupiter.lab.example/" || tl.Check != "Jupiter Unraid" || tl.Instance != checks.ID {
+				if tl.Href != "https://jupiter.lab.example/" || tl.Check != "Jupiter Unraid" || tl.Instance == "" || tl.Instance == checks.ID {
 					t.Errorf("Jupiter tile = %+v (deep-links to its UI, checks siteMonitor)", tl)
 				}
 			case "Linkding":
@@ -417,7 +419,7 @@ func TestDogfoodImport(t *testing.T) {
 	if err := json.Unmarshal(out, &applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied.BoardID != plan.Plan.Board.ID || len(applied.InstanceIDs) != 21 || !applied.Changed() {
+	if applied.BoardID != plan.Plan.Board.ID || len(applied.InstanceIDs) != 23 || !applied.Changed() {
 		t.Fatalf("applied = %+v", applied)
 	}
 
@@ -434,7 +436,7 @@ func TestDogfoodImport(t *testing.T) {
 		}
 	}
 
-	// Rows: the board, one layout revision, 21 instances with refs only.
+	// Rows: the board, one layout revision, 23 instances with refs only.
 	var dump strings.Builder
 	rows, err := h.st.Reader().QueryContext(ctx, `SELECT integration, name, config FROM integration_instances ORDER BY name`)
 	if err != nil {
@@ -450,7 +452,7 @@ func TestDogfoodImport(t *testing.T) {
 		dump.WriteString(cfg)
 	}
 	rows.Close()
-	if n != 21 {
+	if n != 23 {
 		t.Fatalf("%d instance rows", n)
 	}
 	assertNoLeak(t, "integration_instances.config", dump.String(), leaks)
@@ -509,7 +511,7 @@ func TestDogfoodImport(t *testing.T) {
 		t.Fatalf("record: %v %s", err, rec)
 	}
 	var typed struct{ Record importer.Record }
-	if err := json.Unmarshal(rec, &typed); err != nil || len(typed.Record.Links) != 9 || len(typed.Record.Instances) != 21 || typed.Record.BoardID != applied.BoardID {
+	if err := json.Unmarshal(rec, &typed); err != nil || len(typed.Record.Links) != 9 || len(typed.Record.Instances) != 23 || typed.Record.BoardID != applied.BoardID {
 		t.Fatalf("record: %v %s", err, rec)
 	}
 

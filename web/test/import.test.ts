@@ -29,7 +29,7 @@ afterEach(() => {
 describe('the Review model', () => {
   it('reads rows from the dry run: connections with their change, tiles with what they need', () => {
     const r = reviewOf(golden);
-    expect(r.connections).toHaveLength(21);
+    expect(r.connections).toHaveLength(23);
     expect(r.tiles).toHaveLength(22);
     expect(r.planHash).toMatch(/^sha256:/);
     const ha = r.connections.find((x) => x.object === HA)!;
@@ -94,16 +94,16 @@ describe('Settings → Bring in → Import', () => {
     await previewPasted(w);
     expect(f.calls[0]).toEqual({ method: 'POST', path: '/api/import/homepage?dry_run=1', body: { files: { services_yaml: SERVICES }, names: {} } });
     const review = w.find('.imp-review');
-    expect(review.text()).toContain('43 of 43 selected');
+    expect(review.text()).toContain('45 of 45 selected');
     expect(review.text()).toContain('18 secrets move into the vault');
     expect(review.text()).toContain('The same password is used by Traefik and qBittorrent');
     expect(review.findAll('.bp-tile').length).toBe(22);
 
-    await review.findAll('button').find((b) => b.text().startsWith('Apply 43'))!.trigger('click');
+    await review.findAll('button').find((b) => b.text().startsWith('Apply 45'))!.trigger('click');
     await flushPromises();
     expect(f.last('POST', '/api/import/homepage')!.body).toEqual({ files: { services_yaml: SERVICES }, names: {}, choices: {}, plan_hash: golden.plan_hash });
     expect(route.value.path).toBe('/boards/b_ajrtwtlddnb3sgor');
-    expect(ui.state.toasts[0]!.text).toContain('Imported from Homepage: 22 tiles, 21 connections. 18 secrets in the vault.');
+    expect(ui.state.toasts[0]!.text).toContain('Imported from Homepage: 22 tiles, 23 connections. 18 secrets in the vault. 2 connections still need a key.');
     expect(isFresh('homeassistant')).toBe(true);
   });
 
