@@ -176,14 +176,14 @@ describe('command bar', () => {
     expect(ui.state.paletteOpen).toBe(false);
   });
 
-  it('opens edit mode with the widget picker from “Add widget”', async () => {
+  it('opens the widget picker from “Add widget”, without starting edit mode', async () => {
     const { input, ui } = await open();
     await type(input, 'add widget');
     expect(selected()!.textContent).toContain('Add widget');
     await key(input, 'Enter');
     expect(ui.state.paletteOpen).toBe(false);
-    expect(ui.state.editing).toBe(true);
-    expect(ui.state.addingWidget).toBe(true); // EditableBoard opens the picker and clears it
+    expect(ui.state.editing).toBe(false); // edit mode starts once a widget is picked
+    expect(ui.state.addingWidget).toBe(true); // the board opens the picker and clears it
   });
 
   it('finds resources fuzzily and opens an incident in the Inbox', async () => {

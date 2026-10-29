@@ -38,6 +38,7 @@ import { resourceLinks, safeUrl, type Action, type Incident } from '../model/typ
 import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type TaskLog, type ToastAction } from './actions';
 import type { Live } from './live';
 import type { GlyphKind } from '../components/marks/Glyph.vue';
+import type { AddRequest } from '../model/edit';
 
 export type { ConfirmRequest, TaskLog } from './actions';
 
@@ -87,6 +88,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     addingWidget: false,
     /** With addingWidget: the section whose header asked, so the picker opens on it. */
     addSection: '' as string,
+    /** A widget picked on the normal board: edit mode starts with it added (EditableBoard), then clears this. */
+    pendingAdd: undefined as AddRequest | undefined,
     /** A tile's cog asked for its Edit: edit mode opens the tile editor on this item, then clears this. */
     editingTile: '' as string,
     confirm: undefined as ConfirmRequest | undefined,

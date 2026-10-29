@@ -187,7 +187,13 @@ watch(
   },
   { immediate: true },
 );
-onMounted(() => discovery?.ensureLoaded());
+onMounted(() => {
+  discovery?.ensureLoaded();
+  // A widget picked on the normal board: add it now, as a step of this session.
+  const req = ui.state.pendingAdd;
+  ui.state.pendingAdd = undefined;
+  if (req) onAdd(req);
+});
 
 /** Delete or Backspace on a focused tile removes it (not while it's picked up). */
 function onKeydown(e: KeyboardEvent): void {
@@ -297,98 +303,5 @@ onKeyStroke('z', (e) => {
 }
 .sh-add {
   flex: none;
-}
-
-/* The picker's and the tile editor's native modal dialog. */
-.edit-dlg {
-  width: min(720px, calc(100% - 32px));
-  max-height: calc(100dvh - 64px);
-  margin: auto;
-  padding: 0;
-  border: var(--hairline) solid var(--line-2);
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-overlay);
-  overflow: auto;
-}
-.edit-dlg.editor {
-  width: min(460px, calc(100% - 32px));
-}
-.edit-dlg::backdrop {
-  background: var(--scrim);
-}
-.edit-dlg-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
-}
-.edit-dlg-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.edit-dlg-head h2 {
-  margin: 0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font: var(--weight-semibold) var(--type-title) / 1.25 var(--font-ui);
-}
-.edit-dlg-kind {
-  font-size: var(--type-small);
-  color: var(--text-3);
-}
-.edit-dlg-head .x {
-  margin-left: auto;
-  display: grid;
-  place-items: center;
-  width: var(--target-min);
-  height: var(--target-min);
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--text-2);
-}
-.edit-dlg-head .x svg {
-  width: 12px;
-  height: 12px;
-}
-.edit-dlg select,
-.edit-dlg .field input {
-  width: 100%;
-  min-height: var(--target-min);
-  padding: 8px 10px;
-  border: var(--hairline) solid var(--line-2);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text);
-}
-.edit-dlg .field.check label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--target-min);
-  color: var(--text);
-}
-.edit-dlg .field.check input {
-  width: 18px;
-  min-height: 18px;
-  height: 18px;
-  padding: 0;
-  accent-color: var(--text);
-}
-.edit-dlg .pk-to select {
-  width: auto;
-  min-height: 0;
-  padding: 4px 8px;
-}
-.edit-dlg-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 </style>

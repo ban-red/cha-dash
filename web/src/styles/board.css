@@ -322,8 +322,8 @@
   align-items: baseline;
 }
 :root[data-surface='ruled'] .sh-rule {
-/* An editor's Add sits at the header's right end, over the rule, and shows on hover or focus. It is out of
-   the flow so the header keeps its height; touch has no hover, so it stays visible there. */
+/* An editor's Add sits at the header's right end, centred on the rule, and shows on hover or focus. It is out
+   of the flow so the header keeps its height; touch has no hover, so it stays visible there. */
 .sh-live {
   position: relative;
   width: 100%;
@@ -333,7 +333,7 @@
   position: absolute;
   top: 50%;
   right: 0;
-  transform: translateY(calc(-50% - var(--space-1)));
+  transform: translateY(-50%);
   opacity: 0;
   background: var(--bg);
   transition: opacity var(--motion-press-duration) var(--motion-press-easing);

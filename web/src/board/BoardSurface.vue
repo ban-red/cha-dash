@@ -6,7 +6,7 @@
  * so a front page you only read never downloads the gesture and motion code.
  * It also loads the hub's icon map when a tile could use it.
  */
-import { computed, defineAsyncComponent, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import type { Board, Breakpoint } from '@chadash/layout';
 import StaticBoard from './StaticBoard.vue';
 import SectionHeader from './SectionHeader.vue';
@@ -16,8 +16,10 @@ import { useBoard } from '../stores/board';
 import { loadIcons, wantsIcon } from '../stores/icons';
 import { loadInstances } from '../stores/integrations';
 import { settingsPath } from '../lib/router';
+import type { AddRequest } from '../model/edit';
 
 const EditableBoard = defineAsyncComponent(() => import('./EditableBoard.vue'));
+const WidgetPicker = defineAsyncComponent(() => import('./WidgetPicker.vue'));
 
 const { board, breakpoint } = defineProps<{ board: Board; breakpoint?: Breakpoint | undefined }>();
 // Edit mode lives in the UI store, so ⌘K → "Edit layout" can toggle it too.
@@ -30,10 +32,29 @@ const empty = computed(() => board.sections.every((s) => s.items.length === 0));
 // the board has a tile that could use one.
 const store = useBoard();
 
+// The widget picker opens over the board as it is; edit mode only starts once
+// a widget is picked (the pick goes along in ui.state.pendingAdd). In edit mode
+// EditableBoard answers addingWidget itself.
+const picking = ref<string | null>(null);
+
 function addTo(sectionId: string): void {
   ui.state.addSection = sectionId;
-  ui.state.editing = true;
   ui.state.addingWidget = true;
+}
+watch(
+  () => ui.state.addingWidget,
+  (asked) => {
+    if (!asked || ui.state.editing || !ui.can.value.editBoards) return;
+    ui.state.addingWidget = false;
+    picking.value = ui.state.addSection || board.sections[0]?.id || '';
+    ui.state.addSection = '';
+  },
+  { immediate: true },
+);
+function picked(req: AddRequest): void {
+  picking.value = null;
+  ui.state.pendingAdd = req;
+  ui.state.editing = true;
 }
 watch(
   () => store.tiles.value,
@@ -70,6 +91,7 @@ watch(
         <SectionHeader v-else :section="section" />
       </template>
       <template #item="{ item, size }">
+    <WidgetPicker v-if="picking !== null" :board="board" :tiles="store.tiles.value" :section-id="picking" @add="picked" @close="picking = null" />
         <WidgetHost :item="item" :size="size" />
       </template>
     </StaticBoard>

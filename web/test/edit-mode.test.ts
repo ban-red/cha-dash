@@ -339,20 +339,50 @@ describe('adding a widget', () => {
     expect(document.querySelector('dialog.picker')?.hasAttribute('open')).toBe(true);
   });
 
-  it('adds from a section header on the normal board, with the picker open on that section', async () => {
-    const initial = start();
-    const w = mountSurface(fakeStore(initial));
+  it('adds from a section header without edit mode, which starts once the widget is picked', async () => {
+    const before = start();
+    const store = fakeStore(remove(before, 'cameras'));
+    const w = mountSurface(store);
     await settle();
     const btns = w.findAll('.sh-live .sh-add');
-    expect(btns).toHaveLength(initial.sections.length);
-    const target = initial.sections[1]!;
-    await btns[1]!.trigger('click');
+    expect(btns).toHaveLength(before.sections.length);
+    const at = before.sections.findIndex((s) => s.id === 'home');
+    await btns[at]!.trigger('click');
     await settle();
     await settle();
-    expect(w.ui.state.editing).toBe(true);
-    expect(w.findComponent(WidgetPicker).props('sectionId')).toBe(target.id);
+    // The picker is open on that section, over the board as it is
+    expect(w.ui.state.editing).toBe(false);
+    const pk = w.findComponent(WidgetPicker);
+    expect(pk.exists()).toBe(true);
+    expect((pk.find('.pk-to select').element as HTMLSelectElement).value).toBe('home');
     expect(w.ui.state.addSection).toBe('');
     expect(w.ui.state.addingWidget).toBe(false);
+
+    await pk.find('button.pk-item[data-type="cameras"]').trigger('click');
+    await pk.find('form').trigger('submit');
+    await flushPromises();
+    await settle();
+    await settle();
+    // Now it's edit mode, with the widget added as a step of it
+    expect(w.ui.state.editing).toBe(true);
+    expect(w.ui.state.pendingAdd).toBeUndefined();
+    const [board] = store.save.mock.lastCall!;
+    expect(board.sections.find((s) => s.id === 'home')!.items.map((i) => i.id)).toContain('cameras');
+    expect(w.ui.state.toasts.at(-1)!.text).toBe('Added Cameras to Home.');
+  });
+
+  it('closing the picker from a header leaves edit mode off', async () => {
+    const w = mountSurface(fakeStore(start()));
+    await settle();
+    await w.find('.sh-live .sh-add').trigger('click');
+    await settle();
+    await settle();
+    const pk = w.findComponent(WidgetPicker);
+    expect(pk.exists()).toBe(true);
+    pk.vm.$emit('close');
+    await settle();
+    expect(w.findComponent(WidgetPicker).exists()).toBe(false);
+    expect(w.ui.state.editing).toBe(false);
   });
 
   it('loads the picker on demand and lists the catalog by what the graph can feed', async () => {

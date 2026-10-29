@@ -18,6 +18,7 @@ import type { Resource } from '../model/types';
 import { useLive } from '../stores/live';
 import { hrefOk, type TileConfig, type TilesDoc } from '../stores/tiles';
 import { useModal } from './useModal';
+import './editDialog.css';
 
 const { board, tiles, sectionId: initialSection } = defineProps<{ board: Board; tiles: TilesDoc; sectionId?: string | undefined }>();
 const emit = defineEmits<{ add: [req: AddRequest]; close: [] }>();

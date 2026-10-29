@@ -58,8 +58,8 @@ const commands = computed(() =>
     do: {
       openInbox: (id) => ui.openInbox(id ?? ''),
       toggleEdit: () => (ui.state.editing = !ui.state.editing),
+      // The picker opens first; edit mode starts once a widget is picked.
       addWidget: () => {
-        ui.state.editing = true;
         ui.state.addingWidget = true;
       },
       openBoard: (id) => navigate(id === board.state.boards[0]?.id ? '/' : `/boards/${encodeURIComponent(id)}`),

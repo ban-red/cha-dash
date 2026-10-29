@@ -20,6 +20,7 @@ import { useLive } from '../stores/live';
 import { hrefOk, type TileConfig } from '../stores/tiles';
 import { useModal } from './useModal';
 
+import './editDialog.css';
 const { item, config } = defineProps<{ item: Pick<Item, 'id' | 'type'>; config?: TileConfig | undefined }>();
 const emit = defineEmits<{ save: [config: TileConfig | undefined]; close: [] }>();
 
