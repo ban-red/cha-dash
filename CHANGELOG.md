@@ -6,27 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-### Added
-
-- **Address bans.** Five wrong passwords in a row from one address ban it from signing in, by password or passkey, until an admin clears it in Settings → Users. If nobody can sign in, `chadash bans clear <ip>` on the hub's host lifts it, with the hub running or not. Behind a reverse proxy, set `CHADASH_TRUSTED_PROXIES`, or one person's typos ban everyone.
-- **`bun run dev:real`** runs the local hub without the Demo Home, with its data in `./data-real`, so you can try a real home while working on the app.
-- **Sign out from the demo banner.** In demo mode the banner has a Sign out button, so leaving the Demo Home doesn't mean hunting through the theme menu.
-
-### Changed
-
-- **First run needs no setup token.** Open a new hub and create the owner account with just a password; the username starts as `admin`. Until that account exists, anyone who can reach the hub can create it, so do it straight after install.
-- **Shorter passwords.** Account passwords need 6 characters, down from 12. Backup passphrases still need 12.
-
 ## [0.2.0-beta.1] - 2026-10-29
 
 The first published beta of Cha Dash, and the first of v0.2: **Cha Dash starts changing things.** Actions on Docker, Proxmox VE, Proxmox Backup Server and Unraid run through one engine. Each one shows its plan and what it affects, asks for the confirmation its risk needs, offers undo where it can, runs as a task you can follow or cancel, and lands in a tamper-evident audit log. A second image, `ghcr.io/ban-red/chadash-node`, holds the host's Docker socket so the hub never does, follows a local policy you write, deploys compose stacks you own, and can take over stacks from Dockhand and Hawser. Roles, API tokens and notifications come with it.
 
 0.1.0-beta.1, the read-only front page, was prepared but never published. Everything in it ships here too; its notes are further down the [changelog](https://github.com/ban-red/cha-dash/blob/main/CHANGELOG.md).
 
-**During the beta there's no `latest` image.** Point both images at `beta`, as the [install steps](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md) show, or pin `0.2.0-beta.1`.
+**First run is open until the owner exists:** there's no setup token any more, so create the owner account as soon as the hub starts, before anyone else on your network can. **During the beta there's no `latest` image.** Point both images at `beta`, as the [install steps](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md) show, or pin `0.2.0-beta.1`.
 
 ### Added
 
+- **Address bans.** Five wrong passwords in a row from one address ban it from signing in, by password or passkey, until an admin clears it in Settings → Users. If nobody can sign in, `chadash bans clear <ip>` on the hub's host lifts it, with the hub running or not. Behind a reverse proxy, set `CHADASH_TRUSTED_PROXIES`, or one person's typos ban everyone.
+- **`bun run dev:real`** runs the local hub without the Demo Home, with its data in `./data-real`, so you can try a real home while working on the app.
+- **Sign out from the demo banner.** In demo mode the banner has a Sign out button, so leaving the Demo Home doesn't mean hunting through the theme menu.
 - **A sheet for each container.** Choose a container in the containers tile or in ⌘K and its sheet opens over the page: why it's down, image and tag, uptime or exit code, health check, restarts, ports, networks, its compose project, engine and node, links and labels, plus what it depends on and what uses it. Its open problem is one line that opens the Inbox. The address (`?r=…`) opens it again after a reload, and Back closes it.
 - **Act on a container from its sheet.** Its actions, by tier, with the usual confirmation, and the reason when one can't run. Remove can take the anonymous volumes too. Operators and up can read its last 50 log lines in the sheet. History lists what was done to it, and admins see its audit log there, with a link to Settings → Audit filtered to it. An Inbox item about a container links to its sheet.
 - **Sheets for Docker engines and compose stacks.** An engine's sheet says what it reads through, its Docker version and its node, and lists its containers, problems first. A stack's sheet shows its folder and compose files and its containers, with a link to its editor in Settings → Stacks. The engines named under the containers tile open their sheet.
@@ -86,6 +78,8 @@ The first published beta of Cha Dash, and the first of v0.2: **Cha Dash starts c
 
 ### Changed
 
+- **First run needs no setup token.** Open a new hub and create the owner account with just a password; the username starts as `admin`. Until that account exists, anyone who can reach the hub can create it, so do it straight after install.
+- **Shorter passwords.** Account passwords need 6 characters, down from 12. Backup passphrases still need 12.
 - **Every role gets the instant first paint**, not only the owner.
 - **Household accounts see only what their boards need.** The live inbox they receive holds problems about what's on their boards, with a title and a status, and no facts, causes or blast radius.
 - **Roles below admin no longer see broken screens.** Settings opens on your own passkeys, and the setup guide, integrations, repairs' Reconnect and the "merge?" questions are left to admins and the owner.

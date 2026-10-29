@@ -9,14 +9,13 @@ You need Docker with the Compose plugin, on amd64 or arm64 (armv7 works on a bes
 ```sh
 mkdir chadash && cd chadash
 curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.yaml
-# There's no "latest" until 0.1.0, so follow the beta tag:
+# There's no "latest" during the beta, so follow the beta tag for both images:
 printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n  chadash-node:\n    image: ghcr.io/ban-red/chadash-node:beta\n' > compose.override.yaml
 docker compose up -d
-docker compose logs chadash | grep setup
 ```
 
-1. Open `http://<this host>:3696` and enter the setup token from the last line (`setup_token=cds_…`).
-2. Create your account. Cha Dash then offers to add a passkey: skip it for now on plain HTTP, and add one later in Settings → Security once you have HTTPS.
+1. Open `http://<this host>:3696` straight away: until the owner exists, anyone who can reach the hub can create it.
+2. Create your account (the username starts as `admin`). Cha Dash then offers to add a passkey: skip it for now on plain HTTP, and add one later in Settings → Security once you have HTTPS.
 3. **Connect your home**: import your Homepage config, let it look at the machines you name, or add services one by one. Each form shows how to make a key that can only read.
 
 That's the whole install: no YAML to write, and no settings required. Running behind a reverse proxy, keeping the vault key elsewhere, backups and the rest are in [deploy/README.md](../deploy/README.md).
