@@ -270,8 +270,7 @@ func checkAliases(n *yaml.Node, depth int) error {
 // yamlError keeps yaml's line number and drops anything that quotes the
 // file.
 func yamlError(err error) string {
-	var te *yaml.TypeError
-	if errors.As(err, &te) {
+	if _, ok := errors.AsType[*yaml.TypeError](err); ok {
 		return "the file has the wrong shape"
 	}
 	msg := err.Error()

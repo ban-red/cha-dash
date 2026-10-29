@@ -1,6 +1,10 @@
 package importer
 
-import "dash.cha.sh/internal/boards"
+import (
+	"maps"
+
+	"dash.cha.sh/internal/boards"
+)
 
 // TileConfigs is the board's tiles document for a plan: what Apply writes
 // next to the layout. It's the plan's tiles without what the layout already
@@ -30,8 +34,6 @@ func TileConfigs(p *Plan) boards.Tiles {
 		out[t.ItemID] = c
 	}
 	// Adding to a board: what's already on it stays as the person left it.
-	for id, t := range p.baseTiles {
-		out[id] = t
-	}
+	maps.Copy(out, p.baseTiles)
 	return out
 }
