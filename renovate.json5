@@ -20,6 +20,13 @@
   postUpdateOptions: ['gomodTidy'],
   packageRules: [
     {
+      // Our own modules, linked with replace directives (the spikes share
+      // spikes/traefik's labkit). They aren't published, so a lookup fails.
+      matchManagers: ['gomod'],
+      matchPackageNames: ['dash.cha.sh/**'],
+      enabled: false,
+    },
+    {
       // go.mod's go line is the toolchain CI and the image build with
       // (setup-go reads it), so it moves with every Go patch release.
       matchManagers: ['gomod'],
