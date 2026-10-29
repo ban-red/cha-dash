@@ -23,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Section headers line up.** A section header without a note beside its name sat a few pixels higher than its neighbours, and so did its tiles.
 - **Docker through the node after a hub restart.** If the hub started before its node reconnected, the Docker instance showed "invalid config" for up to five minutes and its actions were unavailable. It now retries within seconds.
 - **Remove with volumes deletes the anonymous volumes.** After Cha Dash had recreated a container, removing it with its volumes kept the anonymous volume while the task said it was deleted. The node now deletes them itself and reports what it kept.
 - **Secret fields have one input.** Every secret in an integration's form showed a second, empty text box under it. What you typed there was never saved.
