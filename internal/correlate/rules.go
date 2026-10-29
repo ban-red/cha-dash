@@ -22,8 +22,8 @@ func (w *world) identities() {
 	first = append(first, w.sameChecks()...)
 	for k, d := range w.dec {
 		if k.typ == SameAs && d.Verdict == Confirm && w.res[d.From] != nil && w.res[d.To] != nil {
-			first = append(first, cand{Link: Link{From: d.From, Type: SameAs, To: d.To, Rule: cmp.Or(d.Rule, "user"),
-				Confidence: Confirmed, Evidence: "You confirmed this."}})
+			first = append(first, cand{From: d.From, Type: SameAs, To: d.To, Rule: cmp.Or(d.Rule, "user"),
+				Confidence: Confirmed, Evidence: "You confirmed this."})
 		}
 	}
 	w.unite(first)
@@ -64,7 +64,7 @@ func (w *world) unite(cs []cand) {
 }
 
 func same(a, b *graph.Resource, rule string, conf Confidence, evidence string) cand {
-	return cand{Link: Link{From: a.ID, Type: SameAs, To: b.ID, Rule: rule, Confidence: conf, Evidence: evidence}}
+	return cand{From: a.ID, Type: SameAs, To: b.ID, Rule: rule, Confidence: conf, Evidence: evidence}
 }
 
 // pairs links every resource in each group to the group's first one from
@@ -312,15 +312,15 @@ func (w *world) placeEngines() {
 		}
 		if len(votes) == 1 {
 			for h, n := range votes {
-				cs = append(cs, cand{Link: Link{From: e.ID, Type: RunsOn, To: h, Rule: "containers", Confidence: Exact,
-					Evidence: fmt.Sprintf("%s reports %d of its containers by the same container IDs.", w.name(h), n)}, slot: slot, score: scoreAddress + 5})
+				cs = append(cs, cand{From: e.ID, Type: RunsOn, To: h, Rule: "containers", Confidence: Exact,
+					Evidence: fmt.Sprintf("%s reports %d of its containers by the same container IDs.", w.name(h), n), slot: slot, score: scoreAddress + 5})
 			}
 		}
 		for _, m := range members {
 			if ip := str(m, "ip"); routable(ip) {
 				for _, t := range w.ips[ip] {
-					cs = append(cs, cand{Link: Link{From: e.ID, Type: RunsOn, To: t, Rule: "ip", Confidence: Strong,
-						Evidence: "The engine's address " + ip + " is " + w.name(t) + "'s."}, slot: slot, score: scoreAddress})
+					cs = append(cs, cand{From: e.ID, Type: RunsOn, To: t, Rule: "ip", Confidence: Strong,
+						Evidence: "The engine's address " + ip + " is " + w.name(t) + "'s.", slot: slot, score: scoreAddress})
 				}
 			}
 		}
@@ -333,8 +333,8 @@ func (w *world) placeEngines() {
 				for _, kind := range []graph.Kind{"host", "vm", "lxc"} {
 					for _, h := range w.primaries(kind) {
 						if strings.EqualFold(str(h, "hostname"), hn) || strings.EqualFold(h.Name, hn) {
-							cs = append(cs, cand{Link: Link{From: e.ID, Type: RunsOn, To: h.ID, Rule: "hostname", Confidence: Weak,
-								Evidence: "The engine reports the host name " + hn + "."}, slot: slot, score: 1})
+							cs = append(cs, cand{From: e.ID, Type: RunsOn, To: h.ID, Rule: "hostname", Confidence: Weak,
+								Evidence: "The engine reports the host name " + hn + ".", slot: slot, score: 1})
 						}
 					}
 				}
@@ -785,7 +785,7 @@ func (w *world) dependencies() {
 		if dep == "" || p == "" {
 			continue
 		}
-		for _, item := range strings.Split(dep, ",") {
+		for item := range strings.SplitSeq(dep, ",") {
 			name, _, _ := strings.Cut(strings.TrimSpace(item), ":")
 			for _, t := range bySvc[svc{c.Source, p, name}] {
 				cs = append(cs, w.rel(c.ID, DependsOn, t, "compose", Exact, "", scoreUser,
@@ -879,8 +879,8 @@ func (w *world) confirmedRest() {
 		if d.Verdict != Confirm || d.Type == SameAs || w.res[d.From] == nil || w.res[d.To] == nil {
 			continue
 		}
-		cs = append(cs, cand{Link: Link{From: d.From, Type: d.Type, To: d.To, Rule: cmp.Or(d.Rule, "user"), Confidence: Confirmed,
-			Evidence: "You confirmed this."}, score: scoreConfirmed})
+		cs = append(cs, cand{From: d.From, Type: d.Type, To: d.To, Rule: cmp.Or(d.Rule, "user"), Confidence: Confirmed,
+			Evidence: "You confirmed this.", score: scoreConfirmed})
 	}
 	w.resolve(cs)
 }
@@ -897,7 +897,7 @@ func (w *world) confirmedKind(id graph.RID, typ graph.RelType, slot string, kind
 }
 
 func (w *world) rel(from graph.RID, typ graph.RelType, to graph.RID, rule string, conf Confidence, slot string, score int, evidence string) cand {
-	return cand{Link: Link{From: from, Type: typ, To: to, Rule: rule, Confidence: conf, Evidence: evidence}, slot: slot, score: score}
+	return cand{From: from, Type: typ, To: to, Rule: rule, Confidence: conf, Evidence: evidence, slot: slot, score: score}
 }
 
 func uniq(ids []graph.RID) []graph.RID {

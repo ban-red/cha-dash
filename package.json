@@ -12,6 +12,19 @@
     "dev:fresh": "bun scripts/dev.ts --fresh",
     "build": "bun run --filter @chadash/web build",
     "test": "bun run --filter '*' test",
-    "typecheck": "bun run --filter '*' typecheck"
+    "e2e": "bun run --filter @chadash/web e2e",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "oxlint && bun --bun eslint . --cache",
+    "lint:fix": "oxlint --fix && bun --bun eslint . --cache --fix"
+  },
+  "devDependencies": {
+    "@vue/eslint-config-typescript": "14.9.0",
+    "eslint": "10.13.0",
+    "eslint-plugin-oxlint": "1.89.0",
+    "eslint-plugin-vue": "10.11.1",
+    "globals": "17.13.0",
+    "oxlint": "1.89.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0"
   }
 }

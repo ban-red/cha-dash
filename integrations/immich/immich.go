@@ -164,8 +164,7 @@ func (in *instance) get(ctx context.Context, path string, dst any) error {
 
 // statusOf is the HTTP status of a failed request, or 0.
 func statusOf(err error) int {
-	var se *integration.StatusError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*integration.StatusError](err); ok {
 		return se.Code
 	}
 	return 0

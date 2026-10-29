@@ -59,7 +59,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode"
 
@@ -505,24 +504,21 @@ func Allowed(a netip.Addr) bool {
 }
 
 func (s *Service) newClient() *http.Client {
-	d := &net.Dialer{
-		Timeout: dialTimeout,
-		// Checked after the name resolved, on the address actually dialled,
-		// so a rebinding DNS answer can't slip one past.
-		Control: func(_, address string, _ syscall.RawConn) error {
-			ap, err := netip.ParseAddrPort(address)
-			if err != nil {
-				return &refusedError{msg: "the address couldn't be checked", final: true}
-			}
-			if !s.allowed(ap.Addr()) {
-				return &refusedError{msg: fmt.Sprintf("%s is an address icons are never fetched from (loopback, link-local or metadata)", ap.Addr()), final: true}
-			}
-			return nil
-		},
-	}
+	// Checked on IP literals before dialling, and on the address actually
+	// dialled after a name resolved, so a rebinding DNS answer can't slip
+	// one past.
+	dial := httpx.GuardDial(&net.Dialer{Timeout: dialTimeout}, func(a netip.Addr) error {
+		if !a.IsValid() {
+			return &refusedError{msg: "the address couldn't be checked", final: true}
+		}
+		if !s.allowed(a) {
+			return &refusedError{msg: fmt.Sprintf("%s is an address icons are never fetched from (loopback, link-local or metadata)", a), final: true}
+		}
+		return nil
+	})
 	tr := &http.Transport{
 		Proxy:                  nil,
-		DialContext:            d.DialContext,
+		DialContext:            dial,
 		TLSHandshakeTimeout:    dialTimeout,
 		ResponseHeaderTimeout:  fetchTimeout,
 		MaxResponseHeaderBytes: 32 << 10,
@@ -571,8 +567,7 @@ func (s *Service) Fetch(ctx context.Context, raw string) (string, []byte, error)
 	req.Header.Set("User-Agent", "chadash/"+buildinfo.Version+" (icon cache; +https://dash.cha.sh)")
 	resp, err := s.client.Do(req)
 	if err != nil {
-		var re *refusedError
-		if errors.As(err, &re) {
+		if re, ok := errors.AsType[*refusedError](err); ok {
 			return "", nil, re
 		}
 		return "", nil, fmt.Errorf("fetching the icon failed: %s", cleanErr(err))
@@ -620,8 +615,7 @@ func compatible(declared, actual string) bool {
 // cleanErr drops the URL from a client error: the message is stored and
 // shown, and a URL could carry anything.
 func cleanErr(err error) string {
-	var ue *url.Error
-	if errors.As(err, &ue) {
+	if ue, ok := errors.AsType[*url.Error](err); ok {
 		err = ue.Err
 	}
 	if errors.Is(err, context.DeadlineExceeded) {

@@ -32,8 +32,6 @@ const (
 	maxScripts    = 50
 )
 
-func intp(n int) *int { return &n }
-
 // scriptState is the part of /api/states/<script> the action reads.
 type scriptState struct {
 	State      string `json:"state"` // on while it runs, off, unavailable

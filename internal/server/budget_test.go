@@ -163,7 +163,7 @@ func TestBudgetFirstPaint(t *testing.T) {
 	// Size over 13:00–20:30, sampled every simulated half hour.
 	largest, at := 0, ""
 	var pageBytes, gzipBytes int // the page at the largest snapshot, as sent
-	for tick := 0; tick <= 900; tick++ {
+	for tick := range 901 {
 		if tick%60 == 0 {
 			if _, sent, n := get(false); n > largest {
 				largest, at, pageBytes = n, drv.Now().Format("15:04"), sent

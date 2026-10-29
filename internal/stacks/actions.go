@@ -550,8 +550,7 @@ func nodeFail(err error) error {
 }
 
 func firstSentenceOf(err error) string {
-	var miss errSecretMissing
-	if errors.As(err, &miss) {
+	if miss, ok := errors.AsType[errSecretMissing](err); ok {
 		return miss.Error()
 	}
 	return "Couldn't read the stack's secrets from the vault."

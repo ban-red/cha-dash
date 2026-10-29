@@ -609,7 +609,10 @@ func (a actor) verify(ctx context.Context, c *compiledAction, req action.Request
 	}
 	vals := refVals(req.Target)
 	param := fmt.Sprint(vals["id"])
+	// last is the latest read's error; a read the deadline cut counts only
+	// when nothing else is known (no read answered, none failed before).
 	var last error
+	answered := false
 	for {
 		fresh, err := a.read(ctx, c.target, param)
 		if err == nil {
@@ -621,8 +624,8 @@ func (a actor) verify(ctx context.Context, c *compiledAction, req action.Request
 			if b, _ := ok.(bool); b {
 				return nil
 			}
-			last = nil
-		} else if ctx.Err() == nil || last == nil {
+			last, answered = nil, true
+		} else if ctx.Err() == nil || (last == nil && !answered) {
 			last = err
 		}
 		t := time.NewTimer(verifyInterval)

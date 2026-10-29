@@ -3,6 +3,7 @@ package proxmox
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -267,9 +268,7 @@ func TestValidateImporterShape(t *testing.T) {
 		"unknown key":                   {func(m map[string]any) { m["node"] = "pluto" }, "/node"},
 	} {
 		cfg := map[string]any{}
-		for k, v := range base {
-			cfg[k] = v
-		}
+		maps.Copy(cfg, base)
 		c.mut(cfg)
 		errs := integrationtest.Validate(Integration{}, cfg, map[string]string{"token_secret": fakeSecret})
 		if len(errs) == 0 || (c.path != "" && errs[0].Path != c.path) {

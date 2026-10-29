@@ -244,8 +244,7 @@ func safeClose(inst integration.Instance) (err error) {
 
 // classify is integration.Classify plus the runtime's own errors.
 func classify(err error) (string, integration.Class, string) {
-	var pe *panicError
-	if errors.As(err, &pe) {
+	if pe, ok := errors.AsType[*panicError](err); ok {
 		return integration.CodeInternal, integration.Transient, pe.Error()
 	}
 	if errors.Is(err, ErrResponseTooLarge) {
@@ -293,8 +292,7 @@ func hhmm(t time.Time) string { return t.Local().Format("15:04") }
 
 // httpStatus is the status of an HTTP error, or 0.
 func httpStatus(err error) int {
-	var se *integration.StatusError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*integration.StatusError](err); ok {
 		return se.Code
 	}
 	return 0

@@ -1,6 +1,7 @@
 package weather
 
 import (
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -29,9 +30,7 @@ func server(t *testing.T) *fixture.Server {
 func connect(t *testing.T, h *integrationtest.Harness, url string, extra map[string]any) integration.Instance {
 	t.Helper()
 	cfg := map[string]any{"latitude": lat, "longitude": lon, "url": url}
-	for k, v := range extra {
-		cfg[k] = v
-	}
+	maps.Copy(cfg, extra)
 	return h.Connect(Integration{}, cfg, nil)
 }
 

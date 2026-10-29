@@ -259,8 +259,10 @@ type NodeCaller interface {
 // NodeErrorCode is the code of an error a NodeCaller returned, or "" for
 // one without (a context error, say).
 func NodeErrorCode(err error) string {
-	var c interface{ ErrorCode() string }
-	if errors.As(err, &c) {
+	if c, ok := errors.AsType[interface {
+		error
+		ErrorCode() string
+	}](err); ok {
 		return c.ErrorCode()
 	}
 	return ""

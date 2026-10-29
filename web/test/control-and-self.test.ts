@@ -367,6 +367,7 @@ describe('hub-cached icons', () => {
     await nextTick();
     expect(document.querySelector('.mono-img')).toBeNull();
     expect(document.querySelector('a.mono')?.textContent?.trim()).toBe('PH');
+    expect(document.querySelector('a.mono')?.getAttribute('aria-label')).toBe('PH, open Photos');
     w.unmount();
     document.body.innerHTML = '';
     hs.mountIn(Host('down'));

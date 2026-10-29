@@ -99,17 +99,19 @@ func (e *Engine) Cancel(ctx context.Context, a Actor, id string) error {
 	if d, ok := e.reg.Get(t.Action); !ok || !d.Cancellable {
 		return refuse(&Refusal{Status: http.StatusConflict, Code: "not_cancellable", Message: fmt.Sprintf("%s can't be stopped once it has started.", t.Label)})
 	}
+	var cancel context.CancelFunc
 	e.mu.Lock()
-	lt, ok := e.live[id]
-	running := ok && lt.cancel != nil
-	if running {
-		lt.cancel()
+	if lt, ok := e.live[id]; ok {
+		cancel = lt.cancel
 	}
 	e.mu.Unlock()
-	if !running {
+	if cancel == nil {
 		return refuse(&Refusal{Status: http.StatusConflict, Code: "finished", Message: fmt.Sprintf("%s has already finished.", t.Label)})
 	}
+	// Recorded before the task hears of it, so the audit log reads in
+	// order: the cancel, then the task's end it caused.
 	record(t.Target, t.Action, audit.OK, nil)
+	cancel()
 	return nil
 }
 
@@ -146,8 +148,7 @@ func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tie
 		e.updateTask(id, true, func(t *Task) { t.State = StateVerifying })
 		err = e.call(ctx, d.verifyTimeout(), func(ctx context.Context) error { return d.Verify(ctx, r, run) })
 		if err != nil && !isCancel(ctx, err) {
-			var ae *Error
-			if !errors.As(err, &ae) {
+			if _, ok := errors.AsType[*Error](err); !ok {
 				err = Fail("verify_failed", "It ran, but the check afterwards failed: "+err.Error())
 			}
 		}
@@ -198,9 +199,11 @@ func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tie
 	}
 }
 
-// finish records a task's end. The task shows as finished, its lock is
-// released and the topic is trimmed in one step, so whoever sees it
-// finished can lock the resource again.
+// finish records a task's end. The end is stored first; then the task
+// shows as finished, its lock is released and the topic is trimmed in one
+// step, so whoever sees it finished can lock the resource again, and reads
+// the same end from the table once it has left the live set (or after a
+// restart, which would otherwise take it for interrupted).
 func (e *Engine) finish(id, resource string, fn func(t *Task)) {
 	e.mu.Lock()
 	lt, ok := e.live[id]
@@ -208,7 +211,14 @@ func (e *Engine) finish(id, resource string, fn func(t *Task)) {
 		e.mu.Unlock()
 		return
 	}
-	fn(&lt.task)
+	end := lt.task.clone()
+	e.mu.Unlock()
+	fn(&end)
+	// Still live meanwhile: trimLocked only drops finished tasks.
+	e.save(end)
+
+	e.mu.Lock()
+	fn(&lt.task) // fn only sets fields, so it can be applied twice
 	lt.cancel = nil
 	if e.locks[resource] == id {
 		delete(e.locks, resource)
@@ -217,8 +227,7 @@ func (e *Engine) finish(id, resource string, fn func(t *Task)) {
 	drop := e.trimLocked()
 	e.mu.Unlock()
 
-	e.save(t)
-	e.tasks.Update(func(tx *livedoc.Tx) error {
+	_, _ = e.tasks.Update(func(tx *livedoc.Tx) error {
 		if !slices.Contains(drop, id) {
 			tx.Put(tasksColl, id, t)
 		}
@@ -241,8 +250,7 @@ func (e *Engine) call(ctx context.Context, timeout time.Duration, fn func(contex
 	}()
 	err = fn(ctx)
 	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		var ae *Error
-		if !errors.As(err, &ae) {
+		if _, ok := errors.AsType[*Error](err); !ok {
 			err = Fail("timeout", fmt.Sprintf("It didn't finish within %s.", timeout))
 		}
 	}
@@ -254,8 +262,7 @@ func isCancel(ctx context.Context, err error) bool {
 }
 
 func errorOf(err error) *Error {
-	var ae *Error
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*Error](err); ok {
 		return ae
 	}
 	return Fail("failed", err.Error())
@@ -298,7 +305,7 @@ func (e *Engine) save(t Task) {
 
 // publish copies a live task into the topic.
 func (e *Engine) publish(id string) {
-	e.tasks.Update(func(tx *livedoc.Tx) error {
+	_, _ = e.tasks.Update(func(tx *livedoc.Tx) error {
 		e.mu.Lock()
 		defer e.mu.Unlock()
 		if lt, ok := e.live[id]; ok {
@@ -319,7 +326,7 @@ func (e *Engine) trim() {
 	if len(drop) == 0 {
 		return
 	}
-	e.tasks.Update(func(tx *livedoc.Tx) error {
+	_, _ = e.tasks.Update(func(tx *livedoc.Tx) error {
 		for _, id := range drop {
 			tx.Delete(tasksColl, id)
 		}

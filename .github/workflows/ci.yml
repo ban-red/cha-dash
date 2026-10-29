@@ -58,7 +58,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod   # go 1.27.1
+          go-version-file: go.mod   # go 1.27.3
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
       - name: gofmt
         run: |
           unformatted=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
@@ -113,10 +116,21 @@ jobs:
         run: |
           go vet -tags devlogin ./...
           go test -race -tags devlogin ./internal/auth/ ./internal/server/ ./cmd/chadash/
-      - name: staticcheck
-        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...   # 2026.2.1: Go 1.27 support
+      - name: go fix
+        # Since Go 1.26, go fix applies the modernizers (errors.AsType,
+        # new(expr), maps.Copy, …). -diff exits 1 if any would apply.
+        run: |
+          if ! go fix -diff ./... > "$RUNNER_TEMP/fix.diff"; then
+            cat "$RUNNER_TEMP/fix.diff"
+            echo "::error::Run go fix ./... and commit the result"
+            exit 1
+          fi
+      - name: golangci-lint
+        # staticcheck plus the bug-finding linters in .golangci.yml. The
+        # tools are pinned in tools/go.mod and built with this Go.
+        run: go tool -modfile=tools/go.mod golangci-lint run
       - name: govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+        run: go tool -modfile=tools/go.mod govulncheck ./...
 
   # linux/arm/v7 is best-effort (ADR-0016): tested as 32-bit and built here,
   # but nothing runs on armv7 hardware. Not a required check (see above).
@@ -140,7 +154,10 @@ jobs:
         # 386 has armv7's 32-bit int and its alignment rules for 64-bit
         # atomics, and an amd64 kernel runs it natively: the suite runs as
         # 32-bit with no emulation. (The race detector doesn't support 386.)
-        run: GOARCH=386 go test ./...
+        # The performance budgets are skipped: they time GET / and the diff
+        # rate, which only means something one package at a time (the Go
+        # job's "Performance budgets" step), not beside every other package.
+        run: GOARCH=386 go test -skip '^TestBudget' ./...
       - name: GOARCH=arm GOARM=7 go vet
         run: GOARCH=arm GOARM=7 go vet ./...
       - name: Build the hub for linux/arm/v7
@@ -164,6 +181,25 @@ jobs:
             -o "$RUNNER_TEMP/node-armv7" .
           ls -l "$RUNNER_TEMP/node-armv7"
 
+  # The workflows themselves, audited by zizmor: template injection, excessive
+  # permissions, unpinned or impostor actions, cache poisoning, … Accepted
+  # findings are in .github/zizmor.yml, each with its reason.
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ZIZMOR_VERSION: "1.31.1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+        with:
+          version: ${{ env.ZIZMOR_VERSION }}
+          advanced-security: false   # the token is read-only: report as annotations and in the log
+          annotations: true
+
   js:
     name: JavaScript
     runs-on: ubuntu-latest
@@ -179,11 +215,52 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Typecheck
         run: bun run typecheck
+      - name: Lint
+        # oxlint, then ESLint for Vue templates (eslint.config.js)
+        run: bun run lint
       - name: Test
         run: bun run test
       - name: Design tokens are up to date
         working-directory: design/tokens
         run: bun run generate --check
+
+  # The release binary with the SPA embedded, on the Demo Home, in a real
+  # browser (web/e2e): first run, the front page on desktop and phone, axe in
+  # every theme, the command bar, and the safety ladder on the action engine.
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: bun install
+        run: bun install --frozen-lockfile
+      - name: Build the hub with the SPA embedded
+        run: |
+          bun run build
+          CGO_ENABLED=0 go build -tags webui -trimpath -o chadash ./cmd/chadash
+      - name: Install Chromium for Playwright
+        working-directory: web
+        run: bunx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: bun run e2e
+      - name: Keep the report and traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          if-no-files-found: ignore
 
   build:
     name: Build

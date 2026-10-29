@@ -341,8 +341,7 @@ func TestDeployRefusals(t *testing.T) {
 		return err
 	}
 	code := func(err error) string {
-		var r *action.Refusal
-		if errors.As(err, &r) {
+		if r, ok := errors.AsType[*action.Refusal](err); ok {
 			return r.Code
 		}
 		return ""

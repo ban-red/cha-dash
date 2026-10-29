@@ -200,8 +200,7 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, err := s.Login(r.Context(), req.Username, req.Password)
-	var limited *AccountLimitedError
-	if errors.As(err, &limited) {
+	if limited, ok := errors.AsType[*AccountLimitedError](err); ok {
 		s.log.Warn("sign-in refused: too many wrong passwords for this account", "user_id", limited.UserID, "client", s.proxies.ClientIP(r).String())
 		tooManyAttempts(w, limited.Wait)
 		return

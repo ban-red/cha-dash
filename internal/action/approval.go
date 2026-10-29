@@ -422,6 +422,11 @@ func (e *Engine) endAwaiting(ctx context.Context, q string, args []any, reason s
 			ids = append(ids, id)
 		}
 	}
+	// A read cut short still ends the approvals it got to; the next run
+	// (at least hourly) picks up the rest.
+	if err := rows.Err(); err != nil {
+		e.log.Error("action: reading approvals failed", "err", err)
+	}
 	rows.Close()
 	for _, id := range ids {
 		if a, err := e.loadApproval(ctx, id); err == nil {

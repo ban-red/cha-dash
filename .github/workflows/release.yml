@@ -16,6 +16,10 @@ on:
 
 permissions: {}
 
+# No job restores or saves an Actions cache: a release is built from the tag
+# alone, so nothing a poisoned cache entry holds can reach what gets signed.
+cache-mode: none
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false     # never stop a release halfway through a push
@@ -25,8 +29,9 @@ env:
   # chadash-node: the same tags as the hub, from the Dockerfile's node target.
   NODE_IMAGE: ghcr.io/ban-red/chadash-node
   # Installed with `go install`, so the Go checksum database vouches for the
-  # source, the way ci.yml runs staticcheck and govulncheck. Bump it to the
-  # current cosign release before tagging (CONTRIBUTING.md, "Releasing").
+  # source, as it does for ci.yml's tools (tools/go.mod). Renovate proposes
+  # new releases (renovate.json5); check it's current before tagging
+  # (CONTRIBUTING.md, "Releasing").
   COSIGN_VERSION: v3.1.3
   # What `cosign verify` expects: this workflow, at this tag, signed through
   # GitHub's OIDC issuer.

@@ -323,8 +323,7 @@ func (e *apiError) Error() string {
 func (e *apiError) Unwrap() error { return e.StatusError }
 
 func statusOf(err error) int {
-	var ae *apiError
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*apiError](err); ok {
 		return ae.Code
 	}
 	return 0

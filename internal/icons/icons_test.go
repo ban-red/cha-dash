@@ -292,7 +292,7 @@ func TestSyncServeAndCache(t *testing.T) {
 		t.Errorf("CSP = %q", csp)
 	}
 	etag := rec.Header().Get("ETag")
-	plain := strings.Split(logo, "?")[0]
+	plain, _, _ := strings.Cut(logo, "?")
 	if rec := get(plain); rec.Header().Get("Cache-Control") != "private, max-age=604800" || rec.Header().Get("ETag") != etag {
 		t.Errorf("without v: %q %q", rec.Header().Get("Cache-Control"), rec.Header().Get("ETag"))
 	}

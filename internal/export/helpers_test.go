@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -138,9 +139,7 @@ func (h *hub) addBoard(t *testing.T, id, slug, name string, position int64, layo
 func (h *hub) addInstance(t *testing.T, id, integ, name string, enabled bool, config map[string]any, secrets map[string]string) {
 	t.Helper()
 	cfg := map[string]any{}
-	for k, v := range config {
-		cfg[k] = v
-	}
+	maps.Copy(cfg, config)
 	for field, value := range secrets {
 		name := "instance/" + id + "/" + field
 		if err := h.vault.Put(t.Context(), name, []byte(value)); err != nil {
@@ -297,7 +296,7 @@ func jsonOf(t *testing.T, v any) string {
 // hubs: the time of the export.
 func withoutMeta(data []byte) string {
 	var keep []string
-	for _, l := range strings.Split(string(data), "\n") {
+	for l := range strings.SplitSeq(string(data), "\n") {
 		if !strings.HasPrefix(l, "  exported_at:") {
 			keep = append(keep, l)
 		}

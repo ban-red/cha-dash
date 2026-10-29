@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -70,8 +71,7 @@ func parseGuestConfig(raw map[string]any) *guestConfig {
 				c.hostpci = append(c.hostpci, first)
 			}
 		case netKeyRE.MatchString(k):
-			var n int
-			fmt.Sscanf(netKeyRE.FindStringSubmatch(k)[1], "%d", &n)
+			n, _ := strconv.Atoi(netKeyRE.FindStringSubmatch(k)[1]) // digits: the pattern matched
 			if mac := nicMAC(v); mac != "" && (netIdx < 0 || n < netIdx) {
 				c.mac, netIdx = mac, n
 			}
@@ -103,7 +103,7 @@ func diskStorage(v string) string {
 // nicMAC is a NIC's MAC: "virtio=BC:24:11:…,bridge=vmbr0" (QEMU) or
 // "name=eth0,hwaddr=BC:24:11:…" (LXC).
 func nicMAC(v string) string {
-	for _, part := range strings.Split(v, ",") {
+	for part := range strings.SplitSeq(v, ",") {
 		k, val, ok := strings.Cut(part, "=")
 		if ok && macRE.MatchString(val) && (k == "hwaddr" || k == "macaddr" || !strings.Contains(k, "addr")) {
 			return strings.ToUpper(val)

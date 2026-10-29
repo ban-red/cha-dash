@@ -48,3 +48,7 @@
 | [0020](0020-node-deploys-with-compose-sdk-and-go-git.md) | The node deploys with the Compose SDK and go-git | accepted | 2026-10-03 |
 | [0021](0021-git-sync-and-deploy-webhooks.md) | Stacks follow git through the deploy pipeline; webhooks only poke | accepted | 2026-10-22 |
 | [0022](0022-oidc-and-forward-auth.md) | OIDC links to local users; the owner keeps a local way in | accepted | 2026-10-22 |
+| 0023 | MCP timing: `mcp/v0` in v0.4 instead of after 1.0 ([09 · D1](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
+| 0024 | A replacement for the archived CLA Assistant action ([09 · D2](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
+| 0025 | The spec format public as `v1alpha1` before 1.0 ([09 · D3](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
+| 0026 | "No enterprise tier" in the Pact ([09 · D4](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -162,7 +163,7 @@ func TestSchemaValidate(t *testing.T) {
 		Prop("api_key", Secret("Key")),
 		Prop("mode", Enum("Mode", "a", "b")),
 		Prop("port", Integer("Port", 1, 65535)),
-		Prop("ratio", &Schema{Type: "number", Minimum: ptr(0.0), Maximum: ptr(1.0)}),
+		Prop("ratio", &Schema{Type: "number", Minimum: new(0.0), Maximum: new(1.0)}),
 		Prop("on", Boolean("On")),
 		Prop("host", &Schema{Type: "string", Format: "hostname"}),
 		Prop("list", &Schema{Type: "array", Items: Object(Prop("name", String("Name"))).Require("name"), MinItems: &min1}),
@@ -201,9 +202,7 @@ func TestSchemaValidate(t *testing.T) {
 	}
 	for _, c := range cases {
 		cfg := map[string]any{}
-		for k, v := range ok {
-			cfg[k] = v
-		}
+		maps.Copy(cfg, ok)
 		for k, v := range c.patch {
 			if v == nil {
 				delete(cfg, k)
@@ -220,8 +219,6 @@ func TestSchemaValidate(t *testing.T) {
 		t.Errorf("non-object: %v", errs)
 	}
 }
-
-func ptr[T any](v T) *T { return &v }
 
 func TestTLSPolicy(t *testing.T) {
 	hex := strings.Repeat("ab", 32)

@@ -17,6 +17,7 @@ package topics
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	"dash.cha.sh/internal/graph"
@@ -49,7 +50,7 @@ type Set struct {
 // clock reads now.
 func New(g *graph.Graph, now time.Time) *Set {
 	s := &Set{Graph: g, Metrics: livedoc.New(Series), Inbox: livedoc.New(Incidents)}
-	s.Inbox.Update(func(tx *livedoc.Tx) error {
+	_, _ = s.Inbox.Update(func(tx *livedoc.Tx) error {
 		SetNow(tx, now)
 		return nil
 	})
@@ -69,9 +70,7 @@ func (s *Set) Source() realtime.Source {
 // packages own (the action engine's tasks).
 func (s *Set) SourceWith(extra realtime.Mux) realtime.Source {
 	m := s.Source().(realtime.Mux)
-	for name, src := range extra {
-		m[name] = src
-	}
+	maps.Copy(m, extra)
 	return m
 }
 
@@ -93,7 +92,7 @@ func (s *Set) RunClock(ctx context.Context, every time.Duration, now func() time
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			s.Inbox.Update(func(tx *livedoc.Tx) error {
+			_, _ = s.Inbox.Update(func(tx *livedoc.Tx) error {
 				SetNow(tx, now())
 				return nil
 			})

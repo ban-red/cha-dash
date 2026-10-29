@@ -1,0 +1,91 @@
+// Dependency updates, as pull requests that run the full CI.
+// Needs the Renovate GitHub App on the repository: https://github.com/apps/renovate
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    // Pins GitHub Actions and Docker images by digest (the repo already
+    // does), keeps the digests current, and waits before taking new npm
+    // releases.
+    'config:best-practices',
+  ],
+  semanticCommitType: 'build',
+  labels: ['dependencies'],
+  timezone: 'Etc/UTC',
+  // One batch a week. Security fixes don't wait for it.
+  schedule: ['before 6am on monday'],
+  // A new release waits three days, in every ecosystem, as bunfig.toml makes
+  // bun install do: most compromised releases are pulled within hours.
+  minimumReleaseAge: '3 days',
+  internalChecksFilter: 'strict',
+  postUpdateOptions: ['gomodTidy'],
+  packageRules: [
+    {
+      // go.mod's go line is the toolchain CI and the image build with
+      // (setup-go reads it), so it moves with every Go patch release.
+      matchManagers: ['gomod'],
+      matchDepNames: ['go'],
+      matchDepTypes: ['golang'],
+      rangeStrategy: 'bump',
+    },
+    {
+      // One PR for Go: go.mod, tools/go.mod and the golang image.
+      matchDepNames: ['go', 'golang'],
+      groupName: 'Go',
+    },
+    {
+      // One PR for Bun: the oven/bun image and CI's BUN_VERSION.
+      matchDepNames: ['bun', 'oven/bun'],
+      groupName: 'Bun',
+    },
+    {
+      matchManagers: ['gomod'],
+      matchPackageNames: ['golang.org/x/**'],
+      groupName: 'golang.org/x',
+    },
+    {
+      matchFileNames: ['tools/go.mod'],
+      groupName: 'Go tools',
+    },
+    {
+      matchManagers: ['github-actions'],
+      matchUpdateTypes: ['minor', 'patch', 'digest', 'pinDigest'],
+      groupName: 'GitHub Actions',
+    },
+    {
+      matchPackageNames: ['oxlint', 'eslint-plugin-oxlint', 'eslint', 'eslint-plugin-vue', 'typescript-eslint', '@vue/eslint-config-typescript', 'globals'],
+      groupName: 'JavaScript linters',
+    },
+    {
+      // typescript-eslint supports TypeScript below 6.1, and vue-tsc needs
+      // the compiler API that TypeScript 7.0 doesn't have yet.
+      matchPackageNames: ['typescript'],
+      allowedVersions: '<6.1',
+    },
+  ],
+  customManagers: [
+    {
+      customType: 'regex',
+      description: 'Bun in CI (BUN_VERSION), kept in step with the oven/bun image',
+      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/'],
+      matchStrings: ['BUN_VERSION: "(?<currentValue>[^"]+)"'],
+      depNameTemplate: 'bun',
+      datasourceTemplate: 'npm',
+    },
+    {
+      customType: 'regex',
+      description: 'cosign, installed with go install in the release workflow',
+      managerFilePatterns: ['/^\\.github/workflows/release\\.yml$/'],
+      matchStrings: ['COSIGN_VERSION: (?<currentValue>v\\S+)'],
+      depNameTemplate: 'github.com/sigstore/cosign/v3',
+      datasourceTemplate: 'go',
+    },
+    {
+      customType: 'regex',
+      description: 'zizmor, which zizmor-action installs from PyPI',
+      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/'],
+      matchStrings: ['ZIZMOR_VERSION: "(?<currentValue>[^"]+)"'],
+      depNameTemplate: 'zizmor',
+      datasourceTemplate: 'pypi',
+    },
+  ],
+}

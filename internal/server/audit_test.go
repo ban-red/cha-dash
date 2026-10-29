@@ -93,9 +93,9 @@ func auditEvents(t *testing.T, st *store.Store) []audit.Event {
 func lastAudit(t *testing.T, st *store.Store, action string) (audit.Event, bool) {
 	t.Helper()
 	evs := auditEvents(t, st)
-	for i := len(evs) - 1; i >= 0; i-- {
-		if evs[i].Action == action {
-			return evs[i], true
+	for _, ev := range slices.Backward(evs) {
+		if ev.Action == action {
+			return ev, true
 		}
 	}
 	return audit.Event{}, false

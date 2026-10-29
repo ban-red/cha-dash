@@ -27,6 +27,8 @@ docker compose up -d   # the main way to run Cha Dash (deploy/README.md) — the
 - [05 · Dogfood home](docs/plan/05-dogfood-home.md) — the real homelab Cha Dash has to win over first
 - [06 · Next steps](docs/plan/06-next-steps.md) — the sequenced plan for finishing M0 (done)
 - [07 · v0.1](docs/plan/07-v0.1.md) — waves 4–6 toward the Front Page release, and their shared contracts
+- [08 · v0.2](docs/plan/08-v0.2.md) — Control: the action engine, roles, the node, owned stacks, notifications and API tokens
+- [09 · Roadmap review, October 2026](docs/plan/09-roadmap-2026.md) — where Cha Dash stands against the 2026 field, the fixes from the review, and proposed roadmap changes
 
 **Decisions**
 - [Architecture decision records](docs/adr/README.md) — one file per decision, with the open ones listed

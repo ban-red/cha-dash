@@ -66,7 +66,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	wan := integration.String("WAN interface").WithDefault("wan").
 		Describe("The OPNsense interface to report as the WAN, by its identifier (wan, opt1, …).")
-	wan.Pattern, wan.MaxLength = `^[a-z][a-z0-9_]*$`, intp(32)
+	wan.Pattern, wan.MaxLength = `^[a-z][a-z0-9_]*$`, new(32)
 	return integration.Manifest{
 		ID: ID, Name: "OPNsense", Icon: "opnsense", Version: "0.1.0", Tier: integration.Silver,
 		Capabilities: []integration.Capability{"net.router", "net.wan"},
@@ -79,8 +79,6 @@ func (Integration) Manifest() integration.Manifest {
 		Poll: integration.Poll{Interval: pollInterval, Idle: pollInterval, Timeout: pollTimeout},
 	}
 }
-
-func intp(n int) *int { return &n }
 
 // ValidateConfig implements integration.ConfigValidator.
 func (Integration) ValidateConfig(cfg integration.Config) []integration.FieldError {

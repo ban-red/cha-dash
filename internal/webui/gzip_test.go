@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
+	"maps"
 	"math/rand/v2"
 	"net/http"
 	"slices"
@@ -40,9 +41,7 @@ var gz = map[string]string{"Accept-Encoding": "gzip, deflate, br, zstd"}
 
 func with(h map[string]string, kv ...string) map[string]string {
 	out := map[string]string{}
-	for k, v := range h {
-		out[k] = v
-	}
+	maps.Copy(out, h)
 	for i := 0; i+1 < len(kv); i += 2 {
 		out[kv[i]] = kv[i+1]
 	}

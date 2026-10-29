@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime"
 	"net/http"
 	"net/url"
@@ -197,9 +198,7 @@ type Paging struct {
 // endpoint the version lacks gives found false.
 func (c *Client) Total(ctx context.Context, path string, q url.Values) (n int, found bool, err error) {
 	v := url.Values{"page": {"1"}, "pageSize": {"1"}}
-	for k, x := range q {
-		v[k] = x
-	}
+	maps.Copy(v, q)
 	var p Paging
 	found, err = c.GetOptional(ctx, path, v, &p)
 	return p.TotalRecords, found, err

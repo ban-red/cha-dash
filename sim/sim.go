@@ -580,8 +580,8 @@ func (s *Sim) lastKnown(m *metricSpec, end time.Time) (Num, time.Time, bool) {
 	// interval, newest first. The interval ending at `end` is already known
 	// to be unreadable.
 	cps := s.changePoints(end.Add(-48*time.Hour), end)
-	for i := len(cps) - 1; i >= 0; i-- {
-		tk := s.lastTick(cps[i].Add(-time.Nanosecond))
+	for i, cp := range slices.Backward(cps) {
+		tk := s.lastTick(cp.Add(-time.Nanosecond))
 		if i > 0 && tk.Before(cps[i-1]) {
 			continue // no sample tick in this interval
 		}

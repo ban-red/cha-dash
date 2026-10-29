@@ -67,7 +67,11 @@ func (s *sub) close() {
 // client that can't accept a frame within WriteTimeout is disconnected.
 func (s *sub) run(c *conn) {
 	defer s.close()
-	var last time.Time
+	// The snapshot, sent just before the loop, is the first frame. Counting
+	// it means the first change waits out the window too, so one graph
+	// change, which reaches each topic's feed in turn, arrives as one diff
+	// rather than as one per feed.
+	last := time.Now()
 	for {
 		select {
 		case <-s.ctx.Done():

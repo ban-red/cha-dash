@@ -1,0 +1,79 @@
+# golangci-lint v2, pinned in tools/go.mod:
+#
+#   go tool -modfile=tools/go.mod golangci-lint run
+#
+# The set is small on purpose: linters that find bugs (unchecked errors,
+# unread or unclosed rows, wrapped errors compared with ==, requests without
+# a context, risky security patterns), not taste. A finding that is right
+# for this code gets an exclusion below with its reason, or a
+# `//nolint:<linter> // <reason>` on the line, never a bare nolint.
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - copyloopvar
+    - errorlint
+    - gosec
+    - intrange
+    - misspell
+    - noctx
+    - nolintlint
+    - rowserrcheck
+    - unconvert
+  settings:
+    errcheck:
+      exclude-functions:
+        - (*bufio.Writer).Write # a bufio.Writer's error is sticky: Flush reports it
+        - (*bufio.Writer).WriteByte
+        - (*bufio.Writer).WriteString
+        - (*database/sql.Tx).Rollback # deferred after Commit, or on a path already failing
+        - (*github.com/coder/websocket.Conn).CloseNow # best effort on the way out
+    errorlint:
+      errorf: false # wrapping with %w makes an error part of the API, so it's a choice
+    staticcheck:
+      # staticcheck's own defaults. QF* are editor quick fixes, not findings.
+      checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-ST1023", "-QF*"]
+    gosec:
+      excludes:
+        - G104 # errcheck covers unhandled errors, with the exclusions above
+        - G115 # integer conversions: bounded where they happen (frame limits, key sizes), and the Demo Home's hashes wrap on purpose
+        - G101 # "hardcoded credentials": names like token_secret in schemas and env vars, never values
+        - G304 # file paths come from the operator's flags, env or the node's own directories
+        - G404 # math/rand is for poll jitter and the Demo Home, never secrets
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: strict
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+    rules:
+      # Tests talk to httptest servers and databases they own.
+      - path: _test\.go
+        linters: [errcheck, errorlint, gosec, noctx, rowserrcheck]
+      # The hub's own cookies set Secure from the request's scheme behind
+      # trusted proxies (auth.Service.setCookie), with HttpOnly and
+      # SameSite=Lax. An integration's cookies are its client's jar, sent
+      # upstream, never to a browser.
+      - path: ^(internal/auth|integrations)/
+        linters: [gosec]
+        text: G124
+      # Discovery probes the LAN for products by their front page: self-signed
+      # is the norm there, no credential is sent, and only a product name is
+      # read back (probeClient). The instance it proposes trusts on first use.
+      - path: ^internal/onboarding/discover\.go$
+        linters: [gosec]
+        text: G402
+      # The stacks root is the owner's git checkout of compose files, read
+      # like any checkout; stack secrets are resolved in memory and never
+      # written there (internal/node/stacks/README.md).
+      - path: ^internal/node/stacks/
+        linters: [gosec]
+        text: G30[16]
+
+formatters:
+  enable:
+    - gofmt

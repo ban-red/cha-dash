@@ -476,8 +476,7 @@ func (e *missingSecretError) Error() string {
 // import that named a secret it couldn't carry). Anything else wrong with
 // the config gives "".
 func missingSecret(man integration.Manifest, err error) string {
-	var ms *missingSecretError
-	if errors.As(err, &ms) {
+	if ms, ok := errors.AsType[*missingSecretError](err); ok {
 		return ms.field
 	}
 	var ve *ValidationError
@@ -1232,7 +1231,7 @@ func (m *Manager) runTest(ctx context.Context, mi *managed, gen int, integ integ
 		if err != nil {
 			return integration.Failed(err)
 		}
-		defer safeClose(inst)
+		defer func() { _ = safeClose(inst) }()
 		return inst.Test(ctx)
 	}()
 	if res.Latency == 0 {

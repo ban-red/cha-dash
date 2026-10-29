@@ -207,8 +207,7 @@ func (c *Client) connectOnce(ctx context.Context) (time.Duration, error) {
 	c.mu.Lock()
 	c.sess = nil
 	c.mu.Unlock()
-	var pe *nodeproto.Error
-	if errors.As(err, &pe) {
+	if pe, ok := errors.AsType[*nodeproto.Error](err); ok {
 		return c.refused(false, pe)
 	}
 	return c.backoff, err

@@ -275,7 +275,7 @@ func forbidden(err error) *Refusal {
 	// A policy may explain itself ("Your role (viewer) can't run T2
 	// actions."); the bare sentinels get a generic sentence.
 	said := func(generic string) string {
-		if err == ErrForbidden || err == ErrStepUpRequired {
+		if err == ErrForbidden || err == ErrStepUpRequired { //nolint:errorlint // only the bare sentinels: a wrapped one carries its own sentence
 			return generic
 		}
 		return err.Error()

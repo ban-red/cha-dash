@@ -1,0 +1,40 @@
+name: Stress
+
+# The timing-sensitive packages, many times over under -race, nightly. A test
+# that passes once in CI can still fail one run in fifty, and the October 2026
+# review found four real ordering bugs that way (docs/plan/09-roadmap-2026.md,
+# E6). A failure here is a bug to find, not a test to re-run.
+on:
+  schedule:
+    - cron: "47 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stress:
+    name: Stress (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - ./internal/action/
+          - ./internal/realtime/
+          - ./internal/notify/
+          - ./internal/spec/
+          - ./internal/nodes/
+          - ./internal/stacks/
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: go test -race, 20 times on 1 and on 4 CPUs
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: go test -race -count=20 -cpu 1,4 -timeout 45m "$PACKAGE"

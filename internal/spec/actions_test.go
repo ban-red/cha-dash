@@ -211,3 +211,44 @@ func TestActionsRun(t *testing.T) {
 	}
 	writes.Expect(t)
 }
+
+// TestVerifyDeadlineDuringARead: when verify's time runs out while a read
+// is in flight, after earlier reads answered, the failure is the spec's
+// sentence, not the cut read's "didn't answer in time".
+func TestVerifyDeadlineDuringARead(t *testing.T) {
+	old := verifyInterval
+	verifyInterval = 20 * time.Millisecond
+	t.Cleanup(func() { verifyInterval = old })
+
+	var mu sync.Mutex
+	moved, reads := false, 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		after := moved
+		if after {
+			reads++
+		}
+		n := reads
+		mu.Unlock()
+		if after && n > 1 {
+			<-r.Context().Done() // hangs until verify gives up
+			return
+		}
+		_, _ = w.Write([]byte(`{"state":"queued","title":"Job ` + r.PathValue("id") + `"}`))
+	})
+	mux.HandleFunc("PUT /api/jobs/{id}/queue/{q}", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		moved = true
+		mu.Unlock()
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	h := integrationtest.New(t)
+	acts := h.Actions(mustParse(t, actionSpec), map[string]any{"url": srv.URL, "site": "s"}, map[string]string{"token": "t0ken"})
+	task := acts.Run("widgets.job.move", "widgets:i_test/job/j-1", map[string]any{"queue": "fast"})
+	if task.State != action.StateFailed || task.Error == nil || task.Error.Code != "verify_failed" || task.Error.Message != "not moved" {
+		t.Fatalf("move = %s %+v", task.State, task.Error)
+	}
+}
