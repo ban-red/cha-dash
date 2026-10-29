@@ -41,6 +41,10 @@ describe('tile fallback', () => {
     const onUnraid = { by_icon: {}, by_origin: {}, by_instance: { in_u: '/api/icons/ic_unraidfav1' } };
     expect(iconFor(onUnraid, { bind: { instance: 'in_u' } } as never, undefined, 'Sonarr')).toBe('/service-icons/sonarr.svg');
     expect(iconFor(onUnraid, { bind: { instance: 'in_u' } } as never, undefined, 'Tower')).toBe('/api/icons/ic_unraidfav1');
+    // and so does one that shares a host's favicon through its link
+    const shared = { by_icon: {}, by_origin: { 'https://jupiter.example': '/api/icons/ic_unraidfav1' }, by_instance: {} };
+    expect(iconFor(shared, undefined, 'https://jupiter.example/radarr', 'Radarr')).toBe('/service-icons/radarr.svg');
+    expect(iconFor(shared, undefined, 'https://jupiter.example/', 'Tower')).toBe('/api/icons/ic_unraidfav1');
     integrations.instances = [];
   });
 });
