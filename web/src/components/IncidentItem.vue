@@ -30,6 +30,8 @@ const { incident, expanded = false } = defineProps<{ incident: Incident; expande
 const emit = defineEmits<{ toggle: [] }>();
 const live = useLive();
 const ui = useUi();
+/** The target's name when its kind has a sheet (10 · The resource sheet): the item links to it. */
+const sheetName = computed(() => (incident.target && ui.hasSheet(incident.target) ? label(live.graph.value?.resources[incident.target]) || incident.target : ''));
 
 const isResolved = computed(() => incident.status === 'resolved');
 const isRepair = computed(() => incident.class === 'repair');
@@ -146,6 +148,10 @@ const id = computed(() => `ib-${incident.id}`);
         <p v-if="fix?.state === 'failed'" class="err" role="alert">{{ fix.error }}</p>
         <button v-if="recipe && ui.can.value.integrations" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe, { section: 'control' })">Open its settings</button>
       </div>
+
+      <p v-if="sheetName" class="sheet-link">
+        <button type="button" class="btn sm" @click="ui.openSheet(incident.target)">Open {{ sheetName }}</button>
+      </p>
 
       <div v-if="facts.length">
         <h4>What Cha Dash saw</h4>

@@ -106,8 +106,15 @@ const icon = computed(() => {
 // with it (WCAG 2.5.3, Label in Name).
 const linkLabel = computed(() => (icon.value ? `Open ${shownName.value}` : `${mark.value}, open ${shownName.value}`));
 
+/** A control inside the tile (a row that opens its sheet, the mark's link) keeps its own click and keys. */
+const fromControl = (e: Event) => e.target !== e.currentTarget && (e.target as Element | null)?.closest?.('button, a, input, select, textarea, summary') != null;
+
+function onClick(e: MouseEvent) {
+  if (clickable && !fromControl(e)) emit('open');
+}
+
 function onKey(e: KeyboardEvent) {
-  if (!clickable) return;
+  if (!clickable || fromControl(e)) return;
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     emit('open');
@@ -121,7 +128,7 @@ function onKey(e: KeyboardEvent) {
     :aria-label="label"
     :aria-busy="loading || undefined"
     :tabindex="clickable ? 0 : undefined"
-    @click="clickable && emit('open')"
+    @click="onClick"
     @keydown="onKey"
   >
     <div v-if="!chromeless" class="th">

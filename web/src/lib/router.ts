@@ -6,6 +6,7 @@
  *
  *   /                                  the front page (the first board)
  *   /boards/{id}                       the front page on that board
+ *   …?r={resource id}                  a resource's sheet over the front page (10 · The resource sheet)
  *   /settings                          → /settings/integrations
  *   /settings/integrations             instances and the catalog
  *   /settings/integrations/new         pick an integration to add
@@ -108,6 +109,17 @@ export function inboxLink(r: Route): { incident: string } | null {
   if (resolve(r).name !== 'front') return null;
   if (r.query['incident']) return { incident: r.query['incident'] };
   return r.query['inbox'] ? { incident: '' } : null;
+}
+
+/** The resource whose sheet is open: `?r=<id>` on a front-page route, or undefined. */
+export function sheetOf(r: Route): string | undefined {
+  if (resolve(r).name !== 'front') return undefined;
+  return r.query['r'] || undefined;
+}
+
+/** The current front-page path with a resource's sheet open, or with none. */
+export function sheetPath(r: Route, id: string | undefined): string {
+  return id ? `${r.path}?r=${encodeURIComponent(id)}` : r.path;
 }
 
 /** Path for one stack, or the stacks list without one. The new-stack form is `/settings/stacks/new`. */

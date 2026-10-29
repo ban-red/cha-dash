@@ -15,16 +15,19 @@
  *   that failed focused.
  * - A task whose log is its result (a container's logs) ends in the log
  *   dialog (TaskLogDialog), not a toast.
+ * - A resource's sheet follows the route (`?r=<id>`): opening one pushes a
+ *   history entry, so Back closes it or returns to the sheet before.
  * - A suggestion's answer (Merge or Keep separate) goes to the hub's
  *   correlator, which remembers it.
  */
 import { computed, inject, provide, reactive, type InjectionKey } from 'vue';
 import { ApiError, api } from '../lib/api';
-import { navigate, settingsPath, type SettingsPane } from '../lib/router';
+import { navigate, route, settingsPath, sheetOf, sheetPath, type SettingsPane } from '../lib/router';
 import { prefersReducedMotion } from '../lib/motion';
 import { repairTarget } from '../model/integrations';
 import { label } from '../model/graph';
 import { permissions } from '../model/roles';
+import { hasSheet } from '../model/sheets';
 import { resourceLinks, safeUrl, type Action, type Incident } from '../model/types';
 import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type TaskLog, type ToastAction } from './actions';
 import type { Live } from './live';
@@ -89,8 +92,23 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     if (i >= 0) state.toasts.splice(i, 1);
   }
 
+  /** The resource whose sheet is open, from the route. */
+  const sheet = computed(() => sheetOf(route.value));
+
+  /** Open a resource's sheet over the front page (closing the Inbox and the command bar). */
+  function openSheet(id: string): void {
+    state.paletteOpen = false;
+    state.inboxOpen = false;
+    if (sheet.value !== id) navigate(sheetPath(route.value, id));
+  }
+
+  function closeSheet(): void {
+    if (sheet.value) navigate(sheetPath(route.value, undefined), { replace: true });
+  }
+
   function openInbox(focus = ''): void {
     if (!can.value.inbox) return;
+    closeSheet();
     state.paletteOpen = false;
     state.inboxFocus = focus;
     state.inboxOpen = true;
@@ -244,6 +262,11 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     openPalette,
     closePalette,
     openSettings,
+    sheet,
+    openSheet,
+    closeSheet,
+    /** The resource's kind has a sheet. */
+    hasSheet: (id: string) => hasSheet(live.graph.value, id),
     reconnect,
     canRun,
     act,

@@ -22,18 +22,28 @@ import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtInt, fmtPct, hhmm, plural } from '../lib/format';
-import { attr, engines, incoming, label, mergedHealth, resolve, series, sourcesOf } from '../model/graph';
+import { attr, engines, label, resolve, series } from '../model/graph';
 import { glyphFor, worst } from '../model/status';
 import { resourceLinks, type Resource } from '../model/types';
 import { useLive } from '../stores/live';
+import { useUi } from '../stores/ui';
 import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
+import { containerRow, imageTag, rowName, updateWord } from './containers';
 import { containersOf, upFor } from './read';
-import { statusOf } from './subject';
 import { useSubject } from './use';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
+const ui = useUi();
+/** An engine in the footer opens its sheet, as a row opens its container's; never while editing. */
+function openEngine(id: string): void {
+  if (!ui.state.editing && ui.hasSheet(id)) ui.openSheet(id);
+}
+/** A row opens the container's sheet, except while the board is being edited. */
+function open(r: Resource): void {
+  if (!ui.state.editing) ui.openSheet(r.id);
+}
 
 const scope = computed(() => (target ? resolve(live.graph.value, target) : undefined));
 const s = useSubject(() => scope.value?.id);
@@ -45,42 +55,8 @@ const all = computed(() => {
   return containersOf(g, undefined);
 });
 
-interface Row {
-  r: Resource;
-  status: TileStatus;
-  word: string;
-  changed: number;
-  /** "Docker · Unraid" when more than one source reports it. */
-  seenBy: string;
-}
-const DOWN_STATES = new Set(['exited', 'dead']);
-function rowOf(r: Resource): Row {
-  const g = live.graph.value;
-  const h = mergedHealth(g, r.id);
-  const status = statusOf({ ...r, health: h });
-  const sources = sourcesOf(g, r.id);
-  let word = '';
-  if (status === 'down') {
-    const exit = attr<string | number>(r, 'last_exit') ?? attr<number>(r, 'exit_code');
-    const at = attr<string>(r, 'finished_at');
-    const parts = [DOWN_STATES.has(r.state ?? '') ? `exited${exit !== undefined ? ` (${String(exit).replace(/ .*/, '')})` : ''}${at ? ` at ${hhmm(at)}` : ''}` : (r.state ?? 'down')];
-    if (attr(r, 'oom_killed') === true || /oom/i.test(String(exit ?? '') + (h.reason ?? ''))) parts.push('OOM-killed');
-    else if (h.reason) parts.push(h.reason);
-    const deps = [...incoming(live.graph.value, r.id, 'runs_on'), ...incoming(live.graph.value, r.id, 'depends_on')].map((d) => label(d));
-    if (deps.length) parts.push(`${deps.slice(0, 2).join(', ')} depend${deps.length === 1 ? 's' : ''} on it`);
-    word = parts.join(' · ');
-  } else if (status === 'attention') {
-    word = h.reason ?? (Number(attr(r, 'restart_count') ?? 0) > 3 ? 'restarting repeatedly' : 'unhealthy');
-  } else if (status === 'off') {
-    word = 'stopped (expected)';
-  } else if (status === 'maintenance') {
-    word = h.reason ?? (r.state === 'paused' ? 'paused' : 'maintenance');
-  }
-  const changed = Math.max(Date.parse(attr<string>(r, 'started_at') ?? '') || 0, Date.parse(attr<string>(r, 'finished_at') ?? '') || 0);
-  return { r, status, word, changed, seenBy: sources.length > 1 ? sources.join(' · ') : '' };
-}
 const RANK: Partial<Record<TileStatus, number>> = { down: 0, attention: 1, maintenance: 2, unknown: 3, ok: 4, off: 5 };
-const rows = computed(() => all.value.map(rowOf).sort((a, b) => (RANK[a.status] ?? 9) - (RANK[b.status] ?? 9) || label(a.r).localeCompare(label(b.r))));
+const rows = computed(() => all.value.map((r) => containerRow(live.graph.value, r)).sort((a, b) => (RANK[a.status] ?? 9) - (RANK[b.status] ?? 9) || label(a.r).localeCompare(label(b.r))));
 const recent = computed(() => [...rows.value].filter((x) => x.changed).sort((a, b) => b.changed - a.changed).slice(0, 3));
 const running = computed(() => all.value.filter((c) => c.state === 'running').length);
 const unhealthy = computed(() => rows.value.filter((x) => x.status === 'attention' || x.status === 'down'));
@@ -97,14 +73,8 @@ const tag = computed(() => {
 const name = computed(() => (scope.value ? `Containers · ${label(scope.value)}` : 'Containers'));
 const context = computed(() => (scope.value ? '' : list.value.length ? plural(list.value.length, 'engine') : ''));
 const noEngines = computed(() => !scope.value && !list.value.length && !all.value.length);
-const imageTag = (r: Resource) => {
-  const img = attr<string>(r, 'image') ?? '';
-  const at = img.lastIndexOf(':');
-  return at > img.lastIndexOf('/') ? img.slice(at + 1) : 'latest';
-};
 const cpu = (r: Resource) => series(live.metrics.value, r.id, 'cpu.pct')?.value ?? null;
 const memMib = (r: Resource) => series(live.metrics.value, r.id, 'mem.mib')?.value ?? null;
-const update = (r: Resource) => (attr(r, 'update_available') === true ? 'update' : attr(r, 'update_available') === false ? '—' : '');
 const incident = computed(() => live.problems.value.find((i) => unhealthy.value.some((x) => x.r.id === i.target)));
 const hasStats = computed(() => all.value.some((r) => series(live.metrics.value, r.id, 'cpu.pct')));
 </script>
@@ -141,7 +111,7 @@ const hasStats = computed(() => all.value.some((r) => series(live.metrics.value,
         <li v-for="x in rows.slice(0, 10)" :key="x.r.id" :class="['li', { dim: x.status === 'off' }]">
           <Glyph v-if="x.status !== 'ok'" :kind="glyphFor(x.status)" :label="x.word" />
           <span v-else></span>
-          <span><span class="t">{{ label(x.r) }}</span><small v-if="x.word">{{ x.word }}</small><small v-if="x.seenBy" class="src">{{ x.seenBy }}</small></span>
+          <span><button type="button" class="t lk" :aria-label="rowName(x)" :tabindex="ui.state.editing ? -1 : undefined" @click="open(x.r)">{{ label(x.r) }}</button><small v-if="x.word">{{ x.word }}</small><small v-if="x.seenBy" class="src">{{ x.seenBy }}</small></span>
           <span></span>
         </li>
       </ul>
@@ -163,7 +133,7 @@ const hasStats = computed(() => all.value.some((r) => series(live.metrics.value,
         </div>
         <div v-for="x in rows.slice(0, 9)" :key="x.r.id" :class="['sr', { dim: x.status === 'off' }]" role="row">
           <span class="h" role="cell">
-            <Glyph v-if="x.status !== 'ok'" :kind="glyphFor(x.status)" :label="x.word" />{{ label(x.r) }}<small v-if="update(x.r) === 'update'">update</small><small v-if="x.seenBy" class="src">{{ x.seenBy }}</small>
+            <Glyph v-if="x.status !== 'ok'" :kind="glyphFor(x.status)" :label="x.word" /><button type="button" class="lk" :aria-label="rowName(x)" :tabindex="ui.state.editing ? -1 : undefined" @click="open(x.r)">{{ label(x.r) }}</button><small v-if="updateWord(x.r) === 'update'">update</small><small v-if="x.seenBy" class="src">{{ x.seenBy }}</small>
           </span>
           <span class="tagc" role="cell">{{ imageTag(x.r) }}</span>
           <span class="r n" role="cell">{{ x.r.state === 'running' ? upFor(attr(x.r, 'started_at'), live.now.value) : '—' }}</span>
@@ -186,7 +156,7 @@ const hasStats = computed(() => all.value.some((r) => series(live.metrics.value,
           <Glyph v-if="x.status !== 'ok'" :kind="glyphFor(x.status)" :label="x.word" />
           <span v-else></span>
           <span>
-            <span class="t">{{ label(x.r) }}</span><small>{{ x.word || `started ${hhmm(x.changed)}` }}</small><small v-if="x.seenBy" class="src">{{ x.seenBy }}</small>
+            <button type="button" class="t lk" :aria-label="x.word ? rowName(x) : `${label(x.r)}, started ${hhmm(x.changed)}`" :tabindex="ui.state.editing ? -1 : undefined" @click="open(x.r)">{{ label(x.r) }}</button><small>{{ x.word || `started ${hhmm(x.changed)}` }}</small><small v-if="x.seenBy" class="src">{{ x.seenBy }}</small>
           </span>
           <span></span>
         </li>
@@ -194,7 +164,10 @@ const hasStats = computed(() => all.value.some((r) => series(live.metrics.value,
       <StateNote v-else-if="size !== 'small'" :subject="s" />
       <div class="tf">
         <span v-if="!scope">
-          <template v-for="(e, i) in list" :key="e.id">{{ i ? ' · ' : '' }}{{ e.name }} <span class="n">{{ e.total }}</span></template>
+          <template v-for="(e, i) in list" :key="e.id"
+            >{{ i ? ' · ' : '' }}<button type="button" class="lk" :aria-label="`${e.name}, ${e.total} containers`" :tabindex="ui.state.editing ? -1 : undefined" @click="openEngine(e.id)">{{ e.name }}</button>
+            <span class="n">{{ e.total }}</span></template
+          >
         </span>
         <span v-else>{{ unhealthy.length ? `${unhealthy.length} not healthy` : 'all healthy' }}</span>
       </div>

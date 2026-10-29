@@ -74,6 +74,8 @@ export interface Permissions {
   audit: boolean;
   /** Approve or deny plans an API token left waiting for a person; see and revoke everyone's tokens. */
   approve: boolean;
+  /** Run actions that read data back, such as a container's logs (`Def.ReadsData`): Operator and up. */
+  readData: boolean;
   /** Can this role run an action of this tier (household: only actions marked for it)? */
   act(tier: Tier | string, household?: boolean): boolean;
   /** Which settings panes to list. */
@@ -95,6 +97,7 @@ export function permissions(role: string | undefined): Permissions {
     users: admin,
     audit: admin,
     approve: admin,
+    readData: admin || r === 'operator',
     act: (tier, household) => {
       const n = tierN(tier);
       if (r === 'household') return n === 0 || household === true;

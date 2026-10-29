@@ -441,6 +441,29 @@ a.mono.has-icon:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A row's name that opens its sheet: reads as the name, shows it's a button on hover and focus. */
+.lk {
+  display: inline;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.li .lk {
+  display: block;
+}
+.lk:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .li small {
   display: block;
   font-size: var(--type-caption);

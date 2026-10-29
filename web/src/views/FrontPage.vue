@@ -39,6 +39,7 @@ import { loadOnboarding, onboarding } from '../onboarding/state';
 import { createUi, provideUi } from '../stores/ui';
 
 const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.vue'));
+const ResourceSheet = defineAsyncComponent(() => import('../components/ResourceSheet.vue'));
 const ConfirmDialog = defineAsyncComponent(() => import('../components/ConfirmDialog.vue'));
 const TypeConfirmDialog = defineAsyncComponent(() => import('../components/TypeConfirmDialog.vue'));
 const StepUpDialog = defineAsyncComponent(() => import('../components/StepUpDialog.vue'));
@@ -94,6 +95,13 @@ if (restored) {
 }
 
 const inboxLoaded = ref(false);
+/** The resource sheet mounts on first open (a deep link included) and stays, so its exit can play. */
+const sheetLoaded = ref(false);
+watch(
+  () => ui.sheet.value,
+  (v) => v && (sheetLoaded.value = true),
+  { immediate: true },
+);
 const confirmLoaded = ref(false);
 watch(
   () => ui.state.inboxOpen,
@@ -232,6 +240,7 @@ onBeforeUnmount(() => {
     </div>
   </div>
   <InboxSheet v-if="inboxLoaded && ui.can.value.inbox" />
+  <ResourceSheet v-if="sheetLoaded" />
   <ConfirmDialog v-if="confirmLoaded" />
   <TypeConfirmDialog v-if="ui.state.confirm?.kind === 'type'" :key="ui.state.confirm.plan?.id ?? 0" />
   <OnboardingWizard v-if="onboarding.open" />
