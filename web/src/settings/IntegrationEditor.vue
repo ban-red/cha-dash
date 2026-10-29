@@ -23,6 +23,7 @@ import { computed, nextTick, onMounted, provide, reactive, ref, shallowRef } fro
 import Glyph from '../components/marks/Glyph.vue';
 import ControlSection from './ControlSection.vue';
 import RecipePanel from './RecipePanel.vue';
+import SplitChecks from './SplitChecks.vue';
 import SchemaField from './SchemaField.vue';
 import TestResultView from './TestResultView.vue';
 import { FORM } from './form';
@@ -469,6 +470,8 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
               <button type="button" class="btn" :disabled="deleting" @click="confirmDelete = false">Cancel</button>
             </div>
           </form>
+
+          <SplitChecks v-if="detail?.integration === 'checks' && Array.isArray(detail.config?.['targets'])" :targets="detail.config['targets'] as unknown[]" />
 
           <div class="ed-test" aria-live="polite">
             <TestResultView v-if="test.state === 'done'" :result="test.result" :read-only="readOnly" />

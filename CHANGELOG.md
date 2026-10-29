@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Turn a check into its own integration.** On a checks connection, Settings now lists the targets that look like an app Cha Dash has an integration for ("Jupiter Unraid", "Linkding"). "Set up" opens the add form with the name and address filled in, so only the credential is left.
 - **Mini graphs, redesigned.** Trends on tiles are a smooth curve over a soft gradient with a fading band for the normal range and a haloed end dot. Hover or touch one to see the value and when. Before there is history, it is a dotted line instead of an empty grey block.
 - **Service logos on tiles.** A tile bound to an integration, or just named after a service ("Plex Media Server", "Uptime Kuma"), shows that service's logo (Sonarr, Proxmox and about a hundred more) when the hub has no icon cached for it. The logos are bundled; they come from the Apache-2.0 dashboard-icons project.
 - **Settings → Bring in** replaces Settings → Import. It has three tabs, Import, Discover and History, and everything goes through one preview before anything changes.

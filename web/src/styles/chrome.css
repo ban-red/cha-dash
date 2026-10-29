@@ -759,7 +759,19 @@
   font: var(--weight-medium) 10.5px/1 var(--font-num);
   color: var(--text-2);
 }
-.theme-acts {
-  display: inline-flex;
-  gap: 2px;
+.tool[aria-pressed='true'] {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.ed-split {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+.ed-split .rel li {
+  align-items: center;
+}
+.ed-split .rel .help {
+  display: block;
+  color: var(--text-3);
 }
