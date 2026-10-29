@@ -36,9 +36,9 @@ You need Docker with the Compose plugin, on amd64 or arm64.
    mkdir chadash && cd chadash
    curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.yaml
    ```
-   **During the beta** there's no `latest` image yet. Follow the betas with an override, as the [beta guide](../docs/beta.md) does:
+   **During the beta** there's no `latest` image yet. Follow the betas with an override for both images, as the [beta guide](../docs/beta.md) does:
    ```sh
-   printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n' > compose.override.yaml
+   printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n  chadash-node:\n    image: ghcr.io/ban-red/chadash-node:beta\n' > compose.override.yaml
    ```
 2. **Start it:**
    ```sh
@@ -212,6 +212,7 @@ and add Docker with the endpoint `tcp://socket-proxy:2375`. That proxy allows `G
    printf 'CHADASH_HUB=ws://<hub host>:3696/node\nCHADASH_NODE_NAME=<this host>\nCHADASH_PAIRING=<token>\n' > .env
    docker compose -f compose.node.yaml up -d
    ```
+   **During the beta** there's no `latest` image. Add `CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:beta` to `.env` before starting it, or a pinned tag such as `0.2.0-beta.1`.
 3. **Check Settings** lists the node, then **delete the `CHADASH_PAIRING` line**. The token was spent when the node paired, so the line is worth nothing; the node reconnects on its identity in the `node` volume.
 4. **Add Docker** with the endpoint `node://<this host>`.
 
@@ -380,8 +381,8 @@ docker compose up -d
   | Tag | Follows |
   |---|---|
   | `latest` | Every stable release |
-  | `0.1` | Stable releases in the 0.1 line: fixes, nothing that needs you to change anything |
-  | `0.1.0`, `0.1.0-beta.1` | Exactly that release |
+  | `0.2` | Stable releases in the 0.2 line: fixes, nothing that needs you to change anything |
+  | `0.2.0`, `0.2.0-beta.1` | Exactly that release |
   | `beta` | The newest beta |
 
 - **A new `compose.yaml`** can replace the old one; your changes live in `compose.override.yaml`.
@@ -391,10 +392,10 @@ docker compose up -d
 Every published image is signed by the release workflow with [cosign](https://docs.sigstore.dev/), keyless, and carries build provenance and an SBOM. To check one before you run it:
 
 ```sh
-cosign verify ghcr.io/ban-red/chadash:0.1.0-beta.1 \
+cosign verify ghcr.io/ban-red/chadash:0.2.0-beta.1 \
   --certificate-identity-regexp '^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
-docker buildx imagetools inspect ghcr.io/ban-red/chadash:0.1.0-beta.1 --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/ban-red/chadash:0.2.0-beta.1 --format '{{ json .SBOM }}'
 ```
 
 ## Backing up
@@ -435,7 +436,7 @@ docker compose start chadash
 Every [release](https://github.com/ban-red/cha-dash/releases) also has the hub as a single static binary: `chadash-<version>-linux-amd64`, `-linux-arm64` and `-linux-armv7`, plus `-darwin-arm64` and `-darwin-amd64` for development on a Mac. The web app is inside, so there's nothing else to install. `SHA256SUMS` lists their checksums, and `SHA256SUMS.cosign.bundle` is its signature.
 
 ```sh
-v=0.1.0-beta.1
+v=0.2.0-beta.1
 curl -fsSLO "https://github.com/ban-red/cha-dash/releases/download/v$v/chadash-$v-linux-amd64"
 curl -fsSLO "https://github.com/ban-red/cha-dash/releases/download/v$v/SHA256SUMS"
 sha256sum --ignore-missing -c SHA256SUMS

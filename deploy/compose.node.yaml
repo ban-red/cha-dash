@@ -12,6 +12,10 @@
 #   printf 'CHADASH_HUB=ws://<hub host>:3696/node\nCHADASH_NODE_NAME=<this host>\nCHADASH_PAIRING=<token>\n' > .env
 #   docker compose -f compose.node.yaml up -d
 #
+# During the beta there's no `latest` image: add
+# CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:beta (or a pinned tag) to
+# .env first. An override file isn't read when -f names this file.
+#
 # Once Settings → Nodes lists the node, delete the CHADASH_PAIRING line from
 # .env. The token is single-use: the hub writes a fresh one as soon as it's
 # spent, so the line is worth nothing afterwards. The node keeps its identity
@@ -22,7 +26,7 @@ name: chadash-node
 
 services:
   chadash-node:
-    image: ghcr.io/ban-red/chadash-node:latest
+    image: ${CHADASH_NODE_IMAGE:-ghcr.io/ban-red/chadash-node:latest}
     restart: unless-stopped
     # As in compose.yaml: uid 0, the socket's owner, with every capability
     # dropped. To run it unprivileged instead: user "65532:65532" and

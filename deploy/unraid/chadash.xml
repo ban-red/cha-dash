@@ -19,8 +19,8 @@
 This is a beta. Before the first start, give the appdata folder to the user the container runs as (uid 65532). In a terminal, run: mkdir -p /mnt/user/appdata/chadash; chown 65532:65532 /mnt/user/appdata/chadash; chmod 700 /mnt/user/appdata/chadash
 
 Then start it, open its log and copy the setup token (the line ending in setup_token=cds_...), and open the Web UI to create your account. The beta guide: https://github.com/ban-red/cha-dash/blob/main/docs/beta.md</Overview>
-  <Changes>### 0.1.0-beta.1
-The first beta. What's in it: https://github.com/ban-red/cha-dash/blob/main/CHANGELOG.md</Changes>
+  <Changes>### 0.2.0-beta.1
+The first published beta: actions with plans, confirmations, undo and an audit log. What's in it: https://github.com/ban-red/cha-dash/blob/main/CHANGELOG.md</Changes>
   <Category>Tools:Utilities Network:Management Status:Beta</Category>
   <WebUI>http://[IP]:[PORT:3696]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/unraid/chadash.xml</TemplateURL>

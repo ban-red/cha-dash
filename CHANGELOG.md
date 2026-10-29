@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0-beta.1] - 2026-10-29
+
+The first published beta of Cha Dash, and the first of v0.2: **Cha Dash starts changing things.** Actions on Docker, Proxmox VE, Proxmox Backup Server and Unraid run through one engine. Each one shows its plan and what it affects, asks for the confirmation its risk needs, offers undo where it can, runs as a task you can follow or cancel, and lands in a tamper-evident audit log. A second image, `ghcr.io/ban-red/chadash-node`, holds the host's Docker socket so the hub never does, follows a local policy you write, deploys compose stacks you own, and can take over stacks from Dockhand and Hawser. Roles, API tokens and notifications come with it.
+
+0.1.0-beta.1, the read-only front page, was prepared but never published. Everything in it ships here too; its notes are further down the [changelog](https://github.com/ban-red/cha-dash/blob/main/CHANGELOG.md).
+
+**During the beta there's no `latest` image.** Point both images at `beta`, as the [install steps](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md) show, or pin `0.2.0-beta.1`.
+
 ### Added
 
 - **A sheet for each container.** Choose a container in the containers tile or in ⌘K and its sheet opens over the page: why it's down, image and tag, uptime or exit code, health check, restarts, ports, networks, its compose project, engine and node, links and labels, plus what it depends on and what uses it. Its open problem is one line that opens the Inbox. The address (`?r=…`) opens it again after a reload, and Back closes it.
@@ -82,7 +90,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Docker reads through the node:** the Docker integration takes `node://local` as its endpoint, with the same containers, stacks and IDs as before. New installs find it in the first-run wizard.
 - **Docker actions through the node:** start and stop (with undo), restart, recreate and pull (held to confirm, listing what depends on the container), remove (typed to confirm, saying which volumes stay), and the last 50 log lines. The node's policy has the last word, and the plan says when it refuses.
 - **Adopting a project another tool deployed.** A running project whose compose labels name a path the node can't see (Hawser and others run compose inside their own container) can now be adopted from a copy of its file at `<stacks root>/<project>/compose.yaml`. Before, it showed "can't adopt".
-- **Moving from Dockhand**: deploy/moving-from-dockhand.md moves stacks from Dockhand and Hawser one at a time, without restarting them.
+- **Moving from Dockhand**: [the guide](https://github.com/ban-red/cha-dash/blob/main/deploy/moving-from-dockhand.md) moves stacks from Dockhand and Hawser one at a time, without restarting them.
 - **chadash-node on other Docker hosts**, by hand until v0.3: `deploy/compose.node.yaml` runs the node alone, and it pairs once with the hub's pairing token (deploy/README.md, "Nodes on other hosts").
 - **Compose `depends_on`** shows up as dependencies between containers, so a plan to restart a database lists the apps that use it.
 - **`compose.yaml` runs chadash-node instead of the read-only socket proxy.** To keep the proxy and skip the node, start with `compose.socket-proxy.yaml` as well (deploy/README.md). An existing install keeps its Docker instance on `tcp://socket-proxy:2375` until you switch it to `node://local`.
@@ -116,7 +124,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A token's actions name its user** in the audit log (`on_behalf_of`). Older entries keep their exact bytes and hashes.
 - **Household accounts no longer get chadash-node's details or addresses** in the Home Graph (live, `GET /api/graph` and the first page load). Boards render as before.
 - **Record the audit log's head.** `chadash audit verify`, `GET /api/audit/verify` and the audit export (`X-Chadash-Audit-Head`) now show the last event's number and hash. The chain can't protect itself from someone who can write the database file; keep the head somewhere else and check later exports still contain it (SECURITY.md).
-
 - **A browser's push subscription can't be taken over** by another account: subscribing an endpoint someone else registered is refused. Turn notifications off in the first account to move a browser.
 - **NAT64 and 6to4 addresses** are checked by the IPv4 address inside them, for Web Push and the icon fetcher.
 - **SVG icons are parsed as XML and checked against an allowlist** of elements and attributes, so encoded `javascript:`, animation tricks and external references are refused.
@@ -136,7 +143,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The node writes its own files under the stacks root through `os.Root`**, so neither a `..` nor a symlink can take a write outside it.
 - **The recipe for Docker on another host** explains that the proxy serves container inspects, environment variables included, to anything connecting from Cha Dash's address. It suggests publishing on one interface or using a VPN, and shows how to turn inspects off.
 
-## [0.1.0-beta.1] - 2026-10-04
+## [0.1.0-beta.1] - never published
 
 The first beta of Cha Dash: a calm, live, read-only front page for your homelab. It reads from the services you already run and never changes anything in them. If you'd like to try it and tell us what you think, the [beta guide](https://github.com/ban-red/cha-dash/blob/main/docs/beta.md) has everything you need, and thank you.
 
@@ -167,5 +174,5 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.1.0-beta.1...HEAD
-[0.1.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.1.0-beta.1
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.2.0-beta.1...HEAD
+[0.2.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.1

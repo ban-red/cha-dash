@@ -1,6 +1,6 @@
 # The Cha Dash beta
 
-Thank you for trying Cha Dash. This is **0.1.0-beta.1**, the first beta of v0.1, "Front Page": one calm, live page for your homelab that only ever reads. We're looking for people who will run it every day for a while and tell us honestly how it goes. What's in it is in the [changelog](../CHANGELOG.md).
+Thank you for trying Cha Dash. This is **0.2.0-beta.1**, the first published beta: one calm, live page for your homelab that can now also act on it, with a plan, the confirmation each action's risk needs, and an audit log. We're looking for people who will run it every day for a while and tell us honestly how it goes. What's in it is in the [changelog](../CHANGELOG.md).
 
 ## Install it in 3 minutes
 
@@ -10,7 +10,7 @@ You need Docker with the Compose plugin, on amd64 or arm64 (armv7 works on a bes
 mkdir chadash && cd chadash
 curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.yaml
 # There's no "latest" until 0.1.0, so follow the beta tag:
-printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n' > compose.override.yaml
+printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n  chadash-node:\n    image: ghcr.io/ban-red/chadash-node:beta\n' > compose.override.yaml
 docker compose up -d
 docker compose logs chadash | grep setup
 ```
@@ -96,7 +96,7 @@ docker compose pull
 docker compose up -d
 ```
 
-[Back up](../deploy/README.md#backing-up) first: a new version may migrate the database, and there's no going back without the backup. Each beta moves the `beta` tag; to stay on one, pin it in `compose.override.yaml`, for example `image: ghcr.io/ban-red/chadash:0.1.0-beta.1`.
+[Back up](../deploy/README.md#backing-up) first: a new version may migrate the database, and there's no going back without the backup. Each beta moves the `beta` tag; to stay on one, pin it in `compose.override.yaml`, for example `ghcr.io/ban-red/chadash:0.2.0-beta.1` and `ghcr.io/ban-red/chadash-node:0.2.0-beta.1`.
 
 **Checking the image** is optional. Every release is signed by its GitHub workflow, and [cosign](https://docs.sigstore.dev/) v3 or later can confirm it:
 
