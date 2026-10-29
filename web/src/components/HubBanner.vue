@@ -3,13 +3,14 @@
  * Hub offline / stale: the page keeps its last-known values under a clear
  * banner. Appears after a short grace period, so a quick reconnect doesn't
  * flash it. Otherwise, in demo mode, a standing note that the page is the
- * Demo Home on its own clock.
+ * Demo Home on its own clock, with a way to sign out of it.
  */
 import { computed } from 'vue';
 import Glyph from './marks/Glyph.vue';
 import { hhmm, shortDate } from '../lib/format';
 import { useLive } from '../stores/live';
 
+const emit = defineEmits<{ signOut: [] }>();
 const live = useLive();
 const GRACE_MS = 3000;
 
@@ -66,5 +67,6 @@ const reload = () => location.reload();
   <div v-else-if="live.demo.value" class="banner demo" role="note" aria-label="Demo mode">
     <span class="demo-tag">Demo</span>
     <span><b>You're looking at the Demo Home</b>, a simulated lab replaying a scripted day. Its hosts, incidents and fixes are all made up.</span>
+    <button type="button" class="btn sm" @click="emit('signOut')">Sign out</button>
   </div>
 </template>

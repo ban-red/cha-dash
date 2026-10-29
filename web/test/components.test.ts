@@ -202,10 +202,13 @@ describe('empty and offline', () => {
   it('says it is the Demo Home in demo mode, until a connection banner takes over', async () => {
     const { mountIn, ws, live } = harness(docs(withIncidents), { demo: true });
     const brief = mountIn(Briefing);
-    const banner = mountIn(HubBanner);
+    const onSignOut = vi.fn();
+    const banner = mountIn(HubBanner, { onSignOut });
     expect(brief.find('.wordmark .demo-tag').text()).toBe('Demo');
     expect(brief.find('.brief-side .sr').text()).toContain('Simulated time');
     expect(banner.find('.banner.demo').text()).toContain("You're looking at the Demo Home");
+    await banner.find('.banner.demo button').trigger('click');
+    expect(onSignOut).toHaveBeenCalledOnce();
     ws.drop();
     vi.advanceTimersByTime(4000);
     live.tick();

@@ -230,7 +230,7 @@ onBeforeUnmount(() => {
     <div class="frame">
       <main class="page" aria-label="Front page" :inert="(view.name === 'settings' && ui.can.value.settings) || onboarding.open || undefined">
         <Briefing @sign-out="signOut" />
-        <HubBanner />
+        <HubBanner @sign-out="signOut" />
         <NeedsAttention />
         <BoardSurface v-if="board.board.value" :board="board.board.value" />
         <div v-else-if="board.state.status === 'error'" class="banner" role="alert">
