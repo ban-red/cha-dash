@@ -62,6 +62,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A protected container says why it can't be removed.** Removing a running container the node protects asked you to stop it first, which the node also refused. It now says the node protects it, with the container's name as written.
 - **A half-filled control credential points at what's missing.** With only a Control token ID filled in, Test connection and Save showed the hub's error while the secret's field stayed folded away. They now open the control section at the empty field. The first-run wizard also names chadash-node, not the socket proxy, when that's how it reaches Docker.
 - **A guest that was running is running after a rollback.** Rolling a Proxmox guest back to a snapshot without RAM left it stopped. Cha Dash now asks Proxmox VE to start it again, and the plan says so.
+- **Stacks on a node that doesn't exist are refused.** Saving a draft under a node's name instead of its ID kept it, for a node the hub doesn't know. It's now refused. An offline node is named in the error, and Cha Dash's own stack, when it isn't one file the node can read, says only its containers are shown.
 
 ## [0.2.0-beta.1] - 2026-10-29
 

@@ -441,7 +441,7 @@ func TestOwnProjectWithAnOverrideIsProtected(t *testing.T) {
 	}
 	var st stackproto.Stack
 	n.must("stack.get", stackproto.GetRequest{Stack: "chadash"}, &st)
-	if !st.Protected || st.ProtectedReason == "" || st.Managed || st.Content != "" || len(st.Containers) != 1 {
+	if !st.Protected || !strings.Contains(st.ProtectedReason, "only its containers are shown") || st.Managed || st.Content != "" || len(st.Containers) != 1 {
 		t.Errorf("get %+v", st)
 	}
 	// A project that isn't protected still isn't found.

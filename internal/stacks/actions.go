@@ -164,6 +164,8 @@ func (s *Service) resolveFor(id string) func(ctx context.Context, target string)
 		switch e := stackproto.ErrorFrom(err); {
 		case errors.As(err, &off):
 			return action.Target{}, action.Unavailable(off.Error(), "")
+		case errors.As(err, new(errNodeUnknown)):
+			return action.Target{}, action.ErrNotFound
 		case e != nil && e.Code == stackproto.CodeNotFound:
 			if id != ActionDeploy {
 				return action.Target{}, action.ErrNotFound

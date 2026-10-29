@@ -1,6 +1,7 @@
 package stacks
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"net/http"
@@ -123,7 +124,7 @@ func (s *Service) nodeView(ctx context.Context, n Node) NodeView {
 		v.Error = &httpError{Code: code, Message: msg}
 	}
 	if !n.Online {
-		setErr(errNodeOffline{n.ID})
+		setErr(errNodeOffline{cmp.Or(n.Name, n.ID)})
 	} else {
 		var list stackproto.ListResponse
 		var det stackproto.DetectResponse

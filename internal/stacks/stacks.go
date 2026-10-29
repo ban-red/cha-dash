@@ -9,6 +9,7 @@
 package stacks
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -121,7 +122,7 @@ func parseTarget(t string) (node, stack string, ok bool) {
 
 // ── calling nodes ────────────────────────────────────────────────────────
 
-// errNodeOffline is a node that isn't connected.
+// errNodeOffline is a node that isn't connected; node is its name.
 type errNodeOffline struct{ node string }
 
 func (e errNodeOffline) Error() string {
@@ -137,13 +138,19 @@ func (s *Service) node(ctx context.Context, id string) (Node, error) {
 	for _, n := range ns {
 		if n.ID == id {
 			if !n.Online {
-				return n, errNodeOffline{id}
+				return n, errNodeOffline{cmp.Or(n.Name, n.ID)}
 			}
 			return n, nil
 		}
 	}
-	return Node{}, stackproto.Errorf(stackproto.CodeNotFound, "There's no node called %s.", id)
+	return Node{}, errNodeUnknown{id}
 }
+
+// errNodeUnknown is a node ID the hub doesn't know (a name isn't an ID). It
+// isn't stackproto's not_found, which means a stack that doesn't exist yet.
+type errNodeUnknown struct{ id string }
+
+func (e errNodeUnknown) Error() string { return "There's no node with the ID " + e.id + "." }
 
 // call runs a verb and decodes its answer. A read gets the call timeout;
 // pass timeout 0 for a deploy, which the engine's task bounds instead.
@@ -178,6 +185,9 @@ func (s *Service) call(ctx context.Context, node, verb string, req, resp any, ti
 func statusOf(err error) (int, string, string) {
 	if off, ok := errors.AsType[errNodeOffline](err); ok {
 		return http.StatusServiceUnavailable, "node_unavailable", off.Error()
+	}
+	if unk, ok := errors.AsType[errNodeUnknown](err); ok {
+		return http.StatusNotFound, "not_found", unk.Error()
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return http.StatusGatewayTimeout, "node_timeout", "The node didn't answer in time."

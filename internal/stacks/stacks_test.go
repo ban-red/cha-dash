@@ -387,7 +387,7 @@ func TestDeployRefusals(t *testing.T) {
 	}
 	// Offline node.
 	h.online = false
-	if err := plan(ActionDeploy, ""); code(err) != "unavailable" || !strings.Contains(err.Error(), "isn't connected") {
+	if err := plan(ActionDeploy, ""); code(err) != "unavailable" || !strings.Contains(err.Error(), "The node jupiter isn't connected") {
 		t.Errorf("offline: %v", err)
 	}
 	if w := h.do("GET", "/api/stacks/local/media", nil); w.Code != 503 {
@@ -503,6 +503,14 @@ func TestDrafts(t *testing.T) {
 	w := h.do("PUT", "/api/stacks/local/media", map[string]any{"content": good, "revision": 0})
 	if w.Code != 409 || decode[struct{ Revision int64 }](t, w).Revision != 1 {
 		t.Errorf("stale save: %d %s", w.Code, w.Body)
+	}
+	// A node's name isn't its ID: nothing is kept for a node the hub doesn't know.
+	if w := h.do("PUT", "/api/stacks/jupiter/media", map[string]any{"content": good, "revision": 0}); w.Code != 404 {
+		t.Errorf("a draft for an unknown node: %d %s", w.Code, w.Body)
+	}
+	var kept int
+	if err := h.st.Reader().QueryRow(`SELECT count(*) FROM stack_drafts WHERE node = 'jupiter'`).Scan(&kept); err != nil || kept != 0 {
+		t.Errorf("drafts kept for an unknown node: %d %v", kept, err)
 	}
 	if w := h.do("PUT", "/api/stacks/local/Bad%20Name", map[string]any{"content": good}); w.Code != 422 {
 		t.Errorf("bad name: %d", w.Code)

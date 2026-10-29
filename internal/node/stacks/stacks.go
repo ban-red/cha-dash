@@ -654,10 +654,11 @@ func (m *Module) protectedRunning(ctx context.Context, name string) (stackproto.
 	if len(cs) == 0 {
 		return stackproto.Stack{}, false
 	}
-	why := m.protectedReason(name, nil, cs)
-	if why == "" {
+	if m.protectedReason(name, nil, cs) == "" {
 		return stackproto.Stack{}, false
 	}
+	// Not the usual "viewed and diffed": there's no one file here to show.
+	const why = "This is Cha Dash's own stack. It isn't in one compose file Cha Dash can read here, so only its containers are shown; deploying it from Cha Dash waits for self-update (v0.3)."
 	out := stackproto.Stack{Meta: map[string]any{}, Containers: []stackproto.Service{}, History: []stackproto.Commit{}, Secrets: []string{}, ProtectedReason: why}
 	out.Name, out.Protected, out.Location = name, true, stackproto.LocationExternal
 	out.Status, out.Services, out.Running = status(cs)
