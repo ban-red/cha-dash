@@ -151,13 +151,12 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
           </span>
         </div>
       </div>
-      <ul v-if="size === 'hero' || size === 'large'" class="list cam-events" aria-label="Recent detections">
+      <ul v-if="(size === 'hero' || size === 'large') && events.length" class="list cam-events" aria-label="Recent detections">
         <li v-for="e in events.slice(0, size === 'hero' ? 4 : 2)" :key="e.id" class="li">
           <span class="cam-thumb" aria-hidden="true"><CameraScene :variant="variant(e.cam, 0)" :person="attr(e.cam, 'last_event.label') === 'person'" /></span>
           <span class="t">{{ e.text }}</span>
           <span></span>
         </li>
-        <li v-if="!events.length" class="li"><span></span><span class="t">No detections today</span><span></span></li>
       </ul>
       <StateNote v-if="size !== 'small' && s.status !== 'ok'" :subject="s" />
       <div class="tf">
