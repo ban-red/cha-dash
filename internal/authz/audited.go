@@ -43,6 +43,7 @@ var Audited = map[string]string{
 	"POST /api/users":                              "users.create",
 	"PUT /api/users/{id}":                          "users.update",
 	"POST /api/users/{id}/transfer-ownership":      "users.transfer-ownership",
+	"DELETE /api/bans/{ip}":                        "security.ban.clear",
 	"POST /api/nodes/{id}/revoke":                  "nodes.revoke",
 	"POST /api/nodes/pairing/regenerate":           "nodes.pairing.regenerate",
 	"PUT /api/stacks/secrets/{name}":               "settings.stacks.secret.update",

@@ -124,7 +124,7 @@ func (s *Service) handleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handlePasskeyLoginBegin(w http.ResponseWriter, r *http.Request) {
 	// Its own budget: a sign-in page may begin a ceremony on every load, for
 	// passkey autofill, without spending sign-in attempts.
-	if s.rateLimited(w, r, "passkey-begin") {
+	if s.rateLimited(w, r, "passkey-begin") || s.banned(w, r) {
 		return
 	}
 	rp, ok := s.passkeyRP(w, r)
@@ -153,7 +153,7 @@ type passkeySignal struct {
 
 func (s *Service) handlePasskeyLoginFinish(w http.ResponseWriter, r *http.Request) {
 	// The same budget as password sign-in.
-	if s.rateLimited(w, r, "login") {
+	if s.rateLimited(w, r, "login") || s.banned(w, r) {
 		return
 	}
 	ctx := r.Context()

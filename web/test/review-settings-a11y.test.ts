@@ -380,6 +380,7 @@ function usersHub(over: Routes = {}) {
   return fakeFetch({
     'GET /api/users': { status: 200, body: USERS },
     'PUT /api/users/u2': (b) => ({ status: 200, body: { ...USERS[1], ...(b as object) } }),
+    'GET /api/bans': { status: 200, body: [{ ip: '192.0.2.7', banned_at: '2026-10-03T13:00:00Z', failures: 5 }] },
     ...over,
   });
 }

@@ -142,6 +142,10 @@ type Service struct {
 
 	mu        sync.Mutex
 	setupOpen bool // true until an owner exists
+
+	// strikes counts wrong passwords per client address (bans.go).
+	banMu   sync.Mutex
+	strikes map[string]int
 }
 
 // Option adjusts New.

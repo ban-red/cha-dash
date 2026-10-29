@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -496,6 +497,86 @@ func TestLoginAccountLimited(t *testing.T) {
 	later.Store(int64(time.Minute))
 	if resp := login(21, "correct horse battery"); resp.StatusCode != http.StatusOK {
 		t.Fatalf("after a refill, sign-in = %d", resp.StatusCode)
+	}
+}
+
+func TestBanAfterWrongPasswords(t *testing.T) {
+	// Trust the test client as a proxy so each attempt can name its address.
+	h := newHarness(t, netip.MustParsePrefix("127.0.0.0/8"), netip.MustParsePrefix("::1/128"))
+	h.owner()
+	c := h.client()
+	login := func(from, password string) (*http.Response, map[string]any) {
+		resp, raw := h.doRaw(c, "POST", "/api/auth/login", loginRequest{Username: "owner", Password: password},
+			map[string]string{"X-Forwarded-For": from})
+		var out map[string]any
+		_ = json.Unmarshal(raw, &out)
+		return resp, out
+	}
+	errCode := func(body map[string]any) string {
+		e, _ := body["error"].(map[string]any)
+		code, _ := e["code"].(string)
+		return code
+	}
+
+	// A sign-in that works clears the strikes: four wrong, one right, four wrong.
+	for range BanAfter - 1 {
+		login("198.51.100.1", "guess guess guess")
+	}
+	if resp, _ := login("198.51.100.1", "correct horse battery"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("right password = %d", resp.StatusCode)
+	}
+	for i := range BanAfter - 1 {
+		if resp, _ := login("198.51.100.1", "guess guess guess"); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("wrong password %d after a good sign-in = %d", i, resp.StatusCode)
+		}
+	}
+
+	// Five wrong in a row, unknown usernames included: the fifth bans.
+	for i := range BanAfter - 1 {
+		if resp, _ := login("198.51.100.2", "guess guess guess"); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("wrong password %d = %d", i, resp.StatusCode)
+		}
+	}
+	resp, body := login("198.51.100.2", "guess guess guess")
+	if resp.StatusCode != http.StatusForbidden || errCode(body) != "ip_banned" {
+		t.Fatalf("fifth wrong password = %d %v", resp.StatusCode, body)
+	}
+	// Banned: even the right password, and passkeys, are refused. Other
+	// addresses aren't affected, and the ban survives a restart.
+	h.start(netip.MustParsePrefix("127.0.0.0/8"), netip.MustParsePrefix("::1/128"))
+	if resp, body := login("198.51.100.2", "correct horse battery"); resp.StatusCode != http.StatusForbidden || errCode(body) != "ip_banned" {
+		t.Fatalf("banned, right password = %d %v", resp.StatusCode, body)
+	}
+	if resp, _ := h.doRaw(c, "POST", "/api/auth/passkeys/login/begin", nil, map[string]string{"X-Forwarded-For": "198.51.100.2"}); resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("banned, passkey begin = %d", resp.StatusCode)
+	}
+	if resp, _ := login("198.51.100.3", "correct horse battery"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("another address = %d", resp.StatusCode)
+	}
+	// IPv4-mapped IPv6 is the same client.
+	if resp, _ := login("::ffff:198.51.100.2", "correct horse battery"); resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("mapped form of a banned address = %d", resp.StatusCode)
+	}
+
+	bans, err := h.svc.ListBans(t.Context())
+	if err != nil || len(bans) != 1 || bans[0].IP != "198.51.100.2" || bans[0].Failures != BanAfter {
+		t.Fatalf("bans = %+v, %v", bans, err)
+	}
+	// Only clearing lifts it.
+	if err := h.svc.Unban(t.Context(), "not an address"); err == nil {
+		t.Fatal("unban accepted a non-address")
+	}
+	if err := h.svc.Unban(t.Context(), "203.0.113.9"); !errors.Is(err, ErrBanNotFound) {
+		t.Fatalf("unban of an address that isn't banned = %v", err)
+	}
+	if err := h.svc.Unban(t.Context(), "198.51.100.2"); err != nil {
+		t.Fatal(err)
+	}
+	if resp, _ := login("198.51.100.2", "correct horse battery"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("after unban = %d", resp.StatusCode)
+	}
+	if strings.Contains(h.logs.String(), "guess guess") {
+		t.Fatal("a password reached the logs")
 	}
 }
 

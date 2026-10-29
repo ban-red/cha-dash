@@ -116,6 +116,7 @@ describe('Settings → Users', () => {
       'PUT /api/users/u2': (b) => ({ status: 200, body: { ...USERS[1], ...(b as object) } }),
       'PUT /api/users/u3': (b) => ({ status: 200, body: { ...USERS[2], ...(b as object) } }),
       'POST /api/users': (b) => ({ status: 201, body: { id: 'u4', disabled: false, has_passkey: false, last_seen_at: null, ...(b as { username: string; role: string; password?: string }), password: undefined } }),
+      'GET /api/bans': { status: 200, body: [] },
       ...over,
     });
   }
@@ -140,6 +141,24 @@ describe('Settings → Users', () => {
     await w.findAll('.us-row')[2]!.findAll('button').find((b) => b.text() === 'Enable')!.trigger('click');
     await settle();
     expect(f.last('PUT', '/api/users/u3')?.body).toEqual({ disabled: false });
+  });
+
+  it('lists banned addresses and clears one', async () => {
+    const f = hub({
+      'GET /api/bans': { status: 200, body: [{ ip: '192.0.2.7', banned_at: '2026-10-03T13:00:00Z', failures: 5 }] },
+      'DELETE /api/bans/192.0.2.7': { status: 204 },
+    });
+    const h = harness(docs(withIncidents));
+    const w = h.mountIn(UsersPane);
+    await settle();
+    const section = w.find('section[aria-labelledby="ban-h"]');
+    expect(section.find('.st-row .t').text()).toBe('192.0.2.7');
+    expect(section.find('.st-row .m').text().replace(/\s+/g, ' ')).toContain('after 5 wrong passwords');
+    await section.find('button[aria-label="Clear the ban on 192.0.2.7"]').trigger('click');
+    await settle();
+    expect(f.last('DELETE', '/api/bans/192.0.2.7')).toBeDefined();
+    expect(h.ui.state.toasts.at(-1)?.text).toBe('192.0.2.7 can sign in again.');
+    expect(w.find('section[aria-labelledby="ban-h"] .st-empty').text()).toContain('No banned addresses');
   });
 
   it('an admin can’t touch the owner, and has no ownership transfer', async () => {

@@ -133,6 +133,25 @@ func (s *Service) rateLimited(w http.ResponseWriter, r *http.Request, scope stri
 	return true
 }
 
+// banned answers 403 ip_banned when the client's address is banned (bans.go).
+func (s *Service) banned(w http.ResponseWriter, r *http.Request) bool {
+	ip := s.proxies.ClientIP(r)
+	ban, err := s.Banned(r.Context(), ip)
+	if err != nil {
+		s.internalError(w, "could not check the ban list", err)
+		return true
+	}
+	if ban {
+		s.log.Info("sign-in refused: client is banned", "client", banKey(ip))
+		ipBanned(w)
+	}
+	return ban
+}
+
+func ipBanned(w http.ResponseWriter) {
+	httpx.Error(w, http.StatusForbidden, "ip_banned", "this address is banned after too many wrong passwords; an admin can clear it")
+}
+
 func tooManyAttempts(w http.ResponseWriter, wait time.Duration) {
 	w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 	httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "too many attempts; try again later")
@@ -187,7 +206,7 @@ type loginRequest struct {
 }
 
 func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if s.rateLimited(w, r, "login") {
+	if s.rateLimited(w, r, "login") || s.banned(w, r) {
 		return
 	}
 	var req loginRequest
@@ -202,7 +221,16 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, ErrBadCredentials) {
 		// Usernames aren't logged: people sometimes type a password into that field.
-		s.log.Info("sign-in failed", "client", s.proxies.ClientIP(r).String())
+		ip := s.proxies.ClientIP(r)
+		s.log.Info("sign-in failed", "client", ip.String())
+		banned, err := s.strike(r.Context(), ip)
+		if err != nil {
+			s.log.Error("could not record the wrong password", "err", err)
+		}
+		if banned {
+			ipBanned(w)
+			return
+		}
 		httpx.Error(w, http.StatusUnauthorized, "bad_credentials", "invalid username or password")
 		return
 	}
@@ -211,6 +239,7 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}
+	s.forgive(s.proxies.ClientIP(r))
 	if _, err := s.StartSession(w, r, u, MethodPassword); err != nil {
 		s.log.Error("could not start session", "err", err)
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")

@@ -218,6 +218,9 @@ var Routes = []Route{
 	{Pattern: "POST /api/users", Access: Admin},
 	{Pattern: "PUT /api/users/{id}", Access: Admin},
 	{Pattern: "POST /api/users/{id}/transfer-ownership", Access: Owner},
+	// Addresses banned after too many wrong passwords (Settings → Users).
+	{Pattern: "GET /api/bans", Access: Admin},
+	{Pattern: "DELETE /api/bans/{ip}", Access: Admin},
 
 	// Nodes: the list is admin+, and so is revoking one (audited as
 	// nodes.revoke) and regenerating the pairing secret (audited as

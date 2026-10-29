@@ -17,6 +17,7 @@
 //	PUT  /api/boards/{id}/layout   save at the next revision       (admin)
 //	GET|POST /api/users, PUT /api/users/{id}   users and roles     (admin; see authz.Users)
 //	POST /api/users/{id}/transfer-ownership    hand over ownership (owner, step-up)
+//	GET /api/bans, DELETE /api/bans/{ip}       banned addresses    (admin; see authz.Bans)
 //	/api/integrations/…        catalog, instances, tests, diagnostics (admin; see runtime.Manager.Register)
 //	/api/correlate/…           identity suggestions and decisions  (viewer reads, admin decides)
 //	POST /api/import/homepage  Homepage import; ?dry_run=1 plans only (admin)
@@ -194,6 +195,9 @@ func New(d Deps) (http.Handler, error) {
 	users := authz.NewUsers(d.Auth, d.Log)
 	users.Audit = rec
 	users.Register(mux, session)
+	bans := authz.NewBans(d.Auth, d.Log)
+	bans.Audit = rec
+	bans.Register(mux, session)
 	tokens := authz.NewTokens(d.Auth, d.Log)
 	tokens.Audit = rec
 	if d.Actions != nil {

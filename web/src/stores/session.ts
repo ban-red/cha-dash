@@ -13,7 +13,7 @@
  * signed in with no request at all, and the front page renders from it.
  */
 import { inject, provide, reactive, type InjectionKey } from 'vue';
-import { ApiError, api } from '../lib/api';
+import { ApiError, api, IP_BANNED_MESSAGE } from '../lib/api';
 import type { InlineSnapshot } from '../lib/inline';
 import type { Snapshot } from '../lib/snapshot';
 
@@ -71,6 +71,8 @@ export function authMessage(err: unknown, context: 'setup' | 'login' | 'dev'): s
     if (err.status === 422) return sentence(err.message);
   } else if (context === 'login' && err.status === 401) {
     return 'That username and password don’t match.';
+  } else if (context === 'login' && err.code === 'ip_banned') {
+    return IP_BANNED_MESSAGE;
   } else if (context === 'dev' && err.status === 404) {
     return 'This hub wasn’t built with dev login. Start it with bun run dev.';
   }

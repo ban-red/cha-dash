@@ -4,6 +4,7 @@
 //	chadash export        write the hub's configuration as a Home file (secrets as placeholders, or encrypted)
 //	chadash import        apply a Home file, or preview it with --dry-run
 //	chadash audit verify  walk the audit log's hash chain and report the first break
+//	chadash bans          list addresses banned after wrong passwords; bans clear <ip> lifts one
 //	chadash healthcheck   exit 0 if the local hub answers /healthz (for Docker HEALTHCHECK)
 //	chadash version       print the build version
 package main
@@ -36,6 +37,8 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 		return importCmd(ctx, args[1:], getenv, stdout, stderr)
 	case "audit":
 		return auditCmd(ctx, args[1:], getenv, stdout, stderr)
+	case "bans":
+		return bansCmd(ctx, args[1:], getenv, stdout, stderr)
 	case "healthcheck":
 		return healthcheck(ctx, args[1:], getenv, stderr)
 	case "version", "--version", "-version":
@@ -60,6 +63,8 @@ Commands:
                 secrets as placeholders, or encrypted with --with-secrets
   import        apply a Home file; --dry-run shows the changes first
   audit verify  check the audit log's hash chain; exit 1 at the first break
+  bans          list addresses banned after wrong passwords; bans clear <ip>
+                lifts one (works while the hub is stopped too)
   healthcheck   check the local hub's /healthz; exit 0 if healthy, 1 if not
   version       print the build version
 

@@ -7,6 +7,8 @@
  *   PUT  /api/users/{id}                     {role?} | {disabled?}
  *   POST /api/users/{id}/transfer-ownership  T3: type the name, then step-up
  *
+ * Banned addresses (BannedAddresses.vue) follow the people.
+ *
  * There is exactly one owner. The owner can't be demoted, disabled or
  * deleted, only hand ownership to someone else. Users are disabled, never
  * deleted, so the audit log keeps pointing at someone. What the viewer's role
@@ -22,6 +24,7 @@
  */
 import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
+import BannedAddresses from './BannedAddresses.vue';
 import { ago, absolute } from '../lib/format';
 import { api } from '../lib/api';
 import { hubWords } from '../lib/actions';
@@ -309,6 +312,7 @@ onMounted(load);
       </li>
     </ul>
   </section>
+  <BannedAddresses />
 </template>
 
 <style>

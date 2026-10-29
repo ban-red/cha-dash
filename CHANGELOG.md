@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Address bans.** Five wrong passwords in a row from one address ban it from signing in, by password or passkey, until an admin clears it in Settings → Users. If nobody can sign in, `chadash bans clear <ip>` on the hub's host lifts it, with the hub running or not. Behind a reverse proxy, set `CHADASH_TRUSTED_PROXIES`, or one person's typos ban everyone.
 - **Sign out from the demo banner.** In demo mode the banner has a Sign out button, so leaving the Demo Home doesn't mean hunting through the theme menu.
 
 ### Changed

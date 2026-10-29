@@ -85,6 +85,7 @@ describe('session store', () => {
     expect(authMessage(new ApiError(401, 'bad_credentials', 'invalid username or password'), 'login')).toBe('That username and password don’t match.');
     expect(authMessage(new ApiError(422, 'invalid', 'password must be at least 6 characters'), 'setup')).toBe('Password must be at least 6 characters.');
     expect(authMessage(new ApiError(429, 'rate_limited', 'too many attempts', 42), 'login')).toBe('Too many attempts. Try again in 42 s.');
+    expect(authMessage(new ApiError(403, 'ip_banned', 'this address is banned'), 'login')).toMatch(/banned after five wrong passwords/);
     expect(authMessage(new ApiError(0, 'network', 'x'), 'login')).toMatch(/Can't reach/);
   });
 

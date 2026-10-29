@@ -22,6 +22,9 @@ export class ApiError extends Error {
   }
 }
 
+/** What the sign-in page says when the hub answers 403 ip_banned, for passwords and passkeys alike. */
+export const IP_BANNED_MESSAGE = 'This device’s address is banned after five wrong passwords. An admin can clear it in Settings → Users.';
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;

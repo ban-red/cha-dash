@@ -18,7 +18,7 @@
  * the password manager), passkey_exists, passkeys_unavailable (a message
  * that says what to change, shown as is), last_sign_in_method.
  */
-import { ApiError, api } from './api';
+import { ApiError, api, IP_BANNED_MESSAGE } from './api';
 import { createPasskey, getPasskey, PasskeyError, signalUnknown, type CeremonyOptions } from './webauthn';
 
 export interface Passkey {
@@ -64,6 +64,8 @@ export function passkeyHubError(err: unknown, op: 'register' | 'login' | 'manage
       return new PasskeyError('unknown', 'This hub doesn’t know that passkey; it may have been deleted. Sign in with your password.');
     case 'passkey_exists':
       return new PasskeyError('exists', 'This device already has a passkey for Cha Dash.');
+    case 'ip_banned':
+      return new PasskeyError('failed', IP_BANNED_MESSAGE);
     case 'last_sign_in_method':
       return new PasskeyError('failed', 'It’s the only way left to sign in to this account, so it stays. Add another passkey first.');
   }

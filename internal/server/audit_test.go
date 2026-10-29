@@ -246,6 +246,13 @@ func TestAuditedRoutesRecord(t *testing.T) {
 	}
 	call("PUT", "/api/users/"+kim.ID, map[string]string{"role": "operator"}, 200)
 	expect("PUT /api/users/{id}")
+	if _, err := st.Writer().Exec(`INSERT INTO ip_bans (ip, banned_at, failures) VALUES ('192.0.2.7', 1, 5)`); err != nil {
+		t.Fatal(err)
+	}
+	call("DELETE", "/api/bans/192.0.2.7", nil, 204)
+	if ev := expect("DELETE /api/bans/{ip}"); ev.Target != "ip:192.0.2.7" {
+		t.Fatalf("ban clear: %+v", ev)
+	}
 	b = call("POST", "/api/tokens", map[string]any{"name": "script", "scopes": []string{"graph.read"}}, 201)
 	var tok struct {
 		Token  struct{ ID string }

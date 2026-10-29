@@ -286,7 +286,8 @@ Cha Dash only reads in v0.1, so every credential it holds should only read. Each
 
 A reverse proxy gives Cha Dash a name and HTTPS. **HTTPS matters:** browsers only allow installing the app (PWA), Web Push and passkeys on a secure origin. Everything else works over plain HTTP on your LAN.
 
-- **Set `CHADASH_TRUSTED_PROXIES`** to the address the hub sees the proxy connect from. Without it, every visitor looks like the proxy: sign-in rate limits are shared, logs show the proxy's IP, and session cookies aren't marked `Secure`.
+- **Set `CHADASH_TRUSTED_PROXIES`** to the address the hub sees the proxy connect from. Without it, every visitor looks like the proxy: sign-in rate limits are shared, five wrong passwords from anyone ban the proxy's address and so everyone, logs show the proxy's IP, and session cookies aren't marked `Secure`.
+- **Banned yourself?** Five wrong passwords in a row from one address ban it until it's cleared. An admin clears it in Settings → Users; if nobody can sign in, run `docker compose exec chadash /chadash bans` to list bans and `docker compose exec chadash /chadash bans clear <ip>` to lift one.
   - Proxy in Docker: the subnet of the network it shares with `chadash`. This prints it:
     `docker network inspect proxy --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'`
   - Proxy on the host, pointing at `127.0.0.1:3696`: the gateway of the `chadash_default` network:
