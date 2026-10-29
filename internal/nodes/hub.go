@@ -112,9 +112,10 @@ type Hub struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	mu     sync.Mutex
-	live   map[string]*conn // by node ID
-	closed bool
+	mu        sync.Mutex
+	live      map[string]*conn // by node ID
+	closed    bool
+	onConnect func(name string)
 }
 
 type conn struct {
@@ -414,6 +415,12 @@ func (h *Hub) serve(ch *nodeproto.Channel, rec Record, hello nodeproto.Hello, ac
 		h.publish(cur, true)
 	}
 	h.log.Info("node connected", "node", rec.ID, "name", rec.Name, "version", hello.Build, "client", addr, "protocol", ch.Version)
+	h.mu.Lock()
+	onConnect := h.onConnect
+	h.mu.Unlock()
+	if onConnect != nil {
+		onConnect(rec.Name)
+	}
 	if !slices.Contains(pins, newest) {
 		go h.pushPin(sess, rec.ID, newest)
 	}
@@ -478,6 +485,16 @@ func (h *Hub) session(node string) *conn {
 
 // Connected reports whether a node (by ID or name) has a live session.
 func (h *Hub) Connected(node string) bool { return h.session(node) != nil }
+
+// OnConnect sets what runs each time a node connects, with its name: the
+// hub refreshes the instances that read through it, which would otherwise
+// wait for their next poll (or backoff) after a hub or node restart. f must
+// not block.
+func (h *Hub) OnConnect(f func(name string)) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.onConnect = f
+}
 
 // Call implements Caller.
 func (h *Hub) Call(ctx context.Context, node, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error) {

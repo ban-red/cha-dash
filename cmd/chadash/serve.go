@@ -235,6 +235,16 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 	sec.OnChange(mgr.SetPosture)
+	// A node that connects is read at once by the instances that reach it,
+	// not at their next poll: a hub that started before its node shows the
+	// node's Docker within seconds, watched or not.
+	nodeHub.OnConnect(func(name string) {
+		for _, in := range mgr.List() {
+			if ep, _ := in.Config["endpoint"].(string); in.Enabled && ep == "node://"+name {
+				_ = mgr.Refresh(in.ID)
+			}
+		}
+	})
 	if drv != nil {
 		sec.OnChange(drv.SetPosture)
 	}

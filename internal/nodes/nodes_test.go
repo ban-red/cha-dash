@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -538,6 +539,27 @@ func TestFreshInstallPairsByItself(t *testing.T) {
 	eventually(t, "reconnect with the key", func() bool { return e.hub.Connected("local") })
 	if list, _ := e.hub.List(t.Context()); len(list) != 1 {
 		t.Fatalf("nodes %v", list)
+	}
+}
+
+// TestOnConnect runs on every connection, the first and each reconnect, so
+// the hub can refresh what reads through the node.
+func TestOnConnect(t *testing.T) {
+	e := newEnv(t, true)
+	var mu sync.Mutex
+	var names []string
+	e.hub.OnConnect(func(name string) { mu.Lock(); names = append(names, name); mu.Unlock() })
+	count := func() int { mu.Lock(); defer mu.Unlock(); return len(names) }
+	dir := t.TempDir()
+	n := e.startNode(dir, "local", e.token(), node.DefaultPolicy())
+	eventually(t, "connect", func() bool { return count() == 1 })
+	n.stop()
+	e.startNode(dir, "local", "", node.DefaultPolicy())
+	eventually(t, "reconnect", func() bool { return count() == 2 })
+	mu.Lock()
+	defer mu.Unlock()
+	if names[0] != "local" || names[1] != "local" {
+		t.Fatalf("names %v", names)
 	}
 }
 
