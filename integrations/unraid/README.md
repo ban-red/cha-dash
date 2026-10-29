@@ -1,6 +1,6 @@
 # Unraid (`unraid`)
 
-Reads an Unraid server through the Unraid API (GraphQL): the host, the array with its disks, the pools, the shares, the VMs, and the Docker containers Unraid manages, with their autostart settings. A controllable instance also starts, stops and updates containers and starts and stops VMs (see [Actions](#actions)).
+Reads an Unraid server through the Unraid API (GraphQL): the host, the array with its disks, the pools, the shares, the VMs, and the Docker containers Unraid manages, with their autostart settings. A controllable instance also starts, stops, restarts, pauses and updates containers, removes stopped ones (with a key that may delete), and starts, stops, pauses, reboots and force-stops VMs (see [Actions](#actions)).
 
 **Tier:** silver (version gate, repairs, grants read back, fixture tests). **Capabilities:** `host.metrics`, `storage.pools`, `storage.disks`, `storage.shares`, `containers`, `compute.guests`. **Secret:** `api_key`.
 
@@ -119,10 +119,20 @@ Only a controllable instance (`mode: control`) has actions; a read-only one has 
 | `unraid.container.update` | T2 | — | `docker:update_any` | `docker { updateContainer(id) }` | it's listed again, and running if it was |
 | `unraid.vm.start` | T1 | `unraid.vm.stop` | `vms:update_any` | `vm { start(id) }` | the VM reports `running` |
 | `unraid.vm.stop` | T1 | `unraid.vm.start` | `vms:update_any` | `vm { stop(id) }` (a clean shutdown) | it reports `stopped` |
+| `unraid.container.restart` | T2 | — | `docker:update_any` | `docker { restart(id) }` | it reports `running` |
+| `unraid.container.pause` | T1 | `unraid.container.unpause` | `docker:update_any` | `docker { pause(id) }` | it reports `paused` |
+| `unraid.container.unpause` | T1 | `unraid.container.pause` | `docker:update_any` | `docker { unpause(id) }` | it reports `running` |
+| `unraid.container.remove` | T3 | — | **`docker:delete_any`** | `docker { removeContainer(id) }`, never with the image | it's no longer listed |
+| `unraid.vm.pause` | T1 | `unraid.vm.resume` | `vms:update_any` | `vm { pause(id) }` | it reports `paused` |
+| `unraid.vm.resume` | T1 | `unraid.vm.pause` | `vms:update_any` | `vm { resume(id) }` | it reports `running` |
+| `unraid.vm.reboot` | T2 | — | `vms:update_any` | `vm { reboot(id) }` | it reports `running` (it may not have left `running` yet, so this checks little) |
+| `unraid.vm.force_stop` | T3 | — | `vms:update_any` | `vm { forceStop(id) }` (cuts the power) | it reports `stopped` |
+
+The names and scopes of the last eight come from Unraid's published schema and resolvers at 4.37.2 (`DockerMutations`, `VmMutations`; every Docker and VM mutation is `UPDATE_ANY`, except `removeContainer`, which is `DELETE_ANY`). They are tested against the fake server only; run them against a throwaway container and VM before trusting them on jupiter. `docker:delete_any` comes only from the "full control" consent link: a plain Control key doesn't have it, so Remove refuses as `unavailable` and says which scope is missing.
 
 - **Targets** are this instance's `container/<name>` and `vm/<uuid>` resources. Each action resolves its target with a fresh read, so preconditions see now, not the last sync; another instance's target, or another kind, is `not_found`. The blast radius comes from the Home Graph.
-- **Missing scopes:** before planning, the key's grants are read with `me` (cached 30 s). Without the write scope an action needs, it refuses with `409 unavailable`, naming the scope and the two ways to add it (re-run the consent link with Control chosen, or edit the key under *Settings → Management Access → API Keys*), with `recipe` naming the instance. A key that can't read ME is let through, and a `FORBIDDEN` answer fails the task with `missing_permission` and the same sentence.
-- **Preconditions** (`409 precondition`): already running or stopped; paused (resume it in Unraid); a VM that's shutting down; a container from a Compose Manager stack can't be updated (Unraid's update covers template containers only).
+- **Missing scopes:** before planning, the key's grants are read with `me` (cached 30 s). Without the write scope an action needs, it refuses with `409 unavailable`, naming the scope and the two ways to add it (re-run the consent link in the instance's settings, or edit the key under *Settings → Management Access → API Keys*), with `recipe` naming the instance. A key that can't read ME is let through, and a `FORBIDDEN` answer fails the task with `missing_permission` and the same sentence.
+- **Preconditions** (`409 precondition`): already running or stopped; paused (resume it in Unraid); a VM that's shutting down; a container from a Compose Manager stack can't be updated (Unraid's update covers template containers only); pause needs a running target, unpause and resume a paused one, and reboot a running VM; remove needs a stopped container (Cha Dash won't remove a running one); force stop is refused on a VM that's already off.
 - **Timeouts:** mutations get a 15-minute HTTP client, since Unraid answers a stop or an update when it's done; an update may run 15 minutes, a VM shutdown 5, and verifying waits 1 to 3 minutes.
 - **Audit:** the target and empty params; the key never appears in a plan, task log or audit record.
 - **Not offered: parity check and array stop** (the plan's T2/T3, allowed to slip to v0.2.x). Both need `array:update_any`, which also lets a key add and remove disks, and the dogfooding rules keep writes off the array. They can come later with a separate, explicit opt-in.

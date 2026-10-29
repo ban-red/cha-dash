@@ -44,10 +44,10 @@ More than Cha Dash asks for by itself: copy one of these instead, if you want a 
 {{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,info:update_any,array:read_any,array:update_any,docker:read_any,docker:update_any,vms:read_any,vms:update_any,share:read_any,share:update_any,me:read_any
 ```
 
-**Read everything, full control of Docker and VMs.** Read access as in Read-only, plus create, update and delete access to Docker and VMs.
+**Read everything, full control of Docker and VMs.** Read access as in Read-only, plus update access to Docker and VMs and delete access to Docker. Update covers start, stop, restart, pause, update and reboot; delete is what removing a container needs. Unraid's API has no create or VM delete operation, so the key doesn't ask for them.
 
 ```url
-{{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,array:read_any,docker:read_any,docker:create_any,docker:update_any,docker:delete_any,vms:read_any,vms:create_any,vms:update_any,vms:delete_any,share:read_any,me:read_any
+{{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,array:read_any,docker:read_any,docker:update_any,docker:delete_any,vms:read_any,vms:update_any,share:read_any,me:read_any
 ```
 
 ## Create the key

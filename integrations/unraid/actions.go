@@ -15,12 +15,16 @@ import (
 )
 
 // Actions (v0.2), through the Unraid API's mutations and never the node:
-// containers and VMs start and stop (T1, each the other's undo), and a
-// container update (T2). Only a controllable instance (mode control) has
-// them. The key is the instance's one key (decision 6): when it lacks a
-// write scope, the affected actions refuse with 409 unavailable, naming the
-// scope and how to add it. Array and parity actions aren't offered: they
-// need ARRAY: Update, which also lets a key add and remove disks.
+// containers and VMs start and stop (T1, each the other's undo), a container
+// update (T2), and, from 4.37's published schema, restart, pause and unpause
+// containers, pause, resume and reboot VMs, force-stop a VM and remove a
+// container. Only a controllable instance (mode control) has them. The key
+// is the instance's one key (decision 6): when it lacks a write scope, the
+// affected actions refuse with 409 unavailable, naming the scope and how to
+// add it. Every Docker and VM mutation needs Update, except removeContainer,
+// which needs Docker: Delete; the consent link for it is a separate choice
+// (docs/plan/12-unraid-control.md). Array and parity actions aren't offered:
+// they need ARRAY: Update, which also lets a key add and remove disks.
 
 // Action IDs.
 const (
@@ -29,6 +33,15 @@ const (
 	ActContainerUpdate = "unraid.container.update"
 	ActVMStart         = "unraid.vm.start"
 	ActVMStop          = "unraid.vm.stop"
+
+	ActContainerRestart = "unraid.container.restart"
+	ActContainerPause   = "unraid.container.pause"
+	ActContainerUnpause = "unraid.container.unpause"
+	ActContainerRemove  = "unraid.container.remove"
+	ActVMPause          = "unraid.vm.pause"
+	ActVMResume         = "unraid.vm.resume"
+	ActVMReboot         = "unraid.vm.reboot"
+	ActVMForceStop      = "unraid.vm.force_stop"
 )
 
 // The mutations, one operation each. Field names are the published schema's
@@ -39,10 +52,21 @@ const (
 	mContainerUpdate = `mutation ChadashContainerUpdate($id: PrefixedID!) { docker { updateContainer(id: $id) { id state } } }`
 	mVMStart         = `mutation ChadashVMStart($id: PrefixedID!) { vm { start(id: $id) } }`
 	mVMStop          = `mutation ChadashVMStop($id: PrefixedID!) { vm { stop(id: $id) } }`
+
+	mContainerRestart = `mutation ChadashContainerRestart($id: PrefixedID!) { docker { restart(id: $id) { id state } } }`
+	mContainerPause   = `mutation ChadashContainerPause($id: PrefixedID!) { docker { pause(id: $id) { id state } } }`
+	mContainerUnpause = `mutation ChadashContainerUnpause($id: PrefixedID!) { docker { unpause(id: $id) { id state } } }`
+	// withImage is left out: the image stays, as it does when Unraid's own UI removes a container.
+	mContainerRemove = `mutation ChadashContainerRemove($id: PrefixedID!) { docker { removeContainer(id: $id) } }`
+	mVMPause         = `mutation ChadashVMPause($id: PrefixedID!) { vm { pause(id: $id) } }`
+	mVMResume        = `mutation ChadashVMResume($id: PrefixedID!) { vm { resume(id: $id) } }`
+	mVMReboot        = `mutation ChadashVMReboot($id: PrefixedID!) { vm { reboot(id: $id) } }`
+	mVMForceStop     = `mutation ChadashVMForceStop($id: PrefixedID!) { vm { forceStop(id: $id) } }`
 )
 
 // mutations lists every write the integration can send (tests check them).
-var mutations = []string{mContainerStart, mContainerStop, mContainerUpdate, mVMStart, mVMStop}
+var mutations = []string{mContainerStart, mContainerStop, mContainerUpdate, mVMStart, mVMStop,
+	mContainerRestart, mContainerPause, mContainerUnpause, mContainerRemove, mVMPause, mVMResume, mVMReboot, mVMForceStop}
 
 // mutationTimeout bounds one mutation: Unraid answers a stop or an update
 // when it's done, which takes longer than a read's 15 s.
@@ -58,18 +82,22 @@ type writeScope struct {
 	label    string // as Unraid's key editor shows it
 	what     string // what it lets the key do
 	actions  string // the actions that need it
+	verb     string // the action `me` lists it under: UPDATE or DELETE
+	word     string // verb, as Unraid's key editor shows it
 }
 
 var (
-	writeDocker   = writeScope{"DOCKER", "docker:update_any", "Docker", "change Docker containers", "starting, stopping and updating containers"}
-	writeVMs      = writeScope{"VMS", "vms:update_any", "VMs", "start or stop VMs", "starting and stopping VMs"}
-	controlScopes = []writeScope{writeDocker, writeVMs}
+	writeDocker = writeScope{"DOCKER", "docker:update_any", "Docker", "change Docker containers", "starting, stopping, updating and pausing containers", "UPDATE", "Update"}
+	writeVMs    = writeScope{"VMS", "vms:update_any", "VMs", "start or stop VMs", "starting, stopping and pausing VMs", "UPDATE", "Update"}
+	// Not part of control: only a key made with the "full control" consent link has it.
+	writeDockerDelete = writeScope{"DOCKER", "docker:delete_any", "Docker", "remove Docker containers", "removing containers", "DELETE", "Delete"}
+	controlScopes     = []writeScope{writeDocker, writeVMs}
 )
 
 // addScopeHelp says how to give the key a missing write scope.
 func addScopeHelp(s writeScope) string {
-	return "Re-run the consent link in this instance's settings with Control chosen, or edit the key in Unraid under " + keysPage +
-		" and give it " + s.label + ": Update (" + s.scope + ")."
+	return "Re-run the consent link in this instance's settings, or edit the key in Unraid under " + keysPage +
+		" and give it " + s.label + ": " + s.word + " (" + s.scope + ")."
 }
 
 // resolvedTarget is a container or VM as an action last read it.
@@ -113,10 +141,27 @@ func (in *instance) Actions() []action.Def {
 	vStop := def(ActVMStop, "Shut down", "vm", action.T1, "Ask Unraid to shut %s down", "Wait for it to report stopped")
 	vStop.Undo = act.UndoBy(ActVMStart, "Start")
 	vStop.Timeout, vStop.VerifyTimeout = 5*time.Minute, 3*time.Minute
-	// Stopping or recreating what runs the hub or the router takes them
-	// down too: the runtime raises these to T4 then (self-aware T4).
-	cStop.Disrupts, cUpdate.Disrupts, vStop.Disrupts = true, true, true
-	return []action.Def{cStart, cStop, cUpdate, vStart, vStop}
+	cRestart := def(ActContainerRestart, "Restart", "container", action.T2, "Ask Unraid to restart %s", "Wait for it to report running")
+	cPause := def(ActContainerPause, "Pause", "container", action.T1, "Ask Unraid to pause %s", "Wait for it to report paused")
+	cPause.Undo = act.UndoBy(ActContainerUnpause, "Unpause")
+	cUnpause := def(ActContainerUnpause, "Unpause", "container", action.T1, "Ask Unraid to unpause %s", "Wait for it to report running")
+	cUnpause.Undo = act.UndoBy(ActContainerPause, "Pause")
+	cRemove := def(ActContainerRemove, "Remove", "container", action.T3, "Ask Unraid to remove %s (its image stays)", "Wait for it to leave Unraid's list")
+	vPause := def(ActVMPause, "Pause", "vm", action.T1, "Ask Unraid to pause %s", "Wait for it to report paused")
+	vPause.Undo = act.UndoBy(ActVMResume, "Resume")
+	vResume := def(ActVMResume, "Resume", "vm", action.T1, "Ask Unraid to resume %s", "Wait for it to report running")
+	vResume.Undo = act.UndoBy(ActVMPause, "Pause")
+	vReboot := def(ActVMReboot, "Reboot", "vm", action.T2, "Ask Unraid to reboot %s", "Wait for it to report running")
+	vReboot.VerifyTimeout = 3 * time.Minute
+	vForce := def(ActVMForceStop, "Force stop", "vm", action.T3, "Ask Unraid to cut the power to %s", "Wait for it to report stopped")
+	vForce.Timeout, vForce.VerifyTimeout = 5*time.Minute, 3*time.Minute
+	// Stopping, recreating, pausing or removing what runs the hub or the
+	// router takes them down too: the runtime raises these to T4 then
+	// (self-aware T4).
+	for _, d := range []*action.Def{&cStop, &cUpdate, &vStop, &cRestart, &cPause, &cRemove, &vPause, &vReboot, &vForce} {
+		d.Disrupts = true
+	}
+	return []action.Def{cStart, cStop, cUpdate, cRestart, cPause, cUnpause, cRemove, vStart, vStop, vPause, vResume, vReboot, vForce}
 }
 
 // resolver resolves this instance's containers or VMs with a fresh read, so
@@ -231,8 +276,11 @@ func (in *instance) grants(ctx context.Context) (me meData, known bool, err erro
 
 // scopeFor is the write scope an action needs.
 func scopeFor(actionID string) writeScope {
-	if strings.HasPrefix(actionID, "unraid.vm.") {
+	switch {
+	case strings.HasPrefix(actionID, "unraid.vm."):
 		return writeVMs
+	case actionID == ActContainerRemove:
+		return writeDockerDelete
 	}
 	return writeDocker
 }
@@ -245,8 +293,8 @@ func (in *instance) preconditions(ctx context.Context, req action.Request) error
 	if err != nil {
 		return err
 	}
-	if known && !me.can(s.resource, "UPDATE") {
-		return action.Unavailable("The API key can't "+s.what+": it's missing "+s.label+": Update ("+s.scope+"). "+addScopeHelp(s), in.instanceID)
+	if known && !me.can(s.resource, s.verb) {
+		return action.Unavailable("The API key can't "+s.what+": it's missing "+s.label+": "+s.word+" ("+s.scope+"). "+addScopeHelp(s), in.instanceID)
 	}
 	rt := in.lookup(req.Target.ID)
 	name := req.Target.Name
@@ -281,6 +329,42 @@ func (in *instance) preconditions(ctx context.Context, req action.Request) error
 			return action.Precondition(name + " is already shut down.")
 		case "stopping":
 			return action.Precondition(name + " is already shutting down.")
+		}
+	case ActContainerPause:
+		switch rt.state {
+		case "PAUSED":
+			return action.Precondition(name + " is already paused.")
+		case "RUNNING":
+		default:
+			return action.Precondition(name + " isn't running, so there's nothing to pause.")
+		}
+	case ActContainerUnpause:
+		if rt.state != "PAUSED" {
+			return action.Precondition(name + " isn't paused.")
+		}
+	case ActContainerRemove:
+		if rt.state == "RUNNING" || rt.state == "PAUSED" {
+			return action.Precondition(name + " is " + strings.ToLower(rt.state) + ". Stop it first; Cha Dash only removes a container that has stopped.")
+		}
+	case ActVMPause:
+		switch vmState(rt.state) {
+		case "paused":
+			return action.Precondition(name + " is already paused.")
+		case "running":
+		default:
+			return action.Precondition(name + " isn't running, so there's nothing to pause.")
+		}
+	case ActVMResume:
+		if vmState(rt.state) != "paused" {
+			return action.Precondition(name + " isn't paused.")
+		}
+	case ActVMReboot:
+		if vmState(rt.state) != "running" {
+			return action.Precondition(name + " isn't running, so there's nothing to reboot.")
+		}
+	case ActVMForceStop:
+		if vmState(rt.state) == "stopped" {
+			return action.Precondition(name + " is already shut down.")
 		}
 	}
 	return nil
@@ -317,6 +401,22 @@ func (in *instance) Execute(ctx context.Context, req action.Request, run *action
 		op, doc, verb = "ChadashVMStart", mVMStart, "start"
 	case ActVMStop:
 		op, doc, verb = "ChadashVMStop", mVMStop, "shut down"
+	case ActContainerRestart:
+		op, doc, verb = "ChadashContainerRestart", mContainerRestart, "restart"
+	case ActContainerPause:
+		op, doc, verb = "ChadashContainerPause", mContainerPause, "pause"
+	case ActContainerUnpause:
+		op, doc, verb = "ChadashContainerUnpause", mContainerUnpause, "unpause"
+	case ActContainerRemove:
+		op, doc, verb = "ChadashContainerRemove", mContainerRemove, "remove"
+	case ActVMPause:
+		op, doc, verb = "ChadashVMPause", mVMPause, "pause"
+	case ActVMResume:
+		op, doc, verb = "ChadashVMResume", mVMResume, "resume"
+	case ActVMReboot:
+		op, doc, verb = "ChadashVMReboot", mVMReboot, "reboot"
+	case ActVMForceStop:
+		op, doc, verb = "ChadashVMForceStop", mVMForceStop, "force stop"
 	default:
 		return action.Fail("unknown_action", "Unraid has no action "+req.Action+".")
 	}
@@ -351,7 +451,7 @@ func (in *instance) mutationFailed(req action.Request, verb string, err error) e
 		in.actMu.Lock()
 		in.meAt = time.Time{} // read the grants again next time
 		in.actMu.Unlock()
-		return action.Fail("missing_permission", "Unraid refused: the API key can't "+s.what+" (it needs "+s.label+": Update). "+addScopeHelp(s))
+		return action.Fail("missing_permission", "Unraid refused: the API key can't "+s.what+" (it needs "+s.label+": "+s.word+"). "+addScopeHelp(s))
 	case errors.As(err, &ae):
 		return action.Fail("auth", "Unraid rejected the API key.")
 	case errors.As(err, &re) && re.Code == integration.CodeAPIChanged:
@@ -382,14 +482,27 @@ func (in *instance) verify(ctx context.Context, req action.Request, run *action.
 		want, step, words = func(s string) bool { return !wasRunning || s == "RUNNING" }, "Wait for it to come back", "running"
 	case ActVMStart:
 		want, step, words = func(s string) bool { return vmState(s) == "running" }, "Wait for it to report running", "running"
-	case ActVMStop:
+	case ActVMStop, ActVMForceStop:
 		want, step, words = func(s string) bool { return vmState(s) == "stopped" }, "Wait for it to report stopped", "stopped"
+	case ActContainerRestart, ActContainerUnpause:
+		want, step, words = func(s string) bool { return s == "RUNNING" }, "Wait for it to report running", "running"
+	case ActContainerPause:
+		want, step, words = func(s string) bool { return s == "PAUSED" }, "Wait for it to report paused", "paused"
+	case ActContainerRemove:
+		want, step, words = func(string) bool { return false }, "Wait for it to leave Unraid's list", "gone"
+	case ActVMPause:
+		want, step, words = func(s string) bool { return vmState(s) == "paused" }, "Wait for it to report paused", "paused"
+	case ActVMResume, ActVMReboot:
+		want, step, words = func(s string) bool { return vmState(s) == "running" }, "Wait for it to report running", "running"
 	default:
 		return nil
 	}
+	gone := req.Action == ActContainerRemove
 	return act.Until(ctx, run, step, func(ctx context.Context) (bool, error) {
 		rt, err := in.find(ctx, kind, key)
 		switch {
+		case errors.Is(err, action.ErrNotFound) && gone:
+			return true, nil
 		case errors.Is(err, action.ErrNotFound):
 			return false, fmt.Errorf("%s isn't listed by Unraid any more", name)
 		case err != nil:

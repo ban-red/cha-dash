@@ -64,7 +64,9 @@ func newLab(t *testing.T) *lab {
 	l.srv.set("ChadashMe", meBody(t, nil, controlKey...))
 	l.srv.handlers["ChadashDocker"] = l.docker
 	l.srv.handlers["ChadashVMs"] = l.vmList
-	for _, op := range []string{"ChadashContainerStart", "ChadashContainerStop", "ChadashContainerUpdate", "ChadashVMStart", "ChadashVMStop"} {
+	for _, op := range []string{"ChadashContainerStart", "ChadashContainerStop", "ChadashContainerUpdate", "ChadashVMStart", "ChadashVMStop",
+		"ChadashContainerRestart", "ChadashContainerPause", "ChadashContainerUnpause", "ChadashContainerRemove",
+		"ChadashVMPause", "ChadashVMResume", "ChadashVMReboot", "ChadashVMForceStop"} {
 		l.srv.handlers[op] = l.mutation(op)
 	}
 	return l
@@ -81,13 +83,19 @@ func (l *lab) listed(file, root, list, prefix string, states map[string]string, 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	items, _ := doc["data"][root][list].([]any)
+	kept := items[:0]
 	for _, it := range items {
 		m := it.(map[string]any)
 		k := key(m)
 		if st, ok := states[k]; ok && l.shown(prefix+k) {
+			if st == "GONE" {
+				continue
+			}
 			m["state"] = st
 		}
+		kept = append(kept, it)
 	}
+	doc["data"][root][list] = kept
 	b, _ := json.Marshal(doc)
 	return b
 }
@@ -122,12 +130,16 @@ func (l *lab) mutation(op string) func(map[string]any) []byte {
 		defer l.mu.Unlock()
 		l.mutations = append(l.mutations, op+" "+id)
 		if strings.HasPrefix(op, "ChadashVM") {
-			st := map[string]string{"ChadashVMStart": "RUNNING", "ChadashVMStop": "SHUTOFF"}[op]
+			st := map[string]string{"ChadashVMStart": "RUNNING", "ChadashVMStop": "SHUTOFF", "ChadashVMPause": "PAUSED", "ChadashVMResume": "RUNNING",
+				"ChadashVMReboot": "RUNNING", "ChadashVMForceStop": "SHUTOFF"}[op]
 			if !l.stuck {
 				l.vms[localID(id)] = st
 				l.pending["v/"+localID(id)] = l.lag
 			}
 			field := strings.ToLower(strings.TrimPrefix(op, "ChadashVM"))
+			if field == "forcestop" {
+				field = "forceStop"
+			}
 			return []byte(`{"data":{"vm":{"` + field + `":true}}}`)
 		}
 		var doc struct {
@@ -143,12 +155,17 @@ func (l *lab) mutation(op string) func(map[string]any) []byte {
 				continue
 			}
 			name := strings.TrimPrefix(c.Names[0], "/")
-			st := map[string]string{"ChadashContainerStart": "RUNNING", "ChadashContainerStop": "EXITED", "ChadashContainerUpdate": "RUNNING"}[op]
+			st := map[string]string{"ChadashContainerStart": "RUNNING", "ChadashContainerStop": "EXITED", "ChadashContainerUpdate": "RUNNING",
+				"ChadashContainerRestart": "RUNNING", "ChadashContainerPause": "PAUSED", "ChadashContainerUnpause": "RUNNING", "ChadashContainerRemove": "GONE"}[op]
 			if !l.stuck {
 				l.containers[name] = st
 				l.pending["c/"+name] = l.lag
 			}
-			field := map[string]string{"ChadashContainerStart": "start", "ChadashContainerStop": "stop", "ChadashContainerUpdate": "updateContainer"}[op]
+			field := map[string]string{"ChadashContainerStart": "start", "ChadashContainerStop": "stop", "ChadashContainerUpdate": "updateContainer",
+				"ChadashContainerRestart": "restart", "ChadashContainerPause": "pause", "ChadashContainerUnpause": "unpause", "ChadashContainerRemove": "removeContainer"}[op]
+			if op == "ChadashContainerRemove" {
+				return []byte(`{"data":{"docker":{"removeContainer":true}}}`)
+			}
 			return []byte(`{"data":{"docker":{"` + field + `":{"id":"` + id + `","state":"` + st + `"}}}}`)
 		}
 		return []byte(`{"data":null,"errors":[{"message":"Container not found","extensions":{"code":"INTERNAL_SERVER_ERROR"}}]}`)
@@ -214,7 +231,9 @@ func TestModes(t *testing.T) {
 	for _, d := range integration.ActionDefs(in) {
 		ids = append(ids, d.ID+"="+d.Tier.String())
 	}
-	if want := []string{"unraid.container.start=T1", "unraid.container.stop=T1", "unraid.container.update=T2", "unraid.vm.start=T1", "unraid.vm.stop=T1"}; !slices.Equal(ids, want) {
+	if want := []string{"unraid.container.start=T1", "unraid.container.stop=T1", "unraid.container.update=T2", "unraid.container.restart=T2",
+		"unraid.container.pause=T1", "unraid.container.unpause=T1", "unraid.container.remove=T3", "unraid.vm.start=T1", "unraid.vm.stop=T1",
+		"unraid.vm.pause=T1", "unraid.vm.resume=T1", "unraid.vm.reboot=T2", "unraid.vm.force_stop=T3"}; !slices.Equal(ids, want) {
 		t.Fatalf("actions = %v", ids)
 	}
 }
@@ -308,6 +327,110 @@ func TestVMStartStop(t *testing.T) {
 	}
 }
 
+func TestContainerPauseRestartRemove(t *testing.T) {
+	l := newLab(t)
+	_, env := controlled(t, l)
+	tautulli := "unraid:i_test/container/tautulli" // running
+	grafana := "unraid:i_test/container/Grafana"   // stopped
+
+	_, plan := env.Succeeded(ActContainerPause, tautulli, nil)
+	if plan.Tier != action.T1 || plan.Undo == nil || plan.Undo.Action != ActContainerUnpause || plan.Undo.Label != "Unpause tautulli" {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if r := env.Refusal(ActContainerPause, tautulli, nil); r.Code != "precondition" || r.Message != "tautulli is already paused." {
+		t.Fatalf("refusal = %+v", r)
+	}
+	env.Succeeded(ActContainerUnpause, tautulli, nil)
+	if r := env.Refusal(ActContainerUnpause, tautulli, nil); r.Code != "precondition" || r.Message != "tautulli isn't paused." {
+		t.Fatalf("refusal = %+v", r)
+	}
+	if r := env.Refusal(ActContainerPause, grafana, nil); r.Code != "precondition" || !strings.Contains(r.Message, "isn't running") {
+		t.Fatalf("refusal = %+v", r)
+	}
+	_, plan = env.Succeeded(ActContainerRestart, tautulli, nil)
+	if plan.Tier != action.T2 || plan.Undo != nil {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if m := l.took(); len(m) != 3 || !strings.HasPrefix(m[0], "ChadashContainerPause ") || !strings.HasPrefix(m[1], "ChadashContainerUnpause ") || !strings.HasPrefix(m[2], "ChadashContainerRestart ") {
+		t.Fatalf("mutations = %v", m)
+	}
+}
+
+// Remove needs Docker: Delete, which the control key doesn't have: it's the
+// "full control" consent link's. It also needs the container stopped.
+func TestContainerRemove(t *testing.T) {
+	l := newLab(t)
+	in, env := controlled(t, l)
+	grafana := "unraid:i_test/container/Grafana"
+
+	r := env.Refusal(ActContainerRemove, grafana, nil)
+	if r.Code != "unavailable" || !strings.Contains(r.Message, "Docker: Delete (docker:delete_any)") || !strings.Contains(r.Message, "remove Docker containers") {
+		t.Fatalf("refusal = %+v", r)
+	}
+	if m := l.took(); len(m) != 0 {
+		t.Fatalf("sent %v", m)
+	}
+
+	l.srv.set("ChadashMe", meBody(t, nil, append(append([]perm(nil), controlKey[:4]...),
+		perm{"DOCKER", []string{"READ_ANY", "UPDATE_ANY", "DELETE_ANY"}}, perm{"VMS", []string{"READ_ANY", "UPDATE_ANY"}})...))
+	in.actMu.Lock()
+	in.meAt = time.Time{}
+	in.actMu.Unlock()
+
+	if r := env.Refusal(ActContainerRemove, "unraid:i_test/container/tautulli", nil); r.Code != "precondition" || !strings.Contains(r.Message, "Stop it first") {
+		t.Fatalf("refusal = %+v", r)
+	}
+	_, plan := env.Succeeded(ActContainerRemove, grafana, nil)
+	if plan.Tier != action.T3 || plan.Confirm != "type" || plan.ConfirmText != "Grafana" || plan.Undo != nil {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if m := l.took(); len(m) != 1 || !strings.HasPrefix(m[0], "ChadashContainerRemove ") {
+		t.Fatalf("mutations = %v", m)
+	}
+	// Gone from the list, and no mutation asked for the image to go.
+	if r := env.Refusal(ActContainerRemove, grafana, nil); r.Code != "not_found" {
+		t.Fatalf("refusal = %+v", r)
+	}
+	if strings.Contains(mContainerRemove, "withImage") {
+		t.Fatal("remove must keep the image")
+	}
+}
+
+func TestVMPauseResumeRebootForceStop(t *testing.T) {
+	l := newLab(t)
+	_, env := controlled(t, l)
+	ubuntu, win := "unraid:i_test/vm/"+vmUbuntu, "unraid:i_test/vm/"+vmWindows // running, stopped
+
+	_, plan := env.Succeeded(ActVMPause, ubuntu, nil)
+	if plan.Undo == nil || plan.Undo.Action != ActVMResume || plan.Undo.Label != "Resume jupiter_ubuntu" {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if r := env.Refusal(ActVMPause, ubuntu, nil); r.Code != "precondition" || r.Message != "jupiter_ubuntu is already paused." {
+		t.Fatalf("refusal = %+v", r)
+	}
+	if r := env.Refusal(ActVMReboot, ubuntu, nil); r.Code != "precondition" || !strings.Contains(r.Message, "isn't running") {
+		t.Fatalf("refusal = %+v", r)
+	}
+	env.Succeeded(ActVMResume, ubuntu, nil)
+	if r := env.Refusal(ActVMResume, ubuntu, nil); r.Code != "precondition" || r.Message != "jupiter_ubuntu isn't paused." {
+		t.Fatalf("refusal = %+v", r)
+	}
+	_, plan = env.Succeeded(ActVMReboot, ubuntu, nil)
+	if plan.Tier != action.T2 {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if r := env.Refusal(ActVMForceStop, win, nil); r.Code != "precondition" || r.Message != "Windows 10 is already shut down." {
+		t.Fatalf("refusal = %+v", r)
+	}
+	_, plan = env.Succeeded(ActVMForceStop, ubuntu, nil)
+	if plan.Tier != action.T3 || plan.Confirm != "type" || plan.ConfirmText != "jupiter_ubuntu" {
+		t.Fatalf("plan = %+v", plan)
+	}
+	if m := l.took(); len(m) != 4 || !strings.HasPrefix(m[3], "ChadashVMForceStop ") {
+		t.Fatalf("mutations = %v", m)
+	}
+}
+
 // A controllable instance whose key lacks a write scope shows the actions,
 // and each refuses as unavailable, naming the scope and how to add it.
 func TestMissingWriteScope(t *testing.T) {
@@ -316,7 +439,7 @@ func TestMissingWriteScope(t *testing.T) {
 	l.srv.set("ChadashMe", meBody(t, nil, perm{"INFO", []string{"READ_ANY"}}, perm{"ARRAY", []string{"READ_ANY"}},
 		perm{"DOCKER", []string{"READ_ANY"}}, perm{"VMS", []string{"READ_ANY"}}, perm{"SHARE", []string{"READ_ANY"}}, perm{"ME", []string{"READ_ANY"}}))
 	in, env := controlled(t, l)
-	if n := len(integration.ActionDefs(in)); n != 5 {
+	if n := len(integration.ActionDefs(in)); n != 13 {
 		t.Fatalf("%d actions; a controllable instance shows them all", n)
 	}
 	r := env.Refusal(ActContainerStop, "unraid:i_test/container/tautulli", nil)
