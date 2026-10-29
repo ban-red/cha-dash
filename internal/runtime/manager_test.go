@@ -470,6 +470,44 @@ func TestInstancesValidation(t *testing.T) {
 	}
 }
 
+// TestTestSavedSyncsNow: testing a saved instance also syncs it, so a fixed
+// upstream clears its error at once rather than at the next interval (5 s).
+func TestTestSavedSyncsNow(t *testing.T) {
+	e := newEnv(t)
+	up := newUpstream(t, secret, false)
+	up.mu.Lock()
+	up.err = "broken"
+	up.mu.Unlock()
+	id, err := e.m.Create(t.Context(), CreateRequest{Integration: "echo", Name: "Echo", Config: map[string]any{"url": up.URL}, Secrets: map[string]any{"api_key": secret}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "a failed sync", func() bool { v, _ := e.m.Get(id); return v.LastError != nil })
+
+	up.mu.Lock()
+	up.err = ""
+	up.mu.Unlock()
+	if code, body := e.call(t, "POST", "/api/integrations/instances/"+id+"/test", nil); code != 200 {
+		t.Fatalf("saved test: %d %s", code, body)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for e.status(id) != StatusOK {
+		if time.Now().After(deadline) {
+			t.Fatalf("still %q after the test: it didn't sync", e.status(id))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// A disabled instance is tested all the same; there's nothing to sync.
+	off := false
+	if err := e.m.Update(t.Context(), id, UpdateRequest{Enabled: &off}); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := e.call(t, "POST", "/api/integrations/instances/"+id+"/test", nil); code != 200 {
+		t.Fatalf("disabled test: %d %s", code, body)
+	}
+}
+
 // TestSecretsNeverLeak plants the secret in every place an integration could
 // echo it (its logs, its errors, the upstream's error body) and checks that
 // no response, log line or diagnostics bundle carries it.

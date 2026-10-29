@@ -19,6 +19,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **A settings cog on every tile.** Hover or focus a tile and a cog appears in its top-right corner. It opens the settings of the integration behind the tile, or the tile's Edit when no integration feeds it (the clock, say). Viewers who can do neither don't see it.
 
+- **Test connection checks the integration again.** Testing a saved integration also runs its health check, so a fixed connection clears its status and its problem in the Inbox right away.
+
 ### Fixed
 
 - **Docker through the node after a hub restart.** If the hub started before its node reconnected, the Docker instance showed "invalid config" for up to five minutes and its actions were unavailable. It now retries within seconds.

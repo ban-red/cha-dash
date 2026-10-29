@@ -1208,7 +1208,9 @@ func (m *Manager) Test(ctx context.Context, req TestRequest) (integration.TestRe
 }
 
 // TestSaved runs "Test connection" on a saved instance. In tofu mode with
-// no pin yet, the certificate seen is pinned (the first success).
+// no pin yet, the certificate seen is pinned (the first success). A running
+// instance then syncs at once (as Check now does), so a fixed connection
+// clears its status and problems without waiting for the next interval.
 func (m *Manager) TestSaved(ctx context.Context, id string) (integration.TestResult, error) {
 	mi := m.get(id)
 	if mi == nil {
@@ -1223,7 +1225,9 @@ func (m *Manager) TestSaved(ctx context.Context, id string) (integration.TestRes
 		return integration.TestResult{ErrorCode: integration.CodeInvalidConfig, ErrorMessage: err.Error()}, nil
 	}
 	cfg := integration.Config{InstanceID: r.ID, Name: r.Name, Values: full}
-	return m.runTest(ctx, mi, gen, mi.integ, mi.man, cfg, newRedactor(secrets)), nil
+	res := m.runTest(ctx, mi, gen, mi.integ, mi.man, cfg, newRedactor(secrets))
+	_ = m.Refresh(id) // a disabled or stopped instance has nothing to sync
+	return res, nil
 }
 
 func (m *Manager) runTest(ctx context.Context, mi *managed, gen int, integ integration.Integration, man integration.Manifest,

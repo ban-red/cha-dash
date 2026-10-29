@@ -26,7 +26,7 @@ import (
 //	PUT    /api/integrations/instances/{id}             {name?, config?, secrets?, enabled?} → 200 instance
 //	DELETE /api/integrations/instances/{id}             204
 //	POST   /api/integrations/test                       {integration, config, secrets} or {instance_id, config?, secrets?} → test result
-//	POST   /api/integrations/instances/{id}/test        test result
+//	POST   /api/integrations/instances/{id}/test        test result; a running instance then syncs now
 //	POST   /api/integrations/instances/{id}/refresh     202: sync now (Check now); 409 not_running
 //	GET    /api/integrations/instances/{id}/diagnostics diagnostics, secrets redacted
 //	POST   /api/integrations/authorize/{integration}      start a sign-in → {id, code, url, expires_at, interval_s}
