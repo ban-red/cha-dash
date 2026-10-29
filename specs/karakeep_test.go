@@ -79,9 +79,10 @@ func TestKarakeepFailures(t *testing.T) {
 	if code, msg := classify(t, inst); code != integration.CodeUnsupportedVersion || msg != "Karakeep 0.22.0 is older than this spec supports (0.23 or later)." {
 		t.Fatalf("0.22: %s %q", code, msg)
 	}
-	// Without a version to go on, the API changed.
+	// Without a version and with nothing else answering, it looks like a
+	// proxy with Karakeep down behind it.
 	up.set("/api/version", "")
-	if code, msg := classify(t, inst); code != integration.CodeAPIChanged || !strings.Contains(msg, "/api/v1/users/me/stats answered 404 Not Found") {
+	if code, msg := classify(t, inst); code != integration.CodeUnreachable || !strings.Contains(msg, "/api/v1/users/me/stats answered 404 Not Found") {
 		t.Fatalf("404: %s %q", code, msg)
 	}
 	// 0.23 and later aren't caught by the repair.

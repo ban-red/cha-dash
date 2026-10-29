@@ -85,8 +85,12 @@ func (in *instance) env() map[string]any {
 // and the upstream version.
 func (in *instance) fetch(ctx context.Context) (map[string]any, string, error) {
 	env := in.env()
+	answered := false // a request got a 2xx: the app is there
 	for _, r := range in.s.f.Requests {
 		vals, err := in.do(ctx, r, env)
+		if me, ok := err.(*missingError); ok {
+			err = me.classify(in.s.manifest.Name, answered)
+		}
 		if err != nil {
 			if r.Optional && ctx.Err() == nil {
 				env[r.Name] = map[string]any{}
@@ -105,6 +109,7 @@ func (in *instance) fetch(ctx context.Context) (map[string]any, string, error) {
 			return env, in.versionOf(env), err
 		}
 		env[r.Name] = vals
+		answered = true
 	}
 	version := in.versionOf(env)
 	rerr, err := in.repair(env)
@@ -209,7 +214,11 @@ func (in *instance) do(ctx context.Context, r request, env map[string]any) (map[
 			if v := in.versionOf(env); v != "" {
 				msg += fmt.Sprintf(" (detected version %s)", v)
 			}
-			return nil, &integration.RepairError{Code: integration.CodeAPIChanged, Message: msg}
+			return nil, &missingError{
+				status: se,
+				repair: &integration.RepairError{Code: integration.CodeAPIChanged, Message: msg},
+				json:   strings.Contains(resp.Header.Get("Content-Type"), "json"),
+			}
 		}
 		return nil, err
 	}
@@ -244,6 +253,25 @@ func run(p *vm.Program, env map[string]any) (any, error) {
 
 // specErr is a spec that can't do what it says: a bug in the spec or an
 // upstream shape it didn't expect. It's retried like any transient error.
+// missingError is a 404 or 410, which fetch decides on. It's the API
+// changing when the app is known to be there: an earlier request answered, or
+// this one answered JSON. Otherwise something else answered, most often a
+// reverse proxy whose backend is down, and that's the app being unreachable.
+type missingError struct {
+	status *integration.StatusError
+	repair *integration.RepairError
+	json   bool
+}
+
+func (e *missingError) Error() string { return e.repair.Error() }
+
+func (e *missingError) classify(name string, answered bool) error {
+	if answered || e.json {
+		return e.repair
+	}
+	return &integration.UnreachableError{Message: fmt.Sprintf("%s isn't answering: %s, and no other request reached it. It may be down, behind a proxy with nothing to send it to, or not at this address.", name, e.status.Error())}
+}
+
 func specErr(where string, err error) error {
 	return fmt.Errorf("the spec failed at %s: %w", where, err)
 }

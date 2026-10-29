@@ -4,7 +4,7 @@ Each `<id>.yaml` here is a Tier 1 integration: a YAML spec the engine in [`inter
 
 Every spec publishes one resource, `<id>:<instance id>/app`, kind `app`, named after the instance, state `running`, with `attrs.type` = the spec's ID, a link to the configured URL, and `integration:<instance id> monitors` it. Its metrics are series on that resource. Seerr also publishes its pending requests (a fan-out resource) and has actions; a spec may define both from v0.2 (internal/README.md, "Spec actions"). All fixtures under `testdata/<id>/` are **synthetic**, written from the upstream's API docs or source; each folder's README says which.
 
-The engine adds the shared behaviour: a 401 or 403 is an auth Repair on the secret, a 404 or 410 is an `api_changed` Repair naming the detected version, unless one of the spec's repairs already holds on what was read before the 404 (that's how an old release without an endpoint gets `unsupported_version`). Secrets in query strings (Tautulli, SABnzbd) are allowed, and never appear in errors or logs.
+The engine adds the shared behaviour: a 401 or 403 is an auth Repair on the secret, a 404 or 410 is an `api_changed` Repair naming the detected version, unless one of the spec's repairs already holds on what was read before the 404 (that's how an old release without an endpoint gets `unsupported_version`). A 404 counts as `api_changed` only when the app is known to be there: an earlier request answered, or the 404 is JSON. Otherwise it's `unreachable`, since the usual cause is a reverse proxy whose backend is down. Secrets in query strings (Tautulli, SABnzbd) are allowed, and never appear in errors or logs.
 
 | Spec | Config (secret) | Auth | Requests | Version | Metrics | Attrs | Repairs |
 |---|---|---|---|---|---|---|---|

@@ -23,7 +23,7 @@ const (
 	CodeUnsupportedVersion = "unsupported_version" // the upstream version isn't supported
 	CodeInvalidConfig      = "invalid_config"      // the config can't work as written
 	CodeTimeout            = "timeout"
-	CodeUnreachable        = "unreachable" // refused, no route, DNS
+	CodeUnreachable        = "unreachable" // refused, no route, DNS, or something else answered
 	CodeUpstream           = "upstream"    // anything else the source did wrong
 	CodeInternal           = "internal"    // a bug in Cha Dash (a panic in an integration)
 )
@@ -102,6 +102,15 @@ type RepairError struct {
 
 func (e *RepairError) Error() string { return e.Message }
 
+// UnreachableError is a source that answered, but not as the app: a reverse
+// proxy's 404 for a backend that's down, say. It classifies as
+// CodeUnreachable, like a refused connection.
+type UnreachableError struct {
+	Message string
+}
+
+func (e *UnreachableError) Error() string { return e.Message }
+
 // ConfigError is a config that can't work as written (it passed the schema
 // but, say, names a socket that doesn't exist).
 type ConfigError struct {
@@ -169,6 +178,7 @@ func Classify(err error) (code string, class Class, message string) {
 		se   *StatusError
 		ae   *AuthError
 		re   *RepairError
+		ue   *UnreachableError
 		ce   *ConfigError
 		te   *TLSError
 		cve  *tls.CertificateVerificationError
@@ -198,6 +208,8 @@ func Classify(err error) (code string, class Class, message string) {
 			code = CodeAPIChanged
 		}
 		return code, NeedsRepair, re.Message
+	case errors.As(err, &ue):
+		return CodeUnreachable, Transient, ue.Message
 	case errors.As(err, &ce):
 		return CodeInvalidConfig, Permanent, ce.Message
 	case errors.Is(err, context.DeadlineExceeded), errors.As(err, &ne) && ne.Timeout():

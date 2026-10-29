@@ -244,6 +244,31 @@ func TestRepairBeforeMissingEndpoint(t *testing.T) {
 	}
 }
 
+// A 404 before anything answered is a reverse proxy with nothing behind it,
+// not the API changing, unless the 404 is the app's own JSON.
+func TestNotFoundBeforeAnyAnswer(t *testing.T) {
+	jsonNotFound := false
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if jsonNotFound {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(404)
+			io.WriteString(rw, `{"error":"not found"}`)
+			return
+		}
+		http.Error(rw, "404 page not found", 404) // Traefik's, as text
+	}))
+	t.Cleanup(srv.Close)
+	inst := integrationtest.New(t).Connect(mustParse(t, base), map[string]any{"url": srv.URL, "site": "lab"}, map[string]string{"token": "t"})
+	code, class, msg := integration.Classify(inst.Sync(t.Context(), integrationtest.Watched))
+	if code != integration.CodeUnreachable || class != integration.Transient || !strings.Contains(msg, "isn't answering") {
+		t.Fatalf("proxy 404: %s %d %q", code, class, msg)
+	}
+	jsonNotFound = true
+	if code, _, msg := integration.Classify(inst.Sync(t.Context(), integrationtest.Watched)); code != integration.CodeAPIChanged {
+		t.Fatalf("JSON 404: %s %q", code, msg)
+	}
+}
+
 func TestBadHealthValue(t *testing.T) {
 	up := &widgets{version: "1.4", healthy: true, stats: `{"data":{"count":1}}`}
 	srv := up.serve(t)

@@ -118,9 +118,9 @@ func TestSABnzbdFailures(t *testing.T) {
 	if code, msg := classify(t, inst); code != integration.CodeUnsupportedVersion || msg != "SABnzbd 2.3.9 is older than this spec supports (3.0 or later)." {
 		t.Fatalf("old: %s %q", code, msg)
 	}
-	// Not SABnzbd at that URL: the queue is a 404.
+	// Not SABnzbd at that URL: the queue is a 404 and nothing else answered.
 	res = integrationtest.New(t).Connect(integ, map[string]any{"url": srv.URL}, map[string]string{"api_key": sabnzbdKey}).Test(t.Context())
-	if res.OK || res.ErrorCode != integration.CodeAPIChanged {
+	if res.OK || res.ErrorCode != integration.CodeUnreachable {
 		t.Fatalf("wrong url: %+v", res)
 	}
 }

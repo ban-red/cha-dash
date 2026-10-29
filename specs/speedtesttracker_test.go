@@ -92,9 +92,10 @@ func TestSpeedtestTrackerFailures(t *testing.T) {
 	if res.OK || res.ErrorCode != integration.CodeAuth || strings.Contains(res.ErrorMessage, "wrong-token") {
 		t.Fatalf("wrong token: %+v", res)
 	}
-	// An old release without the v1 API.
+	// An old release without the v1 API answers nothing else either, so it
+	// can't be told from a proxy with nothing behind it.
 	res = integrationtest.New(t).Connect(integ, map[string]any{"url": srv.URL + "/old"}, map[string]string{"token": speedtestToken}).Test(t.Context())
-	if res.OK || res.ErrorCode != integration.CodeAPIChanged {
+	if res.OK || res.ErrorCode != integration.CodeUnreachable {
 		t.Fatalf("no v1 API: %+v", res)
 	}
 }

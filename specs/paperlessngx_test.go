@@ -89,7 +89,7 @@ func TestPaperlessNgxFailures(t *testing.T) {
 		t.Fatalf("wrong token: %+v", res)
 	}
 	res = integrationtest.New(t).Connect(integ, map[string]any{"url": srv.URL + "/elsewhere"}, map[string]string{"token": paperlessToken}).Test(t.Context())
-	if res.OK || res.ErrorCode != integration.CodeAPIChanged {
+	if res.OK || res.ErrorCode != integration.CodeUnreachable {
 		t.Fatalf("wrong url: %+v", res)
 	}
 }
