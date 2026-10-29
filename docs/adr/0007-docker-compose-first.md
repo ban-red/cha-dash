@@ -9,7 +9,7 @@ Most homelabs already run Docker, and most self-hosters manage it with compose f
 ## Decision
 
 **`docker compose up -d` is the main way to self-host Cha Dash, and every install doc starts with a `compose.yaml`.**
-- **Zero required environment variables.** First boot generates the vault key and prints a setup token to the logs.
+- **Zero required environment variables.** First boot generates the vault key and prints a setup token to the logs. *Replaced by [ADR-0028](0028-first-run-without-a-setup-token.md): no setup token; the first visitor creates the owner.*
 - One persistent volume: `/data`.
 - An optional, pre-tuned, read-only socket-proxy sidecar lets v0.1 see containers on the host.
 - **Adding a node is a compose snippet too.** The hub generates it with a single-use join token filled in.

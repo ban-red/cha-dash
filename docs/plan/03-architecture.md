@@ -532,7 +532,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 
 ### Identity and access
 - **Local users:**
-  - argon2id password hashing
+  - argon2id password hashing; passwords of at least 6 characters, and an address is banned after five wrong passwords in a row until someone clears it ([ADR-0029](../adr/0029-short-passwords-and-address-bans.md))
   - **passkeys (WebAuthn)**
   - TOTP
   - HttpOnly, SameSite=Lax cookie sessions. Cross-site requests are blocked by SameSite plus Go's `CrossOriginProtection` on unsafe methods, and the API only accepts JSON bodies. Per-request CSRF tokens stay an option if a form-post surface ever appears
@@ -543,7 +543,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 - **Scoped, expiring API tokens**, each showing when it was last used.
 
 ### Hardening baseline
-- **First-run takeover:** there's no setup token (dropped 2026-10-28 for a smoother first run). Whoever reaches a new hub first creates the owner, so the install docs say to do it straight away.
+- **First-run takeover:** there's no setup token (dropped 2026-10-28 for a smoother first run, [ADR-0028](../adr/0028-first-run-without-a-setup-token.md)). Whoever reaches a new hub first creates the owner, so the install docs say to do it straight away.
 - **No unauthenticated network listeners or routes**, for the hub or the node. `healthcheck` is a local subcommand. Deploy webhooks (v0.3) authenticate by signature: they are a reviewed `Signature` row in the authz table and answer only once a hook exists ([ADR-0021](../adr/0021-git-sync-and-deploy-webhooks.md)).
 - **Strict CSP:** `default-src 'self'`, no inline scripts, no `unsafe-eval`. Vue templates are precompiled by Vite, so only the runtime build ships. No third-party origins: fonts, icons and service logos are bundled or cached locally.
 - **The hub never has Docker write access.** Only nodes do, and only within local policy.
@@ -577,7 +577,8 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Docker socket (on nodes) | Root on host | Capability verbs, protect-list, exec off by default, env redaction |
 | Stack secrets | Leak via git or disk | `${secret:}` refs resolved in memory at deploy time; never committed |
 | Integration specs | SSRF into the LAN | Origin pinning, no redirects, size and time limits, no secrets in URLs |
-| First run | Instance takeover | Accepted: create the owner right after install (no setup token since 2026-10-28) |
+| Sign-in | Password guessing | Per-client and per-account rate limits; an address banned after five wrong passwords in a row ([ADR-0029](../adr/0029-short-passwords-and-address-bans.md)) |
+| First run | Instance takeover | Accepted: create the owner right after install (no setup token since 2026-10-28, [ADR-0028](../adr/0028-first-run-without-a-setup-token.md)) |
 | Forward auth | Header spoofing | Opt-in plus trusted-proxy CIDRs |
 | Supply chain | Malicious dependency or release | Minimal dependencies, lockfiles, pinned versions, cosign-signed images, SBOM, OpenSSF Scorecard |
 

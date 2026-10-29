@@ -53,3 +53,5 @@
 | 0025 | The spec format public as `v1alpha1` before 1.0 ([09 · D3](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
 | 0026 | "No enterprise tier" in the Pact ([09 · D4](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
 | [0027](0027-demo-home-is-fictional.md) | The Demo Home is a fictional home, not a copy of the dogfood lab (replaces one consequence of 0004) | accepted | 2026-10-28 |
+| [0028](0028-first-run-without-a-setup-token.md) | First run without a setup token: the first visitor creates the owner, named `admin` by default (replaces the setup token in 0005 and 0007) | accepted | 2026-10-29 |
+| [0029](0029-short-passwords-and-address-bans.md) | Six-character passwords, backed by banning an address after five wrong passwords | accepted | 2026-10-29 |
