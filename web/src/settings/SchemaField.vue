@@ -195,7 +195,6 @@ function removeItem(i: number): void {
         {{ reveal ? 'Hide' : 'Show' }}
       </button>
     </div>
-    <AuthorizeButton v-if="kind === 'secret' && schema['x-chadash-authorize'] === true && typeof k === 'string'" :label="label" />
 
     <input
       v-else-if="kind === 'number' || kind === 'integer'"
@@ -259,6 +258,8 @@ function removeItem(i: number): void {
       @input="onText"
       @blur="blur"
     />
+    <!-- Outside the v-if chain above: inside it, a secret without this button fell through to the text input. -->
+    <AuthorizeButton v-if="kind === 'secret' && schema['x-chadash-authorize'] === true && typeof k === 'string'" :label="label" />
 
     <span v-if="error" :id="`${id}-err`" class="help bad">{{ error }}</span>
     <span v-else-if="schema.description" :id="`${id}-help`" class="help">{{ schema.description }}</span>

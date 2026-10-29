@@ -163,6 +163,11 @@ describe('Let Cha Dash act', () => {
     expect(section.querySelector('#f-control_token_id')).not.toBeNull();
     expect(section.querySelector('#f-control_token_secret')).not.toBeNull();
     expect(section.querySelector('#f-token_id')).toBeNull();
+    // Each secret is one input: no stray text box under it.
+    for (const id of ['f-token_secret', 'f-control_token_secret']) {
+      expect(document.querySelectorAll(`[id="${id}"]`)).toHaveLength(1);
+      expect(document.getElementById(id)!.closest('.field')!.querySelectorAll('input')).toHaveLength(1);
+    }
     expect(section.querySelector('details')!.open).toBe(false);
     expect(section.querySelector('.ctl-state')!.textContent).toContain('Reads only');
     expect(section.textContent).toContain('Cha Dash only reads egret.');
