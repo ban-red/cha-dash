@@ -20,6 +20,30 @@ html,
 body {
   margin: 0;
 }
+/* Scrollbars: thin, no track, a quiet thumb that firms up under the pointer.
+   scrollbar-color inherits; scrollbar-width doesn't, so it goes on every
+   element (at zero specificity, so a component can still override it). */
+:where(*) {
+  scrollbar-width: thin;
+}
+:root {
+  scrollbar-color: color-mix(in oklch, var(--text) 16%, transparent) transparent;
+}
+:where(*):hover {
+  scrollbar-color: color-mix(in oklch, var(--text) 32%, transparent) transparent;
+}
+@media (prefers-contrast: more) {
+  :root,
+  :where(*):hover {
+    scrollbar-color: var(--text-3) transparent;
+  }
+}
+@media (forced-colors: active) {
+  :root,
+  :where(*):hover {
+    scrollbar-color: auto;
+  }
+}
 body {
   min-height: 100vh;
   min-height: 100dvh;

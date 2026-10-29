@@ -417,7 +417,6 @@ a.mono.has-icon:hover {
   flex: 1;
   min-height: 0;
   overflow: hidden auto;
-  scrollbar-width: thin;
   display: flex;
   flex-direction: column;
   margin: 0;
