@@ -26,6 +26,8 @@ import (
 //     state (--wait alone passes crash loops).
 //  7. Keep it, or roll back: the previous file as a new commit, pinned to
 //     the digests it last ran, through the same gate with a shorter soak.
+//     Only the services the rollback recreates are pinned: one the attempt
+//     didn't touch still runs that file, so it's left alone, tag and all.
 //     If that fails too, the stack is stuck.
 
 // attempt is one pass through the pipeline: a deploy, or a rollback the
@@ -88,7 +90,7 @@ func (m *Module) rollback(ctx context.Context, req stackproto.RollbackRequest, e
 	if err != nil {
 		return stackproto.DeployResult{}, err
 	}
-	content, pinned := pinImages(old, pins)
+	content, pinned := pinImages(old, recreatedOnly(ctx, a, old, a.running, pins))
 	a.content, a.kind, a.by, a.via, a.ref = content, stackproto.KindRollback, req.By, req.Via, req.Ref
 	a.subject = fmt.Sprintf("Roll back %s to %s", a.s.name, target.Hash.String()[:7])
 	if len(pinned) > 0 {
@@ -253,7 +255,11 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 		return done()
 	}
 	em.step("Roll back to " + short(a.head))
-	back, pinned := pinImages(a.prev, a.prevRefs)
+	now, err := m.docker.Containers(ctx, a.s.name)
+	if err != nil {
+		now = nil // pin every service, as if none matched
+	}
+	back, pinned := pinImages(a.prev, recreatedOnly(ctx, a, a.prev, now, a.prevRefs))
 	rbSubject := fmt.Sprintf("Roll back %s: %s", a.s.name, reason)
 	if len(pinned) > 0 {
 		rbSubject += " (pinned " + strings.Join(pinned, ", ") + ")"
@@ -309,6 +315,32 @@ func (m *Module) removeNew(ctx context.Context, a *attempt, reason string, res *
 	res.RollbackCommit = h.String()
 	res.Outcome = stackproto.OutcomeRolledBack
 	res.Reason = strings.TrimSuffix(reason, ".") + ". It was new, so Cha Dash removed it again; the draft is kept."
+}
+
+// recreatedOnly keeps the pins of the services that rolling back to content
+// recreates anyway. A service whose running container already matches
+// content (the attempt didn't touch it) would only be recreated for a
+// digest it already runs, and its file would keep the pin for good, so it
+// goes unpinned. When content can't be planned, every pin stays.
+func recreatedOnly(ctx context.Context, a *attempt, content string, running []Container, refs map[string]string) map[string]string {
+	if len(refs) == 0 || running == nil {
+		return refs
+	}
+	p, err := load(ctx, a.s, content, loadOptions{secrets: a.secrets})
+	if err != nil {
+		return refs
+	}
+	plan, err := planServices(p, running)
+	if err != nil {
+		return refs
+	}
+	out := map[string]string{}
+	for _, sp := range plan {
+		if ref, ok := refs[sp.Name]; ok && sp.Action != stackproto.ActionUnchanged {
+			out[sp.Name] = ref
+		}
+	}
+	return out
 }
 
 func pick(override, def time.Duration) time.Duration {

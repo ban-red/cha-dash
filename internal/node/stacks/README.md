@@ -20,7 +20,7 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 | `stack.validate` | `stacks.read` | Loads a proposed file with compose-go. Secret references are checked for syntax, never resolved. The guard's refusals are errors and its root-equivalent findings warnings (see "What a stack may do on the host"). Returns messages with line numbers |
 | `stack.plan` | `stacks.read` | Compares config hashes (`compose.ServiceHash`) with the running containers' labels. Lists services to create, recreate (and pull) or remove, a downtime estimate, and `root_equivalent`: what the file does that amounts to root on the host. Refuses what the guard refuses (`invalid`) and recreating or removing a container `docker.protect` names (`protected`) |
 | `stack.deploy` | `stacks.deploy` | The seven steps below |
-| `stack.rollback` | `stacks.deploy` | An earlier commit's file as a new commit, pinned to the digests it last ran, through the same steps |
+| `stack.rollback` | `stacks.deploy` | An earlier commit's file as a new commit, through the same steps. The services it recreates are pinned to the digests they last ran; the rest are left as they are |
 | `stack.adopt` | `stacks.adopt` | Adopt in place: commit a root directory, or register an external path and start its shadow history. Nothing moves and nothing restarts. On a drifted stack it accepts the edits made outside Cha Dash |
 | `stack.unadopt` | `stacks.adopt` | Stop versioning a stack. Its files and containers stay as they are |
 
@@ -34,7 +34,7 @@ Errors are `stackproto.Error{code, message}`, and `Error()` reads `<code>: <mess
 4. **Commit** the attempt (`Deploy media: recreate web · by sam via web · t_…`), recording the images running now.
 5. **Pull** what changed, then **up --wait**. Progress streams as `stackproto.Progress`.
 6. **Health gate.** A soak (default 20 s; `x-chadash.soak`) fails on any exit, restart or unhealthy state, or on `restarting`. `--wait` alone passed a crash loop in spike 4.6.
-7. **Keep it, or roll back.** The previous file comes back as a new commit, with each image pinned to the digest it last ran (only the image scalar changes, so comments stay). It goes through the same gate with a shorter soak (default 5 s; `x-chadash.rollback_soak`). If that fails too, the outcome is `stuck`. A brand-new stack that fails is taken down again and leaves the repo; the hub keeps its draft.
+7. **Keep it, or roll back.** The previous file comes back as a new commit, with the image of each service it recreates pinned to the digest it last ran (only the image scalar changes, so comments stay). A service the attempt didn't touch still runs that file, so it isn't pinned or recreated. It goes through the same gate with a shorter soak (default 5 s; `x-chadash.rollback_soak`). If that fails too, the outcome is `stuck`. A brand-new stack that fails is taken down again and leaves the repo; the hub keeps its draft.
 
 Other rules:
 - One operation per stack at a time (`busy`).

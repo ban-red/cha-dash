@@ -70,6 +70,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Stacks on a node that doesn't exist are refused.** Saving a draft under a node's name instead of its ID kept it, for a node the hub doesn't know. It's now refused. An offline node is named in the error, and Cha Dash's own stack, when it isn't one file the node can read, says only its containers are shown.
 - **chadash-node logs the policy it loaded.** With a policy file mounted, the node said nothing about it. It now logs what the file grants, denies and protects at start.
 - **Guests outside the control token's reach can't be planned.** A Proxmox guest outside the control token's pool, or one its role lacks a privilege on, planned like any other and failed with a 403 once approved. Its actions are now unavailable, naming the privilege and the guest.
+- **A rollback leaves untouched services alone.** Rolling a stack back, on its own or when asked, pinned every service to its image digest, so it recreated services the failed deploy never changed, and their pins stayed in the file. Only the services it recreates are pinned now.
 
 ## [0.2.0-beta.1] - 2026-10-29
 

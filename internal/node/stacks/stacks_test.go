@@ -678,6 +678,65 @@ func TestManualRollbackPinsWhatItRan(t *testing.T) {
 	}
 }
 
+// A rollback recreates and pins only the services that need it: db, which
+// neither the attempt nor the rollback changes, keeps its container and its
+// tag, by itself and automatically.
+func TestRollbackLeavesUntouchedServicesAlone(t *testing.T) {
+	twoDB := strings.Replace(v1, "x-chadash:", "  db:\n    image: postgres:17\nx-chadash:", 1)
+	bad := strings.Replace(twoDB, "nginx:1.27", "nginx-unhealthy:1.28", 1)
+	good := strings.Replace(twoDB, "nginx:1.27", "nginx:1.28", 1)
+	dbID := func(n *testNode) string {
+		cs, _ := n.docker.Containers(t.Context(), "media")
+		for _, c := range cs {
+			if c.Service == "db" {
+				return c.ID
+			}
+		}
+		return ""
+	}
+	check := func(n *testNode, before string) {
+		t.Helper()
+		if got := dbID(n); got == "" || got != before {
+			t.Errorf("db was recreated: %s, then %s", before, got)
+		}
+		disk, _ := os.ReadFile(filepath.Join(n.root, "media", "compose.yaml"))
+		_, digest, _ := strings.Cut(digestOf("nginx:1.27"), "@")
+		if !strings.Contains(string(disk), "image: nginx:1.27@"+digest) || !strings.Contains(string(disk), "image: postgres:17\n") {
+			t.Errorf("web should be pinned and db left as written:\n%s", disk)
+		}
+		if h := n.history("media"); !strings.Contains(h[0], "(pinned web)") || strings.Contains(h[0], "db") {
+			t.Errorf("history %q", h[0])
+		}
+	}
+
+	t.Run("on its own", func(t *testing.T) {
+		n := newTestNode(t)
+		if res := n.deploy("media", twoDB, nil); res.Outcome != stackproto.OutcomeDeployed {
+			t.Fatalf("v1: %+v", res)
+		}
+		before := dbID(n)
+		if res := n.deploy("media", bad, nil); res.Outcome != stackproto.OutcomeRolledBack {
+			t.Fatalf("outcome %s: %s", res.Outcome, res.Reason)
+		}
+		check(n, before)
+	})
+	t.Run("asked for", func(t *testing.T) {
+		n := newTestNode(t)
+		n.deploy("media", twoDB, nil)
+		first := headCommit(t, n.root, 0).Hash.String()
+		if res := n.deploy("media", good, nil); res.Outcome != stackproto.OutcomeDeployed {
+			t.Fatalf("v2: %+v", res)
+		}
+		before := dbID(n)
+		var res stackproto.DeployResult
+		n.must("stack.rollback", stackproto.RollbackRequest{Stack: "media", Commit: first[:10], By: "sam"}, &res)
+		if res.Outcome != stackproto.OutcomeDeployed || !strings.HasSuffix(strings.Split(n.history("media")[0], " · ")[0], "recreate web") {
+			t.Fatalf("%+v; history %q", res, n.history("media")[0])
+		}
+		check(n, before)
+	})
+}
+
 func TestErrorFromSurvivesText(t *testing.T) {
 	e := stackproto.Errorf(stackproto.CodeDrift, "edited by hand")
 	for _, err := range []error{e, errorString("node local: " + e.Error()), errorString(e.Error())} {
