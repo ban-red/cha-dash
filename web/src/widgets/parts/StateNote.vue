@@ -3,8 +3,9 @@
  * The one-line note for a state that isn't healthy: glyph plus words, and the
  * fix when there is one. Needs repair offers Reconnect to owners and admins
  * (the Repair in the Inbox, else the integration's settings) and tells
- * everyone else to ask one. Permission-limited says "Ask an admin". Nothing
- * when healthy.
+ * everyone else to ask one. In demo mode Reconnect runs the repair's own
+ * action, which settles it in the Demo Home: there's no real token or API
+ * to check. Permission-limited says "Ask an admin". Nothing when healthy.
  */
 import { computed } from 'vue';
 import Glyph, { type GlyphKind } from '../../components/marks/Glyph.vue';
@@ -41,9 +42,16 @@ const line = computed(() => {
 });
 const fixable = computed(() => canRepair(role()));
 
+/** In the Demo Home, the repair's suggested action, when it can run now. */
+const demoFix = computed(() => {
+  const r = subject?.repair;
+  return live.demo.value && r?.suggested && ui.canRun(r).ok ? r : undefined;
+});
+
 function reconnect(): void {
   const s = subject;
   if (!s) return;
+  if (demoFix.value) return ui.act(demoFix.value);
   if (s.repair) return ui.openInbox(s.repair.id);
   const inst = s.integration?.id.replace(/^integration:/, '');
   if (inst) ui.openSettings('integrations', inst);
@@ -56,7 +64,7 @@ function reconnect(): void {
     <span>
       {{ line.text }}<template v-if="'reconnect' in line && line.reconnect">
         {{ lastKnown ? ' Values are last-known.' : '' }}
-        <button v-if="fixable" type="button" @click.stop="reconnect">Reconnect</button>
+        <button v-if="fixable" type="button" :title="demoFix ? 'Runs in the Demo Home' : undefined" @click.stop="reconnect">Reconnect</button>
         <template v-else>Ask an admin to reconnect it.</template>
       </template>
     </span>

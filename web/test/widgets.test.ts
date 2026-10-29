@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
+import { flushPromises } from '@vue/test-utils';
 import type { SizeId } from '@chadash/layout';
 import WidgetHost from '../src/widgets/WidgetHost.vue';
 import { preloadWidgets, WIDGET_COMPONENTS } from '../src/widgets/registry';
@@ -14,6 +15,9 @@ import { applyTheme } from '../src/lib/theme';
 import type { GraphDoc, Health, Incident, InboxDoc, MetricsDoc, Resource } from '../src/model/types';
 import { docs, healthy, withIncidents } from './fixtures';
 import { harness } from './harness';
+import { engine } from './fake-engine';
+import { fakeFetch } from './fake-fetch';
+import { route } from '../src/lib/router';
 
 // The on-demand widgets, fetched once: afterwards they mount without a skeleton.
 beforeAll(() => preloadWidgets());
@@ -41,8 +45,8 @@ export const DEMO_TARGETS: Record<string, string | undefined> = {
   storage: 'pve:owl/storage/local-lvm',
 };
 
-function mountWidget(data: Data | undefined, type: string, size: SizeId, target = DEMO_TARGETS[type], opts: { role?: string } = {}) {
-  const h = harness(data);
+function mountWidget(data: Data | undefined, type: string, size: SizeId, target = DEMO_TARGETS[type], opts: { role?: string; demo?: boolean } = {}) {
+  const h = harness(data, { demo: opts.demo === true });
   if (opts.role) h.session.state.user = { id: 'u2', username: 'kid', role: opts.role };
   const id = target ? `${type}@${target}` : type;
   const w = h.mountIn(WidgetHost, { item: { id, type }, size });
@@ -210,6 +214,19 @@ describe('service tile', () => {
     expect(w.find('.note').text()).toContain("Karakeep's API changed. Values are last-known.");
     expect(w.find('.note button').text()).toBe('Reconnect');
     expect(w.find('.tf').text()).toBe('service up · 147 ms');
+  });
+
+  it('runs the repair in the Demo Home instead of asking for a token', async () => {
+    const f = fakeFetch(engine().routes);
+    const { w, ui } = mountWidget(docs(withIncidents), 'plex', 'wide', undefined, { demo: true });
+    const button = w.find('.note button');
+    expect(button.text()).toBe('Reconnect');
+    expect(button.attributes('title')).toBe('Runs in the Demo Home');
+    await button.trigger('click');
+    await flushPromises();
+    expect(f.calls.find((c) => c.path === '/api/actions/plan')?.body).toMatchObject({ action: 'integration.reconnect', target: 'integration:plex' });
+    expect(ui.state.inboxOpen).toBe(false);
+    expect(route.value.path).not.toMatch(/settings/);
   });
 
   it('tells other roles to ask an admin instead of offering Reconnect', () => {
