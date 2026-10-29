@@ -129,9 +129,12 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	grants := []any{"path", cfg.PolicyPath, "docker", strings.Join(policy.Docker.Allow, ","), "stacks", strings.Join(policy.Stacks.Allow, ",")}
 	if missing {
-		log.Info("no policy file; using the default policy", "path", cfg.PolicyPath,
-			"docker", strings.Join(policy.Docker.Allow, ","), "stacks", strings.Join(policy.Stacks.Allow, ","))
+		log.Info("no policy file; using the default policy", grants...)
+	} else {
+		// Say what the file grants, so a mounted policy can be checked from the logs.
+		log.Info("policy loaded", append(grants, "stacks_deny", strings.Join(policy.Stacks.Deny, ","), "protect", strings.Join(policy.Docker.Protect, ","))...)
 	}
 	hubURL := cfg.HubURL
 	if policy.Hub.URL != "" {
