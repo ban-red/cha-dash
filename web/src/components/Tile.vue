@@ -22,6 +22,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
+import GlyphTip from './GlyphTip.vue';
 import TileCog from './TileCog.vue';
 import { hhmm, monogram } from '../lib/format';
 import { focusScrollables } from '../lib/scrollable';
@@ -43,6 +44,7 @@ const {
   asOf,
   tag,
   tagGlyph,
+  tagNote,
   clickable = false,
   loading = false,
 } = defineProps<{
@@ -59,6 +61,8 @@ const {
   /** The state word, after the glyph ("1 needs you", "idle"). */
   tag?: string | undefined;
   tagGlyph?: GlyphKind | undefined;
+  /** The warning in full, for the glyph's tooltip and dialog; else the tag. */
+  tagNote?: string | undefined;
   clickable?: boolean;
   loading?: boolean;
 }>();
@@ -68,6 +72,9 @@ const live = useLive();
 const tile = useTile();
 
 const shownName = computed(() => tile.config.value?.name ?? name);
+/** A warning glyph explains itself: hover for the words, click for all of them. */
+const WARNS = new Set<GlyphKind>(['attn', 'down', 'repair', 'maint']);
+const glyphTip = computed(() => (tagGlyph && WARNS.has(tagGlyph) ? tagNote || tag || '' : ''));
 /** The tile's link, from its config or its widget: http(s) only. */
 const shownHref = computed(() => safeUrl(tile.config.value?.href ?? href));
 const chromeless = computed(() => tile.config.value?.chromeless === true);
@@ -155,8 +162,9 @@ function onKey(e: KeyboardEvent) {
       <span class="tn">{{ shownName }}</span>
       <span v-if="context" class="tc">{{ context }}</span>
       <span v-if="isStale && staleSince" class="tg"><span class="asof" :title="'Last-known value'">as of {{ staleSince }}</span></span>
-      <span v-else-if="tag || tagGlyph" class="tg">
-        <Glyph v-if="tagGlyph" :kind="tagGlyph" />
+      <span v-else-if="tag || tagGlyph" :class="['tg', { 'glyph-only': !tag }]">
+        <GlyphTip v-if="tagGlyph && glyphTip" :kind="tagGlyph" :text="glyphTip" :title="shownName" />
+        <Glyph v-else-if="tagGlyph" class="tg-mark" :kind="tagGlyph" />
         <span class="tgt">{{ tag }}</span>
       </span>
     </div>

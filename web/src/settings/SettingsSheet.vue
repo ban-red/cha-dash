@@ -492,19 +492,23 @@ a.st-row:hover {
 .st-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   max-width: 620px;
 }
 .field select,
 .field textarea {
   width: 100%;
-  min-height: var(--target-min);
-  padding: 10px 12px;
+  min-height: var(--control-h);
+  padding: 6px 10px;
   border: var(--hairline) solid var(--line-2);
   border-radius: var(--radius-md);
   background: var(--surface);
-  font: var(--weight-regular) var(--type-body) / 1.4 var(--font-ui);
+  font: var(--weight-regular) var(--control-font) / 1.4 var(--font-ui);
   color: var(--text);
+}
+.field select:hover:not(:disabled, :focus),
+.field textarea:hover:not(:disabled, :focus) {
+  border-color: color-mix(in oklch, var(--text) 22%, transparent);
 }
 .field textarea {
   min-height: 9rem;
@@ -555,7 +559,7 @@ a.st-row:hover {
   min-width: 0;
 }
 .secret-row .btn {
-  min-height: var(--target-min);
+  min-height: var(--control-h, var(--target-min));
 }
 .set-chip {
   display: inline-flex;
@@ -568,14 +572,26 @@ a.st-row:hover {
   color: var(--text-2);
 }
 .st-fieldset {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  /* Two columns: number fields sit side by side, the rest span both. */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px var(--space-3);
   min-width: 0;
   margin: 0;
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: 10px var(--space-3) var(--space-3);
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius-md);
+}
+.st-fieldset > * {
+  grid-column: 1 / -1;
+}
+.st-fieldset > .field.half {
+  grid-column: auto;
+}
+@media (max-width: 420px) {
+  .st-fieldset > .field.half {
+    grid-column: 1 / -1;
+  }
 }
 .st-fieldset > legend {
   padding: 0 6px;
@@ -593,8 +609,13 @@ a.st-row:hover {
 .st-array-item {
   position: relative;
 }
-.st-array-item > .btn {
-  align-self: flex-start;
+.item-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.item-test {
+  margin: 0;
 }
 .choice-row {
   display: flex;
@@ -609,8 +630,8 @@ a.st-row:hover {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 6px 11px;
+  min-height: 28px;
+  padding: 5px 11px;
   border-radius: var(--radius-md);
   font: var(--weight-medium) var(--type-small) / 1 var(--font-ui);
   color: var(--text-2);

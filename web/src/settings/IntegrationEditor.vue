@@ -124,7 +124,22 @@ provide(FORM, {
   focus: focusPath,
   disabled: computed(() => saving.value || deleting.value),
   integration: computed(() => (entry.value ? { id: entry.value.id, name: entry.value.name } : undefined)),
+  testItem,
 });
+
+/** One item of a top-level list, tested alone (a check target's Test). Saves nothing. */
+async function testItem(path: string, index: number): Promise<TestResult> {
+  const list = config.value[path];
+  if (!Array.isArray(list) || list[index] === undefined) throw new Error('Fill in this one first.');
+  const cfg = { ...config.value, [path]: [list[index]] };
+  const typed = typedSecrets(secrets);
+  const d = detail.value;
+  try {
+    return await testConnection(d ? { instance_id: d.id, config: cfg, secrets: typed } : { integration: entry.value?.id ?? integrationId ?? '', config: cfg, secrets: typed });
+  } catch (err) {
+    throw new Error(errorWords(err, 'The test couldn’t run. Try again.'));
+  }
+}
 
 type TestState = { state: 'idle' } | { state: 'running' } | { state: 'done'; result: TestResult } | { state: 'error'; message: string };
 const test = ref<TestState>({ state: 'idle' });

@@ -148,6 +148,25 @@ a.mono.has-icon:hover {
   height: 8px;
   top: 0;
 }
+/* A status glyph on its own (no words, or a size that hides them) sits in
+   the bottom-right corner, clear of the cog that appears top-right; the
+   footer leaves it room. With words beside it, it stays with them. */
+.tg.glyph-only .tg-mark,
+.s-small .tg .tg-mark,
+.s-glyph .tg .tg-mark,
+.s-tall .tg .tg-mark {
+  position: absolute;
+  top: auto;
+  right: var(--tile-pad-inline);
+  /* Centred on the footer's line (caption size, normal leading). */
+  bottom: calc(var(--tile-pad-y) + (var(--type-caption) * var(--leading-normal) - 8px) / 2);
+}
+.tile:has(.tg.glyph-only .g) .tf,
+.s-small:has(.tg .g) .tf,
+.s-glyph:has(.tg .g) .tf,
+.s-tall:has(.tg .g) .tf {
+  padding-right: 14px;
+}
 .s-small .tg .tgt,
 .s-glyph .tg .tgt,
 .s-tall .tg .tgt {
@@ -266,6 +285,18 @@ a.mono.has-icon:hover {
   color: var(--text-2);
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
+}
+/* A long value takes the full width under its label and wraps, a hash or
+   URL anywhere. */
+.kv dt.long,
+.kv dd.long {
+  grid-column: 1 / -1;
+}
+.kv dd.long {
+  margin-bottom: 3px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .stats3 {
   display: grid;

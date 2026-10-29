@@ -10,8 +10,15 @@
  *
  * Writes go straight into the parent object (`container[k]`), which is the
  * editor's reactive config, so nested fields need no event plumbing.
+ *
+ * A list marked `x-chadash-item-test` gives each item a Test button that
+ * tests the instance with only that item (a check target), via the form.
+ *
+ * An optional nested object (a target's TLS) is folded: its header says what
+ * it holds ("verify", "pin · 3f2a…"), and it opens on an error inside or a
+ * repair's focus.
  */
-import { computed, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import AuthorizeButton from './AuthorizeButton.vue';
 import { choices, effective, fieldId, fieldLabel, kindOf, newItem, type JsonSchema } from '../lib/schema';
@@ -48,6 +55,34 @@ const focused = computed(() => form.focus.value === path);
 const objectSchema = computed(() => effective(schema, value.value));
 const objectRequired = computed(() => new Set(objectSchema.value.required ?? []));
 const join = (key: string | number) => `${path}.${key}`;
+
+// An optional object, folded
+const foldable = computed(() => kind.value === 'object' && !required);
+const inside = (p: string | undefined) => p !== undefined && (p === path || p.startsWith(`${path}.`));
+const errorInside = computed(() => Object.keys(form.errors.value).some((p) => inside(p) && (form.showAll.value || form.touched.has(p))));
+const folded = ref(true);
+watch(
+  () => errorInside.value || inside(form.focus.value),
+  (open) => {
+    if (open) folded.value = false;
+  },
+  { immediate: true },
+);
+/** The folded header's line: each filled field, briefly. */
+const foldSummary = computed(() => {
+  const obj = (value.value ?? {}) as Record<string, unknown>;
+  const parts: string[] = [];
+  for (const [key, sub] of Object.entries(objectSchema.value.properties ?? {})) {
+    const v = obj[key];
+    if (v === undefined || v === null || v === '' || sub.writeOnly) continue;
+    const opt = choices(sub)?.find((o) => o.value === v);
+    if (opt) parts.push(opt.label);
+    else if (typeof v === 'boolean') parts.push(v ? fieldLabel(key, sub) : '');
+    else if (typeof v === 'string' && v.length > 12) parts.push(`${v.slice(0, 8)}…`);
+    else if (typeof v !== 'object') parts.push(`${fieldLabel(key, sub)} ${String(v)}`);
+  }
+  return parts.filter(Boolean).join(' · ') || 'Not set';
+});
 
 function set(v: unknown): void {
   (container as Record<string | number, unknown>)[k] = v;
@@ -94,12 +129,53 @@ function addItem(): void {
 function removeItem(i: number): void {
   (value.value as unknown[]).splice(i, 1);
   form.touched.add(path);
+  for (const key of Object.keys(itemTests)) delete itemTests[Number(key)];
+}
+
+// Per-item Test
+type ItemTest = { state: 'running' } | { state: 'ok'; text: string; warn: string } | { state: 'bad'; text: string };
+const itemTests = reactive<Record<number, ItemTest>>({});
+const canTestItems = computed(() => schema['x-chadash-item-test'] === true && itemIsObject.value && !!form.testItem && typeof k === 'string');
+
+async function testItem(i: number): Promise<void> {
+  itemTests[i] = { state: 'running' };
+  try {
+    const r = await form.testItem!(path, i);
+    // Warnings are clauses ("answering, but …"): sentences here.
+    const warn = (r.warnings ?? []).map((w) => w.message.charAt(0).toUpperCase() + w.message.slice(1)).join(' ');
+    if (r.ok) itemTests[i] = { state: 'ok', text: typeof r.latency_ms === 'number' ? `Answered in ${Math.round(r.latency_ms)} ms.` : 'Answered.', warn };
+    else itemTests[i] = { state: 'bad', text: (typeof r.error === 'string' ? r.error : r.error?.message) || 'It didn’t answer.' };
+  } catch (err) {
+    itemTests[i] = { state: 'bad', text: err instanceof Error ? err.message : 'The test couldn’t run. Try again.' };
+  }
 }
 </script>
 
 <template>
+  <!-- An optional nested object: folded, its header saying what it holds -->
+  <details v-if="foldable" class="st-fold" :open="!folded" @toggle="folded = !($event.target as HTMLDetailsElement).open">
+    <summary>
+      <span class="st-fold-title">{{ label }}</span>
+      <span class="st-fold-sum">{{ foldSummary }}</span>
+      <svg class="st-fold-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="m3 2 3 3-3 3" /></svg>
+    </summary>
+    <fieldset class="st-fieldset st-fold-body" :disabled="form.disabled.value">
+      <legend class="sr">{{ label }}</legend>
+      <p v-if="schema.description" class="help">{{ schema.description }}</p>
+      <SchemaField
+        v-for="(sub, key) in objectSchema.properties"
+        :key="key"
+        :schema="sub"
+        :container="value as Record<string, unknown>"
+        :k="key"
+        :path="join(key)"
+        :required="objectRequired.has(String(key))"
+      />
+    </fieldset>
+  </details>
+
   <!-- A nested object: a fieldset of its own fields -->
-  <fieldset v-if="kind === 'object'" class="st-fieldset" :disabled="form.disabled.value">
+  <fieldset v-else-if="kind === 'object'" class="st-fieldset" :disabled="form.disabled.value">
     <legend>{{ label }}</legend>
     <p v-if="schema.description" class="help">{{ schema.description }}</p>
     <SchemaField
@@ -133,7 +209,23 @@ function removeItem(i: number): void {
             :path="`${path}.${i}.${key}`"
             :required="(effective(schema.items!, list[i]).required ?? []).includes(String(key))"
           />
-          <button type="button" class="btn sm ghost" :disabled="form.disabled.value" @click="removeItem(i)">Remove {{ singular.toLowerCase() }} {{ i + 1 }}</button>
+          <p v-if="itemTests[i] && itemTests[i].state !== 'running'" :class="['st-note', 'item-test', itemTests[i].state === 'bad' ? 'bad' : itemTests[i].warn ? 'attn' : '']" role="status">
+            <Glyph :kind="itemTests[i].state === 'bad' ? 'down' : itemTests[i].warn ? 'attn' : 'check'" />
+            <span>{{ itemTests[i].state === 'ok' && itemTests[i].warn ? `${itemTests[i].text} ${itemTests[i].warn}` : itemTests[i].text }}</span>
+          </p>
+          <div class="item-acts">
+            <button
+              v-if="canTestItems"
+              type="button"
+              class="btn sm"
+              :disabled="form.disabled.value || itemTests[i]?.state === 'running'"
+              :aria-busy="itemTests[i]?.state === 'running'"
+              @click="testItem(i)"
+            >
+              {{ itemTests[i]?.state === 'running' ? 'Testing…' : `Test ${singular.toLowerCase()} ${i + 1}` }}
+            </button>
+            <button type="button" class="btn sm ghost" :disabled="form.disabled.value" @click="removeItem(i)">Remove {{ singular.toLowerCase() }} {{ i + 1 }}</button>
+          </div>
         </fieldset>
         <div v-else class="secret-row">
           <SchemaField :schema="schema.items ?? { type: 'string' }" :container="list" :k="i" :path="`${path}.${i}`" :required="true" />
@@ -158,7 +250,7 @@ function removeItem(i: number): void {
   </div>
 
   <!-- Everything with a single input -->
-  <div v-else :class="['field', { 'st-focus': focused }]">
+  <div v-else :class="['field', { 'st-focus': focused, half: kind === 'number' || kind === 'integer' }]">
     <div class="label-row">
       <label v-if="kind !== 'enum' || options.length > 4" :for="id">{{ label }}</label>
       <span v-else :id="`${id}-label`" class="lbl">{{ label }}</span>
@@ -267,6 +359,62 @@ function removeItem(i: number): void {
 </template>
 
 <style>
+.st-fold {
+  min-width: 0;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-md);
+}
+.st-fold > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  list-style: none;
+}
+.st-fold > summary::-webkit-details-marker {
+  display: none;
+}
+.st-fold > summary:hover {
+  background: color-mix(in oklch, var(--text) 4%, transparent);
+}
+.st-fold > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.st-fold-title {
+  font: var(--weight-medium) var(--type-micro) / 1 var(--font-num);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.st-fold-sum {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--weight-regular) var(--type-small) / 1.2 var(--font-num);
+  color: var(--text-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.st-fold-chev {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-left: auto;
+  fill: none;
+  stroke: var(--text-3);
+  stroke-width: 1.4;
+  transition: transform var(--motion-press-duration) var(--motion-press-easing);
+}
+.st-fold[open] > summary .st-fold-chev {
+  transform: rotate(90deg);
+}
+.st-fold-body.st-fieldset {
+  padding-top: 2px;
+  border: 0;
+}
 .field .lbl {
   font: var(--weight-medium) var(--type-small) / 1.2 var(--font-ui);
   color: var(--text-2);

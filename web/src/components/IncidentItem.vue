@@ -58,7 +58,16 @@ const workingWords = computed(() => {
 const recipe = computed(() => fix.value?.recipe ?? (action.value?.unavailable ? action.value.recipe : undefined));
 const glyph = computed(() => (isResolved.value ? 'check' : isRepair.value ? 'repair' : glyphFor(incident.severity)));
 const glyphLabel = computed(() => (isResolved.value ? 'resolved' : isRepair.value ? 'repair' : incident.severity === 'down' ? 'down' : 'needs attention'));
-const facts = computed(() => Object.entries(incident.facts ?? {}).slice(0, 6));
+// A value too long for the right-hand column (an error, a fingerprint) goes
+// under its label and wraps.
+const facts = computed(() =>
+  Object.entries(incident.facts ?? {})
+    .slice(0, 6)
+    .map(([k, v]) => {
+      const value = factValue(v, hhmm);
+      return { key: k, label: factLabel(k), value, long: value.length > 28 };
+    }),
+);
 const blast = computed(() => (incident.blast_radius ?? []).slice(0, 8));
 const action = computed(() => incident.suggested);
 const primary = computed(() => ui.canRun(incident));
@@ -156,9 +165,9 @@ const id = computed(() => `ib-${incident.id}`);
       <div v-if="facts.length">
         <h4>What Cha Dash saw</h4>
         <dl class="kv">
-          <template v-for="[k, v] in facts" :key="k">
-            <dt>{{ factLabel(k) }}</dt>
-            <dd>{{ factValue(v, hhmm) }}</dd>
+          <template v-for="f in facts" :key="f.key">
+            <dt :class="{ long: f.long }">{{ f.label }}</dt>
+            <dd :class="{ long: f.long }">{{ f.value }}</dd>
           </template>
         </dl>
       </div>

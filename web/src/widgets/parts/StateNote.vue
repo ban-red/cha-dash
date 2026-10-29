@@ -6,9 +6,13 @@
  * everyone else to ask one. In demo mode Reconnect runs the repair's own
  * action, which settles it in the Demo Home: there's no real token or API
  * to check. Permission-limited says "Ask an admin". Nothing when healthy.
+ * A long line (an upstream's own health message) is cut to two lines and
+ * opens whole in a dialog (ClampText); Reconnect stays below it, never cut.
  */
 import { computed } from 'vue';
+import ClampText from '../../components/ClampText.vue';
 import Glyph, { type GlyphKind } from '../../components/marks/Glyph.vue';
+import { label } from '../../model/graph';
 import { useLive } from '../../stores/live';
 import { useUi } from '../../stores/ui';
 import { canRepair, stateLine, type Subject } from '../subject';
@@ -19,6 +23,7 @@ const {
   limited = false,
   lastKnown = false,
   line: override,
+  title: titleProp,
 } = defineProps<{
   subject?: Subject | undefined;
   /** Values the viewer's role can't read are withheld. */
@@ -27,6 +32,8 @@ const {
   lastKnown?: boolean;
   /** A widget-specific line instead of the subject's. */
   line?: { glyph: GlyphKind; text: string } | undefined;
+  /** Whose note it is, for the full-text dialog; else the subject's name. */
+  title?: string | undefined;
 }>();
 
 const live = useLive();
@@ -41,6 +48,13 @@ const line = computed(() => {
   return undefined;
 });
 const fixable = computed(() => canRepair(role()));
+/** The words, with the last-known caveat when a repair offers Reconnect. */
+const text = computed(() => {
+  const l = line.value;
+  if (!l) return '';
+  return 'reconnect' in l && l.reconnect && lastKnown ? `${l.text} Values are last-known.` : l.text;
+});
+const title = computed(() => titleProp || (subject?.resource ? label(subject.resource) : '') || 'Note');
 
 /** In the Demo Home, the repair's suggested action, when it can run now. */
 const demoFix = computed(() => {
@@ -61,12 +75,12 @@ function reconnect(): void {
 <template>
   <div v-if="line" :class="['note', 'w-note', `n-${line.glyph}`]">
     <Glyph :kind="line.glyph" />
-    <span>
-      {{ line.text }}<template v-if="'reconnect' in line && line.reconnect">
-        {{ lastKnown ? ' Values are last-known.' : '' }}
+    <span class="w-note-body">
+      <ClampText :text="text" :title="title" :glyph="line.glyph" />
+      <span v-if="'reconnect' in line && line.reconnect">
         <button v-if="fixable" type="button" :title="demoFix ? 'Runs in the Demo Home' : undefined" @click.stop="reconnect">Reconnect</button>
         <template v-else>Ask an admin to reconnect it.</template>
-      </template>
+      </span>
     </span>
   </div>
 </template>

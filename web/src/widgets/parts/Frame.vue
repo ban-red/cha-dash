@@ -13,7 +13,7 @@ import { monogram } from '../../lib/format';
 import type { Health, Incident } from '../../model/types';
 import { useLive } from '../../stores/live';
 import { useUi } from '../../stores/ui';
-import { incidentOf, tagOf, type Subject } from '../subject';
+import { incidentOf, stateLine, tagOf, type Subject } from '../subject';
 
 const {
   size,
@@ -25,6 +25,7 @@ const {
   status,
   tag,
   tagGlyph,
+  tagNote,
   okTag = '',
   stale = false,
   asOf,
@@ -40,6 +41,8 @@ const {
   status?: TileStatus | undefined;
   tag?: string | undefined;
   tagGlyph?: GlyphKind | undefined;
+  /** The warning in full for the glyph's tooltip; else the subject's state line, else the tag. */
+  tagNote?: string | undefined;
   /** The state word while healthy ("idle", "WAN up"); quiet when empty. */
   okTag?: string;
   stale?: boolean;
@@ -58,6 +61,7 @@ const header = computed(() => {
   const health: Health = subject?.health ?? { status: 'ok' };
   return tagOf({ status: st.value, health, resource: subject?.resource }, live.now.value, okTag);
 });
+const note = computed(() => tagNote || (subject ? stateLine(subject, live.now.value)?.text : undefined) || header.value.tag);
 const isStale = computed(() => stale || Boolean(subject?.needsRepair && st.value !== 'down'));
 const target = computed(() => incident ?? (subject ? incidentOf(subject) : undefined));
 /** Skeletons until the first snapshot arrives, or while the widget says it's still loading. */
@@ -76,6 +80,7 @@ const busy = computed(() => loading || live.loading.value);
     :as-of="asOf"
     :tag="header.tag"
     :tag-glyph="header.glyph"
+    :tag-note="note"
     :loading="busy"
     :clickable="Boolean(target)"
     @open="target && ui.openInbox(target.id)"

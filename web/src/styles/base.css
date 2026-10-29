@@ -52,6 +52,8 @@ body {
   color: var(--text);
   font: var(--weight-regular) var(--type-body) / var(--leading-normal) var(--font-ui);
   letter-spacing: var(--tracking-ui);
+  /* A hash, URL or path breaks rather than run out of its box. */
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -83,8 +85,27 @@ h1,
 h2,
 h3,
 h4,
+h5,
+h6,
 p {
   margin: 0;
+}
+/* Instrument Sans has a narrow space (0.2em), and the negative tracking
+   narrows it further, so "1 services" read as "1services". Set on every
+   element, not inherited from body: an em inherits as body's pixels and
+   would barely widen a headline. */
+*,
+::before,
+::after {
+  word-spacing: 0.07em;
+}
+/* Monospace and code editors keep their columns. */
+pre,
+code,
+kbd,
+samp,
+textarea {
+  word-spacing: normal;
 }
 
 .n {

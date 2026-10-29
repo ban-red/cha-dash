@@ -16,7 +16,7 @@ import type { JsonSchema } from '../src/lib/schema';
 import { actStatus, controlKeys, modeConsequence, type ControlSpec } from '../src/model/control';
 import { hubPlace, isHub, placeWords } from '../src/model/hub';
 import { hitsHub, hubFirst, impactName } from '../src/model/words';
-import type { GraphDoc } from '../src/model/types';
+import type { GraphDoc, Incident } from '../src/model/types';
 import type { Recipe } from '../src/settings/recipe';
 import { backupPreviewOf } from '../src/model/backupPlan';
 import { resetIntegrations } from '../src/stores/integrations';
@@ -220,6 +220,43 @@ describe('Let Cha Dash act', () => {
     expect(route.value.path).toBe('/settings/integrations/i_pve');
     expect(route.value.query['section']).toBe('control');
     expect(settingsPath('integrations', 'i_pve', { section: 'control' })).toBe('/settings/integrations/i_pve?section=control');
+  });
+
+  it('integration.settings opens the instance’s settings, and only the Demo Home plans it', async () => {
+    const f = fakeFetch({});
+    const hs = harness();
+    const review = { id: 'integration.settings', label: 'Review the check', tier: 'T0', target: 'integration:i_checks' };
+    const incident = { id: 'check.nas', title: 'NAS isn’t answering', target: 'checks:i_checks/nas', suggested: review } as unknown as Incident;
+    expect(hs.ui.canRun(incident).ok).toBe(true);
+    hs.ui.act(incident);
+    await flushPromises();
+    expect(route.value.path).toBe('/settings/integrations/i_checks');
+    expect(f.calls).toEqual([]);
+
+    const demo = harness(undefined, { demo: true });
+    expect(demo.ui.canRun(incident).ok).toBe(true);
+    demo.ui.act(incident);
+    await flushPromises();
+    expect(f.calls.some((c) => c.method === 'POST')).toBe(true);
+  });
+
+  it('Check now asks the instance to sync, and says so when it isn’t running', async () => {
+    let status = 202;
+    const f = fakeFetch({ 'POST /api/integrations/instances/i_checks/refresh': () => (status === 202 ? { status } : { status, body: { error: { code: 'not_running', message: 'not running' } } }) });
+    const hs = harness();
+    const now = { id: 'integration.refresh', label: 'Check now', tier: 'T0', target: 'integration:i_checks' };
+    const incident = { id: 'check.nas', title: 'NAS isn’t answering', target: 'checks:i_checks/nas', suggested: now } as unknown as Incident;
+    expect(hs.ui.canRun(incident).ok).toBe(true);
+    hs.ui.act(incident);
+    await flushPromises();
+    expect(f.last('POST', '/api/integrations/instances/i_checks/refresh')).toBeTruthy();
+    expect(f.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+    expect(hs.ui.state.toasts.at(-1)).toMatchObject({ text: 'Checking now. This updates by itself.', tone: 'ok' });
+
+    status = 409;
+    hs.ui.act(incident);
+    await flushPromises();
+    expect(hs.ui.state.toasts.at(-1)).toMatchObject({ text: 'That integration isn’t running, so it can’t check now.', tone: 'error' });
   });
 });
 

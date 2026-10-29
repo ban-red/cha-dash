@@ -41,8 +41,14 @@ const CHECKS_SCHEMA: JsonSchema = {
       items: {
         type: 'object',
         required: ['name', 'kind'],
-        properties: { name: { type: 'string' }, kind: { enum: ['http', 'tcp'] }, url: { type: 'string', format: 'uri' } },
+        properties: {
+          name: { type: 'string' },
+          kind: { enum: ['http', 'tcp'], default: 'http' },
+          url: { type: 'string', format: 'uri', 'x-chadash-when': { kind: 'http' } },
+          host: { type: 'string', 'x-chadash-when': { kind: 'tcp' } },
+        },
       },
+      'x-chadash-item-test': true,
     },
   },
 };
@@ -303,6 +309,62 @@ describe('Settings → Integrations', () => {
     button('Remove target 1').click();
     await nextTick();
     expect(document.body.querySelector('.st-array-item')).toBeNull();
+  });
+
+  it('folds an optional group, says what it holds, and opens it on an error inside', async () => {
+    hub();
+    await editor({ instanceRef: 'i1' });
+    const fold = document.body.querySelector<HTMLDetailsElement>('details.st-fold')!;
+    expect(fold.open).toBe(false);
+    expect(fold.querySelector('.st-fold-title')!.textContent).toBe('TLS');
+    expect(fold.querySelector('.st-fold-sum')!.textContent).toBe('verify');
+
+    const pin = [...fold.querySelectorAll<HTMLInputElement>('input[type="radio"]')].find((r) => r.value === 'pin')!;
+    pin.checked = true;
+    pin.dispatchEvent(new Event('change'));
+    await nextTick();
+    button('Save').click();
+    await flushPromises();
+    // pin mode needs a fingerprint: the error opens the group
+    expect(fold.open).toBe(true);
+    await typeInto('f-tls-pin', 'a'.repeat(64));
+    expect(fold.querySelector('.st-fold-sum')!.textContent).toBe('pin · aaaaaaaa…');
+  });
+
+  it('shows a target’s fields for its kind, and tests one target alone', async () => {
+    const f = hub({
+      'GET /api/integrations/instances/i2': {
+        status: 200,
+        body: { id: 'i2', integration: 'checks', name: 'Checks', status: 'ok', config: { targets: [{ name: 'Web', kind: 'http', url: 'https://web.lab.example' }, { name: 'SSH', kind: 'tcp', host: 'pluto.lab.example' }] }, secrets: {} },
+      },
+      'POST /api/integrations/test': { status: 200, body: { ok: true, latency_ms: 12.3, warnings: [{ code: 'tls_untrusted', severity: 'warning', message: 'answering, but the certificate isn’t trusted.' }] } },
+    });
+    await editor({ instanceRef: 'i2' });
+    expect(document.getElementById('f-targets-0-url')).not.toBeNull();
+    expect(document.getElementById('f-targets-0-host')).toBeNull();
+    expect(document.getElementById('f-targets-1-url')).toBeNull();
+    expect(document.getElementById('f-targets-1-host')).not.toBeNull();
+
+    button('Test target 2').click();
+    await flushPromises();
+    expect(f.last('POST', '/api/integrations/test')!.body).toEqual({
+      instance_id: 'i2',
+      config: { targets: [{ name: 'SSH', kind: 'tcp', host: 'pluto.lab.example' }] },
+      secrets: {},
+    });
+    const note = document.body.querySelectorAll('.st-array-item')[1]!.querySelector('.item-test')!;
+    expect(note.textContent).toContain('Answered in 12 ms. Answering, but the certificate isn’t trusted.');
+    expect(note.classList.contains('attn')).toBe(true);
+
+    // Switching a target to tcp drops its URL from what's saved.
+    const tcp = [...document.body.querySelectorAll<HTMLInputElement>('input[name="f-targets-0-kind"]')].find((r) => r.value === 'tcp')!;
+    tcp.checked = true;
+    tcp.dispatchEvent(new Event('change'));
+    await nextTick();
+    expect(document.getElementById('f-targets-0-url')).toBeNull();
+    button('Test target 1').click();
+    await flushPromises();
+    expect(f.last('POST', '/api/integrations/test')!.body).toMatchObject({ config: { targets: [{ name: 'Web', kind: 'tcp' }] } });
   });
 
   it('tests a saved instance as stored, and unsaved changes with what was typed', async () => {

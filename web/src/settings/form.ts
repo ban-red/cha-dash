@@ -6,6 +6,7 @@
  */
 import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue';
 import type { Errors } from '../lib/schema';
+import type { TestResult } from '../model/integrations';
 
 export interface FormContext {
   /** Typed secrets by path. Never prefilled; cleared after a save. */
@@ -22,6 +23,11 @@ export interface FormContext {
   disabled: Ref<boolean>;
   /** The integration the form configures, for its sign-in flow. */
   integration?: ComputedRef<{ id: string; name: string } | undefined>;
+  /**
+   * Test one item of a top-level list (`x-chadash-item-test`): the instance
+   * with only that item in the list. Rejects with a sentence.
+   */
+  testItem?: (path: string, index: number) => Promise<TestResult>;
 }
 
 export const FORM: InjectionKey<FormContext> = Symbol('schema-form');

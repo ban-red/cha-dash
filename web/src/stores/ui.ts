@@ -10,13 +10,17 @@
  * - Availability comes from the hub: an action's `unavailable` sentence (or
  *   `plan_ready: false`) disables it, and planning refuses with a sentence.
  *   The page only hides what the viewer's role can't use (model/roles.ts).
- * - Everywhere, `link.open` (T0) opens the target's link.
+ * - Everywhere, `link.open` (T0) opens the target's link. Outside the Demo
+ *   Home, `integration.settings` (T0) opens the target instance's settings.
+ *   `integration.refresh` (T0, Check now) asks the instance to sync now.
  * - A Repair's "Reconnect" opens the integration's settings with the field
  *   that failed focused.
  * - A tile's cog opens its settings: the integration that feeds it, else
  *   the tile's Edit in edit mode (`state.editingTile`).
  * - A task whose log is its result (a container's logs) ends in the log
  *   dialog (TaskLogDialog), not a toast.
+ * - A note too long for its tile (an upstream's health message) opens whole
+ *   in NoteDialog.
  * - A resource's sheet follows the route (`?r=<id>`): opening one pushes a
  *   history entry, so Back closes it or returns to the sheet before.
  * - A suggestion's answer (Merge or Keep separate) goes to the hub's
@@ -33,6 +37,7 @@ import { hasSheet } from '../model/sheets';
 import { resourceLinks, safeUrl, type Action, type Incident } from '../model/types';
 import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type TaskLog, type ToastAction } from './actions';
 import type { Live } from './live';
+import type { GlyphKind } from '../components/marks/Glyph.vue';
 
 export type { ConfirmRequest, TaskLog } from './actions';
 
@@ -42,6 +47,13 @@ export interface Toast {
   tone?: 'ok' | 'error';
   /** A button in the toast: Undo, or "Open its settings". */
   action?: ToastAction;
+}
+
+/** A note in full: whose it is, and its words. */
+export interface NoteView {
+  title: string;
+  text: string;
+  glyph?: GlyphKind;
 }
 
 export interface UiHooks {
@@ -78,6 +90,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     toasts: [] as Toast[],
     /** The finished task's log the log dialog shows. */
     taskLog: undefined as TaskLog | undefined,
+    /** A tile note shown whole (NoteDialog). */
+    note: undefined as NoteView | undefined,
   });
   let nextToast = 1;
   /** What the viewer's role may see and do. The hub enforces it; this only hides. */
@@ -186,12 +200,36 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     ...(hooks.pollMs !== undefined ? { pollMs: hooks.pollMs } : {}),
   });
 
+  /**
+   * `integration.settings` opens the target instance's settings. Only the
+   * Demo Home registers it as an action (there it settles the incident); a
+   * real hub would refuse it as unknown.
+   */
+  function opensSettings(action: Action): boolean {
+    return action.id === 'integration.settings' && !live.demo.value;
+  }
+
+  /**
+   * `integration.refresh` (Check now) asks the instance to read its source
+   * now. The result arrives live; the hub answers before the check ends.
+   */
+  async function refresh(target: string): Promise<void> {
+    try {
+      await api(`/api/integrations/instances/${encodeURIComponent(target.replace(/^integration:/, ''))}/refresh`, { method: 'POST' });
+      toast('Checking now. This updates by itself.');
+    } catch (e) {
+      toast(e instanceof ApiError && e.code === 'not_running' ? 'That integration isn’t running, so it can’t check now.' : 'Couldn’t ask for a check. Try again.', 'error');
+    }
+  }
+
   /** Can this incident's action run here, now? */
   function canRun(incident: Incident, action: Action | undefined = incident.suggested): Runnable {
     if (!action) return { ok: false };
     if (!can.value.act(action.tier, action.household)) return { ok: false, hidden: true, why: `Your role can’t run ${action.tier} actions.` };
     if (live.stale.value) return { ok: false, why: 'Actions come back when the hub does.' };
     if (action.id === 'link.open') return linkOf(action.target) ? { ok: true } : { ok: false, why: 'No link known for this yet.' };
+    if (opensSettings(action)) return can.value.integrations ? { ok: true } : { ok: false, hidden: true, why: 'Your role can’t open integration settings.' };
+    if (action.id === 'integration.refresh') return { ok: true };
     if (action.unavailable) return { ok: false, why: action.unavailable };
     if (action.plan_ready === false) return { ok: false, why: 'Cha Dash can’t run this here yet.' };
     if (live.fixes[incident.id]?.state === 'sending') return { ok: false };
@@ -204,6 +242,14 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     if (action.id === 'link.open') {
       const url = linkOf(action.target);
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (opensSettings(action)) {
+      if (can.value.integrations) openSettings('integrations', action.target.replace(/^integration:/, ''));
+      return;
+    }
+    if (action.id === 'integration.refresh') {
+      void refresh(action.target);
       return;
     }
     const r = canRun(incident, action);
@@ -315,6 +361,14 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     /** Close the log dialog. */
     closeLog: () => {
       state.taskLog = undefined;
+    },
+    /** Show a cut-off note whole (NoteDialog). */
+    showNote: (note: NoteView) => {
+      state.paletteOpen = false;
+      state.note = note;
+    },
+    closeNote: () => {
+      state.note = undefined;
     },
     stepUp: actions.stepUp,
     stepUpDone: actions.stepUpDone,

@@ -43,6 +43,10 @@ export interface JsonSchema {
   'x-chadash-authorize'?: boolean;
   /** "control": part of the control credential, shown under "Let Cha Dash act" (model/control.ts). */
   'x-chadash-group'?: string;
+  /** Shown (and saved) only while these siblings hold these values: `{"kind": "tcp"}`, or one of a list: `{"mode": ["pin", "tofu"]}`. */
+  'x-chadash-when'?: Record<string, unknown>;
+  /** An array of objects whose items each get a Test button. */
+  'x-chadash-item-test'?: boolean;
   readOnly?: boolean;
   examples?: unknown[];
   if?: JsonSchema;
@@ -106,17 +110,20 @@ export function matches(s: JsonSchema, value: unknown): boolean {
 /**
  * The object schema with its active `if`/`then`/`else` branch folded in, so a
  * field that only applies in one branch (a TLS pin) appears and is required
- * only when it applies.
+ * only when it applies. Properties whose `x-chadash-when` doesn't hold (a tcp
+ * check's URL) are left out: not shown, not validated, not saved.
  */
 export function effective(s: JsonSchema, value: unknown): JsonSchema {
-  if (!s.if || (!s.then && !s.else)) return s;
-  const branch = matches(s.if, value ?? {}) ? s.then : s.else;
-  if (!branch) return s;
-  return {
-    ...s,
-    properties: { ...s.properties, ...branch.properties },
-    required: [...new Set([...(s.required ?? []), ...(branch.required ?? [])])],
-  };
+  const branch = s.if && (s.then || s.else) ? (matches(s.if, value ?? {}) ? s.then : s.else) : undefined;
+  const props = branch ? { ...s.properties, ...branch.properties } : s.properties;
+  const obj = isObj(value) ? value : {};
+  const holds = (have: unknown, want: unknown) => (Array.isArray(want) ? want.includes(have) : have === want);
+  const hidden = Object.entries(props ?? {}).filter(([, p]) => p['x-chadash-when'] && Object.entries(p['x-chadash-when']).some(([k, v]) => !holds(obj[k], v)));
+  if (!branch && !hidden.length) return s;
+  const properties = { ...props };
+  for (const [k] of hidden) delete properties[k];
+  const required = [...new Set([...(s.required ?? []), ...(branch?.required ?? [])])].filter((k) => k in properties);
+  return { ...s, properties, required };
 }
 
 /**

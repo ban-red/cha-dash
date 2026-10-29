@@ -140,6 +140,12 @@ a.gv {
 .w-note > span {
   min-width: 0;
 }
+.w-note-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
 .w-note.n-attn {
   color: var(--text);
 }

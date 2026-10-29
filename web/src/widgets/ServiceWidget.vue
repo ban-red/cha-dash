@@ -96,6 +96,13 @@ const footer = computed(() => (s.value.needsRepair || limited.value ? checkWords
 const tone = computed(() => (s.value.status === 'attention' ? 'attn' : s.value.status === 'down' ? 'down' : 'neutral'));
 /** The config-only tile's status: what it binds, or the resource it shows. */
 const legacy = computed(() => (hasStat.value ? undefined : serviceStatus(live.graph.value, meta.value?.bind ?? (r.value ? { resource: r.value.id } : undefined))));
+const legacyGlyph = computed(() => (legacy.value ? (legacy.value.via === 'none' ? 'repair' : glyphFor(legacy.value.status)) : undefined));
+/** What's wrong with what a config-only tile binds, in its body: the header's tag is hidden on small tiles. */
+const legacyNote = computed(() => {
+  const l = legacy.value;
+  if (!l || l.status === 'ok' || l.via === 'none' || !legacyGlyph.value) return undefined;
+  return { glyph: legacyGlyph.value, text: l.word.charAt(0).toUpperCase() + l.word.slice(1) };
+});
 const loading = computed(() => board.state.status === 'loading' && !meta.value);
 const facts = computed(() => (limited.value ? [] : (reading.value?.facts ?? [])));
 const origin = computed(() => originLabel(meta.value));
@@ -110,8 +117,9 @@ const origin = computed(() => originLabel(meta.value));
     :context="context"
     :href="href"
     :status="legacy?.status ?? 'ok'"
-    :tag="legacy?.word"
-    :tag-glyph="legacy ? (legacy.via === 'none' ? 'repair' : glyphFor(legacy.status)) : undefined"
+    :tag="legacyNote ? undefined : legacy?.word"
+    :tag-glyph="legacyGlyph"
+    :tag-note="legacyNote?.text"
     :loading="loading"
     :incident="r ? (s.problem ?? s.repair) : undefined"
   >
@@ -122,6 +130,7 @@ const origin = computed(() => originLabel(meta.value));
     <template v-else>
       <p v-if="meta?.description" :class="['lab', 'svc-desc', { full: size === 'wide' }]">{{ meta.description }}</p>
       <p v-else-if="!meta && !r" class="lab">Not set up yet. Edit the layout to name it and give it a link.</p>
+      <StateNote v-if="legacyNote" :line="legacyNote" :title="name" />
       <div class="tf">
         <a v-if="href" class="svc-link" :href="href" target="_blank" rel="noopener noreferrer" @click.stop>
           <span>{{ hostOf(href) || 'Open' }}</span><span aria-hidden="true"> ↗</span>

@@ -19,15 +19,36 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **A settings cog on every tile.** Hover or focus a tile and a cog appears in its top-right corner. It opens the settings of the integration behind the tile, or the tile's Edit when no integration feeds it (the clock, say). Viewers who can do neither don't see it.
 
+- **Check now.** A failing check's problem in the Inbox has a Check now button that runs the instance's checks at once, instead of waiting for the next interval (60 s by default). Behind it is `POST /api/integrations/instances/{id}/refresh`, open to viewers and up.
+
 - **Test connection checks the integration again.** Testing a saved integration also runs its health check, so a fixed connection clears its status and its problem in the Inbox right away.
+
+- **Test one check target.** Each target in the Checks form has its own Test button, which checks just that target and says what it found, without saving.
+
+- **Warning icons explain themselves.** Hover over a tile's warning icon, or tab to it, to see the warning; click it to read it in full.
+- **Long tile notes open in full.** A warning longer than two lines, such as Prowlarr's own health messages, is cut with "more" on the tile. Click it to read the whole message in a dialog.
+
+### Changed
+
+- **A tile's status mark sits bottom right** when it stands alone, clear of the settings cog. With words beside it ("WAN down since 14:02") it stays with them.
+- **The certificate fingerprint field shows only for pin and tofu,** the two modes that use it.
+- **Optional groups are folded.** A group of optional settings, such as TLS, starts closed, with what it holds in its header ("verify", "pin · 3f2a1b9c…"). It opens by itself when a field inside needs fixing.
+- **Compact forms.** Inputs, selects and choice rows across the app are shorter and tighter, with number fields side by side. On touch screens they keep their full size.
+- **A check target shows only its own fields:** URL, expected status and TLS for http; host and port for tcp. Switching a target's kind drops the fields that no longer apply when you save.
 
 ### Fixed
 
-- **Section headers line up.** A section header without a note beside its name sat a few pixels higher than its neighbours, and so did its tiles.
+- **A link tile with a warning says what's wrong.** A small service tile showed a warning icon with no words, because small tiles hide the header's text. The reason now shows in the tile.
 - **Docker through the node after a hub restart.** If the hub started before its node reconnected, the Docker instance showed "invalid config" for up to five minutes and its actions were unavailable. It now retries within seconds.
 - **Remove with volumes deletes the anonymous volumes.** After Cha Dash had recreated a container, removing it with its volumes kept the anonymous volume while the task said it was deleted. The node now deletes them itself and reports what it kept.
 - **Secret fields have one input.** Every secret in an integration's form showed a second, empty text box under it. What you typed there was never saved.
+- **A self-signed certificate is a warning on a check, not an outage.** An HTTP check against a LAN service with an untrusted certificate showed it as down and raised a problem. It now shows as up with a warning naming the fingerprint to pin. A pin mismatch still fails.
+- **"Review the check" opens the check's settings.** It and other "open the integration" suggestions failed with "There's no action called integration.settings" outside the Demo Home.
+- **Long errors wrap.** A certificate fingerprint or long error in the Inbox ran past its card or was cut off. Long facts now sit under their label, and hashes and URLs break to fit.
+- **Section headers line up.** A section header without a note beside its name sat a few pixels higher than its neighbours, and so did its tiles.
+- **Spaces between words are wider.** Numbers ran into the word after them, as in "1services".
 - **Cha Dash knows the Proxmox guest it runs in, behind a Docker bridge.** Its Docker engine, reached through the node, was only suggested as running on the guest with its name. With the guest's cores and memory too, the link is made, so shutting down, stopping or rebooting Cha Dash's own guest is T4 (off by default) instead of an ordinary action. Setting `hub_vmid` is still the sure way.
+- **A reverse proxy's 404 isn't "the API changed".** When a service behind a proxy was down, the proxy's 404 raised an API-changed repair. A 404 before anything else answered now reads as unreachable.
 - **Cha Dash's own stack is protected with an override file.** With a `compose.override.yaml`, Settings → Stacks listed it as "can't adopt" and accepted drafts under its name; deploying one was still refused. It's now shown as Cha Dash's own stack, and drafts are refused.
 - A deploy that rolls back on its own now ends its log on the rollback's commit, not the attempt's.
 
