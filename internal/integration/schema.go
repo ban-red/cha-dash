@@ -22,7 +22,8 @@ import (
 // description, properties, required, additionalProperties (false only),
 // items, enum (with titles, as oneOf), default, format (uri, hostname), pattern, minLength,
 // maxLength, minimum, maximum, minItems, maxItems and writeOnly, plus the
-// extensions x-chadash-authorize and x-chadash-group. Anything a schema
+// extensions x-chadash-authorize, x-chadash-group, x-chadash-when and
+// x-chadash-item-test. Anything a schema
 // can't say goes in a ConfigValidator.
 type Schema struct {
 	Type        string // object, array, string, integer, number, boolean
@@ -58,6 +59,14 @@ type Schema struct {
 	// "x-chadash-group": "control" marks the control credential's fields
 	// (see Manifest.Control). GroupControl is the only group.
 	Group string
+	// When shows a property in forms only while its siblings hold these
+	// values ("x-chadash-when": {"kind": "tcp"}), or one of a list of them
+	// ({"mode": ["pin", "tofu"]}). Forms only: validation doesn't read it.
+	When map[string]any
+	// ItemTest offers Test on each item of an array of objects
+	// ("x-chadash-item-test": true): the instance is tested with only that
+	// item in the array.
+	ItemTest bool
 
 	re *regexp.Regexp // Pattern, compiled by Check
 }
@@ -139,7 +148,7 @@ func TLSProp() Property { return Prop("tls", TLSSchema()) }
 func TLSSchema() *Schema {
 	s := Object(
 		Prop("mode", Enum("Certificate check", string(TLSVerify), string(TLSPin), string(TLSTOFU), string(TLSInsecure)).WithDefault(string(TLSVerify))),
-		Prop("pin", &Schema{Type: "string", Title: "SHA-256 fingerprint", Pattern: pinPattern}),
+		Prop("pin", (&Schema{Type: "string", Title: "SHA-256 fingerprint", Pattern: pinPattern}).ShowWhen("mode", string(TLSPin), string(TLSTOFU))),
 	)
 	s.Title = "TLS"
 	return s
@@ -148,6 +157,20 @@ func TLSSchema() *Schema {
 // InGroup puts s in a form group (GroupControl) and returns s.
 func (s *Schema) InGroup(g string) *Schema {
 	s.Group = g
+	return s
+}
+
+// ShowWhen shows s in forms only while sibling holds one of values, and
+// returns s.
+func (s *Schema) ShowWhen(sibling string, values ...any) *Schema {
+	if s.When == nil {
+		s.When = map[string]any{}
+	}
+	if len(values) == 1 {
+		s.When[sibling] = values[0]
+	} else {
+		s.When[sibling] = values
+	}
 	return s
 }
 
@@ -215,6 +238,16 @@ func (s *Schema) check(path string, top bool) error {
 	}
 	if len(s.Properties) > 0 && s.Type != "object" {
 		return fail("properties on a %s", s.Type)
+	}
+	if s.ItemTest && (s.Type != "array" || s.Items == nil || s.Items.Type != "object") {
+		return fail("x-chadash-item-test is only allowed on arrays of objects")
+	}
+	for _, p := range s.Properties {
+		for sib := range p.Schema.When {
+			if s.Property(sib) == nil || sib == p.Name {
+				return fail("%s: x-chadash-when names %q, which isn't a sibling", p.Name, sib)
+			}
+		}
 	}
 	if s.Items != nil && s.Type != "array" {
 		return fail("items on a %s", s.Type)
@@ -554,6 +587,8 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	set("writeOnly", true, s.WriteOnly)
 	set("x-chadash-authorize", true, s.Authorize)
 	set("x-chadash-group", s.Group, s.Group != "")
+	set("x-chadash-when", s.When, len(s.When) > 0)
+	set("x-chadash-item-test", true, s.ItemTest)
 	if err != nil {
 		return nil, err
 	}

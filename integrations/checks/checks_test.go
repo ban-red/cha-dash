@@ -230,6 +230,38 @@ func TestEndToEnd(t *testing.T) {
 	}
 }
 
+// A refresh (Check now) runs every target, due or not, and the next sync
+// goes back to the schedule.
+func TestRefresh(t *testing.T) {
+	web := newApp(t)
+	h := integrationtest.New(t)
+	inst := h.Connect(Integration{}, map[string]any{"targets": []any{
+		map[string]any{"name": "Web", "kind": "http", "url": web.URL, "fail_after": 1},
+	}}, nil)
+	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	web.status.Store(503)
+	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := h.Resource("check:i_test/web"); r.Health != integration.HealthOK {
+		t.Fatalf("not due yet, so not checked: %+v", r)
+	}
+	refresh := integrationtest.Watched
+	refresh.Refresh = true
+	if err := inst.Sync(t.Context(), refresh); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := h.Resource("check:i_test/web"); r.Health != integration.HealthDown {
+		t.Fatalf("a refresh checks now: %+v", r)
+	}
+	in, ok := h.Incident("check.web")
+	if !ok || len(in.Alternatives) == 0 || in.Alternatives[0].ID != "integration.refresh" || in.Alternatives[0].Label != "Check now" {
+		t.Fatalf("the problem offers Check now: %+v", in)
+	}
+}
+
 func TestExpectStatusAndRedirects(t *testing.T) {
 	web := newApp(t)
 	h := integrationtest.New(t)
@@ -293,14 +325,22 @@ func TestTOFUPerTarget(t *testing.T) {
 	if _, ok := h.StoredConfig()["tls"].(map[string]any)["pin"]; ok {
 		t.Fatal("a target's pin doesn't belong on the instance")
 	}
-	// Verify mode against the same self-signed server: down, untrusted.
+	// Verify mode against the same self-signed server: it answered, so it's
+	// up with a warning, and no problem is raised.
 	h2 := integrationtest.New(t)
 	inst = h2.Connect(Integration{}, map[string]any{"targets": []any{map[string]any{"name": "PVE", "kind": "http", "url": srv.URL, "fail_after": 1}}}, nil)
 	if err := inst.Sync(context.Background(), integrationtest.Watched); err != nil {
 		t.Fatal(err)
 	}
 	r, _ := h2.Resource("check:i_test/pve")
-	if r.Health != integration.HealthDown || !strings.Contains(r.Attrs["health.reason"].(string), "isn't trusted") {
+	if r.Health != integration.HealthAttention || r.State != "online" || !strings.Contains(r.Attrs["health.reason"].(string), "answering, but the server's certificate isn't trusted") {
 		t.Fatalf("verify against self-signed = %+v", r)
+	}
+	if _, ok := h2.Incident("check.pve"); ok {
+		t.Fatal("an untrusted certificate isn't an outage")
+	}
+	res := inst.Test(t.Context())
+	if !res.OK || len(res.Warnings) != 1 || res.Warnings[0].Code != integration.CodeTLSUntrusted {
+		t.Fatalf("test against self-signed = %+v", res)
 	}
 }

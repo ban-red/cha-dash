@@ -155,6 +155,33 @@ func TestSchemaEnumTitles(t *testing.T) {
 	}
 }
 
+// x-chadash-when names a sibling; x-chadash-item-test sits on an array of
+// objects. Both marshal for the form.
+func TestSchemaFormHints(t *testing.T) {
+	list := &Schema{Type: "array", Items: Object(
+		Prop("kind", Enum("Kind", "a", "b")),
+		Prop("host", String("Host").ShowWhen("kind", "b")),
+	), ItemTest: true}
+	s := Object(Prop("list", list))
+	if err := s.Check(); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(s)
+	if !strings.Contains(string(b), `"x-chadash-when":{"kind":"b"}`) || !strings.Contains(string(b), `"x-chadash-item-test":true`) {
+		t.Fatalf("got %s", b)
+	}
+	b, _ = json.Marshal(TLSSchema())
+	if !strings.Contains(string(b), `"x-chadash-when":{"mode":["pin","tofu"]}`) {
+		t.Fatalf("tls pin: %s", b)
+	}
+	if err := Object(Prop("host", String("Host").ShowWhen("nope", "b"))).Check(); err == nil {
+		t.Fatal("when on a missing sibling passed")
+	}
+	if err := Object(Prop("name", &Schema{Type: "string", ItemTest: true})).Check(); err == nil {
+		t.Fatal("item test on a string passed")
+	}
+}
+
 func TestSchemaValidate(t *testing.T) {
 	min1 := 1
 	s := Object(

@@ -45,15 +45,16 @@ func (Integration) Manifest() integration.Manifest {
 	target := integration.Object(
 		integration.Prop("name", &integration.Schema{Type: "string", Title: "Name", MinLength: new(1), MaxLength: new(64)}),
 		integration.Prop("kind", integration.Enum("Check", "http", "tcp").WithDefault("http")),
-		integration.Prop("url", integration.URL("URL").Describe("http checks: the page to fetch.")),
-		integration.Prop("host", &integration.Schema{Type: "string", Title: "Host", Format: "hostname", Description: "tcp checks: the host to connect to."}),
-		integration.Prop("port", integration.Integer("Port", 1, 65535).Describe("tcp checks: the port to connect to.")),
-		integration.Prop("expect_status", integration.Integer("Expected status", 100, 599).Describe("http checks: the status that means up. Default: any 2xx or 3xx.")),
+		integration.Prop("url", integration.URL("URL").Describe("The page to fetch.").ShowWhen("kind", "http")),
+		integration.Prop("host", (&integration.Schema{Type: "string", Title: "Host", Format: "hostname"}).ShowWhen("kind", "tcp")),
+		integration.Prop("port", integration.Integer("Port", 1, 65535).ShowWhen("kind", "tcp")),
+		integration.Prop("expect_status", integration.Integer("Expected status", 100, 599).Describe("Default: any 2xx or 3xx.").ShowWhen("kind", "http")),
 		integration.Prop("interval_s", integration.Integer("Interval (seconds)", MinInterval.Seconds(), 86400).WithDefault(int(DefaultInterval.Seconds()))),
 		integration.Prop("fail_after", integration.Integer("Failures before a problem", 1, 100).WithDefault(DefaultFailAfter)),
-		integration.Prop("tls", tls),
+		integration.Prop("tls", tls.ShowWhen("kind", "http")),
 	).Require("name", "kind")
 	targets := integration.Array("Targets", target)
+	targets.ItemTest = true
 	targets.MinItems, targets.MaxItems = new(1), new(MaxTargets)
 	return integration.Manifest{
 		ID: ID, Name: "Checks", Icon: "checks", Version: "0.1.0", Tier: integration.Silver,
@@ -259,6 +260,7 @@ type result struct {
 	latency time.Duration
 	code    string
 	err     string
+	warn    string // up, with a caveat: an untrusted certificate
 }
 
 // Interval implements integration.Intervaler: the fastest target's.
@@ -287,17 +289,31 @@ func (in *instance) Test(ctx context.Context) integration.TestResult {
 	start := time.Now()
 	results := in.run(ctx, in.probes)
 	var failed []string
+	var warnings []integration.Warning
 	code := ""
+	// One target (a form's per-target Test) needs no name in front.
+	named := func(i int, msg string) string {
+		if len(results) == 1 {
+			return msg
+		}
+		return in.probes[i].Name + ": " + msg
+	}
 	for i, r := range results {
+		if r.warn != "" {
+			warnings = append(warnings, integration.Warning{Code: r.code, Severity: integration.WarnWarning, Message: named(i, r.warn)})
+		}
 		if !r.ok {
-			failed = append(failed, in.probes[i].Name+": "+r.err)
+			failed = append(failed, named(i, r.err))
 			if code == "" {
 				code = r.code
 			}
 		}
 	}
-	res := integration.TestResult{OK: len(failed) == 0, Latency: time.Since(start)}
-	if len(failed) > 0 {
+	res := integration.TestResult{OK: len(failed) == 0, Latency: time.Since(start), Warnings: warnings}
+	switch {
+	case len(results) == 1 && len(failed) == 1:
+		res.ErrorCode, res.ErrorMessage = code, failed[0]
+	case len(failed) > 0:
 		res.ErrorCode = code
 		res.ErrorMessage = fmt.Sprintf("%d of %d %s failed: %s", len(failed), len(results), plural(len(results), "check"), strings.Join(failed, "; "))
 	}
@@ -311,14 +327,15 @@ func plural(n int, w string) string {
 	return w + "s"
 }
 
-// Sync implements integration.Instance: run the targets that are due, then
-// publish every target. A failing target isn't a failed sync.
-func (in *instance) Sync(ctx context.Context, _ integration.Interest) error {
+// Sync implements integration.Instance: run the targets that are due (every
+// target on a refresh, Check now), then publish every target. A failing
+// target isn't a failed sync.
+func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	now := in.d.Now()
 	var due []*probe
 	for _, p := range in.probes {
 		// A tenth of the interval of slack absorbs the coordinator's jitter.
-		if p.next.IsZero() || !now.Before(p.next.Add(-p.interval/10)) {
+		if want.Refresh || p.next.IsZero() || !now.Before(p.next.Add(-p.interval/10)) {
 			due = append(due, p)
 		}
 	}
@@ -368,6 +385,12 @@ func (p *probe) check(ctx context.Context) result {
 	}
 	resp, err := p.client.Do(req)
 	if err != nil {
+		// The server answered and only its certificate didn't verify: a
+		// self-signed LAN service is up, so that's a warning, not an outage.
+		// A pin mismatch still fails: the certificate changed under the pin.
+		if code, _, msg := integration.Classify(err); code == integration.CodeTLSUntrusted {
+			return result{ok: true, latency: time.Since(start), code: code, warn: "answering, but " + msg}
+		}
 		return failure(err)
 	}
 	latency := time.Since(start)
@@ -442,6 +465,8 @@ func (in *instance) publish() error {
 		switch {
 		case !p.checked:
 			r.State, r.Health.Status = "unknown", integration.HealthUnknown
+		case p.failures == 0 && p.last.warn != "":
+			r.State, r.Health.Status, r.Health.Reason = "online", integration.HealthAttention, p.last.warn
 		case p.failures == 0:
 			r.State, r.Health.Status = "online", integration.HealthOK
 		case !p.down():
@@ -504,11 +529,14 @@ func (p *probe) incident(self string) integration.Incident {
 		Causes:       []integration.Cause{{Text: p.last.err, Resource: p.rid, At: p.firstFail.UTC().Truncate(time.Second)}},
 		ResolvesWhen: fmt.Sprintf("Resolves when %s answers again.", p.Name),
 	}
+	checkNow := integration.Action{ID: "integration.refresh", Label: "Check now", Tier: "T0", Target: self}
+	review := integration.Action{ID: "integration.settings", Label: "Review the check", Tier: "T0", Target: self}
 	if p.Kind == "http" {
 		in.Suggested = integration.Action{ID: "link.open", Label: "Open " + p.Name, Tier: "T0", Target: p.rid}
-		in.Alternatives = []integration.Action{{ID: "integration.settings", Label: "Review the check", Tier: "T0", Target: self}}
+		in.Alternatives = []integration.Action{checkNow, review}
 	} else {
-		in.Suggested = integration.Action{ID: "integration.settings", Label: "Review the check", Tier: "T0", Target: self}
+		in.Suggested = checkNow
+		in.Alternatives = []integration.Action{review}
 	}
 	return in
 }
