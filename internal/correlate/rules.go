@@ -325,6 +325,7 @@ func (w *world) placeEngines() {
 			}
 		}
 		if len(cs) == 0 {
+			var byName []cand
 			for _, m := range members {
 				hn := strings.ToLower(str(m, "hostname"))
 				if hn == "" {
@@ -333,12 +334,29 @@ func (w *world) placeEngines() {
 				for _, kind := range []graph.Kind{"host", "vm", "lxc"} {
 					for _, h := range w.primaries(kind) {
 						if strings.EqualFold(str(h, "hostname"), hn) || strings.EqualFold(h.Name, hn) {
-							cs = append(cs, cand{From: e.ID, Type: RunsOn, To: h.ID, Rule: "hostname", Confidence: Weak,
-								Evidence: "The engine reports the host name " + hn + ".", slot: slot, score: 1})
+							c := cand{From: e.ID, Type: RunsOn, To: h.ID, Rule: "hostname", Confidence: Weak,
+								Evidence: "The engine reports the host name " + hn + ".", slot: slot, score: 1}
+							// Inside a guest, Docker sees the guest's own cores and
+							// memory: with those too, the one guest of that name is it.
+							// An engine reached through the node has no address, so this
+							// is what places it, and what makes the hub's guest T4.
+							if sized(m, h) {
+								c.Confidence, c.score = Strong, scoreIP
+								cores, _ := num(h, "cores")
+								c.Evidence = fmt.Sprintf("The engine reports the host name %s, and the same %g cores and memory as %s.", hn, cores, w.name(h.ID))
+							}
+							byName = append(byName, c)
 						}
 					}
 				}
 			}
+			if len(byName) > 1 {
+				// Two hosts or guests share the name: neither is sure.
+				for i := range byName {
+					byName[i].Confidence, byName[i].score = Weak, 1
+				}
+			}
+			cs = append(cs, byName...)
 		}
 		for _, l := range w.resolve(cs) {
 			w.place[l.From] = l.To

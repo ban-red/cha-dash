@@ -27,7 +27,7 @@ All the correlator's relations carry `source: "correlator"`. It ignores them as 
 | Relation | From → to | Rules |
 |---|---|---|
 | `same_as` | member → primary | container ID (a 12-character ID matches a full one by prefix); VMID on the same node (nodes merged first, so two standalone hosts with a VMID 100 stay apart); disk serial; `chadash.id` label on two resources of one kind; host address (same platform); engines listing the same containers; app instances of one type at one URL; Plex's machine identifier; checks of one target |
-| `runs_on` | engine → host or guest | the host whose integration reports the engine's containers by ID (Unraid); the host or guest at the engine's address |
+| `runs_on` | engine → host or guest | the host whose integration reports the engine's containers by ID (Unraid); the host or guest at the engine's address; the one host or guest with the engine's host name and the same cores and memory (an engine reached through the node has no address) |
 | `runs_on` | app → container | a container labelled `chadash.id=<app id or instance id>`; a container whose `homepage.href` or `homepage.widget.url` is the app's URL; a published port (or bridge address) the app's URL reaches, when the URL has no path; the container behind the route serving the app's URL, unless that route's backend has a path (another proxy) |
 | `runs_on` | app or router → host or guest | the app's URL host (no path), or the router's `ip`, is the host's or guest's address, and no container matched |
 | `routes_to` | route → container | the route's `upstream_addr` is a port a container publishes on its engine's addresses (its own, or its host's), or a container's bridge address and port; or the container's `homepage.href` is the route's URL |
@@ -50,7 +50,7 @@ Every link carries its `rule`, a `confidence` and a sentence of `evidence` (`GET
 | `exact` | the same identifier seen twice: container ID, VMID on one node, serial, `chadash.id`, a Compose dependency | yes |
 | `strong` | one network identity or an explicit label: an address and port, a route's backend, `homepage.href` | yes |
 | `confirmed` | the owner said so | yes |
-| `weak` | names alike: an app and a container (or its Compose service, or its image) with the app's name; the only two apps of a type on the same version; an engine reporting a host's name; a PBS datastore name only one PBS has | no: an Inbox suggestion |
+| `weak` | names alike: an app and a container (or its Compose service, or its image) with the app's name; the only two apps of a type on the same version; an engine reporting a host's name without the same cores and memory, or one several hosts or guests share; a PBS datastore name only one PBS has | no: an Inbox suggestion |
 
 Relations that can only have one answer (what an app runs on, which container a route goes to, which datastore a storage writes to) are **slots**: the strongest candidate wins, and a tie between different targets is ambiguous, so up to three of them become suggestions instead of a link (Docker's default bridge gives every engine a `172.17.0.2`).
 

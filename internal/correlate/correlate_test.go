@@ -374,6 +374,40 @@ func TestPlacementByAddress(t *testing.T) {
 	}
 }
 
+// An engine reached through the node has no address. Its host name places
+// it only with the guest's own cores and memory, and only when one guest
+// has that name; otherwise it stays a suggestion.
+func TestEnginePlacedByNameAndSize(t *testing.T) {
+	guests := func() *home {
+		return newHome(t).
+			add("proxmox:i_p/lxc/3696", "lxc", "chadash-sandbox", "vmid", 3696, "cores", 2, "mem_gb", 2.0).
+			add("proxmox:i_p/qemu/102", "vm", "media", "vmid", 102, "cores", 4, "mem_gb", 8.0)
+	}
+	r := guests().
+		add("docker:i_d/engine", "engine", "Docker", "endpoint", "node://local", "hostname", "chadash-sandbox", "cores", 2, "mem_gb", 2.0).
+		add("docker:i_v/engine", "engine", "Docker", "endpoint", "node://media", "hostname", "media", "cores", 4, "mem_gb", 7.6).
+		run()
+	mustLink(t, r, "docker:i_d/engine", RunsOn, "proxmox:i_p/lxc/3696", Strong, "hostname")
+	mustLink(t, r, "docker:i_v/engine", RunsOn, "proxmox:i_p/qemu/102", Strong, "hostname") // a VM's kernel keeps some memory
+
+	// The name alone, or a different size, is only a suggestion.
+	r = guests().add("docker:i_d/engine", "engine", "Docker", "endpoint", "node://local", "hostname", "chadash-sandbox", "cores", 8, "mem_gb", 2.0).run()
+	noLink(t, r, "docker:i_d/engine", RunsOn, "proxmox:i_p/lxc/3696")
+	if !hasSuggestion(r, "docker:i_d/engine", RunsOn, "proxmox:i_p/lxc/3696") {
+		t.Errorf("a name with another size should be suggested: %s", dump(r.Links))
+	}
+	r = guests().add("docker:i_d/engine", "engine", "Docker", "endpoint", "node://local", "hostname", "chadash-sandbox").run()
+	noLink(t, r, "docker:i_d/engine", RunsOn, "proxmox:i_p/lxc/3696")
+
+	// Two guests with the name and size: neither is sure.
+	r = guests().
+		add("proxmox:i_q/lxc/200", "lxc", "chadash-sandbox", "vmid", 200, "cores", 2, "mem_gb", 2.0).
+		add("docker:i_d/engine", "engine", "Docker", "endpoint", "node://local", "hostname", "chadash-sandbox", "cores", 2, "mem_gb", 2.0).
+		run()
+	noLink(t, r, "docker:i_d/engine", RunsOn, "proxmox:i_p/lxc/3696")
+	noLink(t, r, "docker:i_d/engine", RunsOn, "proxmox:i_q/lxc/200")
+}
+
 func TestStoragesJoinDatastores(t *testing.T) {
 	h := newHome(t).
 		add("pbs:i_b/app", "app", "PBS", "type", "pbs", "links", []any{map[string]any{"title": "PBS", "url": "https://10.0.11.120:8007/"}}).

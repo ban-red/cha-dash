@@ -203,6 +203,19 @@ func num(r *graph.Resource, key string) (float64, bool) {
 	return 0, false
 }
 
+// sized: the engine sees the same cores as the host or guest, and its
+// memory within 15% below it (a VM's kernel keeps some of what it's given).
+func sized(engine, host *graph.Resource) bool {
+	ec, ok1 := num(engine, "cores")
+	hc, ok2 := num(host, "cores")
+	em, ok3 := num(engine, "mem_gb")
+	hm, ok4 := num(host, "mem_gb")
+	if !ok1 || !ok2 || !ok3 || !ok4 || ec <= 0 || hm <= 0 {
+		return false
+	}
+	return ec == hc && em <= hm+0.1 && em >= hm*0.85
+}
+
 // links are the resource's link URLs (attrs.links, as the emitter writes them).
 func links(r *graph.Resource) []string {
 	var out []string
