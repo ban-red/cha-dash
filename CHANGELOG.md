@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Warning icons explain themselves.** Hover over a tile's warning icon, or tab to it, to see the warning; click it to read it in full.
 - **Long tile notes open in full.** A warning longer than two lines, such as Prowlarr's own health messages, is cut with "more" on the tile. Click it to read the whole message in a dialog.
+- **Bazarr says what its health issues are.** The tile lists them as Bazarr does ("/tv: Directory does not exist") instead of only counting them. The note links to Bazarr's System → Status page, or System → Providers for throttled providers, and opens it in a new tab; a cut note's dialog has the same link.
 
 ### Changed
 

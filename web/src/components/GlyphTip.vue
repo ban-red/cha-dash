@@ -6,13 +6,14 @@
  * edges don't cut it; it sits above the glyph, or below when there's no room.
  * Leaving the glyph closes it after a moment, so the pointer can cross to
  * the tooltip; it stays while hovered, and a click on it opens the note too.
+ * With the upstream's page for it (`href`), the dialog offers to open that.
  * Without the Popover API (older engines, test DOMs) the click still works.
  */
 import { nextTick, onBeforeUnmount, ref, useId, useTemplateRef } from 'vue';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
 import { useUi } from '../stores/ui';
 
-const { kind, text, title } = defineProps<{ kind: GlyphKind; text: string; title: string }>();
+const { kind, text, title, href } = defineProps<{ kind: GlyphKind; text: string; title: string; href?: string | undefined }>();
 
 const ui = useUi();
 const id = useId();
@@ -70,7 +71,7 @@ function stay(): void {
 
 function open(): void {
   hide();
-  ui.showNote({ title, text, glyph: kind });
+  ui.showNote({ title, text, glyph: kind, ...(href && { href }) });
 }
 
 onBeforeUnmount(hide);

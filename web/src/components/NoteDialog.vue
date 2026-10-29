@@ -3,7 +3,9 @@
  * A tile note in full, when the tile had to cut it short (ClampText): an
  * upstream's health message, say. A native modal <dialog>: focus moves to
  * the text, Esc closes it, and the text scrolls when it's longer than the
- * screen. Its own chunk, loaded the first time a note is opened.
+ * screen. With the upstream's page for it (a health note's status page),
+ * the footer offers to open that in a new tab. Its own chunk, loaded the
+ * first time a note is opened.
  */
 import { computed, onMounted, useId, useTemplateRef } from 'vue';
 import '../styles/act-dialog.css';
@@ -40,6 +42,7 @@ function close(): void {
         <p>{{ note?.text }}</p>
       </div>
       <div class="act-dlg-foot">
+        <a v-if="note?.href" class="btn" :href="note.href" target="_blank" rel="noopener noreferrer" @click="close">Open in {{ note.title }}<span aria-hidden="true"> ↗</span></a>
         <button type="button" class="btn primary" @click="close">Close</button>
       </div>
     </div>

@@ -18,6 +18,7 @@ func bazarr(t *testing.T) *app {
 		routes: map[string]string{
 			"/api/system/status": "system_status.json",
 			"/api/badges":        "badges.json",
+			"/api/system/health": "system_health.json",
 		}}
 }
 
@@ -50,14 +51,26 @@ func TestBazarr(t *testing.T) {
 	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)
 	}
-	if r, _ := h.Resource("bazarr:i_test/app"); r.Health != integration.HealthAttention || r.Attrs["health.reason"] != "1 health issue; see System → Status" {
+	if r, _ := h.Resource("bazarr:i_test/app"); r.Health != integration.HealthAttention || r.Attrs["health.reason"] != "1 health issue; see System → Status" ||
+		r.Attrs["health.url"] != url+"/system/status" {
 		t.Fatalf("issues = %+v", r)
 	}
+	// With the list, the reason names them, as System → Status does.
+	up.set("/api/system/health", `{"data":[{"object":"/tv","issue":"Directory does not exist"},{"object":"","issue":"Duplicate language profile IDs"}]}`)
+	up.set("/api/badges", `{"episodes":798,"movies":6,"providers":0,"status":2}`)
+	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := h.Resource("bazarr:i_test/app"); r.Attrs["health.reason"] != "/tv: Directory does not exist; Duplicate language profile IDs" {
+		t.Fatalf("named = %+v", r)
+	}
+	up.set("/api/system/health", `{"data":[]}`)
 	up.set("/api/badges", `{"episodes":798,"providers":2,"status":0}`)
 	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)
 	}
-	if r, _ := h.Resource("bazarr:i_test/app"); r.Health != integration.HealthAttention || r.Attrs["health.reason"] != "2 subtitle providers are throttled" {
+	if r, _ := h.Resource("bazarr:i_test/app"); r.Health != integration.HealthAttention || r.Attrs["health.reason"] != "2 subtitle providers are throttled" ||
+		r.Attrs["health.url"] != url+"/system/providers" {
 		t.Fatalf("throttled = %+v", r)
 	}
 	// No movie count (Radarr off): wanted is the episodes alone, movies unknown.

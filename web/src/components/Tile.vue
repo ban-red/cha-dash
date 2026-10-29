@@ -45,6 +45,7 @@ const {
   tag,
   tagGlyph,
   tagNote,
+  tagHref,
   clickable = false,
   loading = false,
 } = defineProps<{
@@ -63,6 +64,8 @@ const {
   tagGlyph?: GlyphKind | undefined;
   /** The warning in full, for the glyph's tooltip and dialog; else the tag. */
   tagNote?: string | undefined;
+  /** The upstream's page for the warning, offered in its dialog. */
+  tagHref?: string | undefined;
   clickable?: boolean;
   loading?: boolean;
 }>();
@@ -163,7 +166,7 @@ function onKey(e: KeyboardEvent) {
       <span v-if="context" class="tc">{{ context }}</span>
       <span v-if="isStale && staleSince" class="tg"><span class="asof" :title="'Last-known value'">as of {{ staleSince }}</span></span>
       <span v-else-if="tag || tagGlyph" :class="['tg', { 'glyph-only': !tag }]">
-        <GlyphTip v-if="tagGlyph && glyphTip" :kind="tagGlyph" :text="glyphTip" :title="shownName" />
+        <GlyphTip v-if="tagGlyph && glyphTip" :kind="tagGlyph" :text="glyphTip" :title="shownName" :href="tagHref" />
         <Glyph v-else-if="tagGlyph" class="tg-mark" :kind="tagGlyph" />
         <span class="tgt">{{ tag }}</span>
       </span>

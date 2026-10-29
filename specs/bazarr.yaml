@@ -1,5 +1,5 @@
 # Bazarr: subtitles still wanted for episodes and movies, and Bazarr's own
-# health issues.
+# health issues, named, with a link to where Bazarr lists them.
 #
 # Format: chadash/v1alpha1, internal and unstable until v1.0; see
 # internal/README.md, "Tier 1 specs". Fixture test: bazarr_test.go, against
@@ -40,6 +40,14 @@ requests:
       issues: status # health issues (System → Status)
       sonarr_signalr: sonarr_signalr
       radarr_signalr: radarr_signalr
+  # What the health issues are, as System → Status lists them: each an
+  # object (often a Sonarr or Radarr root folder) and the issue. Optional:
+  # without it the reason gives only their count.
+  health:
+    path: /api/system/health
+    extract:
+      items: data
+    optional: true
 
 version: 'status.version == nil ? nil : trimPrefix(status.version, "v")'
 
@@ -50,6 +58,7 @@ resources:
     state: '"running"'
     health: '(badges.issues ?? 0) > 0 || (badges.providers ?? 0) > 0 ? "attention" : "ok"'
     reason: >-
+      (badges.issues ?? 0) > 0 && type(health.items) == "array" && len(health.items) > 0 ? join(map(health.items, (#?.object != nil && #?.object != "" ? #.object + ": " : "") + string(#?.issue ?? "unknown issue")), "; ") :
       (badges.issues ?? 0) > 0 ? string(badges.issues) + (badges.issues == 1 ? " health issue" : " health issues") + "; see System → Status" :
       (badges.providers ?? 0) > 0 ? string(badges.providers) + (badges.providers == 1 ? " subtitle provider is" : " subtitle providers are") + " throttled" : ""
     attrs:
@@ -61,6 +70,8 @@ resources:
       radarr_signalr: badges.radarr_signalr
       health_issues: badges.issues
       throttled_providers: badges.providers
+      # Where Bazarr shows why: the tile's note links here.
+      health.url: '(badges.issues ?? 0) > 0 ? trimSuffix(config.url, "/") + "/system/status" : (badges.providers ?? 0) > 0 ? trimSuffix(config.url, "/") + "/system/providers" : nil'
     caps: [media.library]
     links:
       - { title: Bazarr, url: config.url }

@@ -3,7 +3,9 @@
  * Text cut to a few lines, as tiles need. When it is cut, it becomes a
  * button that opens it whole (NoteDialog) and ends with a "more" cue; when
  * it fits, it's plain text. Whether it's cut is measured, so a wide tile
- * that fits the whole message shows no button.
+ * that fits the whole message shows no button. With an `href` (the
+ * upstream's page that explains it), text that fits is a link there, in a
+ * new tab, and the dialog of cut text offers the same link.
  */
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import type { GlyphKind } from './marks/Glyph.vue';
@@ -13,12 +15,14 @@ const {
   text,
   title,
   glyph,
+  href,
   lines = 2,
 } = defineProps<{
   text: string;
   /** The dialog's heading: whose note it is. */
   title: string;
   glyph?: GlyphKind | undefined;
+  href?: string | undefined;
   lines?: number;
 }>();
 
@@ -46,7 +50,7 @@ watch(
 );
 
 function open(): void {
-  ui.showNote(glyph ? { title, text, glyph } : { title, text });
+  ui.showNote({ title, text, ...(glyph && { glyph }), ...(href && { href }) });
 }
 </script>
 
@@ -55,6 +59,9 @@ function open(): void {
     <span ref="el" class="clamp-text">{{ text }}</span>
     <span class="clamp-more" aria-hidden="true">more</span>
   </button>
+  <a v-else-if="href" class="clamp clamp-link" :href="href" target="_blank" rel="noopener noreferrer" :style="{ '--clamp-lines': lines }" @click.stop>
+    <span ref="el" class="clamp-text">{{ text }}<span aria-hidden="true"> ↗</span></span>
+  </a>
   <span v-else class="clamp" :style="{ '--clamp-lines': lines }"><span ref="el" class="clamp-text">{{ text }}</span></span>
 </template>
 
@@ -91,6 +98,20 @@ button.clamp {
   text-decoration: underline;
   text-decoration-color: color-mix(in oklch, currentColor 45%, transparent);
   text-underline-offset: 2px;
+}
+a.clamp-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+}
+a.clamp-link:hover {
+  text-decoration-color: currentColor;
+}
+a.clamp-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 button.clamp:hover .clamp-more {
   color: var(--text-2);

@@ -54,6 +54,8 @@ export interface NoteView {
   title: string;
   text: string;
   glyph?: GlyphKind;
+  /** The upstream's page for it: the dialog offers to open it. */
+  href?: string;
 }
 
 export interface UiHooks {

@@ -18,6 +18,8 @@ export interface Health {
   status: HealthStatus;
   reason?: string;
   since?: string;
+  /** Where the upstream shows why (its status page), when it has one. */
+  url?: string;
 }
 
 export interface Link {
@@ -253,7 +255,8 @@ function asStatus(v: unknown): HealthStatus {
 
 /**
  * Health from either wire shape. With a string `health`, the reason and since
- * may ride in attrs (`health.reason`, `health.since`).
+ * may ride in attrs (`health.reason`, `health.since`). The upstream's page
+ * for it is always an attr (`health.url`), http(s) only.
  */
 export function normalizeHealth(r: Resource | undefined): Health {
   if (!r || r.health === undefined || r.health === null) return { status: 'unknown' };
@@ -263,11 +266,15 @@ export function normalizeHealth(r: Resource | undefined): Health {
     const since = r.attrs?.['health.since'];
     if (typeof reason === 'string') h.reason = reason;
     if (typeof since === 'string') h.since = since;
+    const url = safeUrl(r.attrs?.['health.url']);
+    if (url) h.url = url;
     return h;
   }
   const h: Health = { status: asStatus(r.health.status) };
   if (r.health.reason) h.reason = r.health.reason;
   if (r.health.since) h.since = r.health.since;
+  const url = safeUrl(r.attrs?.['health.url']);
+  if (url) h.url = url;
   return h;
 }
 

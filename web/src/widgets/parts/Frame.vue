@@ -61,7 +61,10 @@ const header = computed(() => {
   const health: Health = subject?.health ?? { status: 'ok' };
   return tagOf({ status: st.value, health, resource: subject?.resource }, live.now.value, okTag);
 });
-const note = computed(() => tagNote || (subject ? stateLine(subject, live.now.value)?.text : undefined) || header.value.tag);
+const line = computed(() => (subject ? stateLine(subject, live.now.value) : undefined));
+const note = computed(() => tagNote || line.value?.text || header.value.tag);
+/** The upstream's page for the subject's note, when the note is the subject's. */
+const noteHref = computed(() => (tagNote ? undefined : line.value?.href));
 const isStale = computed(() => stale || Boolean(subject?.needsRepair && st.value !== 'down'));
 const target = computed(() => incident ?? (subject ? incidentOf(subject) : undefined));
 /** Skeletons until the first snapshot arrives, or while the widget says it's still loading. */
@@ -81,6 +84,7 @@ const busy = computed(() => loading || live.loading.value);
     :tag="header.tag"
     :tag-glyph="header.glyph"
     :tag-note="note"
+    :tag-href="noteHref"
     :loading="busy"
     :clickable="Boolean(target)"
     @open="target && ui.openInbox(target.id)"

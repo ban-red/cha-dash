@@ -164,6 +164,8 @@ export interface StateLine {
   text: string;
   /** Offer the repair (Reconnect) after the text. */
   reconnect?: boolean;
+  /** The upstream's page that explains it (health.url): the note links there. */
+  href?: string;
 }
 
 /**
@@ -179,12 +181,12 @@ export function stateLine(s: Subject, now: number): StateLine | undefined {
       const parts = [h.since ? `Down ${since(h.since, now)}` : 'Down'];
       if (h.reason && !/^down\b/i.test(h.reason)) parts.push(h.reason);
       if (s.cause) parts.push(`likely: ${lowerFirst(s.cause)}`);
-      return { glyph: 'down', text: parts.join(' · ') };
+      return withHref({ glyph: 'down', text: parts.join(' · ') }, h.reason ? h.url : undefined);
     }
     case 'attention': {
       const parts = [sentence(h.reason ?? 'Needs attention')];
       if (s.cause && !h.reason?.toLowerCase().includes(s.cause.toLowerCase())) parts.push(`likely: ${lowerFirst(s.cause)}`);
-      return { glyph: 'attn', text: parts.join(' · ') };
+      return withHref({ glyph: 'attn', text: parts.join(' · ') }, h.url);
     }
     case 'maintenance':
       return { glyph: 'maint', text: h.reason ? `Paused · ${h.reason}` : 'Paused · maintenance' };
@@ -196,6 +198,8 @@ export function stateLine(s: Subject, now: number): StateLine | undefined {
       return undefined;
   }
 }
+
+const withHref = (l: StateLine, href: string | undefined): StateLine => (href ? { ...l, href } : l);
 
 export const sentence = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 

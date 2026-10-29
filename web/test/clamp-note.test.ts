@@ -53,6 +53,30 @@ describe('a long tile note', () => {
     expect(h.ui.state.note).toBeUndefined();
   });
 
+  it('links to the upstream’s page when it has one: the text when it fits, the dialog when cut', async () => {
+    heights(34, 34);
+    const h = harness();
+    const url = 'https://bazarr.lab.example/system/status';
+    const w = h.mountIn(ClampText, { text: '/tv: Directory does not exist', title: 'Bazarr', glyph: 'attn', href: url });
+    await nextTick();
+    const a = w.find('a.clamp-link');
+    expect(a.attributes()).toMatchObject({ href: url, target: '_blank', rel: 'noopener noreferrer' });
+    expect(a.text()).toBe('/tv: Directory does not exist ↗');
+
+    heights(68, 34);
+    const cut = h.mountIn(ClampText, { text: LONG, title: 'Bazarr', glyph: 'attn', href: url });
+    await nextTick();
+    await cut.find('button.clamp').trigger('click');
+    expect(h.ui.state.note).toEqual({ title: 'Bazarr', text: LONG, glyph: 'attn', href: url });
+    const d = h.mountIn(NoteDialog);
+    await flushPromises();
+    const open = d.find('.act-dlg-foot a.btn');
+    expect(open.attributes()).toMatchObject({ href: url, target: '_blank' });
+    expect(open.text()).toBe('Open in Bazarr ↗');
+    // The bare tile above sits outside any landmark here, unlike in the app: check the dialog.
+    expect(await axeViolations(d.element)).toEqual([]);
+  });
+
   it('a warning glyph opens its warning whole, and names it for screen readers', async () => {
     const h = harness();
     const w = h.mountIn(GlyphTip, { kind: 'attn', text: LONG, title: 'Prowlarr' });

@@ -230,6 +230,9 @@ const (
 	AttrDesired      = "desired"
 	AttrHealthReason = "health.reason"
 	AttrHealthSince  = "health.since"
-	AttrLinks        = "links"
-	AttrCaps         = "caps"
+	// AttrHealthURL is where the upstream shows why: its own status page.
+	// Tiles link their health note there.
+	AttrHealthURL = "health.url"
+	AttrLinks     = "links"
+	AttrCaps      = "caps"
 )

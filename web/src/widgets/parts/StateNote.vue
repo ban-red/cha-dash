@@ -8,6 +8,7 @@
  * to check. Permission-limited says "Ask an admin". Nothing when healthy.
  * A long line (an upstream's own health message) is cut to two lines and
  * opens whole in a dialog (ClampText); Reconnect stays below it, never cut.
+ * A note the upstream explains on a page of its own (health.url) links there.
  */
 import { computed } from 'vue';
 import ClampText from '../../components/ClampText.vue';
@@ -54,6 +55,10 @@ const text = computed(() => {
   if (!l) return '';
   return 'reconnect' in l && l.reconnect && lastKnown ? `${l.text} Values are last-known.` : l.text;
 });
+const href = computed(() => {
+  const l = line.value;
+  return l && 'href' in l && typeof l.href === 'string' ? l.href : undefined;
+});
 const title = computed(() => titleProp || (subject?.resource ? label(subject.resource) : '') || 'Note');
 
 /** In the Demo Home, the repair's suggested action, when it can run now. */
@@ -76,7 +81,7 @@ function reconnect(): void {
   <div v-if="line" :class="['note', 'w-note', `n-${line.glyph}`]">
     <Glyph :kind="line.glyph" />
     <span class="w-note-body">
-      <ClampText :text="text" :title="title" :glyph="line.glyph" />
+      <ClampText :text="text" :title="title" :glyph="line.glyph" :href="href" />
       <span v-if="'reconnect' in line && line.reconnect">
         <button v-if="fixable" type="button" :title="demoFix ? 'Runs in the Demo Home' : undefined" @click.stop="reconnect">Reconnect</button>
         <template v-else>Ask an admin to reconnect it.</template>

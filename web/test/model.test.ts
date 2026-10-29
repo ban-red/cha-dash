@@ -15,6 +15,12 @@ describe('graph views over the Demo Home', () => {
     });
   }
 
+  it('reads the upstream’s page for its health, http(s) only', () => {
+    const r = (url: string) => ({ id: 'bazarr:i/app', kind: 'app', health: 'attention', attrs: { 'health.reason': 'x', 'health.url': url } });
+    expect(normalizeHealth(r('https://bazarr.lab.example/system/status') as never).url).toBe('https://bazarr.lab.example/system/status');
+    expect(normalizeHealth(r('javascript:alert(1)') as never).url).toBeUndefined();
+  });
+
   it('lists hosts with live metrics and guests', () => {
     const { graph, metrics } = docs(withIncidents);
     const rows = hostRows(graph, metrics);
