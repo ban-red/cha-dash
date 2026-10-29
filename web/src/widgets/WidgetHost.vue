@@ -32,6 +32,9 @@ provideTile({
   get type() {
     return item.type;
   },
+  get target() {
+    return target.value;
+  },
   config,
 });
 </script>

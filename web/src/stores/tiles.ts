@@ -167,6 +167,8 @@ export function originLabel(c: TileConfig | undefined): string {
 export interface TileContext {
   itemId: string;
   type: string;
+  /** The resource (or series key) the widget shows: the bound one, else the item id's. */
+  target?: string | undefined;
   config: ComputedRef<TileConfig | undefined>;
 }
 

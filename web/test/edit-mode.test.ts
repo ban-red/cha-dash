@@ -9,7 +9,9 @@ import WidgetPicker from '../src/board/WidgetPicker.vue';
 import { defaultBoard } from '../src/model/defaultLayout';
 import { WIDGETS } from '../src/model/widgets';
 import { setDisplayTimeZone } from '../src/lib/format';
+import { navigate, route } from '../src/lib/router';
 import { applyTheme } from '../src/lib/theme';
+import { tileInstance } from '../src/model/integrations';
 import { provideBoard, type BoardStore } from '../src/stores/board';
 import type { TilesDoc } from '../src/stores/tiles';
 import { docs, withIncidents } from './fixtures';
@@ -51,7 +53,7 @@ function mountSurface(store: BoardStore) {
       return () => h(BoardSurface, { board: store.board.value!, breakpoint: 'desktop' });
     },
   });
-  return Object.assign(hs.mountIn(Page), { ui: hs.ui, discovery: hs.discovery });
+  return Object.assign(hs.mountIn(Page), { ui: hs.ui, discovery: hs.discovery, session: hs.session });
 }
 
 /** Edit mode, the picker and the editor load on demand: wait for the import, then for Vue. */
@@ -423,5 +425,55 @@ describe('adding a widget', () => {
     expect(id).toBeDefined();
     expect(tiles).toEqual({ [id]: { name: 'Router admin', href: 'https://router.home.example', bind: { instance: 'opnsense' } } });
     expect(w.find(`[data-item-id="${id}"] .tn`).text()).toBe('Router admin');
+  });
+});
+
+describe('a tile’s settings cog', () => {
+  afterEach(() => navigate('/', { replace: true }));
+
+  it('opens the settings of the integration that feeds the tile', async () => {
+    const w = mountSurface(fakeStore(start()));
+    await settle();
+    const cog = w.find('[data-item="plex"] .tile-cog');
+    expect(cog.attributes('aria-label')).toMatch(/ settings$/);
+    await cog.trigger('click');
+    expect(route.value.path).toBe('/settings/integrations/plex');
+    expect(w.ui.state.editing).toBe(false);
+  });
+
+  it('opens the tile’s Edit when nothing feeds it, and hides in edit mode', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    const cog = w.find('[data-item="clock"] .tile-cog');
+    expect(cog.attributes('aria-label')).toMatch(/^Edit /);
+    await cog.trigger('click');
+    await settle();
+    expect(w.ui.state.editing).toBe(true);
+    expect(w.findComponent(TileEditor).props('item')).toMatchObject({ id: 'clock' });
+    expect(w.find('.tile-cog').exists()).toBe(false);
+  });
+
+  it('isn’t there for a role that can open neither', async () => {
+    const w = mountSurface(fakeStore(start()));
+    await settle();
+    expect(w.find('.tile-cog').exists()).toBe(true);
+    w.session.state.user!.role = 'viewer';
+    await flushPromises();
+    expect(w.find('.tile-cog').exists()).toBe(false);
+  });
+});
+
+describe('tileInstance', () => {
+  const g = docs(withIncidents).graph;
+  it('takes the bound instance, a single source, the target’s source or the only app of the type', () => {
+    expect(tileInstance(g, 'service', { bind: { instance: 'i_x' } }, 'app:plex')).toBe('i_x');
+    expect(tileInstance(g, 'calendar', { bind: { sources: [{ instance: 'i_s', capability: 'c' }, { instance: 'i_s', capability: 'd' }] } }, undefined)).toBe('i_s');
+    expect(tileInstance(g, 'arr', undefined, 'app:sonarr')).toBe('sonarr');
+    expect(tileInstance(g, 'metric', undefined, 'app:radarr#queue')).toBe('radarr');
+    expect(tileInstance(g, 'service', undefined, 'integration:checks')).toBe('checks');
+    expect(tileInstance(g, 'plex', undefined, undefined)).toBe('plex');
+    expect(tileInstance(g, 'clock', undefined, undefined)).toBeUndefined();
+    expect(tileInstance(g, 'service', undefined, 'app:cockpit')).toBeUndefined();
   });
 });

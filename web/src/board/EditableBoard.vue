@@ -13,7 +13,8 @@
  * - **Dismissed:** label discovery's dismissed services on this board, to
  *   offer again (DismissedServices.vue, lazy), when there are any.
  * - **Edit / Remove:** for the selected tile (the one last focused or
- *   grabbed), from the toolbar; Delete or Backspace removes it too. Removing
+ *   grabbed), from the toolbar; Delete or Backspace removes it too. A
+ *   tile's cog outside edit mode (`ui.state.editingTile`) opens its Edit. Removing
  *   never asks: Undo puts it back, config and all.
  * - **History:** one step per gesture, add, edit or remove, over the board
  *   and its tiles together (useBoardHistory). Every step is shown and saved
@@ -169,6 +170,18 @@ watch(
     if (!asked) return;
     ui.state.addingWidget = false;
     openPicker();
+  },
+  { immediate: true },
+);
+// A tile's cog → its Edit: select it and open the editor.
+watch(
+  () => ui.state.editingTile,
+  (id) => {
+    if (!id) return;
+    ui.state.editingTile = '';
+    if (!items.value.has(id)) return;
+    selected.value = id;
+    editingId.value = id;
   },
   { immediate: true },
 );

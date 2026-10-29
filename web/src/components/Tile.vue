@@ -16,10 +16,13 @@
  * The mark is the tile's icon when the hub has cached one (stores/icons.ts:
  * the CSP keeps images from other origins out), else the monogram. A tile
  * that needs you keeps the monogram, whose colour is the state.
+ *
+ * Hovering or focusing a tile shows its settings cog (TileCog.vue).
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
+import TileCog from './TileCog.vue';
 import { hhmm, monogram } from '../lib/format';
 import { focusScrollables } from '../lib/scrollable';
 import { safeUrl } from '../model/types';
@@ -157,6 +160,7 @@ function onKey(e: KeyboardEvent) {
         <span class="tgt">{{ tag }}</span>
       </span>
     </div>
+    <TileCog :name="shownName" />
     <template v-if="loading">
       <span class="skel"></span>
       <span class="skel"></span>

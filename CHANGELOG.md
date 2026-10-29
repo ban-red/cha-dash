@@ -17,6 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Import history, with Revert.** Every import is listed with what it made. Revert shows its plan first: it removes only what the import created and nobody changed since, keeps the rest and says why, and asks you to confirm it's you before removing connections.
 - The first-run wizard's Import step now runs inside the wizard, with the same preview. An empty board offers the ways in.
 
+- **A settings cog on every tile.** Hover or focus a tile and a cog appears in its top-right corner. It opens the settings of the integration behind the tile, or the tile's Edit when no integration feeds it (the clock, say). Viewers who can do neither don't see it.
+
 ### Fixed
 
 - **Docker through the node after a hub restart.** If the hub started before its node reconnected, the Docker instance showed "invalid config" for up to five minutes and its actions were unavailable. It now retries within seconds.

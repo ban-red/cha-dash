@@ -13,6 +13,8 @@
  * - Everywhere, `link.open` (T0) opens the target's link.
  * - A Repair's "Reconnect" opens the integration's settings with the field
  *   that failed focused.
+ * - A tile's cog opens its settings: the integration that feeds it, else
+ *   the tile's Edit in edit mode (`state.editingTile`).
  * - A task whose log is its result (a container's logs) ends in the log
  *   dialog (TaskLogDialog), not a toast.
  * - A resource's sheet follows the route (`?r=<id>`): opening one pushes a
@@ -69,6 +71,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     editing: false,
     /** ⌘K asked for the widget picker: edit mode opens it, then clears this. */
     addingWidget: false,
+    /** A tile's cog asked for its Edit: edit mode opens the tile editor on this item, then clears this. */
+    editingTile: '' as string,
     confirm: undefined as ConfirmRequest | undefined,
     stepUp: undefined as StepUpRequest | undefined,
     toasts: [] as Toast[],
@@ -138,6 +142,28 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
   function reconnect(incident: Incident): void {
     const t = repairTarget(incident);
     openSettings('integrations', t.ref, { field: t.field, reason: t.reason });
+  }
+
+  /**
+   * Where a tile's cog goes: the settings of the integration feeding it when
+   * the viewer may open them, else the tile's Edit when they may edit boards.
+   */
+  function tileSettings(instance: string | undefined): 'integration' | 'tile' | undefined {
+    if (instance && can.value.integrations) return 'integration';
+    if (can.value.editBoards) return 'tile';
+    return undefined;
+  }
+
+  function openTileSettings(itemId: string, instance: string | undefined): void {
+    const where = tileSettings(instance);
+    if (where === 'integration') openSettings('integrations', instance);
+    else if (where === 'tile' && itemId) {
+      closeSheet();
+      state.inboxOpen = false;
+      state.paletteOpen = false;
+      state.editingTile = itemId;
+      state.editing = true;
+    }
   }
 
   /** The first http(s) link of a resource, if it has one. */
@@ -268,6 +294,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     /** The resource's kind has a sheet. */
     hasSheet: (id: string) => hasSheet(live.graph.value, id),
     reconnect,
+    tileSettings,
+    openTileSettings,
     canRun,
     act,
     confirmed,
@@ -306,3 +334,5 @@ export function useUi(): Ui {
   if (!u) throw new Error('useUi() outside the app');
   return u;
 }
+/** The page's UI, or undefined outside the app (a tile in a preview or a test). */
+export const useUiIfAny = (): Ui | undefined => inject(KEY, undefined);

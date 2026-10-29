@@ -14,7 +14,9 @@ import type { JsonSchema } from '../lib/schema';
 import { secretPaths } from '../lib/schema';
 import type { Recipe } from '../settings/recipe';
 import type { ControlSpec } from './control';
-import type { Incident } from './types';
+import type { TileConfig } from '../stores/tiles';
+import { appsOfType, integrationOf, resolve } from './graph';
+import type { GraphDoc, Incident } from './types';
 
 export type InstanceStatus = 'ok' | 'degraded' | 'repair' | 'error' | 'disabled';
 
@@ -164,6 +166,26 @@ export function findInstance(instances: readonly Instance[], ref: string): Insta
     instances.find((x) => x.name.toLowerCase() === ref.toLowerCase()) ??
     (instances.filter((x) => x.integration === ref).length === 1 ? instances.find((x) => x.integration === ref) : undefined)
   );
+}
+
+/**
+ * The integration instance a tile shows, for its settings cog: the bound
+ * instance, else the only one its sources read, else the one that reports
+ * what it shows. That's its target (a series key counts as its resource,
+ * `app:sonarr` the first Sonarr), or for a widget without one (`plex`) the
+ * only app of its type; then `integration:<id>` itself, the resource's
+ * `source`, or whoever `monitors` it. Undefined for what the hub reports.
+ */
+export function tileInstance(g: GraphDoc | undefined, type: string, config: TileConfig | undefined, target: string | undefined): string | undefined {
+  const bind = config?.bind;
+  if (bind?.instance) return bind.instance;
+  const sources = [...new Set((bind?.sources ?? []).map((x) => x.instance))];
+  if (sources.length === 1) return sources[0];
+  const id = target?.split('#')[0];
+  const apps = id ? [] : appsOfType(g, type);
+  const r = id ? resolve(g, id) : apps.length === 1 ? apps[0] : undefined;
+  const ref = id?.startsWith('integration:') ? id : r?.source?.startsWith('integration:') ? r.source : integrationOf(g, r?.id)?.id;
+  return ref?.startsWith('integration:') ? ref.slice('integration:'.length) || undefined : undefined;
 }
 
 /** The field to focus when the editor opens: the named one, else the first secret for auth trouble. */

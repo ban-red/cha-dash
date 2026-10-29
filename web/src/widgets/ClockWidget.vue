@@ -18,6 +18,7 @@ import type { SizeId } from '@chadash/layout';
 import { getDisplayTimeZone, hhmm, longDate, monogram, shortDate } from '../lib/format';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
+import TileCog from '../components/TileCog.vue';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
@@ -82,6 +83,7 @@ const label = computed(() => `${name.value}, ${time.value}, ${longDate(live.now.
       <span class="mono" aria-hidden="true">{{ name === 'Clock' ? 'CL' : monogram(name) }}</span>
       <span class="tn">{{ name }}</span>
     </div>
+    <TileCog :name="name" />
     <template v-if="size === 'glyph'">
       <time class="gv clock-face" :datetime="iso">{{ time }}</time>
       <div class="gl">{{ shortDate(live.now.value).split(' ')[0] }}</div>
