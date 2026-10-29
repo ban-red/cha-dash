@@ -216,7 +216,7 @@ func newPasskeyHarness(t *testing.T) *harness {
 func (h *harness) owner() *http.Client {
 	h.t.Helper()
 	c := h.client()
-	if resp, body := h.do(c, "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
+	if resp, body := h.do(c, "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
 		h.t.Fatalf("setup = %d %v", resp.StatusCode, body)
 	}
 	return c

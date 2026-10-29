@@ -112,7 +112,7 @@ func TestAPICompressionEndToEnd(t *testing.T) {
 	e := newEnv(t)
 	jar, _ := cookiejar.New(nil)
 	c := &http.Client{Jar: jar}
-	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"token": e.token, "username": "owner", "password": "correct horse battery"}, acceptGzip); resp.StatusCode != http.StatusCreated || resp.Header.Get("Content-Encoding") != "" {
+	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"username": "owner", "password": "correct horse battery"}, acceptGzip); resp.StatusCode != http.StatusCreated || resp.Header.Get("Content-Encoding") != "" {
 		t.Fatalf("setup: %d %q", resp.StatusCode, resp.Header.Get("Content-Encoding"))
 	}
 	var list struct{ Boards []boards.Board }
@@ -155,7 +155,7 @@ func TestWebSocketUntouchedByCompression(t *testing.T) {
 	e := newEnv(t)
 	jar, _ := cookiejar.New(nil)
 	c := &http.Client{Jar: jar}
-	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"token": e.token, "username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
+	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup: %d", resp.StatusCode)
 	}
 	// Enough resources that the snapshot is well over the gzip minimum.
@@ -236,7 +236,7 @@ func TestFirstPaintCompressed(t *testing.T) {
 	if resp := e.request(t, c, "GET", "/", nil, acceptGzip); resp.Header.Get("Content-Encoding") != "" || string(gunzipBody(t, resp)) != shell {
 		t.Fatalf("anonymous: %q", resp.Header.Get("Content-Encoding"))
 	}
-	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"token": e.token, "username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
+	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup: %d", resp.StatusCode)
 	}
 

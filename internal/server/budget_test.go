@@ -111,7 +111,7 @@ func TestBudgetFirstPaint(t *testing.T) {
 	})
 	jar, _ := cookiejar.New(nil)
 	c := &http.Client{Jar: jar}
-	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"token": e.token, "username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
+	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup: %d", resp.StatusCode)
 	}
 	var list struct{ Boards []boards.Board }

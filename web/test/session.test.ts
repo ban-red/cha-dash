@@ -50,22 +50,22 @@ describe('session store', () => {
     expect(s.state.phase).toBe('unreachable');
   });
 
-  it('completes setup with the token, username and password', async () => {
+  it('completes setup with the username and password', async () => {
     const fetchMock = vi.fn().mockResolvedValue(json(201, { user }));
     vi.stubGlobal('fetch', fetchMock);
     const s = createSession();
-    await s.setup('  cds_abc  ', 'owner', 'correct horse battery');
+    await s.setup('owner', 'correct horse battery');
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/setup');
     expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body)).toEqual({ token: 'cds_abc', username: 'owner', password: 'correct horse battery' });
+    expect(JSON.parse(init.body)).toEqual({ username: 'owner', password: 'correct horse battery' });
     expect(s.state.phase).toBe('ready');
   });
 
   it('moves to sign-in when setup was already done', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(409, { error: { code: 'setup_complete', message: 'setup has already been completed' } })));
     const s = createSession();
-    await expect(s.setup('t', 'owner', 'correct horse battery')).rejects.toBeInstanceOf(ApiError);
+    await expect(s.setup('owner', 'correct horse battery')).rejects.toBeInstanceOf(ApiError);
     expect(s.state.phase).toBe('login');
   });
 
@@ -83,8 +83,7 @@ describe('session store', () => {
 
   it('turns hub errors into sentences', () => {
     expect(authMessage(new ApiError(401, 'bad_credentials', 'invalid username or password'), 'login')).toBe('That username and password don’t match.');
-    expect(authMessage(new ApiError(403, 'bad_setup_token', 'invalid setup token'), 'setup')).toMatch(/setup token doesn't match/);
-    expect(authMessage(new ApiError(422, 'invalid', 'password must be at least 12 characters'), 'setup')).toBe('Password must be at least 12 characters.');
+    expect(authMessage(new ApiError(422, 'invalid', 'password must be at least 6 characters'), 'setup')).toBe('Password must be at least 6 characters.');
     expect(authMessage(new ApiError(429, 'rate_limited', 'too many attempts', 42), 'login')).toBe('Too many attempts. Try again in 42 s.');
     expect(authMessage(new ApiError(0, 'network', 'x'), 'login')).toMatch(/Can't reach/);
   });

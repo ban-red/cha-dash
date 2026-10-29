@@ -4,9 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Starts a hub on the Demo Home with a fresh data directory, as a first run,
-// and hands its setup token to the tests (CHADASH_E2E_SETUP_TOKEN). The
-// binary is the release build, made beforehand from the repo root:
+// Starts a hub on the Demo Home with a fresh data directory, as a first run.
+// The binary is the release build, made beforehand from the repo root:
 //
 //   bun run build && go build -tags webui -o chadash ./cmd/chadash
 //
@@ -21,14 +20,13 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   });
 
   let output = '';
-  const token = await new Promise<string>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`no setup token from ${bin} within 30 s:\n${output}`)), 30_000);
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`no first-run note from ${bin} within 30 s:\n${output}`)), 30_000);
     const read = (chunk: Buffer) => {
       output += chunk.toString();
-      const found = /setup_token=(cds_[A-Za-z0-9_-]+)/.exec(output)?.[1];
-      if (found) {
+      if (output.includes('first run: no owner account yet')) {
         clearTimeout(timer);
-        resolve(found);
+        resolve();
       }
     };
     hub.stdout.on('data', read);
@@ -47,7 +45,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     if (Date.now() > deadline) throw new Error(`the hub on :${port} never answered /healthz:\n${output}`);
     await new Promise((r) => setTimeout(r, 200));
   }
-  process.env.CHADASH_E2E_SETUP_TOKEN = token;
 
   return async () => {
     const exited = new Promise((r) => hub.once('exit', r));

@@ -80,7 +80,7 @@ There is one code path for Docker control (the node) from day one of control. Th
 ## Deployment: Docker Compose first ✅
 
 The main way to self-host Cha Dash is `docker compose up -d`. Every install doc starts here. Requirements:
-- **No required environment variables.** On first boot the hub generates its vault key and prints a **setup token** to the logs.
+- **No required environment variables.** On first boot the hub generates its vault key and opens first-run setup in the web app.
 - **One persistent volume** (`/data`).
 - A **healthcheck** built into the binary, because scratch images have no curl.
 - Pinned, signed, multi-arch images: amd64 and arm64 fully supported, armv7 best-effort ([ADR-0016](../adr/0016-hardware-floor.md)).
@@ -543,7 +543,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 - **Scoped, expiring API tokens**, each showing when it was last used.
 
 ### Hardening baseline
-- **First-run takeover protection:** a setup token printed to the logs is required to create the owner account.
+- **First-run takeover:** there's no setup token (dropped 2026-10-28 for a smoother first run). Whoever reaches a new hub first creates the owner, so the install docs say to do it straight away.
 - **No unauthenticated network listeners or routes**, for the hub or the node. `healthcheck` is a local subcommand. Deploy webhooks (v0.3) authenticate by signature: they are a reviewed `Signature` row in the authz table and answer only once a hook exists ([ADR-0021](../adr/0021-git-sync-and-deploy-webhooks.md)).
 - **Strict CSP:** `default-src 'self'`, no inline scripts, no `unsafe-eval`. Vue templates are precompiled by Vite, so only the runtime build ships. No third-party origins: fonts, icons and service logos are bundled or cached locally.
 - **The hub never has Docker write access.** Only nodes do, and only within local policy.
@@ -577,7 +577,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Docker socket (on nodes) | Root on host | Capability verbs, protect-list, exec off by default, env redaction |
 | Stack secrets | Leak via git or disk | `${secret:}` refs resolved in memory at deploy time; never committed |
 | Integration specs | SSRF into the LAN | Origin pinning, no redirects, size and time limits, no secrets in URLs |
-| First run | Instance takeover | Setup token from logs |
+| First run | Instance takeover | Accepted: create the owner right after install (no setup token since 2026-10-28) |
 | Forward auth | Header spoofing | Opt-in plus trusted-proxy CIDRs |
 | Supply chain | Malicious dependency or release | Minimal dependencies, lockfiles, pinned versions, cosign-signed images, SBOM, OpenSSF Scorecard |
 

@@ -1,16 +1,12 @@
 import { expect, test as setup } from '@playwright/test';
 
-// The first run, as a new owner sees it: the setup token from the hub's log,
-// the owner account, the passkey offer (skipped: headless Chromium has no
+// The first run, as a new owner sees it: the owner account, the passkey offer (skipped: headless Chromium has no
 // authenticator), then the front page. The other tests start signed in as
 // this owner.
 setup('first run: the owner account, then the front page', async ({ page }) => {
-  const token = process.env.CHADASH_E2E_SETUP_TOKEN;
-  if (!token) throw new Error('no setup token: run the suite with playwright test, which starts the hub');
-
   await page.goto('/');
   await expect(page.getByText('Make this hub yours.')).toBeVisible();
-  await page.getByLabel('Setup token').fill(token);
+  await expect(page.getByLabel('Username')).toHaveValue('admin');
   await page.getByLabel('Username').fill('owner');
   await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple');
   await page.getByLabel('Password again').fill('correct horse battery staple');

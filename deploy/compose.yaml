@@ -1,9 +1,8 @@
 # Cha Dash: the hub, plus chadash-node for this host's Docker.
 #
 #   docker compose up -d
-#   docker compose logs chadash | grep setup
 #
-# Then open http://<this host>:3696 and enter the setup token from the logs.
+# Then open http://<this host>:3696 and create the owner account (admin).
 # Nothing else is required. Options, reverse proxies, backups and upgrades are
 # in README.md next to this file. Put your own changes in compose.override.yaml,
 # which Compose loads automatically, so this file can be replaced on upgrade.

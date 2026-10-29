@@ -16,7 +16,7 @@ import (
 func tokenHarness(t *testing.T) (*harness, User, *httptest.Server) {
 	t.Helper()
 	h := newHarness(t)
-	u, err := h.svc.Setup(t.Context(), h.token, "sam", "correct horse battery")
+	u, err := h.svc.Setup(t.Context(), "sam", "correct horse battery")
 	if err != nil {
 		t.Fatal(err)
 	}

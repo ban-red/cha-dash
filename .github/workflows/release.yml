@@ -249,8 +249,8 @@ jobs:
             COMMIT=${{ github.sha }}
       - name: Smoke test
         # As ci.yml runs it, the way deploy/compose.yaml does: read-only, no
-        # capabilities, a fresh /data. It must turn healthy and print a
-        # setup token, and say which release it is.
+        # capabilities, a fresh /data. It must turn healthy, say it's on
+        # first run, and say which release it is.
         run: |
           fail() { echo "::error::$*"; exit 1; }
           got=$(docker run --rm chadash:release version)
@@ -268,7 +268,7 @@ jobs:
           echo "$logs"
           docker rm -f chadash-smoke >/dev/null
           [ -n "$healthy" ] || fail "The hub never passed its healthcheck"
-          grep -q 'setup_token=cds_' <<<"$logs" || fail "No setup token in the first-run logs"
+          grep -q 'first run: no owner account yet' <<<"$logs" || fail "No first-run note in the logs"
           if grep -q 'dev login is built in' <<<"$logs"; then fail "The image was built with -tags devlogin"; fi
 
       - name: Build the linux/amd64 node image

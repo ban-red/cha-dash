@@ -54,7 +54,7 @@ interface SessionDoc {
 
 /** Mirrors internal/auth: 1–64 of letters, digits, . _ @ -, starting with a letter or digit. */
 export const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$/;
-export const MIN_PASSWORD = 12;
+export const MIN_PASSWORD = 6;
 
 /** Password length the way the hub counts it: characters, not bytes. */
 export const passwordLength = (p: string) => [...p].length;
@@ -67,7 +67,6 @@ export function authMessage(err: unknown, context: 'setup' | 'login' | 'dev'): s
     return err.retryAfter ? `Too many attempts. Try again in ${err.retryAfter} s.` : 'Too many attempts. Try again in a minute.';
   }
   if (context === 'setup') {
-    if (err.status === 403) return "That setup token doesn't match. Copy it again from the hub's log.";
     if (err.status === 409) return 'Setup is already done. Sign in instead.';
     if (err.status === 422) return sentence(err.message);
   } else if (context === 'login' && err.status === 401) {
@@ -149,9 +148,9 @@ export function createSession(opts: SessionOptions = {}) {
     }
   }
 
-  async function setup(token: string, username: string, password: string): Promise<void> {
+  async function setup(username: string, password: string): Promise<void> {
     try {
-      const res = await api<{ user: User }>('/api/setup', { method: 'POST', body: { token: token.trim(), username, password } });
+      const res = await api<{ user: User }>('/api/setup', { method: 'POST', body: { username, password } });
       state.user = res.user;
       state.offerPasskey = true;
       state.phase = 'ready';

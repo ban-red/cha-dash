@@ -172,7 +172,8 @@ ciphertext = XChaCha20-Poly1305(key, nonce, {"<vault name>": "<value>", …} as 
   ARM board), recorded in the file so it can rise later. A file asking for
   more than 2^18 (256 MiB) is refused before any work, and at most two
   derivations run at once.
-- **Passphrases** need at least 12 characters (the hub's password rule) and
+- **Passphrases** need at least 12 characters (stricter than the hub's
+  6-character password rule, since the file can be attacked offline) and
   at most 1024 bytes. A wrong one, or a changed bundle, is
   `wrong_passphrase`; the error never holds a value.
 

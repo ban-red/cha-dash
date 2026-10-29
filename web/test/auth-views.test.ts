@@ -12,19 +12,24 @@ afterEach(() => {
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 describe('first-run setup', () => {
+  it('asks for no setup token and names the owner admin', () => {
+    const { mountIn } = harness();
+    const w = mountIn(SetupView);
+    expect(w.find('#setup-token').exists()).toBe(false);
+    expect((w.find('#setup-user').element as HTMLInputElement).value).toBe('admin');
+  });
+
   it('checks the form before asking the hub', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const { mountIn } = harness();
     const w = mountIn(SetupView);
-    await w.find('#setup-token').setValue('cds_abc');
-    await w.find('#setup-user').setValue('owner');
-    await w.find('#setup-pass').setValue('too short');
-    await w.find('#setup-confirm').setValue('too short');
+    await w.find('#setup-pass').setValue('short');
+    await w.find('#setup-confirm').setValue('short');
     await w.find('form').trigger('submit');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(w.find('#setup-pass').attributes('aria-invalid')).toBe('true');
-    expect(w.find('#setup-pass-help').text()).toContain('3 to go');
+    expect(w.find('#setup-pass-help').text()).toContain('1 to go');
 
     await w.find('#setup-pass').setValue('correct horse battery');
     await w.find('#setup-confirm').setValue('correct horse batterY');
@@ -39,27 +44,23 @@ describe('first-run setup', () => {
     const { mountIn, session } = harness();
     session.state.phase = 'setup';
     const w = mountIn(SetupView);
-    await w.find('#setup-token').setValue(' cds_abc ');
-    await w.find('#setup-user').setValue('owner');
     await w.find('#setup-pass').setValue('correct horse battery');
     await w.find('#setup-confirm').setValue('correct horse battery');
     await w.find('form').trigger('submit');
     await flushPromises();
-    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ token: 'cds_abc', username: 'owner', password: 'correct horse battery' });
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ username: 'admin', password: 'correct horse battery' });
     expect(session.state.phase).toBe('ready');
   });
 
-  it('explains a wrong setup token', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(403, { error: { code: 'bad_setup_token', message: 'invalid setup token' } })));
+  it('says so when someone else finished setup first', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(409, { error: { code: 'setup_complete', message: 'setup has already been completed' } })));
     const { mountIn } = harness();
     const w = mountIn(SetupView);
-    await w.find('#setup-token').setValue('cds_wrong');
-    await w.find('#setup-user').setValue('owner');
     await w.find('#setup-pass').setValue('correct horse battery');
     await w.find('#setup-confirm').setValue('correct horse battery');
     await w.find('form').trigger('submit');
     await flushPromises();
-    expect(w.find('.form-error').text()).toBe("That setup token doesn't match. Copy it again from the hub's log.");
+    expect(w.find('.form-error').text()).toBe('Setup is already done. Sign in instead.');
   });
 });
 

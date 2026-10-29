@@ -272,23 +272,6 @@ func (c *fakeClock) Advance(d time.Duration) {
 	c.mu.Unlock()
 }
 
-type lockedBuffer struct {
-	mu sync.Mutex
-	b  bytes.Buffer
-}
-
-func (l *lockedBuffer) Write(p []byte) (int, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.b.Write(p)
-}
-
-func (l *lockedBuffer) String() string {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.b.String()
-}
-
 // run boots the hub the way cmd/chadash's newApp does, then runs sc.
 func run(t *testing.T, sc scenario) result {
 	if sc.Baseline {
@@ -312,8 +295,7 @@ func run(t *testing.T, sc scenario) result {
 	}
 	ctx := t.Context()
 	dir := t.TempDir()
-	logs := &lockedBuffer{}
-	log := slog.New(slog.NewTextHandler(logs, nil))
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	r := result{Scenario: sc, GoMaxProcs: runtime.GOMAXPROCS(0)}
 	step := func(name string) { r.Steps = append(r.Steps, namedSample{name, measure(true)}) }
@@ -376,7 +358,7 @@ func run(t *testing.T, sc scenario) result {
 
 	var clients []*client
 	if sc.Clients > 0 {
-		jar := signIn(t, srv.URL, logs.String())
+		jar := signIn(t, srv.URL)
 		s := measure(true)
 		r.SignIn = &s
 		for range sc.Clients {
@@ -451,15 +433,11 @@ func run(t *testing.T, sc scenario) result {
 	return r
 }
 
-// signIn completes first-run setup with the token the hub logged.
-func signIn(t *testing.T, base, logs string) http.CookieJar {
-	m := regexp.MustCompile(`setup_token=(\S+)`).FindStringSubmatch(logs)
-	if m == nil {
-		t.Fatal("no setup token logged")
-	}
+// signIn completes first-run setup.
+func signIn(t *testing.T, base string) http.CookieJar {
 	jar, _ := cookiejar.New(nil)
 	c := &http.Client{Jar: jar}
-	body, _ := json.Marshal(map[string]string{"token": m[1], "username": "owner", "password": "correct horse battery"})
+	body, _ := json.Marshal(map[string]string{"username": "owner", "password": "correct horse battery"})
 	resp, err := c.Post(base+"/api/setup", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)

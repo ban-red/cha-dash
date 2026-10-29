@@ -95,9 +95,7 @@ func TestThreeMinutePath(t *testing.T) {
 	defer func() { sidecarEndpoint = was }()
 
 	start := time.Now()
-	var logs bytes.Buffer
-	var logMu sync.Mutex
-	a, err := newApp(t.Context(), testConfig(t, t.TempDir()), slog.New(slog.NewTextHandler(&lockedWriter{w: &logs, mu: &logMu}, nil)))
+	a, err := newApp(t.Context(), testConfig(t, t.TempDir()), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,17 +130,11 @@ func TestThreeMinutePath(t *testing.T) {
 		return out
 	}
 
-	// 1. First run: the setup token from the log, then the owner account.
+	// 1. First run: the owner account.
 	if st := call("GET", "/api/setup", nil, 200); st["required"] != true {
 		t.Fatalf("setup: %v", st)
 	}
-	logMu.Lock()
-	m := regexp.MustCompile(`setup_token=(cds_[A-Za-z0-9_-]+)`).FindStringSubmatch(logs.String())
-	logMu.Unlock()
-	if m == nil {
-		t.Fatal("no setup token in the log")
-	}
-	call("POST", "/api/setup", map[string]string{"token": m[1], "username": "owner", "password": "correct horse battery staple"}, 201)
+	call("POST", "/api/setup", map[string]string{"username": "owner", "password": "correct horse battery staple"}, 201)
 
 	// 2. The wizard opens on its own on a new hub, and remembers its step.
 	if st := call("GET", "/api/onboarding", nil, 200); st["status"] != "new" || st["show"] != true {
@@ -210,15 +202,4 @@ func TestThreeMinutePath(t *testing.T) {
 			t.Fatalf("not a read: %s", r)
 		}
 	}
-}
-
-type lockedWriter struct {
-	w  io.Writer
-	mu *sync.Mutex
-}
-
-func (l *lockedWriter) Write(p []byte) (int, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.w.Write(p)
 }

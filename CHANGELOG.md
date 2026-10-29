@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Sign out from the demo banner.** In demo mode the banner has a Sign out button, so leaving the Demo Home doesn't mean hunting through the theme menu.
 
+### Changed
+
+- **First run needs no setup token.** Open a new hub and create the owner account with just a password; the username starts as `admin`. Until that account exists, anyone who can reach the hub can create it, so do it straight after install.
+- **Shorter passwords.** Account passwords need 6 characters, down from 12. Backup passphrases still need 12.
+
 ## [0.2.0-beta.1] - 2026-10-29
 
 The first published beta of Cha Dash, and the first of v0.2: **Cha Dash starts changing things.** Actions on Docker, Proxmox VE, Proxmox Backup Server and Unraid run through one engine. Each one shows its plan and what it affects, asks for the confirmation its risk needs, offers undo where it can, runs as a task you can follow or cancel, and lands in a tamper-evident audit log. A second image, `ghcr.io/ban-red/chadash-node`, holds the host's Docker socket so the hub never does, follows a local policy you write, deploys compose stacks you own, and can take over stacks from Dockhand and Hawser. Roles, API tokens and notifications come with it.

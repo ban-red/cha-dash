@@ -2,7 +2,7 @@
 //
 //	GET  /healthz              liveness + database ping, unauthenticated (for `chadash healthcheck`)
 //	GET  /api/setup            first-run status
-//	POST /api/setup            create the owner with the setup token
+//	POST /api/setup            create the owner (first run only)
 //	POST /api/auth/login       password sign-in
 //	POST /api/auth/logout      sign out
 //	GET  /api/auth/session     current user, session and step-up state (session)
@@ -410,7 +410,7 @@ func Placeholder() http.Handler {
 <title>Cha Dash</title></head>
 <body><h1>Cha Dash</h1>
 <p>The hub is running. This build doesn't include the web app yet.</p>
-<p>First run? The setup token is in the hub's logs.</p></body></html>
+<p>First run? The web app creates the owner account.</p></body></html>
 `)
 	})
 }

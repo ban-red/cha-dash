@@ -1,9 +1,8 @@
 // Package auth handles first-run setup, local accounts and cookie sessions.
 //
-// First run: while no user exists, the hub holds a one-time setup token in
-// memory and logs it once at startup. POST /api/setup with that token creates
-// the owner and signs them in. The token never touches disk; a restart before
-// setup simply logs a new one.
+// First run: while no user exists, POST /api/setup creates the owner (named
+// admin unless the request names someone else) and signs them in. There's no
+// setup token: whoever reaches a new hub first claims it.
 //
 // Sessions: a random 256-bit token in an HttpOnly, SameSite=Lax cookie. Only
 // its SHA-256 is stored, so a database leak doesn't leak live sessions.
@@ -16,7 +15,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -43,7 +41,7 @@ const (
 	// lastSeenEvery throttles session last_seen writes on the request path.
 	lastSeenEvery = 5 * time.Minute
 
-	MinPasswordLen = 12  // characters
+	MinPasswordLen = 6   // characters
 	MaxPasswordLen = 512 // bytes; bounds hashing input
 )
 
@@ -72,7 +70,6 @@ func ValidRole(r string) bool { return slices.Contains(Roles, r) }
 
 var (
 	ErrSetupComplete  = errors.New("auth: setup already completed")
-	ErrBadSetupToken  = errors.New("auth: invalid setup token")
 	ErrBadCredentials = errors.New("auth: invalid username or password")
 	ErrNoSession      = errors.New("auth: no valid session")
 )
@@ -143,8 +140,8 @@ type Service struct {
 	// passkey changes (OnEvent).
 	events listeners
 
-	mu         sync.Mutex
-	setupToken string // empty once an owner exists
+	mu        sync.Mutex
+	setupOpen bool // true until an owner exists
 }
 
 // Option adjusts New.
@@ -154,7 +151,7 @@ type Option func(*Service)
 // Cha Dash at. Passkeys take their relying party ID and origin from it.
 func WithPublicURL(u string) Option { return func(s *Service) { s.publicURL = u } }
 
-// New starts the auth service. With no users it mints and logs a setup token.
+// New starts the auth service. With no users it opens first-run setup.
 func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.Proxies, opts ...Option) (*Service, error) {
 	s := &Service{
 		st:       st,
@@ -190,11 +187,10 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.P
 	// Compute the timing-equaliser hash now, not during the first failed login.
 	go dummyHash()
 	if users == 0 {
-		s.setupToken = "cds_" + strings.ToLower(rand.Text())
-		// Logged once, at warn so it survives a quiet log level. Whoever can read
-		// the logs (the host owner) can claim the instance; nobody else can.
-		log.Warn("first run: no owner account yet; open Cha Dash and enter this setup token to create one",
-			"setup_token", s.setupToken)
+		s.setupOpen = true
+		// At warn so it survives a quiet log level: until an owner exists,
+		// anyone who can reach the hub can claim it.
+		log.Warn("first run: no owner account yet; open Cha Dash to create one")
 	}
 	return s, nil
 }
@@ -203,19 +199,22 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.P
 func (s *Service) SetupRequired() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.setupToken != ""
+	return s.setupOpen
 }
 
-// Setup consumes the setup token and creates the owner account. A wrong token
-// or invalid input leaves the token valid; success spends it.
-func (s *Service) Setup(ctx context.Context, token, username, password string) (User, error) {
+// DefaultOwnerUsername names the owner when setup doesn't.
+const DefaultOwnerUsername = "admin"
+
+// Setup creates the owner account, named DefaultOwnerUsername when username
+// is empty. Invalid input leaves setup open; success closes it.
+func (s *Service) Setup(ctx context.Context, username, password string) (User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.setupToken == "" {
+	if !s.setupOpen {
 		return User{}, ErrSetupComplete
 	}
-	if subtle.ConstantTimeCompare([]byte(token), []byte(s.setupToken)) != 1 {
-		return User{}, ErrBadSetupToken
+	if username == "" {
+		username = DefaultOwnerUsername
 	}
 	if err := validateCredentials(username, password); err != nil {
 		return User{}, err
@@ -238,12 +237,12 @@ func (s *Service) Setup(ctx context.Context, token, username, password string) (
 	})
 	if err != nil {
 		if errors.Is(err, ErrSetupComplete) {
-			s.setupToken = ""
+			s.setupOpen = false
 		}
 		return User{}, err
 	}
-	s.setupToken = ""
-	s.log.Info("owner account created; setup token spent", "user", u.Username)
+	s.setupOpen = false
+	s.log.Info("owner account created; setup closed", "user", u.Username)
 	return u, nil
 }
 

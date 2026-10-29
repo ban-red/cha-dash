@@ -121,7 +121,7 @@ func TestFirstPaintForEveryRole(t *testing.T) {
 		}
 	}
 
-	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"token": e.token, "username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
+	if resp := e.request(t, c, "POST", "/api/setup", map[string]string{"username": "owner", "password": "correct horse battery"}, nil); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup: %d", resp.StatusCode)
 	}
 	for _, path := range []string{"/", "/boards/anything", "/settings/integrations"} {

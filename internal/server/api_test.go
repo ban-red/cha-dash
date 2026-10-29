@@ -21,7 +21,7 @@ func signIn(t *testing.T, e *env) *http.Client {
 	t.Helper()
 	jar, _ := cookiejar.New(nil)
 	c := &http.Client{Jar: jar}
-	resp := e.request(t, c, "POST", "/api/setup", map[string]string{"token": e.token, "username": "owner", "password": "correct horse battery"}, nil)
+	resp := e.request(t, c, "POST", "/api/setup", map[string]string{"username": "owner", "password": "correct horse battery"}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup: %d", resp.StatusCode)
 	}

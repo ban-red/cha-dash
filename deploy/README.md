@@ -44,12 +44,7 @@ You need Docker with the Compose plugin, on amd64 or arm64.
    ```sh
    docker compose up -d
    ```
-3. **Read the setup token** from the logs. The line ends in `setup_token=cds_…`:
-   ```sh
-   docker compose logs chadash | grep setup
-   ```
-   A restart before setup prints a fresh token. Use the newest one.
-4. **Open `http://<host>:3696`**, enter the token and create the owner account. The token is then spent.
+3. **Open `http://<host>:3696`** and create the owner account. The username starts as `admin`; pick a password. Do this straight away: until the owner exists, anyone who can reach the hub can create it.
 
 ## What runs
 
@@ -78,7 +73,7 @@ services:
 | `CHADASH_TRUSTED_PROXIES` | none | Comma-separated IPs or CIDRs of reverse proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed. Needed behind a proxy; see [below](#behind-a-reverse-proxy) |
 | `CHADASH_ALLOWED_ORIGINS` | none | Extra `scheme://host[:port]` origins allowed for sign-in, changes and WebSockets. Only for proxies that rewrite the `Host` header. Same-origin always works |
 | `CHADASH_SECRET_KEY_FILE` | `/data/secret.key`, generated on first boot | Where the vault key lives. See [Keeping the key outside `/data`](#keeping-the-key-outside-data) |
-| `CHADASH_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. The setup token is logged at `warn`, so it survives a quiet level |
+| `CHADASH_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. The first-run note is logged at `warn`, so it survives a quiet level |
 | `CHADASH_LOG_FORMAT` | `text` | `text` or `json` |
 | `CHADASH_DEMO` | off | `1` or `true` runs the Demo Home simulator (flag `--demo`). See [Demo mode](#demo-mode) |
 | `CHADASH_DEMO_AT` | `local` | The demo clock: `local` starts the scripted day at 14:05 and shows it as the hub's local date and time (set `TZ`); `HH:MM` or `HH:MM:SS` starts at that time on the demo's day, shown in UTC; `now` follows the real date and time in UTC (flag `--demo-at`) |

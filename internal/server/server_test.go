@@ -11,7 +11,6 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -44,9 +43,8 @@ func (l *lockedBuffer) String() string {
 }
 
 type env struct {
-	srv   *httptest.Server
-	g     *graph.Graph
-	token string
+	srv *httptest.Server
+	g   *graph.Graph
 }
 
 func newEnv(t *testing.T) *env { return newEnvWith(t, nil) }
@@ -84,11 +82,7 @@ func newEnvWith(t *testing.T, adjust func(*Deps)) *env {
 		hub.Close()
 		srv.Close()
 	})
-	m := regexp.MustCompile(`setup_token=(\S+)`).FindStringSubmatch(logs.String())
-	if m == nil {
-		t.Fatal("no setup token logged")
-	}
-	return &env{srv: srv, g: g, token: m[1]}
+	return &env{srv: srv, g: g}
 }
 
 func (e *env) request(t *testing.T, c *http.Client, method, path string, body any, hdr map[string]string) *http.Response {
@@ -134,7 +128,7 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}
 
-	setup := map[string]string{"token": e.token, "username": "owner", "password": "correct horse battery"}
+	setup := map[string]string{"username": "owner", "password": "correct horse battery"}
 	// A cross-site POST is refused before it reaches the handler.
 	if resp := e.request(t, c, "POST", "/api/setup", setup, map[string]string{"Origin": "https://evil.example", "Sec-Fetch-Site": "cross-site"}); resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("cross-site setup: %d", resp.StatusCode)

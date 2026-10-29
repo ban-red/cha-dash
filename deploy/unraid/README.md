@@ -18,8 +18,7 @@ Until the template is in CA, add it as a user template. In the Unraid terminal (
      https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/unraid/chadash.xml
    ```
 3. **Docker → Add Container**, and pick **chadash** from the Template list (under User templates). Check the port and the appdata path, then **Apply**.
-4. **Read the setup token.** Docker tab → the chadash icon → **Logs**. Copy the end of the line with `setup_token=cds_…`. A restart before setup prints a new one; use the newest.
-5. **Open the Web UI** (port 3696 unless you changed it), enter the token and create your account.
+4. **Open the Web UI** (port 3696 unless you changed it) and create your account. The username starts as `admin`; pick a password. Do it straight away: until the owner exists, anyone who can reach the hub can create it.
 
 Then **Connect your home**. For this server, add the **Unraid** integration with an API key: Unraid's own API reads the array, the shares and the containers Unraid manages, without waking spun-down disks. It needs the Unraid API 4.37.4 or later, which is built into Unraid 7.2 and later and comes with the Unraid Connect plugin before that. The form shows the exact key to create.
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * First run: the hub logs a one-time setup token; whoever has it creates the
- * owner account. Validation mirrors the hub (username pattern, 12+ character
- * password) so mistakes show before the request.
+ * First run: with no account on the hub yet, whoever opens it creates the
+ * owner, named admin unless they change it. Validation mirrors the hub
+ * (username pattern, 6+ character password) so mistakes show before the
+ * request.
  */
 import { computed, ref } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
@@ -10,8 +11,7 @@ import { DevLogin } from '../dev';
 import { authMessage, MIN_PASSWORD, passwordLength, USERNAME_RE, useSession } from '../stores/session';
 
 const session = useSession();
-const token = ref('');
-const username = ref('');
+const username = ref('admin');
 const password = ref('');
 const confirm = ref('');
 const busy = ref(false);
@@ -21,7 +21,7 @@ const touched = ref(false);
 const usernameOk = computed(() => USERNAME_RE.test(username.value));
 const passwordOk = computed(() => passwordLength(password.value) >= MIN_PASSWORD);
 const confirmOk = computed(() => confirm.value === password.value);
-const valid = computed(() => token.value.trim() !== '' && usernameOk.value && passwordOk.value && confirmOk.value);
+const valid = computed(() => usernameOk.value && passwordOk.value && confirmOk.value);
 const remaining = computed(() => Math.max(0, MIN_PASSWORD - passwordLength(password.value)));
 
 async function submit() {
@@ -30,7 +30,7 @@ async function submit() {
   if (!valid.value || busy.value) return;
   busy.value = true;
   try {
-    await session.setup(token.value, username.value, password.value);
+    await session.setup(username.value, password.value);
   } catch (err) {
     error.value = authMessage(err, 'setup');
   } finally {
@@ -48,27 +48,10 @@ async function submit() {
       </div>
       <div>
         <h1 id="setup-h">Make this hub yours.</h1>
-        <p class="lede">Create the owner account. You'll need the setup token the hub printed in its log when it started.</p>
+        <p class="lede">Create the owner account. Pick a password; the username starts as admin.</p>
       </div>
 
       <div v-if="error" class="form-error" role="alert"><Glyph kind="attn" /><span>{{ error }}</span></div>
-
-      <div class="field">
-        <label for="setup-token">Setup token</label>
-        <input
-          id="setup-token"
-          v-model="token"
-          class="mono-input"
-          autocomplete="off"
-          spellcheck="false"
-          autocapitalize="off"
-          placeholder="cds_…"
-          :aria-invalid="touched && !token.trim()"
-          aria-describedby="setup-token-help"
-          required
-        />
-        <span id="setup-token-help" class="help">In the hub's log: <code>setup_token=cds_…</code>. It works once.</span>
-      </div>
 
       <div class="field">
         <label for="setup-user">Username</label>
@@ -92,6 +75,7 @@ async function submit() {
           v-model="password"
           type="password"
           autocomplete="new-password"
+          autofocus
           :aria-invalid="touched && !passwordOk"
           aria-describedby="setup-pass-help"
           required

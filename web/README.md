@@ -24,7 +24,7 @@ CHADASH_DATA_DIR=./data go run ./cmd/chadash serve --demo   # repo root: the hub
 bun run dev                                                 # in web/, then open the URL Vite prints
 ```
 
-The dev server proxies `/api` and `/ws` (`ws: true`) to `127.0.0.1:3696`. `changeOrigin` stays off: the hub's cross-origin checks compare `Origin` with `Host`, and through the proxy both are the dev server's. Run this way, the hub has no dev login (add `-tags devlogin` to `go run` for it), so the first visit asks for the setup token from the hub's log.
+The dev server proxies `/api` and `/ws` (`ws: true`) to `127.0.0.1:3696`. `changeOrigin` stays off: the hub's cross-origin checks compare `Origin` with `Host`, and through the proxy both are the dev server's. Run this way, the hub has no dev login (add `-tags devlogin` to `go run` for it), so the first visit shows the first-run form.
 
 Demo mode shows times in the zone `GET /api/demo` names (`time_zone`, `zone_label`): by default an offset such as `-08:05` that shows the Demo Home's clock as the hub's local time, matching the times its incident copy quotes; `UTC` when the hub pins the demo clock. The clock widget's second zone then reads the real clock. Outside demo mode times are local. Demo mode also marks itself: a "Demo" tag beside the wordmark (`Briefing.vue`, every theme), a standing note in `HubBanner.vue` that the connection banners replace, and "Demo · " before the tab title (`FrontPage.vue`).
 

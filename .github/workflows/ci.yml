@@ -449,8 +449,8 @@ jobs:
           done
       - name: Smoke test
         # Runs the image the way deploy/compose.yaml does: read-only, no
-        # capabilities, a fresh /data volume. It must turn healthy and print a
-        # setup token.
+        # capabilities, a fresh /data volume. It must turn healthy and say
+        # it's on first run.
         if: matrix.smoke
         run: |
           docker run --rm chadash:ci version
@@ -469,8 +469,8 @@ jobs:
             echo "::error::The hub never passed its healthcheck"
             exit 1
           fi
-          if ! grep -q 'setup_token=cds_' <<<"$logs"; then
-            echo "::error::No setup token in the first-run logs"
+          if ! grep -q 'first run: no owner account yet' <<<"$logs"; then
+            echo "::error::No first-run note in the logs"
             exit 1
           fi
           if grep -q 'dev login is built in' <<<"$logs"; then

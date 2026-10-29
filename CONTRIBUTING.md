@@ -62,9 +62,9 @@ bun run e2e          # starts the hub on 127.0.0.1:3698 with a fresh data direct
 bun run dev          # hub on 127.0.0.1:3696 (data in ./data) + the SPA with hot reload on :3697
 ```
 
-It builds the hub, waits until it's healthy, and starts the Vite dev server (which proxies `/api` and `/ws` to the hub). Open http://localhost:3697 and press **Login as Local Dev**: no setup token, no password. Ctrl-C stops both.
+It builds the hub, waits until it's healthy, and starts the Vite dev server (which proxies `/api` and `/ws` to the hub). Open http://localhost:3697 and press **Login as Local Dev**: no password. Ctrl-C stops both.
 
-- **What the button does.** It signs in as the owner. On first run there is no owner, so it creates a passwordless one named `dev`. To try the real first-run flow, use the setup token the script prints.
+- **What the button does.** It signs in as the owner. On first run there is no owner, so it creates a passwordless one named `dev`. To try the real first-run flow, fill in the form above the button instead.
 - **Where it exists.** Only `bun run dev` builds the hub with `-tags devlogin`, and only the Vite dev server shows the button (`web/src/dev/`).
 - **Safety.** The route answers loopback clients only. Release builds and images contain neither half, and CI checks the image's build tags, that the route answers 404, and that the bundle has no `web/src/dev/` code.
 

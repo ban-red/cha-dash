@@ -7,12 +7,12 @@
  * hot reload, which proxies /api and /ws to the hub. Ctrl-C stops both.
  *
  * The hub is built with -tags devlogin, so the setup and sign-in screens offer
- * "Login as Local Dev": one click, no setup token, no password. It signs in as the
- * owner, creating a passwordless `dev` owner on first run. Release builds don't
- * contain it. The setup token is still printed if you'd rather go through setup.
+ * "Login as Local Dev": one click, no password. It signs in as the owner, creating
+ * a passwordless `dev` owner on first run. Release builds don't contain it. The
+ * first-run form above it still works if you'd rather go through setup.
  *
  *   bun run dev              reuse ./data, so your owner account and layouts survive
- *   bun run dev --fresh      wipe ./data first: a brand-new instance and setup token
+ *   bun run dev --fresh      wipe ./data first: a brand-new instance, back at first-run setup
  *   bun run dev --now        run the demo on the real clock in UTC, not from 14:05 shown as local time
  *   bun run dev --check      check prerequisites and ports, start nothing
  *
@@ -102,7 +102,7 @@ function stopAll(code = 0) {
 process.on('SIGINT', () => stopAll(0));
 process.on('SIGTERM', () => stopAll(0));
 
-/** Prefix each line of a child's output, and watch it for the setup token. */
+/** Prefix each line of a child's output, and watch it for the first-run note. */
 async function pipe(stream: ReadableStream<Uint8Array>, label: string, onLine?: (line: string) => void) {
   const decoder = new TextDecoder();
   let rest = '';
@@ -142,10 +142,9 @@ if (!reuseHub) {
   say(`Starting the hub on the Demo Home at ${HUB}`);
   const hub = Bun.spawn([BIN, 'serve', '--demo'], { cwd: ROOT, env, stdout: 'pipe', stderr: 'pipe' });
   children.push(hub);
-  let token = '';
+  let firstRun = false;
   const watch = (line: string) => {
-    const m = line.match(/setup_token=(cds_[a-z0-9]+)/);
-    if (m && m[1]) token = m[1];
+    if (line.includes('first run: no owner account yet')) firstRun = true;
   };
   pipe(hub.stdout, cyan('hub │'), watch);
   pipe(hub.stderr, cyan('hub │'), watch);
@@ -165,10 +164,10 @@ if (!reuseHub) {
     }
     await Bun.sleep(250);
   }
-  // The token is logged during startup, before /healthz answers.
+  // The first-run note is logged during startup, before /healthz answers.
   await Bun.sleep(100);
-  if (token) {
-    console.log(`\n  ${yellow('First run.')} Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}, or set up an owner with this token:\n\n      ${bold(token)}\n`);
+  if (firstRun) {
+    console.log(`\n  ${yellow('First run.')} Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}, or create an owner (admin) in the form\n`);
   } else {
     console.log(`\n  Open ${bold(WEB_URL)} and press ${bold('Login as Local Dev')}${dim(' (signs in as the owner). Start over with')} bun run dev --fresh\n`);
   }

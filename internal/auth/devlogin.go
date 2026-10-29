@@ -2,15 +2,15 @@
 
 package auth
 
-// Dev login gets a developer onto the front page in one click, with no setup
-// token and no password. It exists only in binaries built with -tags devlogin,
+// Dev login gets a developer onto the front page in one click, with no
+// password. It exists only in binaries built with -tags devlogin,
 // which `bun run dev` does. Release builds and images don't contain this file,
 // and CI checks the image's build tags and that the route answers 404.
 //
 //	POST /api/auth/dev-login → 200 {"user"} + session cookie
 //
 // With no owner yet, it creates one named "dev" with no password (so the
-// account can't sign in any other way) and spends the setup token. Otherwise
+// account can't sign in any other way) and closes first-run setup. Otherwise
 // it signs in as the existing owner. Only loopback clients are served.
 
 import (
@@ -102,8 +102,8 @@ func (s *Service) devOwner(ctx context.Context) (User, error) {
 		return User{}, err
 	}
 	if created {
-		s.setupToken = ""
-		s.log.Info("dev login: created a passwordless owner; setup token spent", "user", u.Username)
+		s.setupOpen = false
+		s.log.Info("dev login: created a passwordless owner; setup closed", "user", u.Username)
 	}
 	return u, nil
 }

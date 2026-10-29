@@ -30,7 +30,7 @@ func TestDevLoginCreatesOwnerOnFirstRun(t *testing.T) {
 	if h.svc.SetupRequired() {
 		t.Fatal("setup still required after dev login")
 	}
-	if resp, _ := h.do(h.client(), "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusConflict {
+	if resp, _ := h.do(h.client(), "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusConflict {
 		t.Fatalf("setup after dev login = %d", resp.StatusCode)
 	}
 	if resp, _ := h.do(h.client(), "POST", "/api/auth/login", loginRequest{Username: "dev", Password: "correct horse battery"}); resp.StatusCode != http.StatusUnauthorized {
@@ -40,7 +40,7 @@ func TestDevLoginCreatesOwnerOnFirstRun(t *testing.T) {
 
 func TestDevLoginSignsInExistingOwner(t *testing.T) {
 	h := newHarness(t)
-	if resp, _ := h.do(h.client(), "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
+	if resp, _ := h.do(h.client(), "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup = %d", resp.StatusCode)
 	}
 	c := h.client()

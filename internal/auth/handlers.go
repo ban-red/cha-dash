@@ -147,7 +147,6 @@ func (s *Service) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type setupRequest struct {
-	Token    string `json:"token"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -160,15 +159,11 @@ func (s *Service) handleSetup(w http.ResponseWriter, r *http.Request) {
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	u, err := s.Setup(r.Context(), req.Token, req.Username, req.Password)
+	u, err := s.Setup(r.Context(), req.Username, req.Password)
 	var verr *ValidationError
 	switch {
 	case errors.Is(err, ErrSetupComplete):
 		httpx.Error(w, http.StatusConflict, "setup_complete", "setup has already been completed")
-		return
-	case errors.Is(err, ErrBadSetupToken):
-		s.log.Warn("setup attempt with a wrong token", "client", s.proxies.ClientIP(r).String())
-		httpx.Error(w, http.StatusForbidden, "bad_setup_token", "invalid setup token")
 		return
 	case errors.As(err, &verr):
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)

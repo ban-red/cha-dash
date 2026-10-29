@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,12 +25,11 @@ import (
 var testParams = argonParams{time: 1, memory: 64, threads: 1, keyLen: 32, saltLen: 16}
 
 type harness struct {
-	t     *testing.T
-	st    *store.Store
-	svc   *Service
-	srv   *httptest.Server
-	logs  *syncBuffer
-	token string
+	t    *testing.T
+	st   *store.Store
+	svc  *Service
+	srv  *httptest.Server
+	logs *syncBuffer
 
 	opts  []Option   // passed to New
 	clock *testClock // the service's clock; real time plus an offset tests move
@@ -62,8 +60,6 @@ func (s *syncBuffer) String() string {
 	defer s.mu.Unlock()
 	return s.b.String()
 }
-
-var tokenRE = regexp.MustCompile(`setup_token=(cds_[a-z2-7]+)`)
 
 func newHarness(t *testing.T, proxies ...netip.Prefix) *harness {
 	return newHarnessWith(t, nil, proxies...)
@@ -106,9 +102,6 @@ func (h *harness) start(proxies ...netip.Prefix) {
 	})))
 	h.srv = httptest.NewServer(mux)
 	h.t.Cleanup(h.srv.Close)
-	if m := tokenRE.FindAllStringSubmatch(h.logs.String(), -1); len(m) > 0 {
-		h.token = m[len(m)-1][1]
-	}
 }
 
 func (h *harness) client() *http.Client {
@@ -163,11 +156,8 @@ func (h *harness) doRaw(c *http.Client, method, path string, body any, hdr map[s
 
 func TestFirstRunFlow(t *testing.T) {
 	h := newHarness(t)
-	if h.token == "" {
-		t.Fatalf("no setup token logged: %q", h.logs.String())
-	}
-	if n := strings.Count(h.logs.String(), h.token); n != 1 {
-		t.Fatalf("setup token logged %d times, want once", n)
+	if n := strings.Count(h.logs.String(), "first run: no owner account yet"); n != 1 {
+		t.Fatalf("first-run note logged %d times, want once: %q", n, h.logs.String())
 	}
 	c := h.client()
 
@@ -178,18 +168,15 @@ func TestFirstRunFlow(t *testing.T) {
 		t.Fatalf("private before setup = %d", resp.StatusCode)
 	}
 
-	// Wrong token, then a weak password: both rejected, the token stays valid.
-	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Token: "cds_wrong", Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("wrong token = %d", resp.StatusCode)
-	}
-	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "short"}); resp.StatusCode != http.StatusUnprocessableEntity {
+	// A weak password or a bad username is rejected, and setup stays open.
+	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Username: "owner", Password: "short"}); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("weak password = %d", resp.StatusCode)
 	}
-	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Token: h.token, Username: "bad name", Password: "correct horse battery"}); resp.StatusCode != http.StatusUnprocessableEntity {
+	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Username: "bad name", Password: "correct horse battery"}); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("bad username = %d", resp.StatusCode)
 	}
 
-	resp, body := h.do(c, "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"})
+	resp, body := h.do(c, "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup = %d %v", resp.StatusCode, body)
 	}
@@ -215,10 +202,10 @@ func TestFirstRunFlow(t *testing.T) {
 		t.Fatalf("raw token found in sessions table (%d, %v)", n, err)
 	}
 
-	// The token is single-use, from any client.
+	// Setup happens once, from any client.
 	other := h.client()
-	if resp, _ := h.do(other, "POST", "/api/setup", setupRequest{Token: h.token, Username: "intruder", Password: "correct horse battery"}); resp.StatusCode != http.StatusConflict {
-		t.Fatalf("token reuse = %d", resp.StatusCode)
+	if resp, _ := h.do(other, "POST", "/api/setup", setupRequest{Username: "intruder", Password: "correct horse battery"}); resp.StatusCode != http.StatusConflict {
+		t.Fatalf("second setup = %d", resp.StatusCode)
 	}
 	if _, body := h.do(other, "GET", "/api/setup", nil); body["required"] != false {
 		t.Fatalf("setup status after setup = %v", body)
@@ -252,11 +239,24 @@ func TestFirstRunFlow(t *testing.T) {
 		t.Fatal("a password reached the logs")
 	}
 
-	// A restart with an owner present mints no new token.
-	before := len(tokenRE.FindAllString(h.logs.String(), -1))
+	// A restart with an owner present doesn't open setup again.
 	h.start()
-	if h.svc.SetupRequired() || len(tokenRE.FindAllString(h.logs.String(), -1)) != before {
+	if h.svc.SetupRequired() || strings.Count(h.logs.String(), "first run: no owner account yet") != 1 {
 		t.Fatal("restart after setup must not offer setup again")
+	}
+}
+
+func TestSetupNamesTheOwnerAdminByDefault(t *testing.T) {
+	h := newHarness(t)
+	resp, body := h.do(h.client(), "POST", "/api/setup", setupRequest{Password: "correct horse battery"})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("setup = %d %v", resp.StatusCode, body)
+	}
+	if u := body["user"].(map[string]any); u["username"] != DefaultOwnerUsername || u["role"] != "owner" {
+		t.Fatalf("setup user = %v", u)
+	}
+	if resp, _ := h.do(h.client(), "POST", "/api/auth/login", loginRequest{Username: "admin", Password: "correct horse battery"}); resp.StatusCode != http.StatusOK {
+		t.Fatalf("login as admin = %d", resp.StatusCode)
 	}
 }
 
@@ -266,7 +266,7 @@ func TestSetupIsRaceFree(t *testing.T) {
 	codes := make(chan int, 8)
 	for i := range 8 {
 		wg.Go(func() {
-			resp, _ := h.do(h.client(), "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner" + string(rune('a'+i)), Password: "correct horse battery"})
+			resp, _ := h.do(h.client(), "POST", "/api/setup", setupRequest{Username: "owner" + string(rune('a'+i)), Password: "correct horse battery"})
 			codes <- resp.StatusCode
 		})
 	}
@@ -287,7 +287,7 @@ func TestSetupIsRaceFree(t *testing.T) {
 
 func TestSecureCookieBehindTrustedProxy(t *testing.T) {
 	h := newHarness(t, netip.MustParsePrefix("10.0.0.0/8"))
-	body, _ := json.Marshal(setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"})
+	body, _ := json.Marshal(setupRequest{Username: "owner", Password: "correct horse battery"})
 	req := httptest.NewRequest("POST", "/api/setup", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Forwarded-Proto", "https")
@@ -306,7 +306,7 @@ func TestSecureCookieBehindTrustedProxy(t *testing.T) {
 func TestExpiredSessionRejected(t *testing.T) {
 	h := newHarness(t)
 	c := h.client()
-	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
+	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
 		t.Fatal("setup failed")
 	}
 	if _, err := h.st.Writer().Exec(`UPDATE sessions SET expires_at = ?`, time.Now().Add(-time.Minute).UnixMilli()); err != nil {
@@ -320,7 +320,7 @@ func TestExpiredSessionRejected(t *testing.T) {
 func TestSessionRenewsWhileInUse(t *testing.T) {
 	h := newHarness(t)
 	c := h.client()
-	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Token: h.token, Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
+	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusCreated {
 		t.Fatal("setup failed")
 	}
 	expiresAt := func() time.Duration {

@@ -130,7 +130,7 @@ func TestNewAppFirstBoot(t *testing.T) {
 			t.Errorf("%s mode = %o, want %o", path, got, want)
 		}
 	}
-	for _, want := range []string{"applied migration", "generated vault key", "setup_token=cds_"} {
+	for _, want := range []string{"applied migration", "generated vault key", "first run: no owner account yet"} {
 		if !strings.Contains(logs.String(), want) {
 			t.Errorf("logs lack %q:\n%s", want, logs.String())
 		}
@@ -166,8 +166,8 @@ func TestNewAppDemo(t *testing.T) {
 	if _, ok := a.graph.Get("chadash:hub"); ok {
 		t.Fatal("in demo mode the Demo Home's app:chadash stands for the hub")
 	}
-	// Demo mode is still a normal hub: first-run setup and its token apply.
-	for _, want := range []string{"demo mode", "sim_time=2026-10-03T14:05:00Z", "setup_token=cds_"} {
+	// Demo mode is still a normal hub: first-run setup applies.
+	for _, want := range []string{"demo mode", "sim_time=2026-10-03T14:05:00Z", "first run: no owner account yet"} {
 		if !strings.Contains(logs.String(), want) {
 			t.Errorf("logs lack %q:\n%s", want, logs.String())
 		}
