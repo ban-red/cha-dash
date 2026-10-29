@@ -25,6 +25,8 @@ export const integrations = reactive<IntegrationsState>({
 
 let instancesAt = 0;
 let inflight: Promise<void> | undefined;
+/** Bumped by every forced load, so a fetch that began before a save can't overwrite the list that follows it. */
+let loadSeq = 0;
 
 export function errorWords(err: unknown, fallback = 'The hub couldn’t do that. Try again.'): string {
   if (!(err instanceof ApiError)) return fallback;
@@ -55,22 +57,31 @@ export async function loadCatalog(force = false): Promise<void> {
 /** The instance list, at most every 10 s unless forced. */
 export function loadInstances(force = false): Promise<void> {
   if (!force && integrations.instancesStatus === 'ready' && Date.now() - instancesAt < 10_000) return Promise.resolve();
-  if (inflight) return inflight;
+  // A forced load waits for a fetch already under way, then asks again: that one may predate the change.
+  if (inflight) return force ? inflight.then(() => loadInstances(true)) : inflight;
   if (integrations.instancesStatus !== 'ready') integrations.instancesStatus = 'loading';
-  inflight = (async () => {
+  const seq = ++loadSeq;
+  const p = (async () => {
     try {
-      integrations.instances = listOf<Instance>(await api('/api/integrations/instances'), 'instances').sort((a, b) => a.name.localeCompare(b.name));
-      integrations.instancesStatus = 'ready';
-      instancesAt = Date.now();
+      const list = listOf<Instance>(await api('/api/integrations/instances'), 'instances').sort((a, b) => a.name.localeCompare(b.name));
+      if (seq === loadSeq) {
+        integrations.instances = list;
+        integrations.instancesStatus = 'ready';
+        instancesAt = Date.now();
+      }
     } catch (err) {
       integrations.instancesStatus = 'error';
       integrations.error = errorWords(err, 'Integrations couldn’t be loaded.');
     } finally {
-      inflight = undefined;
+      if (seq === loadSeq) inflight = undefined;
     }
   })();
-  return inflight;
+  inflight = p;
+  return p;
 }
+
+/** A bound tile is named after its integration instance; undefined when it isn't bound or the list hasn't it (a viewer who can't list them). */
+export const instanceName = (id: string | undefined): string | undefined => (id ? integrations.instances.find((x) => x.id === id)?.name : undefined);
 
 export const catalogEntry = (id: string) => integrations.catalog.find((c) => c.id === id);
 
@@ -93,7 +104,10 @@ export async function createInstance(body: Required<Pick<InstanceInput, 'integra
 
 export async function updateInstance(id: string, body: InstanceInput): Promise<void> {
   await api(`/api/integrations/instances/${encodeURIComponent(id)}`, { method: 'PUT', body });
-  void loadInstances(true);
+  // Show the new name at once; the fresh list confirms it.
+  const known = integrations.instances.find((x) => x.id === id);
+  if (known && body.name) known.name = body.name;
+  await loadInstances(true);
 }
 
 export async function deleteInstance(id: string): Promise<void> {

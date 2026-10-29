@@ -29,6 +29,7 @@ import { focusScrollables } from '../lib/scrollable';
 import { safeUrl } from '../model/types';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
+import { instanceName } from '../stores/integrations';
 import { iconFor, iconMap, wantsIcon } from '../stores/icons';
 
 export type TileStatus = 'ok' | 'attention' | 'down' | 'off' | 'maintenance' | 'repair' | 'unknown';
@@ -74,7 +75,9 @@ const emit = defineEmits<{ open: [] }>();
 const live = useLive();
 const tile = useTile();
 
-const shownName = computed(() => tile.config.value?.name ?? name);
+/** A tile bound to an integration instance carries that instance's name, so renaming it in Settings renames the tile. */
+const boundName = computed(() => instanceName(tile.config.value?.bind?.instance));
+const shownName = computed(() => boundName.value ?? tile.config.value?.name ?? name);
 /** A warning glyph explains itself: hover for the words, click for all of them. */
 const WARNS = new Set<GlyphKind>(['attn', 'down', 'repair', 'maint']);
 const glyphTip = computed(() => (tagGlyph && WARNS.has(tagGlyph) ? tagNote || tag || '' : ''));
@@ -104,7 +107,7 @@ const classes = computed(() => [
 ]);
 
 const label = computed(() => [shownName.value, context, tag].filter(Boolean).join(', '));
-const mark = computed(() => (tile.config.value?.name ? monogram(tile.config.value.name) : (mono ?? monogram(name))));
+const mark = computed(() => (tile.config.value?.name || boundName.value ? monogram(shownName.value) : (mono ?? monogram(name))));
 
 // The cached icon, once the board has loaded the map; an image that fails
 // to load falls back to the monogram.

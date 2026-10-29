@@ -17,10 +17,11 @@ import { WIDGETS, parseItemId } from '../model/widgets';
 import { bindKind, candidateLabel, decodeBinding, encodeBinding, feedFor, serviceBindingGroups } from '../model/feeds';
 import { label } from '../model/graph';
 import { useLive } from '../stores/live';
+import { instanceName } from '../stores/integrations';
 import { hrefOk, type TileConfig } from '../stores/tiles';
 import { useModal } from './useModal';
-
 import './editDialog.css';
+
 const { item, config } = defineProps<{ item: Pick<Item, 'id' | 'type'>; config?: TileConfig | undefined }>();
 const emit = defineEmits<{ save: [config: TileConfig | undefined]; close: [] }>();
 
@@ -57,6 +58,7 @@ const placeholder = computed(() => {
   return r ? label(r) : (spec.value?.name ?? item.type);
 });
 
+const boundName = computed(() => instanceName(config?.bind?.instance));
 const hrefBad = computed(() => href.value.trim() !== '' && !hrefOk(href.value.trim()));
 
 function submit(): void {
@@ -116,8 +118,9 @@ function submit(): void {
 
       <div class="field">
         <label :for="`${uid}-name`">Name</label>
-        <input :id="`${uid}-name`" v-model="name" type="text" autocomplete="off" maxlength="200" :placeholder="placeholder" />
-        <span class="help">Empty uses the widget’s own name.</span>
+        <input :id="`${uid}-name`" v-model="name" type="text" autocomplete="off" maxlength="200" :placeholder="boundName ?? placeholder" :disabled="boundName !== undefined" />
+        <span v-if="boundName !== undefined" class="help">Named after its integration. Rename that in Settings → Integrations.</span>
+        <span v-else class="help">Empty uses the widget’s own name.</span>
       </div>
       <div class="field">
         <label :for="`${uid}-href`">Link</label>
