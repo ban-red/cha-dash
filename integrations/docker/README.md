@@ -107,7 +107,10 @@ On the dogfood capture, that makes `llama-swap` `down` and `ai-whisperasr-1` `at
 
 **Relations:** `container runs_on engine`, `container part_of stack`, `stack runs_on engine`, `integration:<inst> monitors engine`. When the socket proxy serving the endpoint is among the engine's containers, `integration:<inst> depends_on` it too, as in the Demo Home. Matching on an image containing `socket-proxy`, plus the container's name, compose service or published port equal to the endpoint's host or port. Engine `runs_on` host, and `app runs_on container`, are the correlator's (wave 6).
 
-**Metrics:** none in v0.1. The Demo Home's `cpu.pct` and `mem.mib` per container need one stats request per running container per tick (44 on jupiter), and the interest the runtime gives is hub-wide, not per tile. They wait for per-tile interest.
+**Metrics:** `cpu.pct` and `mem.mib` for a running container, only while someone watches it closely: a resource sheet open on it (`Interest.Resources`, from the `metrics:resource/<id>` topic), at most 16 at a time. Reading every container on every tick would be one stats request each (44 on the captured engine). Meanwhile the instance syncs every 10 s (`IntervalFor`), and the container list keeps its own pace. The series live in their own scope (`stats`) and go when the watch ends.
+- **`cpu.pct`** is the container's share of the whole host's CPU time between two readings, 0–100. One-shot stats carry no previous sample, so the integration keeps the last one, and the first reading is unknown.
+- **`mem.mib`** is usage minus the page cache it could give back (`inactive_file`, or `total_inactive_file` on cgroup v1), as `docker stats` counts it. Its `max` is the container's limit, or the host's memory when it has none.
+- Needs the `stats` read (the probe's). A container whose stats fail shows as unknown; stats never fail the sync.
 
 ## Label discovery
 
@@ -204,7 +207,7 @@ Each sync is one list request, plus inspects only for containers that changed. A
 | `hint.label_secrets` | containers carry secret-looking labels. Names them (never the values) and notes that Cha Dash doesn't copy them. On the capture: `immich_server`, `mealie` and `proxmox-backup-server` |
 
 ## Limits
-- No container stats in v0.1 (above).
+- Container stats only for watched containers (above), and no history beyond the metrics topic's.
 - No client certificates for TLS endpoints.
 - `desired` stays unset for restart policy `no`; the Unraid integration owns autostart.
 - Following nginx-proxy hops needs `VIRTUAL_HOST`/`VIRTUAL_PATH`/`VIRTUAL_PORT`, which are environment values. They're dropped like the rest; the correlator (wave 6) decides whether to read them server-side.

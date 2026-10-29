@@ -153,7 +153,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	if err != nil {
 		return nil, &integration.ConfigError{Field: "endpoint", Message: "endpoint " + err.Error()}
 	}
-	in := &instance{d: d, ep: ep, key: cfg.InstanceID, name: cfg.Name, http: d.HTTP, cache: map[string]*inspected{}, raised: map[string]bool{}}
+	in := &instance{d: d, ep: ep, key: cfg.InstanceID, name: cfg.Name, http: d.HTTP, cache: map[string]*inspected{}, raised: map[string]bool{}, samples: map[string]cpuSample{}}
 	if in.key == "" {
 		in.key = "test"
 	}
@@ -211,6 +211,11 @@ type instance struct {
 	raised   map[string]bool       // open hints, by incident ID
 	hubID    string                // node:// only: the hub's container, as the node names it
 	selfAt   time.Time             // when the node was last asked
+
+	listed      []summary            // the last list, for stats between refreshes
+	refreshedAt time.Time            // when the last Sync refreshed the list
+	samples     map[string]cpuSample // previous CPU readings, by container ID
+	statsOn     bool                 // series are published under statsScope
 }
 
 // rid is a resource ID of this instance.
@@ -262,11 +267,18 @@ func (in *instance) Test(ctx context.Context) integration.TestResult {
 }
 
 // Sync implements integration.Instance: list (and inspect what changed),
-// then publish everything.
-func (in *instance) Sync(ctx context.Context, _ integration.Interest) error {
+// then publish everything, and the stats of the containers watched closely.
+// While one is, syncs come faster (IntervalFor) and the list keeps its pace.
+func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	return in.refresh(ctx, nil)
+	if fast := in.acc.stats && len(in.watched(want)) > 0; !fast || in.refreshDue() {
+		if err := in.refresh(ctx, nil); err != nil {
+			return err
+		}
+		in.refreshedAt = in.d.Now()
+	}
+	return in.publishStats(ctx, want)
 }
 
 // refresh reads the engine and publishes it. force lists container IDs to
@@ -295,5 +307,6 @@ func (in *instance) refresh(ctx context.Context, force map[string]bool) error {
 		in.hubID != "" && !slices.ContainsFunc(list, func(s summary) bool { return s.ID == in.hubID })) {
 		in.hubID, in.selfAt = in.nodeSelf(ctx), in.d.Now()
 	}
+	in.listed = list
 	return in.publish(list)
 }

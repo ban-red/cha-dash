@@ -1,6 +1,6 @@
 # 10 · The resource sheet, containers first, and a Nodes pane
 
-> **Status: agreed** (2026-10-29). **Waves 1–3 are built** (see the status sections at the end). Wave 4 needs hub work. The sheet from [02 · Experience → Surfaces](02-experience.md#surfaces-and-navigation), built for containers first, plus the Nodes pane Settings has been missing since v0.2. Target: v0.2.x, before v0.3 builds remote nodes and the Update Center on top of it.
+> **Status: agreed** (2026-10-29). **Waves 1–4 are built** (see the status sections at the end); streaming logs wait for v0.3. The sheet from [02 · Experience → Surfaces](02-experience.md#surfaces-and-navigation), built for containers first, plus the Nodes pane Settings has been missing since v0.2. Target: v0.2.x, before v0.3 builds remote nodes and the Update Center on top of it.
 
 ---
 
@@ -199,5 +199,15 @@ Built 2026-10-29. Details are in [web/README.md](../../web/README.md#the-resourc
 - **Settings → Nodes** at `/settings/nodes`: each node's state, version, address, key and enrolment; its policy as grants in words, allowed or refused; its Docker integration; Revoke with the name typed out; Pairing with the command to read the token, Regenerate on a hold, and the hub's key. Revoke has no step-up: the route is plain admin, so the typed name is the confirmation.
 - **Engine and stack sheets:** their Overview facts, their containers (problems first, each opening its sheet, left out of Related), and links into Settings → Nodes and Settings → Stacks for admins. An engine's container count falls back to the graph when the source doesn't report one (the Demo Home's engines).
 - **The containers tile's engines** open their sheet.
-- Tests: `web/test/resource-sheet.test.ts` (30), axe on the engine sheet and the Nodes pane included.
+- Tests: `web/test/resource-sheet.test.ts` and `web/test/nodes-pane.test.ts` (30 together), axe on the engine sheet and the Nodes pane included.
 - **Still open from waves 1–3:** the Playwright pass on the Demo Home's release binary and the Workbench cells for the sheet's states. Both need a build, so they wait for the maintainer.
+
+## Wave 4 status
+
+Built 2026-10-29: metrics. Streaming logs stay in v0.3.
+- **Close interest.** A sheet subscribes to `metrics:resource/<id>` while it's open: the metrics document with only that resource's series (`topics.ResourceMetrics`). `runtime.Watch` turns each one into an entry in `integration.Interest.Resources`, so per-resource interest needed no lens topics. `RealtimeClient.watch`/`unwatch` add and drop the topic, across reconnects, without holding up "live"; `live.watchResource(id)` counts holders.
+- **A faster interval while watched.** The new optional `integration.InterestIntervaler` picks the sync interval from the interest, and the coordinator asks again when the interest changes, so opening a sheet speeds the source up at once.
+- **Docker stats.** For each watched running container (at most 16), one one-shot stats request every 10 s: `cpu.pct` as the share of the host's CPU time between readings (the first is unknown), `mem.mib` without reclaimable page cache, with the limit as its max. The list and inspects keep their own pace between. The series live in the `stats` scope and go when the watch ends. Through chadash-node the same request is the `container.stats` verb, which `docker.read` already allowed.
+- **The Metrics tab** appears once either series exists: the value, memory against its limit, and a sparkline of the readings seen while open.
+- Tests: `TestStatsWhileWatched` (Docker), `TestResourceInterest` and `TestIntervalFor` (runtime), `TestResourceMetrics` (topics), the client's watched topics, and the sheet's subscription and Metrics tab with axe.
+- **Not checked against a real engine yet.** The fake answers stats; it needs a live run on a node-backed engine and on a socket proxy.

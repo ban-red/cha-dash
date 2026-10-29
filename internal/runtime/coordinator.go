@@ -175,7 +175,11 @@ func (c *coordinator) run(ctx context.Context) {
 // interval is the time between syncs for the current interest.
 func (c *coordinator) interval(inst integration.Instance, want integration.Interest) time.Duration {
 	iv := c.man.Poll.Interval
-	if i, ok := inst.(integration.Intervaler); ok {
+	if i, ok := inst.(integration.InterestIntervaler); ok {
+		if d := i.IntervalFor(want); d > 0 {
+			iv = max(d, integration.MinInterval)
+		}
+	} else if i, ok := inst.(integration.Intervaler); ok {
 		if d := i.Interval(); d > 0 {
 			iv = max(d, integration.MinInterval)
 		}

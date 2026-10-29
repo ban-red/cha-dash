@@ -17,7 +17,9 @@ package topics
 
 import (
 	"context"
+	"encoding/json"
 	"maps"
+	"strings"
 	"time"
 
 	"dash.cha.sh/internal/graph"
@@ -31,6 +33,12 @@ const (
 	Metrics = "metrics"
 	Inbox   = "inbox"
 )
+
+// ResourceMetrics prefixes the topic of one resource's series,
+// "metrics:resource/<id>": the metrics document with only that resource's
+// series. A resource's sheet subscribes to it, and the runtime reads it as
+// close interest (integration.Interest.Resources).
+const ResourceMetrics = Metrics + ":resource/"
 
 // Document members.
 const (
@@ -61,7 +69,7 @@ func New(g *graph.Graph, now time.Time) *Set {
 func (s *Set) Source() realtime.Source {
 	return realtime.Mux{
 		Graph:   realtime.GraphSource{Graph: s.Graph},
-		Metrics: realtime.DocSource{Doc: s.Metrics, Topic: Metrics},
+		Metrics: metricsSource{doc: s.Metrics},
 		Inbox:   realtime.DocSource{Doc: s.Inbox, Topic: Inbox},
 	}
 }
@@ -98,4 +106,24 @@ func (s *Set) RunClock(ctx context.Context, every time.Duration, now func() time
 			})
 		}
 	}
+}
+
+// metricsSource serves the metrics topic whole, and one resource's series
+// under ResourceMetrics.
+type metricsSource struct{ doc *livedoc.Doc }
+
+func (m metricsSource) Open(topic string, notify chan<- struct{}) (realtime.Feed, error) {
+	return m.OpenContext(context.Background(), topic, notify)
+}
+
+// OpenContext implements realtime.ContextSource.
+func (m metricsSource) OpenContext(ctx context.Context, topic string, notify chan<- struct{}) (realtime.Feed, error) {
+	id, ok := strings.CutPrefix(topic, ResourceMetrics)
+	if !ok || id == "" {
+		return realtime.DocSource{Doc: m.doc, Topic: Metrics}.Open(topic, notify)
+	}
+	prefix := id + "#"
+	return realtime.ViewerDocSource{Doc: m.doc, Topic: topic, Coll: Series, Visible: func(context.Context) func(string, json.RawMessage) bool {
+		return func(key string, _ json.RawMessage) bool { return strings.HasPrefix(key, prefix) }
+	}}.OpenContext(ctx, topic, notify)
 }

@@ -8,6 +8,7 @@ import (
 
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/realtime"
+	"dash.cha.sh/internal/topics"
 )
 
 // Watch tracks what browser tabs are subscribed to, so coordinators poll at
@@ -17,8 +18,9 @@ import (
 // It's deliberately coarse for v0.1: "watched" is hub-wide. Any tab on the
 // graph or the metrics topic makes every instance watched; graph:kind/…
 // filters narrow Interest.Kinds, which integrations may use to skip work.
-// Per-widget interest needs lens topics (graph:lens/…), which arrive with
-// lenses.
+// A metrics:resource/<id> feed (a resource's sheet) lists that resource in
+// Interest.Resources. Per-widget interest needs lens topics (graph:lens/…),
+// which arrive with lenses.
 type Watch struct {
 	mu      sync.Mutex
 	open    map[string]int // topic → open feeds
@@ -40,6 +42,7 @@ func (w *Watch) Interest() integration.Interest {
 	defer w.mu.Unlock()
 	i := w.current
 	i.Kinds = slices.Clone(i.Kinds)
+	i.Resources = slices.Clone(i.Resources)
 	return i
 }
 
@@ -58,7 +61,8 @@ func (w *Watch) add(topic string, delta int) {
 		delete(w.open, topic)
 	}
 	next := interestOf(w.open)
-	if next.Watched == w.current.Watched && next.Metrics == w.current.Metrics && slices.Equal(next.Kinds, w.current.Kinds) {
+	if next.Watched == w.current.Watched && next.Metrics == w.current.Metrics &&
+		slices.Equal(next.Kinds, w.current.Kinds) && slices.Equal(next.Resources, w.current.Resources) {
 		return
 	}
 	w.current = next
@@ -83,11 +87,15 @@ func interestOf(open map[string]int) integration.Interest {
 			all = true // a view we can't narrow (lenses, later)
 		case topic == "metrics":
 			i.Metrics = true
+		case strings.HasPrefix(topic, topics.ResourceMetrics):
+			i.Metrics = true
+			i.Resources = append(i.Resources, strings.TrimPrefix(topic, topics.ResourceMetrics))
 		default:
 			continue
 		}
 		i.Watched = true
 	}
+	slices.Sort(i.Resources)
 	if !all && len(kinds) > 0 {
 		for k := range kinds {
 			i.Kinds = append(i.Kinds, k)

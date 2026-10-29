@@ -16,6 +16,10 @@
  *
  * One subscription per topic (rather than one with every topic) keeps topics
  * independent: a hub that doesn't serve `inbox` still serves `graph`.
+ *
+ * `watch(topic)` adds a topic for as long as something needs it (a sheet's
+ * `metrics:resource/<id>`); it survives reconnects until `unwatch`, and
+ * never holds up `live`.
  */
 import { applyPatch, PatchError, type PatchOp } from '../lib/jsonpatch';
 import { backoffDelay, type BackoffOptions } from './backoff';
@@ -100,6 +104,10 @@ export class RealtimeClient {
   private everLive = false;
   private nextSubId = 1;
   private subs = new Map<number, string>();
+  /** Topics added with watch(), beyond opts.topics. */
+  private extra = new Set<string>();
+  /** The hub said hello on the current socket, so subs may go out. */
+  private ready = false;
   private topicSub = new Map<string, number>();
   /** Topics settled (snapshot or refusal) on the current socket. */
   private synced = new Set<string>();
@@ -224,7 +232,8 @@ export class RealtimeClient {
         this.subs.clear();
         this.topicSub.clear();
         this.synced.clear();
-        for (const topic of this.opts.topics) this.subscribe(topic);
+        this.ready = true;
+        for (const topic of [...this.opts.topics, ...this.extra]) this.subscribe(topic);
         return;
       }
       case 'snap': {
@@ -279,6 +288,30 @@ export class RealtimeClient {
       case 'pong':
         return;
     }
+  }
+
+  /** Subscribe to topic until unwatch(topic), across reconnects. */
+  watch(topic: string): void {
+    if (this.opts.topics.includes(topic) || this.extra.has(topic)) return;
+    this.extra.add(topic);
+    this.info.topics[topic] = { status: 'pending', seq: 0 };
+    if (this.ready) this.subscribe(topic);
+    this.emit();
+  }
+
+  /** Drop a topic added with watch(), and its document. */
+  unwatch(topic: string): void {
+    if (!this.extra.delete(topic)) return;
+    const id = this.topicSub.get(topic);
+    if (id !== undefined) {
+      this.subs.delete(id);
+      this.topicSub.delete(topic);
+      this.send({ op: 'unsub', id });
+    }
+    this.synced.delete(topic);
+    delete this.info.topics[topic];
+    delete this.opts.doc[topic];
+    this.emit();
   }
 
   private subscribe(topic: string): void {
@@ -345,6 +378,7 @@ export class RealtimeClient {
   private dropSocket(): void {
     const ws = this.ws;
     this.ws = undefined;
+    this.ready = false;
     this.subs.clear();
     this.topicSub.clear();
     this.synced.clear();

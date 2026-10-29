@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/realtime"
 )
 
@@ -56,4 +58,39 @@ func TestRunClock(t *testing.T) {
 	}
 	cancel()
 	<-done
+}
+
+// TestResourceMetrics: metrics:resource/<id> carries that resource's series
+// and nothing else, from the snapshot on.
+func TestResourceMetrics(t *testing.T) {
+	s := New(graph.New(), time.Now())
+	put := func(key string, v float64) {
+		t.Helper()
+		if _, err := s.Metrics.Update(func(tx *livedoc.Tx) error {
+			tx.Put(Series, key, map[string]any{"value": v})
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	put(SeriesKey("docker:i_d/container/db", "cpu.pct"), 3)
+	put(SeriesKey("docker:i_d/container/dbx", "cpu.pct"), 4)
+	f, err := s.Source().Open(ResourceMetrics+"docker:i_d/container/db", make(chan struct{}, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	_, doc := f.Snapshot()
+	if b, _ := json.Marshal(doc); string(b) != `{"series":{"docker:i_d/container/db#cpu.pct":{"value":3}}}` {
+		t.Fatalf("snapshot = %s", b)
+	}
+	put(SeriesKey("docker:i_d/container/dbx", "mem.mib"), 9)
+	put(SeriesKey("docker:i_d/container/db", "mem.mib"), 8)
+	_, ops, err := f.Drain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := json.Marshal(ops); !strings.Contains(string(b), "container~1db#mem.mib") || strings.Contains(string(b), "dbx") {
+		t.Fatalf("ops = %s", b)
+	}
 }

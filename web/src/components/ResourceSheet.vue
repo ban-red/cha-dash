@@ -10,8 +10,9 @@
  *
  * Tabs: Overview, Actions (what the hub would plan here, by tier, through the
  * usual ladder), Logs (the last 50 lines, kept while the sheet is open),
- * Related and History (tasks on it; the audit log for admins). A tab with
- * nothing to show isn't drawn.
+ * Metrics (CPU and memory, which sources read only while a sheet watches the
+ * resource: `live.watchResource`), Related and History (tasks on it; the
+ * audit log for admins). A tab with nothing to show isn't drawn.
  * The sheet never repeats the Inbox: an open problem is one line that opens
  * it there.
  *
@@ -20,13 +21,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
 import Glyph from './marks/Glyph.vue';
+import Sparkline from './marks/Sparkline.vue';
 import { copyText } from '../settings/recipe';
 import { api } from '../lib/api';
 import { isDone, listActions, type Offer } from '../lib/actions';
 import { hhmm } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
 import { layerAbove } from '../lib/trap';
-import { attr, incoming, label, mergedHealth, outgoing, sourcesOf } from '../model/graph';
+import { attr, incoming, label, mergedHealth, outgoing, series, sourcesOf } from '../model/graph';
 import { glyphFor } from '../model/status';
 import { resourceLinks, safeUrl, type Resource, type Task, type Tier } from '../model/types';
 import { useLive } from '../stores/live';
@@ -35,7 +37,7 @@ import type { TileStatus } from './Tile.vue';
 import { navigate, settingsPath, stackPath } from '../lib/router';
 import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '../widgets/containers';
 import { statusOf } from '../widgets/subject';
-import { upFor } from '../widgets/read';
+import { fmtValue, metricWords, upFor } from '../widgets/read';
 
 const live = useLive();
 const ui = useUi();
@@ -309,12 +311,63 @@ function openAudit(): void {
   if (id.value) ui.openSettings('audit', undefined, { target: id.value });
 }
 
+// ── Metrics ──
+// While the sheet is open the hub knows someone watches this resource, so a
+// source can read its costly series (the Docker integration: a container's
+// stats every 10 s). The readings seen meanwhile draw the sparkline; the
+// series' own history is the fallback.
+watch(
+  id,
+  (now, _, onCleanup) => {
+    if (now) onCleanup(live.watchResource(now));
+  },
+  { immediate: true },
+);
+const METRICS = ['cpu.pct', 'mem.mib'] as const;
+const SEEN_MAX = 60;
+const seen = ref<Record<string, (number | null)[]>>({});
+watch(id, () => (seen.value = {}));
+const metricRows = computed(() =>
+  METRICS.flatMap((key) => {
+    const sr = id.value ? series(live.metrics.value, id.value, key) : undefined;
+    if (!sr) return [];
+    const unit = sr.unit ?? (key === 'cpu.pct' ? '%' : 'MiB');
+    const fmt = (v: number) => `${fmtValue(v, unit)}${unit === '%' ? '%' : ` ${unit}`}`;
+    const local = seen.value[key] ?? [];
+    return [
+      {
+        key,
+        name: metricWords(key),
+        sr,
+        shown: typeof sr.value === 'number' ? fmt(sr.value) : '—',
+        of: key === 'mem.mib' && sr.max ? `of ${fmt(sr.max)}` : '',
+        values: local.length >= 2 ? local : sr.history,
+        fmt,
+      },
+    ];
+  }),
+);
+watch(
+  () => METRICS.map((key) => (id.value ? series(live.metrics.value, id.value, key) : undefined)),
+  (now, before) => {
+    const next = { ...seen.value };
+    now.forEach((sr, i) => {
+      if (!sr) return;
+      const prev = before?.[i];
+      if (prev && prev.value === sr.value && prev.as_of === sr.as_of) return;
+      next[METRICS[i]!] = [...(next[METRICS[i]!] ?? []), sr.value].slice(-SEEN_MAX);
+    });
+    seen.value = next;
+  },
+);
+
 // ── Tabs ──
-type Tab = 'overview' | 'actions' | 'logs' | 'related' | 'history';
+type Tab = 'overview' | 'actions' | 'logs' | 'metrics' | 'related' | 'history';
 const tabs = computed(() => {
   const out: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }];
   if (actionOffers.value.length || working.value) out.push({ id: 'actions', name: 'Actions' });
   if (logOffer.value) out.push({ id: 'logs', name: 'Logs' });
+  if (metricRows.value.length) out.push({ id: 'metrics', name: 'Metrics' });
   if (related.value.length) out.push({ id: 'related', name: 'Related' });
   out.push({ id: 'history', name: 'History' });
   return out;
@@ -581,6 +634,26 @@ onBeforeUnmount(() => {
             </section>
 
             <section
+              v-if="metricRows.length"
+              v-show="tab === 'metrics'"
+              :id="`${uid}-panel-metrics`"
+              class="rs-panel"
+              role="tabpanel"
+              :aria-labelledby="`${uid}-tab-metrics`"
+            >
+              <p class="rs-hint top">Read while this is open, every few seconds. Cha Dash doesn’t keep them.</p>
+              <ul class="rs-metrics">
+                <li v-for="m in metricRows" :key="m.key">
+                  <span class="rs-mt">{{ m.name }}</span>
+                  <span class="rs-mv">
+                    <b>{{ m.shown }}</b>{{ m.of ? ' ' : '' }}<small v-if="m.of">{{ m.of }}</small>
+                  </span>
+                  <Sparkline :values="m.values" :band="m.sr.band" :height="28" :stale="m.sr.stale || live.stale.value" :label="`${m.name} while this is open`" :format="m.fmt" />
+                </li>
+              </ul>
+            </section>
+
+            <section
               v-show="tab === 'history'"
               :id="`${uid}-panel-history`"
               class="rs-panel"
@@ -774,6 +847,41 @@ onBeforeUnmount(() => {
 .rs-tabs [role='tab'].on {
   border-bottom-color: var(--text);
   color: var(--text);
+}
+.rs-metrics {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rs-metrics li {
+  display: grid;
+  grid-template-columns: minmax(7.5em, auto) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  align-items: baseline;
+  font-size: var(--type-small);
+}
+.rs-mt {
+  color: var(--text-3);
+}
+.rs-mv {
+  display: inline-flex;
+  gap: 0.4em;
+  align-items: baseline;
+}
+.rs-mv b {
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.rs-mv small {
+  font-size: inherit;
+  color: var(--text-3);
+}
+.rs-metrics li > :last-child {
+  grid-column: 1 / -1;
 }
 .rs-facts {
   display: grid;

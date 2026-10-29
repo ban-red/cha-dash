@@ -873,8 +873,9 @@ type ct struct {
 
 // containerStats are the containers with cpu.pct and mem.mib series: the
 // ones a story reads (qBittorrent's OOM kill, PBS's nightly load and its
-// prune). The Docker integration doesn't collect container stats yet
-// (integrations/docker), so the rest have none, as on a real hub.
+// prune). The Docker integration reads container stats only while a sheet
+// watches a container (integrations/docker), so the rest have none, as on a
+// real hub with no sheet open.
 var containerStats = map[string]bool{"docker:magpie/qbittorrent": true, "docker:magpie/pbs": true}
 
 // containers adds an engine's containers, started between minH and maxH

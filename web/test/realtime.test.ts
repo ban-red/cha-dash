@@ -85,6 +85,54 @@ describe('handshake and subscriptions', () => {
   });
 });
 
+describe('watched topics', () => {
+  const topic = 'metrics:resource/docker:i_d/container/db';
+
+  it('subscribes a watched topic after hello and across reconnects, without holding up live', () => {
+    const { client, doc } = setup();
+    client.watch(topic);
+    client.start();
+    const ws = FakeSocket.last;
+    ws.open();
+    ws.push({ op: 'hello', v: 1, epoch: 'e1', ping: 30 });
+    expect(ws.ops('sub').map((f) => f['topics'])).toEqual([['graph'], ['metrics'], ['inbox'], [topic]]);
+    for (const t of TOPICS) ws.push({ op: 'snap', id: ws.subId(t), seq: 1, data: { [t]: snapData[t as keyof typeof snapData] } });
+    expect(client.status).toBe('live');
+    const series = { series: { 'docker:i_d/container/db#cpu.pct': { value: 3 } } };
+    ws.push({ op: 'snap', id: ws.subId(topic), seq: 2, data: { [topic]: series } });
+    expect(doc[topic]).toEqual(series);
+
+    ws.drop();
+    vi.advanceTimersByTime(1000);
+    const next = FakeSocket.last;
+    expect(next).not.toBe(ws);
+    next.open();
+    next.push({ op: 'hello', v: 1, epoch: 'e1', ping: 30 });
+    expect(next.ops('sub').map((f) => f['topics'])).toContainEqual([topic]);
+  });
+
+  it('subscribes at once when already connected, and unwatch drops the sub and its document', () => {
+    const { client, doc } = setup();
+    client.start();
+    const ws = FakeSocket.last;
+    ws.open();
+    ws.push({ op: 'hello', v: 1, epoch: 'e1', ping: 30 });
+    client.watch(topic);
+    client.watch(topic);
+    expect(ws.ops('sub').filter((f) => (f['topics'] as string[])[0] === topic)).toHaveLength(1);
+    const id = ws.subId(topic);
+    ws.push({ op: 'snap', id, seq: 2, data: { [topic]: { series: {} } } });
+    client.unwatch(topic);
+    expect(ws.ops('unsub')).toEqual([{ op: 'unsub', id }]);
+    expect(doc[topic]).toBeUndefined();
+    expect(client.info.topics[topic]).toBeUndefined();
+    ws.push({ op: 'snap', id, seq: 3, data: { [topic]: { series: {} } } });
+    expect(doc[topic]).toBeUndefined();
+    client.unwatch('metrics');
+    expect(ws.ops('unsub')).toHaveLength(1);
+  });
+});
+
 describe('diffs and resync', () => {
   function live() {
     const s = setup();

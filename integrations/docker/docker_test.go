@@ -607,3 +607,72 @@ func TestPublicLabels(t *testing.T) {
 		t.Fatalf("secret = %v", secret)
 	}
 }
+
+// TestStatsWhileWatched: a container's cpu.pct and mem.mib come only while
+// someone watches it closely, the syncs speed up meanwhile without
+// re-listing each time, and the series go when the watch ends.
+func TestStatsWhileWatched(t *testing.T) {
+	f := newFake(t, tecnativa)
+	h := integrationtest.New(t)
+	inst := h.Connect(Integration{}, map[string]any{"endpoint": f.serve()}, nil)
+	syncOK(t, inst)
+	var name, id string
+	for _, c := range f.list {
+		if c["State"] == "running" {
+			name, id = strings.TrimPrefix(c["Names"].([]any)[0].(string), "/"), c["Id"].(string)
+			break
+		}
+	}
+	rid := "docker:i_test/container/" + name
+	if h.Series(rid, "cpu.pct") != nil || len(f.requests("/stats")) != 1 { // the probe's
+		t.Fatal("no stats while nobody watches closely")
+	}
+	iv := inst.(integration.InterestIntervaler)
+	if iv.IntervalFor(integrationtest.Watched) != watchedInterval {
+		t.Fatal("the usual interval while nobody watches closely")
+	}
+
+	want := integrationtest.Watched
+	want.Resources = []string{"docker:i_other/container/" + name, rid}
+	if iv.IntervalFor(want) != statsInterval {
+		t.Fatalf("interval = %v", iv.IntervalFor(want))
+	}
+	lists := len(f.requests("/containers/json"))
+	h.Advance(statsInterval)
+	if err := inst.Sync(t.Context(), want); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.requests("/containers/json")) != lists {
+		t.Fatal("a stats sync between refreshes doesn't list again")
+	}
+	if cpu := h.Series(rid, "cpu.pct"); cpu == nil || cpu["value"] != nil {
+		t.Fatalf("the first reading has nothing to measure against: %v", cpu)
+	}
+	if mem := h.Series(rid, "mem.mib"); mem == nil || mem["value"] != 200.0 || mem["max"] != 1024.0 {
+		t.Fatalf("mem.mib = %v", mem)
+	}
+	h.Advance(statsInterval)
+	if err := inst.Sync(t.Context(), want); err != nil {
+		t.Fatal(err)
+	}
+	if cpu := h.Series(rid, "cpu.pct"); cpu["value"] != 20.0 {
+		t.Fatalf("cpu.pct = %v", cpu)
+	}
+	if n := len(f.requests("/containers/" + id + "/stats")); n != 2 {
+		t.Fatalf("%d stats requests for the container", n)
+	}
+	h.Advance(watchedInterval)
+	if err := inst.Sync(t.Context(), want); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.requests("/containers/json")) != lists+1 {
+		t.Fatal("the list keeps its own pace")
+	}
+
+	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	if h.Series(rid, "cpu.pct") != nil || h.Series(rid, "mem.mib") != nil {
+		t.Fatal("the series go when the watch ends")
+	}
+}

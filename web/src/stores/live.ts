@@ -186,6 +186,33 @@ export function createLive(opts: LiveOptions = {}) {
   /** Nothing has ever arrived: show skeletons, not zeros. */
   const loading = computed(() => !doc.graph && conn.status !== 'live');
 
+  /**
+   * Watch one resource closely while something holds it (a sheet open on
+   * it): the hub reads it as interest (`metrics:resource/<id>`), and sources
+   * publish its costly series, such as a container's stats, into `metrics`
+   * meanwhile. Counted, so two holders share one subscription. Returns the
+   * release.
+   */
+  const watching = new Map<string, number>();
+  function watchResource(id: string): () => void {
+    const topic = `metrics:resource/${id}`;
+    const n = watching.get(topic) ?? 0;
+    watching.set(topic, n + 1);
+    if (n === 0) client.watch(topic);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const left = (watching.get(topic) ?? 1) - 1;
+      if (left > 0) {
+        watching.set(topic, left);
+        return;
+      }
+      watching.delete(topic);
+      client.unwatch(topic);
+    };
+  }
+
   return {
     doc,
     conn,
@@ -210,6 +237,7 @@ export function createLive(opts: LiveOptions = {}) {
     start,
     stop,
     setHubTime,
+    watchResource,
     retry: () => client.reconnectNow(),
     /** For tests: move the ticking clock. */
     tick: (ms?: number) => (tickNow.value = ms ?? wallNow()),

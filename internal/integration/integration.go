@@ -84,6 +84,14 @@ type Intervaler interface {
 	Interval() time.Duration
 }
 
+// InterestIntervaler is an optional Instance interface that picks the sync
+// interval for what's watched; it wins over Intervaler. The runtime asks
+// again whenever the interest changes, so a closely watched resource can
+// get faster syncs at once.
+type InterestIntervaler interface {
+	IntervalFor(want Interest) time.Duration
+}
+
 // ConfigValidator is an optional check on Integration that runs after the
 // JSON Schema, for rules the schema subset can't express ("http targets need
 // a url"). The config's secrets are resolved.
@@ -207,11 +215,21 @@ type Interest struct {
 	Kinds []string
 	// Metrics is true while someone subscribes to the metrics topic.
 	Metrics bool
+	// Resources lists the resources someone watches closely, sorted: a
+	// sheet open on each (the metrics:resource/<id> topic). Publish their
+	// costly series, such as a container's stats, only while listed.
+	Resources []string
 }
 
 // WantsKind reports whether resources of kind are on screen.
 func (i Interest) WantsKind(kind string) bool {
 	return i.Kinds == nil || slices.Contains(i.Kinds, kind)
+}
+
+// WantsResource reports whether someone watches the resource id closely.
+func (i Interest) WantsResource(id string) bool {
+	_, ok := slices.BinarySearch(i.Resources, id)
+	return ok
 }
 
 // Deps are what the framework hands an instance.

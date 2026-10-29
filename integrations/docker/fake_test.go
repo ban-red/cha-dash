@@ -38,6 +38,7 @@ type fakeDocker struct {
 	inspects map[string]map[string]any // by full ID
 	paths    []string                  // every request, method and path
 	deny     map[string]bool           // paths the proxy refuses whatever its mode
+	stats    map[string]int            // stats requests answered, by full ID
 
 	events     chan string   // raw event lines for the stream
 	cut        chan struct{} // ends the open stream, like a proxy timing out
@@ -46,7 +47,7 @@ type fakeDocker struct {
 
 func newFake(t *testing.T, mode string) *fakeDocker {
 	t.Helper()
-	f := &fakeDocker{t: t, mode: mode, api: "1.54", inspects: map[string]map[string]any{}, deny: map[string]bool{},
+	f := &fakeDocker{t: t, mode: mode, api: "1.54", inspects: map[string]map[string]any{}, deny: map[string]bool{}, stats: map[string]int{},
 		events: make(chan string, 64), cut: make(chan struct{}), subscribed: make(chan struct{}, 8)}
 	readJSON(t, filepath.Join(fixtures, "containers.json"), &f.list)
 	files, _ := filepath.Glob(filepath.Join(fixtures, "inspect", "*.json"))
@@ -201,6 +202,18 @@ func (f *fakeDocker) docker(w http.ResponseWriter, r *http.Request, path string)
 			f.mu.Lock()
 			defer f.mu.Unlock()
 			writeJSON(w, 200, ins)
+		case m[2] == "stats":
+			// One-shot stats (no previous sample): 20 % of the host's CPU
+			// time between two answers, 300 MiB used of which 100 MiB is
+			// page cache, a 1 GiB limit.
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.stats[m[1]]++
+			n := uint64(f.stats[m[1]])
+			writeJSON(w, 200, map[string]any{
+				"cpu_stats":    map[string]any{"cpu_usage": map[string]any{"total_usage": n * 200_000_000}, "system_cpu_usage": n * 1_000_000_000},
+				"memory_stats": map[string]any{"usage": 300 << 20, "limit": 1 << 30, "stats": map[string]any{"inactive_file": 100 << 20}},
+			})
 		default:
 			f.t.Errorf("unexpected container request %s", r.URL.RequestURI())
 			writeJSON(w, 500, map[string]string{"message": "not in the fake"})

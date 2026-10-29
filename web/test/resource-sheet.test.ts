@@ -1,7 +1,7 @@
 /**
- * The resource sheet, waves 1 and 2 (docs/plan/10-resource-sheet.md): the
+ * The resource sheet, waves 1–4 (docs/plan/10-resource-sheet.md): the
  * `?r=` route, opening it from the containers tile, the command bar and the
- * Inbox, a container's Overview, Actions, Logs, Related and History, the tabs,
+ * Inbox, a container's Overview, Actions, Logs, Metrics, Related and History, the tabs,
  * Esc and focus, a container that leaves the graph, and the open problem as
  * one line into the Inbox.
  * A small home of its own, so the sim's snapshots can change under it.
@@ -565,5 +565,57 @@ describe('wave 3: engines and stacks', () => {
     await engine.trigger('click');
     expect(h.ui.sheet.value).toBe(ENGINE);
     expect(h.ui.state.inboxOpen).toBe(false);
+  });
+});
+
+describe('wave 4: metrics while it’s open', () => {
+  const topic = `metrics:resource/${SONARR}`;
+  const subs = (ws: { ops(op: string): Record<string, unknown>[] }) => ws.ops('sub').filter((f) => (f['topics'] as string[])[0] === topic);
+
+  it('watches the resource while the sheet is open, and lets go when it closes or moves on', async () => {
+    const { ws, ui } = await sheetOn(SONARR);
+    expect(subs(ws)).toHaveLength(1);
+    const id = ws.subId(topic);
+    ui.openSheet(DB);
+    await flushPromises();
+    expect(ws.ops('unsub')).toContainEqual({ op: 'unsub', id });
+    expect(ws.ops('sub').some((f) => (f['topics'] as string[])[0] === `metrics:resource/${DB}`)).toBe(true);
+    const dbSub = ws.subId(`metrics:resource/${DB}`);
+    ui.closeSheet();
+    await flushPromises();
+    expect(ws.ops('unsub')).toContainEqual({ op: 'unsub', id: dbSub });
+  });
+
+  it('draws CPU and memory once the source publishes them, from the readings seen while open', async () => {
+    const { ws, panel } = await sheetOn(SONARR);
+    const tabNames = () => [...panel()!.querySelectorAll('[role="tab"]')].map((t) => t.textContent!.trim());
+    expect(tabNames()).not.toContain('Metrics');
+    const cpu = (v: number | null, at: string) => ({ unit: '%', min: 0, max: 100, value: v, as_of: at });
+    const mem = (v: number, at: string) => ({ unit: 'MiB', min: 0, max: 1024, value: v, as_of: at });
+    const put = (seq: number, c: unknown, m: unknown) =>
+      ws.push({
+        op: 'diff',
+        id: ws.subId('metrics'),
+        seq,
+        patch: [
+          { op: 'add', path: toPointer('metrics', 'series', `${SONARR}#cpu.pct`), value: c },
+          { op: 'add', path: toPointer('metrics', 'series', `${SONARR}#mem.mib`), value: m },
+        ],
+      });
+    put(2, cpu(null, '2026-10-03T14:05:00Z'), mem(200, '2026-10-03T14:05:00Z'));
+    await flushPromises();
+    expect(tabNames()).toEqual(['Overview', 'Metrics', 'Related', 'History']);
+    const rows = () => [...panel()!.querySelectorAll('.rs-metrics li')].map((li) => li.querySelector('.rs-mt')!.textContent + ' ' + li.querySelector('.rs-mv')!.textContent!.replace(/\s+/g, ' ').trim());
+    expect(rows()).toEqual(['CPU —', 'Memory 200 MiB of 1,024 MiB']);
+    put(3, cpu(20, '2026-10-03T14:05:10Z'), mem(210, '2026-10-03T14:05:10Z'));
+    put(4, cpu(25, '2026-10-03T14:05:20Z'), mem(205, '2026-10-03T14:05:20Z'));
+    await flushPromises();
+    expect(rows()).toEqual(['CPU 25%', 'Memory 205 MiB of 1,024 MiB']);
+    const tab = [...panel()!.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((t) => t.textContent!.trim() === 'Metrics')!;
+    tab.click();
+    await flushPromises();
+    const metrics = panel()!.querySelector<HTMLElement>(`[aria-labelledby="${tab.id}"]`)!;
+    expect(metrics.querySelectorAll('svg').length).toBe(2);
+    expect(await axeViolations(metrics)).toEqual([]);
   });
 });
