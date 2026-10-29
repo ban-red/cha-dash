@@ -8,6 +8,7 @@ Docker Compose is the main way to run Cha Dash ([ADR-0007](../docs/adr/0007-dock
 | [`compose.socket-proxy.yaml`](compose.socket-proxy.yaml) | An override that swaps the node for a read-only Docker socket proxy (reads only) |
 | [`compose.node.yaml`](compose.node.yaml) | chadash-node alone, for another Docker host ([Nodes on other hosts](#nodes-on-other-hosts)) |
 | [`compose.demo.yaml`](compose.demo.yaml) | An override that runs the built-in Demo Home simulator |
+| [`moving-from-dockhand.md`](moving-from-dockhand.md) | Moving stacks from Dockhand and Hawser, one host and one stack at a time |
 | [`unraid/`](unraid/README.md) | A Community Applications template for Unraid |
 
 Unraid and plain binaries are the secondary channels ([Binaries](#binaries)).
