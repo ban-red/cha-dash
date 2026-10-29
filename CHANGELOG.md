@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Settings → Bring in** replaces Settings → Import. It has three tabs, Import, Discover and History, and everything goes through one preview before anything changes.
+- **Drop a config anywhere on the page.** Cha Dash names its source from the files: Homepage's `services.yaml`, `docker.yaml` and `settings.yaml`, a Homarr backup, or a board written in YAML. A Cha Dash export opens Backup instead.
+- **The Review sheet.** Every connection and tile is a row you can untick. Leaving a connection out leaves out the tiles that need it. Add missing keys right there, reuse a connection you already have, and pick where tiles go: a new board, an existing board, or connections only. A picture of the board shows what you'll get. Apply writes exactly what you reviewed; if something changed in between, it shows the new plan instead.
+- **Import from Homarr 2**, from the backup zip (Management → Tools → Backup). Homarr keeps integration secrets encrypted with its own key, so each connection asks for its key again. Homarr 0.x configs aren't imported; upgrade to Homarr 2 first.
+- **Plain YAML boards** (`kind: Board`): sections, tiles in order, sizes, and the services they connect to, without IDs or coordinates. The format is in `internal/importer/yamlboard/README.md`.
+- **Discover, any time.** Cha Dash suggests services it already sees through what's connected, like a Sonarr container or a Traefik route to `sonarr.…`, without probing the network to find them. Check sends one request to each address shown. Picked ones go through the same preview. Dismiss is remembered for the whole hub, with Undo. New ones appear as one item in the Inbox.
+- **Import history, with Revert.** Every import is listed with what it made. Revert shows its plan first: it removes only what the import created and nobody changed since, keeps the rest and says why, and asks you to confirm it's you before removing connections.
+- The first-run wizard's Import step now runs inside the wizard, with the same preview. An empty board offers the ways in.
+
 ## [0.2.0-beta.1] - 2026-10-29
 
 The first published beta of Cha Dash, and the first of v0.2: **Cha Dash starts changing things.** Actions on Docker, Proxmox VE, Proxmox Backup Server and Unraid run through one engine. Each one shows its plan and what it affects, asks for the confirmation its risk needs, offers undo where it can, runs as a task you can follow or cancel, and lands in a tamper-evident audit log. A second image, `ghcr.io/ban-red/chadash-node`, holds the host's Docker socket so the hub never does, follows a local policy you write, deploys compose stacks you own, and can take over stacks from Dockhand and Hawser. Roles, API tokens and notifications come with it.
