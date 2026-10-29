@@ -36,6 +36,20 @@ Signed in to Unraid's web UI, open this address. It asks Unraid for a key named 
 {{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes={{scopes}}
 ```
 
+More than Cha Dash asks for by itself: copy one of these instead, if you want a key that can do more. They're fixed choices, so they ignore the form's read-only or control switch, and Test connection will say the key has more than that choice needs.
+
+**Read and update everything.** Read and update access to Info, Array, Docker, VMs and Share, and read access to Me. Update on Array can also add and remove disks.
+
+```url
+{{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,info:update_any,array:read_any,array:update_any,docker:read_any,docker:update_any,vms:read_any,vms:update_any,share:read_any,share:update_any,me:read_any
+```
+
+**Read everything, full control of Docker and VMs.** Read access as in Read-only, plus create, update and delete access to Docker and VMs.
+
+```url
+{{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,array:read_any,docker:read_any,docker:create_any,docker:update_any,docker:delete_any,vms:read_any,vms:create_any,vms:update_any,vms:delete_any,share:read_any,me:read_any
+```
+
 ## Create the key
 
 Check what the page asks for: **read** access to Info, Array, Docker, VMs, Share and Me, and, for Control only, **update** access to Docker and VMs. Then create the key. Unraid shows it once: paste it into **API key**.
