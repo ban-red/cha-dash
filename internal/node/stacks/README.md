@@ -15,7 +15,7 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 | Verb | Policy | What it does |
 |---|---|---|
 | `stack.list` | `stacks.read` | Managed stacks: status from Docker, drift, protected, last commit |
-| `stack.detect` | `stacks.read` | Running compose projects that aren't managed yet (found by their labels), plus root directories nobody adopted. Each says whether it can be adopted, and why not |
+| `stack.detect` | `stacks.read` | Running compose projects that aren't managed yet (found by their labels), plus root directories nobody adopted. Each says whether it can be adopted, and why not. A running project with a directory of its name in the root is offered with that directory's file, whatever its labels say: that's how a project another tool deployed from inside its container is brought over |
 | `stack.get` | `stacks.read` | One stack: the committed file (or the file at commit `at`), `.env` key names only, `x-chadash`, containers, the last 50 commits, referenced secrets |
 | `stack.validate` | `stacks.read` | Loads a proposed file with compose-go. Secret references are checked for syntax, never resolved. The guard's refusals are errors and its root-equivalent findings warnings (see "What a stack may do on the host"). Returns messages with line numbers |
 | `stack.plan` | `stacks.read` | Compares config hashes (`compose.ServiceHash`) with the running containers' labels. Lists services to create, recreate (and pull) or remove, a downtime estimate, and `root_equivalent`: what the file does that amounts to root on the host. Refuses what the guard refuses (`invalid`) and recreating or removing a container `docker.protect` names (`protected`) |

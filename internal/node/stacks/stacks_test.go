@@ -376,6 +376,54 @@ func TestRefusals(t *testing.T) {
 	}
 }
 
+// TestAdoptFromAnotherTool: a project another tool deployed from inside its
+// own container (Hawser's /data/stacks) has labels naming a path the node
+// can't see. Its file, copied to <root>/<name>/, makes it adoptable there,
+// and adopting restarts nothing.
+func TestAdoptFromAnotherTool(t *testing.T) {
+	n := newTestNode(t)
+	content := "services:\n  app:\n    image: nginx:1\n"
+	startOutside(t, n.docker, "apps", "/data/stacks/apps/compose.yaml", content)
+	detected := func() stackproto.Detected {
+		var det stackproto.DetectResponse
+		n.must("stack.detect", nil, &det)
+		for _, d := range det.Projects {
+			if d.Name == "apps" {
+				return d
+			}
+		}
+		t.Fatal("apps isn't detected")
+		return stackproto.Detected{}
+	}
+	if d := detected(); d.Adoptable || !strings.Contains(d.Reason, "/data/stacks/apps/compose.yaml") {
+		t.Fatalf("before the copy: %+v", d)
+	}
+	dir := filepath.Join(n.root, "apps")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if d := detected(); !d.Adoptable || d.Path != dir || d.Status != stackproto.StatusRunning || d.Reason != "" {
+		t.Fatalf("after the copy: %+v", d)
+	}
+	ids := n.docker.Running("apps")
+	var ad stackproto.AdoptResult
+	n.must("stack.adopt", stackproto.AdoptRequest{Stack: "apps"}, &ad)
+	if ad.Location == stackproto.LocationExternal || ad.Path != dir {
+		t.Errorf("adopt %+v", ad)
+	}
+	if n.docker.Called("up ") != 0 || n.docker.Called("down ") != 0 || n.docker.Running("apps")["app"] != ids["app"] {
+		t.Error("adopting must not restart anything")
+	}
+	var p stackproto.Plan
+	n.must("stack.plan", stackproto.PlanRequest{Stack: "apps", Content: content}, &p)
+	if p.Services[0].Action != stackproto.ActionUnchanged {
+		t.Errorf("the same file should plan no changes: %+v", p)
+	}
+}
+
 func TestAdoptInPlace(t *testing.T) {
 	n := newTestNode(t)
 	// A Dockge-style directory in the root, never adopted, not running.

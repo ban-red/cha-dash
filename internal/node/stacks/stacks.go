@@ -497,6 +497,10 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 	if err != nil {
 		return out, fmt.Errorf("list compose projects: %w", err)
 	}
+	root, err := m.rootStacks()
+	if err != nil {
+		return out, err
+	}
 	for _, p := range projects {
 		if isManaged[p.Name] {
 			continue
@@ -505,6 +509,14 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 		cs, _ := m.containers(ctx, p.Name)
 		d := stackproto.Detected{Name: p.Name, ConfigFiles: p.ConfigFiles, Path: p.WorkingDir}
 		d.Status, d.Services, d.Running = status(cs)
+		if s, ok := root[p.Name]; ok && !s.managed {
+			// A file put at <root>/<name>/ for a running project wins over
+			// its labels, which may name a path inside another tool's
+			// container (Hawser, Portainer). Adopt versions that file.
+			d.Path, d.ConfigFiles, d.Adoptable = s.dir, []string{s.path()}, true
+			out.Projects = append(out.Projects, d)
+			continue
+		}
 		if d.ConfigFiles == nil {
 			d.ConfigFiles = []string{}
 		}
@@ -514,10 +526,6 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 		d.Reason = m.unadoptable(p)
 		d.Adoptable = d.Reason == ""
 		out.Projects = append(out.Projects, d)
-	}
-	root, err := m.rootStacks()
-	if err != nil {
-		return out, err
 	}
 	for _, name := range sortedKeys(root) {
 		s := root[name]
