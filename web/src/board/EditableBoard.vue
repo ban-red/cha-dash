@@ -163,13 +163,15 @@ function removeItem(id: string): void {
   }
 }
 
-// ⌘K → "Add widget": open the picker once edit mode is here.
+// ⌘K → "Add widget", or a section header's Add: open the picker once edit mode is here.
 watch(
   () => ui.state.addingWidget,
   (asked) => {
     if (!asked) return;
     ui.state.addingWidget = false;
-    openPicker();
+    const section = ui.state.addSection;
+    ui.state.addSection = '';
+    openPicker(section || undefined);
   },
   { immediate: true },
 );

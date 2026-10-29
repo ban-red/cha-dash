@@ -85,6 +85,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     editing: false,
     /** ⌘K asked for the widget picker: edit mode opens it, then clears this. */
     addingWidget: false,
+    /** With addingWidget: the section whose header asked, so the picker opens on it. */
+    addSection: '' as string,
     /** A tile's cog asked for its Edit: edit mode opens the tile editor on this item, then clears this. */
     editingTile: '' as string,
     confirm: undefined as ConfirmRequest | undefined,

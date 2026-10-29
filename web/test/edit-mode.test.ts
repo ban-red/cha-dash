@@ -339,6 +339,22 @@ describe('adding a widget', () => {
     expect(document.querySelector('dialog.picker')?.hasAttribute('open')).toBe(true);
   });
 
+  it('adds from a section header on the normal board, with the picker open on that section', async () => {
+    const initial = start();
+    const w = mountSurface(fakeStore(initial));
+    await settle();
+    const btns = w.findAll('.sh-live .sh-add');
+    expect(btns).toHaveLength(initial.sections.length);
+    const target = initial.sections[1]!;
+    await btns[1]!.trigger('click');
+    await settle();
+    await settle();
+    expect(w.ui.state.editing).toBe(true);
+    expect(w.findComponent(WidgetPicker).props('sectionId')).toBe(target.id);
+    expect(w.ui.state.addSection).toBe('');
+    expect(w.ui.state.addingWidget).toBe(false);
+  });
+
   it('loads the picker on demand and lists the catalog by what the graph can feed', async () => {
     const before = start();
     const store = fakeStore(remove(before, 'cameras'));

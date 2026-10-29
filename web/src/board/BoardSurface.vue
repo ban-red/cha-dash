@@ -29,6 +29,12 @@ const empty = computed(() => board.sections.every((s) => s.items.length === 0));
 // Tiles show the icons the hub cached (stores/icons.ts): load the map once
 // the board has a tile that could use one.
 const store = useBoard();
+
+function addTo(sectionId: string): void {
+  ui.state.addSection = sectionId;
+  ui.state.editing = true;
+  ui.state.addingWidget = true;
+}
 watch(
   () => store.tiles.value,
   (tiles) => {
@@ -56,7 +62,12 @@ watch(
     </div>
     <StaticBoard :board="board" :breakpoint="breakpoint">
       <template #section="{ section }">
-        <SectionHeader :section="section" />
+        <!-- Editors get an Add on hover or focus: it opens the picker on this section. -->
+        <div v-if="ui.can.value.editBoards" class="sh-live">
+          <SectionHeader :section="section" />
+          <button type="button" class="btn ghost sm sh-add" :aria-label="`Add a widget to ${section.title ?? section.id}`" @click="addTo(section.id)">Add</button>
+        </div>
+        <SectionHeader v-else :section="section" />
       </template>
       <template #item="{ item, size }">
         <WidgetHost :item="item" :size="size" />

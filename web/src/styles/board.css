@@ -322,6 +322,37 @@
   align-items: baseline;
 }
 :root[data-surface='ruled'] .sh-rule {
+/* An editor's Add sits at the header's right end, over the rule, and shows on hover or focus. It is out of
+   the flow so the header keeps its height; touch has no hover, so it stays visible there. */
+.sh-live {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.sh-live > .sh-add {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(calc(-50% - var(--space-1)));
+  opacity: 0;
+  background: var(--bg);
+  transition: opacity var(--motion-press-duration) var(--motion-press-easing);
+}
+.sh-live:hover > .sh-add,
+.sh-live:focus-within > .sh-add,
+.sh-live > .sh-add:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .sh-live > .sh-add {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sh-live > .sh-add {
+    transition: none;
+  }
+}
   display: none;
 }
 :root[data-surface='ruled'] .sh-m {
