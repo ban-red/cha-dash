@@ -282,6 +282,13 @@ type Def struct {
 	// Preconditions refuse early with a sentence: return Precondition(…)
 	// or Unavailable(…). Checked at plan and again at approve.
 	Preconditions func(ctx context.Context, req Request) error
+	// Permitted refuses, as Preconditions do, when the credential that acts
+	// may not do this to this target (an API token's ACL). The engine
+	// doesn't read it: the integration runtime runs it on the instance
+	// connected with the control credential, after Preconditions, so a
+	// target out of that credential's reach is unavailable when planned
+	// instead of failing when it runs. Nil permits.
+	Permitted func(ctx context.Context, req Request) error
 	// Label is what the plan and the task are called. Nil is Title plus
 	// the target's name.
 	Label func(req Request) string

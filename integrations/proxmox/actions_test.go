@@ -45,11 +45,12 @@ type fakePVE struct {
 	guests  map[string]*fakeGuest // "qemu/201"
 	tasks   map[string]*fakeTask  // UPID → task
 	n       int
-	deny    map[string]string // write path suffix ("status/start") → the privilege PVE says is missing
-	failing map[string]string // write path suffix → the task's exit status
-	inert   bool              // tasks succeed but change nothing (a verify that fails)
-	writeBy []string          // the token ID of each write
-	readBy  map[string]bool   // token IDs that read
+	deny    map[string]string   // write path suffix ("status/start") → the privilege PVE says is missing
+	failing map[string]string   // write path suffix → the task's exit status
+	inert   bool                // tasks succeed but change nothing (a verify that fails)
+	writeBy []string            // the token ID of each write
+	lacks   map[string][]string // ACL path ("/vms/202") → the privileges the control token lacks there
+	readBy  map[string]bool     // token IDs that read
 }
 
 type fakeGuest struct {
@@ -70,7 +71,7 @@ type fakeTask struct {
 func newFakePVE(t *testing.T) *fakePVE {
 	t.Helper()
 	f := &fakePVE{guests: map[string]*fakeGuest{}, tasks: map[string]*fakeTask{}, deny: map[string]string{},
-		failing: map[string]string{}, readBy: map[string]bool{}}
+		failing: map[string]string{}, readBy: map[string]bool{}, lacks: map[string][]string{}}
 	var res struct {
 		Data []struct {
 			Type, Node, Name, Status, Lock string
@@ -164,6 +165,19 @@ func (f *fakePVE) get(w http.ResponseWriter, r *http.Request, path string) {
 			out = append(out, row)
 		}
 		f.reply(w, 200, "", out)
+	case path == "/access/permissions" && r.URL.Query().Get("path") != "":
+		// The caller's own privileges on one path. The control token's role
+		// holds everything below, except where lacks says otherwise.
+		at := r.URL.Query().Get("path")
+		privs := map[string]int{"VM.Audit": 1}
+		if r.Header.Get("Authorization") == "PVEAPIToken="+controlTok+"="+controlSecret {
+			for _, p := range []string{"VM.PowerMgmt", "VM.Snapshot", "VM.Snapshot.Rollback", "VM.Backup"} {
+				if !slices.Contains(f.lacks[at], p) {
+					privs[p] = 1
+				}
+			}
+		}
+		f.reply(w, 200, "", map[string]any{at: privs})
 	case path == "/cluster/backup":
 		var jobs struct {
 			Data any `json:"data"`
@@ -562,6 +576,36 @@ func TestUnavailableWithoutControlToken(t *testing.T) {
 	}
 	if len(f.writes.All()) != 0 {
 		t.Fatalf("wrote without a control token: %+v", f.writes.All())
+	}
+}
+
+func TestOutsideTheControlTokensACL(t *testing.T) {
+	f := newFakePVE(t)
+	h, acts := actionsOn(t, f, false, nil)
+	// 202 isn't in the token's pool; on 201 its role can't roll back.
+	f.set(func(f *fakePVE) {
+		f.lacks["/vms/202"] = []string{"VM.PowerMgmt", "VM.Snapshot", "VM.Snapshot.Rollback", "VM.Backup"}
+		f.lacks["/vms/201"] = []string{"VM.Snapshot.Rollback"}
+	})
+	ref := acts.Refused(actStart, gid("lxc/202"), nil)
+	if ref.Code != "unavailable" || ref.Recipe != h.ID ||
+		ref.Message != "The control token can't start build: it lacks VM.PowerMgmt on /vms/202. Grant its role there, or add the guest to the pool the token acts on." {
+		t.Fatalf("refusal = %+v", ref)
+	}
+	ref = acts.Refused(actSnapRollback, gid("qemu/201"), map[string]any{"name": "before-driver"})
+	if ref.Code != "unavailable" || !strings.Contains(ref.Message, "can't roll back") || !strings.Contains(ref.Message, "lacks VM.Snapshot.Rollback on /vms/201") {
+		t.Fatalf("rollback refusal = %+v", ref)
+	}
+	// What the role does hold on 201 still plans.
+	if _, err := acts.Plan(actSnapCreate, gid("qemu/201"), map[string]any{"name": "pre-acl"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.writes.All()) != 0 {
+		t.Fatalf("wrote outside the token's ACL: %+v", f.writes.All())
+	}
+	// The control token is asked for its own privileges, not the read token.
+	if !f.readBy[controlTok] {
+		t.Error("the control token's privileges weren't read")
 	}
 }
 

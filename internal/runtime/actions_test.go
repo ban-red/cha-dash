@@ -108,7 +108,15 @@ func (i *leverInst) Actions() []action.Def {
 				i.rec.add(&i.rec.hook, "verify:"+i.id)
 				return nil
 			}},
-		{ID: "lever.thing.smash", Title: "Smash", Targets: []string{"thing"}, Tier: action.T2, Disrupts: true},
+		{ID: "lever.thing.smash", Title: "Smash", Targets: []string{"thing"}, Tier: action.T2, Disrupts: true,
+			// A "weak-" key's ACL doesn't reach the thing.
+			Permitted: func(context.Context, action.Request) error {
+				i.rec.add(&i.rec.hook, "permitted:"+i.key)
+				if strings.HasPrefix(i.key, "weak-") {
+					return action.Unavailable("The control key can't smash this thing.", i.id)
+				}
+				return nil
+			}},
 	}
 }
 
@@ -313,6 +321,28 @@ func TestActionsFollowTheInstance(t *testing.T) {
 	}
 	if got := e.reg.IDs(); len(got) != 0 || len(e.m.Actions().Attached()) != 0 {
 		t.Fatalf("deleted, registered = %v", got)
+	}
+}
+
+func TestActionsPermittedByTheControlCredential(t *testing.T) {
+	e := newActEnv(t)
+	a := e.create(t, "lever", map[string]any{"url": "http://lever.example", "user": "reader", "control_user": "boss"},
+		map[string]any{"api_key": "read-key", "control_key": "weak-key"})
+	thing := "lever:" + a + "/thing"
+	_, err := e.run(t, "lever.thing.smash", thing)
+	if r := refusal(err); r == nil || r.Code != "unavailable" || r.Message != "The control key can't smash this thing." {
+		t.Fatalf("smash: %v", err)
+	}
+	// Asked of the control instance, not the read one.
+	if got := e.rec.get(&e.rec.hook); !slices.Contains(got, "permitted:weak-key") || slices.Contains(got, "permitted:read-key") {
+		t.Fatalf("hooks = %v", got)
+	}
+	if got := e.rec.get(&e.rec.exec); len(got) != 0 {
+		t.Fatalf("ran anyway: %v", got)
+	}
+	// An action without Permitted still runs.
+	if task, err := e.run(t, "lever.thing.flip", thing); err != nil || task.State != action.StateSucceeded {
+		t.Fatalf("flip: %+v, %v", task, err)
 	}
 }
 

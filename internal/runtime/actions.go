@@ -399,11 +399,18 @@ func (a *Actions) mux(integ string, proto action.Def) action.Def {
 		if ai.ctl == nil {
 			return action.Unavailable(ai.missing, ai.id)
 		}
-		if _, ok := ai.ctl[id]; !ok {
+		cd, ok := ai.ctl[id]
+		if !ok {
 			return action.Unavailable(fmt.Sprintf("%s's control credential doesn't offer this action.", ai.name), ai.id)
 		}
 		if def.Preconditions != nil {
-			return def.Preconditions(ctx, req)
+			if err := def.Preconditions(ctx, req); err != nil {
+				return err
+			}
+		}
+		// The credential that acts says whether it may (its ACL).
+		if cd.Permitted != nil {
+			return cd.Permitted(ctx, req)
 		}
 		return nil
 	}

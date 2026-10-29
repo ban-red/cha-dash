@@ -113,6 +113,7 @@ func (in *instance) Actions() []action.Def {
 	start.Undo = undo(actShutdown, "Shut down")
 	start.Execute = in.power("start", nil)
 	start.Verify = in.waitState("running")
+	start.Permitted = in.permitted("start", "VM.PowerMgmt")
 
 	shutdown := guest(actShutdown, "Shut down", action.T1)
 	shutdown.Disrupts, shutdown.TierFor = true, in.tierFor
@@ -121,6 +122,7 @@ func (in *instance) Actions() []action.Def {
 	shutdown.Undo = undo(actStart, "Start")
 	shutdown.Execute = in.power("shutdown", url.Values{"timeout": {strconv.Itoa(guestTimeout)}})
 	shutdown.Verify = in.waitState("stopped")
+	shutdown.Permitted = in.permitted("shut down", "VM.PowerMgmt")
 
 	reboot := guest(actReboot, "Reboot", action.T2)
 	reboot.Disrupts, reboot.TierFor = true, in.tierFor
@@ -133,6 +135,7 @@ func (in *instance) Actions() []action.Def {
 	reboot.Steps = in.steps("Ask {node} to reboot {name}", "Wait for it to report running")
 	reboot.Execute = in.power("reboot", url.Values{"timeout": {strconv.Itoa(guestTimeout)}})
 	reboot.Verify = in.waitState("running")
+	reboot.Permitted = in.permitted("reboot", "VM.PowerMgmt")
 
 	stop := guest(actStop, "Hard stop", action.T2)
 	stop.Disrupts, stop.TierFor = true, in.tierFor
@@ -140,6 +143,7 @@ func (in *instance) Actions() []action.Def {
 	stop.Steps = in.steps("Stop {name} on {node} at once, without shutting it down", "Wait for it to report stopped")
 	stop.Execute = in.power("stop", nil)
 	stop.Verify = in.waitState("stopped")
+	stop.Permitted = in.permitted("stop", "VM.PowerMgmt")
 
 	snap := guest(actSnapCreate, "Snapshot", action.T1)
 	snap.Params = snapParams(true)
@@ -154,6 +158,7 @@ func (in *instance) Actions() []action.Def {
 	}
 	snap.Execute = in.snapshotCreate
 	snap.Verify = in.snapshotListed(true)
+	snap.Permitted = in.permitted("snapshot", "VM.Snapshot")
 
 	rollback := guest(actSnapRollback, "Roll back", action.T3)
 	rollback.Params = snapParams(false)
@@ -169,6 +174,7 @@ func (in *instance) Actions() []action.Def {
 	}
 	rollback.Execute = in.snapshotTask(http.MethodPost, "rollback", "roll back to")
 	rollback.Verify = in.taskOK
+	rollback.Permitted = in.permitted("roll back", "VM.Snapshot", "VM.Snapshot.Rollback")
 
 	del := guest(actSnapDelete, "Delete snapshot", action.T3)
 	del.Params = snapParams(false)
@@ -181,6 +187,7 @@ func (in *instance) Actions() []action.Def {
 	}
 	del.Execute = in.snapshotTask(http.MethodDelete, "", "delete")
 	del.Verify = in.snapshotListed(false)
+	del.Permitted = in.permitted("delete a snapshot of", "VM.Snapshot")
 
 	backup := guest(actBackup, "Back up now", action.T1)
 	backup.Params = backupParams()
@@ -192,6 +199,7 @@ func (in *instance) Actions() []action.Def {
 	backup.Timeout = action.AsyncTimeout
 	backup.Execute = in.vzdump
 	backup.Verify = in.taskOK
+	backup.Permitted = in.permitted("back up", "VM.Backup")
 
 	return []action.Def{start, shutdown, reboot, stop, snap, rollback, del, backup}
 }
@@ -452,6 +460,39 @@ func (in *instance) backupCheck(ctx context.Context, r action.Request) error {
 	}
 	_, err = in.backupStorage(ctx, g, r)
 	return err
+}
+
+// permitted refuses a guest the control token's ACL doesn't reach, so it
+// shows as unavailable instead of failing with a 403 once approved. It runs
+// on the control instance (Def.Permitted) and reads the token's own
+// privileges on the guest: GET /access/permissions with a path counts the
+// guest's pool too. what is the verb, as in "can't reboot win-gaming".
+func (in *instance) permitted(what string, privs ...string) func(context.Context, action.Request) error {
+	return func(ctx context.Context, r action.Request) error {
+		path := "/vms/" + strconv.Itoa(refOf(r).vmid)
+		perms, err := action.Memo(ctx, ID+"/"+in.key+"/control/permissions"+path, func(ctx context.Context) (privileges, error) {
+			var p privileges
+			err := in.get(ctx, "/access/permissions", url.Values{"path": {path}}, &p)
+			return p, err
+		})
+		if ae, ok := errors.AsType[*apiError](err); ok && ae.Code == http.StatusUnauthorized {
+			return action.Unavailable("Proxmox VE rejected the control token. Enter it again in the instance's settings.", in.key)
+		}
+		if err != nil {
+			return readRefusal(err)
+		}
+		var lack []string
+		for _, priv := range privs {
+			if !perms.has(path, priv) {
+				lack = append(lack, priv)
+			}
+		}
+		if len(lack) > 0 {
+			return action.Unavailable(fmt.Sprintf("The control token can't %s %s: it lacks %s on %s. Grant its role there, or add the guest to the pool the token acts on.",
+				what, r.Target.Name, strings.Join(lack, " and "), path), in.key)
+		}
+		return nil
+	}
 }
 
 // ── plan text ───────────────────────────────────────────────────────────
