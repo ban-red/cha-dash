@@ -138,7 +138,7 @@ func TestDemo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Demo || c.DemoWallClock || c.DemoAt != DefaultDemoAt || c.DemoSeed != 1 {
+	if c.Demo || c.DemoWallClock || !c.DemoLocal || c.DemoAt != DefaultDemoAt || c.DemoSeed != 1 {
 		t.Fatalf("demo defaults: %+v", c)
 	}
 
@@ -154,7 +154,7 @@ func TestDemo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.Demo || c.DemoWallClock || c.DemoAt != 9*time.Hour+30*time.Minute+15*time.Second || c.DemoSeed != -3 {
+	if !c.Demo || c.DemoWallClock || c.DemoLocal || c.DemoAt != 9*time.Hour+30*time.Minute+15*time.Second || c.DemoSeed != -3 {
 		t.Fatalf("demo flags should win: %+v", c)
 	}
 

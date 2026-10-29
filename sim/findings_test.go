@@ -205,12 +205,12 @@ func TestNewStories(t *testing.T) {
 		dl, wan := val(stApp, "dl.mbps", at), val(stWAN, "rx.mbps", at)
 		if within(at, from, to) {
 			if dl < stSlow-10 || dl > stSlow+10 || wan > stSlow {
-				t.Fatalf("%s: speed test %v, WAN %v, while the line is slow", clock(at), dl, wan)
+				t.Fatalf("%s: speed test %v, WAN %v, while the line is slow", s.clock(at), dl, wan)
 			}
 			continue
 		}
 		if dl < lineDown-15 || dl > lineDown+15 {
-			t.Fatalf("%s: speed test %v outside the slow window", clock(at), dl)
+			t.Fatalf("%s: speed test %v outside the slow window", s.clock(at), dl)
 		}
 		outside = max(outside, wan)
 	}

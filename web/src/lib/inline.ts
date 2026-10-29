@@ -35,8 +35,12 @@ export interface InlineSnapshot {
   user: { id: string; username: string; role: string };
   boards: { id: string; name: string }[];
   board: InlineBoard | null;
-  /** The Demo Home: UTC display times and the simulator's clock. */
+  /** The Demo Home: the simulator's clock, shown in time_zone (UTC when absent). */
   demo?: boolean;
+  /** The Demo Home's display zone: "UTC", or an offset ("-08:05") that shows the hub's local time. */
+  time_zone?: string;
+  /** That zone's name for people ("MDT"). */
+  zone_label?: string;
   graph: GraphDoc;
   metrics: MetricsDoc;
   inbox: InboxDoc;

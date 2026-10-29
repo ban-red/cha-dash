@@ -6,7 +6,7 @@
  *
  * Demo and real hubs fill the same topics, and the Demo Home's fixes run on
  * the engine like any action; the only difference the page sees is `demo`
- * (from GET /api/demo): times in UTC.
+ * (from GET /api/demo): times in the Demo Home's display zone.
  * `restore()` fills the document from a last-known snapshot when the page
  * opens while the hub is unreachable; the first live snapshot replaces it.
  * `hydrate()` fills it from the snapshot the hub inlined into index.html,

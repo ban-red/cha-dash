@@ -35,7 +35,7 @@ export interface Snapshot {
   metrics?: MetricsDoc;
   inbox?: InboxDoc;
   board?: SnapshotBoard;
-  /** The display time zone in force (demo mode uses UTC). */
+  /** The display time zone in force (demo mode: the zone the hub names). */
   timeZone?: string;
   /** Hub clock minus browser clock when it was taken (the Demo Home runs its own clock). */
   clockOffset?: number;

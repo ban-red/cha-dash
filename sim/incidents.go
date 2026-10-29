@@ -9,18 +9,21 @@ import (
 // Copy follows 02-experience → Voice and copy: symptom first, plain words,
 // specific times, calm, and every problem ends in something you can do.
 
-func clock(t time.Time) string { return t.UTC().Format("15:04") }
+// shown is t as the copy quotes it: on the clock the page shows.
+func (s *Sim) shown(t time.Time) time.Time { return t.Add(s.cfg.shown).UTC() }
+
+func (s *Sim) clock(t time.Time) string { return s.shown(t).Format("15:04") }
 
 // when formats t relative to ref: "15:04", "yesterday 15:04" or "Mon 2 Jan 15:04".
-func when(t, ref time.Time) string {
-	d := dayStart(ref).Sub(dayStart(t))
+func (s *Sim) when(t, ref time.Time) string {
+	d := dayStart(s.shown(ref)).Sub(dayStart(s.shown(t)))
 	switch {
 	case d == 0:
-		return clock(t)
+		return s.clock(t)
 	case d == 24*time.Hour:
-		return "yesterday " + clock(t)
+		return "yesterday " + s.clock(t)
 	default:
-		return t.UTC().Format("Mon 2 Jan 15:04")
+		return s.shown(t).Format("Mon 2 Jan 15:04")
 	}
 }
 
@@ -138,7 +141,7 @@ func (b backupFailed) changePoints(in *instance) []time.Time {
 
 func (b backupFailed) apply(s *Sim, in *instance, w *world) {
 	if within(w.t, in.open, b.horizon(in)) {
-		setHealth(w.res[bfJob], HealthAttention, fmt.Sprintf("homeassistant's backup failed at %s", clock(in.open)), in.open)
+		setHealth(w.res[bfJob], HealthAttention, fmt.Sprintf("homeassistant's backup failed at %s", s.clock(in.open)), in.open)
 	}
 }
 
@@ -151,7 +154,7 @@ func (b backupFailed) incident(s *Sim, in *instance, t time.Time) *Incident {
 	nightly := b.nextNightly(in)
 	inc.Phase = "failed"
 	inc.Title = "Backup of homeassistant failed"
-	inc.Summary = fmt.Sprintf("The nightly backup of homeassistant (VM 200 on heron) failed at %s. The last good backup is from %s.", clock(in.open), when(lastOK, in.open))
+	inc.Summary = fmt.Sprintf("The nightly backup of homeassistant (VM 200 on heron) failed at %s. The last good backup is from %s.", s.clock(in.open), s.when(lastOK, in.open))
 	inc.Facts = map[string]any{"task": "vzdump", "error": bfError, "last_ok": lastOK, "job": bfJob}
 	inc.Causes = []Cause{
 		{Text: "The QEMU guest agent in homeassistant didn't answer the filesystem freeze (timeout).", Resource: bfGuest, At: in.open},
@@ -159,17 +162,17 @@ func (b backupFailed) incident(s *Sim, in *instance, t time.Time) *Incident {
 	}
 	inc.Suggested = s.action("pve.guest.backup", "Back up homeassistant now", T1, bfGuest, "Runs a one-off backup to PBS. It takes about 4 minutes and the VM keeps running.")
 	inc.Alternatives = []Action{s.action("pbs.task.log", "View the failed task's log", T0, "app:pbs", "")}
-	inc.ResolvesWhen = fmt.Sprintf("Resolves when a backup of homeassistant succeeds: a retry, or the next nightly run (done around %s).", clock(nightly))
+	inc.ResolvesWhen = fmt.Sprintf("Resolves when a backup of homeassistant succeeds: a retry, or the next nightly run (done around %s).", s.clock(nightly))
 	if in.fixed(t) && in.fix.Before(b.horizon(in)) {
 		inc.Phase = "retrying"
 		inc.UpdatedAt = in.fix
-		inc.Summary += fmt.Sprintf(" A retry started at %s.", clock(in.fix))
+		inc.Summary += fmt.Sprintf(" A retry started at %s.", s.clock(in.fix))
 	}
 	if h := b.horizon(in); !t.Before(h) {
 		if !in.fix.IsZero() && h.Equal(in.fix.Add(bfRetry)) {
-			resolve(inc, h, "action", fmt.Sprintf("The retry at %s succeeded.", clock(in.fix)))
+			resolve(inc, h, "action", fmt.Sprintf("The retry at %s succeeded.", s.clock(in.fix)))
 		} else {
-			resolve(inc, h, "auto", fmt.Sprintf("The nightly backup at %s succeeded.", clock(h)))
+			resolve(inc, h, "auto", fmt.Sprintf("The nightly backup at %s succeeded.", s.clock(h)))
 		}
 	}
 	return inc
@@ -271,7 +274,7 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc := s.newIncident(in, ClassProblem, SeverityAttention, pbsTarget)
 	inc.Title = "PBS datastore is filling up"
 	inc.Phase = "rising"
-	inc.Summary = fmt.Sprintf("Datastore main on magpie crossed 90%% at %s while studio's backup was writing.", clock(in.open))
+	inc.Summary = fmt.Sprintf("Datastore main on magpie crossed 90%% at %s while studio's backup was writing.", s.clock(in.open))
 	inc.Facts = map[string]any{"used_pct": 90, "capacity_tb": 2}
 	if !t.Before(in.open.Add(pbsRampAfter)) {
 		inc.Phase = "high"
@@ -281,9 +284,9 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 		inc.Facts = map[string]any{"used_pct": 92, "capacity_tb": 2, "full_in_days": full}
 	}
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("The daily prune job has been disabled since %s, so 38 snapshots are outside the retention policy.", pruneDisabledAt.Format("2 Jan")), Resource: pbsTarget, At: pruneDisabledAt},
+		{Text: fmt.Sprintf("The daily prune job has been disabled since %s, so 38 snapshots are outside the retention policy.", s.shown(pruneDisabledAt).Format("2 Jan")), Resource: pbsTarget, At: pruneDisabledAt},
 		{Text: fmt.Sprintf("studio's backup at %s wrote 108 GB of new data, about 12 times a usual night. It has been running since %s.",
-			clock(in.open.Add(-pbsRampBefore)), when(s.top.res[ptHolder].Attrs["started_at"].(time.Time), in.open)), Resource: ptHolder, At: in.open.Add(-pbsRampBefore)},
+			s.clock(in.open.Add(-pbsRampBefore)), s.when(s.top.res[ptHolder].Attrs["started_at"].(time.Time), in.open)), Resource: ptHolder, At: in.open.Add(-pbsRampBefore)},
 	}
 	inc.Suggested = s.action("pbs.datastore.prune", "Prune per policy", T2, pbsTarget,
 		"Removes the 38 snapshots outside keep-daily 7 · weekly 4 · monthly 6, then runs garbage collection (about 20 minutes). Frees about 116 GB (92% → 86%). Pruned snapshots can't be restored.")
@@ -295,7 +298,7 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 	if in.fixed(t) {
 		inc.Phase = "pruning"
 		inc.UpdatedAt = in.fix
-		inc.Summary = fmt.Sprintf("Pruning 38 snapshots (started %s).", clock(in.fix))
+		inc.Summary = fmt.Sprintf("Pruning 38 snapshots (started %s).", s.clock(in.fix))
 		if !t.Before(in.fix.Add(pbsPruned)) {
 			inc.Phase = "collecting"
 			inc.UpdatedAt = in.fix.Add(pbsPruned)
@@ -418,7 +421,7 @@ func (h hostMemory) apply(s *Sim, in *instance, w *world) {
 		setHealth(guest, HealthOK, "", up)
 		setHealth(cockpit, HealthOK, "", up)
 	default:
-		setHealth(guest, HealthAttention, fmt.Sprintf("memory grew from 0.5 GB since %s", clock(in.open.Add(-hmLead))), in.open)
+		setHealth(guest, HealthAttention, fmt.Sprintf("memory grew from 0.5 GB since %s", s.clock(in.open.Add(-hmLead))), in.open)
 	}
 }
 
@@ -430,7 +433,7 @@ func (h hostMemory) incident(s *Sim, in *instance, t time.Time) *Incident {
 	start := in.open.Add(-hmLead)
 	inc.Title = "stork is running out of memory"
 	inc.Phase = "climbing"
-	inc.Summary = fmt.Sprintf("Memory crossed 90%% at %s and has been climbing since %s.", clock(in.open), clock(start))
+	inc.Summary = fmt.Sprintf("Memory crossed 90%% at %s and has been climbing since %s.", s.clock(in.open), s.clock(start))
 	inc.Facts = map[string]any{"used_pct": 90, "total_gb": 8, "swap_gb": 0}
 	if !t.Before(in.open.Add(hmClimb)) {
 		inc.Phase = "high"
@@ -439,7 +442,7 @@ func (h hostMemory) incident(s *Sim, in *instance, t time.Time) *Incident {
 		inc.Facts = map[string]any{"used_pct": 95, "total_gb": 8, "swap_gb": 0}
 	}
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("files (LXC 220) grew from 0.5 GB to 3.1 GB since %s.", clock(start)), Resource: hmGuest, At: start},
+		{Text: fmt.Sprintf("files (LXC 220) grew from 0.5 GB to 3.1 GB since %s.", s.clock(start)), Resource: hmGuest, At: start},
 		{Text: "No swap is configured on stork.", Resource: hmHost},
 	}
 	inc.Suggested = s.action("pve.guest.restart", "Restart files", T2, hmGuest,
@@ -452,10 +455,10 @@ func (h hostMemory) incident(s *Sim, in *instance, t time.Time) *Incident {
 	if in.fixed(t) {
 		inc.Phase = "restarting"
 		inc.UpdatedAt = in.fix
-		inc.Summary = fmt.Sprintf("files was restarted at %s. Waiting for memory to settle.", clock(in.fix))
+		inc.Summary = fmt.Sprintf("files was restarted at %s. Waiting for memory to settle.", s.clock(in.fix))
 	}
 	if hz := h.horizon(in); !hz.IsZero() && !t.Before(hz) {
-		resolve(inc, hz, "action", fmt.Sprintf("files restarted at %s. Memory is back to normal, about 62%%.", clock(in.fix)))
+		resolve(inc, hz, "action", fmt.Sprintf("files restarted at %s. Memory is back to normal, about 62%%.", s.clock(in.fix)))
 	}
 	return inc
 }
@@ -534,17 +537,17 @@ func (p plexToken) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Scenario = "auth-rejected" // the hub's repair for a rejected credential
 	inc.Phase = "open"
 	inc.Title = "Plex rejected its token"
-	inc.Summary = fmt.Sprintf("Plex has answered 401 Unauthorized since %s. Plex itself is up; its tiles show values as of %s.", clock(in.open), clock(in.open))
+	inc.Summary = fmt.Sprintf("Plex has answered 401 Unauthorized since %s. Plex itself is up; its tiles show values as of %s.", s.clock(in.open), s.clock(in.open))
 	inc.Facts = map[string]any{"code": "auth", "instance": "plex", "field": "token", "status": 401, "endpoint": "/status/sessions"}
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("The stored token stopped working at %s. It was probably revoked, by signing out all devices or changing the Plex password.", clock(in.open)), Resource: plexInt, At: in.open},
+		{Text: fmt.Sprintf("The stored token stopped working at %s. It was probably revoked, by signing out all devices or changing the Plex password.", s.clock(in.open)), Resource: plexInt, At: in.open},
 		{Text: "Plex's own HTTP check still passes, so the problem is the connection, not Plex.", Resource: "app:plex"},
 	}
 	inc.Suggested = s.action("integration.reconnect", "Reconnect Plex", T0, plexInt, "Sign in with a Plex PIN, about 10 seconds. The new token goes into the vault.")
 	inc.Alternatives = []Action{s.action("link.open", "Open Plex", T0, "app:plex", "")}
 	inc.ResolvesWhen = "Resolves when you reconnect Plex."
 	if h := p.horizon(in); !h.IsZero() && !t.Before(h) {
-		resolve(inc, h, "action", fmt.Sprintf("Reconnected at %s. Plex's tiles are live again.", clock(in.fix)))
+		resolve(inc, h, "action", fmt.Sprintf("Reconnected at %s. Plex's tiles are live again.", s.clock(in.fix)))
 	}
 	return inc
 }
@@ -636,10 +639,10 @@ func (k karakeepAPI) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Scenario = "api-changed" // the hub's repair for an answer the integration doesn't support
 	inc.Phase = "open"
 	inc.Title = "Karakeep's API changed"
-	inc.Summary = fmt.Sprintf("Karakeep was updated to %s at %s, and its stats endpoint now returns 404. Karakeep itself is up; bookmark counts show values as of %s.", kkVersion, clock(update), clock(in.open))
+	inc.Summary = fmt.Sprintf("Karakeep was updated to %s at %s, and its stats endpoint now returns 404. Karakeep itself is up; bookmark counts show values as of %s.", kkVersion, s.clock(update), s.clock(in.open))
 	inc.Facts = map[string]any{"code": "api_changed", "instance": "karakeep", "detected_version": kkVersion, "supported": "≤ 0.30", "endpoint": "/api/v1/users/me/stats", "status": 404}
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("karakeep-web-1 was recreated with image %s at %s.", kkVersion, clock(update)), Resource: kkCt, At: update},
+		{Text: fmt.Sprintf("karakeep-web-1 was recreated with image %s at %s.", kkVersion, s.clock(update)), Resource: kkCt, At: update},
 		{Text: "This integration supports Karakeep up to 0.30.", Resource: kkInt},
 	}
 	inc.Suggested = s.action("integration.update", "Update the Karakeep integration", T1, kkInt, "Switches to the adapter for 0.31. Undo puts the previous one back.")
@@ -649,7 +652,7 @@ func (k karakeepAPI) incident(s *Sim, in *instance, t time.Time) *Incident {
 	}
 	inc.ResolvesWhen = "Resolves when the integration can read Karakeep again."
 	if h := k.horizon(in); !h.IsZero() && !t.Before(h) {
-		resolve(inc, h, "action", fmt.Sprintf("Integration updated at %s; stats are live again.", clock(in.fix)))
+		resolve(inc, h, "action", fmt.Sprintf("Integration updated at %s; stats are live again.", s.clock(in.fix)))
 	}
 	return inc
 }
@@ -728,13 +731,13 @@ func (q qbitOOM) apply(s *Sim, in *instance, w *world) {
 		ct.State = StateExited
 		ct.Attrs["exit_code"] = 137
 		ct.Attrs["oom_killed"] = true
-		setHealth(ct, HealthDown, fmt.Sprintf("OOM-killed at %s (limit 4 GiB)", clock(killed)), killed)
+		setHealth(ct, HealthDown, fmt.Sprintf("OOM-killed at %s (limit 4 GiB)", s.clock(killed)), killed)
 		app.State = StateStopped
 		setHealth(app, HealthDown, "container exited (out of memory)", killed)
 	default:
 		ct.Attrs["restart_count"] = 1
 		ct.Attrs["started_at"] = restarted
-		ct.Attrs["last_exit"] = fmt.Sprintf("137 (OOM-killed) at %s", clock(killed))
+		ct.Attrs["last_exit"] = fmt.Sprintf("137 (OOM-killed) at %s", s.clock(killed))
 		if t.Before(healthy) {
 			setHealth(ct, HealthAttention, "starting · VPN connecting", restarted)
 			app.State = StateStarting
@@ -746,7 +749,7 @@ func (q qbitOOM) apply(s *Sim, in *instance, w *world) {
 	}
 	for _, d := range deps {
 		if t.Before(healthy) {
-			setHealth(d, HealthAttention, fmt.Sprintf("can't reach qBittorrent since %s", clock(killed)), killed)
+			setHealth(d, HealthAttention, fmt.Sprintf("can't reach qBittorrent since %s", s.clock(killed)), killed)
 		} else {
 			setHealth(d, HealthOK, "", healthy)
 		}
@@ -793,7 +796,7 @@ func (q qbitOOM) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc := s.newIncident(in, ClassProblem, SeverityDown, qbCt)
 	inc.Title = "qBittorrent ran out of memory"
 	inc.Phase = "oom-killed"
-	inc.Summary = fmt.Sprintf("qbittorrent hit its 4 GiB memory limit at %s and was killed. Docker restarts it automatically.", clock(killed))
+	inc.Summary = fmt.Sprintf("qbittorrent hit its 4 GiB memory limit at %s and was killed. Docker restarts it automatically.", s.clock(killed))
 	inc.Facts = map[string]any{"limit_mib": 4096, "exit_code": 137, "restarts": 1}
 	switch {
 	case q.fixedAt(in, t):
@@ -805,12 +808,12 @@ func (q qbitOOM) incident(s *Sim, in *instance, t time.Time) *Incident {
 		inc.Severity = SeverityInfo
 		inc.Phase = "recovered"
 		inc.UpdatedAt = healthy
-		inc.Summary = fmt.Sprintf("It was OOM-killed at %s and has run normally since %s. Memory grew from 1.1 to 4 GiB in 25 minutes, so it may happen again.", clock(killed), clock(healthy))
+		inc.Summary = fmt.Sprintf("It was OOM-killed at %s and has run normally since %s. Memory grew from 1.1 to 4 GiB in 25 minutes, so it may happen again.", s.clock(killed), s.clock(healthy))
 	case !t.Before(restarted):
 		inc.Severity = SeverityAttention
 		inc.Phase = "restarting"
 		inc.UpdatedAt = restarted
-		inc.Summary = fmt.Sprintf("Restarted at %s, waiting for the VPN tunnel. Sonarr and Radarr can't download until it's back.", clock(restarted))
+		inc.Summary = fmt.Sprintf("Restarted at %s, waiting for the VPN tunnel. Sonarr and Radarr can't download until it's back.", s.clock(restarted))
 	}
 	inc.Causes = []Cause{
 		{Text: "Memory grew from 1.1 GiB to the 4 GiB limit in 25 minutes.", Resource: qbCt, At: killed.Add(-qbLead)},
@@ -825,7 +828,7 @@ func (q qbitOOM) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.ResolvesWhen = "Resolves when the memory limit is raised, or after 24 hours without another OOM kill."
 	if h := q.horizon(in); !t.Before(h) {
 		if q.fixedAt(in, in.fix) {
-			resolve(inc, h, "action", fmt.Sprintf("Recreated at %s with a 6 GiB limit; running normally.", clock(in.fix)))
+			resolve(inc, h, "action", fmt.Sprintf("Recreated at %s with a 6 GiB limit; running normally.", s.clock(in.fix)))
 		} else {
 			resolve(inc, h, "auto", "No further OOM kills in 24 hours.")
 		}
@@ -925,10 +928,10 @@ func (p speedtestSlow) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Phase = "open"
 	inc.Title = "Internet downloads are slow"
 	inc.Summary = fmt.Sprintf("Speed tests since %s measure about %.0f Mb/s down, against the usual %.0f. Upload and ping are normal. OPNsense's WAN hasn't gone above that since %s either.",
-		clock(in.open), stSlow, lineDown, clock(in.open))
+		s.clock(in.open), stSlow, lineDown, s.clock(in.open))
 	inc.Facts = map[string]any{"download_mbps": stSlow, "usual_mbps": lineDown, "upload_mbps": lineUp, "since": in.open}
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("Every speed test since %s measured about %.0f Mb/s down. The one at %s measured about %.0f.", clock(in.open), stSlow, clock(in.open.Add(-stEvery)), lineDown),
+		{Text: fmt.Sprintf("Every speed test since %s measured about %.0f Mb/s down. The one at %s measured about %.0f.", s.clock(in.open), stSlow, s.clock(in.open.Add(-stEvery)), lineDown),
 			Resource: stApp, At: in.open},
 		{Text: "OPNsense's WAN tops out at the same speed, so the limit is outside the home: most likely the internet provider.", Resource: stWAN, At: in.open},
 	}
@@ -936,7 +939,7 @@ func (p speedtestSlow) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Alternatives = []Action{{ID: "link.open", Label: "Open OPNsense", Tier: T0, Target: "net:opnsense"}}
 	inc.ResolvesWhen = "Resolves when a speed test measures the usual speed again."
 	if h := p.horizon(in); !h.IsZero() && !t.Before(h) {
-		resolve(inc, h, "auto", fmt.Sprintf("The %s speed test measured the usual speed again.", clock(h)))
+		resolve(inc, h, "auto", fmt.Sprintf("The %s speed test measured the usual speed again.", s.clock(h)))
 	}
 	return inc
 }
@@ -1039,10 +1042,10 @@ func (n nextcloudMaintenance) incident(s *Sim, in *instance, t time.Time) *Incid
 	inc.Phase = "open"
 	inc.Title = "Nextcloud is stuck in maintenance mode"
 	inc.Summary = fmt.Sprintf("Nextcloud has answered 503 Service Unavailable since %s. The update to %s finished at %s, but maintenance mode stayed on, so nobody can open their files.",
-		clock(in.open), ncTo, clock(in.open.Add(ncUpgrade)))
+		s.clock(in.open), ncTo, s.clock(in.open.Add(ncUpgrade)))
 	inc.Facts = map[string]any{"status": 503, "maintenance": true, "version": ncTo, "previous": ncFrom}
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("nextcloud was recreated with image nextcloud:%s at %s, and the upgrade left maintenance mode on.", ncTo, clock(in.open)), Resource: ncCt, At: in.open},
+		{Text: fmt.Sprintf("nextcloud was recreated with image nextcloud:%s at %s, and the upgrade left maintenance mode on.", ncTo, s.clock(in.open)), Resource: ncCt, At: in.open},
 		{Text: "Nextcloud's HTTP check answers 503 while maintenance mode is on.", Resource: ncApp},
 	}
 	inc.Suggested = s.action("nextcloud.maintenance.off", "Turn off maintenance mode", T1, ncApp,
@@ -1052,10 +1055,10 @@ func (n nextcloudMaintenance) incident(s *Sim, in *instance, t time.Time) *Incid
 	if in.fixed(t) {
 		inc.Phase = "turning-off"
 		inc.UpdatedAt = in.fix
-		inc.Summary = fmt.Sprintf("Turning off maintenance mode (started %s).", clock(in.fix))
+		inc.Summary = fmt.Sprintf("Turning off maintenance mode (started %s).", s.clock(in.fix))
 	}
 	if h := n.horizon(in); !h.IsZero() && !t.Before(h) {
-		resolve(inc, h, "action", fmt.Sprintf("Maintenance mode was turned off at %s. Nextcloud %s answers normally.", clock(in.fix), ncTo))
+		resolve(inc, h, "action", fmt.Sprintf("Maintenance mode was turned off at %s. Nextcloud %s answers normally.", s.clock(in.fix), ncTo))
 	}
 	return inc
 }

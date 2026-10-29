@@ -177,7 +177,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if cfg.Demo {
 		// The Demo Home owns the graph; its app:chadash (self: true) stands
 		// for the hub.
-		drv, err = demo.New(tp, demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, At: cfg.DemoAt, Log: log, Posture: sec.Posture()})
+		drv, err = demo.New(tp, demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, Local: cfg.DemoLocal, At: cfg.DemoAt, Log: log, Posture: sec.Posture()})
 		if err != nil {
 			return nil, err
 		}
@@ -316,6 +316,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	var firstPaint *firstpaint.Builder
 	if webui.Embedded {
 		firstPaint = &firstpaint.Builder{Topics: tp, Boards: bs, Demo: drv != nil, Inbox: server.InboxView(bs, g, log), WholeGraph: authz.SeesWholeGraph}
+		if drv != nil {
+			firstPaint.DemoZone, firstPaint.DemoZoneLabel = drv.TimeZone()
+		}
 	}
 	hub := realtime.New(watch.Source(tp.SourceWith(realtime.Mux{
 		action.TasksTopic: eng.TasksSource(),

@@ -15,7 +15,7 @@ import { FakeSocket, factory } from './fake-socket';
 export function harness(data?: Record<string, unknown>, opts: { demo?: boolean } = {}) {
   FakeSocket.reset();
   const live = createLive({ url: 'ws://hub.test/ws', createSocket: factory, tick: false });
-  // GET /api/demo said demo mode: UTC times; actions still run on the engine.
+  // GET /api/demo said demo mode: the Demo Home's clock; actions still run on the engine.
   live.demo.value = opts.demo === true;
   const session = createSession();
   session.state.phase = 'ready';

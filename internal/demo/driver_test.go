@@ -122,6 +122,54 @@ func TestStartsAtTheAllOpenMoment(t *testing.T) {
 	}
 }
 
+func TestLocalStart(t *testing.T) {
+	mdt := time.FixedZone("MDT", -6*60*60)
+	for _, c := range []struct {
+		wall  time.Time
+		start string
+		shown time.Duration
+		zone  string
+	}{
+		// 22:10:30 local on the 27th: the day starts at 14:05:30 that day, shown 8h05m later.
+		{time.Date(2026, 10, 28, 4, 10, 30, 0, time.UTC), "2026-10-27T14:05:30Z", 8*time.Hour + 5*time.Minute, "+08:05"},
+		// 03:00 local on the 28th: the nearest 14:05 is that day's, shown 11h05m earlier.
+		{time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC), "2026-10-28T14:05:00Z", -(11*time.Hour + 5*time.Minute), "-11:05"},
+		// 02:00 local: more than 12 h before 14:05, so the start moves to the day before.
+		{time.Date(2026, 10, 28, 8, 0, 0, 0, time.UTC), "2026-10-27T14:05:00Z", 11*time.Hour + 55*time.Minute, "+11:55"},
+		// 14:05 local: no shift.
+		{time.Date(2026, 10, 28, 20, 5, 0, 0, time.UTC), "2026-10-28T14:05:00Z", 0, "+00:00"},
+	} {
+		start, shown, label := localStart(c.wall, mdt, DefaultAt)
+		if start.Format(time.RFC3339) != c.start || shown != c.shown || label != "MDT" {
+			t.Errorf("%v: start %v, shown %v, label %q; want %s, %v", c.wall, start, shown, label, c.start, c.shown)
+		}
+		// The page shows the local wall clock, to the minute.
+		if got, want := start.Add(shown).Format("2006-01-02 15:04"), c.wall.In(mdt).Format("2006-01-02 15:04"); got != want {
+			t.Errorf("%v: shown as %s, want %s", c.wall, got, want)
+		}
+		d := &Driver{opts: Options{Local: true}, shown: shown, label: label}
+		if zone, l := d.TimeZone(); zone != c.zone || l != "MDT" {
+			t.Errorf("%v: zone %q %q, want %q MDT", c.wall, zone, l, c.zone)
+		}
+	}
+}
+
+func TestLocalModeShowsLocalTimesInCopy(t *testing.T) {
+	tp := topics.New(graph.New(), time.Time{})
+	wall := time.Date(2026, 10, 28, 4, 10, 30, 0, time.UTC) // 22:10:30 MDT
+	d, err := New(tp, Options{Seed: 1, At: DefaultAt, Local: true, Zone: time.FixedZone("MDT", -6*60*60), Clock: func() time.Time { return wall }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := d.Now().Format(time.RFC3339); got != "2026-10-27T14:05:30Z" {
+		t.Fatalf("simulated now %s", got)
+	}
+	// Plex's token stopped working at 13:27 on the simulated clock: 21:32 on the local one.
+	if s := incident(t, tp, "plex-token-revoked").Summary; !strings.Contains(s, "since 21:32") {
+		t.Fatalf("copy should quote local times: %q", s)
+	}
+}
+
 func TestEndpoints(t *testing.T) {
 	d, tp, clock := newDriver(t, Options{Seed: 3, At: DefaultAt})
 	mux := http.NewServeMux()
@@ -149,7 +197,7 @@ func TestEndpoints(t *testing.T) {
 	}
 
 	clock.Advance(20 * time.Second)
-	if code, body := do("GET", "/api/demo"); code != 200 || !reflect.DeepEqual(body, map[string]any{"enabled": true, "now": "2026-10-03T14:05:20Z", "seed": 3.0}) {
+	if code, body := do("GET", "/api/demo"); code != 200 || !reflect.DeepEqual(body, map[string]any{"enabled": true, "now": "2026-10-03T14:05:20Z", "seed": 3.0, "time_zone": "UTC"}) {
 		t.Fatalf("GET /api/demo: %d %v", code, body)
 	}
 

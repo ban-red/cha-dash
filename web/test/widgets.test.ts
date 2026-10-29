@@ -10,7 +10,7 @@ import type { SizeId } from '@chadash/layout';
 import WidgetHost from '../src/widgets/WidgetHost.vue';
 import { preloadWidgets, WIDGET_COMPONENTS } from '../src/widgets/registry';
 import { WIDGETS } from '../src/model/widgets';
-import { setDisplayTimeZone } from '../src/lib/format';
+import { absolute, setDisplayTimeZone } from '../src/lib/format';
 import { applyTheme } from '../src/lib/theme';
 import type { GraphDoc, Health, Incident, InboxDoc, MetricsDoc, Resource } from '../src/model/types';
 import { docs, healthy, withIncidents } from './fixtures';
@@ -715,6 +715,17 @@ describe('clock', () => {
     expect(m.w.find('.clock-date').text()).toBe('Saturday, 3 October 2026');
     expect(m.w.find('.tf').text()).toBe('Tokyo 23:05 · +9 h');
     expect(m.tile().attributes('aria-label')).toContain('Tokyo 23:05');
+  });
+
+  it('shows the Demo Home as local time, with real time in the second zone', () => {
+    // The hub shows its 14:05 as 22:10 local (+08:05); the real time is 04:10 UTC on the 4th.
+    vi.setSystemTime(new Date('2026-10-04T04:10:10Z'));
+    setDisplayTimeZone('+08:05', 'MDT');
+    const m = mountWidget(docs(withIncidents), 'clock', 'wide', 'Asia/Tokyo');
+    expect(m.w.find('time').text()).toBe('22:10');
+    expect(m.w.find('.clock-date').text()).toBe('Saturday, 3 October 2026');
+    expect(m.w.find('.tf').text()).toMatch(/^Tokyo 13:10 · /);
+    expect(absolute('2026-10-03T14:05:00Z')).toBe('3 Oct 2026, 22:10 MDT');
   });
 });
 

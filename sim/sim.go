@@ -22,6 +22,7 @@ type config struct {
 	sampleEvery time.Duration
 	histPoints  int
 	histStep    time.Duration
+	shown       time.Duration // added to times in copy (WithShownOffset)
 }
 
 // Option configures a Sim.
@@ -33,6 +34,13 @@ type Option func(*config)
 // default script's story lines up best with a start at 00:00 UTC.
 func WithStart(t time.Time) Option {
 	return func(c *config) { c.start = t.UTC().Truncate(time.Second) }
+}
+
+// WithShownOffset shifts the times the copy quotes ("since 12:05") by d,
+// whole minutes, for a page that shows the simulated clock shifted by d.
+// Times in data stay as they are.
+func WithShownOffset(d time.Duration) Option {
+	return func(c *config) { c.shown = d.Truncate(time.Minute) }
 }
 
 // WithScript replaces the default script. An empty script gives a quiet home.

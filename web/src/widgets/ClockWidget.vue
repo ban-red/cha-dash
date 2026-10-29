@@ -8,7 +8,10 @@
  *
  * Glyph: hh:mm. Strip: time · date. Small: time and date. Wide: time, date and
  * a second time zone: the target (`clock@America/New_York`), else UTC, or the
- * browser's own zone when the display zone is already UTC.
+ * browser's own zone when the display zone is already UTC. When the display
+ * zone is an offset (the Demo Home shown as local time), the simulated clock
+ * says nothing about real time elsewhere, so the second zone reads the
+ * browser's real clock.
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
@@ -36,6 +39,8 @@ const browserZone = () => {
   }
 };
 const primary = computed(() => getDisplayTimeZone() ?? browserZone());
+/** "-08:05": the Demo Home's clock shifted to look local. */
+const shifted = computed(() => /^[+-]\d\d:\d\d$/.test(primary.value));
 const second = computed(() => {
   const asked = validZone(target);
   if (asked) return asked;
@@ -57,8 +62,10 @@ function offsetMin(zone: string, ms: number): number {
 const other = computed(() => {
   const z = second.value;
   if (!z) return undefined;
-  const t = new Date(live.now.value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: z });
-  const diff = (offsetMin(z, live.now.value) - offsetMin(primary.value, live.now.value)) / 60;
+  const ms = shifted.value ? live.wall.value : live.now.value;
+  const here = shifted.value ? browserZone() : primary.value;
+  const t = new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: z });
+  const diff = (offsetMin(z, ms) - offsetMin(here, ms)) / 60;
   const city = z === 'UTC' ? 'UTC' : (z.split('/').pop() ?? z).replace(/_/g, ' ');
   const rel = diff === 0 ? 'same time' : `${diff > 0 ? '+' : '−'}${Math.abs(diff) % 1 ? Math.abs(diff).toFixed(1) : Math.abs(diff)} h`;
   return { t, city, rel };

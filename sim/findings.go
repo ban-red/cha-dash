@@ -13,7 +13,7 @@ import (
 // integrations/docker, integrations/traefik and integrations/frigate, and
 // the causes internal/correlate adds across instances.
 
-func dayHHMM(t time.Time) string { return t.UTC().Format("Jan 2 15:04") }
+func (s *Sim) dayHHMM(t time.Time) string { return s.shown(t).Format("Jan 2 15:04") }
 
 // guestsOf is a job's guests, as a backup incident's blast radius.
 func guestsOf(job string) []Impact {
@@ -39,7 +39,7 @@ func jobEnd(job string, day time.Time) time.Time {
 
 // runHistory is the Proxmox integration's sentence about a job's recent
 // runs and its last good one.
-func runHistory(h jobHistory) string {
+func (s *Sim) runHistory(h jobHistory) string {
 	out := ""
 	switch {
 	case h.runs <= 1:
@@ -51,7 +51,7 @@ func runHistory(h jobHistory) string {
 	if h.lastOK.IsZero() {
 		return out + " No run in the recent tasks succeeded completely."
 	}
-	return out + " The last good run ended " + dayHHMM(h.lastOK) + "."
+	return out + " The last good run ended " + s.dayHHMM(h.lastOK) + "."
 }
 
 func backupFacts(job string, h jobHistory, err string) map[string]any {
@@ -143,7 +143,7 @@ func (b backupUnreachable) manualRuns(_ *Sim, in *instance) []jobRun {
 func (b backupUnreachable) apply(s *Sim, in *instance, w *world) {
 	if within(w.t, in.open, b.horizon(in)) {
 		at := b.failAt(in)
-		setHealth(w.res[b.job], HealthAttention, fmt.Sprintf("couldn't reach %s at %s (No route to host)", pbsStorage, clock(at)), at)
+		setHealth(w.res[b.job], HealthAttention, fmt.Sprintf("couldn't reach %s at %s (No route to host)", pbsStorage, s.clock(at)), at)
 	}
 }
 
@@ -158,16 +158,16 @@ func (b backupUnreachable) incident(s *Sim, in *instance, t time.Time) *Incident
 	inc.Scenario, inc.Phase, inc.OpenedAt = "backup-target-unreachable", "open", at
 	inc.Title = fmt.Sprintf("Backups on %s couldn't reach %s", j.where, pbsStorage)
 	inc.Summary = fmt.Sprintf("%s's %s backup couldn't reach its storage %s on its %s run (No route to host), so nothing was backed up.%s",
-		j.where, jobSchedule(b.job), target, dayHHMM(at), runHistory(h))
+		j.where, jobSchedule(b.job), target, s.dayHHMM(at), s.runHistory(h))
 	inc.Facts = backupFacts(b.job, h, unreachErr)
 	maps.Copy(inc.Facts, map[string]any{"cause": "target_unreachable", "endpoint": pbsEndpoint, "reason": "No route to host"})
-	inc.Causes = []Cause{{Text: fmt.Sprintf("%s didn't answer at %s (No route to host). Other hosts that back up to it fail on the same nights.", target, clock(at)), Resource: b.job, At: at}}
+	inc.Causes = []Cause{{Text: fmt.Sprintf("%s didn't answer at %s (No route to host). Other hosts that back up to it fail on the same nights.", target, s.clock(at)), Resource: b.job, At: at}}
 	inc.BlastRadius = guestsOf(b.job)
 	inc.Suggested = openJobsAction(b.job)
 	inc.Alternatives = []Action{taskLogAction(b.job)}
 	inc.ResolvesWhen = backupResolves
 	if hz := b.horizon(in); !t.Before(hz) {
-		resolve(inc, hz, "auto", fmt.Sprintf("The job's next run succeeded (seen at %s).", clock(hz)))
+		resolve(inc, hz, "auto", fmt.Sprintf("The job's next run succeeded (seen at %s).", s.clock(hz)))
 	}
 	return inc
 }
@@ -255,7 +255,7 @@ func (p backupPassthrough) apply(s *Sim, in *instance, w *world) {
 	t := w.t
 	at := jobBegin(ptJob, p.night(in))
 	if within(t, in.open, p.horizon(in)) {
-		setHealth(w.res[ptJob], HealthAttention, fmt.Sprintf("win-games's backup failed at %s", clock(at)), at)
+		setHealth(w.res[ptJob], HealthAttention, fmt.Sprintf("win-games's backup failed at %s", s.clock(at)), at)
 	}
 	if g := w.res[ptHolder]; g != nil && !t.Before(p.stopAt(in)) {
 		g.State = StateStopped
@@ -274,7 +274,7 @@ func (p backupPassthrough) incident(s *Sim, in *instance, t time.Time) *Incident
 	inc := s.newIncident(in, ClassProblem, SeverityAttention, ptGuest)
 	inc.Scenario, inc.Phase, inc.OpenedAt = "backup-passthrough-conflict", "open", at
 	inc.Title = "Backup of win-games failed"
-	inc.Summary = fmt.Sprintf("owl's %s backup failed for win-games on its %s run. studio, homework were backed up normally.%s", jobSchedule(ptJob), dayHHMM(at), runHistory(h))
+	inc.Summary = fmt.Sprintf("owl's %s backup failed for win-games on its %s run. studio, homework were backed up normally.%s", jobSchedule(ptJob), s.dayHHMM(at), s.runHistory(h))
 	inc.Facts = backupFacts(ptJob, h, ptBusyErr)
 	maps.Copy(inc.Facts, map[string]any{"vmid": 301, "pci_device": ptDevice, "in_use_by": 302})
 	inc.Causes = []Cause{
@@ -286,7 +286,7 @@ func (p backupPassthrough) incident(s *Sim, in *instance, t time.Time) *Incident
 	inc.Alternatives = []Action{taskLogAction(ptJob)}
 	inc.ResolvesWhen = backupResolves
 	if hz := p.horizon(in); !t.Before(hz) {
-		resolve(inc, hz, "auto", fmt.Sprintf("The job's next run succeeded (seen at %s).", clock(hz)))
+		resolve(inc, hz, "auto", fmt.Sprintf("The job's next run succeeded (seen at %s).", s.clock(hz)))
 	}
 	return inc
 }
@@ -353,12 +353,12 @@ func (guestError) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Title = "sandbox is in internal-error"
 	inc.Summary = "VM 221 (sandbox) on stork is in internal-error: its QEMU process stopped responding."
 	inc.Facts = map[string]any{"vmid": 221, "node": "stork", "status": "internal-error"}
-	inc.Causes = []Cause{{Text: fmt.Sprintf("The last task on it was qmstart at %s (OK).", dayHHMM(started)), Resource: geGuest, At: started}}
+	inc.Causes = []Cause{{Text: fmt.Sprintf("The last task on it was qmstart at %s (OK).", s.dayHHMM(started)), Resource: geGuest, At: started}}
 	inc.BlastRadius = []Impact{} // nothing runs on it
 	inc.Suggested = Action{ID: "link.open", Label: "Open sandbox in Proxmox", Tier: T0, Target: geGuest}
 	inc.ResolvesWhen = "Resolves when sandbox leaves its error state."
 	if in.fixed(t) {
-		resolve(inc, in.fix, "auto", fmt.Sprintf("The guest left its error state (seen at %s).", clock(in.fix)))
+		resolve(inc, in.fix, "auto", fmt.Sprintf("The guest left its error state (seen at %s).", s.clock(in.fix)))
 	}
 	return inc
 }
@@ -426,7 +426,7 @@ func (u unraidAPI) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc := s.newIncident(in, ClassRepair, SeverityAttention, urInt)
 	inc.Scenario, inc.Phase = "api-changed", "open" // the hub's repair for an unsupported_version error
 	inc.Title = "Unraid's API changed"
-	inc.Summary = fmt.Sprintf("Since %s, Unraid has answered in a way this integration doesn't support. Its tiles show values as of then.", clock(in.open))
+	inc.Summary = fmt.Sprintf("Since %s, Unraid has answered in a way this integration doesn't support. Its tiles show values as of then.", s.clock(in.open))
 	inc.Facts = map[string]any{"code": "unsupported_version", "instance": "unraid-magpie"}
 	inc.Causes = []Cause{{Text: urMsg, Resource: urInt, At: in.open}}
 	// What goes stale: what the instance publishes, as the hub lists it.
@@ -439,7 +439,7 @@ func (u unraidAPI) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Suggested = Action{ID: "integration.settings", Label: "Open the integration", Tier: T0, Target: urInt}
 	inc.ResolvesWhen = "Resolves when Cha Dash can read Unraid again."
 	if h := u.horizon(in); !h.IsZero() && !t.Before(h) {
-		resolve(inc, h, "auto", fmt.Sprintf("Cha Dash could read Unraid again at %s.", clock(h)))
+		resolve(inc, h, "auto", fmt.Sprintf("Cha Dash could read Unraid again at %s.", s.clock(h)))
 	}
 	return inc
 }

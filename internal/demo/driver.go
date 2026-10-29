@@ -6,6 +6,11 @@
 // default script is open, and then runs in real time. At midnight a new
 // day begins with the same seed, so a long-running demo replays the script
 // every day instead of going quiet.
+//
+// In local mode (the default) the page shows the hub's local time and date:
+// the simulated clock is shown shifted by a whole number of minutes, and
+// the copy quotes times shifted the same way, so the story still opens at
+// its busiest moment.
 package demo
 
 import (
@@ -42,6 +47,12 @@ type Options struct {
 	// 2026-10-03, and runs in real time from there.
 	WallClock bool
 	At        time.Duration // time of day, used when !WallClock
+	// Local shows the demo on the hub's local clock (CHADASH_DEMO_AT=local,
+	// the default): the day still starts at At, and the page and the copy
+	// show it shifted to the local time and date. Zone is the local zone;
+	// nil means time.Local.
+	Local bool
+	Zone  *time.Location
 	// SampleInterval is how often metrics move; 0 means the simulator's
 	// default (30 s). The driver advances once per interval.
 	SampleInterval time.Duration
@@ -65,6 +76,8 @@ type Driver struct {
 	day    time.Time // midnight UTC that started the current simulated day
 	wall0  time.Time // in fixed mode, the real time at which the simulated clock read sim0
 	sim0   time.Time
+	shown  time.Duration // local mode: what the page adds to the simulated clock
+	label  string        // local mode: the local zone's abbreviation, "MDT"
 	mirror *mirror
 }
 
@@ -86,10 +99,49 @@ func New(t *topics.Set, opts Options) (*Driver, error) {
 	}
 	wall := d.clock()
 	d.wall0, d.sim0 = wall, sim.DefaultStart.Add(opts.At)
+	if opts.Local && !opts.WallClock {
+		d.sim0, d.shown, d.label = localStart(wall, opts.Zone, opts.At)
+	}
 	if err := d.reset(d.simTime(wall)); err != nil {
 		return nil, err
 	}
 	return d, nil
+}
+
+// localStart picks the simulated start for local mode: the moment at time
+// of day at that lies within 12 hours of the local wall clock, on today's
+// date. shown is the local clock minus it, in whole minutes.
+func localStart(wall time.Time, zone *time.Location, at time.Duration) (start time.Time, shown time.Duration, label string) {
+	if zone == nil {
+		zone = time.Local
+	}
+	lw := wall.In(zone)
+	// The local reading as if it were UTC: the frame the simulator runs in.
+	local := time.Date(lw.Year(), lw.Month(), lw.Day(), lw.Hour(), lw.Minute(), lw.Second(), 0, time.UTC)
+	shown = local.Sub(local.Truncate(day).Add(at))
+	switch {
+	case shown >= day/2:
+		shown -= day
+	case shown < -day/2:
+		shown += day
+	}
+	shown = shown.Truncate(time.Minute)
+	return local.Add(-shown), shown, lw.Format("MST")
+}
+
+// TimeZone is the zone the page shows the simulated clock in: "UTC", or in
+// local mode the shift as an offset ("-08:05"), with the local zone's
+// abbreviation as its label.
+func (d *Driver) TimeZone() (zone, label string) {
+	if !d.opts.Local || d.opts.WallClock {
+		return "UTC", ""
+	}
+	m := int(d.shown / time.Minute)
+	sign := "+"
+	if m < 0 {
+		sign, m = "-", -m
+	}
+	return fmt.Sprintf("%s%02d:%02d", sign, m/60, m%60), d.label
 }
 
 // simTime is the simulated time at real time wall.
@@ -105,7 +157,7 @@ func (d *Driver) simTime(wall time.Time) time.Time {
 // loads it into the topics. The caller holds d.mu, or d isn't shared yet.
 func (d *Driver) reset(at time.Time) error {
 	start := at.UTC().Truncate(day)
-	s, err := sim.New(d.opts.Seed, sim.WithStart(start), sim.WithSampleInterval(d.opts.SampleInterval))
+	s, err := sim.New(d.opts.Seed, sim.WithStart(start), sim.WithSampleInterval(d.opts.SampleInterval), sim.WithShownOffset(d.shown))
 	if err != nil {
 		return err
 	}

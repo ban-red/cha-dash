@@ -13,7 +13,7 @@
  *
  *   bun run dev              reuse ./data, so your owner account and layouts survive
  *   bun run dev --fresh      wipe ./data first: a brand-new instance and setup token
- *   bun run dev --now        run the demo on the wall clock instead of from 14:05
+ *   bun run dev --now        run the demo on the real clock in UTC, not from 14:05 shown as local time
  *   bun run dev --check      check prerequisites and ports, start nothing
  *
  * CHADASH_* variables pass through to the hub, e.g. `CHADASH_DEMO_SEED=2 bun run dev`.

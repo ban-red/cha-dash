@@ -71,7 +71,7 @@ It builds the hub, waits until it's healthy, and starts the Vite dev server (whi
 | Command | What it does |
 |---|---|
 | `bun run dev:fresh` | Wipes `./data` first: a brand-new instance, no owner yet |
-| `bun run dev --now` | Runs the demo on the wall clock instead of from 14:05 |
+| `bun run dev --now` | Runs the demo on the real clock in UTC, with the script at its own hours, instead of from 14:05 shown as your local time |
 | `bun run dev --check` | Checks prerequisites and ports, starts nothing |
 
 `CHADASH_*` variables pass through to the hub (e.g. `CHADASH_DEMO_SEED=2 bun run dev`). The manual way still works: `CHADASH_DATA_DIR=./data go run ./cmd/chadash serve --demo` in one terminal and `cd web && bun run dev` in another.

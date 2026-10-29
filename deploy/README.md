@@ -81,7 +81,7 @@ services:
 | `CHADASH_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. The setup token is logged at `warn`, so it survives a quiet level |
 | `CHADASH_LOG_FORMAT` | `text` | `text` or `json` |
 | `CHADASH_DEMO` | off | `1` or `true` runs the Demo Home simulator (flag `--demo`). See [Demo mode](#demo-mode) |
-| `CHADASH_DEMO_AT` | `14:05` | Where the demo clock starts: `HH:MM` or `HH:MM:SS` (UTC, on the demo's day), or `now` for the real date and time (flag `--demo-at`) |
+| `CHADASH_DEMO_AT` | `local` | The demo clock: `local` starts the scripted day at 14:05 and shows it as the hub's local date and time (set `TZ`); `HH:MM` or `HH:MM:SS` starts at that time on the demo's day, shown in UTC; `now` follows the real date and time in UTC (flag `--demo-at`) |
 | `CHADASH_DEMO_SEED` | `1` | Changes the demo's noise, uptimes and IDs, but not its topology or incidents (flag `--demo-seed`) |
 | `CHADASH_DATA_DIR` | `/data` | The data directory. Leave it alone in Docker; mount a volume at `/data` instead |
 | `CHADASH_LISTEN` | `:3696` | The address inside the container. Leave it alone in Docker; change the published port instead |
@@ -364,7 +364,7 @@ docker compose -f compose.yaml -f compose.demo.yaml logs chadash | grep setup
 ```
 
 - **It's a separate Compose project** (`chadash-demo`) with its own volume, so demo data never mixes with a real install. Stop a real install first: both use port 3696.
-- **The clock starts at 14:05** on the demo's own day (2026-10-03), when all six incidents are open. The day replays from midnight, so the demo never goes quiet. `CHADASH_DEMO_AT: now` follows the real date and time instead.
+- **The clock shows your local time and date**, with the scripted day starting at its busiest moment (every incident open) when the hub starts; incident times are shifted to match. Set `TZ` (for example `TZ: Europe/London`) so the container knows your zone; without it, that's UTC. The day replays every 24 hours, so the demo never goes quiet. `CHADASH_DEMO_AT: now` plays the script at its own hours in UTC instead.
 - **Remove it** with `docker compose -f compose.yaml -f compose.demo.yaml down -v`. That deletes the demo volume only.
 
 ## Upgrading

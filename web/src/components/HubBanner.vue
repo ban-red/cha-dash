@@ -65,6 +65,6 @@ const reload = () => location.reload();
   </div>
   <div v-else-if="live.demo.value" class="banner demo" role="note" aria-label="Demo mode">
     <span class="demo-tag">Demo</span>
-    <span><b>You're looking at the Demo Home</b>, a simulated lab running a scripted day on its own clock, in UTC. Its hosts, incidents and fixes are all made up.</span>
+    <span><b>You're looking at the Demo Home</b>, a simulated lab replaying a scripted day. Its hosts, incidents and fixes are all made up.</span>
   </div>
 </template>

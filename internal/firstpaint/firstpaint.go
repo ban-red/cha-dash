@@ -52,8 +52,11 @@ type Builder struct {
 	Topics *topics.Set
 	Boards *boards.Service
 	// Demo marks the Demo Home, whose clock and time zone the page needs
-	// before its first paint (demo times are UTC).
-	Demo bool
+	// before its first paint. DemoZone and DemoZoneLabel are the zone its
+	// times show in (demo.Driver.TimeZone); empty means UTC.
+	Demo          bool
+	DemoZone      string
+	DemoZoneLabel string
 	// MaxBytes caps the encoded snapshot; 0 means MaxBytes.
 	MaxBytes int
 	// Inbox is how a role sees the inbox, the same view the inbox topic
@@ -92,6 +95,8 @@ type Snapshot struct {
 	Boards  []boards.Board `json:"boards"`
 	Board   *Board         `json:"board"` // nil: no board yet
 	Demo    bool           `json:"demo,omitempty"`
+	Zone    string         `json:"time_zone,omitempty"`  // the Demo Home's display zone
+	Label   string         `json:"zone_label,omitempty"` // and its label
 	Graph   graph.Doc      `json:"graph"`
 	Metrics map[string]any `json:"metrics"`
 	Inbox   map[string]any `json:"inbox"`
@@ -128,6 +133,9 @@ func (b *Builder) Build(ctx context.Context, u User) ([]byte, error) {
 // Snapshot assembles u's snapshot from the live state.
 func (b *Builder) Snapshot(ctx context.Context, u User) (Snapshot, error) {
 	s := Snapshot{V: Version, User: u, Demo: b.Demo}
+	if b.Demo {
+		s.Zone, s.Label = b.DemoZone, b.DemoZoneLabel
+	}
 	list, err := b.Boards.List(ctx)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("firstpaint: boards: %w", err)

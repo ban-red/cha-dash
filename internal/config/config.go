@@ -61,7 +61,10 @@ type Config struct {
 	// DemoWallClock makes the simulated clock the real one
 	// (CHADASH_DEMO_AT=now). Otherwise the demo starts at DemoAt, a time of
 	// day on the simulator's own day, and runs in real time from there.
+	// DemoLocal (CHADASH_DEMO_AT=local, the default) starts at
+	// DefaultDemoAt and shows it as the hub's local time and date.
 	DemoWallClock bool
+	DemoLocal     bool
 	DemoAt        time.Duration
 	DemoSeed      int64
 
@@ -141,7 +144,7 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 		demo = b
 	}
 	fs.BoolVar(&l.demo, "demo", demo, "run the Demo Home simulator instead of a real home (env CHADASH_DEMO)")
-	fs.StringVar(&l.demoAt, "demo-at", env("CHADASH_DEMO_AT", "14:05"), "demo start: a time of day (HH:MM[:SS], UTC) on the demo's day, or now to follow the real clock (env CHADASH_DEMO_AT)")
+	fs.StringVar(&l.demoAt, "demo-at", env("CHADASH_DEMO_AT", "local"), "demo clock: local (start at 14:05, shown as the local time), a time of day (HH:MM[:SS], UTC) on the demo's day, or now to follow the real clock in UTC (env CHADASH_DEMO_AT)")
 	fs.StringVar(&l.demoSeed, "demo-seed", env("CHADASH_DEMO_SEED", "1"), "demo simulator seed (env CHADASH_DEMO_SEED)")
 	return l
 }
@@ -168,8 +171,10 @@ func (l *Loader) Config() (Config, error) {
 	// shows up before someone turns it on.
 	if strings.EqualFold(strings.TrimSpace(l.demoAt), "now") {
 		c.DemoWallClock = true
+	} else if strings.EqualFold(strings.TrimSpace(l.demoAt), "local") {
+		c.DemoLocal, c.DemoAt = true, DefaultDemoAt
 	} else if at, err := parseTimeOfDay(l.demoAt); err != nil {
-		errs = append(errs, fmt.Errorf("demo start %q: want HH:MM, HH:MM:SS or now", l.demoAt))
+		errs = append(errs, fmt.Errorf("demo start %q: want local, HH:MM, HH:MM:SS or now", l.demoAt))
 	} else {
 		c.DemoAt = at
 	}

@@ -8,14 +8,18 @@
 export const UNKNOWN = '—';
 
 let displayTimeZone: string | undefined;
+let displayZoneLabel: string | undefined;
 
 /**
- * The time zone absolute times are shown in. The Demo Home keeps UTC as its
- * clock (sim/README.md), and its incident copy quotes UTC times, so demo mode
- * sets 'UTC'. Undefined means the browser's zone.
+ * The time zone absolute times are shown in. The Demo Home runs its own clock
+ * (sim/README.md) and its incident copy quotes it, so demo mode sets the zone
+ * the hub names: 'UTC', or an offset such as '-08:05' that shows the
+ * simulated clock as the hub's local time, with label naming that zone
+ * ("MDT") where a time says its zone. Undefined means the browser's zone.
  */
-export function setDisplayTimeZone(tz: string | undefined): void {
+export function setDisplayTimeZone(tz: string | undefined, label?: string): void {
   displayTimeZone = tz;
+  displayZoneLabel = label || undefined;
 }
 
 export function getDisplayTimeZone(): string | undefined {
@@ -81,7 +85,7 @@ export function longDate(v: string | number | Date | undefined): string {
 export function absolute(v: string | number | Date | undefined): string {
   const d = toDate(v);
   if (!d) return UNKNOWN;
-  return d.toLocaleString('en-GB', {
+  const s = d.toLocaleString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -89,8 +93,9 @@ export function absolute(v: string | number | Date | undefined): string {
     minute: '2-digit',
     hour12: false,
     timeZone: displayTimeZone,
-    timeZoneName: 'short',
+    ...(displayZoneLabel ? {} : { timeZoneName: 'short' as const }),
   });
+  return displayZoneLabel ? `${s} ${displayZoneLabel}` : s;
 }
 
 /** A compact duration: 45s, 4m, 3h 10m, 13d 3h. */

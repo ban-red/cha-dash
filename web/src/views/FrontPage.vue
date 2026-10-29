@@ -10,7 +10,7 @@
  *   its board render from it at once, and the socket supersedes it;
  * - the last-known snapshot: written while live, and the page opens on it
  *   when the hub was unreachable at start-up (session.state.offline);
- * - demo mode (GET /api/demo): UTC times, and "Demo" in the tab title;
+ * - demo mode (GET /api/demo): the Demo Home's clock and zone, and "Demo" in the tab title;
  * - the viewer's role: what the page hides (model/roles.ts; the hub enforces);
  * - label discovery for the board on screen (stores/discovery.ts);
  * - the first-run wizard (onboarding/), when the hub says to show it (admin
@@ -79,7 +79,7 @@ provideDiscovery(createDiscovery(live, board, () => ui.can.value.editBoards));
 const inline = session.takeInline();
 let seeded = false;
 if (inline) {
-  if (inline.demo) setDisplayTimeZone('UTC');
+  if (inline.demo) setDisplayTimeZone(inline.time_zone || 'UTC', inline.zone_label);
   live.demo.value = inline.demo === true;
   live.hydrate(inline);
   if (inline.board && inline.board.layout != null) seeded = board.seed(inline.boards, inline.board);
@@ -142,11 +142,12 @@ watch(
 
 async function demo(): Promise<void> {
   try {
-    const d = await api<{ enabled: boolean; now: string; seed: number }>('/api/demo');
+    const d = await api<{ enabled: boolean; now: string; seed: number; time_zone?: string; zone_label?: string }>('/api/demo');
     live.demo.value = d?.enabled === true;
     if (d?.enabled) {
-      // The Demo Home keeps UTC as its clock, and its copy quotes UTC times.
-      setDisplayTimeZone('UTC');
+      // The Demo Home runs its own clock, shown in the zone the hub names
+      // (the hub's local time by default), and its copy quotes it the same way.
+      setDisplayTimeZone(d.time_zone || 'UTC', d.zone_label);
       live.setHubTime(d.now);
     }
   } catch {
