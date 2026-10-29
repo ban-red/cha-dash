@@ -14,6 +14,7 @@ import WidgetHost from '../widgets/WidgetHost.vue';
 import { useUi } from '../stores/ui';
 import { useBoard } from '../stores/board';
 import { loadIcons, wantsIcon } from '../stores/icons';
+import { loadInstances } from '../stores/integrations';
 import { settingsPath } from '../lib/router';
 
 const EditableBoard = defineAsyncComponent(() => import('./EditableBoard.vue'));
@@ -32,6 +33,8 @@ watch(
   () => store.tiles.value,
   (tiles) => {
     if (Object.values(tiles).some((t) => wantsIcon(t, t.href))) void loadIcons();
+    // Bound tiles borrow their integration's bundled logo; viewers who may not list instances keep the monogram.
+    if (Object.values(tiles).some((t) => t.bind?.instance)) void loadInstances().catch(() => undefined);
   },
   { immediate: true },
 );

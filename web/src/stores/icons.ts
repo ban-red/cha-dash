@@ -10,9 +10,15 @@
  * anything else keeps its monogram, which also stands in when an image
  * fails to load. The front page's board loads the map once, when a tile has
  * something to look it up by (BoardSurface.vue); a tile never waits for it.
+ *
+ * A tile bound to an instance with no cached icon falls back to the bundled
+ * logo of its integration, and any tile whose name says a service ("Sonarr",
+ * "Plex Media Server") to that service's logo (lib/serviceIcons.ts).
  */
 import { computed, shallowRef } from 'vue';
 import { api } from '../lib/api';
+import { serviceIconByName, serviceIconUrl } from '../lib/serviceIcons';
+import { catalogEntry, integrations } from './integrations';
 import type { TileConfig } from './tiles';
 
 export interface IconMap {
@@ -66,15 +72,21 @@ function originOf(href: string | undefined): string | undefined {
 }
 
 /** Does a tile have anything an icon could be found by? */
-export function wantsIcon(cfg: TileConfig | undefined, href: string | undefined): boolean {
-  return !!(cfg?.icon || href || cfg?.bind?.instance);
+export function wantsIcon(cfg: TileConfig | undefined, href: string | undefined, name?: string): boolean {
+  return !!(cfg?.icon || href || cfg?.bind?.instance || serviceIconByName(name));
 }
 
-/** The cached icon for a tile: its icon URL, else its link's site, else its instance's. */
-export function iconFor(m: IconMap, cfg: TileConfig | undefined, href: string | undefined): string | undefined {
+/** The cached icon for a tile: its icon URL, else its link's site, else its instance's, else a bundled logo by instance or by name. */
+export function iconFor(m: IconMap, cfg: TileConfig | undefined, href: string | undefined, name?: string): string | undefined {
   if (cfg?.icon && m.by_icon[cfg.icon]) return m.by_icon[cfg.icon];
   const o = originOf(href);
   if (o && m.by_origin[o]) return m.by_origin[o];
   const inst = cfg?.bind?.instance;
-  return inst ? m.by_instance[inst] : undefined;
+  return (inst && (m.by_instance[inst] ?? bundledFor(inst))) || serviceIconByName(name);
+}
+
+/** The bundled logo for an instance's integration: the manifest's icon slug, else its id. */
+function bundledFor(instance: string): string | undefined {
+  const id = integrations.instances.find((i) => i.id === instance)?.integration;
+  return id ? serviceIconUrl(catalogEntry(id)?.icon || id) : undefined;
 }

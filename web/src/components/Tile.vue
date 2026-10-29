@@ -107,8 +107,8 @@ const mark = computed(() => (tile.config.value?.name ? monogram(tile.config.valu
 // to load falls back to the monogram.
 const broken = ref('');
 const icon = computed(() => {
-  if (status === 'attention' || status === 'down' || !wantsIcon(tile.config.value, shownHref.value)) return undefined;
-  const src = iconFor(iconMap.value, tile.config.value, shownHref.value);
+  if (status === 'attention' || status === 'down' || !wantsIcon(tile.config.value, shownHref.value, shownName.value)) return undefined;
+  const src = iconFor(iconMap.value, tile.config.value, shownHref.value, shownName.value);
   return src && src !== broken.value ? src : undefined;
 });
 

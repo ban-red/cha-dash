@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Service logos on tiles.** A tile bound to an integration, or just named after a service ("Plex Media Server", "Uptime Kuma"), shows that service's logo (Sonarr, Proxmox and about a hundred more) when the hub has no icon cached for it. The logos are bundled; they come from the Apache-2.0 dashboard-icons project.
 - **Settings → Bring in** replaces Settings → Import. It has three tabs, Import, Discover and History, and everything goes through one preview before anything changes.
 - **Drop a config anywhere on the page.** Cha Dash names its source from the files: Homepage's `services.yaml`, `docker.yaml` and `settings.yaml`, a Homarr backup, or a board written in YAML. A Cha Dash export opens Backup instead.
 - **The Review sheet.** Every connection and tile is a row you can untick. Leaving a connection out leaves out the tiles that need it. Add missing keys right there, reuse a connection you already have, and pick where tiles go: a new board, an existing board, or connections only. A picture of the board shows what you'll get. Apply writes exactly what you reviewed; if something changed in between, it shows the new plan instead.
