@@ -246,6 +246,35 @@ func TestCoordinatorWatchedAndIdle(t *testing.T) {
 	})
 }
 
+// Check now: a refresh syncs at once with Interest.Refresh, once; the
+// schedule then carries on from that sync.
+func TestCoordinatorRefresh(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := &script{}
+		c, _, _ := testCoordinator(fakeInteg{s: s}, integration.Poll{Interval: 30 * time.Second, Idle: 5 * time.Minute})
+		c.poke = make(chan struct{}, 1)
+		c.start(context.Background())
+		defer c.stop()
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if n := len(s.times()); n != 1 || s.want(0).Refresh {
+			t.Fatalf("first sync: %d, refresh %v", n, s.want(0).Refresh)
+		}
+		time.Sleep(time.Minute)
+		c.refreshNow()
+		synctest.Wait()
+		calls := s.times()
+		if len(calls) != 2 || !calls[1].Equal(time.Now()) || !s.want(1).Refresh {
+			t.Fatalf("refresh: %v at %v, refresh %v", calls, time.Now(), len(calls) == 2 && s.want(1).Refresh)
+		}
+		time.Sleep(5*time.Minute + time.Second)
+		synctest.Wait()
+		if n := len(s.times()); n != 3 || s.want(2).Refresh {
+			t.Fatalf("after refresh: %d syncs, the next one a refresh too?", n)
+		}
+	})
+}
+
 func TestCoordinatorBackoff(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		e502 := statusErr(502)

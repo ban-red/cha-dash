@@ -555,6 +555,25 @@ func TestTestEndpoints(t *testing.T) {
 		t.Fatalf("saved test: %d %s", code, body)
 	}
 
+	// Check now: 202 while it runs; 404 unknown; 409 disabled.
+	if code, body := e.call(t, "POST", "/api/integrations/instances/"+id+"/refresh", nil); code != 202 {
+		t.Fatalf("refresh: %d %s", code, body)
+	}
+	if code, _ := e.call(t, "POST", "/api/integrations/instances/i_nope/refresh", nil); code != 404 {
+		t.Fatalf("refresh unknown: %d", code)
+	}
+	off := false
+	if err := e.m.Update(t.Context(), id, UpdateRequest{Enabled: &off}); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := e.call(t, "POST", "/api/integrations/instances/"+id+"/refresh", nil); code != 409 || !strings.Contains(body, "not_running") {
+		t.Fatalf("refresh disabled: %d %s", code, body)
+	}
+	on := true
+	if err := e.m.Update(t.Context(), id, UpdateRequest{Enabled: &on}); err != nil {
+		t.Fatal(err)
+	}
+
 	// Unsaved edits of a saved instance: the secret not retyped comes from
 	// the vault, and nothing is saved.
 	other := newUpstream(t, secret, false)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"sync/atomic"
 	"time"
 
 	"dash.cha.sh/internal/integration"
@@ -44,6 +45,8 @@ type coordinator struct {
 	// poke asks for a sync now (an action just changed the source). Nil:
 	// never.
 	poke chan struct{}
+	// refresh marks the next sync as asked for: Interest.Refresh.
+	refresh atomic.Bool
 
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -71,6 +74,12 @@ func (c *coordinator) syncSoon() {
 	case c.poke <- struct{}{}:
 	default:
 	}
+}
+
+// refreshNow asks for a sync now with Interest.Refresh set.
+func (c *coordinator) refreshNow() {
+	c.refresh.Store(true)
+	c.syncSoon()
 }
 
 // jitter spreads d by ±10 %, so instances started together drift apart.
@@ -154,7 +163,9 @@ func (c *coordinator) run(ctx context.Context) {
 		}
 		sub = c.subscribe(ctx, inst, interest, sub)
 
-		err := c.sync(ctx, inst, interest)
+		want := interest
+		want.Refresh = c.refresh.Swap(false)
+		err := c.sync(ctx, inst, want)
 		if ctx.Err() != nil {
 			return // stopping; a cancelled sync isn't a failure
 		}

@@ -111,6 +111,7 @@ func (mi *managed) snapshotRow() (row, int) {
 var (
 	ErrUnknownIntegration = errors.New("runtime: unknown integration")
 	ErrNotFound           = errors.New("runtime: no such instance")
+	ErrNotRunning         = errors.New("runtime: the instance isn't running")
 	ErrNameTaken          = errors.New("runtime: another instance of this integration has that name")
 )
 
@@ -1107,6 +1108,22 @@ func (m *Manager) List() []InstanceView {
 		return strings.Compare(a.Name, b.Name)
 	})
 	return out
+}
+
+// Refresh asks a running instance to sync now with Interest.Refresh set,
+// without waiting for it. The result arrives on the usual topics.
+func (m *Manager) Refresh(id string) error {
+	mi := m.get(id)
+	if mi == nil {
+		return ErrNotFound
+	}
+	mi.life.Lock()
+	defer mi.life.Unlock()
+	if mi.coord == nil {
+		return ErrNotRunning
+	}
+	mi.coord.refreshNow()
+	return nil
 }
 
 // Get returns one instance.

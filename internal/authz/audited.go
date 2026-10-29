@@ -82,6 +82,7 @@ var AuditExempt = map[string]string{
 	"POST /api/import/detect":                "Reads files' names and first bytes to name their source; saves nothing. Applying an import is audited.",
 	"POST /api/integrations/instances/{id}/test": "Tests a saved instance. The one change it can make is pinning the first certificate a TOFU instance sees, " +
 		"which the instance's next audited update shows in its config.",
+	"POST /api/integrations/instances/{id}/refresh":  "Asks a running instance to read its source now; it changes no config and no state of its own.",
 	"POST /api/integrations/authorize/{integration}": "Starts an integration sign-in in memory; the instance save that uses its token is audited.",
 	"POST /api/stacks/{node}/{stack}/validate":       "Validates a draft on the node and saves nothing.",
 	"POST /api/notify/push/subscriptions":            "The caller's own device subscribing to its own notifications.",

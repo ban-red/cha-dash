@@ -219,6 +219,9 @@ type Interest struct {
 	// sheet open on each (the metrics:resource/<id> topic). Publish their
 	// costly series, such as a container's stats, only while listed.
 	Resources []string
+	// Refresh is true on a sync someone asked for (Check now): read
+	// everything now, ignoring any schedule of the integration's own.
+	Refresh bool
 }
 
 // WantsKind reports whether resources of kind are on screen.

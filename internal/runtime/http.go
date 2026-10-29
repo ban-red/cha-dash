@@ -27,6 +27,7 @@ import (
 //	DELETE /api/integrations/instances/{id}             204
 //	POST   /api/integrations/test                       {integration, config, secrets} or {instance_id, config?, secrets?} → test result
 //	POST   /api/integrations/instances/{id}/test        test result
+//	POST   /api/integrations/instances/{id}/refresh     202: sync now (Check now); 409 not_running
 //	GET    /api/integrations/instances/{id}/diagnostics diagnostics, secrets redacted
 //	POST   /api/integrations/authorize/{integration}      start a sign-in → {id, code, url, expires_at, interval_s}
 //	GET    /api/integrations/authorize/{integration}/{id} {status: pending|done|expired|failed, expires_at?, secrets?, error?}
@@ -48,6 +49,7 @@ func (m *Manager) Register(mux *http.ServeMux, wrap func(http.Handler) http.Hand
 	mux.Handle("DELETE /api/integrations/instances/{id}", h(m.handleDelete))
 	mux.Handle("POST /api/integrations/test", h(m.handleTest))
 	mux.Handle("POST /api/integrations/instances/{id}/test", h(m.handleTestSaved))
+	mux.Handle("POST /api/integrations/instances/{id}/refresh", h(m.handleRefresh))
 	mux.Handle("GET /api/integrations/instances/{id}/diagnostics", h(m.handleDiagnostics))
 	mux.Handle("POST /api/integrations/authorize/{integration}", h(m.handleAuthBegin))
 	mux.Handle("GET /api/integrations/authorize/{integration}/{id}", h(m.handleAuthPoll))
@@ -71,6 +73,8 @@ func (m *Manager) writeError(w http.ResponseWriter, err error) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "unknown_integration", "this hub doesn't have that integration")
 	case errors.Is(err, ErrNotFound):
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such instance")
+	case errors.Is(err, ErrNotRunning):
+		httpx.Error(w, http.StatusConflict, "not_running", "the instance isn't running; it's disabled or can't start")
 	case errors.Is(err, ErrNameTaken):
 		httpx.Error(w, http.StatusConflict, "conflict", "another instance of this integration already has that name")
 	default:
@@ -197,6 +201,14 @@ func (m *Manager) handleTestSaved(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (m *Manager) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	if err := m.Refresh(r.PathValue("id")); err != nil {
+		m.writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (m *Manager) handleDiagnostics(w http.ResponseWriter, r *http.Request) {

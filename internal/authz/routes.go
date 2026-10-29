@@ -193,6 +193,7 @@ var Routes = []Route{
 	{Pattern: "DELETE /api/integrations/instances/{id}", Access: Admin},
 	{Pattern: "POST /api/integrations/test", Access: Admin},
 	{Pattern: "POST /api/integrations/instances/{id}/test", Access: Admin},
+	{Pattern: "POST /api/integrations/instances/{id}/refresh", Access: Viewer},
 	{Pattern: "GET /api/integrations/instances/{id}/diagnostics", Access: Admin},
 	{Pattern: "POST /api/integrations/authorize/{integration}", Access: Admin},
 	{Pattern: "GET /api/integrations/authorize/{integration}/{id}", Access: Admin},
