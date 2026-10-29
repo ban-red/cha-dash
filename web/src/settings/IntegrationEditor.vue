@@ -252,6 +252,18 @@ function labelOf(path: string): string {
   return l.length > 1 && l[1] === l[1]!.toLowerCase() ? l[0]!.toLowerCase() + l.slice(1) : l;
 }
 
+/**
+ * A control credential half filled in: the hub refuses it as all or nothing,
+ * so open its section at the first empty field instead of sending it.
+ */
+async function partialControl(): Promise<boolean> {
+  const a = currentAct.value;
+  if (a?.state !== 'partial') return false;
+  showAll.value = true;
+  await focusField_(a.missing[0]);
+  return true;
+}
+
 async function runTest(): Promise<void> {
   const problems = Object.keys(errors.value).filter((k) => k !== 'name');
   if (problems.length) {
@@ -259,6 +271,7 @@ async function runTest(): Promise<void> {
     await focusField_(firstError());
     return;
   }
+  if (await partialControl()) return;
   const d = detail.value;
   const typed = typedSecrets(secrets);
   let target: Parameters<typeof testConnection>[0];
@@ -286,6 +299,7 @@ async function save(): Promise<void> {
     await focusField_(firstError());
     return;
   }
+  if (await partialControl()) return;
   saving.value = true;
   const typed = typedSecrets(secrets);
   try {

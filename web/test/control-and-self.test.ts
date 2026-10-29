@@ -198,6 +198,24 @@ describe('Let Cha Dash act', () => {
     expect(await axeViolations()).toEqual([]);
   });
 
+  it('a half-filled control credential opens its section at the empty field instead of sending it', async () => {
+    const f = hub();
+    await editor({ instanceRef: 'i_pve' });
+    const section = document.getElementById('control')!;
+    expect(section.querySelector('details')!.open).toBe(false);
+    const id = document.getElementById('f-control_token_id') as HTMLInputElement;
+    id.value = 'chadash-control@pve!control';
+    id.dispatchEvent(new Event('input'));
+    await nextTick();
+    const test = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Test connection')!;
+    test.click();
+    await flushPromises();
+    await nextTick();
+    expect(section.querySelector('details')!.open).toBe(true);
+    expect(document.activeElement).toBe(document.getElementById('f-control_token_secret'));
+    expect(f.calls.some((c) => c.method === 'POST' && c.path.includes('/test'))).toBe(false);
+  });
+
   it('presents Unraid’s mode with what each choice means', async () => {
     hub();
     await editor({ instanceRef: 'i_un', section: 'control' });

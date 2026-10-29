@@ -33,6 +33,9 @@ const added = reactive(new Map<string, string>());
 const sidecarFound = computed(() => (sidecar.value.state === 'done' ? sidecar.value.result.found[0] : undefined));
 const sidecarWhy = computed(() => (sidecar.value.state === 'done' ? sidecar.value.result.checked[0]?.error : undefined));
 const sidecarHost = computed(() => onboarding.sidecar.replace(/^tcp:\/\//, ''));
+/** compose.yaml's chadash-node (node://local), or the older socket proxy. */
+const viaNode = computed(() => onboarding.sidecar.startsWith('node://'));
+const sidecarWhat = computed(() => (viaNode.value ? 'chadash-node' : 'the socket proxy'));
 const furtherFound = computed(() => (further.value.state === 'done' ? further.value.result.found : []));
 const furtherMisses = computed(() => (further.value.state === 'done' ? further.value.result.checked.filter((c) => c.found === 0) : []));
 
@@ -115,7 +118,7 @@ onMounted(() => void checkSidecar());
     <section class="ob-block" aria-labelledby="ob-side-h">
       <h3 id="ob-side-h" class="caps">Docker on this host</h3>
       <p v-if="sidecar.state === 'checking' || sidecar.state === 'idle'" class="ob-quiet" aria-busy="true">
-        Asking the socket proxy that came with Cha Dash, at <code>{{ sidecarHost }}</code>…
+        Asking {{ sidecarWhat }} that came with Cha Dash, at <code>{{ sidecarHost }}</code>…
       </p>
       <div v-else-if="sidecar.state === 'error'" class="form-error" role="alert">
         <Glyph kind="down" /><span>{{ sidecar.message }}</span>
@@ -127,7 +130,7 @@ onMounted(() => void checkSidecar());
           <span class="ob-cand-main">
             <b>Docker on this host</b>
             <span class="ob-m">
-              Through the read-only socket proxy<template v-if="sidecarFound.version"> · Docker <span class="n">{{ sidecarFound.version }}</span></template>
+              {{ viaNode ? 'Through chadash-node' : 'Through the read-only socket proxy' }}<template v-if="sidecarFound.version"> · Docker <span class="n">{{ sidecarFound.version }}</span></template>
             </span>
             <span v-for="w in accessWarnings(sidecarFound)" :key="w.code" class="ob-warn"><Glyph kind="attn" /> {{ w.message }}</span>
           </span>
@@ -148,7 +151,7 @@ onMounted(() => void checkSidecar());
       </ul>
       <p v-else class="ob-quiet" role="status">
         Nothing answered at <code>{{ sidecarHost }}</code><template v-if="sidecarWhy"> ({{ sidecarWhy }})</template>. That’s expected if you
-        removed the socket proxy from <code>compose.yaml</code>, or run Cha Dash without Compose.
+        removed {{ sidecarWhat }} from <code>compose.yaml</code>, or run Cha Dash without Compose.
       </p>
     </section>
 

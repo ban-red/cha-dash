@@ -185,6 +185,7 @@ describe('Connect your home', () => {
     const card = document.querySelector('.ob-cand')!;
     expect(card.textContent).toContain('Docker on this host');
     expect(card.textContent).toContain('28.5.1');
+    expect(card.textContent).toContain('Through the read-only socket proxy');
 
     (card.querySelector('button') as HTMLButtonElement).click();
     await flushPromises();
@@ -199,6 +200,21 @@ describe('Connect your home', () => {
     expect(f.calls.filter((c) => c.path === '/api/onboarding/discover')).toHaveLength(1);
     expect(document.querySelector('.ob-cand')!.textContent).toContain('Added');
     expect(document.querySelector('.ob-cand button')).toBeNull();
+  });
+
+  it('names chadash-node, not a socket proxy, when Docker on this host is node://local', async () => {
+    hub({
+      'GET /api/onboarding': { status: 200, body: { status: 'new', step: '', show: true, sidecar: 'node://local', updated_at: null } },
+      'POST /api/onboarding/discover': { status: 200, body: { found: [{ ...SIDECAR, config: { endpoint: 'node://local' }, target: 'node://local' }], checked: [{ target: 'node://local', source: 'sidecar', found: 1 }] } },
+    });
+    await loadOnboarding();
+    expect(onboarding.sidecar).toBe('node://local');
+    await wizard();
+    (document.querySelectorAll<HTMLButtonElement>('.ob-path')[1]!).click();
+    await flushPromises();
+    const card = document.querySelector('.ob-cand')!;
+    expect(card.textContent).toContain('Through chadash-node');
+    expect(document.querySelector('[aria-labelledby="ob-side-h"]')!.textContent).not.toContain('socket proxy');
   });
 
   it('looks further only where it’s told to, and never at a subnet', async () => {
