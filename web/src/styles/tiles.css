@@ -235,8 +235,7 @@ a.mono.has-icon:hover {
   font-size: var(--type-title-2);
 }
 .split {
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   gap: var(--space-4);
@@ -412,10 +411,13 @@ a.mono.has-icon:hover {
 }
 
 /* lists: incidents, agenda, containers */
+/* A tile's list scrolls when it has more rows than room; the wheel moves on
+   to the page at either end. */
 .list {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: hidden auto;
+  scrollbar-width: thin;
   display: flex;
   flex-direction: column;
   margin: 0;
