@@ -287,6 +287,9 @@ func TestScenarioBadDeployRollsBackOnItsOwn(t *testing.T) {
 	if len(d.History) != 3 || d.History[0].Kind != "rollback" || d.History[1].Kind != "deploy" {
 		t.Errorf("history %+v", d.History)
 	}
+	if last := task.Log[len(task.Log)-1]; len(d.History) == 3 && !strings.HasPrefix(last, "Commit "+d.History[0].Commit[:7]) {
+		t.Errorf("the log should end on the rollback's commit %s: %q", d.History[0].Commit[:7], last)
+	}
 	if d.Draft == nil || d.Draft.Content != bad {
 		t.Error("a failed deploy keeps the draft")
 	}

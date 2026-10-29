@@ -499,7 +499,11 @@ func (s *Service) executeRollback(ctx context.Context, r action.Request, run *ac
 // blocked, rolled back and stuck fail with their sentence. Stuck also
 // raises an Inbox item; a later good deploy resolves it.
 func (s *Service) outcome(ctx context.Context, ref targetRef, res stackproto.DeployResult, run *action.TaskRun) error {
-	if res.Commit != "" {
+	switch {
+	case res.RollbackCommit != "":
+		// The attempt's commit is already in the log; end on where the stack is now.
+		run.Logf("Commit %s (rolled back from %s)", short(res.RollbackCommit), short(res.Commit))
+	case res.Commit != "":
 		run.Logf("Commit %s", short(res.Commit))
 	}
 	switch res.Outcome {
