@@ -14,6 +14,7 @@
  *   /settings/stacks                   owned compose stacks per node, detected projects, stack secrets
  *   /settings/stacks/new               a new stack (saved as a draft)
  *   /settings/stacks/{node}/{name}     one stack: editor, plan, deploy, history
+ *   /settings/nodes                    chadash-node on each host: state, policy, revoke, pairing (owner, admin)
  *   /settings/import                   import from Homepage
  *   /settings/backup                   export this hub, import a Home file
  *   /settings/users                    users and roles (owner, admin)
@@ -32,9 +33,9 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'stacks' | 'import' | 'backup' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security';
+export type SettingsPane = 'integrations' | 'stacks' | 'nodes' | 'import' | 'backup' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security';
 
-const PANES: readonly string[] = ['stacks', 'import', 'backup', 'users', 'audit', 'notifications', 'tokens', 'security'];
+const PANES: readonly string[] = ['stacks', 'nodes', 'import', 'backup', 'users', 'audit', 'notifications', 'tokens', 'security'];
 
 export type View =
   | { name: 'front'; board?: string }

@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Settings → Nodes**: each chadash-node, whether it's connected, its version, address and key, and what its policy allows, in plain words. Revoke a node by typing its name. Regenerate the pairing token, and see the command that reads it on the hub's host.
 - **Settings → Notifications**: Web Push to your browsers, ntfy, and signed webhooks. Each channel has a test button that sends one now and says how it went, and the delivery log shows every message, failures included.
 - **Symptom-first defaults.** Something down is sent at once. Something that needs attention waits 5 minutes first, so a flap that clears by itself never pages anyone. An integration to reconnect and a stuck stack notify once each. Hints never notify, and neither do security findings at the Relaxed level. Resolutions are sent for things that were down.
 - **Quiet by design.** One message per problem per change, also across restarts. Several at once, as on a backup night, arrive as one message. A burst past a channel's limit is dropped and logged, not queued.

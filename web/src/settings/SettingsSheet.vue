@@ -2,7 +2,7 @@
 /**
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
- * /settings/integrations, /settings/stacks, /settings/import, /settings/backup,
+ * /settings/integrations, /settings/stacks, /settings/nodes, /settings/import, /settings/backup,
  * /settings/users, /settings/audit, /settings/notifications, /settings/tokens,
  * /settings/security. The board, the
  * socket and the Inbox stay live underneath; Esc or the scrim goes back.
@@ -23,6 +23,7 @@ import { useUi } from '../stores/ui';
 
 // Rarely opened: each its own chunk, loaded with the pane.
 const StacksPane = defineAsyncComponent(() => import('./StacksPane.vue'));
+const NodesPane = defineAsyncComponent(() => import('./NodesPane.vue'));
 const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
 const UsersPane = defineAsyncComponent(() => import('./UsersPane.vue'));
 const AuditPane = defineAsyncComponent(() => import('./AuditPane.vue'));
@@ -37,6 +38,7 @@ let lastFocus: Element | null = null;
 const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'integrations', label: 'Integrations', note: 'what Cha Dash reads' },
   { id: 'stacks', label: 'Stacks', note: 'compose, deploy, roll back' },
+  { id: 'nodes', label: 'Nodes', note: 'hosts Cha Dash acts on' },
   { id: 'import', label: 'Import', note: 'from Homepage' },
   { id: 'backup', label: 'Backup', note: 'export and restore' },
   { id: 'users', label: 'Users', note: 'people and roles' },
@@ -58,6 +60,7 @@ const pane = computed<SettingsPane>(() => {
 const TITLES: Record<SettingsPane, string> = {
   integrations: 'Integrations',
   stacks: 'Stacks',
+  nodes: 'Nodes',
   import: 'Import from Homepage',
   backup: 'Backup',
   users: 'Users',
@@ -128,6 +131,7 @@ onBeforeUnmount(() => {
           <div class="st-pane">
             <IntegrationsPane v-if="pane === 'integrations'" />
             <StacksPane v-else-if="pane === 'stacks'" />
+            <NodesPane v-else-if="pane === 'nodes'" />
             <ImportPane v-else-if="pane === 'import'" />
             <BackupPane v-else-if="pane === 'backup'" />
             <UsersPane v-else-if="pane === 'users'" />
