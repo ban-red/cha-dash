@@ -72,8 +72,8 @@ func resolve(inc *Incident, at time.Time, by, text string) {
 type backupFailed struct{}
 
 const (
-	bfGuest = "pve:minig5/qemu/100"
-	bfJob   = "pve:minig5/backup/daily"
+	bfGuest = "pve:heron/qemu/200"
+	bfJob   = "pve:aviary/backup/daily"
 	bfRetry = 4 * time.Minute
 	bfError = "qmp command 'guest-fsfreeze-freeze' failed - got timeout"
 )
@@ -151,11 +151,11 @@ func (b backupFailed) incident(s *Sim, in *instance, t time.Time) *Incident {
 	nightly := b.nextNightly(in)
 	inc.Phase = "failed"
 	inc.Title = "Backup of homeassistant failed"
-	inc.Summary = fmt.Sprintf("The nightly backup of homeassistant (VM 100 on minig5) failed at %s. The last good backup is from %s.", clock(in.open), when(lastOK, in.open))
+	inc.Summary = fmt.Sprintf("The nightly backup of homeassistant (VM 200 on heron) failed at %s. The last good backup is from %s.", clock(in.open), when(lastOK, in.open))
 	inc.Facts = map[string]any{"task": "vzdump", "error": bfError, "last_ok": lastOK, "job": bfJob}
 	inc.Causes = []Cause{
 		{Text: "The QEMU guest agent in homeassistant didn't answer the filesystem freeze (timeout).", Resource: bfGuest, At: in.open},
-		{Text: "minig5's job reached PBS: the backup started and stopped at the filesystem freeze.", Resource: "pbs:main"},
+		{Text: "aviary's job reached PBS: the backup started and stopped at the filesystem freeze.", Resource: "pbs:main"},
 	}
 	inc.Suggested = s.action("pve.guest.backup", "Back up homeassistant now", T1, bfGuest, "Runs a one-off backup to PBS. It takes about 4 minutes and the VM keeps running.")
 	inc.Alternatives = []Action{s.action("pbs.task.log", "View the failed task's log", T0, "app:pbs", "")}
@@ -183,7 +183,7 @@ func (backupFailed) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v fl
 
 // ── pbs-datastore-filling ────────────────────────────────────────────────
 
-// iolinux's nightly backup writes 108 GB of new chunks and pushes the PBS
+// studio's nightly backup writes 108 GB of new chunks and pushes the PBS
 // datastore over 90%. The prune job has been disabled for weeks, so nothing
 // makes room. Pruning per policy (the suggested action) brings it back to 86%.
 type pbsFilling struct{}
@@ -271,7 +271,7 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc := s.newIncident(in, ClassProblem, SeverityAttention, pbsTarget)
 	inc.Title = "PBS datastore is filling up"
 	inc.Phase = "rising"
-	inc.Summary = fmt.Sprintf("Datastore main on jupiter crossed 90%% at %s while iolinux's backup was writing.", clock(in.open))
+	inc.Summary = fmt.Sprintf("Datastore main on magpie crossed 90%% at %s while studio's backup was writing.", clock(in.open))
 	inc.Facts = map[string]any{"used_pct": 90, "capacity_tb": 2}
 	if !t.Before(in.open.Add(pbsRampAfter)) {
 		inc.Phase = "high"
@@ -282,7 +282,7 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 	}
 	inc.Causes = []Cause{
 		{Text: fmt.Sprintf("The daily prune job has been disabled since %s, so 38 snapshots are outside the retention policy.", pruneDisabledAt.Format("2 Jan")), Resource: pbsTarget, At: pruneDisabledAt},
-		{Text: fmt.Sprintf("iolinux's backup at %s wrote 108 GB of new data, about 12 times a usual night. It has been running since %s.",
+		{Text: fmt.Sprintf("studio's backup at %s wrote 108 GB of new data, about 12 times a usual night. It has been running since %s.",
 			clock(in.open.Add(-pbsRampBefore)), when(s.top.res[ptHolder].Attrs["started_at"].(time.Time), in.open)), Resource: ptHolder, At: in.open.Add(-pbsRampBefore)},
 	}
 	inc.Suggested = s.action("pbs.datastore.prune", "Prune per policy", T2, pbsTarget,
@@ -309,11 +309,11 @@ func (p pbsFilling) incident(s *Sim, in *instance, t time.Time) *Incident {
 }
 
 func (pbsFilling) touches(res, key string) bool {
-	return (res == pbsTarget && key == "used.pct") || (res == "docker:jupiter/pbs" && key == "cpu.pct")
+	return (res == pbsTarget && key == "used.pct") || (res == "docker:magpie/pbs" && key == "cpu.pct")
 }
 
 func (p pbsFilling) adjust(_ *Sim, in *instance, m *metricSpec, t time.Time, v float64) float64 {
-	if m.res == "docker:jupiter/pbs" {
+	if m.res == "docker:magpie/pbs" {
 		if in.fixed(t) && within(t, in.fix, in.fix.Add(pbsCollected)) {
 			v += 22 // prune and garbage collection
 		}
@@ -331,20 +331,20 @@ func (p pbsFilling) adjust(_ *Sim, in *instance, m *metricSpec, t time.Time, v f
 
 // ── host-memory-pressure ─────────────────────────────────────────────────
 
-// debian-nas (LXC 100 on jupiter-nas) grows from 0.5 to 3.1 GB over two
-// hours. jupiter-nas has 8 GB and no swap, so host memory climbs to 95%.
+// files (LXC 220 on stork) grows from 0.5 to 3.1 GB over two hours. stork
+// has 8 GB and no swap, so host memory climbs to 95%.
 // Restarting the LXC (the suggested action) fixes it.
 type hostMemory struct{}
 
 const (
-	hmHost    = "pve:jupiter-nas"
-	hmGuest   = "pve:jupiter-nas/lxc/100"
+	hmHost    = "pve:stork"
+	hmGuest   = "pve:stork/lxc/220"
 	hmLead    = 110 * time.Minute
 	hmClimb   = 30 * time.Minute
 	hmRestart = 20 * time.Second
 	hmSettle  = 10 * time.Minute
 	hmAtOpen  = 28.3 // host memory points added by the time it crosses 90%
-	hmPeak    = 33.0 // ... and at the plateau (95%)
+	hmPeak    = 32.1 // ... and at the plateau (95%, as the copy says)
 )
 
 func (hostMemory) lead() time.Duration { return hmLead }
@@ -400,7 +400,7 @@ func (h hostMemory) apply(s *Sim, in *instance, w *world) {
 	case !hz.IsZero() && !t.Before(hz):
 		setHealth(host, HealthOK, "", hz)
 	case in.fixed(t):
-		setHealth(host, HealthAttention, "memory falling after a restart of debian-nas", in.open)
+		setHealth(host, HealthAttention, "memory falling after a restart of files", in.open)
 	case t.Before(in.open.Add(hmClimb)):
 		setHealth(host, HealthAttention, "memory above 90% and climbing", in.open)
 	default:
@@ -411,7 +411,7 @@ func (h hostMemory) apply(s *Sim, in *instance, w *world) {
 		guest.State = StateStopped
 		setHealth(guest, HealthMaintenance, "restarting", in.fix)
 		cockpit.State = StateStopped
-		setHealth(cockpit, HealthMaintenance, "debian-nas is restarting", in.fix)
+		setHealth(cockpit, HealthMaintenance, "files is restarting", in.fix)
 	case in.fixed(t):
 		up := in.fix.Add(hmRestart)
 		guest.Attrs["started_at"] = up
@@ -428,7 +428,7 @@ func (h hostMemory) incident(s *Sim, in *instance, t time.Time) *Incident {
 	}
 	inc := s.newIncident(in, ClassProblem, SeverityAttention, hmHost)
 	start := in.open.Add(-hmLead)
-	inc.Title = "jupiter-nas is running out of memory"
+	inc.Title = "stork is running out of memory"
 	inc.Phase = "climbing"
 	inc.Summary = fmt.Sprintf("Memory crossed 90%% at %s and has been climbing since %s.", clock(in.open), clock(start))
 	inc.Facts = map[string]any{"used_pct": 90, "total_gb": 8, "swap_gb": 0}
@@ -439,11 +439,11 @@ func (h hostMemory) incident(s *Sim, in *instance, t time.Time) *Incident {
 		inc.Facts = map[string]any{"used_pct": 95, "total_gb": 8, "swap_gb": 0}
 	}
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("debian-nas (LXC 100) grew from 0.5 GB to 3.1 GB since %s.", clock(start)), Resource: hmGuest, At: start},
-		{Text: "No swap is configured on jupiter-nas.", Resource: hmHost},
+		{Text: fmt.Sprintf("files (LXC 220) grew from 0.5 GB to 3.1 GB since %s.", clock(start)), Resource: hmGuest, At: start},
+		{Text: "No swap is configured on stork.", Resource: hmHost},
 	}
-	inc.Suggested = s.action("pve.guest.restart", "Restart debian-nas", T2, hmGuest,
-		"Restarts the LXC, which takes about 20 seconds. Cockpit and the shares it serves are unavailable meanwhile.")
+	inc.Suggested = s.action("pve.guest.restart", "Restart files", T2, hmGuest,
+		"Restarts the LXC, which takes about 20 seconds. Cockpit and the Samba shares it serves are unavailable meanwhile.")
 	inc.Alternatives = []Action{
 		s.action("link.open", "Open Cockpit", T0, "app:cockpit", ""),
 		s.action("pve.host.memory", "See memory by guest", T0, hmHost, ""),
@@ -452,10 +452,10 @@ func (h hostMemory) incident(s *Sim, in *instance, t time.Time) *Incident {
 	if in.fixed(t) {
 		inc.Phase = "restarting"
 		inc.UpdatedAt = in.fix
-		inc.Summary = fmt.Sprintf("debian-nas was restarted at %s. Waiting for memory to settle.", clock(in.fix))
+		inc.Summary = fmt.Sprintf("files was restarted at %s. Waiting for memory to settle.", clock(in.fix))
 	}
 	if hz := h.horizon(in); !hz.IsZero() && !t.Before(hz) {
-		resolve(inc, hz, "action", fmt.Sprintf("debian-nas restarted at %s. Memory is back to normal, about 62%%.", clock(in.fix)))
+		resolve(inc, hz, "action", fmt.Sprintf("files restarted at %s. Memory is back to normal, about 62%%.", clock(in.fix)))
 	}
 	return inc
 }
@@ -563,7 +563,7 @@ func (plexToken) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v float
 type karakeepAPI struct{}
 
 const (
-	kkCt       = "docker:pvedocker/karakeep-web-1"
+	kkCt       = "docker:rook/karakeep-web-1"
 	kkApp      = "app:karakeep"
 	kkInt      = "integration:karakeep"
 	kkLead     = 3 * time.Minute
@@ -644,7 +644,7 @@ func (k karakeepAPI) incident(s *Sim, in *instance, t time.Time) *Incident {
 	}
 	inc.Suggested = s.action("integration.update", "Update the Karakeep integration", T1, kkInt, "Switches to the adapter for 0.31. Undo puts the previous one back.")
 	inc.Alternatives = []Action{
-		s.action("stack.rollback", "Roll Karakeep back to 0.30.2", T2, kkApp, "Redeploys the karakeep stack on pvedocker with the previous image."),
+		s.action("stack.rollback", "Roll Karakeep back to 0.30.2", T2, kkApp, "Redeploys the karakeep stack on rook with the previous image."),
 		s.action("link.open", "Open Karakeep", T0, kkApp, ""),
 	}
 	inc.ResolvesWhen = "Resolves when the integration can read Karakeep again."
@@ -669,7 +669,7 @@ func (karakeepAPI) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v flo
 type qbitOOM struct{}
 
 const (
-	qbCt       = "docker:jupiter/binhex-qbittorrentvpn"
+	qbCt       = "docker:magpie/qbittorrent"
 	qbApp      = "app:qbittorrent"
 	qbLead     = 25 * time.Minute
 	qbRestart  = 20 * time.Second // Docker restarts it
@@ -793,14 +793,14 @@ func (q qbitOOM) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc := s.newIncident(in, ClassProblem, SeverityDown, qbCt)
 	inc.Title = "qBittorrent ran out of memory"
 	inc.Phase = "oom-killed"
-	inc.Summary = fmt.Sprintf("binhex-qbittorrentvpn hit its 4 GiB memory limit at %s and was killed. Docker restarts it automatically.", clock(killed))
+	inc.Summary = fmt.Sprintf("qbittorrent hit its 4 GiB memory limit at %s and was killed. Docker restarts it automatically.", clock(killed))
 	inc.Facts = map[string]any{"limit_mib": 4096, "exit_code": 137, "restarts": 1}
 	switch {
 	case q.fixedAt(in, t):
 		inc.Severity = SeverityInfo
 		inc.Phase = "applying"
 		inc.UpdatedAt = in.fix
-		inc.Summary = "Recreating binhex-qbittorrentvpn with a 6 GiB memory limit."
+		inc.Summary = "Recreating qbittorrent with a 6 GiB memory limit."
 	case !t.Before(healthy):
 		inc.Severity = SeverityInfo
 		inc.Phase = "recovered"
@@ -817,7 +817,7 @@ func (q qbitOOM) incident(s *Sim, in *instance, t time.Time) *Incident {
 		{Text: "About 20 torrents were downloading at the time.", Resource: qbApp, At: killed.Add(-qbLead)},
 	}
 	inc.Suggested = s.action("container.update", "Raise the memory limit to 6 GiB", T2, qbCt,
-		"Unraid recreates binhex-qbittorrentvpn with the new limit, about 2 minutes. Downloads pause meanwhile.")
+		"Unraid recreates qbittorrent with the new limit, about 2 minutes. Downloads pause meanwhile.")
 	inc.Alternatives = []Action{
 		s.action("container.logs", "View logs", T0, qbCt, ""),
 		s.action("downloads.pause", "Pause all torrents", T1, qbApp, "Undo resumes them."),
@@ -861,4 +861,207 @@ func (q qbitOOM) adjust(_ *Sim, in *instance, m *metricSpec, t time.Time, v floa
 	default:
 		return v * (0.75 + 0.25*ease(t, restart, restart.Add(45*time.Minute)))
 	}
+}
+
+// ── speedtest-slow ───────────────────────────────────────────────────────
+
+// The internet line drops to about a fifth of its speed. Speedtest
+// Tracker's runs, every 30 minutes, measure it, and OPNsense's WAN tops out
+// at the same speed. The fix is the provider's: the first run after it
+// measures the usual speed again, and the incident resolves on its own.
+type speedtestSlow struct{}
+
+const (
+	stApp   = "app:speedtesttracker"
+	stWAN   = "net:opnsense/wan"
+	stSlow  = 180.0 // Mb/s down while the line is slow
+	stEvery = 30 * time.Minute
+)
+
+func (speedtestSlow) lead() time.Duration { return 0 }
+
+// horizon is the first speed test at or after the fix.
+func (speedtestSlow) horizon(in *instance) time.Time {
+	if in.fix.IsZero() {
+		return time.Time{}
+	}
+	return speedRunAt(speedRun(in.fix.Add(-time.Second)) + 1)
+}
+
+func (speedtestSlow) horizonOffset(open, fix time.Duration) time.Duration {
+	if fix == 0 {
+		return -1
+	}
+	return fix + stEvery
+}
+
+func (p speedtestSlow) changePoints(in *instance) []time.Time {
+	return []time.Time{in.open, p.horizon(in)}
+}
+
+// slow reports whether the line is slow at t.
+func (p speedtestSlow) slow(in *instance, t time.Time) bool {
+	h := p.horizon(in)
+	return !t.Before(in.open) && (h.IsZero() || t.Before(h))
+}
+
+func (p speedtestSlow) apply(s *Sim, in *instance, w *world) {
+	app := w.res[stApp]
+	if app == nil || w.t.Before(in.open) {
+		return
+	}
+	if p.slow(in, w.t) {
+		setHealth(app, HealthAttention, "The last speed test was below your thresholds", in.open)
+	} else {
+		setHealth(app, HealthOK, "", p.horizon(in))
+	}
+}
+
+func (p speedtestSlow) incident(s *Sim, in *instance, t time.Time) *Incident {
+	if t.Before(in.open) {
+		return nil
+	}
+	inc := s.newIncident(in, ClassProblem, SeverityAttention, stApp)
+	inc.Phase = "open"
+	inc.Title = "Internet downloads are slow"
+	inc.Summary = fmt.Sprintf("Speed tests since %s measure about %.0f Mb/s down, against the usual %.0f. Upload and ping are normal. OPNsense's WAN hasn't gone above that since %s either.",
+		clock(in.open), stSlow, lineDown, clock(in.open))
+	inc.Facts = map[string]any{"download_mbps": stSlow, "usual_mbps": lineDown, "upload_mbps": lineUp, "since": in.open}
+	inc.Causes = []Cause{
+		{Text: fmt.Sprintf("Every speed test since %s measured about %.0f Mb/s down. The one at %s measured about %.0f.", clock(in.open), stSlow, clock(in.open.Add(-stEvery)), lineDown),
+			Resource: stApp, At: in.open},
+		{Text: "OPNsense's WAN tops out at the same speed, so the limit is outside the home: most likely the internet provider.", Resource: stWAN, At: in.open},
+	}
+	inc.Suggested = Action{ID: "link.open", Label: "Open Speedtest Tracker", Tier: T0, Target: stApp}
+	inc.Alternatives = []Action{{ID: "link.open", Label: "Open OPNsense", Tier: T0, Target: "net:opnsense"}}
+	inc.ResolvesWhen = "Resolves when a speed test measures the usual speed again."
+	if h := p.horizon(in); !h.IsZero() && !t.Before(h) {
+		resolve(inc, h, "auto", fmt.Sprintf("The %s speed test measured the usual speed again.", clock(h)))
+	}
+	return inc
+}
+
+func (speedtestSlow) touches(res, key string) bool {
+	return (res == stApp && (key == "dl.mbps" || key == "ping.ms")) || (res == stWAN && key == "rx.mbps")
+}
+
+func (p speedtestSlow) adjust(s *Sim, in *instance, m *metricSpec, t time.Time, v float64) float64 {
+	if m.res == stWAN {
+		if p.slow(in, t) {
+			v = math.Min(v, stSlow-4+3*s.rng.jitter(m.hk^0x5eed, t))
+		}
+		return v
+	}
+	k := speedRun(t)
+	if !p.slow(in, speedRunAt(k)) {
+		return v
+	}
+	if m.key == "ping.ms" {
+		return v + 4 // a congested line
+	}
+	return stSlow + 7*s.rng.s(m.hk^0x5eed, k)
+}
+
+// ── nextcloud-maintenance ────────────────────────────────────────────────
+
+// An update recreates Nextcloud with a new major version. The
+// upgrade finishes, but maintenance mode stays on, so Nextcloud answers 503
+// to everyone. Turning maintenance mode off (the suggested action) fixes
+// it; undo would turn it back on.
+type nextcloudMaintenance struct{}
+
+const (
+	ncApp     = "app:nextcloud"
+	ncCt      = "docker:rook/nextcloud"
+	ncInt     = "integration:nextcloud"
+	ncFrom    = "31.0.9"
+	ncTo      = "32.0.1"
+	ncUpgrade = 2 * time.Minute  // the upgrade itself
+	ncSettle  = 30 * time.Second // maintenance mode off, the check answers 200
+)
+
+func (nextcloudMaintenance) lead() time.Duration { return 0 }
+
+func (nextcloudMaintenance) horizon(in *instance) time.Time {
+	if in.fix.IsZero() {
+		return time.Time{}
+	}
+	return in.fix.Add(ncSettle)
+}
+
+func (nextcloudMaintenance) horizonOffset(open, fix time.Duration) time.Duration {
+	if fix == 0 {
+		return -1
+	}
+	return fix + ncSettle
+}
+
+func (n nextcloudMaintenance) changePoints(in *instance) []time.Time {
+	return []time.Time{in.open, in.open.Add(ncUpgrade), in.fix, n.horizon(in)}
+}
+
+func (n nextcloudMaintenance) apply(s *Sim, in *instance, w *world) {
+	t := w.t
+	app, ct, integ := w.res[ncApp], w.res[ncCt], w.res[ncInt]
+	if app == nil || ct == nil || integ == nil || t.Before(in.open) {
+		return
+	}
+	ct.Attrs["image"] = "nextcloud:" + ncTo
+	ct.Attrs["container_id"] = containerID(s.rng, ncCt, 1)
+	ct.Attrs["started_at"] = in.open
+	setHealth(ct, HealthOK, "", in.open)
+	if h := n.horizon(in); !h.IsZero() && !t.Before(h) {
+		app.Attrs["version"] = ncTo
+		integ.Attrs["upstream_version"] = ncTo
+		setHealth(app, HealthOK, "", h)
+		setHealth(integ, HealthOK, "", h)
+		return
+	}
+	// The container runs; Nextcloud answers every request with 503, so the
+	// integration can't read it either (its stats go stale).
+	integ.State = StateError
+	setHealth(integ, HealthAttention, "Nextcloud answered 503 (maintenance mode)", in.open)
+	switch {
+	case in.fixed(t):
+		setHealth(app, HealthMaintenance, "turning off maintenance mode", in.fix)
+	case t.Before(in.open.Add(ncUpgrade)):
+		setHealth(app, HealthDown, "upgrading to "+ncTo+" · answers 503", in.open)
+	default:
+		setHealth(app, HealthDown, "maintenance mode is on · answers 503", in.open)
+	}
+}
+
+func (n nextcloudMaintenance) incident(s *Sim, in *instance, t time.Time) *Incident {
+	if t.Before(in.open) {
+		return nil
+	}
+	inc := s.newIncident(in, ClassProblem, SeverityDown, ncApp)
+	inc.Phase = "open"
+	inc.Title = "Nextcloud is stuck in maintenance mode"
+	inc.Summary = fmt.Sprintf("Nextcloud has answered 503 Service Unavailable since %s. The update to %s finished at %s, but maintenance mode stayed on, so nobody can open their files.",
+		clock(in.open), ncTo, clock(in.open.Add(ncUpgrade)))
+	inc.Facts = map[string]any{"status": 503, "maintenance": true, "version": ncTo, "previous": ncFrom}
+	inc.Causes = []Cause{
+		{Text: fmt.Sprintf("nextcloud was recreated with image nextcloud:%s at %s, and the upgrade left maintenance mode on.", ncTo, clock(in.open)), Resource: ncCt, At: in.open},
+		{Text: "Nextcloud's HTTP check answers 503 while maintenance mode is on.", Resource: ncApp},
+	}
+	inc.Suggested = s.action("nextcloud.maintenance.off", "Turn off maintenance mode", T1, ncApp,
+		"Runs occ maintenance:mode --off in the nextcloud container, about 30 seconds. Undo turns it back on.")
+	inc.Alternatives = []Action{s.action("container.logs", "View logs", T0, ncCt, "")}
+	inc.ResolvesWhen = "Resolves when Nextcloud answers normally again."
+	if in.fixed(t) {
+		inc.Phase = "turning-off"
+		inc.UpdatedAt = in.fix
+		inc.Summary = fmt.Sprintf("Turning off maintenance mode (started %s).", clock(in.fix))
+	}
+	if h := n.horizon(in); !h.IsZero() && !t.Before(h) {
+		resolve(inc, h, "action", fmt.Sprintf("Maintenance mode was turned off at %s. Nextcloud %s answers normally.", clock(in.fix), ncTo))
+	}
+	return inc
+}
+
+func (nextcloudMaintenance) touches(string, string) bool { return false }
+
+func (nextcloudMaintenance) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v float64) float64 {
+	return v
 }

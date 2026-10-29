@@ -79,12 +79,12 @@ describe('below admin', () => {
   });
 
   it('an unavailable action names the reason, without a link into settings the role can’t open', async () => {
-    const e = engine({ plan: () => refuse(409, 'unavailable', 'Add a control token to let Cha Dash back up guests on minig5.', { recipe: 'i_pve' }) });
+    const e = engine({ plan: () => refuse(409, 'unavailable', 'Add a control token to let Cha Dash back up guests on heron.', { recipe: 'i_pve' }) });
     fakeFetch(e.routes);
     const h = as('operator');
     h.ui.act(h.live.inbox.value!.incidents['backup-failed']!);
     await settle();
-    expect(h.ui.state.toasts.at(-1)).toMatchObject({ text: 'Add a control token to let Cha Dash back up guests on minig5.', tone: 'error' });
+    expect(h.ui.state.toasts.at(-1)).toMatchObject({ text: 'Add a control token to let Cha Dash back up guests on heron.', tone: 'error' });
     expect(h.ui.state.toasts.at(-1)!.action).toBeUndefined();
   });
 

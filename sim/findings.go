@@ -8,8 +8,7 @@ import (
 	"time"
 )
 
-// What the M0 spikes found in the dogfood lab, as the v0.1 integrations
-// report it: the same incident IDs (<instance id>.<local id>), scenarios,
+// Findings as the v0.1 integrations report them: the same incident IDs (<instance id>.<local id>), scenarios,
 // facts and wording as integrations/proxmox, integrations/unraid,
 // integrations/docker, integrations/traefik and integrations/frigate, and
 // the causes internal/correlate adds across instances.
@@ -81,15 +80,15 @@ const backupResolves = "Resolves when a run of this job succeeds: a retry, or th
 
 // ── backup-target-unreachable ────────────────────────────────────────────
 
-// PBS on jupiter doesn't answer pluto's and mars's jobs one night ("No route
-// to host"), as on 12 of the 21 nights spike 4.1 looked at. The run stops
-// before any guest. It resolves with the next run that succeeds: the next
+// PBS on magpie doesn't answer wren's job one night ("No route to host"):
+// wren's backups cross the LAN to magpie, and something on the way drops
+// them. The run stops before any guest. It resolves with the next run that succeeds: the next
 // night's, or a run started by hand (a fix).
 type backupUnreachable struct{ job string }
 
 const (
-	pbsStorage  = "pbs-jupiter" // the PVE storage every job writes to
-	pbsEndpoint = "10.0.11.120:8007"
+	pbsStorage  = "pbs-magpie" // the PVE storage every job writes to
+	pbsEndpoint = ipMagpie + ":8007"
 	unreachErr  = "could not activate storage '" + pbsStorage + "': " + pbsStorage + ": error fetching datastores - 500 Can't connect to " + pbsEndpoint + " (No route to host)"
 )
 
@@ -181,21 +180,22 @@ func (backupUnreachable) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time,
 
 // ── backup-passthrough-conflict ──────────────────────────────────────────
 
-// win-gaming and iolinux pass through the same GPU. iolinux has held it since
-// yesterday evening, so backing up the stopped win-gaming, which has to
-// start it, fails. iolinux's own backup writes 108 GB that night (the PBS
-// datastore crosses 90% then). iolinux is shut down in the evening, and the
-// next night's run succeeds. A fix shuts it down and runs the job by hand.
+// win-games and studio pass through the same GPU. studio has held it since
+// yesterday evening, so backing up the stopped win-games, which has to start
+// it, fails. studio's own backup writes 108 GB that night (the PBS datastore
+// crosses 90% then). studio is shut down in the evening, and the next
+// night's run succeeds. A fix shuts it down and runs the job by hand.
 type backupPassthrough struct{}
 
 const (
-	ptJob     = "pve:io/backup/daily"
-	ptGuest   = "pve:io/qemu/201" // win-gaming
-	ptHolder  = "pve:io/qemu/202" // iolinux
-	ptDevice  = "0000:01:00.0"
-	ptBusyErr = "PCI device '" + ptDevice + "' already in use by VMID '202'"
-	ptBig     = 22 * time.Minute             // iolinux's backup that night, writing 108 GB
-	ptStop    = 23*time.Hour + 5*time.Minute // iolinux shut down that evening
+	ptJob     = "pve:owl/backup/daily"
+	ptGuest   = "pve:owl/qemu/301" // win-games
+	ptHolder  = "pve:owl/qemu/302" // studio
+	ptOther   = "pve:owl/qemu/303" // homework
+	ptDevice  = "0000:03:00.0"
+	ptBusyErr = "PCI device '" + ptDevice + "' already in use by VMID '302'"
+	ptBig     = 22 * time.Minute             // studio's backup that night, writing 108 GB
+	ptStop    = 23*time.Hour + 5*time.Minute // studio shut down that evening
 )
 
 func (backupPassthrough) lead() time.Duration { return 30 * time.Minute }
@@ -206,7 +206,7 @@ func (p backupPassthrough) retried(in *instance) bool {
 	return !in.fix.IsZero() && in.fix.Before(jobBegin(ptJob, p.night(in).Add(24*time.Hour)))
 }
 
-// stopAt is when iolinux is shut down and gives the GPU back.
+// stopAt is when studio is shut down and gives the GPU back.
 func (p backupPassthrough) stopAt(in *instance) time.Time {
 	stop := p.night(in).Add(ptStop)
 	if p.retried(in) {
@@ -240,7 +240,7 @@ func (p backupPassthrough) shapeNight(_ *Sim, in *instance, day time.Time, r *jo
 	at := jobBegin(ptJob, day)
 	*r.guest(ptGuest) = guestBackup{guest: ptGuest, begin: at, end: at, err: ptBusyErr}
 	*r.guest(ptHolder) = guestBackup{guest: ptHolder, begin: at, end: at.Add(ptBig), ok: true}
-	d := r.guest("pve:io/qemu/203")
+	d := r.guest(ptOther)
 	*d = guestBackup{guest: d.guest, begin: at.Add(ptBig), end: at.Add(ptBig + slotOf(d.guest).dur), ok: true}
 }
 
@@ -255,7 +255,7 @@ func (p backupPassthrough) apply(s *Sim, in *instance, w *world) {
 	t := w.t
 	at := jobBegin(ptJob, p.night(in))
 	if within(t, in.open, p.horizon(in)) {
-		setHealth(w.res[ptJob], HealthAttention, fmt.Sprintf("win-gaming's backup failed at %s", clock(at)), at)
+		setHealth(w.res[ptJob], HealthAttention, fmt.Sprintf("win-games's backup failed at %s", clock(at)), at)
 	}
 	if g := w.res[ptHolder]; g != nil && !t.Before(p.stopAt(in)) {
 		g.State = StateStopped
@@ -273,13 +273,13 @@ func (p backupPassthrough) incident(s *Sim, in *instance, t time.Time) *Incident
 	gpu := strings.TrimSuffix(ptDevice, ".0")
 	inc := s.newIncident(in, ClassProblem, SeverityAttention, ptGuest)
 	inc.Scenario, inc.Phase, inc.OpenedAt = "backup-passthrough-conflict", "open", at
-	inc.Title = "Backup of win-gaming failed"
-	inc.Summary = fmt.Sprintf("io's %s backup failed for win-gaming on its %s run. iolinux, devbox were backed up normally.%s", jobSchedule(ptJob), dayHHMM(at), runHistory(h))
+	inc.Title = "Backup of win-games failed"
+	inc.Summary = fmt.Sprintf("owl's %s backup failed for win-games on its %s run. studio, homework were backed up normally.%s", jobSchedule(ptJob), dayHHMM(at), runHistory(h))
 	inc.Facts = backupFacts(ptJob, h, ptBusyErr)
-	maps.Copy(inc.Facts, map[string]any{"vmid": 201, "pci_device": ptDevice, "in_use_by": 202})
+	maps.Copy(inc.Facts, map[string]any{"vmid": 301, "pci_device": ptDevice, "in_use_by": 302})
 	inc.Causes = []Cause{
-		{Text: fmt.Sprintf("win-gaming and iolinux both pass through PCI device %s. Backing up the stopped win-gaming has to start it, and that fails while iolinux runs.", gpu), Resource: ptGuest, At: at},
-		{Text: fmt.Sprintf("iolinux holds %s.", gpu), Resource: ptHolder},
+		{Text: fmt.Sprintf("win-games and studio both pass through PCI device %s. Backing up the stopped win-games has to start it, and that fails while studio runs.", gpu), Resource: ptGuest, At: at},
+		{Text: fmt.Sprintf("studio holds %s.", gpu), Resource: ptHolder},
 	}
 	inc.BlastRadius = guestsOf(ptJob)
 	inc.Suggested = openJobsAction(ptJob)
@@ -299,13 +299,13 @@ func (backupPassthrough) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time,
 
 // ── guest-error ──────────────────────────────────────────────────────────
 
-// jupiter-nas's VM scratch is started by hand and goes into internal-error a
-// minute later (spike 4.1 found it there, after a reboot that timed out).
-// It resolves when scratch leaves that state: a fix is the owner stopping it.
+// stork's VM sandbox is started by hand and goes into internal-error a
+// minute later. It resolves when sandbox leaves that state: a fix is the
+// owner stopping it.
 type guestError struct{}
 
 const (
-	geGuest = "pve:jupiter-nas/qemu/101" // scratch
+	geGuest = "pve:stork/qemu/221" // sandbox
 	geBoot  = time.Minute
 )
 
@@ -350,13 +350,13 @@ func (guestError) incident(s *Sim, in *instance, t time.Time) *Incident {
 	started := in.open.Add(-geBoot)
 	inc := s.newIncident(in, ClassProblem, SeverityDown, geGuest)
 	inc.Scenario, inc.Phase = "guest-error", "open"
-	inc.Title = "scratch is in internal-error"
-	inc.Summary = "VM 101 (scratch) on jupiter-nas is in internal-error: its QEMU process stopped responding."
-	inc.Facts = map[string]any{"vmid": 101, "node": "jupiter-nas", "status": "internal-error"}
+	inc.Title = "sandbox is in internal-error"
+	inc.Summary = "VM 221 (sandbox) on stork is in internal-error: its QEMU process stopped responding."
+	inc.Facts = map[string]any{"vmid": 221, "node": "stork", "status": "internal-error"}
 	inc.Causes = []Cause{{Text: fmt.Sprintf("The last task on it was qmstart at %s (OK).", dayHHMM(started)), Resource: geGuest, At: started}}
 	inc.BlastRadius = []Impact{} // nothing runs on it
-	inc.Suggested = Action{ID: "link.open", Label: "Open scratch in Proxmox", Tier: T0, Target: geGuest}
-	inc.ResolvesWhen = "Resolves when scratch leaves its error state."
+	inc.Suggested = Action{ID: "link.open", Label: "Open sandbox in Proxmox", Tier: T0, Target: geGuest}
+	inc.ResolvesWhen = "Resolves when sandbox leaves its error state."
 	if in.fixed(t) {
 		resolve(inc, in.fix, "auto", fmt.Sprintf("The guest left its error state (seen at %s).", clock(in.fix)))
 	}
@@ -373,15 +373,14 @@ func (guestError) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v floa
 
 // Unraid's API reports a version older than 4.37.4, which the Unraid
 // integration refuses (an authorization bug lets any key change settings).
-// It reads nothing else meanwhile, so jupiter's tiles keep their values as
-// of the moment it stopped. On the dogfood lab this is standing (API
-// 4.37.2); the Demo Home shows it as an afternoon episode so the rest of
-// the day's Unraid data is live. A fix is the owner updating the API: the
-// integration reconnects at its next retry.
+// It reads nothing else meanwhile, so magpie's tiles keep their values as
+// of the moment it stopped. The Demo Home shows it as an afternoon episode
+// so the rest of the day's Unraid data is live. A fix is the owner updating
+// the API: the integration reconnects at its next retry.
 type unraidAPI struct{}
 
 const (
-	urInt   = "integration:unraid-jupiter"
+	urInt   = unraidSrc
 	urRetry = 5 * time.Minute
 	urMsg   = "The Unraid API is version 4.37.2. Cha Dash needs 4.37.4 or later, which fixes an authorization bug: on older versions any API key, even a read-only one, can change settings. Update Unraid, or install the latest Unraid Connect plugin, to get API 4.37.4 or later; Cha Dash reconnects on its own."
 )
@@ -428,7 +427,7 @@ func (u unraidAPI) incident(s *Sim, in *instance, t time.Time) *Incident {
 	inc.Scenario, inc.Phase = "api-changed", "open" // the hub's repair for an unsupported_version error
 	inc.Title = "Unraid's API changed"
 	inc.Summary = fmt.Sprintf("Since %s, Unraid has answered in a way this integration doesn't support. Its tiles show values as of then.", clock(in.open))
-	inc.Facts = map[string]any{"code": "unsupported_version", "instance": "unraid-jupiter"}
+	inc.Facts = map[string]any{"code": "unsupported_version", "instance": "unraid-magpie"}
 	inc.Causes = []Cause{{Text: urMsg, Resource: urInt, At: in.open}}
 	// What goes stale: what the instance publishes, as the hub lists it.
 	inc.BlastRadius = []Impact{}
@@ -454,7 +453,7 @@ func (unraidAPI) adjust(_ *Sim, _ *instance, _ *metricSpec, _ time.Time, v float
 // ── hints ────────────────────────────────────────────────────────────────
 
 // hint is a quiet inbox item: a security problem (category security)
-// declared at severity info, about how the lab is set up rather than
+// declared at severity info, about how the home is set up rather than
 // something that broke. The hub's security posture may publish it at
 // another severity (internal/demo). Hints stand from when the
 // instance first read the source (the default script opens them before
@@ -472,20 +471,18 @@ func settings(instance string) Action {
 	return Action{ID: "integration.settings", Label: "Open the integration's settings", Tier: T0, Target: instance}
 }
 
-const jupiterProxy = "tcp://10.0.11.120:2375"
-
 var (
 	hintTraefik = hint{target: "app:traefik", scenario: "credential-hygiene",
 		title:     "Traefik's dashboard has no auth",
-		summary:   "Traefik's dashboard is routed without an auth middleware on traefik.lab.example. Its API asked for credentials, so only the dashboard's page is open today, but one router change could expose the API, and with it basic-auth password hashes.",
-		facts:     map[string]any{"url": "http://traefik.lab.example", "hosts": []string{"traefik.lab.example"}},
+		summary:   "Traefik's dashboard is routed without an auth middleware on traefik.home.example. Its API asked for credentials, so only the dashboard's page is open today, but one router change could expose the API, and with it basic-auth password hashes.",
+		facts:     map[string]any{"url": "http://traefik.home.example", "hosts": []string{"traefik.home.example"}},
 		suggested: settings("integration:traefik"),
 		resolves:  "Resolves when every dashboard router has an auth middleware.", resolution: "No longer applies."}
-	hintDocker = hint{target: "docker:jupiter", scenario: "credential-hygiene",
-		title:     "jupiter's socket proxy is too broad",
-		summary:   "The socket proxy at " + jupiterProxy + " lets every GET under /containers/ through, so anyone who can reach it can read every container's environment, logs and files. Restrict who can connect (a firewall, or wollomatic's -allowfrom), or switch to a path-anchored allowlist like Cha Dash's compose preset.",
-		facts:     map[string]any{"endpoint": jupiterProxy, "access": "broad-proxy"},
-		suggested: settings("integration:docker-jupiter"),
+	hintDocker = hint{target: "docker:magpie", scenario: "credential-hygiene",
+		title:     "magpie's socket proxy is too broad",
+		summary:   "The socket proxy at " + magpieProxy + " lets every GET under /containers/ through, so anyone who can reach it can read every container's environment, logs and files. Restrict who can connect (a firewall, or wollomatic's -allowfrom), or switch to a path-anchored allowlist like Cha Dash's compose preset.",
+		facts:     map[string]any{"endpoint": magpieProxy, "access": "broad-proxy"},
+		suggested: settings("integration:docker-magpie"),
 		resolves:  "Resolves when the proxy refuses container logs.", resolution: "No longer applies."}
 	hintFrigate = hint{target: "app:frigate", scenario: "frigate-unauthenticated-admin",
 		title:   "Frigate grants admin without a sign-in",
@@ -494,6 +491,16 @@ var (
 		suggested: Action{ID: "integration.settings", Label: "Use the authenticated port", Tier: T0, Target: "integration:frigate",
 			Detail: "Create a Frigate user with the viewer role, then point this instance at Frigate's authenticated port (8971) with that user."},
 		resolves: "Resolves when Cha Dash signs in to Frigate.", resolution: "Frigate no longer grants admin without a sign-in."}
+	// The AdGuard Home instance reads the admin API at its LAN address over
+	// http://, so the basic-auth password crosses the network in clear on
+	// every sync. The words are the runtime's plain_http warning and
+	// Traefik's plain-http hint.
+	hintAdGuard = hint{target: "app:adguard", scenario: "credential-hygiene",
+		title:     "AdGuard Home sends its credentials in clear text",
+		summary:   "AdGuard Home sends its credentials over plain http:// to " + ipAdGuard + ". Anyone on the network path can read the admin password, and every AdGuard Home user is an administrator. Use https:// if it supports it.",
+		facts:     map[string]any{"url": "http://" + ipAdGuard, "transport": "http"},
+		suggested: settings("integration:adguard"),
+		resolves:  "Resolves when the instance's URL uses https://.", resolution: "No longer applies."}
 )
 
 func (hint) lead() time.Duration { return 0 }

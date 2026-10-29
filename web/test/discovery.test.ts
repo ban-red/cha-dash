@@ -41,7 +41,7 @@ function unlabelled(): ReturnType<typeof docs> {
 
 /**
  * The Demo Home plus containers as the Docker integration publishes them,
- * labels and all. The Demo Home's own jupiter containers carry the same
+ * labels and all. The Demo Home's own magpie containers carry the same
  * services' labels, so they're the same suggestions seen by another source.
  */
 function labelled(): ReturnType<typeof docs> {
@@ -50,7 +50,7 @@ function labelled(): ReturnType<typeof docs> {
     container('docker:i_d/container/immich_server', {
       'homepage.group': 'Apps',
       'homepage.name': 'Immich',
-      'homepage.href': 'https://photos.lab.example',
+      'homepage.href': 'https://photos.home.example',
       'homepage.icon': 'immich.png',
       'homepage.weight': '2',
       'com.docker.compose.project': 'immich',
@@ -100,7 +100,7 @@ describe('label discovery', () => {
       ['docker:i_d/container/immich_server', 'apps', false],
       ['docker:i_d/container/proxmox-backup-server', 'backup', true],
     ]);
-    expect(s[1]).toMatchObject({ name: 'Immich', group: 'Apps', href: 'https://photos.lab.example', icon: 'immich.png', sectionTitle: 'Apps' });
+    expect(s[1]).toMatchObject({ name: 'Immich', group: 'Apps', href: 'https://photos.home.example', icon: 'immich.png', sectionTitle: 'Apps' });
     expect(s[2]!.href).toBeUndefined(); // http(s) links only
     expect(placementSentence(s)).toBe('Mealie and Immich in Apps; Proxmox Backup Server in a new Backup section.');
     expect(slug('Archive/Backup')).toBe('archive-backup');
@@ -110,9 +110,9 @@ describe('label discovery', () => {
     const { board, tiles } = importedBoard();
     const g = labelled().graph;
     // Mealie is one service seen by three sources: dismissing any one dismisses it
-    expect(labelServices(g, board, tiles, new Set()).find((x) => x.name === 'Mealie')!.duplicates).toEqual(['docker:i_u/container/mealie', 'docker:jupiter/mealie']);
+    expect(labelServices(g, board, tiles, new Set()).find((x) => x.name === 'Mealie')!.duplicates).toEqual(['docker:i_u/container/mealie', 'docker:magpie/mealie']);
     expect(labelServices(g, board, tiles, new Set(['docker:i_u/container/mealie'])).map((x) => x.name)).toEqual(['Immich', 'Proxmox Backup Server']);
-    expect(labelServices(g, board, tiles, new Set(['docker:jupiter/immich'])).map((x) => x.name)).toEqual(['Mealie', 'Proxmox Backup Server']);
+    expect(labelServices(g, board, tiles, new Set(['docker:magpie/immich'])).map((x) => x.name)).toEqual(['Mealie', 'Proxmox Backup Server']);
     const added = addLabelServices({ board, tiles }, labelServices(g, board, tiles, new Set()));
     expect(labelServices(g, added.board, added.tiles, new Set())).toEqual([]);
     // a tile bound to the container by hand counts too
@@ -126,11 +126,11 @@ describe('label discovery', () => {
     const board = defaultBoard(d.graph, Date.parse(withIncidents.now));
     const s = labelServices(d.graph, board, {}, new Set());
     expect(s.map((x) => [x.resource, x.sectionId, x.newSection])).toEqual([
-      ['docker:jupiter/immich', 'apps', true],
-      ['docker:jupiter/mealie', 'apps', true],
-      ['docker:jupiter/pbs', 'backup', true],
+      ['docker:magpie/immich', 'apps', true],
+      ['docker:magpie/mealie', 'apps', true],
+      ['docker:magpie/pbs', 'backup', true],
     ]);
-    expect(s[1]).toMatchObject({ name: 'Mealie', href: 'https://food.family.example', icon: 'mealie.png', description: 'Recipes' });
+    expect(s[1]).toMatchObject({ name: 'Mealie', href: 'https://food.home.example', icon: 'mealie.png', description: 'Recipes' });
     expect(placementSentence(s)).toBe('Immich and Mealie in a new Apps section; Proxmox Backup Server in a new Backup section.');
   });
 
@@ -149,7 +149,7 @@ describe('label discovery', () => {
     expect(next.tiles['service@docker:i_d/container/immich_server']).toEqual({
       name: 'Immich',
       icon: 'immich.png',
-      href: 'https://photos.lab.example',
+      href: 'https://photos.home.example',
       bind: { resource: 'docker:i_d/container/immich_server' },
       origin: { source: 'labels', group: 'Apps', entry: 'Immich' },
     });
@@ -163,12 +163,12 @@ describe('label discovery', () => {
     for (const r of [
       container('docker:i_d/container/sonarr', { 'homepage.group': 'Media', 'homepage.name': 'TV' }),
       container('docker:i_d/container/plex', { 'homepage.group': 'Media', 'homepage.name': 'Plex' }),
-      container('docker:i_d/container/abs', { 'homepage.group': 'Media', 'homepage.name': 'Books' }),
+      container('docker:i_d/container/pihole', { 'homepage.group': 'Network', 'homepage.name': 'DNS' }),
     ])
       d.graph.resources[r.id] = r;
     d.graph.resources['docker:i_d/container/sonarr']!.attrs = { image: 'lscr.io/linuxserver/sonarr:latest' };
     d.graph.resources['docker:i_d/container/plex']!.attrs = { image: 'plexinc/pms-docker:1.41' };
-    d.graph.resources['docker:i_d/container/abs']!.attrs = { image: 'ghcr.io/advplyr/audiobookshelf@sha256:0123' };
+    d.graph.resources['docker:i_d/container/pihole']!.attrs = { image: 'docker.io/pihole/pihole@sha256:0123' };
     const s = labelServices(d.graph, board, tiles, new Set());
     const by = (name: string) => s.find((x) => x.name === name);
     // Mealie: the app that runs_on its container (the Demo Home's), through its service tile.
@@ -177,20 +177,20 @@ describe('label discovery', () => {
     expect(by('TV')).toMatchObject({ known: { id: 'sonarr' }, widget: { type: 'arr', id: 'arr@app:sonarr', app: 'app:sonarr' } });
     // Plex: the board shows Now playing already, so it isn't offered.
     expect(by('Plex')).toBeUndefined();
-    // Audiobookshelf isn't connected: a service tile on the container, saying what to connect.
-    expect(by('Books')).toMatchObject({ known: { id: 'audiobookshelf', name: 'Audiobookshelf' } });
-    expect(by('Books')!.widget).toBeUndefined();
+    // Pi-hole isn't connected (the Demo Home runs AdGuard): a service tile on the container, saying what to connect.
+    expect(by('DNS')).toMatchObject({ known: { id: 'pihole', name: 'Pi-hole' } });
+    expect(by('DNS')!.widget).toBeUndefined();
 
     const next = addLabelServices({ board, tiles }, s);
     const media = next.board.sections.find((x) => x.id === 'media')!.items;
     expect(media.find((i) => i.id === 'arr@app:sonarr')).toMatchObject({ type: 'arr' });
     expect(next.tiles['arr@app:sonarr']).toEqual({ origin: { source: 'labels', group: 'Media', entry: 'TV' } });
     expect(next.tiles['service@app:mealie']).toEqual({ name: 'Mealie', description: 'Recipes', origin: { source: 'labels', group: 'apps', entry: 'Mealie' } });
-    expect(next.tiles['service@docker:i_d/container/abs']!.bind).toEqual({ resource: 'docker:i_d/container/abs' });
+    expect(next.tiles['service@docker:i_d/container/pihole']!.bind).toEqual({ resource: 'docker:i_d/container/pihole' });
     // Once on the board, the app counts as shown: nothing is offered again.
     expect(labelServices(d.graph, next.board, next.tiles, new Set()).map((x) => x.name)).toEqual([]);
     // Removing such a tile dismisses the containers its labels name.
-    expect(labelContainers(d.graph, 'Apps', 'Mealie')).toEqual(['docker:i_d/container/mealie', 'docker:i_u/container/mealie', 'docker:jupiter/mealie']);
+    expect(labelContainers(d.graph, 'Apps', 'Mealie')).toEqual(['docker:i_d/container/mealie', 'docker:i_u/container/mealie', 'docker:magpie/mealie']);
   });
 
   it('matches by Homepage’s widget label first, then the image’s name', () => {
@@ -291,11 +291,11 @@ describe('the discovery Inbox item', () => {
       resources: [
         'docker:i_d/container/mealie',
         'docker:i_u/container/mealie',
-        'docker:jupiter/mealie',
+        'docker:magpie/mealie',
         'docker:i_d/container/immich_server',
-        'docker:jupiter/immich',
+        'docker:magpie/immich',
         'docker:i_d/container/proxmox-backup-server',
-        'docker:jupiter/pbs',
+        'docker:magpie/pbs',
       ],
     });
     expect(first.panel().querySelector('.disc')).toBeNull();
@@ -328,7 +328,7 @@ describe('the discovery Inbox item', () => {
     ]);
     toast.action!.run();
     await flushPromises();
-    expect(f.last('POST', '/api/boards/b1/discovery/restore')!.body).toEqual({ resources: expect.arrayContaining(['docker:jupiter/mealie', 'docker:jupiter/pbs']) });
+    expect(f.last('POST', '/api/boards/b1/discovery/restore')!.body).toEqual({ resources: expect.arrayContaining(['docker:magpie/mealie', 'docker:magpie/pbs']) });
     expect(dismissedOnHub()).toEqual([]);
     expect(discovery.suggestions.value.map((s) => s.name)).toEqual(['Mealie', 'Immich', 'Proxmox Backup Server']);
     await nextTick();

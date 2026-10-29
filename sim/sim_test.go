@@ -294,14 +294,15 @@ var defaultExpect = []struct {
 	open, closes time.Duration
 	by           string
 }{
-	{"proxmox-pluto.backup.daily", 2 * time.Hour, 26*time.Hour + 4*time.Minute, "auto"},
-	{"backup-failed", 2*time.Hour + 14*time.Minute, 15*time.Hour + 34*time.Minute, "action"},
-	{"proxmox-mars.backup.daily", 2*time.Hour + 20*time.Minute, 26*time.Hour + 27*time.Minute, "auto"},
+	{"proxmox-wren.backup.daily", 2 * time.Hour, 26*time.Hour + 5*time.Minute, "auto"},
+	{"backup-failed", 2*time.Hour + 19*time.Minute, 15*time.Hour + 34*time.Minute, "action"},
 	{"pbs-datastore-filling", 2*time.Hour + 44*time.Minute, 16*time.Hour + 22*time.Minute, "action"},
-	{"proxmox-io.backup.daily", 2*time.Hour + 55*time.Minute, 27*time.Hour + time.Minute, "auto"},
+	{"proxmox-owl.backup.daily", 2*time.Hour + 55*time.Minute, 27*time.Hour + time.Minute, "auto"},
+	{"nextcloud-maintenance", 7*time.Hour + 10*time.Minute, 15*time.Hour + 10*time.Minute + 30*time.Second, "action"},
 	{"karakeep-api-changed", 9*time.Hour + 5*time.Minute, 19*time.Hour + 30*time.Second, "action"},
-	{"proxmox-jupiter-nas.guest.101", 11*time.Hour + 20*time.Minute, 18*time.Hour + 5*time.Minute, "auto"},
-	{"unraid-jupiter.repair", 12*time.Hour + 5*time.Minute, 16*time.Hour + 45*time.Minute, "auto"},
+	{"speedtest-slow", 9*time.Hour + 40*time.Minute, 16*time.Hour + 10*time.Minute, "auto"},
+	{"proxmox-aviary.guest.221", 11*time.Hour + 20*time.Minute, 18*time.Hour + 5*time.Minute, "auto"},
+	{"unraid-magpie.repair", 12*time.Hour + 5*time.Minute, 16*time.Hour + 45*time.Minute, "auto"},
 	{"plex-token-revoked", 13*time.Hour + 27*time.Minute, 18*time.Hour + 10*time.Second, "action"},
 	{"host-memory-pressure", 13*time.Hour + 30*time.Minute, 17*time.Hour + 10*time.Minute, "action"},
 	{"qbittorrent-oom", 14*time.Hour + 3*time.Minute, 20*time.Hour + 2*time.Minute, "action"},
@@ -309,7 +310,7 @@ var defaultExpect = []struct {
 
 // standingHints are the default script's hints: open before the day starts,
 // open after it ends.
-var standingHints = []string{"docker-jupiter.hint.docker_endpoint", "frigate.unauthenticated-admin", "traefik.hint.api_no_auth"}
+var standingHints = []string{"adguard.hint.plain_http", "docker-magpie.hint.docker_endpoint", "frigate.unauthenticated-admin", "traefik.hint.api_no_auth"}
 
 func isHint(in Incident) bool {
 	return in.Class == ClassProblem && (in.Scenario == "credential-hygiene" || in.Scenario == "frigate-unauthenticated-admin")
@@ -380,10 +381,13 @@ func TestDefaultScriptTimeline(t *testing.T) {
 	if v := float64(series["pbs:main|used.pct"].Value); v < 91.5 || v > 92.6 {
 		t.Errorf("PBS datastore at %v%%, want about 92%%", v)
 	}
-	if v := float64(series["pve:jupiter-nas|mem.pct"].Value); v < 93.5 || v > 97.5 {
-		t.Errorf("jupiter-nas memory at %v%%, want about 95%%", v)
+	if v := float64(series["pve:stork|mem.pct"].Value); v < 93.5 || v > 97.5 {
+		t.Errorf("stork memory at %v%%, want about 95%%", v)
 	}
-	for _, k := range []string{"app:plex|streams", "app:karakeep|bookmarks", "unraid:jupiter|cpu.pct", "unraid:jupiter/array|used.pct"} {
+	if v := float64(series[stApp+"|dl.mbps"].Value); v < stSlow-10 || v > stSlow+10 {
+		t.Errorf("speed test at %v Mb/s down, want about %v", v, stSlow)
+	}
+	for _, k := range []string{"app:plex|streams", "app:karakeep|bookmarks", "unraid:magpie|cpu.pct", "unraid:magpie/array|used.pct", "app:nextcloud|users.active"} {
 		if se := series[k]; !se.Stale || !se.Value.Valid() {
 			t.Errorf("%s should be stale with a last-known value, got %+v", k, se)
 		}
@@ -391,10 +395,10 @@ func TestDefaultScriptTimeline(t *testing.T) {
 	if se := series["app:plex|streams"]; !se.AsOf.Equal(start.Add(13*time.Hour + 26*time.Minute + 30*time.Second)) {
 		t.Errorf("Plex streams as of %v, want the last sample before 13:27", se.AsOf)
 	}
-	if se := series["unraid:jupiter|cpu.pct"]; !se.AsOf.Equal(start.Add(12*time.Hour + 4*time.Minute + 30*time.Second)) {
-		t.Errorf("jupiter's CPU as of %v, want the last sample before Unraid's repair at 12:05", se.AsOf)
+	if se := series["unraid:magpie|cpu.pct"]; !se.AsOf.Equal(start.Add(12*time.Hour + 4*time.Minute + 30*time.Second)) {
+		t.Errorf("magpie's CPU as of %v, want the last sample before Unraid's repair at 12:05", se.AsOf)
 	}
-	for _, k := range []string{"app:plex|http.ms", "check:checks/jupiter-unraid|http.ms"} {
+	for _, k := range []string{"app:plex|http.ms", "check:checks/magpie-unraid|http.ms", "app:nextcloud|http.ms"} {
 		if se := series[k]; se.Stale || !se.Value.Valid() {
 			t.Errorf("%s should still be live: a broken integration is not an outage", k)
 		}
@@ -474,7 +478,7 @@ func TestFixRecreatesContainer(t *testing.T) {
 			t.Errorf("the fix should only touch qBittorrent, but changed %s", e.Resource.ID)
 		}
 	}
-	if got := strings.Join(kinds, " "); got != "relation.remove relation.remove relation.remove resource.remove resource.upsert incident.update" {
+	if got := strings.Join(kinds, " "); got != "relation.remove relation.remove resource.remove resource.upsert incident.update" {
 		t.Fatalf("fix events: %s", got)
 	}
 	ev = s.Advance(15 * time.Second)
@@ -484,14 +488,14 @@ func TestFixRecreatesContainer(t *testing.T) {
 			kinds = append(kinds, string(e.Type))
 		}
 	}
-	if got := strings.Join(kinds, " "); !strings.HasPrefix(got, "resource.upsert") || strings.Count(got, "relation.upsert") != 3 {
+	if got := strings.Join(kinds, " "); !strings.HasPrefix(got, "resource.upsert") || strings.Count(got, "relation.upsert") != 2 {
 		t.Fatalf("recreate events: %s", got)
 	}
 }
 
 func TestAutoResolve(t *testing.T) {
 	s := mustNew(t, 1, WithScript(Script{
-		{Scenario: ScenarioBackupFailed, Open: Offset(2*time.Hour + 14*time.Minute)},
+		{Scenario: ScenarioBackupFailed, Open: Offset(2*time.Hour + 19*time.Minute)},
 		{Scenario: ScenarioQbitOOM, Open: Offset(6 * time.Hour)},
 	}))
 	got := map[string]Incident{}
@@ -501,7 +505,7 @@ func TestAutoResolve(t *testing.T) {
 			got[ev.Incident.ID], at[ev.Incident.ID] = *ev.Incident, ev.At
 		}
 	}
-	if !at["backup-failed"].Equal(s.Start().Add(26*time.Hour+14*time.Minute)) || got["backup-failed"].ResolvedBy != "auto" {
+	if !at["backup-failed"].Equal(s.Start().Add(26*time.Hour+19*time.Minute)) || got["backup-failed"].ResolvedBy != "auto" {
 		t.Errorf("backup-failed: resolved %v by %q, want the next nightly run", at["backup-failed"], got["backup-failed"].ResolvedBy)
 	}
 	if !at["qbittorrent-oom"].Equal(s.Start().Add(30*time.Hour)) || got["qbittorrent-oom"].ResolvedBy != "auto" {
@@ -554,7 +558,7 @@ func TestScriptValidate(t *testing.T) {
 	if err := json.Unmarshal(b, &back); err != nil || !slices.Equal(back, DefaultScript()) {
 		t.Fatalf("script JSON round trip failed (%v): %s", err, b)
 	}
-	if !strings.Contains(string(b), `"open":"2h14m0s"`) {
+	if !strings.Contains(string(b), `"open":"2h19m0s"`) {
 		t.Errorf("offsets should encode as duration strings: %s", b)
 	}
 }
@@ -578,17 +582,22 @@ func TestBlastRadius(t *testing.T) {
 			}
 		}
 	}
-	// Rebooting pluto takes down the router, and with it everything,
+	// Rebooting wren takes down the router, and with it everything,
 	// including Cha Dash itself.
-	has("pve:pluto", []string{"net:opnsense", "net:opnsense/wan", "unraid:jupiter", "pve:mars-2", "app:chadash", "frigate:camera/driveway", "pbs:main", "app:plex"}, nil)
-	// Stopping jupiter's array stops Docker there, so PBS backups pause, but
+	has("pve:wren", []string{"net:opnsense", "net:opnsense/wan", "app:adguard", "unraid:magpie", "pve:stork", "app:chadash", "frigate:camera/garage", "pbs:main", "app:plex"}, nil)
+	// AdGuard Home answers the home's DNS: without it, nothing resolves.
+	has("app:adguard", []string{"net:opnsense", "pve:owl", "app:nextcloud"}, nil)
+	// Stopping magpie's array stops Docker there, so PBS backups pause, but
 	// the guests themselves keep running.
-	has("unraid:jupiter/array", []string{"docker:jupiter", "docker:jupiter/pbs", "pbs:main", "pve:minig5/qemu/100", "app:immich"},
-		[]string{"pve:minig5", "app:homeassistant", "unraid:jupiter/pool/cache"})
-	// qBittorrent going down hurts the *arrs, not Plex.
-	has(qbCt, []string{"app:qbittorrent", "app:sonarr", "app:radarr", "app:bazarr", "traefik:route/torrents"}, []string{"app:plex", "docker:jupiter"})
+	has("unraid:magpie/array", []string{"docker:magpie", "docker:magpie/pbs", "pbs:main", "pve:heron/qemu/200", "app:immich", "app:audiobookshelf"},
+		[]string{"pve:heron", "app:homeassistant", "unraid:magpie/pool/cache", "docker:rook"})
+	// qBittorrent going down hurts the *arrs and the requests that wait on
+	// them, not Plex.
+	has(qbCt, []string{"app:qbittorrent", "app:sonarr", "app:radarr", "app:bazarr", "app:seerr", "traefik:route/torrents"}, []string{"app:plex", "docker:magpie"})
 	// A broken integration only makes what it reads stale.
-	has(plexInt, []string{"app:plex"}, []string{"docker:jupiter/Plex-Current"})
+	has(plexInt, []string{"app:plex"}, []string{"docker:magpie/plex"})
+	// The cluster's nodes each take their own guests with them.
+	has("pve:egret", []string{"docker:rook", "app:paperlessngx", "app:karakeep"}, []string{"pve:heron", "app:homeassistant"})
 	for _, im := range s.BlastRadius(bfGuest) {
 		if im.Resource == "pbs:main" {
 			t.Error("a guest's blast radius must not walk backed_up_by forwards")
@@ -689,20 +698,20 @@ func TestJSONStable(t *testing.T) {
 	}
 }
 
-// TestSanitized guards the public repo: only 10.0.11.x addresses, only
-// *.lab.example and *.family.example names, plus the public weather service
-// the weather integration credits.
+// TestSanitized guards the public repo: only 10.20.30.x addresses, only
+// *.home.example names, plus the public weather service the weather
+// integration credits.
 func TestSanitized(t *testing.T) {
 	s := mustNew(t, 1)
 	s.Skip(DefaultAllOpen)
 	text := string(EncodeState(s.Snapshot()))
 	for _, ip := range regexp.MustCompile(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`).FindAllString(text, -1) {
-		if !strings.HasPrefix(ip, "10.0.11.") {
+		if !strings.HasPrefix(ip, "10.20.30.") {
 			t.Errorf("unsanitized address %s", ip)
 		}
 	}
-	host := regexp.MustCompile(`^(10\.0\.11\.\d+|[a-z0-9-]+|[a-z0-9.-]+\.(lab|family)\.example|open-meteo\.com)$`)
-	for _, m := range regexp.MustCompile(`(?:https?|tcp)://([^/:"\s]+)`).FindAllStringSubmatch(text, -1) {
+	host := regexp.MustCompile(`^(10\.20\.30\.\d+|[a-z0-9-]+|[a-z0-9-]+\.home\.example|open-meteo\.com)$`)
+	for _, m := range regexp.MustCompile(`(?:https?|tcp)://([a-z0-9][^/:"\s]*)`).FindAllStringSubmatch(text, -1) {
 		if !host.MatchString(m[1]) {
 			t.Errorf("unsanitized host %s", m[1])
 		}
@@ -725,30 +734,63 @@ func TestTopologyShape(t *testing.T) {
 			endpoints[r.Source] = true
 		}
 	}
-	if pve != 6 || len(endpoints) != 5 {
-		t.Errorf("%d PVE hosts on %d endpoints, want 6 on 5", pve, len(endpoints))
+	if pve != 5 || len(endpoints) != 3 {
+		t.Errorf("%d PVE hosts on %d endpoints, want 5 on 3", pve, len(endpoints))
 	}
 	for _, want := range []Relation{
-		{"pve:mars-1", RelPartOf, "pve:mars"},
-		{"pve:mars-2", RelPartOf, "pve:mars"},
-		{"net:opnsense", RelRunsOn, "pve:pluto/qemu/100"},
-		{"app:homeassistant", RelRunsOn, "pve:minig5/qemu/100"},
-		{"app:frigate", RelRunsOn, "pve:minig5/lxc/101"},
-		{"docker:pvedocker", RelRunsOn, "pve:mars-1/lxc/110"},
-		{"docker:jupiter", RelRunsOn, "unraid:jupiter"},
-		{"app:pbs", RelRunsOn, "docker:jupiter/pbs"},
+		{"pve:heron", RelPartOf, "pve:aviary"},
+		{"pve:egret", RelPartOf, "pve:aviary"},
+		{"pve:stork", RelPartOf, "pve:aviary"},
+		{"net:opnsense", RelRunsOn, "pve:wren/qemu/100"},
+		{"app:adguard", RelRunsOn, "pve:wren/lxc/101"},
+		{"net:opnsense", RelDependsOn, "app:adguard"},
+		{"app:homeassistant", RelRunsOn, "pve:heron/qemu/200"},
+		{"app:frigate", RelRunsOn, "pve:heron/lxc/201"},
+		{"docker:rook", RelRunsOn, "pve:egret/lxc/210"},
+		{"app:cockpit", RelRunsOn, "pve:stork/lxc/220"},
+		{"docker:magpie", RelRunsOn, "unraid:magpie"},
+		{"app:pbs", RelRunsOn, "docker:magpie/pbs"},
 		{"pbs:main", RelPartOf, "app:pbs"},
-		{"app:linkding", RelRunsOn, "docker:pvedocker/linkding"},
-		{"app:karakeep", RelRunsOn, "docker:pvedocker/karakeep-web-1"},
+		{"app:linkding", RelRunsOn, "docker:rook/linkding"},
+		{"app:karakeep", RelRunsOn, "docker:rook/karakeep-web-1"},
+		{"app:nextcloud", RelRunsOn, "docker:rook/nextcloud"},
+		{"docker:rook/nextcloud", RelDependsOn, "docker:rook/nextcloud-db"},
+		{"docker:rook/paperless-ngx", RelDependsOn, "docker:rook/paperless-redis"},
+		{"app:seerr", RelDependsOn, "app:plex"},
+		{"app:jellyfin", RelStoresOn, "unraid:magpie/share/media"},
+		{"app:audiobookshelf", RelStoresOn, "unraid:magpie/share/books"},
 		{"app:sonarr", RelDependsOn, "app:qbittorrent"},
-		{"pve:minig5/qemu/100", RelBackedUpBy, "pve:minig5/backup/daily"},
-		{"net:opnsense", RelProvidesNetworkFor, "pve:pluto"},
+		{"pve:heron/qemu/200", RelBackedUpBy, "pve:aviary/backup/daily"},
+		{"net:opnsense", RelProvidesNetworkFor, "pve:wren"},
 	} {
 		if !rel[want] {
 			t.Errorf("missing relation %v", want)
 		}
 	}
-	if r, ok := st.Resource("unraid:jupiter"); !ok || r.Attrs["platform"] != "unraid" {
-		t.Error("jupiter should be the Unraid host")
+	if r, ok := st.Resource("unraid:magpie"); !ok || r.Attrs["platform"] != "unraid" {
+		t.Error("magpie should be the Unraid host")
+	}
+	// Every guest is backed up but sandbox, the deliberate coverage gap.
+	for _, r := range st.Resources {
+		if r.Kind != KindVM && r.Kind != KindLXC {
+			continue
+		}
+		backed := slices.ContainsFunc(st.Relations, func(rl Relation) bool { return rl.From == r.ID && rl.Type == RelBackedUpBy })
+		if backed == (r.ID == geGuest) {
+			t.Errorf("%s (%s): backed up %v", r.ID, r.Name, backed)
+		}
+	}
+	// The household: four people, four cameras.
+	if ha, _ := st.Resource("app:homeassistant"); ha.Attrs["people_total"] != 4 {
+		t.Errorf("people_total = %v", ha.Attrs["people_total"])
+	}
+	cams := 0
+	for _, r := range st.Resources {
+		if r.Kind == KindCamera {
+			cams++
+		}
+	}
+	if cams != 4 {
+		t.Errorf("%d cameras, want 4", cams)
 	}
 }

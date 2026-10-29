@@ -13,24 +13,26 @@ import (
 // Script decides which scenarios happen and when.
 type Scenario string
 
-// Scenarios of the Demo Home. They come from docs/plan/05-dogfood-home.md
-// and from what the M0 spikes found in that lab.
+// Scenarios of the Demo Home. Each is a story about the fictional home, told
+// the way the v0.1 integrations would report it.
 const (
 	ScenarioBackupFailed Scenario = "backup-failed"         // homeassistant's nightly backup fails
 	ScenarioPBSFilling   Scenario = "pbs-datastore-filling" // PBS datastore crosses 90%
-	ScenarioHostMemory   Scenario = "host-memory-pressure"  // jupiter-nas runs out of memory
+	ScenarioHostMemory   Scenario = "host-memory-pressure"  // stork runs out of memory
 	ScenarioPlexToken    Scenario = "plex-token-revoked"    // Plex answers 401 (a repair)
 	ScenarioKarakeepAPI  Scenario = "karakeep-api-changed"  // Karakeep's stats endpoint 404s after an update (a repair)
 	ScenarioQbitOOM      Scenario = "qbittorrent-oom"       // qBittorrent is OOM-killed and restarted
 
-	ScenarioPlutoUnreachable Scenario = "pluto-backup-unreachable"  // pluto's nightly backup can't reach PBS
-	ScenarioMarsUnreachable  Scenario = "mars-backup-unreachable"   // mars's nightly backup can't reach PBS
-	ScenarioIOPassthrough    Scenario = "io-backup-passthrough"     // win-gaming's backup can't start: iolinux holds the GPU
-	ScenarioGuestError       Scenario = "scratch-internal-error"    // jupiter-nas's VM scratch goes into internal-error
-	ScenarioUnraidAPI        Scenario = "unraid-api-unsupported"    // Unraid's API is older than 4.37.4 (a repair)
-	ScenarioHintTraefik      Scenario = "traefik-dashboard-no-auth" // a hint: Traefik's dashboard routed without auth
-	ScenarioHintDocker       Scenario = "docker-proxy-broad"        // a hint: jupiter's socket proxy lets every container read through
-	ScenarioHintFrigate      Scenario = "frigate-anonymous-admin"   // a hint: Frigate's internal port answers as an admin
+	ScenarioNetworkUnreachable     Scenario = "network-backup-unreachable"     // wren's nightly backup can't reach PBS
+	ScenarioWorkstationPassthrough Scenario = "workstation-backup-passthrough" // win-games's backup can't start: studio holds the GPU
+	ScenarioGuestError             Scenario = "sandbox-internal-error"         // stork's VM sandbox goes into internal-error
+	ScenarioUnraidAPI              Scenario = "unraid-api-unsupported"         // Unraid's API is older than 4.37.4 (a repair)
+	ScenarioSpeedtestSlow          Scenario = "speedtest-slow"                 // the internet line runs at a fifth of its speed
+	ScenarioNextcloudMaintenance   Scenario = "nextcloud-maintenance"          // an update leaves Nextcloud in maintenance mode
+	ScenarioHintTraefik            Scenario = "traefik-dashboard-no-auth"      // a hint: Traefik's dashboard routed without auth
+	ScenarioHintDocker             Scenario = "docker-proxy-broad"             // a hint: magpie's socket proxy lets every container read through
+	ScenarioHintFrigate            Scenario = "frigate-anonymous-admin"        // a hint: Frigate's internal port answers as an admin
+	ScenarioHintAdGuard            Scenario = "adguard-plain-http"             // a hint: AdGuard Home's credentials cross the LAN in clear
 )
 
 // Offset is a duration after the simulation start. In JSON it is a Go
@@ -66,30 +68,31 @@ type Script []ScriptEntry
 const DefaultAllOpen = 14*time.Hour + 5*time.Minute
 
 // HintsOpen is when the default script's hints opened: when the instances
-// first read the lab, nine days before the day starts. They stand all day.
+// first read the home, nine days before the day starts. They stand all day.
 const HintsOpen = -9*24*time.Hour + 2*time.Minute
 
-// DefaultScript is the default day: the dogfood home's 2026-10-03 snapshot
-// and what the spikes found there. The standing hints are open from the
-// start; the incidents open through the night and morning, are all open at
-// 14:05, and are fixed or clear one by one from the afternoon. The backups
-// v0.1 can't fix clear with the next night's runs.
+// DefaultScript is the default day, a Saturday. The standing hints are open
+// from the start; the incidents open through the night and morning, are all
+// open at 14:05, and are fixed or clear one by one from the afternoon. The
+// backups v0.1 can't fix clear with the next night's runs.
 //
 // IDs follow the hub's: <instance id>.<local id> for what the v0.1
-// integrations raise, the scenario name for the original six.
+// integrations raise, the scenario name for the simulator's own.
 func DefaultScript() Script {
 	return Script{
 		{Scenario: ScenarioHintTraefik, ID: "traefik.hint.api_no_auth", Open: Offset(HintsOpen)},
-		{Scenario: ScenarioHintDocker, ID: "docker-jupiter.hint.docker_endpoint", Open: Offset(HintsOpen)},
+		{Scenario: ScenarioHintDocker, ID: "docker-magpie.hint.docker_endpoint", Open: Offset(HintsOpen)},
 		{Scenario: ScenarioHintFrigate, ID: "frigate.unauthenticated-admin", Open: Offset(HintsOpen)},
-		{Scenario: ScenarioPlutoUnreachable, ID: "proxmox-pluto.backup.daily", Open: Offset(2 * time.Hour)},
-		{Scenario: ScenarioBackupFailed, Open: Offset(2*time.Hour + 14*time.Minute), Fix: Offset(15*time.Hour + 30*time.Minute)},
-		{Scenario: ScenarioMarsUnreachable, ID: "proxmox-mars.backup.daily", Open: Offset(2*time.Hour + 20*time.Minute)},
+		{Scenario: ScenarioHintAdGuard, ID: "adguard.hint.plain_http", Open: Offset(HintsOpen)},
+		{Scenario: ScenarioNetworkUnreachable, ID: "proxmox-wren.backup.daily", Open: Offset(2 * time.Hour)},
+		{Scenario: ScenarioBackupFailed, Open: Offset(2*time.Hour + 19*time.Minute), Fix: Offset(15*time.Hour + 30*time.Minute)},
 		{Scenario: ScenarioPBSFilling, Open: Offset(2*time.Hour + 44*time.Minute), Fix: Offset(16 * time.Hour)},
-		{Scenario: ScenarioIOPassthrough, ID: "proxmox-io.backup.daily", Open: Offset(2*time.Hour + 55*time.Minute)},
+		{Scenario: ScenarioWorkstationPassthrough, ID: "proxmox-owl.backup.daily", Open: Offset(2*time.Hour + 55*time.Minute)},
+		{Scenario: ScenarioNextcloudMaintenance, Open: Offset(7*time.Hour + 10*time.Minute), Fix: Offset(15*time.Hour + 10*time.Minute)},
 		{Scenario: ScenarioKarakeepAPI, Open: Offset(9*time.Hour + 5*time.Minute), Fix: Offset(19 * time.Hour)},
-		{Scenario: ScenarioGuestError, ID: "proxmox-jupiter-nas.guest.101", Open: Offset(11*time.Hour + 20*time.Minute), Fix: Offset(18*time.Hour + 5*time.Minute)},
-		{Scenario: ScenarioUnraidAPI, ID: "unraid-jupiter.repair", Open: Offset(12*time.Hour + 5*time.Minute), Fix: Offset(16*time.Hour + 40*time.Minute)},
+		{Scenario: ScenarioSpeedtestSlow, Open: Offset(9*time.Hour + 40*time.Minute), Fix: Offset(16*time.Hour + 10*time.Minute)},
+		{Scenario: ScenarioGuestError, ID: "proxmox-aviary.guest.221", Open: Offset(11*time.Hour + 20*time.Minute), Fix: Offset(18*time.Hour + 5*time.Minute)},
+		{Scenario: ScenarioUnraidAPI, ID: "unraid-magpie.repair", Open: Offset(12*time.Hour + 5*time.Minute), Fix: Offset(16*time.Hour + 40*time.Minute)},
 		{Scenario: ScenarioPlexToken, Open: Offset(13*time.Hour + 27*time.Minute), Fix: Offset(18 * time.Hour)},
 		{Scenario: ScenarioHostMemory, Open: Offset(13*time.Hour + 30*time.Minute), Fix: Offset(17 * time.Hour)},
 		{Scenario: ScenarioQbitOOM, Open: Offset(14*time.Hour + 3*time.Minute), Fix: Offset(20 * time.Hour)},
@@ -178,18 +181,20 @@ type scenario interface {
 }
 
 var scenarios = map[Scenario]scenario{
-	ScenarioBackupFailed:     backupFailed{},
-	ScenarioPBSFilling:       pbsFilling{},
-	ScenarioHostMemory:       hostMemory{},
-	ScenarioPlexToken:        plexToken{},
-	ScenarioKarakeepAPI:      karakeepAPI{},
-	ScenarioQbitOOM:          qbitOOM{},
-	ScenarioPlutoUnreachable: backupUnreachable{job: "pve:pluto/backup/daily"},
-	ScenarioMarsUnreachable:  backupUnreachable{job: "pve:mars/backup/daily"},
-	ScenarioIOPassthrough:    backupPassthrough{},
-	ScenarioGuestError:       guestError{},
-	ScenarioUnraidAPI:        unraidAPI{},
-	ScenarioHintTraefik:      hintTraefik,
-	ScenarioHintDocker:       hintDocker,
-	ScenarioHintFrigate:      hintFrigate,
+	ScenarioBackupFailed:           backupFailed{},
+	ScenarioPBSFilling:             pbsFilling{},
+	ScenarioHostMemory:             hostMemory{},
+	ScenarioPlexToken:              plexToken{},
+	ScenarioKarakeepAPI:            karakeepAPI{},
+	ScenarioQbitOOM:                qbitOOM{},
+	ScenarioNetworkUnreachable:     backupUnreachable{job: "pve:wren/backup/daily"},
+	ScenarioWorkstationPassthrough: backupPassthrough{},
+	ScenarioGuestError:             guestError{},
+	ScenarioUnraidAPI:              unraidAPI{},
+	ScenarioSpeedtestSlow:          speedtestSlow{},
+	ScenarioNextcloudMaintenance:   nextcloudMaintenance{},
+	ScenarioHintTraefik:            hintTraefik,
+	ScenarioHintDocker:             hintDocker,
+	ScenarioHintFrigate:            hintFrigate,
+	ScenarioHintAdGuard:            hintAdGuard,
 }

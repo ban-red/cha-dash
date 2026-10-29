@@ -9,7 +9,7 @@
  * the tile's `options.unmonitored` is true, or the source's own options say
  * so (the importer's per-source `unmonitored`); they're marked "unmonitored".
  *
- * Strip: "Next: Black Clover 04:00". Wide: today and tomorrow. Tall: tonight
+ * Strip: "Next: Starling Point 04:00". Wide: today and tomorrow. Tall: tonight
  * and the week. Large: a week grid.
  *
  * An instance that's down or needs repair doesn't empty the list: the others'

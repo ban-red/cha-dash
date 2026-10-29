@@ -45,7 +45,7 @@ const RULES = [
 const CHANNELS = [
   { id: 'nc_webpush', kind: 'webpush', name: 'Web Push', enabled: true, builtin: true, config: {}, secrets: {}, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', last: null, devices: 2 },
   {
-    id: 'nc_phones', kind: 'ntfy', name: 'Phones', enabled: true, builtin: false, config: { server: 'https://ntfy.lab.example', topic: 'lab-alerts' }, secrets: { token: { set: true } },
+    id: 'nc_phones', kind: 'ntfy', name: 'Phones', enabled: true, builtin: false, config: { server: 'https://ntfy.home.example', topic: 'lab-alerts' }, secrets: { token: { set: true } },
     created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', last: { state: 'failed', at: '2026-10-03T13:00:00Z', error: 'It answered 401: the token or secret wasn’t accepted.' },
   },
 ];
@@ -85,7 +85,7 @@ describe('Settings → Notifications for an admin', () => {
     expect(rules[4]!.text()).toContain('always on');
     // Channels with their state, and the note about links.
     expect(w.text()).toContain('Web Push · 2 devices · nothing sent yet');
-    expect(w.text()).toContain('ntfy · ntfy.lab.example · lab-alerts · last try failed');
+    expect(w.text()).toContain('ntfy · ntfy.home.example · lab-alerts · last try failed');
     expect(w.text()).toContain('CHADASH_PUBLIC_URL');
     // The log, with failures.
     const log = w.findAll('.nl-list > li');
@@ -173,7 +173,7 @@ describe('Settings → Notifications for an admin', () => {
     await w.find('input[value="webhook"]').setValue(true);
     const form = w.find('form.nc-form');
     await form.find('input[maxlength="64"]').setValue('Home Assistant');
-    await form.find('input[type="url"]').setValue('https://ha.lab.example/api/webhook/chadash');
+    await form.find('input[type="url"]').setValue('https://ha.home.example/api/webhook/chadash');
     await form.trigger('submit');
     expect(form.text()).toContain('A webhook needs a signing secret');
     await form.findAll('button').find((b) => b.text() === 'Generate')!.trigger('click');
@@ -184,7 +184,7 @@ describe('Settings → Notifications for an admin', () => {
     await settle();
     const body = f.last('POST', '/api/notify/channels')!.body as { kind: string; config: unknown; secrets: { secret: string } };
     expect(body.kind).toBe('webhook');
-    expect(body.config).toEqual({ url: 'https://ha.lab.example/api/webhook/chadash' });
+    expect(body.config).toEqual({ url: 'https://ha.home.example/api/webhook/chadash' });
     expect(body.secrets.secret).toMatch(/^whsec_/);
   });
 

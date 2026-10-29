@@ -13,7 +13,7 @@ test('the Demo Home fills the front page', async ({ page }) => {
   // The status sentence leads, then Needs attention with the day's incidents.
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/need(s)? you|All good|healthy/);
   await expect(page.getByText(/^Needs attention/i)).toBeVisible();
-  await expect(page.getByText('Backup of homeassistant failed').first()).toBeVisible();
+  await expect(page.getByText('Nextcloud is stuck in maintenance mode').first()).toBeVisible();
   // Tiles from the board, live from the simulator.
   for (const tile of ['Fleet', 'Cameras', 'Containers']) {
     await expect(page.getByText(tile, { exact: true }).first()).toBeVisible();
@@ -29,7 +29,7 @@ for (const theme of ['instrument-dark', 'instrument-light', 'oled', 'night', 'hi
     await page.addInitScript((id) => window.localStorage.setItem('chadash.theme', id), theme);
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-    await expect(page.getByText('Backup of homeassistant failed').first()).toBeVisible();
+    await expect(page.getByText('Nextcloud is stuck in maintenance mode').first()).toBeVisible();
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();

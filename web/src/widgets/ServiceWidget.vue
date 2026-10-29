@@ -2,7 +2,7 @@
 /**
  * The service tile: any service, with a live stat from its integration
  * (serviceStats.ts, by `attrs.type`) and context from the Home Graph that
- * needs no configuration ("on jupiter · update available").
+ * needs no configuration ("on magpie · update available").
  *
  * What it shows, first match wins:
  * - its target, when the graph has it: an app by ID (`sonarr:<instance id>/app`)

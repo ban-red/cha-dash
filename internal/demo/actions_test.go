@@ -48,7 +48,7 @@ func TestActionsCoverTheScript(t *testing.T) {
 	for id, tier := range map[string]action.Tier{
 		"pve.guest.backup": action.T1, "pbs.datastore.prune": action.T2, "pve.guest.restart": action.T2,
 		"integration.reconnect": action.T0, "integration.update": action.T1, "container.update": action.T2,
-		"integration.settings": action.T0,
+		"integration.settings": action.T0, "nextcloud.maintenance.off": action.T1,
 	} {
 		if got, ok := tiers[id]; !ok || got != tier {
 			t.Errorf("%s: tier %v (registered %v), want %v", id, got, ok, tier)

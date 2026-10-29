@@ -4,7 +4,7 @@
  * how it matched.
  *
  *   exact 100 · prefix 80 · start of a word 60 · substring 40 ·
- *   letters in order (jpt → jupiter) 1–20, fewer gaps first
+ *   letters in order (mgp → magpie) 1–20, fewer gaps first
  *
  * Fields are weighted: the label counts fully, secondary text (kind, id,
  * keywords) at 0.6, so "pbs" ranks the PBS host above things that merely

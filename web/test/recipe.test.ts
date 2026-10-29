@@ -28,7 +28,7 @@ const PVE: Recipe = {
         { label: '8.4', value: 'Sys.Audit VM.Audit' },
       ],
     },
-    { name: 'url', label: 'Address', default: 'https://pve.lab.example:8006', pattern: '^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$', from: 'config.url' },
+    { name: 'url', label: 'Address', default: 'https://pve.home.example:8006', pattern: '^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$', from: 'config.url' },
   ],
   steps: [
     {
@@ -54,8 +54,8 @@ const PVE: Recipe = {
 
 describe('recipe templates', () => {
   it('fill only values their pattern accepts', () => {
-    const v = paramValues(PVE, { user: 'dash@pve', token: 'dash' }, { url: 'https://pve.lab.example:8006/' });
-    expect(v).toEqual({ user: 'dash@pve', token: 'dash', privs: 'Sys.Audit VM.Audit VM.GuestAgent.Audit', url: 'https://pve.lab.example:8006' });
+    const v = paramValues(PVE, { user: 'dash@pve', token: 'dash' }, { url: 'https://pve.home.example:8006/' });
+    expect(v).toEqual({ user: 'dash@pve', token: 'dash', privs: 'Sys.Audit VM.Audit VM.GuestAgent.Audit', url: 'https://pve.home.example:8006' });
     expect(render("pveum acl modify / --tokens '{{user}}!{{token}}'", PVE, v)).toBe("pveum acl modify / --tokens 'dash@pve!dash'");
     // Not a parameter: left as it is.
     expect(render("docker inspect --format '{{.Id}}' {{token}}", PVE, v)).toBe("docker inspect --format '{{.Id}}' dash");
@@ -73,7 +73,7 @@ describe('recipe templates', () => {
     }
     // A bound field that's empty or not an address is a gap, not a guess.
     expect(paramValues(PVE, {}, {})['url']).toBeUndefined();
-    expect(paramValues(PVE, {}, { url: 'https://pve.lab.example/x?y=1;id' })['url']).toBeUndefined();
+    expect(paramValues(PVE, {}, { url: 'https://pve.home.example/x?y=1;id' })['url']).toBeUndefined();
     // Options are by value, and nothing else gets in.
     expect(paramValid(PVE.params[2]!, 'Sys.Audit VM.Audit')).toBe(true);
     expect(paramValid(PVE.params[2]!, 'Sys.Modify')).toBe(false);
@@ -165,10 +165,10 @@ describe('the recipe panel', () => {
     expect(copyButtons()[2]!.attributes('disabled')).toBeDefined();
     expect(w.find('.rc-code-acts a').exists()).toBe(false);
 
-    await w.setProps({ form: { url: 'https://pve.lab.example:8006' } });
-    expect(code()[2]).toBe('https://pve.lab.example:8006/#v1:0:18:4');
+    await w.setProps({ form: { url: 'https://pve.home.example:8006' } });
+    expect(code()[2]).toBe('https://pve.home.example:8006/#v1:0:18:4');
     const open = w.find('.rc-code-acts a');
-    expect(open.attributes('href')).toBe('https://pve.lab.example:8006/#v1:0:18:4');
+    expect(open.attributes('href')).toBe('https://pve.home.example:8006/#v1:0:18:4');
     expect(open.attributes('rel')).toBe('noopener noreferrer');
 
     // Change a name: every command follows.
@@ -250,16 +250,16 @@ describe('the integration editor with a recipe', () => {
 
   it('shows the recipe beside the form, takes its token ID, and starts from what discovery found', async () => {
     const f = hub();
-    setDraft('proxmox', { name: 'Proxmox VE on pve1', config: { url: 'https://pve1.lab.example:8006' } });
+    setDraft('proxmox', { name: 'Proxmox VE on pve1', config: { url: 'https://pve1.home.example:8006' } });
     const h = harness();
     h.mountIn(IntegrationEditor, { integrationId: 'proxmox' });
     await flushPromises();
     await nextTick();
     expect(document.querySelector('.ed-grid.has-recipe .ed-aside details[open]')).not.toBeNull();
     expect((document.getElementById('f-name') as HTMLInputElement).value).toBe('Proxmox VE on pve1');
-    expect((document.getElementById('f-url') as HTMLInputElement).value).toBe('https://pve1.lab.example:8006');
+    expect((document.getElementById('f-url') as HTMLInputElement).value).toBe('https://pve1.home.example:8006');
     // The URL in the form completes the recipe's commands.
-    expect(document.querySelectorAll('.rc-code pre')[2]!.textContent).toBe('https://pve1.lab.example:8006/#v1:0:18:4');
+    expect(document.querySelectorAll('.rc-code pre')[2]!.textContent).toBe('https://pve1.home.example:8006/#v1:0:18:4');
 
     const use = [...document.querySelectorAll<HTMLButtonElement>('.rc-block button')].find((b) => b.textContent?.trim() === 'Use in the form')!;
     use.click();
@@ -275,7 +275,7 @@ describe('the integration editor with a recipe', () => {
     expect(f.last('POST', '/api/integrations/instances')!.body).toEqual({
       integration: 'proxmox',
       name: 'Proxmox VE on pve1',
-      config: { url: 'https://pve1.lab.example:8006', token_id: 'chadash@pve!dash' },
+      config: { url: 'https://pve1.home.example:8006', token_id: 'chadash@pve!dash' },
       secrets: { token_secret: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },
     });
   });

@@ -9,7 +9,7 @@ import (
 )
 
 // The Demo Home's standing hints, by their hub IDs.
-var demoHints = []string{"traefik.hint.api_no_auth", "docker-jupiter.hint.docker_endpoint", "frigate.unauthenticated-admin"}
+var demoHints = []string{"traefik.hint.api_no_auth", "docker-magpie.hint.docker_endpoint", "frigate.unauthenticated-admin", "adguard.hint.plain_http"}
 
 // TestDemoFollowsThePosture: the Demo Home's security findings reach the
 // inbox at the posture's severity, as real instances' do, from the first

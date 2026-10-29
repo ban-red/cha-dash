@@ -324,7 +324,7 @@ func (s *Sim) backupChangePoints(from, to time.Time) []time.Time {
 
 // ── disks spinning down ──────────────────────────────────────────────────
 
-// diskSpin is when jupiter's array disks spin, as times of day (UTC). Unraid
+// diskSpin is when magpie's array disks spin, as times of day (UTC). Unraid
 // spins a disk down after 30 idle minutes. disk1–3 hold the media and photos
 // that are read all day, so they never stop. The mover (cache to array, from
 // 03:40) writes to disk6 and parity; evening viewing reads older shows from
@@ -353,7 +353,7 @@ func diskSpins(name string, t time.Time) bool {
 	return false
 }
 
-// unraidUnread reports whether Cha Dash can't read jupiter's Unraid API at
+// unraidUnread reports whether Cha Dash can't read magpie's Unraid API at
 // t, and since when: its resources then keep what was read last.
 func (s *Sim) unraidUnread(t time.Time) (time.Time, bool) {
 	for _, in := range s.inst {
@@ -375,7 +375,7 @@ func (s *Sim) applyDisks(w *world) {
 		at = since
 	}
 	for name := range diskSpin {
-		if r := w.res["unraid:jupiter/disk/"+name]; r != nil && !diskSpins(name, at) {
+		if r := w.res["unraid:magpie/disk/"+name]; r != nil && !diskSpins(name, at) {
 			r.State = StateIdle
 		}
 	}
@@ -411,9 +411,10 @@ type camera struct {
 }
 
 var cameraTable = []camera{
-	{"driveway", "Driveway", 0.9, []weighted{{"car", 0.5}, {"person", 0.45}, {"dog", 0.05}}},
-	{"side_deck", "Side deck", 0.6, []weighted{{"person", 0.7}, {"cat", 0.3}}},
-	{"backyard", "Backyard", 0.4, []weighted{{"dog", 0.4}, {"person", 0.35}, {"cat", 0.25}}},
+	{"front_door", "Front door", 0.45, []weighted{{"person", 0.75}, {"cat", 0.15}, {"dog", 0.1}}},
+	{"driveway", "Driveway", 0.4, []weighted{{"car", 0.55}, {"person", 0.4}, {"dog", 0.05}}},
+	{"garden", "Garden", 0.2, []weighted{{"cat", 0.4}, {"person", 0.3}, {"dog", 0.3}}},
+	{"garage", "Garage", 0.15, []weighted{{"car", 0.5}, {"person", 0.5}}},
 }
 
 // Detection is one Frigate event.
@@ -516,8 +517,8 @@ func (s *Sim) cameraChangePoints(from, to time.Time) []time.Time {
 }
 
 // Detections lists a camera's Frigate events in (from, to], oldest first.
-// Camera IDs are the part after "frigate:camera/" (driveway, side_deck,
-// backyard).
+// Camera IDs are the part after "frigate:camera/" (front_door, driveway,
+// garden, garage).
 func (s *Sim) Detections(cameraID string, from, to time.Time) []Detection {
 	s.mu.Lock()
 	defer s.mu.Unlock()

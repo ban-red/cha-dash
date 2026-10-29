@@ -20,7 +20,7 @@ const { variant, person = false } = defineProps<{ variant: number; person?: bool
       <path class="near" d="M196 128c10-14 54-16 70 0l6 14h-84Z" />
     </template>
     <template v-else-if="variant % 3 === 1">
-      <!-- a deck: boards converging, a rail -->
+      <!-- a porch deck: boards converging, a rail -->
       <rect class="far" x="0" y="0" width="320" height="78" />
       <polygon class="mid" points="0,180 320,180 320,82 0,82" />
       <path class="line" d="M-90 180 112 82M-40 180 128 82M10 180 144 82M60 180 160 82M110 180 176 82M160 180 192 82M210 180 208 82M260 180 224 82M310 180 240 82M360 180 256 82" />
@@ -29,7 +29,7 @@ const { variant, person = false } = defineProps<{ variant: number; person?: bool
       <rect class="near" x="0" y="38" width="320" height="4" />
     </template>
     <template v-else>
-      <!-- a backyard: fence, a tree, grass -->
+      <!-- a garden: fence, a tree, grass -->
       <rect class="mid" x="0" y="112" width="320" height="68" />
       <path class="far" d="M0 76h320v40H0Z" />
       <path class="line" d="M16 76v40M40 76v40M64 76v40M88 76v40M112 76v40M136 76v40M160 76v40M184 76v40M208 76v40M232 76v40M256 76v40M280 76v40M304 76v40" />

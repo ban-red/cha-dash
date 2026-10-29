@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * VMs and LXCs: of one host (`guests@proxmox:<instance id>/node/mars-2`), of a
+ * VMs and LXCs: of one host (`guests@proxmox:<instance id>/node/egret`), of a
  * cluster (`guests@proxmox:<instance id>/cluster`), or with no target, all of
  * them. Problems first, then work in progress, running guests, and the ones
  * stopped on purpose, dimmed: those are not a problem.

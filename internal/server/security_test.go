@@ -35,7 +35,7 @@ func TestSecurityRoutes(t *testing.T) {
 	})
 	severity := func() string {
 		var in struct{ Severity, Category string }
-		if err := json.Unmarshal(tp.Inbox.Item(topics.Incidents, "docker-jupiter.hint.docker_endpoint"), &in); err != nil {
+		if err := json.Unmarshal(tp.Inbox.Item(topics.Incidents, "docker-magpie.hint.docker_endpoint"), &in); err != nil {
 			t.Fatal(err)
 		}
 		if in.Category != "security" {

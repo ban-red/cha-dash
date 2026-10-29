@@ -37,7 +37,7 @@ const suggestion: Incident = {
   status: 'open',
   phase: 'open',
   title: 'These look like the same thing. Merge?',
-  summary: 'Sonarr (Sonarr) and the container sonarr (Jupiter Docker): Sonarr and the container sonarr have matching names.',
+  summary: 'Sonarr (Sonarr) and the container sonarr (Magpie Docker): Sonarr and the container sonarr have matching names.',
   target: 'sonarr:i_s/app',
   opened_at: '2026-10-03T14:00:00Z',
   facts: { from: 'sonarr:i_s/app', to: 'docker:i_d/container/sonarr', relation: 'runs_on', rule: 'name', confidence: 'weak' },
@@ -48,14 +48,14 @@ const suggestion: Incident = {
   resolves_when: 'Resolves when you merge them or keep them separate.',
 };
 
-/** jupiter: Docker and Unraid both report its containers; the correlator merged them. */
+/** magpie: Docker and Unraid both report its containers; the correlator merged them. */
 function home(): { graph: GraphDoc; metrics: MetricsDoc; inbox: InboxDoc } {
   const resources: Record<string, Resource> = {};
   for (const r of [
-    res('integration:i_d', 'integration', 'Jupiter Docker', { source: 'hub' }),
-    res('integration:i_u', 'integration', 'Jupiter', { source: 'hub' }),
-    res('docker:i_d/engine', 'engine', 'jupiter'),
-    res('unraid:i_u/host', 'host', 'jupiter', { attrs: { platform: 'unraid' } }),
+    res('integration:i_d', 'integration', 'Magpie Docker', { source: 'hub' }),
+    res('integration:i_u', 'integration', 'Magpie', { source: 'hub' }),
+    res('docker:i_d/engine', 'engine', 'magpie'),
+    res('unraid:i_u/host', 'host', 'magpie', { attrs: { platform: 'unraid' } }),
     // Docker: exited, restart policy "no", so fine as far as Docker knows.
     res('docker:i_d/container/sonarr', 'container', 'sonarr', { state: 'exited', attrs: { 'health.reason': 'stopped (exited 0)' } }),
     // Unraid: it's on the autostart list, so it should run.
@@ -91,8 +91,8 @@ describe('one of each thing', () => {
     expect(byKind(graph, 'container').map((r) => r.id)).toEqual(['docker:i_d/container/plex', 'docker:i_d/container/radarr', 'docker:i_d/container/sonarr']);
     expect(distinct(graph).some((r) => r.id.startsWith('unraid:i_u/container/'))).toBe(false);
     expect(members(graph, 'unraid:i_u/container/sonarr').map((r) => r.id)).toEqual(['docker:i_d/container/sonarr', 'unraid:i_u/container/sonarr']);
-    expect(sourcesOf(graph, 'docker:i_d/container/sonarr')).toEqual(['Jupiter Docker', 'Jupiter']);
-    expect(sourcesOf(graph, 'docker:i_d/container/plex')).toEqual(['Jupiter Docker']);
+    expect(sourcesOf(graph, 'docker:i_d/container/sonarr')).toEqual(['Magpie Docker', 'Magpie']);
+    expect(sourcesOf(graph, 'docker:i_d/container/plex')).toEqual(['Magpie Docker']);
     // The worst health of its sources, with that source's reason.
     expect(mergedHealth(graph, 'docker:i_d/container/sonarr')).toEqual({ status: 'attention', reason: 'on the autostart list, but not running' });
   });
@@ -101,7 +101,7 @@ describe('one of each thing', () => {
     const [e] = engines(home().graph);
     expect(e!.total).toBe(3);
     expect(e!.running).toBe(2);
-    expect(e!.unhealthy.map((c) => [c.name, c.health.status, c.sources])).toEqual([['sonarr', 'attention', ['Jupiter Docker', 'Jupiter']]]);
+    expect(e!.unhealthy.map((c) => [c.name, c.health.status, c.sources])).toEqual([['sonarr', 'attention', ['Magpie Docker', 'Magpie']]]);
   });
 
   it('shows one row per container in the containers tile', async () => {
@@ -113,14 +113,14 @@ describe('one of each thing', () => {
     const row = w.find('.list .li');
     expect(row.text()).toContain('sonarr');
     expect(row.text()).toContain('on the autostart list, but not running');
-    expect(row.find('.src').text()).toBe('Jupiter Docker · Jupiter');
+    expect(row.find('.src').text()).toBe('Magpie Docker · Magpie');
     // Problems first, then the rest by name: each container once.
     expect(w.findAll('.list .li .t').map((s) => s.text())).toEqual(['sonarr', 'plex', 'radarr']);
     const large = mountIn(ContainersWidget, { size: 'large' });
     await nextTick();
     expect(large.text()).toContain('1 not healthy');
     expect(large.findAll('.sr:not(.head)')).toHaveLength(3);
-    expect(large.find('.sr:not(.head) .src').text()).toBe('Jupiter Docker · Jupiter');
+    expect(large.find('.sr:not(.head) .src').text()).toBe('Magpie Docker · Magpie');
   });
 });
 

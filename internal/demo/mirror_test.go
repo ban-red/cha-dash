@@ -71,13 +71,13 @@ func TestMirrorFollowsTheSimulator(t *testing.T) {
 	if err := m.load(st); err != nil {
 		t.Fatal(err)
 	}
-	if len(st.Series) == 0 || len(st.Open()) != 14 {
+	if len(st.Series) == 0 || len(st.Open()) != 16 {
 		t.Fatalf("unexpected starting point: %d series, %d open", len(st.Series), len(st.Open()))
 	}
 	expectSeries(t, tp, st, true)
 	expectInbox(t, tp, st)
 
-	// Through the afternoon's fixes (17:00 restarts debian-nas: its metrics
+	// Through the afternoon's fixes (17:00 restarts files: its metrics
 	// go stale for a tick) in 10-minute batches, checking the full state at
 	// every point where the history grid lines up with the clock.
 	stale := 0
@@ -97,15 +97,15 @@ func TestMirrorFollowsTheSimulator(t *testing.T) {
 	if stale == 0 {
 		t.Fatal("no series was ever stale; the test isn't exercising last-known values")
 	}
-	// By 20:05 everything is resolved but the standing hints and the three
+	// By 20:05 everything is resolved but the standing hints and the two
 	// backups that clear with the next night's runs.
 	var open []string
 	for _, in := range s.Snapshot().Open() {
 		open = append(open, in.ID)
 	}
 	slices.Sort(open)
-	if want := []string{"docker-jupiter.hint.docker_endpoint", "frigate.unauthenticated-admin", "proxmox-io.backup.daily",
-		"proxmox-mars.backup.daily", "proxmox-pluto.backup.daily", "traefik.hint.api_no_auth"}; !slices.Equal(open, want) {
+	if want := []string{"adguard.hint.plain_http", "docker-magpie.hint.docker_endpoint", "frigate.unauthenticated-admin",
+		"proxmox-owl.backup.daily", "proxmox-wren.backup.daily", "traefik.hint.api_no_auth"}; !slices.Equal(open, want) {
 		t.Fatalf("open at 20:05: %v, want %v", open, want)
 	}
 	expectGraph(t, tp.Graph, s.Snapshot())

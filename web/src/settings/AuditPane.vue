@@ -15,6 +15,7 @@
  * Its own chunk, loaded with the pane.
  */
 import { computed, onMounted, reactive, ref, useId } from 'vue';
+import { route } from '../lib/router';
 import Glyph from '../components/marks/Glyph.vue';
 import { absolute, duration, fmtInt, hhmm, shortDate } from '../lib/format';
 import { api } from '../lib/api';
@@ -189,6 +190,9 @@ const short = (h: string | undefined) => (h ? h.replace(/^sha256:/, '').slice(0,
 const summary = (e: AuditEvent) => `${e.action}${e.target ? ` · ${targetName(e.target)}` : ''}, ${resultOf(e).word}, ${when(e.at)}`;
 
 onMounted(() => {
+  // A resource's sheet links here filtered to it (`?target=<id>`).
+  const target = route.value.query['target'];
+  if (target) filters.target = target;
   void load();
   void check();
 });

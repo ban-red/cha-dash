@@ -28,7 +28,7 @@ That's 5 active Proxmox endpoints, one Unraid box and two Docker hosts, both rea
 - **It sets the v0.1 integration list** ([ADR-0005](0005-v0-1-scope.md)).
 - Multiple PVE instances are the normal case, not an edge case. Nodes must run inside LXCs. The router is a VM, so blast radius has to warn when an action takes down the network.
 - Its real problems become test cases: a revoked Plex token, a Karakeep API change, a PBS datastore at 92% with a failed task, a host at 95% memory.
-- A sanitized copy of its config is the Homepage importer's [acceptance fixture](../plan/05-dogfood-home.md#importer-acceptance-test), and the Demo Home simulator is seeded from its shape.
+- A sanitized copy of its config is the Homepage importer's [acceptance fixture](../plan/05-dogfood-home.md#importer-acceptance-test), and the Demo Home simulator is seeded from its shape. *Replaced by [ADR-0027](0027-demo-home-is-fictional.md): the Demo Home is now a fictional home.*
 - **Privacy:** the repo is public. Docs and fixtures use host nicknames only, never domains, IPs, personal names or secrets.
 - One lab can bias the product. Launch-breadth integrations and 10 external daily beta users (a v0.1 exit criterion) balance it.
 

@@ -29,7 +29,7 @@ describe('default layout', () => {
       'opnsense',
       'backups',
       'containers',
-      'host@unraid:jupiter',
+      'host@unraid:magpie',
       'traefik',
       'uptimekuma',
       'plex',

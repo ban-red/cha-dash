@@ -39,24 +39,26 @@ describe('Inbox sheet', () => {
     expect(panel).not.toBeNull();
     const groups = [...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
     // qBittorrent is restarting by itself; the hints are standing advice, in their own group.
-    expect(groups).toEqual(['Open · 10', 'Being fixed · 1', 'Security hints · 3']);
+    expect(groups).toEqual(['Open · 11', 'Being fixed · 1', 'Security hints · 4']);
     const titles = [...panel.querySelectorAll('.ib-title')].map((t) => t.textContent);
     // problems first (by severity, then age), then repairs
-    expect(titles.slice(0, 10)).toEqual([
-      'scratch is in internal-error',
-      "Backups on pluto couldn't reach pbs-jupiter",
+    expect(titles.slice(0, 11)).toEqual([
+      'Nextcloud is stuck in maintenance mode',
+      'sandbox is in internal-error',
+      "Backups on wren couldn't reach pbs-magpie",
       'Backup of homeassistant failed',
-      "Backups on mars couldn't reach pbs-jupiter",
-      'Backup of win-gaming failed',
+      'Backup of win-games failed',
       'PBS datastore is filling up',
-      'jupiter-nas is running out of memory',
+      'Internet downloads are slow',
+      'stork is running out of memory',
       "Karakeep's API changed",
       "Unraid's API changed",
       'Plex rejected its token',
     ]);
-    expect(titles.slice(10)).toEqual([
+    expect(titles.slice(11)).toEqual([
       'qBittorrent ran out of memory',
-      "jupiter's socket proxy is too broad",
+      'AdGuard Home sends its credentials in clear text',
+      "magpie's socket proxy is too broad",
       'Frigate grants admin without a sign-in',
       "Traefik's dashboard has no auth",
     ]);
@@ -65,8 +67,8 @@ describe('Inbox sheet', () => {
     expect(open.textContent).toContain('What Cha Dash saw');
     expect(open.textContent).toContain('Used %92');
     expect(open.textContent).toContain('The daily prune job has been disabled since 14 Sep');
-    expect(open.textContent).toContain('Blast radius · 14');
-    expect(open.textContent).toContain('win-gaming · VM');
+    expect(open.textContent).toContain('Blast radius · 13');
+    expect(open.textContent).toContain('win-games · VM');
     const primary = open.querySelector<HTMLButtonElement>('.btn.primary')!;
     expect(primary.textContent).toBe('Prune per policyT2');
     // alternatives run too: the engine plans each one
@@ -95,8 +97,8 @@ describe('Inbox sheet', () => {
     item.querySelector<HTMLButtonElement>('.btn.primary')!.click();
     await flushPromises();
     // Planned, then approved straight away (T1); never the demo endpoint.
-    expect(e.plans.at(-1)).toEqual({ action: 'pve.guest.backup', target: 'pve:minig5/qemu/100' });
-    expect(e.approvals).toEqual([{ plan: 'p_pve_guest_backup_pve_minig5_qemu_100', hash: 'sha256:pve.guest.backup:pve:minig5/qemu/100' }]);
+    expect(e.plans.at(-1)).toEqual({ action: 'pve.guest.backup', target: 'pve:heron/qemu/200' });
+    expect(e.approvals).toEqual([{ plan: 'p_pve_guest_backup_pve_heron_qemu_200', hash: 'sha256:pve.guest.backup:pve:heron/qemu/200' }]);
     expect(hub.calls.some((c) => c.path.includes('/api/demo/'))).toBe(false);
     expect(live.fixes['backup-failed']?.state).toBe('accepted');
     await nextTick();
@@ -112,13 +114,13 @@ describe('Inbox sheet', () => {
     vi.advanceTimersByTime(3000);
     await nextTick();
     const groups = [...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
-    expect(groups).toEqual(['Open · 9', 'Being fixed · 1', 'Security hints · 3', 'Resolved · 1']);
+    expect(groups).toEqual(['Open · 10', 'Being fixed · 1', 'Security hints · 4', 'Resolved · 1']);
   });
 
   it('is empty when nothing needs you', async () => {
     // The quiet home still has its standing hints: nothing open, only those.
     const { panel } = await openOn('', docs(healthy));
-    expect([...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim())).toEqual(['Security hints · 3']);
+    expect([...panel.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim())).toEqual(['Security hints · 4']);
     document.body.innerHTML = '';
     const none = docs(healthy);
     none.inbox.incidents = {};
@@ -172,9 +174,9 @@ describe('hold to confirm', () => {
     await flushPromises();
     await nextTick();
     const dialog = document.body.querySelector<HTMLElement>('.confirm')!;
-    expect(dialog.querySelector('h3')!.textContent).toBe('Restart debian-nas T2');
+    expect(dialog.querySelector('h3')!.textContent).toBe('Restart files T2');
     // The plan's steps say what will happen.
-    expect([...dialog.querySelectorAll('.confirm-steps li')].map((li) => li.textContent)).toEqual(['Ask the hub to restart debian-nas', 'Check it worked']);
+    expect([...dialog.querySelectorAll('.confirm-steps li')].map((li) => li.textContent)).toEqual(['Ask the hub to restart files', 'Check it worked']);
     const items = [...dialog.querySelectorAll('.blast li')];
     expect(items.length).toBeGreaterThan(1);
     expect(items.filter((li) => li.classList.contains('on'))).toHaveLength(0);
@@ -185,7 +187,7 @@ describe('hold to confirm', () => {
     expect(dialog.querySelectorAll('.blast li.on').length).toBe(items.length);
     vi.advanceTimersByTime(500);
     await flushPromises();
-    expect(e.approvals.map((a) => a.plan)).toEqual(['p_pve_guest_restart_pve_jupiter_nas_lxc_100']);
+    expect(e.approvals.map((a) => a.plan)).toEqual(['p_pve_guest_restart_pve_stork_lxc_220']);
     expect(h.ui.state.confirm).toBeUndefined();
   });
 });

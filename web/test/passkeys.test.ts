@@ -293,7 +293,7 @@ describe('after first-run setup', () => {
 describe('Settings → Security', () => {
   const LIST = [
     { id: 'pk1', name: 'iCloud Keychain', created_at: '2026-10-01T10:00:00Z', last_used_at: null, rp_id: 'localhost', backed_up: true, clone_warning: false },
-    { id: 'pk2', name: 'YubiKey', created_at: '2026-10-02T10:00:00Z', last_used_at: '2026-10-03T09:00:00Z', rp_id: 'dash.lab.example', backed_up: false, clone_warning: true },
+    { id: 'pk2', name: 'YubiKey', created_at: '2026-10-02T10:00:00Z', last_used_at: '2026-10-03T09:00:00Z', rp_id: 'dash.home.example', backed_up: false, clone_warning: true },
   ];
 
   it('lists, renames and deletes passkeys', async () => {
@@ -310,7 +310,7 @@ describe('Settings → Security', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]!.text()).toContain('synced');
     expect(rows[0]!.text()).toContain('never used');
-    expect(rows[1]!.text()).toContain('for dash.lab.example');
+    expect(rows[1]!.text()).toContain('for dash.home.example');
     expect(rows[1]!.find('.pk-warn').text()).toContain('two copies');
 
     await rows[0]!.findAll('button').find((b) => b.text() === 'Rename')!.trigger('click');

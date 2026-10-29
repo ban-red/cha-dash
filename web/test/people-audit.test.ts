@@ -35,7 +35,7 @@ async function settle(): Promise<void> {
 }
 
 const EVENTS = [
-  { id: 'a3', seq: 4812, at: '2026-10-03T14:01:00Z', actor: { kind: 'user', name: 'owner', via: 'web', ip: '10.0.0.12' }, action: 'pve.guest.restart', target: 'pve:jupiter-nas/lxc/100', params: {}, tier: 'T2', result: 'ok', duration_ms: 8123, task: 't_1', hash: 'sha256:cccccccccccccccc', prev_hash: 'sha256:bbbbbbbbbbbbbbbb' },
+  { id: 'a3', seq: 4812, at: '2026-10-03T14:01:00Z', actor: { kind: 'user', name: 'owner', via: 'web', ip: '10.0.0.12' }, action: 'pve.guest.restart', target: 'pve:stork/lxc/220', params: {}, tier: 'T2', result: 'ok', duration_ms: 8123, task: 't_1', hash: 'sha256:cccccccccccccccc', prev_hash: 'sha256:bbbbbbbbbbbbbbbb' },
   { id: 'a2', seq: 4811, at: '2026-10-03T13:59:00Z', actor: { kind: 'user', name: 'sam', via: 'web' }, action: 'pbs.datastore.prune', target: 'pbs:main', tier: 'T2', result: 'refused', error: { code: 'forbidden', message: 'Operators can’t prune datastores.' } },
 ];
 
@@ -59,7 +59,7 @@ describe('Settings → Audit', () => {
     expect(w.find('.st-note').text()).toBe('The audit log is intact · 4,812 events checked');
     const rows = w.findAll('.au-list > li');
     expect(rows).toHaveLength(2);
-    expect(rows[0]!.find('.t').text()).toBe('pve.guest.restart · debian-nas');
+    expect(rows[0]!.find('.t').text()).toBe('pve.guest.restart · files');
     expect(rows[0]!.find('.m').text()).toBe('owner · via web · T2 · done in 8s');
     expect(rows[0]!.find('[role="img"]').attributes('aria-label')).toBe('done');
     expect(rows[1]!.text()).toContain('refused');
@@ -250,11 +250,11 @@ describe('the step-up dialog', () => {
     });
     const h = harness(docs(withIncidents));
     const done = vi.fn();
-    h.ui.state.stepUp = { reason: 'Remove debian-nas', fresh: false, resolve: done };
+    h.ui.state.stepUp = { reason: 'Remove files', fresh: false, resolve: done };
     h.mountIn(StepUpDialog);
     await settle();
     const dlg = document.querySelector<HTMLDialogElement>('dialog.stepup')!;
-    expect(dlg.textContent).toContain('Before “Remove debian-nas”');
+    expect(dlg.textContent).toContain('Before “Remove files”');
     expect(dlg.textContent).toContain('Add a passkey in Settings → Security');
     const pw = dlg.querySelector<HTMLInputElement>('input[type="password"]')!;
     expect(document.activeElement).toBe(pw);
@@ -305,12 +305,12 @@ describe('the step-up dialog', () => {
     fakeFetch({ 'POST /api/auth/step-up/begin': refuse(409, 'passkey_required', 'This hub asks for a passkey before destructive actions. Add one in Settings → Security.') });
     const h = harness(docs(withIncidents));
     const done = vi.fn();
-    h.ui.state.stepUp = { reason: 'Remove debian-nas', fresh: false, resolve: done };
+    h.ui.state.stepUp = { reason: 'Remove files', fresh: false, resolve: done };
     h.ui.state.confirm = {
       kind: 'type',
-      req: { action: 'x', target: 'y', label: 'Remove debian-nas' },
-      plan: { id: 'p_1', hash: 'sha256:1', action: 'x', label: 'Remove debian-nas', target: 'y', tier: 'T3', confirm: 'type', confirm_text: 'debian-nas', step_up: 'required' },
-      action: { id: 'x', label: 'Remove debian-nas', tier: 'T3', target: 'y' },
+      req: { action: 'x', target: 'y', label: 'Remove files' },
+      plan: { id: 'p_1', hash: 'sha256:1', action: 'x', label: 'Remove files', target: 'y', tier: 'T3', confirm: 'type', confirm_text: 'files', step_up: 'required' },
+      action: { id: 'x', label: 'Remove files', tier: 'T3', target: 'y' },
     };
     h.mountIn(StepUpDialog);
     await settle();

@@ -12,7 +12,7 @@ type Kind string
 
 // Resource kinds used by the Demo Home.
 const (
-	KindCluster      Kind = "cluster"       // a Proxmox VE cluster (mars)
+	KindCluster      Kind = "cluster"       // a Proxmox VE cluster (aviary)
 	KindHost         Kind = "host"          // a PVE host or the Unraid box
 	KindVM           Kind = "vm"            // a QEMU guest
 	KindLXC          Kind = "lxc"           // a container guest

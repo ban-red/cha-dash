@@ -19,11 +19,11 @@ import { harness } from './harness';
 
 /** A Demo Home target for each widget that shows one (`type@target`), as in widgets.test.ts. */
 const TARGETS: Record<string, string> = {
-  host: 'unraid:jupiter',
+  host: 'unraid:magpie',
   arr: 'app:sonarr',
   service: 'homepage:servers/proxmox',
-  metric: 'pve:jupiter-nas#mem.pct',
-  storage: 'pve:io/storage/local-lvm',
+  metric: 'pve:stork#mem.pct',
+  storage: 'pve:owl/storage/local-lvm',
 };
 
 /** A tile in its page: always inside the front page's <main>. */

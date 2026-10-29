@@ -93,7 +93,7 @@ const KIND_WORDS: Record<string, string> = {
   stack: 'stack',
 };
 
-/** "container chadash", "VM pvedocker", "host io". */
+/** "container chadash", "LXC rook", "host egret". */
 export function placeWords(r: Resource): string {
   const k = KIND_WORDS[r.kind] ?? r.kind;
   return `${k} ${label(r)}`;

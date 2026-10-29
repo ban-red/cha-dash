@@ -46,30 +46,30 @@ function home(): Data {
   const integ = (id: string, type: string, health: Resource['health'] = 'ok') => add({ id: `integration:${id}`, kind: 'integration', name: id, health, attrs: { type } });
   const appR = (inst: string, type: string, name: string, attrs: Record<string, unknown> = {}, more: Partial<Resource> = {}) => {
     integ(inst, type);
-    add({ id: `${type}:${inst}/app`, kind: 'app', name, state: 'running', health: 'ok', attrs: { type, ...attrs }, links: [{ url: `https://${type}.lab.example` }], ...more }, inst);
+    add({ id: `${type}:${inst}/app`, kind: 'app', name, state: 'running', health: 'ok', attrs: { type, ...attrs }, links: [{ url: `https://${type}.home.example` }], ...more }, inst);
   };
 
   // Proxmox VE: a node with guests and local storage, a second node with none.
   integ('i_p', 'proxmox');
-  add({ id: 'proxmox:i_p/node/pluto', kind: 'host', name: 'pluto', state: 'online', health: 'ok', labels: { 'chadash.role': 'network-core' }, attrs: { platform: 'pve', node: 'pluto', mem_gb: 16, cores: 4, boot_at: '2026-09-14T18:54:25Z' } }, 'i_p');
-  add({ id: 'proxmox:i_p/node/mars', kind: 'host', name: 'mars', state: 'online', health: 'ok', attrs: { platform: 'pve', node: 'mars', mem_gb: 32 } }, 'i_p');
+  add({ id: 'proxmox:i_p/node/wren', kind: 'host', name: 'wren', state: 'online', health: 'ok', labels: { 'chadash.role': 'network-core' }, attrs: { platform: 'pve', node: 'wren', mem_gb: 16, cores: 4, boot_at: '2026-09-14T18:54:25Z' } }, 'i_p');
+  add({ id: 'proxmox:i_p/node/egret', kind: 'host', name: 'egret', state: 'online', health: 'ok', attrs: { platform: 'pve', node: 'egret', mem_gb: 32 } }, 'i_p');
   add({ id: 'proxmox:i_p/qemu/100', kind: 'vm', name: 'opnsense', state: 'running', desired: 'running', health: 'ok', attrs: { vmid: 100, onboot: true, started_at: '2026-09-14T18:56:25Z', 'backup.last_ok': '2026-10-03T02:03:00Z', 'backup.last_status': 'ok' } });
   add({ id: 'proxmox:i_p/lxc/101', kind: 'lxc', name: 'tailscale', state: 'running', desired: 'running', health: 'ok', attrs: { vmid: 101, onboot: true, started_at: '2026-09-14T18:57:25Z', lock: 'backup' } });
-  add({ id: 'proxmox:i_p/qemu/200', kind: 'vm', name: 'scratch', state: 'stopped', health: 'ok', attrs: { vmid: 200, onboot: false } });
-  add({ id: 'proxmox:i_p/node/pluto/storage/local-zfs', kind: 'storage', name: 'local-zfs', state: 'online', health: 'ok', attrs: { size_tb: 0.5, type: 'zfspool' } });
-  rel.push(['proxmox:i_p/qemu/100', 'runs_on', 'proxmox:i_p/node/pluto'], ['proxmox:i_p/lxc/101', 'runs_on', 'proxmox:i_p/node/pluto'], ['proxmox:i_p/qemu/200', 'runs_on', 'proxmox:i_p/node/pluto']);
-  rel.push(['proxmox:i_p/node/pluto/storage/local-zfs', 'part_of', 'proxmox:i_p/node/pluto']);
-  M['proxmox:i_p/node/pluto#cpu.pct'] = s(9, { unit: '%', band: [0, 20] });
-  M['proxmox:i_p/node/pluto#mem.pct'] = s(81, { unit: '%', band: [55, 85], warn: 90, crit: 98 });
-  M['proxmox:i_p/node/mars#cpu.pct'] = s(4, { unit: '%' });
-  M['proxmox:i_p/node/mars#mem.pct'] = s(30, { unit: '%', warn: 90, crit: 98 });
+  add({ id: 'proxmox:i_p/qemu/200', kind: 'vm', name: 'sandbox', state: 'stopped', health: 'ok', attrs: { vmid: 200, onboot: false } });
+  add({ id: 'proxmox:i_p/node/wren/storage/local-zfs', kind: 'storage', name: 'local-zfs', state: 'online', health: 'ok', attrs: { size_tb: 0.5, type: 'zfspool' } });
+  rel.push(['proxmox:i_p/qemu/100', 'runs_on', 'proxmox:i_p/node/wren'], ['proxmox:i_p/lxc/101', 'runs_on', 'proxmox:i_p/node/wren'], ['proxmox:i_p/qemu/200', 'runs_on', 'proxmox:i_p/node/wren']);
+  rel.push(['proxmox:i_p/node/wren/storage/local-zfs', 'part_of', 'proxmox:i_p/node/wren']);
+  M['proxmox:i_p/node/wren#cpu.pct'] = s(9, { unit: '%', band: [0, 20] });
+  M['proxmox:i_p/node/wren#mem.pct'] = s(81, { unit: '%', band: [55, 85], warn: 90, crit: 98 });
+  M['proxmox:i_p/node/egret#cpu.pct'] = s(4, { unit: '%' });
+  M['proxmox:i_p/node/egret#mem.pct'] = s(30, { unit: '%', warn: 90, crit: 98 });
   M['proxmox:i_p/qemu/100#cpu.pct'] = s(12, { unit: '%' });
   M['proxmox:i_p/qemu/100#mem.pct'] = s(60, { unit: '%' });
-  M['proxmox:i_p/node/pluto/storage/local-zfs#used.pct'] = s(31, { unit: '%', warn: 85, crit: 95 });
+  M['proxmox:i_p/node/wren/storage/local-zfs#used.pct'] = s(31, { unit: '%', warn: 85, crit: 95 });
 
   // Unraid: the host, its array with a spun-down disk, a pool, a container on the host itself.
   integ('i_u', 'unraid');
-  add({ id: 'unraid:i_u/host', kind: 'host', name: 'jupiter', state: 'online', health: 'ok', attrs: { platform: 'unraid', version: '7.3', mem_gb: 64 } }, 'i_u');
+  add({ id: 'unraid:i_u/host', kind: 'host', name: 'magpie', state: 'online', health: 'ok', attrs: { platform: 'unraid', version: '7.3', mem_gb: 64 } }, 'i_u');
   add({ id: 'unraid:i_u/array', kind: 'array', name: 'array', state: 'online', health: 'ok', attrs: { size_tb: 62, parity: 'valid', parity_checked_at: '2026-09-26T17:00:00Z' } });
   add({ id: 'unraid:i_u/disk/parity', kind: 'disk', name: 'parity', state: 'online', health: 'ok', attrs: { role: 'parity', size_tb: 16 } });
   add({ id: 'unraid:i_u/disk/disk1', kind: 'disk', name: 'disk1', state: 'idle', health: 'ok', attrs: { role: 'data', size_tb: 14 } });
@@ -88,7 +88,7 @@ function home(): Data {
 
   // Docker: an engine with a running container and one OOM-killed.
   integ('i_d', 'docker');
-  add({ id: 'docker:i_d/engine', kind: 'engine', name: 'pvedocker', state: 'running', health: 'ok', attrs: { endpoint: 'tcp://proxy.lab.example:2375' } }, 'i_d');
+  add({ id: 'docker:i_d/engine', kind: 'engine', name: 'rook', state: 'running', health: 'ok', attrs: { endpoint: 'tcp://proxy.home.example:2375' } }, 'i_d');
   add({ id: 'docker:i_d/container/sonarr', kind: 'container', name: 'sonarr', state: 'running', desired: 'running', health: 'ok', attrs: { image: 'lscr.io/linuxserver/sonarr:4.0.9', started_at: '2026-10-01T15:00:34Z' } });
   add({ id: 'docker:i_d/container/llama', kind: 'container', name: 'llama-swap', state: 'exited', desired: 'running', health: { status: 'down', reason: 'OOM-killed', since: '2026-10-03T03:12:00Z' }, attrs: { image: 'ghcr.io/x/llama-swap:latest', exit_code: 137, oom_killed: true, finished_at: '2026-10-03T03:12:00Z' } });
   rel.push(['docker:i_d/container/sonarr', 'runs_on', 'docker:i_d/engine'], ['docker:i_d/container/llama', 'runs_on', 'docker:i_d/engine']);
@@ -105,7 +105,7 @@ function home(): Data {
 
   // Frigate with two cameras.
   appR('i_f', 'frigate', 'Frigate', { cameras: 2, version: '0.18.0' });
-  for (const [cam, name] of [['driveway', 'Driveway'], ['backyard', 'Backyard']] as const) {
+  for (const [cam, name] of [['driveway', 'Driveway'], ['garage', 'Garage']] as const) {
     add({ id: `frigate:i_f/camera/${cam}`, kind: 'camera', name, state: 'online', health: 'ok', attrs: { camera: cam, record: true, 'last_event.label': 'person', 'last_event.at': '2026-10-03T13:24:02Z', 'last_event.score': 0.79 } }, 'i_f');
     rel.push(['frigate:i_f/app', 'exposes', `frigate:i_f/camera/${cam}`]);
     M[`frigate:i_f/camera/${cam}#detections.24h`] = s(5, { unit: 'count' });
@@ -120,12 +120,12 @@ function home(): Data {
 
   // Built-in checks and an Uptime Kuma monitor, all kind check.
   integ('i_c', 'checks');
-  add({ id: 'check:i_c/sonarr', kind: 'check', name: 'Sonarr', state: 'online', health: 'ok', attrs: { check: 'http', target: 'https://sonarr.lab.example', status_code: 200 } }, 'i_c');
-  add({ id: 'check:i_c/nas', kind: 'check', name: 'NAS', state: 'error', health: { status: 'down', since: '2026-10-03T14:02:00Z', reason: 'connection refused' }, attrs: { check: 'tcp', target: '10.0.11.15:445' } }, 'i_c');
+  add({ id: 'check:i_c/sonarr', kind: 'check', name: 'Sonarr', state: 'online', health: 'ok', attrs: { check: 'http', target: 'https://sonarr.home.example', status_code: 200 } }, 'i_c');
+  add({ id: 'check:i_c/nas', kind: 'check', name: 'NAS', state: 'error', health: { status: 'down', since: '2026-10-03T14:02:00Z', reason: 'connection refused' }, attrs: { check: 'tcp', target: '10.20.30.50:445' } }, 'i_c');
   M['check:i_c/sonarr#http.ms'] = s(54, { unit: 'ms', band: [1, 150], warn: 800, crit: 2000 });
   M['check:i_c/nas#tcp.ms'] = { value: null, unit: 'ms', as_of: NOW, warn: 200, history: [...hist(3, 4, 44), null, null, null, null] };
   appR('i_k', 'uptimekuma', 'Uptime Kuma', { monitors: 1, status_page: 'home' });
-  add({ id: 'uptimekuma:i_k/monitor/1', kind: 'check', name: 'Immich', state: 'online', health: 'ok', attrs: { check: 'http', monitor_id: 1, uptime_24h: 99.5, target: 'https://photos.family.example' } }, 'i_k');
+  add({ id: 'uptimekuma:i_k/monitor/1', kind: 'check', name: 'Immich', state: 'online', health: 'ok', attrs: { check: 'http', monitor_id: 1, uptime_24h: 99.5, target: 'https://photos.home.example' } }, 'i_k');
   rel.push(['uptimekuma:i_k/monitor/1', 'part_of', 'uptimekuma:i_k/app']);
   M['uptimekuma:i_k/app#monitors.up'] = s(1, { unit: 'count' });
   M['uptimekuma:i_k/app#monitors.down'] = s(0, { unit: 'count', history: Array(48).fill(0) });
@@ -168,7 +168,7 @@ function home(): Data {
   M['tautulli:i_t/app#bandwidth.mbps'] = s(12.3, { unit: 'Mb/s' });
   appR('i_s', 'sonarr', 'Sonarr', {
     calendar: [
-      { at: '2026-10-04T04:00:00Z', title: 'Black Clover', detail: 'S05E01' },
+      { at: '2026-10-04T04:00:00Z', title: 'Starling Point', detail: 'S05E01' },
       { at: '2026-10-05T02:00:00Z', title: 'Quiet Valley', detail: 'S01E01', unmonitored: true },
       { at: '2026-10-05T20:00:00Z', title: 'Severance', detail: 'S02E04' },
     ],
@@ -227,12 +227,12 @@ function home(): Data {
 
 /** A real target per widget type. */
 const TARGETS: Record<string, string | undefined> = {
-  host: 'proxmox:i_p/node/pluto',
+  host: 'proxmox:i_p/node/wren',
   arr: 'sonarr:i_s/app',
   service: 'pihole:i_h/app',
-  metric: 'proxmox:i_p/node/pluto#mem.pct',
+  metric: 'proxmox:i_p/node/wren#mem.pct',
   storage: 'pbs:i_b/datastore/main',
-  guests: 'proxmox:i_p/node/pluto',
+  guests: 'proxmox:i_p/node/wren',
   containers: 'docker:i_d/engine',
   unraid: 'unraid:i_u/array',
   backups: 'pbs:i_b/datastore/main',
@@ -283,7 +283,7 @@ describe('service tile on real instances', () => {
     expect(stat('mealie:i_m/app').v).toBe('87recipes');
     expect(stat('linkding:i_l/app').v).toBe('1,500bookmarks');
     expect(stat('sonarr:i_s/app').v).toBe('3queued');
-    expect(stat('sonarr:i_s/app').w.find('.svc-ctx').text()).toBe('next: Black Clover 04:00');
+    expect(stat('sonarr:i_s/app').w.find('.svc-ctx').text()).toBe('next: Starling Point 04:00');
     expect(stat('radarr:i_r/app').v).toBe('Queue clear');
     expect(stat('uptimekuma:i_k/app').v).toBe('1/1 up');
     expect(stat('qbittorrent:i_q/app').v).toBe('24.5Mb/s ↓');
@@ -349,7 +349,7 @@ describe('infrastructure widgets on real instances', () => {
   it('lists a node’s guests, the stopped one dimmed', () => {
     const { w } = mountReal('guests', 'tall');
     const rows = w.findAll('.li');
-    expect(rows.map((r) => r.find('.t').text())).toEqual(['tailscale', 'opnsense', 'scratch']);
+    expect(rows.map((r) => r.find('.t').text())).toEqual(['tailscale', 'opnsense', 'sandbox']);
     expect(rows[2]!.classes()).toContain('dim');
   });
 
@@ -365,7 +365,7 @@ describe('infrastructure widgets on real instances', () => {
   it('lists a container two sources report once, on its host', () => {
     const d = home();
     const add = (r: Resource) => (d.graph.resources[r.id] = r);
-    add({ id: 'docker:i_d2/engine', kind: 'engine', name: 'jupiter', state: 'running', health: 'ok' });
+    add({ id: 'docker:i_d2/engine', kind: 'engine', name: 'magpie', state: 'running', health: 'ok' });
     add({ id: 'docker:i_d2/container/plex', kind: 'container', name: 'plex', state: 'running', health: 'ok', source: 'integration:i_d2' });
     d.graph.resources['unraid:i_u/container/plex']!.source = 'integration:i_u';
     for (const [from, type, to] of [
@@ -403,7 +403,7 @@ describe('infrastructure widgets on real instances', () => {
     const { w, tile } = mountReal('check', 'wide');
     expect(tile().classes()).toContain('is-down');
     const rows = w.findAll('.chk');
-    expect(rows.map((r) => r.find('.t').text().split('\n')[0])).toEqual(['NAS10.0.11.15:445', 'Immichphotos.family.example', 'Sonarrsonarr.lab.example']);
+    expect(rows.map((r) => r.find('.t').text().split('\n')[0])).toEqual(['NAS10.20.30.50:445', 'Immichphotos.home.example', 'Sonarrsonarr.home.example']);
     expect(rows[0]!.text()).toContain('down since 14:02');
     const kuma = mountReal('check', 'small', 'uptimekuma:i_k/app');
     expect(kuma.w.find('.v').text()).toBe('1/1 up');
@@ -512,9 +512,9 @@ describe('what the graph can feed the new widgets', () => {
       expect([t, feedFor(WIDGETS[t]!, g, now).available]).toEqual([t, true]);
     }
     const storage = feedFor(WIDGETS['storage']!, g, now).candidates.map((r) => r.id);
-    expect(storage).toEqual(expect.arrayContaining(['pbs:i_b/datastore/main', 'unraid:i_u/array', 'unraid:i_u/pool/cache', 'proxmox:i_p/node/pluto/storage/local-zfs']));
+    expect(storage).toEqual(expect.arrayContaining(['pbs:i_b/datastore/main', 'unraid:i_u/array', 'unraid:i_u/pool/cache', 'proxmox:i_p/node/wren/storage/local-zfs']));
     const metric = feedFor(WIDGETS['metric']!, g, now).candidates.map((r) => r.id);
-    expect(metric).toEqual(expect.arrayContaining(['proxmox:i_p/node/pluto#mem.pct', 'opnsense:i_o/wan#rx.mbps', 'homeassistant:i_ha/app#power.kw']));
+    expect(metric).toEqual(expect.arrayContaining(['proxmox:i_p/node/wren#mem.pct', 'opnsense:i_o/wan#rx.mbps', 'homeassistant:i_ha/app#power.kw']));
     const empty: GraphDoc = { resources: {}, relations: {} };
     expect(feedFor(WIDGETS['clock']!, empty, now).available).toBe(true);
     expect(feedFor(WIDGETS['weather']!, empty, now).available).toBe(false);

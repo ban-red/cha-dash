@@ -57,9 +57,9 @@ function hub(over: Record<string, Handler | { status: number; body?: unknown }> 
             {
               integration: 'proxmox',
               name: 'Proxmox VE',
-              config: { url: 'https://nas.lab.example:8006', tls: { mode: 'tofu' } },
+              config: { url: 'https://nas.home.example:8006', tls: { mode: 'tofu' } },
               source: 'host',
-              target: 'nas.lab.example',
+              target: 'nas.home.example',
               ready: false,
               grants: [],
               warnings: [],
@@ -75,8 +75,8 @@ function hub(over: Record<string, Handler | { status: number; body?: unknown }> 
           ],
           checked: [
             { target: 'tcp://dockerproxy:2375', source: 'docker', found: 1 },
-            { target: 'nas.lab.example', source: 'host', found: 1 },
-            { target: 'gone.lab.example', source: 'host', found: 0 },
+            { target: 'nas.home.example', source: 'host', found: 1 },
+            { target: 'gone.home.example', source: 'host', found: 0 },
           ],
         },
       };
@@ -134,11 +134,11 @@ describe('the wizard’s state', () => {
   });
 
   it('checks machines the way the hub does', () => {
-    expect(validHost('nas.lab.example')).toBe(true);
+    expect(validHost('nas.home.example')).toBe(true);
     expect(validHost('192.0.2.20')).toBe(true);
     expect(validHost('2001:db8::1')).toBe(true);
-    for (const bad of ['198.51.100.0/24', '*.lab.example', 'http://nas', 'nas:8006', '192.0.2.300', '198.51.100.1-50', '2375']) expect(validHost(bad), bad).toBe(false);
-    expect(parseHosts(' nas.lab.example\n192.0.2.20, nas.lab.example  203.0.113.0/24')).toEqual({ hosts: ['nas.lab.example', '192.0.2.20'], bad: ['203.0.113.0/24'] });
+    for (const bad of ['198.51.100.0/24', '*.home.example', 'http://nas', 'nas:8006', '192.0.2.300', '198.51.100.1-50', '2375']) expect(validHost(bad), bad).toBe(false);
+    expect(parseHosts(' nas.home.example\n192.0.2.20, nas.home.example  203.0.113.0/24')).toEqual({ hosts: ['nas.home.example', '192.0.2.20'], bad: ['203.0.113.0/24'] });
   });
 });
 
@@ -205,30 +205,30 @@ describe('Connect your home', () => {
     const f = hub();
     await wizard('discover');
     const hosts = document.getElementById('ob-hosts') as HTMLTextAreaElement;
-    hosts.value = 'nas.lab.example\n198.51.100.0/24';
+    hosts.value = 'nas.home.example\n198.51.100.0/24';
     hosts.dispatchEvent(new Event('input'));
     button('Check these')!.click();
     await flushPromises();
     expect(document.querySelector('.ob-discover .form-error')!.textContent).toContain('“198.51.100.0/24” isn’t one machine');
     expect(f.calls.filter((c) => c.path === '/api/onboarding/discover')).toHaveLength(1); // the sidecar only
 
-    hosts.value = 'nas.lab.example gone.lab.example';
+    hosts.value = 'nas.home.example gone.home.example';
     hosts.dispatchEvent(new Event('input'));
     const box = [...document.querySelectorAll<HTMLInputElement>('.ob-check input')][0]!;
     box.click();
     await nextTick();
     button('Check these')!.click();
     await flushPromises();
-    expect(f.last('POST', '/api/onboarding/discover')!.body).toEqual({ docker: ['tcp://dockerproxy:2375'], hosts: ['nas.lab.example', 'gone.lab.example'] });
+    expect(f.last('POST', '/api/onboarding/discover')!.body).toEqual({ docker: ['tcp://dockerproxy:2375'], hosts: ['nas.home.example', 'gone.home.example'] });
     const found = [...document.querySelectorAll('ul[aria-label="Found"] .ob-cand')];
     expect(found.map((c) => c.querySelector('b')!.textContent)).toEqual(['Proxmox VE', 'Docker on dockerproxy']);
     expect(found[1]!.textContent).toContain('every container’s environment');
-    expect(document.querySelector('.ob-misses')!.textContent).toContain('gone.lab.example');
+    expect(document.querySelector('.ob-misses')!.textContent).toContain('gone.home.example');
 
     // Something that needs a credential opens its add form, its address filled in.
     (found[0]!.querySelector('button') as HTMLButtonElement).click();
     expect(route.value.path).toBe('/settings/integrations/new/proxmox');
-    expect(takeDraft('proxmox')).toEqual({ name: 'Proxmox VE', config: { url: 'https://nas.lab.example:8006', tls: { mode: 'tofu' } } });
+    expect(takeDraft('proxmox')).toEqual({ name: 'Proxmox VE', config: { url: 'https://nas.home.example:8006', tls: { mode: 'tofu' } } });
   });
 
   it('lists what it can add, grouped, with the recipe’s honest label', async () => {

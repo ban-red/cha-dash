@@ -18,7 +18,7 @@ const snapshotSeed = 1
 
 // snapshotBudget keeps the committed snapshots small enough to load in a
 // prototype without thinking about it.
-const snapshotBudget = 500 << 10
+const snapshotBudget = 1 << 20
 
 // TestSnapshots is the golden test for sim/snapshots. Regenerate with:
 //

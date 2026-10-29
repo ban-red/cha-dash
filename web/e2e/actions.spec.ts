@@ -7,6 +7,8 @@ import { expect, test } from '@playwright/test';
 
 test('a T1 action runs at once, through plan, approve and its check', async ({ page }) => {
   await page.goto('/');
+  // homeassistant's backup is the fourth problem: Needs attention shows three until Show all.
+  await page.getByRole('button', { name: /^Show all \d+$/ }).click();
   const fix = page.getByRole('button', { name: /^Back up homeassistant now/ }).first();
   await expect(fix).toBeVisible();
 

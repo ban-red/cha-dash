@@ -64,7 +64,7 @@ export function serviceStatus(
   return { status: 'unknown', word: 'no reading yet', via: 'none' };
 }
 
-/** "pluto.lan:8006" from a link, for the tile's context line. */
+/** "wren.home.example:8006" from a link, for the tile's context line. */
 export function hostOf(href: string | undefined): string {
   if (!href) return '';
   try {

@@ -119,7 +119,7 @@ export function feedFor(spec: Pick<WidgetSpec, 'type' | 'bound'>, g: GraphDoc | 
   return { available, candidates: [] };
 }
 
-/** "Sonarr · on jupiter": a candidate in a list. */
+/** "Sonarr · on magpie": a candidate in a list. */
 export function candidateLabel(g: GraphDoc | undefined, r: Resource): string {
   const place = placeOf(g, r.id);
   return place ? `${label(r)} · on ${place}` : label(r);

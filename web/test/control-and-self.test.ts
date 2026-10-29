@@ -91,8 +91,8 @@ function hub() {
     'GET /api/integrations/instances': {
       status: 200,
       body: [
-        { id: 'i_pve', integration: 'proxmox', name: 'io', status: 'ok', warnings: [] },
-        { id: 'i_un', integration: 'unraid', name: 'jupiter', status: 'ok', warnings: [] },
+        { id: 'i_pve', integration: 'proxmox', name: 'egret', status: 'ok', warnings: [] },
+        { id: 'i_un', integration: 'unraid', name: 'magpie', status: 'ok', warnings: [] },
       ],
     },
     'GET /api/integrations/instances/i_pve': {
@@ -100,16 +100,16 @@ function hub() {
       body: {
         id: 'i_pve',
         integration: 'proxmox',
-        name: 'io',
+        name: 'egret',
         status: 'ok',
-        config: { url: 'https://io.lab.example:8006', token_id: 'chadash@pve!read' },
+        config: { url: 'https://egret.home.example:8006', token_id: 'chadash@pve!read' },
         secrets: { token_secret: { set: true }, control_token_secret: { set: false } },
         warnings: [{ code: 'control_available', severity: 'info', message: 'This connection only reads. Add a control credential to let Cha Dash act.' }],
       },
     },
     'GET /api/integrations/instances/i_un': {
       status: 200,
-      body: { id: 'i_un', integration: 'unraid', name: 'jupiter', status: 'ok', config: { url: 'https://jupiter.lab.example', mode: 'read_only' }, secrets: { api_key: { set: true } }, warnings: [] },
+      body: { id: 'i_un', integration: 'unraid', name: 'magpie', status: 'ok', config: { url: 'https://magpie.home.example', mode: 'read_only' }, secrets: { api_key: { set: true } }, warnings: [] },
     },
   });
 }
@@ -148,8 +148,8 @@ describe('control credentials, the model', () => {
     expect(actStatus(PVE_CONTROL, PVE_SCHEMA, { control_token_id: 'a!b' }, none, { control_token_secret: 'typed' }).state).toBe('acts');
     expect(actStatus(UNRAID_CONTROL, UNRAID_SCHEMA, { mode: 'control' }, none).state).toBe('acts');
     expect(actStatus(UNRAID_CONTROL, UNRAID_SCHEMA, { mode: 'read_only' }, none).state).toBe('reads');
-    expect(modeConsequence(true, 'jupiter')).toContain('audit log');
-    expect(modeConsequence(false, 'jupiter')).toContain('only reads');
+    expect(modeConsequence(true, 'magpie')).toContain('audit log');
+    expect(modeConsequence(false, 'magpie')).toContain('only reads');
   });
 });
 
@@ -165,7 +165,7 @@ describe('Let Cha Dash act', () => {
     expect(section.querySelector('#f-token_id')).toBeNull();
     expect(section.querySelector('details')!.open).toBe(false);
     expect(section.querySelector('.ctl-state')!.textContent).toContain('Reads only');
-    expect(section.textContent).toContain('Cha Dash only reads io.');
+    expect(section.textContent).toContain('Cha Dash only reads egret.');
     expect(section.textContent).toContain('Add a control credential');
     const aside = document.querySelector('.ed-control-recipe')!;
     expect(aside.textContent).toContain('To let Cha Dash act');
@@ -189,7 +189,7 @@ describe('Let Cha Dash act', () => {
     secret.value = 'not-a-real-secret-value';
     secret.dispatchEvent(new Event('input'));
     await nextTick();
-    expect(section.querySelector('.ctl-now')!.textContent).toContain('After you save: cha dash can act on io.');
+    expect(section.querySelector('.ctl-now')!.textContent).toContain('After you save: cha dash can act on egret.');
     expect(await axeViolations()).toEqual([]);
   });
 
@@ -199,11 +199,11 @@ describe('Let Cha Dash act', () => {
     const section = document.getElementById('control')!;
     const radios = [...section.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
     expect(radios.length).toBe(2);
-    expect(section.querySelector('.ctl-means')!.textContent).toContain('only reads jupiter');
+    expect(section.querySelector('.ctl-means')!.textContent).toContain('only reads magpie');
     radios[1]!.checked = true;
     radios[1]!.dispatchEvent(new Event('change'));
     await nextTick();
-    expect(section.querySelector('.ctl-means')!.textContent).toContain('may act on jupiter');
+    expect(section.querySelector('.ctl-means')!.textContent).toContain('may act on magpie');
     expect(section.querySelector('.ctl-now')!.textContent).toContain('After you save');
     expect(await axeViolations()).toEqual([]);
   });
@@ -218,30 +218,30 @@ describe('Let Cha Dash act', () => {
   });
 });
 
-// A real hub's graph: Cha Dash in a container on pvedocker, a VM on io, and a router.
+// A real hub's graph: Cha Dash in a container on rook, a VM on egret, and a router.
 const REAL: GraphDoc = {
   resources: {
     'chadash:hub': { id: 'chadash:hub', kind: 'app', name: 'Cha Dash', attrs: { self: true, version: '0.2.0' } },
     'docker:i_d/container/chadash': { id: 'docker:i_d/container/chadash', kind: 'container', name: 'chadash' },
-    'docker:i_d/engine': { id: 'docker:i_d/engine', kind: 'engine', name: 'pvedocker' },
+    'docker:i_d/engine': { id: 'docker:i_d/engine', kind: 'engine', name: 'rook' },
     'unraid:i_u/container/chadash': { id: 'unraid:i_u/container/chadash', kind: 'container', name: 'chadash' },
-    'proxmox:i_p/qemu/105': { id: 'proxmox:i_p/qemu/105', kind: 'vm', name: 'pvedocker' },
-    'proxmox:i_p/node/io': { id: 'proxmox:i_p/node/io', kind: 'host', name: 'io' },
-    'opnsense:i_o/router': { id: 'opnsense:i_o/router', kind: 'router', name: 'pluto' },
+    'proxmox:i_p/qemu/105': { id: 'proxmox:i_p/qemu/105', kind: 'vm', name: 'rook' },
+    'proxmox:i_p/node/egret': { id: 'proxmox:i_p/node/egret', kind: 'host', name: 'egret' },
+    'opnsense:i_o/router': { id: 'opnsense:i_o/router', kind: 'router', name: 'wren' },
   },
   relations: {
     a: { from: 'chadash:hub', type: 'runs_on', to: 'docker:i_d/container/chadash' },
     b: { from: 'docker:i_d/container/chadash', type: 'runs_on', to: 'docker:i_d/engine' },
     c: { from: 'docker:i_d/engine', type: 'runs_on', to: 'proxmox:i_p/qemu/105' },
-    d: { from: 'proxmox:i_p/qemu/105', type: 'runs_on', to: 'proxmox:i_p/node/io' },
+    d: { from: 'proxmox:i_p/qemu/105', type: 'runs_on', to: 'proxmox:i_p/node/egret' },
   },
 };
 
 describe('where Cha Dash runs', () => {
   it('walks the hub’s chain, across same_as, and names the router', () => {
     const p = hubPlace(REAL);
-    expect(p.chain.map(placeWords)).toEqual(['container chadash', 'Docker on pvedocker', 'VM pvedocker', 'host io']);
-    expect(p.router?.name).toBe('pluto');
+    expect(p.chain.map(placeWords)).toEqual(['container chadash', 'Docker on rook', 'VM rook', 'host egret']);
+    expect(p.router?.name).toBe('wren');
     // Only Unraid sees the container, and the correlator joined it to Docker's.
     const viaSameAs: GraphDoc = {
       resources: REAL.resources,
@@ -256,7 +256,7 @@ describe('where Cha Dash runs', () => {
     // The Demo Home's stand-in.
     const demo = graphDoc(healthy);
     expect(isHub(demo, 'app:chadash')).toBe(true);
-    expect(hubPlace(demo).chain.map((r) => r.name)).toEqual(['chadash', 'pvedocker', 'pvedocker', 'mars-1', 'mars']);
+    expect(hubPlace(demo).chain.map((r) => r.name)).toEqual(['chadash', 'rook', 'rook', 'egret', 'aviary']);
   });
 
   it('shows the chain in Settings, and says how to find it when it can’t', async () => {
@@ -284,7 +284,7 @@ describe('where Cha Dash runs', () => {
       { resource: 'chadash:hub', via: 'runs_on', depth: 2 },
     ];
     expect(hubFirst(REAL, xs).map((x) => x.resource)).toEqual(['chadash:hub', 'docker:i_d/container/chadash']);
-    expect(hitsHub(REAL, ['proxmox:i_p/node/io'])).toBe(false);
+    expect(hitsHub(REAL, ['proxmox:i_p/node/egret'])).toBe(false);
   });
 
   it('warns in the hold ring and the typed confirmation when the hub goes down too', async () => {
@@ -311,9 +311,9 @@ describe('where Cha Dash runs', () => {
 
     hs.ui.state.confirm = {
       kind: 'type',
-      req: { action: 'proxmox.guest.reboot', target: 'proxmox:i_p/node/io', label: 'Reboot io' },
-      action: { id: 'proxmox.guest.reboot', label: 'Reboot io', tier: 'T4', target: 'proxmox:i_p/node/io' },
-      plan: { id: 'p_2', hash: 'sha256:y', action: 'proxmox.guest.reboot', label: 'Reboot io', target: 'proxmox:i_p/node/io', params: {}, tier: 'T4', confirm: 'type', confirm_text: 'io', step_up: 'fresh', steps: [], impact, undo: null, expires_at: '2026-10-06T12:00:00Z' },
+      req: { action: 'proxmox.guest.reboot', target: 'proxmox:i_p/node/egret', label: 'Reboot egret' },
+      action: { id: 'proxmox.guest.reboot', label: 'Reboot egret', tier: 'T4', target: 'proxmox:i_p/node/egret' },
+      plan: { id: 'p_2', hash: 'sha256:y', action: 'proxmox.guest.reboot', label: 'Reboot egret', target: 'proxmox:i_p/node/egret', params: {}, tier: 'T4', confirm: 'type', confirm_text: 'egret', step_up: 'fresh', steps: [], impact, undo: null, expires_at: '2026-10-06T12:00:00Z' },
     } as never;
     await flushPromises();
     expect(document.querySelector('.act-hub')?.textContent).toContain('Cha Dash itself down');
@@ -329,7 +329,7 @@ describe('hub-cached icons', () => {
         status: 200,
         body: {
           by_icon: { 'https://cdn.example/sonarr.svg': '/api/icons/ic_abcdefgh2345?v=1a2b', bad: 'https://evil.example/x.png', worse: 'javascript:alert(1)' },
-          by_origin: { 'https://photos.lab.example': '/api/icons/ic_photos234567?v=ff' },
+          by_origin: { 'https://photos.home.example': '/api/icons/ic_photos234567?v=ff' },
           by_instance: { i_s: '/api/icons/ic_instance2345' },
         },
       },
@@ -339,20 +339,20 @@ describe('hub-cached icons', () => {
     expect(f.calls.filter((c) => c.path === '/api/icons')).toHaveLength(1);
     const m = iconMap.value;
     expect(m.by_icon).toEqual({ 'https://cdn.example/sonarr.svg': '/api/icons/ic_abcdefgh2345?v=1a2b' });
-    expect(iconFor(m, { icon: 'https://cdn.example/sonarr.svg', href: 'https://photos.lab.example' }, 'https://photos.lab.example')).toBe('/api/icons/ic_abcdefgh2345?v=1a2b');
-    expect(iconFor(m, { icon: 'sonarr.png' }, 'https://photos.lab.example/albums')).toBe('/api/icons/ic_photos234567?v=ff');
+    expect(iconFor(m, { icon: 'https://cdn.example/sonarr.svg', href: 'https://photos.home.example' }, 'https://photos.home.example')).toBe('/api/icons/ic_abcdefgh2345?v=1a2b');
+    expect(iconFor(m, { icon: 'sonarr.png' }, 'https://photos.home.example/albums')).toBe('/api/icons/ic_photos234567?v=ff');
     expect(iconFor(m, { bind: { instance: 'i_s' } }, undefined)).toBe('/api/icons/ic_instance2345');
-    expect(iconFor(m, {}, 'https://other.lab.example')).toBeUndefined();
+    expect(iconFor(m, {}, 'https://other.home.example')).toBeUndefined();
   });
 
   it('shows the icon in the tile, and the monogram when there’s none, it fails, or the tile needs you', async () => {
-    fakeFetch({ 'GET /api/icons': { status: 200, body: { by_icon: {}, by_origin: { 'https://photos.lab.example': '/api/icons/ic_photos234567?v=ff' }, by_instance: {} } } });
+    fakeFetch({ 'GET /api/icons': { status: 200, body: { by_icon: {}, by_origin: { 'https://photos.home.example': '/api/icons/ic_photos234567?v=ff' }, by_instance: {} } } });
     await loadIcons();
     const hs = harness();
     const Host = (status: TileStatus) =>
       defineComponent({
         setup() {
-          provideTile({ itemId: 'service@x', type: 'service', config: { value: { name: 'Photos', href: 'https://photos.lab.example/' } } as never });
+          provideTile({ itemId: 'service@x', type: 'service', config: { value: { name: 'Photos', href: 'https://photos.home.example/' } } as never });
           return () => h('main', { 'aria-label': 'Front page' }, [h(Tile, { size: 'small', name: 'Photos', status })]);
         },
       });

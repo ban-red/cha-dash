@@ -43,7 +43,7 @@ afterEach(() => {
 
 const BACKUP = 'backup-failed'; // T1: Back up homeassistant now
 const PRUNE = 'pbs-datastore-filling'; // T2: Prune per policy
-const RESTART = 'host-memory-pressure'; // T2: Restart debian-nas
+const RESTART = 'host-memory-pressure'; // T2: Restart files
 
 function start(opts: { demo?: boolean; role?: string; data?: Record<string, unknown> } = {}) {
   const h = harness(opts.data ?? docs(withIncidents), opts.demo ? { demo: true } : {});
@@ -69,19 +69,19 @@ describe('refusals, as the hub says them', () => {
       [422, 'confirm_mismatch'],
       [409, 'locked'],
     ] as const) {
-      const f = actionError(err(status, code, 'win-gaming is already stopped.'));
+      const f = actionError(err(status, code, 'win-games is already stopped.'));
       expect(f.code).toBe(code);
-      expect(f.message).toBe('win-gaming is already stopped.');
+      expect(f.message).toBe('win-games is already stopped.');
     }
   });
 
   it('carries the recipe and a new plan, and falls back to words when the hub sent none', () => {
-    expect(actionError(err(409, 'unavailable', 'Add a control token to let Cha Dash reboot guests on io', { recipe: 'i_io' }))).toMatchObject({
+    expect(actionError(err(409, 'unavailable', 'Add a control token to let Cha Dash reboot guests on owl', { recipe: 'i_owl' }))).toMatchObject({
       code: 'unavailable',
-      message: 'Add a control token to let Cha Dash reboot guests on io',
-      recipe: 'i_io',
+      message: 'Add a control token to let Cha Dash reboot guests on owl',
+      recipe: 'i_owl',
     });
-    const p = planFor('pve.guest.restart', 'pve:jupiter-nas/lxc/100');
+    const p = planFor('pve.guest.restart', 'pve:stork/lxc/220');
     expect(actionError(err(409, 'plan_changed', 'The target changed.', { plan: p })).plan).toEqual(p);
     expect(actionError(err(403, 'http_403')).code).toBe('forbidden');
     expect(actionError(err(409, 'locked')).message).toContain('Another task');
@@ -142,7 +142,7 @@ describe('the ladder, driven by the plan', () => {
     h.ui.act(h.inc(PRUNE));
     await flushPromises();
     expect(h.ui.state.confirm).toMatchObject({ kind: 'hold', plan: { action: 'pbs.datastore.prune', tier: 'T2' } });
-    expect(h.ui.state.confirm!.action.impact?.length).toBe(14);
+    expect(h.ui.state.confirm!.action.impact?.length).toBe(13);
     expect(e.approvals).toHaveLength(0);
     h.ui.confirmed();
     await flushPromises();
@@ -153,8 +153,8 @@ describe('the ladder, driven by the plan', () => {
   it('type (T3): the typed dialog enables only on the exact name, sends it, and keeps a mismatch at the field', async () => {
     let n = 0;
     const e = engine({
-      plan: () => ({ tier: 'T3', confirm: 'type', confirm_text: 'debian-nas', label: 'Remove debian-nas', undo: null }),
-      approve: () => (++n === 1 ? refuse(422, 'confirm_mismatch', 'That isn’t the name. Type debian-nas.') : undefined),
+      plan: () => ({ tier: 'T3', confirm: 'type', confirm_text: 'files', label: 'Remove files', undo: null }),
+      approve: () => (++n === 1 ? refuse(422, 'confirm_mismatch', 'That isn’t the name. Type files.') : undefined),
     });
     fakeFetch(e.routes);
     const h = start();
@@ -172,21 +172,21 @@ describe('the ladder, driven by the plan', () => {
     const input = dlg.querySelector<HTMLInputElement>('input')!;
     const submit = dlg.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(submit.disabled).toBe(true);
-    input.value = 'debian';
+    input.value = 'file';
     input.dispatchEvent(new Event('input'));
     await nextTick();
     expect(submit.disabled).toBe(true);
-    input.value = 'debian-nas';
+    input.value = 'files';
     input.dispatchEvent(new Event('input'));
     await nextTick();
     expect(submit.disabled).toBe(false);
     dlg.querySelector('form')!.dispatchEvent(new Event('submit'));
     await flushPromises();
-    expect(e.approvals[0]).toMatchObject({ typed: 'debian-nas' });
+    expect(e.approvals[0]).toMatchObject({ typed: 'files' });
     // Refused as a mismatch: the dialog stays, the hub's sentence at the field.
-    expect(h.ui.state.confirm?.error).toBe('That isn’t the name. Type debian-nas.');
+    expect(h.ui.state.confirm?.error).toBe('That isn’t the name. Type files.');
     await nextTick();
-    expect(dlg.querySelector('.help.bad')?.textContent).toBe('That isn’t the name. Type debian-nas.');
+    expect(dlg.querySelector('.help.bad')?.textContent).toBe('That isn’t the name. Type files.');
     dlg.querySelector('form')!.dispatchEvent(new Event('submit'));
     await flushPromises();
     expect(e.approvals).toHaveLength(2);
@@ -194,14 +194,14 @@ describe('the ladder, driven by the plan', () => {
   });
 
   it('runs step-up before approving when the plan says required, and not at all if it’s closed', async () => {
-    const e = engine({ plan: () => ({ tier: 'T3', confirm: 'type', confirm_text: 'debian-nas', step_up: 'required' }) });
+    const e = engine({ plan: () => ({ tier: 'T3', confirm: 'type', confirm_text: 'files', step_up: 'required' }) });
     fakeFetch(e.routes);
     const h = start();
     h.ui.act(h.inc(RESTART));
     await flushPromises();
-    h.ui.confirmed('debian-nas');
+    h.ui.confirmed('files');
     await flushPromises();
-    expect(h.ui.state.stepUp?.reason).toBe('Restart debian-nas');
+    expect(h.ui.state.stepUp?.reason).toBe('Restart files');
     expect(e.approvals).toHaveLength(0);
     h.ui.stepUpDone(false);
     await flushPromises();
@@ -211,27 +211,27 @@ describe('the ladder, driven by the plan', () => {
     // Again, confirmed this time; a second action within 5 minutes doesn't ask again.
     h.ui.act(h.inc(RESTART));
     await flushPromises();
-    h.ui.confirmed('debian-nas');
+    h.ui.confirmed('files');
     await flushPromises();
     h.ui.stepUpDone(true);
     await flushPromises();
     expect(e.approvals).toHaveLength(1);
     h.ui.act(h.inc(RESTART));
     await flushPromises();
-    h.ui.confirmed('debian-nas');
+    h.ui.confirmed('files');
     await flushPromises();
     expect(h.ui.state.stepUp).toBeUndefined();
     expect(e.approvals).toHaveLength(2);
   });
 
   it('T4 (fresh) always asks, even with a grant', async () => {
-    const e = engine({ plan: () => ({ tier: 'T4', confirm: 'type', confirm_text: 'pluto', step_up: 'fresh' }) });
+    const e = engine({ plan: () => ({ tier: 'T4', confirm: 'type', confirm_text: 'wren', step_up: 'fresh' }) });
     fakeFetch(e.routes);
     const h = start();
     for (let i = 0; i < 2; i++) {
       h.ui.act(h.inc(RESTART));
       await flushPromises();
-      h.ui.confirmed('pluto');
+      h.ui.confirmed('wren');
       await flushPromises();
       expect(h.ui.state.stepUp?.fresh).toBe(true);
       h.ui.stepUpDone(true);
@@ -274,7 +274,7 @@ describe('the ladder, driven by the plan', () => {
   });
 
   it('plan_changed: shows the new plan with the hub’s sentence (a review for T1)', async () => {
-    const changed = planFor('pve.guest.backup', 'pve:minig5/qemu/100', { id: 'p_new', hash: 'sha256:new', impact: [{ resource: 'app:homeassistant', via: 'runs_on', depth: 1 }] });
+    const changed = planFor('pve.guest.backup', 'pve:heron/qemu/200', { id: 'p_new', hash: 'sha256:new', impact: [{ resource: 'app:homeassistant', via: 'runs_on', depth: 1 }] });
     const e = engine({ approve: (id) => (id === 'p_new' ? undefined : refuse(409, 'plan_changed', 'homeassistant moved to another host since this was planned.', { plan: changed })) });
     fakeFetch(e.routes);
     const h = start();
@@ -283,14 +283,14 @@ describe('the ladder, driven by the plan', () => {
     expect(h.ui.state.confirm).toMatchObject({ kind: 'review', note: 'homeassistant moved to another host since this was planned.', plan: { id: 'p_new' } });
     h.ui.confirmed();
     await flushPromises();
-    expect(e.approvals.map((a) => a.plan)).toEqual(['p_pve_guest_backup_pve_minig5_qemu_100', 'p_new']);
+    expect(e.approvals.map((a) => a.plan)).toEqual(['p_pve_guest_backup_pve_heron_qemu_200', 'p_new']);
   });
 
   it('locked, precondition, forbidden, invalid: the hub’s sentence in an error toast, and at the incident', async () => {
     for (const [status, code, message] of [
-      [409, 'locked', 'Another task is rebooting minig5. Try again when it’s done.'],
+      [409, 'locked', 'Another task is rebooting heron. Try again when it’s done.'],
       [409, 'precondition', 'homeassistant is already backing up.'],
-      [403, 'forbidden', 'Operators can’t back up guests on minig5.'],
+      [403, 'forbidden', 'Operators can’t back up guests on heron.'],
       [422, 'invalid', 'Pick a storage for the backup.'],
     ] as const) {
       const e = engine(code === 'locked' ? { approve: () => refuse(status, code, message) } : { plan: () => refuse(status, code, message) });
@@ -305,7 +305,7 @@ describe('the ladder, driven by the plan', () => {
   });
 
   it('unavailable: says why and links to the instance’s settings', async () => {
-    const e = engine({ plan: () => refuse(409, 'unavailable', 'Add a control token to let Cha Dash back up guests on minig5.', { recipe: 'i_minig5' }) });
+    const e = engine({ plan: () => refuse(409, 'unavailable', 'Add a control token to let Cha Dash back up guests on heron.', { recipe: 'i_heron' }) });
     fakeFetch(e.routes);
     const h = start();
     h.mountIn(InboxSheet);
@@ -315,18 +315,18 @@ describe('the ladder, driven by the plan', () => {
     await flushPromises();
     await nextTick();
     const t = h.ui.state.toasts.at(-1)!;
-    expect(t).toMatchObject({ text: 'Add a control token to let Cha Dash back up guests on minig5.', tone: 'error', action: { label: 'Open its settings' } });
+    expect(t).toMatchObject({ text: 'Add a control token to let Cha Dash back up guests on heron.', tone: 'error', action: { label: 'Open its settings' } });
     const item = document.querySelector('.ib.open')!;
-    expect(item.querySelector('.err')?.textContent).toBe('Add a control token to let Cha Dash back up guests on minig5.');
+    expect(item.querySelector('.err')?.textContent).toBe('Add a control token to let Cha Dash back up guests on heron.');
     [...item.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'Open its settings')!.click();
-    expect(route.value.path).toBe('/settings/integrations/i_minig5');
+    expect(route.value.path).toBe('/settings/integrations/i_heron');
   });
 
   it('prefers the hub’s availability on the incident’s action', () => {
     const h = start();
     const inc = JSON.parse(JSON.stringify(h.inc(BACKUP))) as Incident;
-    inc.suggested!.unavailable = 'Add a control token to let Cha Dash back up guests on minig5.';
-    expect(h.ui.canRun(inc)).toEqual({ ok: false, why: 'Add a control token to let Cha Dash back up guests on minig5.' });
+    inc.suggested!.unavailable = 'Add a control token to let Cha Dash back up guests on heron.';
+    expect(h.ui.canRun(inc)).toEqual({ ok: false, why: 'Add a control token to let Cha Dash back up guests on heron.' });
     inc.suggested!.unavailable = undefined as unknown as string;
     delete inc.suggested!.unavailable;
     inc.suggested!.plan_ready = false;
@@ -347,13 +347,13 @@ describe('tasks', () => {
     await flushPromises();
     h.ui.act(h.inc(BACKUP));
     await flushPromises();
-    const task = taskFor(planFor('pve.guest.backup', 'pve:minig5/qemu/100'));
+    const task = taskFor(planFor('pve.guest.backup', 'pve:heron/qemu/200'));
     // The hub publishes it on the tasks topic and moves it along.
-    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 2, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', task.id), value: { ...task, step: 'Write the backup to pbs-jupiter', progress: 0.5 } }] });
+    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 2, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', task.id), value: { ...task, step: 'Write the backup to pbs-magpie', progress: 0.5 } }] });
     await nextTick();
     const item = document.querySelector('.ib.open')!;
-    expect(item.querySelector('.working')?.textContent).toContain('Back up homeassistant now: Write the backup to pbs-jupiter · 50%');
-    expect(document.querySelector('.tp')?.textContent).toContain('Back up homeassistant now · Write the backup to pbs-jupiter · 50%');
+    expect(item.querySelector('.working')?.textContent).toContain('Back up homeassistant now: Write the backup to pbs-magpie · 50%');
+    expect(document.querySelector('.tp')?.textContent).toContain('Back up homeassistant now · Write the backup to pbs-magpie · 50%');
 
     h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 3, patch: [{ op: 'replace', path: toPointer('tasks', 'tasks', task.id, 'state'), value: 'succeeded' }] });
     await nextTick();
@@ -367,11 +367,11 @@ describe('tasks', () => {
     const h = start();
     h.ui.act(h.inc(BACKUP));
     await flushPromises();
-    const task = taskFor(planFor('pve.guest.backup', 'pve:minig5/qemu/100'), { state: 'failed', error: { code: 'verify_failed', message: 'The backup didn’t show up on pbs-jupiter within 10 minutes.' } });
+    const task = taskFor(planFor('pve.guest.backup', 'pve:heron/qemu/200'), { state: 'failed', error: { code: 'verify_failed', message: 'The backup didn’t show up on pbs-magpie within 10 minutes.' } });
     h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 2, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', task.id), value: task }] });
     await nextTick();
-    expect(h.ui.state.toasts.at(-1)).toMatchObject({ text: 'The backup didn’t show up on pbs-jupiter within 10 minutes.', tone: 'error' });
-    expect(h.live.fixes[BACKUP]).toEqual({ state: 'failed', error: 'The backup didn’t show up on pbs-jupiter within 10 minutes.' });
+    expect(h.ui.state.toasts.at(-1)).toMatchObject({ text: 'The backup didn’t show up on pbs-magpie within 10 minutes.', tone: 'error' });
+    expect(h.live.fixes[BACKUP]).toEqual({ state: 'failed', error: 'The backup didn’t show up on pbs-magpie within 10 minutes.' });
   });
 
   it('a task whose log is its result opens the log when it ends, and keeps a copy', async () => {
@@ -432,7 +432,7 @@ describe('tasks', () => {
 
   it('are polled with GET /api/tasks/{id} on a hub without the topic', async () => {
     const e = engine();
-    const task = taskFor(planFor('pve.guest.backup', 'pve:minig5/qemu/100'));
+    const task = taskFor(planFor('pve.guest.backup', 'pve:heron/qemu/200'));
     let polls = 0;
     fakeFetch({ ...e.routes, [`GET /api/tasks/${task.id}`]: () => ({ status: 200, body: { ...task, state: ++polls < 2 ? 'running' : 'succeeded' } }) });
     const h = start();
@@ -489,7 +489,7 @@ describe('cancelling a task', () => {
     await flushPromises();
     h.ui.act(h.inc(BACKUP));
     await flushPromises();
-    const p = planFor('pve.guest.backup', 'pve:minig5/qemu/100');
+    const p = planFor('pve.guest.backup', 'pve:heron/qemu/200');
     // Not cancellable: no button anywhere.
     push(h, taskFor(p));
     await nextTick();
@@ -517,7 +517,7 @@ describe('cancelling a task', () => {
     const e = engine({ cancel: () => refuse(409, 'not_cancellable', 'Back up homeassistant now can’t be stopped once it has started.') });
     fakeFetch(e.routes);
     const h = start();
-    const task = taskFor(planFor('pve.guest.backup', 'pve:minig5/qemu/100'), { cancellable: true });
+    const task = taskFor(planFor('pve.guest.backup', 'pve:heron/qemu/200'), { cancellable: true });
     await h.ui.cancelTask(task);
     expect(h.ui.state.toasts.at(-1)).toMatchObject({ text: 'Back up homeassistant now can’t be stopped once it has started.', tone: 'error' });
     // A finished task isn't asked about.

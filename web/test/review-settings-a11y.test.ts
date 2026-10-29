@@ -223,8 +223,8 @@ const RULES = [
 ];
 const CHANNELS = [
   { id: 'nc_webpush', kind: 'webpush', name: 'Web Push', enabled: true, builtin: true, config: {}, secrets: {}, created_at: '', updated_at: '', last: null, devices: 1 },
-  { id: 'nc_phones', kind: 'ntfy', name: 'Phones', enabled: true, builtin: false, config: { server: 'https://ntfy.lab.example', topic: 'lab-alerts' }, secrets: { token: { set: true } }, created_at: '', updated_at: '', last: null },
-  { id: 'nc_hook', kind: 'webhook', name: 'Hook', enabled: true, builtin: false, config: { url: 'https://hooks.lab.example/in' }, secrets: { secret: { set: true } }, created_at: '', updated_at: '', last: null },
+  { id: 'nc_phones', kind: 'ntfy', name: 'Phones', enabled: true, builtin: false, config: { server: 'https://ntfy.home.example', topic: 'lab-alerts' }, secrets: { token: { set: true } }, created_at: '', updated_at: '', last: null },
+  { id: 'nc_hook', kind: 'webhook', name: 'Hook', enabled: true, builtin: false, config: { url: 'https://hooks.home.example/in' }, secrets: { secret: { set: true } }, created_at: '', updated_at: '', last: null },
 ];
 
 function notifyHub(over: Routes = {}) {
@@ -523,7 +523,7 @@ describe('Confirming destructive actions', () => {
 // ── Audit ──
 
 const EVENTS = [
-  { id: 'a3', seq: 4812, at: '2026-10-03T14:01:00Z', actor: { kind: 'user', name: 'owner', via: 'web', ip: '10.0.0.12' }, action: 'pve.guest.restart', target: 'pve:jupiter-nas/lxc/100', params: {}, tier: 'T2', result: 'ok', duration_ms: 8123, task: 't_1', hash: 'sha256:cccccccccccccccc', prev_hash: 'sha256:bbbbbbbbbbbbbbbb' },
+  { id: 'a3', seq: 4812, at: '2026-10-03T14:01:00Z', actor: { kind: 'user', name: 'owner', via: 'web', ip: '10.0.0.12' }, action: 'pve.guest.restart', target: 'pve:stork/lxc/220', params: {}, tier: 'T2', result: 'ok', duration_ms: 8123, task: 't_1', hash: 'sha256:cccccccccccccccc', prev_hash: 'sha256:bbbbbbbbbbbbbbbb' },
   { id: 'a2', seq: 4811, at: '2026-10-03T13:59:00Z', actor: { kind: 'user', name: 'sam', via: 'web' }, action: 'pbs.datastore.prune', target: 'pbs:main', tier: 'T2', result: 'refused', error: { code: 'forbidden', message: 'Operators can’t prune datastores.' } },
 ];
 const OLDER = { ...EVENTS[1], id: 'a1', seq: 4810, action: 'settings.security.update', target: '', result: 'ok', error: null };
@@ -549,7 +549,7 @@ describe('Audit', () => {
     const w = h.mountIn(AuditPane);
     await settle();
     const btn = w.findAll('.au-list > li')[0]!.find('.end button');
-    expect(words(btn.element)).toBe('Details: pve.guest.restart · debian-nas, done, 14:01');
+    expect(words(btn.element)).toBe('Details: pve.guest.restart · files, done, 14:01');
     expect(btn.find('.sr').exists()).toBe(true);
     expect(btn.attributes('aria-expanded')).toBe('false');
     await btn.trigger('click');

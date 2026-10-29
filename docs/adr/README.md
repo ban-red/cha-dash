@@ -52,3 +52,4 @@
 | 0024 | A replacement for the archived CLA Assistant action ([09 · D2](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
 | 0025 | The spec format public as `v1alpha1` before 1.0 ([09 · D3](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
 | 0026 | "No enterprise tier" in the Pact ([09 · D4](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
+| [0027](0027-demo-home-is-fictional.md) | The Demo Home is a fictional home, not a copy of the dogfood lab (replaces one consequence of 0004) | accepted | 2026-10-28 |

@@ -32,7 +32,8 @@ import { useSubject } from './use';
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
 
-const ORDER = ['driveway', 'side_deck', 'backyard'];
+// The Demo Home's cameras, each with its own scene (CameraScene: drive, deck, garden; the garage reuses the drive).
+const ORDER = ['driveway', 'front_door', 'garden', 'garage'];
 const picked = computed(() => (target ? resolve(live.graph.value, target) : undefined));
 const frigate = computed(() => {
   const p = picked.value;

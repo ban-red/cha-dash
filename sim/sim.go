@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// DefaultStart is the default virtual start time: midnight UTC on the day of
-// the dogfood home's snapshot.
+// DefaultStart is the default virtual start time: midnight UTC on Saturday
+// 3 October 2026, the default script's day.
 var DefaultStart = time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
 
 type config struct {

@@ -1,5 +1,5 @@
-// Package sim is the Demo Home simulator: a deterministic stand-in for a real
-// homelab, shaped like the dogfood home in docs/plan/05-dogfood-home.md.
+// Package sim is the Demo Home simulator: a deterministic, fictional family
+// home, shaped like what the hub's integrations really publish.
 //
 // It powers the M0 demo (a live front page with no lab attached), the public
 // demo later, and the JSON snapshots in sim/snapshots that design prototypes

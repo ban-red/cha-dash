@@ -34,11 +34,11 @@ type Data = { graph: GraphDoc; metrics: MetricsDoc; inbox: InboxDoc };
 
 /** A Demo Home target for each widget type (undefined: the widget picks). */
 export const DEMO_TARGETS: Record<string, string | undefined> = {
-  host: 'unraid:jupiter',
+  host: 'unraid:magpie',
   arr: 'app:sonarr',
   service: 'app:sonarr',
-  metric: 'pve:jupiter-nas#mem.pct',
-  storage: 'pve:io/storage/local-lvm',
+  metric: 'pve:stork#mem.pct',
+  storage: 'pve:owl/storage/local-lvm',
 };
 
 function mountWidget(data: Data | undefined, type: string, size: SizeId, target = DEMO_TARGETS[type], opts: { role?: string } = {}) {
@@ -154,11 +154,11 @@ describe('service tile', () => {
   it('reads each integration’s stat by type: Sonarr queued and wanted, with its next release', () => {
     const { w, tile } = mountWidget(docs(withIncidents), 'service', 'small', 'app:sonarr');
     expect(w.find('.v').text()).toBe('14queued');
-    expect(w.find('.lab').text()).toContain('25 wanted');
+    expect(w.find('.lab').text()).toContain('31 wanted');
     expect(tile().classes()).toContain('is-attn');
     expect(w.find('.note').text()).toContain("Can't reach qBittorrent since 14:03");
     expect(w.find('.note').text()).toContain('likely: qBittorrent ran out of memory');
-    expect(w.find('.tf').text()).toBe('on jupiter');
+    expect(w.find('.tf').text()).toBe('on magpie');
   });
 
   it('says "Queue clear" for an empty queue, never a bare 0', () => {
@@ -168,15 +168,24 @@ describe('service tile', () => {
 
   it('covers the specs and Tier 0 apps alike', () => {
     const cases: [string, string][] = [
-      ['app:prowlarr', '1,116grabs'],
-      ['app:traefik', '61routers'],
-      ['app:uptimekuma', '8/9 up'],
-      ['app:immich', '44.1kphotos'],
-      ['app:mealie', '87recipes'],
+      ['app:prowlarr', '1,448grabs'],
+      ['app:traefik', '48routers'],
+      ['app:uptimekuma', '12/14 up'],
+      ['app:immich', '61.3kphotos'],
+      ['app:mealie', '143recipes'],
       ['app:tautulli', '—playing'], // the Demo Home's Tautulli publishes no streams: unknown, never 0
-      ['app:homeassistant', '2/2 home'],
-      ['app:frigate', '3cameras'],
+      ['app:homeassistant', '4/4 home'],
+      ['app:frigate', '4cameras'],
       ['app:qbittorrent', '0.9Mb/s ↓'],
+      ['app:adguard', '15.0% blocked'],
+      ['app:jellyfin', 'Nothing playing'],
+      ['app:sabnzbd', '23.9Mb/s ↓'],
+      ['app:seerr', '3pending'],
+      ['app:audiobookshelf', 'Nobody listening'],
+      ['app:linkding', '2,265bookmarks'],
+      ['app:paperlessngx', '3,185documents'],
+      ['app:nextcloud', '0active'], // last-known: it's down in maintenance mode
+      ['app:speedtesttracker', '179Mb/s ↓'],
     ];
     for (const [id, text] of cases) {
       const { w } = mountWidget(docs(withIncidents), 'service', 'small', id);
@@ -187,8 +196,8 @@ describe('service tile', () => {
 
   it('shows Bazarr’s missing subtitles with the trend, and two facts when wide', () => {
     const { w } = mountWidget(docs(withIncidents), 'service', 'wide', 'app:bazarr');
-    expect(w.find('.v').text()).toBe('801subtitles missing');
-    expect(w.find('.sub').text()).toBe('795 episodes · 6 movies');
+    expect(w.find('.v').text()).toBe('617subtitles missing');
+    expect(w.find('.sub').text()).toBe('609 episodes · 8 movies');
     expect(w.find('.spark').attributes('aria-label')).toContain('Bazarr');
   });
 
@@ -197,7 +206,7 @@ describe('service tile', () => {
     expect(tile().classes()).toContain('is-stale');
     expect(tile().classes()).not.toContain('is-down');
     expect(w.find('.asof').text()).toBe('as of 09:04');
-    expect(w.find('.v').text()).toBe('1,202bookmarks');
+    expect(w.find('.v').text()).toBe('1,488bookmarks');
     expect(w.find('.note').text()).toContain("Karakeep's API changed. Values are last-known.");
     expect(w.find('.note button').text()).toBe('Reconnect');
     expect(w.find('.tf').text()).toBe('service up · 147 ms');
@@ -252,7 +261,7 @@ describe('service tile', () => {
 
   it('is a name and a value at glyph size', () => {
     const { w } = mountWidget(docs(withIncidents), 'service', 'glyph', 'app:prowlarr');
-    expect(w.find('.gv').text()).toBe('1,116');
+    expect(w.find('.gv').text()).toBe('1,448');
     expect(w.find('.gl').text()).toBe('grabs');
   });
 });
@@ -274,25 +283,25 @@ describe('metric stat and sparkline', () => {
     expect(m.w.find('.spark').exists()).toBe(true);
     expect(m.w.find('.sv').text()).toMatch(/Mb\/s$/);
     m.w.unmount();
-    m = mountWidget(docs(healthy), 'metric', 'glyph', 'pve:pluto#cpu.pct');
+    m = mountWidget(docs(healthy), 'metric', 'glyph', 'pve:wren#cpu.pct');
     expect(m.w.find('.gv').text()).toMatch(/^\d+%$/);
     expect(m.w.find('.gl').text()).toBe('CPU');
   });
 
   it('says "No data yet" for a new series and names a missing one', () => {
     const d = docs(healthy);
-    d.metrics.series['pve:pluto#swap.pct'] = { value: null, history: [null, null], unit: '%' };
-    let m = mountWidget(d, 'metric', 'small', 'pve:pluto#swap.pct');
+    d.metrics.series['pve:wren#swap.pct'] = { value: null, history: [null, null], unit: '%' };
+    let m = mountWidget(d, 'metric', 'small', 'pve:wren#swap.pct');
     expect(m.w.text()).toContain('No data yet · history starts now');
     m.w.unmount();
-    m = mountWidget(docs(healthy), 'metric', 'small', 'pve:pluto#nope.pct');
+    m = mountWidget(docs(healthy), 'metric', 'small', 'pve:wren#nope.pct');
     expect(m.w.text()).toContain('Nothing reports nope pct here.');
   });
 
   it('keeps the last value when the source is down', () => {
     const d = docs(healthy);
-    setHealth(d, 'pve:pluto', { status: 'down', since: '2026-10-03T14:02:00Z' });
-    const { w, tile } = mountWidget(d, 'metric', 'small', 'pve:pluto#mem.pct');
+    setHealth(d, 'pve:wren', { status: 'down', since: '2026-10-03T14:02:00Z' });
+    const { w, tile } = mountWidget(d, 'metric', 'small', 'pve:wren#mem.pct');
     expect(tile().classes()).toContain('is-down');
     expect(w.find('.v').text()).toMatch(/^\d+%$/);
     expect(w.find('.note').text()).toBe('Source down since 14:02');
@@ -310,21 +319,21 @@ describe('uptime check', () => {
     const { w } = mountWidget(docs(healthy), 'check', 'small');
     expect(w.find('.v').text()).toBe('2/2 up');
     const wide = mountWidget(docs(withIncidents), 'check', 'wide');
-    expect(wide.w.findAll('.chk').map((r) => r.text())).toEqual([expect.stringContaining('Jupiter Unraid'), expect.stringContaining('Linkding')]);
+    expect(wide.w.findAll('.chk').map((r) => r.text())).toEqual([expect.stringContaining('Linkding'), expect.stringContaining('Magpie Unraid')]);
     // Unraid's web UI answers while its API integration can't be read.
     expect(wide.tile().classes()).not.toContain('is-down');
   });
 
   it('falls back to the apps’ http.ms without check resources', () => {
     const { w } = mountWidget(withoutChecks(docs(healthy)), 'check', 'small');
-    expect(w.find('.v').text()).toBe('18/18 up');
+    expect(w.find('.v').text()).toBe('26/26 up');
     expect(w.findAll('.bars i')).toHaveLength(24);
     expect(w.find('.bars').attributes('aria-label')).toContain('Last 24 hours');
   });
 
   it('reads Uptime Kuma’s counts when it has no monitor resources', () => {
     const { w, tile } = mountWidget(docs(withIncidents), 'check', 'small', 'app:uptimekuma');
-    expect(w.find('.v').text()).toBe('8/9 up');
+    expect(w.find('.v').text()).toBe('12/14 up');
     expect(tile().classes()).toContain('is-attn');
     expect(w.findAll('.bars i.b-down').length).toBeGreaterThan(0);
   });
@@ -338,7 +347,7 @@ describe('uptime check', () => {
     expect(rows).toHaveLength(4);
     expect(rows[0]!.text()).toContain('Mealie');
     expect(rows[0]!.find('.g-down').exists()).toBe(true);
-    expect(w.text()).toContain('+14 more');
+    expect(w.text()).toContain('+22 more');
   });
 
   it('says how to get checks when there are none', () => {
@@ -351,24 +360,24 @@ describe('uptime check', () => {
 
 describe('host card', () => {
   it('shows memory with its threshold, CPU and guests', () => {
-    const { w, tile } = mountWidget(docs(withIncidents), 'host', 'small', 'pve:jupiter-nas');
+    const { w, tile } = mountWidget(docs(withIncidents), 'host', 'small', 'pve:stork');
     expect(w.find('.v').text()).toBe('95% mem');
     expect(tile().classes()).toContain('is-attn');
     expect(w.find('.tf').text()).toContain('1/2 guests');
   });
 
   it('adds storage bars and the top guests when large', () => {
-    const { w } = mountWidget(docs(withIncidents), 'host', 'large', 'pve:jupiter-nas');
+    const { w } = mountWidget(docs(withIncidents), 'host', 'large', 'pve:stork');
     expect(w.find('.host-disks').text()).toContain('tank');
     const guests = w.findAll('.list .li');
-    // scratch is down (internal-error), then the guest whose memory grew.
-    expect(guests[0]!.text()).toContain('scratch');
+    // sandbox is down (internal-error), then the guest whose memory grew.
+    expect(guests[0]!.text()).toContain('sandbox');
     expect(guests[0]!.text()).toContain('internal-error');
-    expect(guests[1]!.text()).toContain('debian-nas');
+    expect(guests[1]!.text()).toContain('files');
   });
 
   it('dims a guest stopped on purpose', () => {
-    const { w } = mountWidget(docs(healthy), 'host', 'large', 'pve:jupiter-nas');
+    const { w } = mountWidget(docs(healthy), 'host', 'large', 'pve:stork');
     const guests = w.findAll('.list .li');
     expect(guests[1]!.classes()).toContain('dim');
     expect(guests[1]!.text()).toContain('stopped (expected)');
@@ -376,17 +385,17 @@ describe('host card', () => {
 
   it('says what goes down with a host, the router first among it', () => {
     const d = docs(withIncidents);
-    setHealth(d, 'pve:pluto', { status: 'down', since: '2026-10-03T14:02:00Z' }, { state: 'offline' });
-    const { w, tile } = mountWidget(d, 'host', 'wide', 'pve:pluto');
+    setHealth(d, 'pve:wren', { status: 'down', since: '2026-10-03T14:02:00Z' }, { state: 'offline' });
+    const { w, tile } = mountWidget(d, 'host', 'wide', 'pve:wren');
     expect(tile().classes()).toContain('is-down');
-    expect(w.find('.note').text()).toBe('Unreachable since 14:02 · 2 guests, the router go with it');
+    expect(w.find('.note').text()).toBe('Unreachable since 14:02 · 3 guests, the router go with it');
   });
 
   it('is name and memory % at glyph, and a bar at strip', () => {
-    let m = mountWidget(docs(withIncidents), 'host', 'glyph', 'pve:jupiter-nas');
+    let m = mountWidget(docs(withIncidents), 'host', 'glyph', 'pve:stork');
     expect(m.w.find('.gv').text()).toBe('95%');
     m.w.unmount();
-    m = mountWidget(docs(withIncidents), 'host', 'strip', 'pve:jupiter-nas');
+    m = mountWidget(docs(withIncidents), 'host', 'strip', 'pve:stork');
     expect(m.w.find('[role="meter"]').attributes('aria-valuetext')).toBe('95%, threshold 90%');
   });
 });
@@ -395,31 +404,37 @@ describe('guest list', () => {
   it('lists problems first and stopped-on-purpose guests dimmed', () => {
     const { w } = mountWidget(docs(withIncidents), 'guests', 'tall');
     const rows = w.findAll('.li');
-    expect(rows[0]!.text()).toContain('scratch'); // down: internal-error
-    expect(rows[1]!.text()).toContain('debian-nas');
+    expect(rows[0]!.text()).toContain('sandbox'); // down: internal-error
+    expect(rows[1]!.text()).toContain('files');
     expect(rows.some((r) => r.text().includes('homeassistant') && r.text().includes('backup failed'))).toBe(true);
     const off = rows.filter((r) => r.classes().includes('dim'));
-    expect(off.length).toBe(2); // win-gaming and devbox
+    // homework is stopped on purpose, below everything running (win-games, also off, is past the fold)
+    expect(off.map((r) => r.text())).toEqual([expect.stringContaining('homework')]);
+    expect(rows.at(-1)!.classes()).toContain('dim');
 
     expect(off[0]!.find('.g-off').exists()).toBe(true);
   });
 
   it('shows a host’s guests as a table when large, and says when a host has none', () => {
-    let m = mountWidget(docs(healthy), 'guests', 'large', 'pve:io');
+    let m = mountWidget(docs(healthy), 'guests', 'large', 'pve:owl');
     expect(m.w.findAll('.sr:not(.head)')).toHaveLength(3);
     expect(m.w.find('.sr.head').text()).toContain('Backup');
     m.w.unmount();
-    m = mountWidget(docs(healthy), 'guests', 'wide', 'pve:mars-2');
+    // Every Demo Home host runs something: empty egret by moving rook away.
+    const bare = docs(healthy);
+    delete bare.graph.resources['pve:egret/lxc/210'];
+    for (const [k, r] of Object.entries(bare.graph.relations)) if (r.from === 'pve:egret/lxc/210' || r.to === 'pve:egret/lxc/210') delete bare.graph.relations[k];
+    m = mountWidget(bare, 'guests', 'wide', 'pve:egret');
     expect(m.w.text()).toContain('No guests');
-    expect(m.w.text()).toContain('Nothing runs on mars-2.');
+    expect(m.w.text()).toContain('Nothing runs on egret.');
   });
 
   it('shows a backup or migration in progress, and counts hidden guests', () => {
     const d = docs(healthy);
-    d.graph.resources['pve:io/qemu/202']!.attrs!['lock'] = 'backup';
-    d.graph.resources['pve:io']!.attrs!['hidden.guests'] = 3;
-    const { w } = mountWidget(d, 'guests', 'wide', 'pve:io');
-    const busy = w.findAll('.li').find((r) => r.text().includes('iolinux'))!;
+    d.graph.resources['pve:owl/qemu/302']!.attrs!['lock'] = 'backup';
+    d.graph.resources['pve:owl']!.attrs!['hidden.guests'] = 3;
+    const { w } = mountWidget(d, 'guests', 'wide', 'pve:owl');
+    const busy = w.findAll('.li').find((r) => r.text().includes('studio'))!;
     expect(busy.find('.g-prog').exists()).toBe(true);
     expect(busy.text()).toContain('backing up');
     expect(w.find('.tf').text()).toContain('+3 hidden');
@@ -430,22 +445,23 @@ describe('container list', () => {
   it('puts the unhealthy first with a glyph; healthy ones get no badge', () => {
     const { w } = mountWidget(docs(withIncidents), 'containers', 'tall');
     const rows = w.findAll('.li');
-    expect(rows[0]!.text()).toContain('binhex-qbittorrentvpn');
+    expect(rows[0]!.text()).toContain('qbittorrent');
     expect(rows[0]!.find('.g-attn').exists()).toBe(true);
     expect(rows[1]!.find('.g').exists()).toBe(false);
   });
 
   it('is a table with image tags when large, scoped to one engine', () => {
-    const { w } = mountWidget(docs(withIncidents), 'containers', 'large', 'docker:pvedocker');
-    expect(w.find('.tn').text()).toBe('Containers · pvedocker');
-    expect(w.findAll('.sr:not(.head)')).toHaveLength(9);
+    const { w } = mountWidget(docs(withIncidents), 'containers', 'large', 'docker:rook');
+    expect(w.find('.tn').text()).toBe('Containers · rook');
+    expect(w.findAll('.sr:not(.head)')).toHaveLength(9); // of rook's 15
+    expect(w.text()).toContain('+6 more');
     expect(w.text()).toContain('0.31.0');
   });
 
   it('names what depends on a container that went down', () => {
     const d = docs(withIncidents);
-    setHealth(d, 'docker:jupiter/binhex-qbittorrentvpn', { status: 'down', reason: 'OOM-killed' }, { state: 'exited' });
-    d.graph.resources['docker:jupiter/binhex-qbittorrentvpn']!.attrs!['finished_at'] = '2026-10-03T14:03:00Z';
+    setHealth(d, 'docker:magpie/qbittorrent', { status: 'down', reason: 'OOM-killed' }, { state: 'exited' });
+    d.graph.resources['docker:magpie/qbittorrent']!.attrs!['finished_at'] = '2026-10-03T14:03:00Z';
     const { w } = mountWidget(d, 'containers', 'wide');
     expect(w.find('.li').text()).toContain('exited (137) at 14:03 · OOM-killed · qBittorrent depends on it');
   });
@@ -457,12 +473,12 @@ describe('Unraid array', () => {
     expect(m.w.find('.gv').text()).toBe('71%');
     m.w.unmount();
     m = mountWidget(docs(withIncidents), 'unraid', 'strip');
-    expect(m.w.find('.sx').text()).toBe('· 42°');
+    expect(m.w.find('.sx').text()).toBe('· 41°');
     expect(m.w.find('.sx [aria-label="parity valid"]').exists()).toBe(true);
     m.w.unmount();
     m = mountWidget(docs(withIncidents), 'unraid', 'wide');
-    expect(m.w.find('.v').text()).toBe('71% of 62 TB');
-    expect(m.w.find('.kv').text()).toContain('disk1 42°');
+    expect(m.w.find('.v').text()).toBe('71% of 84 TB');
+    expect(m.w.find('.kv').text()).toContain('disk1 41°');
     m.w.unmount();
     m = mountWidget(docs(withIncidents), 'unraid', 'tall');
     expect(m.w.findAll('.disk')).toHaveLength(7);
@@ -476,15 +492,15 @@ describe('Unraid array', () => {
 
   it('shows a parity check in progress, not maintenance, and a disabled disk as down', () => {
     const d = docs(healthy);
-    d.graph.resources['unraid:jupiter/array']!.attrs!['parity'] = 'checking';
-    d.graph.resources['unraid:jupiter/array']!.attrs!['parity_check.progress'] = 40;
+    d.graph.resources['unraid:magpie/array']!.attrs!['parity'] = 'checking';
+    d.graph.resources['unraid:magpie/array']!.attrs!['parity_check.progress'] = 40;
     let m = mountWidget(d, 'unraid', 'wide');
     expect(m.tile().classes()).not.toContain('is-maint');
     expect(m.w.find('.tg .g-prog').exists()).toBe(true);
     expect(m.w.find('.tg').text()).toContain('parity check · 40%');
     m.w.unmount();
     const d2 = docs(healthy);
-    setHealth(d2, 'unraid:jupiter/disk/disk3', { status: 'down', since: '2026-10-03T14:02:00Z' });
+    setHealth(d2, 'unraid:magpie/disk/disk3', { status: 'down', since: '2026-10-03T14:02:00Z' });
     m = mountWidget(d2, 'unraid', 'small');
     expect(m.tile().classes()).toContain('is-down');
     expect(m.w.find('.note').text()).toBe('disk3 disabled · parity protects data');
@@ -493,10 +509,10 @@ describe('Unraid array', () => {
 
 describe('storage bar', () => {
   it('shows % used with its threshold tick and free space', () => {
-    const { w } = mountWidget(docs(healthy), 'storage', 'strip', 'pve:io/storage/local-lvm');
-    expect(w.find('.sv').text()).toBe('67%');
-    expect(w.find('.sx').text()).toBe('660 GB free');
-    expect(w.find('[role="meter"]').attributes('aria-valuetext')).toBe('67%, threshold 85%');
+    const { w } = mountWidget(docs(healthy), 'storage', 'strip', 'pve:owl/storage/local-lvm');
+    expect(w.find('.sv').text()).toBe('64%');
+    expect(w.find('.sx').text()).toBe('720 GB free');
+    expect(w.find('[role="meter"]').attributes('aria-valuetext')).toBe('64%, threshold 85%');
   });
 
   it('is attention only over the threshold and climbing', () => {
@@ -514,9 +530,9 @@ describe('backups', () => {
     expect(m.w.find('.sx').text()).toBe('1 failed');
     m.w.unmount();
     m = mountWidget(docs(withIncidents), 'backups', 'large');
-    expect(m.w.find('.list').text()).toContain('minig5 nightly');
-    // pluto's and mars's runs couldn't reach PBS; homeassistant and win-gaming failed in theirs.
-    expect(m.w.find('.nights').findAll('.bad')).toHaveLength(4);
+    expect(m.w.find('.list').text()).toContain('aviary nightly');
+    // wren's run couldn't reach PBS; homeassistant (aviary's run) and win-games (owl's) failed in theirs.
+    expect(m.w.find('.nights').findAll('.bad')).toHaveLength(3);
     expect(m.w.find('.tf').text()).toContain('keep-daily 7');
   });
 });
@@ -544,7 +560,7 @@ describe('Camera Hero', () => {
   it('shows the latest detection at small and two cameras when wide', () => {
     let m = mountWidget(docs(withIncidents), 'cameras', 'small');
     expect(m.w.findAll('.cam')).toHaveLength(1);
-    expect(m.w.find('.cam-cap').text()).toContain('Side deck · person 84% · 13:43');
+    expect(m.w.find('.cam-cap').text()).toContain('Garage · car 73% · 14:02');
     m.w.unmount();
     m = mountWidget(docs(withIncidents), 'cameras', 'wide');
     expect(m.w.findAll('.cam')).toHaveLength(2);
@@ -552,16 +568,17 @@ describe('Camera Hero', () => {
 
   it('is attention when one camera is offline, quiet for privacy mode, and frozen when Frigate is down', () => {
     const d = docs(healthy);
-    setHealth(d, 'frigate:camera/backyard', { status: 'down' }, { state: 'error' });
+    setHealth(d, 'frigate:camera/garage', { status: 'down' }, { state: 'error' });
     let m = mountWidget(d, 'cameras', 'large');
     expect(m.tile().classes()).toContain('is-attn');
-    expect(m.w.find('.tg').text()).toContain('Backyard offline');
+    expect(m.w.find('.tg').text()).toContain('Garage offline');
     m.w.unmount();
     const d2 = docs(healthy);
-    setHealth(d2, 'frigate:camera/backyard', { status: 'ok', reason: 'Turned off in Frigate' }, { state: 'stopped' });
+    // The garden camera: large shows three of the four, and the garage is fourth.
+    setHealth(d2, 'frigate:camera/garden', { status: 'ok', reason: 'Turned off in Frigate' }, { state: 'stopped' });
     m = mountWidget(d2, 'cameras', 'large');
     expect(m.tile().classes()).not.toContain('is-attn');
-    expect(m.w.text()).toContain('Backyard · off (as intended)');
+    expect(m.w.text()).toContain('Garden · off (as intended)');
     m.w.unmount();
     const d3 = docs(healthy);
     setHealth(d3, 'app:frigate', { status: 'down', since: '2026-10-03T14:02:00Z' });
@@ -574,7 +591,7 @@ describe('Camera Hero', () => {
 describe('Home Assistant summary', () => {
   it('is people home as a glyph, home · lights · power as a strip', () => {
     let m = mountWidget(docs(healthy), 'homeassistant', 'glyph');
-    expect(m.w.find('.gv').text()).toMatch(/^\d\/2$/);
+    expect(m.w.find('.gv').text()).toMatch(/^\d\/4$/);
     m.w.unmount();
     m = mountWidget(docs(healthy), 'homeassistant', 'strip');
     expect(m.w.find('.sx').text()).toMatch(/home · \d+ lights/);
@@ -584,7 +601,7 @@ describe('Home Assistant summary', () => {
   it('adds the counts as rows when large', () => {
     const { w } = mountWidget(docs(healthy), 'homeassistant', 'large');
     expect(w.find('.kv').text()).toContain('Lights on');
-    expect(w.find('.kv').text()).toContain('of 39');
+    expect(w.find('.kv').text()).toContain('of 52');
   });
 });
 
@@ -628,9 +645,10 @@ describe('download queue', () => {
   it('lists qBittorrent and the *arr queues as rows', () => {
     const { w } = mountWidget(docs(withIncidents), 'downloads', 'tall');
     const rows = w.findAll('.li');
-    expect(rows.map((r) => r.find('.t').text())).toEqual(['qBittorrent', 'Sonarr', 'Radarr']);
-    expect(rows[1]!.text()).toContain('14 queued');
-    expect(rows[2]!.text()).toContain('queue clear');
+    expect(rows.map((r) => r.find('.t').text())).toEqual(['qBittorrent', 'SABnzbd', 'Sonarr', 'Radarr']);
+    expect(rows[1]!.text()).toContain('3 in the queue');
+    expect(rows[2]!.text()).toContain('14 queued');
+    expect(rows[3]!.text()).toContain('queue clear');
   });
 
   it('names what waits on a client that’s down', () => {

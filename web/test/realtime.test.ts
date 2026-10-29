@@ -25,8 +25,8 @@ function setup(extra: Partial<ConstructorParameters<typeof RealtimeClient>[0]> =
 }
 
 const snapData = {
-  graph: { resources: { 'pve:pluto': { id: 'pve:pluto', kind: 'host', health: 'ok' } }, relations: {} },
-  metrics: { series: { 'pve:pluto#cpu.pct': { value: 9, history: [8, 9] } } },
+  graph: { resources: { 'pve:wren': { id: 'pve:wren', kind: 'host', health: 'ok' } }, relations: {} },
+  metrics: { series: { 'pve:wren#cpu.pct': { value: 9, history: [8, 9] } } },
   inbox: { now: '2026-10-03T14:05:00Z', incidents: {} },
 };
 
@@ -100,15 +100,15 @@ describe('diffs and resync', () => {
       id: ws.subId('graph'),
       seq: 11,
       patch: [
-        { op: 'replace', path: '/graph/resources/pve:pluto', value: { id: 'pve:pluto', kind: 'host', health: 'down' } },
-        { op: 'add', path: '/graph/resources/pve:io', value: { id: 'pve:io', kind: 'host' } },
+        { op: 'replace', path: '/graph/resources/pve:wren', value: { id: 'pve:wren', kind: 'host', health: 'down' } },
+        { op: 'add', path: '/graph/resources/pve:owl', value: { id: 'pve:owl', kind: 'host' } },
       ],
     });
-    ws.push({ op: 'diff', id: ws.subId('metrics'), seq: 12, patch: [{ op: 'replace', path: '/metrics/series/pve:pluto#cpu.pct', value: { value: 12, history: [9, 12] } }] });
+    ws.push({ op: 'diff', id: ws.subId('metrics'), seq: 12, patch: [{ op: 'replace', path: '/metrics/series/pve:wren#cpu.pct', value: { value: 12, history: [9, 12] } }] });
     const g = doc['graph'] as typeof snapData.graph & { resources: Record<string, { health?: string }> };
-    expect(g.resources['pve:pluto']?.health).toBe('down');
-    expect(Object.keys(g.resources)).toEqual(['pve:pluto', 'pve:io']);
-    expect((doc['metrics'] as typeof snapData.metrics).series['pve:pluto#cpu.pct'].value).toBe(12);
+    expect(g.resources['pve:wren']?.health).toBe('down');
+    expect(Object.keys(g.resources)).toEqual(['pve:wren', 'pve:owl']);
+    expect((doc['metrics'] as typeof snapData.metrics).series['pve:wren#cpu.pct'].value).toBe(12);
     expect(client.info.topics['metrics']?.seq).toBe(12);
   });
 
@@ -232,7 +232,7 @@ describe('liveness and reconnect', () => {
   });
 
   it('builds a same-origin URL', () => {
-    expect(sameOriginWs('/ws', { protocol: 'https:', host: 'dash.lab.example' })).toBe('wss://dash.lab.example/ws');
+    expect(sameOriginWs('/ws', { protocol: 'https:', host: 'dash.home.example' })).toBe('wss://dash.home.example/ws');
     expect(sameOriginWs('/ws', { protocol: 'http:', host: 'localhost:5173' })).toBe('ws://localhost:5173/ws');
   });
 });

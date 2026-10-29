@@ -31,20 +31,21 @@ describe('grouping by status', () => {
   it('puts open problems first (down, then attention), then repairs; in-hand ones apart', () => {
     const g = groupInbox(inboxDoc(withIncidents));
     expect(g.open.map((i) => i.id)).toEqual([
-      'proxmox-jupiter-nas.guest.101',
-      'proxmox-pluto.backup.daily',
+      'nextcloud-maintenance',
+      'proxmox-aviary.guest.221',
+      'proxmox-wren.backup.daily',
       'backup-failed',
-      'proxmox-mars.backup.daily',
-      'proxmox-io.backup.daily',
+      'proxmox-owl.backup.daily',
       'pbs-datastore-filling',
+      'speedtest-slow',
       'host-memory-pressure',
       'karakeep-api-changed',
-      'unraid-jupiter.repair',
+      'unraid-magpie.repair',
       'plex-token-revoked',
     ]);
     // qBittorrent's phase is "restarting"; the hints are standing advice, in their own group.
     expect(g.fixing.map((i) => i.id)).toEqual(['qbittorrent-oom']);
-    expect(g.hints.map((i) => i.id)).toEqual(['docker-jupiter.hint.docker_endpoint', 'frigate.unauthenticated-admin', 'traefik.hint.api_no_auth']);
+    expect(g.hints.map((i) => i.id)).toEqual(['adguard.hint.plain_http', 'docker-magpie.hint.docker_endpoint', 'frigate.unauthenticated-admin', 'traefik.hint.api_no_auth']);
     expect(g.resolved).toEqual([]);
   });
 
@@ -54,7 +55,7 @@ describe('grouping by status', () => {
     inbox.incidents['plex-token-revoked']!.resolved_at = '2026-10-03T14:00:00Z';
     const g = groupInbox(inbox, { 'backup-failed': { state: 'accepted' } });
     expect(g.fixing.map((i) => i.id)).toEqual(['backup-failed', 'qbittorrent-oom']);
-    expect(g.hints).toHaveLength(3);
+    expect(g.hints).toHaveLength(4);
     expect(g.resolved.map((i) => i.id)).toEqual(['plex-token-revoked']);
     // Info with nothing working on it is a hint, not "being fixed"; in a fixing phase it's settling.
     const info = { ...inbox.incidents['backup-failed']!, severity: 'info', phase: 'open' } as Incident;
@@ -136,24 +137,25 @@ describe('problems outside demo mode', () => {
     const hub = fakeFetch(e.routes);
     const h = harness(docs(withIncidents)); // demo off
     const w = h.mountIn(NeedsAttention);
+    await w.find('.attn-more').trigger('click');
     const backup = w.findAll('.strip').find((s) => s.text().includes('Backup of homeassistant failed'))!;
     const act = backup.findAll('.acts button')[1]!;
     expect(act.text()).toBe('Back up homeassistant now T1');
     expect(act.attributes('disabled')).toBeUndefined();
     await act.trigger('click');
     await flushPromises();
-    expect(e.plans).toEqual([{ action: 'pve.guest.backup', target: 'pve:minig5/qemu/100' }]);
+    expect(e.plans).toEqual([{ action: 'pve.guest.backup', target: 'pve:heron/qemu/200' }]);
     expect(e.approvals).toHaveLength(1);
     expect(hub.calls.some((c) => c.path.includes('/api/demo/'))).toBe(false);
   });
 
   it('a 404 from planning is said as is, with no demo fallback outside demo mode', async () => {
-    const e = engine({ plan: () => refuse(404, 'not_found', 'Cha Dash doesn’t know how to back up guests on minig5.') });
+    const e = engine({ plan: () => refuse(404, 'not_found', 'Cha Dash doesn’t know how to back up guests on heron.') });
     const hub = fakeFetch(e.routes);
     const h = harness(docs(withIncidents));
     h.ui.act(h.live.inbox.value!.incidents['backup-failed']!);
     await flushPromises();
-    expect(h.ui.state.toasts[0]).toMatchObject({ text: 'Cha Dash doesn’t know how to back up guests on minig5.', tone: 'error' });
+    expect(h.ui.state.toasts[0]).toMatchObject({ text: 'Cha Dash doesn’t know how to back up guests on heron.', tone: 'error' });
     expect(hub.calls.some((c) => c.path.includes('/api/demo/'))).toBe(false);
   });
 
@@ -178,19 +180,19 @@ describe('the Inbox holds still while you read it', () => {
     await flushPromises();
     await nextTick();
     const groups = () => [...document.body.querySelectorAll('.ib-grp')].map((g) => g.textContent?.trim());
-    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Security hints · 3']);
+    expect(groups()).toEqual(['Open · 11', 'Being fixed · 1', 'Security hints · 4']);
     h.ui.act(h.live.inbox.value!.incidents['backup-failed']!);
     await flushPromises();
     h.ws.push({ op: 'diff', id: h.ws.subId('inbox'), seq: 4000, patch: [{ op: 'replace', path: toPointer('inbox', 'incidents', 'backup-failed', 'phase'), value: 'retrying' }] });
     await nextTick();
     // Still under Open while you read: the list holds still.
-    expect(groups()).toEqual(['Open · 10', 'Being fixed · 1', 'Security hints · 3']);
+    expect(groups()).toEqual(['Open · 11', 'Being fixed · 1', 'Security hints · 4']);
     h.ui.closeInbox();
     await nextTick();
     h.ui.openInbox();
     await flushPromises();
     await nextTick();
-    expect(groups()).toEqual(['Open · 9', 'Being fixed · 2', 'Security hints · 3']);
+    expect(groups()).toEqual(['Open · 10', 'Being fixed · 2', 'Security hints · 4']);
   });
 });
 

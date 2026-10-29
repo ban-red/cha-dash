@@ -55,7 +55,7 @@ export interface Reading {
   facts: Fact[];
   /** Set when the source works and has nothing to show: "Queue clear". */
   empty?: string;
-  /** A trend or what's next: "down 40 in 24 h", "next: Black Clover 04:00". */
+  /** A trend or what's next: "down 40 in 24 h", "next: Starling Point 04:00". */
   context?: string;
 }
 

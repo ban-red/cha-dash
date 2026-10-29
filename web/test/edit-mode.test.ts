@@ -128,7 +128,7 @@ describe('edit mode', () => {
 describe('removing a tile', () => {
   it('removes the selected tile and its config; undo brings both back', async () => {
     const before = start();
-    const tiles: TilesDoc = { plex: { name: 'Living room', href: 'https://plex.lab.example' } };
+    const tiles: TilesDoc = { plex: { name: 'Living room', href: 'https://plex.home.example' } };
     const store = fakeStore(before, async () => true, tiles);
     const w = await editing(store);
 
@@ -209,16 +209,16 @@ describe('editing a tile', () => {
     await ed.find('input[type="url"]').setValue('ftp://nope');
     expect(ed.find('.help.bad').text()).toContain('http:// or https://');
     expect(ed.find('button[type="submit"]').attributes('disabled')).toBeDefined();
-    await ed.find('input[type="url"]').setValue('https://plex.lab.example');
+    await ed.find('input[type="url"]').setValue('https://plex.home.example');
     await ed.find('form').trigger('submit');
     await flushPromises();
 
-    expect(store.save).toHaveBeenLastCalledWith(before, { plex: { name: 'Living room', href: 'https://plex.lab.example' } });
+    expect(store.save).toHaveBeenLastCalledWith(before, { plex: { name: 'Living room', href: 'https://plex.home.example' } });
     expect(w.findComponent(TileEditor).exists()).toBe(false);
     // Tile.vue shows the tile's own name and link, for any widget
     const tile = w.find('[data-item-id="plex"] .tile');
     expect(tile.find('.tn').text()).toBe('Living room');
-    expect(tile.find('a.mono').attributes('href')).toBe('https://plex.lab.example');
+    expect(tile.find('a.mono').attributes('href')).toBe('https://plex.home.example');
 
     await button(w, 'Undo').trigger('click');
     await flushPromises();
@@ -293,7 +293,7 @@ describe('label discovery in edit mode', () => {
 
   it('lists dismissed services and offers one again', async () => {
     const restored: unknown[] = [];
-    let dismissed = ['docker:jupiter/mealie', 'docker:jupiter/pbs'];
+    let dismissed = ['docker:magpie/mealie', 'docker:magpie/pbs'];
     fakeFetch({
       'GET /api/boards/b1/discovery': () => ({ status: 200, body: { dismissed } }),
       'POST /api/boards/b1/discovery/restore': (body) => {
@@ -312,7 +312,7 @@ describe('label discovery in edit mode', () => {
     expect(rows.map((li) => li.querySelector('.ds-name')!.textContent)).toEqual(['Mealie', 'Proxmox Backup Server']);
     rows[0]!.querySelector('button')!.click();
     await flushPromises();
-    expect(restored).toEqual([{ resources: ['docker:jupiter/mealie'] }]);
+    expect(restored).toEqual([{ resources: ['docker:magpie/mealie'] }]);
     expect(w.ui.state.toasts.at(-1)!.text).toBe('Mealie will be offered again in the Inbox.');
     expect([...document.querySelectorAll('dialog.dismissed li')]).toHaveLength(1);
     expect(w.findAll('.edit-bar button').find((b) => b.text().startsWith('Dismissed'))!.text()).toBe('Dismissed · 1');
@@ -411,7 +411,7 @@ describe('adding a widget', () => {
     await pk.find('button.pk-item[data-type="service"]').trigger('click');
     expect(pk.find('button[type="submit"]').attributes('disabled')).toBeDefined(); // a name first
     await pk.find('input[type="text"]').setValue('Router admin');
-    await pk.find('input[type="url"]').setValue('https://router.lab.example');
+    await pk.find('input[type="url"]').setValue('https://router.home.example');
     const bind = pk.findAll('.pk-detail select')[0]!;
     expect(bind.findAll('optgroup').map((g) => g.attributes('label'))).toEqual(expect.arrayContaining(['Integrations', 'Services and containers']));
     await bind.setValue('instance:opnsense');
@@ -421,7 +421,7 @@ describe('adding a widget', () => {
     const [board, tiles] = store.save.mock.lastCall!;
     const id = ids(board).find((i) => i.startsWith('service@tile:'))!;
     expect(id).toBeDefined();
-    expect(tiles).toEqual({ [id]: { name: 'Router admin', href: 'https://router.lab.example', bind: { instance: 'opnsense' } } });
+    expect(tiles).toEqual({ [id]: { name: 'Router admin', href: 'https://router.home.example', bind: { instance: 'opnsense' } } });
     expect(w.find(`[data-item-id="${id}"] .tn`).text()).toBe('Router admin');
   });
 });

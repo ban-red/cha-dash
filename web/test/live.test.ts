@@ -26,10 +26,10 @@ describe('live store fed with the sim snapshots', () => {
   it('exposes the topics and derived views', () => {
     const { live } = liveWithFixtures();
     expect(live.conn.status).toBe('live');
-    expect(Object.keys(live.graph.value!.resources)).toHaveLength(134);
+    expect(Object.keys(live.graph.value!.resources)).toHaveLength(163);
     expect(Object.keys(live.metrics.value!.series)).toHaveLength(withIncidents.series.length);
-    expect(live.problems.value).toHaveLength(8);
-    expect(live.repairs.value.map((i) => i.id)).toEqual(['karakeep-api-changed', 'unraid-jupiter.repair', 'plex-token-revoked']);
+    expect(live.problems.value).toHaveLength(9);
+    expect(live.repairs.value.map((i) => i.id)).toEqual(['karakeep-api-changed', 'unraid-magpie.repair', 'plex-token-revoked']);
     expect(live.stale.value).toBe(false);
     expect(live.loading.value).toBe(false);
   });
@@ -48,14 +48,14 @@ describe('live store fed with the sim snapshots', () => {
       ],
     });
     await nextTick();
-    expect(seen).toEqual([7]);
+    expect(seen).toEqual([8]);
     expect(live.problems.value.map((i) => i.id)).not.toContain('backup-failed');
     expect(live.inbox.value!.incidents['backup-failed']!.resolution).toBe('The retry at 15:30 succeeded.');
   });
 
   it('follows metric diffs on series ids with slashes', async () => {
     const { live, ws } = liveWithFixtures();
-    const key = 'unraid:jupiter/array#used.pct';
+    const key = 'unraid:magpie/array#used.pct';
     const s = JSON.parse(JSON.stringify(live.metrics.value!.series[key]!)) as { value: number };
     s.value = 72.1;
     ws.push({ op: 'diff', id: ws.subId('metrics'), seq: 2001, patch: [{ op: 'replace', path: toPointer('metrics', 'series', key), value: s }] });
@@ -66,7 +66,7 @@ describe('live store fed with the sim snapshots', () => {
   it('follows field-level diffs inside a series and an incident, reactively', async () => {
     // What the hub sends since live-document diffs carry changed fields only.
     const { live, ws } = liveWithFixtures();
-    const key = 'unraid:jupiter/array#used.pct';
+    const key = 'unraid:magpie/array#used.pct';
     const base = toPointer('metrics', 'series', key);
     const s = computed(() => live.metrics.value?.series[key]);
     const seen: unknown[] = [];
@@ -127,7 +127,7 @@ describe('live store fed with the sim snapshots', () => {
     live.tick();
     expect(live.conn.status).toBe('reconnecting');
     expect(live.stale.value).toBe(true);
-    expect(live.problems.value).toHaveLength(8); // last-known values stay
+    expect(live.problems.value).toHaveLength(9); // last-known values stay
     vi.advanceTimersByTime(live.conn.nextRetryAt! - Date.now());
     FakeSocket.last.handshake(docs(withIncidents));
     live.tick();

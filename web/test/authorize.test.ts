@@ -126,13 +126,13 @@ describe('Sign in with …', () => {
     expect(f.calls.filter((c) => c.path === '/api/integrations/authorize/plex/au_1')).toHaveLength(2);
 
     // It saves like a typed token.
-    await typeInto('f-url', 'https://plex.lab.example');
+    await typeInto('f-url', 'https://plex.home.example');
     button('Save')!.click();
     await flushPromises();
     expect(f.last('POST', '/api/integrations/instances')!.body).toEqual({
       integration: 'plex',
       name: 'Plex',
-      config: { url: 'https://plex.lab.example', tls: { mode: 'verify' } },
+      config: { url: 'https://plex.home.example', tls: { mode: 'verify' } },
       secrets: { token: TOKEN },
     });
   });

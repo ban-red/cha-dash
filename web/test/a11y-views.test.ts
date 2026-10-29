@@ -106,7 +106,7 @@ function hubApi(over: Record<string, unknown> = {}) {
       status: 200,
       body: {
         events: [
-          { id: 'a2', seq: 4812, at: '2026-10-03T14:01:00Z', actor: { kind: 'user', name: 'owner', via: 'web' }, action: 'pve.guest.restart', target: 'pve:jupiter-nas/lxc/100', tier: 'T2', result: 'ok', duration_ms: 8123, hash: 'sha256:bb', prev_hash: 'sha256:aa' },
+          { id: 'a2', seq: 4812, at: '2026-10-03T14:01:00Z', actor: { kind: 'user', name: 'owner', via: 'web' }, action: 'pve.guest.restart', target: 'pve:stork/lxc/220', tier: 'T2', result: 'ok', duration_ms: 8123, hash: 'sha256:bb', prev_hash: 'sha256:aa' },
           { id: 'a1', seq: 4811, at: '2026-10-03T13:59:00Z', actor: { kind: 'user', name: 'sam', via: 'web' }, action: 'pbs.datastore.prune', target: 'pbs:main', tier: 'T2', result: 'refused', error: { code: 'forbidden', message: 'Operators can’t prune datastores.' }, hash: 'sha256:aa', prev_hash: 'sha256:99' },
         ],
         next: 'c1',
@@ -297,7 +297,7 @@ describe('layers', () => {
 
   it('the typed confirmation, with a mismatch said at the field', async () => {
     const hs = page(TypeConfirmDialog);
-    const plan = planFor('pve.snapshot.delete', 'pve:jupiter-nas/qemu/101', { tier: 'T3', confirm_text: 'scratch', label: 'Delete snapshot pre-upgrade', impact: [{ resource: 'pve:jupiter-nas/qemu/101', via: 'snapshot_of', depth: 1 }] });
+    const plan = planFor('pve.snapshot.delete', 'pve:stork/qemu/221', { tier: 'T3', confirm_text: 'sandbox', label: 'Delete snapshot pre-upgrade', impact: [{ resource: 'pve:stork/qemu/221', via: 'snapshot_of', depth: 1 }] });
     hs.ui.state.confirm = { kind: 'type', req: { action: plan.action, target: plan.target, label: plan.label }, plan, action: { id: plan.action, label: plan.label, tier: 'T3', target: plan.target }, error: 'That doesn’t match. Type it exactly as shown.' };
     await settle();
     expect(document.querySelector('dialog.act-dlg')).not.toBeNull();
@@ -320,10 +320,10 @@ describe('layers', () => {
   }
 
   it('the running-task presence, with Cancel for a cancellable task', async () => {
-    const hs = page(TaskPresence, { ...docs(withIncidents), tasks: { tasks: { t1: taskFor(planFor('pve.guest.restart', 'pve:jupiter-nas/lxc/100'), { id: 't1', progress: 0.5, cancellable: true }) } } });
+    const hs = page(TaskPresence, { ...docs(withIncidents), tasks: { tasks: { t1: taskFor(planFor('pve.guest.restart', 'pve:stork/lxc/220'), { id: 't1', progress: 0.5, cancellable: true }) } } });
     await settle();
-    expect(document.querySelector('.tp')?.textContent).toContain('Restart debian-nas');
-    expect(document.querySelector('.tp-cancel')?.getAttribute('aria-label')).toBe('Cancel Restart debian-nas');
+    expect(document.querySelector('.tp')?.textContent).toContain('Restart files');
+    expect(document.querySelector('.tp-cancel')?.getAttribute('aria-label')).toBe('Cancel Restart files');
     expect(hs.ui.running.value).toHaveLength(1);
     expect(await axeViolations()).toEqual([]);
   });

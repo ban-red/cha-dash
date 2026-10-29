@@ -24,7 +24,7 @@ import (
 
 // budgetDiffBytesPerMinute is the realtime budget for one browser tab on the
 // Demo Home: diff frames per simulated minute, as sent (decimal kB). About
-// 47 kB today (internal/README.md); the budget leaves ~15% for growth.
+// 41 kB today (internal/README.md); the budget leaves room for growth.
 // Enforced in CI's "Performance budgets" step (not under -race, which slows
 // the delivery this test waits on).
 const budgetDiffBytesPerMinute = 55_000

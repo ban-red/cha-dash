@@ -2,7 +2,7 @@
 /**
  * "Where Cha Dash runs", in Settings → Security: the chain the hub runs on,
  * read from the live Home Graph (model/hub.ts), e.g. container chadash →
- * VM pvedocker → host io, network through router pluto. Anything that would
+ * LXC rook → host egret, network through router opnsense. Anything that would
  * take one of these down takes Cha Dash down too, so such an action's
  * confirmation says so ("Cha Dash itself"), and stopping or rebooting them
  * is the self-aware T4.

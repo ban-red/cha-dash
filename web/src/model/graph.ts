@@ -133,8 +133,8 @@ export function incoming(g: GraphDoc | undefined, to: string, type: string): Res
 
 /**
  * Where something runs, in the words people use: an app in a container on
- * jupiter's engine → "jupiter"; Home Assistant in a VM on minig5 → "minig5";
- * a container on pvedocker → "pvedocker".
+ * magpie's engine → "magpie"; Home Assistant in a VM on heron → "heron";
+ * a container on rook → "rook".
  */
 export function placeOf(g: GraphDoc | undefined, id: string): string | undefined {
   if (!g) return undefined;
@@ -208,7 +208,7 @@ export interface ContainerRow {
   name: string;
   state: string | undefined;
   health: Health;
-  /** The integration instances that report it ("Jupiter Docker", "Jupiter"). */
+  /** The integration instances that report it ("Magpie Docker", "Magpie"). */
   sources: string[];
 }
 

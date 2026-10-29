@@ -5,7 +5,7 @@ describe('JSON pointers', () => {
   it('parses and escapes per RFC 6901', () => {
     expect(parsePointer('')).toEqual([]);
     expect(parsePointer('/a~1b/c~0d/0')).toEqual(['a/b', 'c~d', '0']);
-    expect(toPointer('series', 'pve:io/qemu/201#mem.pct')).toBe('/series/pve:io~1qemu~1201#mem.pct');
+    expect(toPointer('series', 'pve:owl/qemu/301#mem.pct')).toBe('/series/pve:owl~1qemu~1301#mem.pct');
     expect(parsePointer(toPointer('~/', ''))).toEqual(['~/', '']);
     expect(() => parsePointer('a')).toThrow();
   });
@@ -34,12 +34,12 @@ describe('applyPatch', () => {
 
   it('handles escaped keys such as series ids with slashes', () => {
     const doc = { metrics: { series: {} as Record<string, unknown> } };
-    applyPatch(doc, [{ op: 'add', path: toPointer('metrics', 'series', 'pve:io/qemu/201#cpu.pct'), value: { value: 3 } }]);
-    expect(doc.metrics.series['pve:io/qemu/201#cpu.pct']).toEqual({ value: 3 });
+    applyPatch(doc, [{ op: 'add', path: toPointer('metrics', 'series', 'pve:owl/qemu/301#cpu.pct'), value: { value: 3 } }]);
+    expect(doc.metrics.series['pve:owl/qemu/301#cpu.pct']).toEqual({ value: 3 });
   });
 
   it('adds, replaces and removes fields inside a member (live-document diffs)', () => {
-    const key = 'pve:io/qemu/201#cpu.pct';
+    const key = 'pve:owl/qemu/301#cpu.pct';
     const doc = {
       metrics: { series: { [key]: { value: 3, as_of: 't0', history: [1, 2, 3] } as Record<string, unknown> } },
     };

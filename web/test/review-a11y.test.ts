@@ -71,14 +71,14 @@ const APPROVAL: Incident = {
   phase: 'awaiting_approval',
   title: 'backup script (owner) asks to run: Restart sonarr',
   summary: 'Planned through the API by a token, a T2 action.',
-  target: 'docker:jupiter/c/sonarr',
+  target: 'docker:magpie/c/sonarr',
   opened_at: '2026-10-03T14:00:00Z',
   causes: [],
   blast_radius: [{ resource: 'app:sonarr', via: 'runs_on', depth: 1 }],
   approval: {
     id: 'apv_1',
     state: 'awaiting_approval',
-    plan: { id: 'p_1', hash: 'sha256:abc', action: 'docker.container.restart', label: 'Restart sonarr', target: 'docker:jupiter/c/sonarr', tier: 'T2', steps: [{ label: 'Ask the node to restart sonarr' }], impact: [{ resource: 'app:sonarr', via: 'runs_on', depth: 1 }] },
+    plan: { id: 'p_1', hash: 'sha256:abc', action: 'docker.container.restart', label: 'Restart sonarr', target: 'docker:magpie/c/sonarr', tier: 'T2', steps: [{ label: 'Ask the node to restart sonarr' }], impact: [{ resource: 'app:sonarr', via: 'runs_on', depth: 1 }] },
     originator: { kind: 'token', id: 'tok_a', name: 'backup script (owner)', user: 'u1', user_name: 'owner' },
     requested_at: '2026-10-03T14:00:00Z',
     expires_at: '2026-10-03T15:00:00Z',
@@ -213,7 +213,7 @@ describe('hold-to-confirm without a hold', () => {
 });
 
 describe('task progress is announced once', () => {
-  const p = planFor('pve.guest.restart', 'pve:jupiter-nas/lxc/100');
+  const p = planFor('pve.guest.restart', 'pve:stork/lxc/220');
   const t1 = () => taskFor(p, { id: 't1', progress: 0.1, step: 'Stop the container', cancellable: true });
 
   it('one live region, speaking step changes and the end, never the percentage', async () => {
@@ -239,13 +239,13 @@ describe('task progress is announced once', () => {
     // A new step does, without a number.
     h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 3, patch: [{ op: 'replace', path: toPointer('tasks', 'tasks', 't1', 'step'), value: 'Start the container' }] });
     await settle();
-    expect(announcer.textContent).toBe('Restart debian-nas: Start the container.');
+    expect(announcer.textContent).toBe('Restart files: Start the container.');
     expect(announcer.textContent).not.toMatch(/%/);
 
     // The end, for a task this tab didn't start (no toast says it).
     h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 4, patch: [{ op: 'replace', path: toPointer('tasks', 'tasks', 't1', 'state'), value: 'succeeded' }] });
     await settle();
-    expect(announcer.textContent).toBe('Done: Restart debian-nas.');
+    expect(announcer.textContent).toBe('Done: Restart files.');
     expect(document.querySelectorAll('[aria-live]:not([aria-live="off"]) [data-task-announcer], [data-task-announcer] [aria-live]').length).toBe(0);
   });
 
@@ -320,7 +320,7 @@ describe('focus in an approval', () => {
 describe('the Settings sheet keeps Tab inside', () => {
   it('Tab from the last control goes back to the first, not to the task strip', async () => {
     fakeFetch({ 'GET /api/integrations/catalog': { status: 200, body: [] }, 'GET /api/integrations/instances': { status: 200, body: [] } });
-    const h = harness({ ...docs(withIncidents), tasks: { tasks: { t1: taskFor(planFor('pve.guest.restart', 'pve:jupiter-nas/lxc/100'), { id: 't1', cancellable: true }) } } });
+    const h = harness({ ...docs(withIncidents), tasks: { tasks: { t1: taskFor(planFor('pve.guest.restart', 'pve:stork/lxc/220'), { id: 't1', cancellable: true }) } } });
     navigate('/settings/integrations');
     h.mountIn(TaskPresence);
     h.mountIn(SettingsSheet);

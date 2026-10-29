@@ -167,7 +167,7 @@ onMounted(() => void checkSidecar());
           rows="3"
           spellcheck="false"
           autocapitalize="off"
-          :placeholder="'nas.lab.example\n192.0.2.20'"
+          :placeholder="'nas.home.example\n192.0.2.20'"
           aria-describedby="ob-hosts-help"
         ></textarea>
         <span id="ob-hosts-help" class="help">One per line: a name or an address. Up to {{ MAX_HOSTS }}.</span>

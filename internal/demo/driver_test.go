@@ -90,7 +90,7 @@ func TestStartsAtTheAllOpenMoment(t *testing.T) {
 		t.Fatalf("inbox now = %s", inboxNow(t, tp))
 	}
 	_, doc := tp.Graph.Snapshot(nil)
-	if len(doc.Resources) != 134 {
+	if len(doc.Resources) != 163 {
 		t.Fatalf("graph has %d resources", len(doc.Resources))
 	}
 	open := 0
@@ -100,8 +100,8 @@ func TestStartsAtTheAllOpenMoment(t *testing.T) {
 			open++
 		}
 	}
-	if open != 14 { // the day's eleven and the three standing hints
-		t.Fatalf("%d incidents open at 14:05, want 14", open)
+	if open != 16 { // the day's twelve and the four standing hints
+		t.Fatalf("%d incidents open at 14:05, want 16", open)
 	}
 
 	// Real time moves the simulated clock; a step publishes it.
@@ -281,11 +281,11 @@ func TestTopicsOverWebSocket(t *testing.T) {
 	}
 	doc := snap["data"].(map[string]any)
 	series := doc["metrics"].(map[string]any)["series"].(map[string]any)
-	cpu, ok := series["unraid:jupiter#cpu.pct"].(map[string]any)
+	cpu, ok := series["unraid:magpie#cpu.pct"].(map[string]any)
 	if len(series) != len(newSim(t, 1).Snapshot().Series) || !ok || len(cpu["history"].([]any)) != 48 {
-		t.Fatalf("metrics snapshot: %d series, jupiter cpu %v", len(series), cpu)
+		t.Fatalf("metrics snapshot: %d series, magpie cpu %v", len(series), cpu)
 	}
-	if inbox := doc["inbox"].(map[string]any); inbox["now"] != "2026-10-03T14:05:00Z" || len(inbox["incidents"].(map[string]any)) != 14 {
+	if inbox := doc["inbox"].(map[string]any); inbox["now"] != "2026-10-03T14:05:00Z" || len(inbox["incidents"].(map[string]any)) != 16 {
 		t.Fatalf("inbox snapshot: %v", inbox["now"])
 	}
 	expectDoc(doc)
@@ -307,19 +307,19 @@ func TestTopicsOverWebSocket(t *testing.T) {
 			inboxPaths++
 		}
 	}
-	// (jupiter's series are stale at 14:05: Cha Dash can't read its Unraid API.)
-	if metricsPaths == 0 || inboxPaths != 1 || !slices.Contains(paths, "/metrics/series/pve:pluto#cpu.pct/as_of") {
+	// (magpie's series are stale at 14:05: Cha Dash can't read its Unraid API.)
+	if metricsPaths == 0 || inboxPaths != 1 || !slices.Contains(paths, "/metrics/series/pve:wren#cpu.pct/as_of") {
 		t.Fatalf("diff after a tick: %d metrics paths, %d inbox paths (%v)", metricsPaths, inboxPaths, paths)
 	}
 	if doc["inbox"].(map[string]any)["now"] != "2026-10-03T14:05:30Z" {
 		t.Fatalf("inbox now = %v", doc["inbox"].(map[string]any)["now"])
 	}
-	if got := doc["metrics"].(map[string]any)["series"].(map[string]any)["pve:pluto#cpu.pct"].(map[string]any)["as_of"]; got != "2026-10-03T14:05:30Z" {
-		t.Fatalf("pluto cpu as_of = %v", got)
+	if got := doc["metrics"].(map[string]any)["series"].(map[string]any)["pve:wren#cpu.pct"].(map[string]any)["as_of"]; got != "2026-10-03T14:05:30Z" {
+		t.Fatalf("wren cpu as_of = %v", got)
 	}
-	// jupiter's stay as they were read before Unraid's repair, marked stale.
-	if se := doc["metrics"].(map[string]any)["series"].(map[string]any)["unraid:jupiter#cpu.pct"].(map[string]any); se["as_of"] != "2026-10-03T12:04:30Z" || se["stale"] != true {
-		t.Fatalf("jupiter cpu during the repair: %v", se)
+	// magpie's stay as they were read before Unraid's repair, marked stale.
+	if se := doc["metrics"].(map[string]any)["series"].(map[string]any)["unraid:magpie#cpu.pct"].(map[string]any); se["as_of"] != "2026-10-03T12:04:30Z" || se["stale"] != true {
+		t.Fatalf("magpie cpu during the repair: %v", se)
 	}
 
 	// A fix changes the graph and the inbox.
@@ -346,16 +346,16 @@ func TestNewDay(t *testing.T) {
 		t.Fatalf("inbox now = %s", got)
 	}
 	_, inbox := tp.Inbox.Snapshot()
-	if n := len(inbox[topics.Incidents].(map[string]json.RawMessage)); n != 3 {
-		t.Fatalf("a fresh day should have only the three standing hints, has %d incidents", n)
+	if n := len(inbox[topics.Incidents].(map[string]json.RawMessage)); n != 4 {
+		t.Fatalf("a fresh day should have only the four standing hints, has %d incidents", n)
 	}
-	// The script replays: the failed backup opens at 02:14.
-	clock.Advance(2*time.Hour + 14*time.Minute)
+	// The script replays: the failed backup opens at 02:19.
+	clock.Advance(2*time.Hour + 19*time.Minute)
 	d.Step()
-	if in := incident(t, tp, "backup-failed"); in.Status != sim.StatusOpen || !in.OpenedAt.Equal(time.Date(2026, 10, 4, 2, 14, 0, 0, time.UTC)) {
+	if in := incident(t, tp, "backup-failed"); in.Status != sim.StatusOpen || !in.OpenedAt.Equal(time.Date(2026, 10, 4, 2, 19, 0, 0, time.UTC)) {
 		t.Fatalf("day two: %+v", in)
 	}
-	if _, doc := tp.Graph.Snapshot(nil); len(doc.Resources) != 134 {
+	if _, doc := tp.Graph.Snapshot(nil); len(doc.Resources) != 163 {
 		t.Fatalf("graph has %d resources", len(doc.Resources))
 	}
 }
@@ -383,8 +383,8 @@ func TestWallClock(t *testing.T) {
 		t.Fatalf("inbox now = %s", got)
 	}
 	_, inbox := tp.Inbox.Snapshot()
-	if n := len(inbox[topics.Incidents].(map[string]json.RawMessage)); n != 9 {
-		t.Fatalf("at 09:30 the three hints and six incidents should be in, inbox has %d", n)
+	if n := len(inbox[topics.Incidents].(map[string]json.RawMessage)); n != 10 {
+		t.Fatalf("at 09:30 the four hints and six incidents should be in, inbox has %d", n)
 	}
 	clock.Advance(time.Minute)
 	d.Step()

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * One host in detail: a Proxmox node (`host@proxmox:<instance id>/node/<node>`),
- * the Unraid box (`host@unraid:jupiter`), or a Docker engine. Memory is the
+ * the Unraid box (`host@unraid:magpie`), or a Docker engine. Memory is the
  * primary value, with its warn tick.
  *
  * Glyph: name and memory %. Strip: name · memory bar · CPU. Small: memory with

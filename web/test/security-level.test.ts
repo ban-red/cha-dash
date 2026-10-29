@@ -119,7 +119,7 @@ describe('Settings → Security → Security level', () => {
  */
 type Level = 'relaxed' | 'standard' | 'strict';
 const PLAIN_HTTP = 'traefik.hint.plain_http_credentials';
-const SECURITY = ['traefik.hint.api_no_auth', 'docker-jupiter.hint.docker_endpoint', 'frigate.unauthenticated-admin', PLAIN_HTTP];
+const SECURITY = ['adguard.hint.plain_http', 'traefik.hint.api_no_auth', 'docker-magpie.hint.docker_endpoint', 'frigate.unauthenticated-admin', PLAIN_HTTP];
 
 function publish(level: Level, declared: Incident['severity']): Incident['severity'] {
   return level === 'relaxed' ? 'info' : level === 'strict' ? 'attention' : declared;
@@ -187,7 +187,7 @@ describe('security findings at each level', () => {
     expect(r.briefing).toEqual(base.briefing);
     expect(r.tile).toEqual(base.tile);
     expect(r.hints.sort()).toEqual([...SECURITY].sort());
-    expect(r.groups).toContain('Security hints · 4');
+    expect(r.groups).toContain('Security hints · 5');
   });
 
   it('Standard: the exposure needs you; advice stays a hint', async () => {
@@ -198,16 +198,16 @@ describe('security findings at each level', () => {
     expect(r.needsAttention.filter((id) => SECURITY.includes(id))).toEqual([PLAIN_HTTP]);
     expect(r.briefing).toContain(PLAIN_HTTP);
     expect(r.tile).toContain('Traefik sends its credentials in clear text');
-    expect(r.hints).toHaveLength(3);
-    expect(r.groups).toContain('Security hints · 3');
+    expect(r.hints).toHaveLength(4);
+    expect(r.groups).toContain('Security hints · 4');
   });
 
   it('Strict: every finding needs you, and there are no hints left', async () => {
     const base = await surfaces(withoutSecurity());
     const r = await surfaces(atLevel('strict'));
-    expect(r.badge).toBe(base.badge + 4);
+    expect(r.badge).toBe(base.badge + 5);
     expect(r.needsAttention.filter((id) => SECURITY.includes(id)).sort()).toEqual([...SECURITY].sort());
-    expect(r.briefing.filter((id) => SECURITY.includes(id))).toHaveLength(4);
+    expect(r.briefing.filter((id) => SECURITY.includes(id))).toHaveLength(5);
     expect(r.hints).toEqual([]);
     expect(r.groups.some((g) => g?.includes('hints'))).toBe(false);
   });
@@ -220,7 +220,7 @@ describe('security findings at each level', () => {
     const r = await surfaces(d);
     expect(r.tile).toEqual(base.tile);
     expect(r.badge).toBe(base.badge);
-    expect(r.groups).toContain('Security hints · 4');
+    expect(r.groups).toContain('Security hints · 5');
   });
 });
 

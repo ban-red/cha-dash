@@ -157,7 +157,7 @@ describe('edit mode: the widget picker and the tile editor', () => {
   });
 
   it('the dismissed services, and the widget picker ⌘K opens', async () => {
-    fakeFetch({ 'GET /api/boards/b1/discovery': { status: 200, body: { dismissed: ['docker:jupiter/mealie', 'docker:gone/x'] } } });
+    fakeFetch({ 'GET /api/boards/b1/discovery': { status: 200, body: { dismissed: ['docker:magpie/mealie', 'docker:gone/x'] } } });
     const store = fakeStore(defaultBoard(docs(withIncidents).graph, Date.parse(withIncidents.now)));
     const hs = harness(docs(withIncidents));
     hs.board.state.boardId = 'b1';

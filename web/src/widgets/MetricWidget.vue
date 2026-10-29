@@ -2,7 +2,7 @@
 /**
  * One number with its context: unit, normal band, trend and freshness.
  * Never a bare "73%". Bound to one series, `metric@<resource id>#<metric key>`
- * (`metric@pve:jupiter-nas#mem.pct`, `metric@net:opnsense/wan#rx.mbps`).
+ * (`metric@pve:stork#mem.pct`, `metric@net:opnsense/wan#rx.mbps`).
  *
  * Glyph: value and unit. Strip: label · sparkline · value. Small: value and a
  * word-sized sparkline with its band and last-point dot. Wide: value, a

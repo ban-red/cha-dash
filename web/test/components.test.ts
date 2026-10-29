@@ -34,20 +34,20 @@ describe('front page with today’s incidents', () => {
     const { mountIn, ui } = harness(docs(withIncidents));
     const w = mountIn(Briefing);
     const h1 = w.find('h1.sentence');
-    expect(h1.text()).toContain('8 things need you');
+    expect(h1.text()).toContain('9 things need you');
     // The three worst by name, then the rest as one phrase that opens the Inbox.
     const phrases = h1.findAll('.phrase[role="button"]');
     expect(phrases.map((p) => p.text())).toEqual([
-      'scratch is in internal‑error',
-      "Backups on pluto couldn't reach pbs‑jupiter",
-      'Backup of homeassistant failed',
-      '5 more',
+      'Nextcloud is stuck in maintenance mode',
+      'sandbox is in internal‑error',
+      "Backups on wren couldn't reach pbs‑magpie",
+      '6 more',
     ]);
     expect(w.find('.sentence-2').text()).toContain('3 integrations to reconnect');
     expect(w.find('.clock').text()).toBe('14:05');
-    await phrases[1]!.trigger('keydown', { key: 'Enter' });
+    await phrases[2]!.trigger('keydown', { key: 'Enter' });
     expect(ui.state.inboxOpen).toBe(true);
-    expect(ui.state.inboxFocus).toBe('proxmox-pluto.backup.daily');
+    expect(ui.state.inboxFocus).toBe('proxmox-wren.backup.daily');
   });
 
   it('switches to the headline with a deck in Paper', () => {
@@ -55,10 +55,10 @@ describe('front page with today’s incidents', () => {
     const { mountIn } = harness(docs(withIncidents));
     const w = mountIn(Briefing);
     // A headline names two and counts the rest.
-    expect(w.find('h1.sentence').text()).toBe("Eight things need you: scratch is in internal‑error, backups on pluto couldn't reach pbs‑jupiter and six more.");
+    expect(w.find('h1.sentence').text()).toBe('Nine things need you: Nextcloud is stuck in maintenance mode, sandbox is in internal‑error and seven more.');
     expect(w.find('.mast-meta [aria-label="Search and commands"]').exists()).toBe(true);
     expect(w.find('.mast-meta .theme-menu, .mast-meta [aria-label*="heme"]').exists()).toBe(true); // themes stay reachable in Paper
-    expect(w.find('.sentence-2').text()).toContain('Next: Black Clover at 04:00. Three integrations need reconnecting in the Inbox.');
+    expect(w.find('.sentence-2').text()).toContain('Next: Starling Point at 04:00. Three integrations need reconnecting in the Inbox.');
   });
 
   it('mirrors problems into Needs attention with the suggested action and its tier', async () => {
@@ -66,24 +66,26 @@ describe('front page with today’s incidents', () => {
     const w = mountIn(NeedsAttention);
     // The three worst show; the rest wait behind "Show all".
     expect(w.findAll('.strip')).toHaveLength(3);
-    expect(w.find('.sh').text()).toContain('Needs attention · 8');
+    expect(w.find('.sh').text()).toContain('Needs attention · 9');
     await w.find('.attn-more').trigger('click');
     const strips = w.findAll('.strip');
-    expect(strips).toHaveLength(8);
+    expect(strips).toHaveLength(9);
     expect(w.find('.attn-more').text()).toBe('Show fewer');
     const strip = (title: string) => strips.find((s) => s.text().includes(title))!;
-    // Down first: the guest in internal-error, whose action opens Proxmox.
-    expect(strips[0]!.text()).toContain('scratch is in internal-error');
-    expect(strips[0]!.find('.k').text()).toBe('VM · scratch · since 11:20');
-    expect(strips[0]!.findAll('.acts button')[1]!.text()).toBe('Open scratch in Proxmox T0');
+    // Down first, oldest first: Nextcloud in maintenance mode, whose fix is T1; then the guest in internal-error, whose action opens Proxmox.
+    expect(strips[0]!.text()).toContain('Nextcloud is stuck in maintenance mode');
+    expect(strips[0]!.findAll('.acts button')[1]!.text()).toBe('Turn off maintenance mode T1');
+    expect(strips[1]!.text()).toContain('sandbox is in internal-error');
+    expect(strips[1]!.find('.k').text()).toBe('VM · sandbox · since 11:20');
+    expect(strips[1]!.findAll('.acts button')[1]!.text()).toBe('Open sandbox in Proxmox T0');
     const pbs = strip('PBS datastore is filling up');
     expect(pbs.find('.k').text()).toBe('Backups · since 02:44');
     expect(pbs.find('[role="meter"]').attributes('aria-valuetext')).toBe('92%, threshold 90%');
     const act = pbs.findAll('.acts button')[1]!;
     expect(act.text()).toBe('Prune per policy T2');
-    expect(strip('jupiter-nas is running out of memory').find('.spark').exists()).toBe(true);
+    expect(strip('stork is running out of memory').find('.spark').exists()).toBe(true);
     // A backup v0.1 can only report: its action opens the backup jobs.
-    expect(strip("Backups on pluto couldn't reach pbs-jupiter").findAll('.acts button')[1]!.text()).toBe('Open the backup jobs in Proxmox T0');
+    expect(strip("Backups on wren couldn't reach pbs-magpie").findAll('.acts button')[1]!.text()).toBe('Open the backup jobs in Proxmox T0');
   });
 
   it('runs T1 straight away and asks to hold for T2, both through the engine', async () => {
@@ -120,12 +122,12 @@ describe('front page with today’s incidents', () => {
     expect(plex.text()).toContain('Plex rejected its token');
     const backups = w.find('.tile[aria-label^="Backups"]');
     expect(backups.find('.v').text()).toBe('92%');
-    expect(w.find('.tile[aria-label^="Uptime Kuma"]').text()).toContain('8/9 up');
+    expect(w.find('.tile[aria-label^="Uptime Kuma"]').text()).toContain('12/14 up');
     // Incidents is wide beside the weather and the clock: three rows and the rest in the Inbox.
     const incidents = w.find('.tile[aria-label^="Incidents"]');
     expect(incidents.findAll('button.li')).toHaveLength(3);
-    expect(incidents.text()).toContain('11 open'); // 8 problems and 3 repairs; the 3 hints stay in the Inbox
-    expect(incidents.text()).toContain('+8 more in the Inbox');
+    expect(incidents.text()).toContain('12 open'); // 9 problems and 3 repairs; the 4 hints stay in the Inbox
+    expect(incidents.text()).toContain('+9 more in the Inbox');
     expect(w.find('.tile[aria-label^="Greenwich"]').text()).toContain('Weather data by Open-Meteo.com'); // named after the place
     expect(w.find('.tile[aria-label^="Clock"]').exists()).toBe(true);
   });
@@ -145,9 +147,9 @@ describe('front page with today’s incidents', () => {
     const d = docs(withIncidents);
     const { mountIn, ws } = harness(d);
     const w = mountIn(NeedsAttention);
-    const ids = ['backup-failed', 'pbs-datastore-filling', 'host-memory-pressure', 'qbittorrent-oom', 'proxmox-jupiter-nas.guest.101'];
-    // The three backups clear with the next night's runs, after the timeline ends.
-    const overnight = ['proxmox-pluto.backup.daily', 'proxmox-mars.backup.daily', 'proxmox-io.backup.daily'];
+    const ids = ['nextcloud-maintenance', 'backup-failed', 'pbs-datastore-filling', 'speedtest-slow', 'host-memory-pressure', 'qbittorrent-oom', 'proxmox-aviary.guest.221'];
+    // The two unreachable backups clear with the next night's runs, after the timeline ends.
+    const overnight = ['proxmox-wren.backup.daily', 'proxmox-owl.backup.daily'];
     const patch = [
       ...ids.map((id) => ({ op: 'replace', path: toPointer('inbox', 'incidents', id), value: resolvedIncident(id) })),
       ...overnight.map((id) => ({
@@ -168,7 +170,7 @@ describe('a quiet home', () => {
   it('says all quiet and shows empty states, not zeros', () => {
     const { mountIn } = harness(docs(healthy));
     const b = mountIn(Briefing);
-    expect(b.find('h1.sentence').text()).toMatch(/^All quiet · 18 services healthy · backups done \d\d:\d\d · array \d+%/);
+    expect(b.find('h1.sentence').text()).toMatch(/^All quiet · 26 services healthy · backups done \d\d:\d\d · array \d+%/);
     const n = mountIn(NeedsAttention);
     expect(n.find('.attn-sec').exists()).toBe(false);
     const w = mountIn(BoardSurface, { board: board(healthy), breakpoint: 'desktop' });

@@ -175,14 +175,14 @@ describe('widgets and their tile config', () => {
   it('applies name, link and chromeless to any widget, and binds its target from the config', async () => {
     const h = harness(docs(withIncidents));
     h.board.tiles.value = {
-      'arr@app:sonarr': { name: 'TV shows', href: 'https://tv.lab.example', bind: { resource: 'app:radarr' } },
+      'arr@app:sonarr': { name: 'TV shows', href: 'https://tv.home.example', bind: { resource: 'app:radarr' } },
       calendar: { chromeless: true },
     };
     const arr = h.mountIn(WidgetHost, { item: { id: 'arr@app:sonarr', type: 'arr' }, size: 'small' });
     const cal = h.mountIn(WidgetHost, { item: { id: 'calendar', type: 'calendar' }, size: 'wide' });
     await flushPromises();
     expect(arr.find('.tn').text()).toBe('TV shows');
-    expect(arr.find('a.mono').attributes('href')).toBe('https://tv.lab.example');
+    expect(arr.find('a.mono').attributes('href')).toBe('https://tv.home.example');
     expect(arr.find('.tile').attributes('aria-label')).toContain('TV shows');
     expect(arr.findComponent({ name: 'ArrWidget' }).props('target')).toBe('app:radarr');
     expect(cal.find('.th').exists()).toBe(false);

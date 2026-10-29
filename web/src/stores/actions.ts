@@ -55,6 +55,8 @@ export interface ActionRequest {
   impact?: Impact[];
   /** Running a plan's undo: no second undo toast. */
   isUndo?: boolean;
+  /** Where a `reads_data` task's lines go when it ends (a sheet's Logs tab), instead of the log dialog. */
+  onLog?: (log: TaskLog) => void;
 }
 
 export type ConfirmKind = 'hold' | 'type' | 'review';
@@ -124,6 +126,8 @@ export function createActions(deps: ActionsDeps) {
   /** Tasks started here, announced when they finish. */
   const mine = new Set<string>();
   const announced = new Set<string>();
+  /** Task id → where its lines go when it ends (ActionRequest.onLog). */
+  const logTo = new Map<string, (log: TaskLog) => void>();
   /** Incident id → the task working on it. */
   const byIncident = reactive<Record<string, string>>({});
   let grantUntil = 0;
@@ -344,6 +348,7 @@ export function createActions(deps: ActionsDeps) {
   function started(req: ActionRequest, p: Plan, task: Task): void {
     known[task.id] = task;
     mine.add(task.id);
+    if (req.onLog) logTo.set(task.id, req.onLog);
     if (req.incident) byIncident[req.incident.id] = task.id;
     setFix(req, { state: 'accepted', task: task.id });
     const undo = p.undo;
@@ -364,12 +369,14 @@ export function createActions(deps: ActionsDeps) {
   function finished(t: Task): void {
     if (!mine.has(t.id) || announced.has(t.id)) return;
     announced.add(t.id);
+    const onLog = logTo.get(t.id);
+    logTo.delete(t.id);
     const incident = Object.entries(byIncident).find(([, id]) => id === t.id)?.[0];
     // The lines live on the hub only while it runs, so the dialog keeps its own copy.
     const log: TaskLog = { label: t.label, lines: [...(t.log ?? [])] };
     const showLog = log.lines.length ? { label: 'Show log', run: () => deps.showLog(log) } : undefined;
     if (t.state === 'succeeded') {
-      if (t.reads_data) deps.showLog(log);
+      if (t.reads_data) (onLog ?? deps.showLog)(log);
       else toast(`Done: ${t.label}.`, 'ok', showLog ? UNDO_MS : undefined, showLog);
     } else if (t.state === 'cancelled') {
       toast(`Cancelled: ${t.label}.`, 'error');

@@ -25,12 +25,12 @@ afterEach(() => {
 describe('fuzzy matching', () => {
   it('ranks exact, prefix, word start, substring, then letters in order', () => {
     expect(matchWord('plex', 'plex')).toBe(100);
-    expect(matchWord('jup', 'jupiter')).toBe(80);
-    expect(matchWord('nas', 'jupiter-nas')).toBe(60);
-    expect(matchWord('pit', 'jupiter')).toBe(40);
-    expect(matchWord('jpt', 'jupiter')).toBeGreaterThan(0);
-    expect(matchWord('jpt', 'jupiter')).toBeLessThan(40);
-    expect(matchWord('xyz', 'jupiter')).toBe(0);
+    expect(matchWord('mag', 'magpie')).toBe(80);
+    expect(matchWord('lxc', 'pve:stork/lxc/220')).toBe(60);
+    expect(matchWord('pie', 'magpie')).toBe(40);
+    expect(matchWord('mgp', 'magpie')).toBeGreaterThan(0);
+    expect(matchWord('mgp', 'magpie')).toBeLessThan(40);
+    expect(matchWord('xyz', 'magpie')).toBe(0);
   });
 
   it('needs every word, weighs the label above keywords, and keeps ties in order', () => {
@@ -38,10 +38,10 @@ describe('fuzzy matching', () => {
     expect(score('home vm', { label: 'Home Assistant', keywords: 'app' })).toBe(0);
     const items = [
       { label: 'Sonarr', keywords: 'app:sonarr service' },
-      { label: 'Docker engine on jupiter', keywords: 'engine' },
-      { label: 'jupiter', keywords: 'host:jupiter host' },
+      { label: 'Docker engine on magpie', keywords: 'engine' },
+      { label: 'magpie', keywords: 'host:magpie host' },
     ];
-    expect(rank('jupiter', items).map((i) => i.label)).toEqual(['jupiter', 'Docker engine on jupiter']);
+    expect(rank('magpie', items).map((i) => i.label)).toEqual(['magpie', 'Docker engine on magpie']);
     expect(rank('', items)).toHaveLength(3);
   });
 });
@@ -82,8 +82,8 @@ describe('commands', () => {
 
   it('searches the graph by name, kind and ID', () => {
     const all = buildCommands(context());
-    const byName = searchCommands(all, 'jupiter').find((s) => s.group === 'Resources')!;
-    expect(byName.items[0]!.label).toBe('jupiter');
+    const byName = searchCommands(all, 'magpie').find((s) => s.group === 'Resources')!;
+    expect(byName.items[0]!.label).toBe('magpie');
     const byId = searchCommands(all, 'app:karakeep').find((s) => s.group === 'Resources')!;
     expect(byId.items[0]!.id).toBe('resource:app:karakeep');
     const byKind = searchCommands(all, 'camera').find((s) => s.group === 'Resources')!;

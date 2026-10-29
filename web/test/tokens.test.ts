@@ -179,14 +179,14 @@ const APPROVAL: Incident = {
   phase: 'awaiting_approval',
   title: 'backup script (owner) asks to run: Restart sonarr',
   summary: 'Planned through the API by a token, a T2 action.',
-  target: 'docker:jupiter/c/sonarr',
+  target: 'docker:magpie/c/sonarr',
   opened_at: '2026-10-03T14:00:00Z',
   causes: [],
   blast_radius: [{ resource: 'app:sonarr', via: 'runs_on', depth: 1 }],
   approval: {
     id: 'apv_1',
     state: 'awaiting_approval',
-    plan: { id: 'p_1', hash: 'sha256:abc', action: 'docker.container.restart', label: 'Restart sonarr', target: 'docker:jupiter/c/sonarr', tier: 'T2', steps: [{ label: 'Ask the node to restart sonarr' }], impact: [{ resource: 'app:sonarr', via: 'runs_on', depth: 1 }] },
+    plan: { id: 'p_1', hash: 'sha256:abc', action: 'docker.container.restart', label: 'Restart sonarr', target: 'docker:magpie/c/sonarr', tier: 'T2', steps: [{ label: 'Ask the node to restart sonarr' }], impact: [{ resource: 'app:sonarr', via: 'runs_on', depth: 1 }] },
     originator: { kind: 'token', id: 'tok_a', name: 'backup script (owner)', user: 'u1', user_name: 'owner' },
     requested_at: '2026-10-03T14:00:00Z',
     expires_at: '2026-10-03T15:00:00Z',
@@ -205,13 +205,13 @@ describe('approvals in the Inbox', () => {
     const g = groupInbox(d.inbox);
     expect(g.approvals.map((i) => i.id)).toEqual([APPROVAL.id]);
     expect(g.open.some((i) => i.id === APPROVAL.id)).toBe(false);
-    expect(incidentsFor(d.inbox, ['docker:jupiter/c/sonarr'])).toEqual([]);
+    expect(incidentsFor(d.inbox, ['docker:magpie/c/sonarr'])).toEqual([]);
     d.inbox.incidents[APPROVAL.id]!.status = 'resolved';
     expect(resolved(d.inbox).some((i) => i.id === APPROVAL.id)).toBe(false);
   });
 
   it('show who asked and the hub’s plan; Approve holds, steps up afresh, then approves the hash', async () => {
-    const f = fakeFetch({ 'POST /api/approvals/apv_1/approve': { status: 202, body: { task: { id: 't_1', state: 'queued', action: 'docker.container.restart', label: 'Restart sonarr', target: 'docker:jupiter/c/sonarr' } } } });
+    const f = fakeFetch({ 'POST /api/approvals/apv_1/approve': { status: 202, body: { task: { id: 't_1', state: 'queued', action: 'docker.container.restart', label: 'Restart sonarr', target: 'docker:magpie/c/sonarr' } } } });
     const h = harness(withApproval());
     h.mountIn(InboxSheet);
     h.ui.openInbox();

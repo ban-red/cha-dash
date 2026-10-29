@@ -158,7 +158,7 @@ const KIND_WORDS: Record<string, string> = {
   pool: 'Storage',
 };
 
-/** The small-caps kind line of a strip: "Backups", "Host · jupiter‑nas". */
+/** The small-caps kind line of a strip: "Backups", "Host · stork". */
 export function incidentKicker(i: Incident, g: GraphDoc | undefined): string {
   const r: Resource | undefined = g?.resources[i.target];
   const kind = r ? (KIND_WORDS[r.kind] ?? r.kind) : 'Home';
