@@ -333,6 +333,43 @@ describe('service tile on real instances', () => {
   });
 });
 
+describe('a Proxmox service tile', () => {
+  /** The home's Proxmox instance as a cluster of wren and egret, as the integration publishes one. */
+  function clustered(): Data {
+    const d = home();
+    const g = d.graph;
+    g.resources['proxmox:i_p/cluster'] = { id: 'proxmox:i_p/cluster', kind: 'cluster', name: 'mars', state: 'online', health: 'ok', attrs: { platform: 'pve', nodes: 2, quorate: true } };
+    for (const n of ['wren', 'egret']) {
+      g.relations[`proxmox:i_p/node/${n} part_of proxmox:i_p/cluster`] = { from: `proxmox:i_p/node/${n}`, type: 'part_of', to: 'proxmox:i_p/cluster' };
+    }
+    g.relations['integration:i_p monitors proxmox:i_p/cluster'] = { from: 'integration:i_p', type: 'monitors', to: 'proxmox:i_p/cluster' };
+    return d;
+  }
+  const imported = { 'service@homepage:servers/mars': { name: 'Mars PVE', bind: { instance: 'i_p' } } };
+
+  it('shows a cluster’s nodes online, guests running and its busiest node’s memory', () => {
+    const { w, tile } = mountReal('service', 'wide', 'homepage:servers/mars', clustered(), imported);
+    expect(w.find('.v').text()).toBe('2/2 nodes');
+    expect(w.find('.sub').text()).toBe('2 of 3 guests running · 81% mem · busiest node');
+    expect(tile().attributes('aria-label')).not.toMatch(/reading/);
+  });
+
+  it('is as well as its worst node', () => {
+    const d = clustered();
+    d.graph.resources['proxmox:i_p/node/egret']!.health = { status: 'down', reason: 'not responding' };
+    d.graph.resources['proxmox:i_p/node/egret']!.state = 'offline';
+    const { w, tile } = mountReal('service', 'small', 'homepage:servers/mars', d, imported);
+    expect(w.find('.v').text()).toBe('1/2 nodes');
+    expect(tile().classes()).toContain('is-down');
+  });
+
+  it('shows a single node’s CPU, memory and guests', () => {
+    const { w } = mountReal('service', 'wide', 'homepage:servers/wren', home(), { 'service@homepage:servers/wren': { name: 'Wren', bind: { resource: 'proxmox:i_p/node/wren' } } });
+    expect(w.find('.v').text()).toBe('9% CPU');
+    expect(w.find('.sub').text()).toBe('81% mem · 2 of 3 guests running');
+  });
+});
+
 describe('a tile bound to an instance that has never synced', () => {
   /** The import's item ids: dedicated widgets without a target, `arr` with the app it expects. */
   const ITEMS: Record<string, string> = {

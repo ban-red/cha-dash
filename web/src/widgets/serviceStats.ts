@@ -29,6 +29,8 @@
  * | paperlessngx | `documents` | `inbox` |
  * | speedtesttracker | `dl.mbps` | `ul.mbps`, `ping.ms` |
  * | a plain URL (`check`) | Up or Down, from its health | latency, uptime 24 h, status code |
+ * | a host (a Proxmox node), by kind | `cpu.pct` | `mem.pct`; guests running on it |
+ * | a cluster, by kind | nodes online of its nodes | guests running; the busiest node's `mem.pct` |
  * | anything else | its first series that isn't a latency | the check's latency |
  */
 import { fmtInt, fmtNum, hhmm } from '../lib/format';
@@ -235,6 +237,34 @@ const READERS: Record<string, (c: Ctx) => Reading> = {
   speedtesttracker: (c) => metric(c, ['dl.mbps'], 'Mb/s ↓', { facts: [...mf(c, 'ul.mbps', 'Mb/s ↑'), ...mf(c, 'ping.ms', 'ms ping')] }),
 };
 
+const pct = (v: number | null) => (v === null ? '—' : `${fmtInt(v)}%`);
+const VM_KINDS = new Set(['vm', 'lxc']);
+
+/** "12 of 14 guests running" on these hosts, or nothing when they have none. */
+function guestFacts(g: GraphDoc | undefined, hosts: readonly string[]): Fact[] {
+  const guests = hosts.flatMap((h) => incoming(g, h, 'runs_on').filter((r) => VM_KINDS.has(r.kind)));
+  if (!guests.length) return [];
+  const running = guests.filter((r) => r.state === 'running').length;
+  return [{ value: fmtInt(running), label: `of ${fmtInt(guests.length)} guests running` }];
+}
+
+/** A host an integration monitors without an app (a Proxmox node): its CPU, memory and guests. */
+function host(c: Ctx): Reading {
+  return metric(c, ['cpu.pct'], '% CPU', { facts: [...mf(c, 'mem.pct', 'mem', pct), ...guestFacts(c.g, [c.r.id])] });
+}
+
+/** A cluster: nodes online, the guests across them, and the busiest node's memory. */
+function cluster(c: Ctx): Reading {
+  const nodes = clusterNodes(c.g, c.r.id);
+  const online = nodes.filter((n) => n.state !== 'offline' && normalizeHealth(n).status !== 'down').length;
+  const mems = nodes.map((n) => series(c.m, n.id, 'mem.pct')?.value).filter((v): v is number => typeof v === 'number');
+  const facts = [...guestFacts(c.g, nodes.map((n) => n.id)), ...(mems.length ? [{ value: pct(Math.max(...mems)), label: 'mem · busiest node' }] : [])];
+  return { value: nodes.length ? online : null, text: nodes.length ? fmtInt(online) : '—', unit: `/${fmtInt(nodes.length)} nodes`, key: 'nodes', facts };
+}
+
+/** A cluster's nodes (hosts `part_of` it). */
+export const clusterNodes = (g: GraphDoc | undefined, id: string): Resource[] => incoming(g, id, 'part_of').filter((r) => r.kind === 'host');
+
 /** A check's state in a word: what a tile leads with, rather than a status code. */
 const CHECK_WORDS: Partial<Record<string, string>> = { ok: 'Up', attention: 'Up', down: 'Down', maintenance: 'Paused', off: 'Off' };
 
@@ -278,6 +308,8 @@ function fallback(c: Ctx): Reading {
 export function readService(g: GraphDoc | undefined, m: MetricsDoc | undefined, r: Resource, now: number): Reading {
   const c: Ctx = { g, m, r, now };
   if (r.kind === 'check') return check(c);
+  if (r.kind === 'host') return host(c);
+  if (r.kind === 'cluster') return cluster(c);
   const type = typeOf(r);
   const reader = type ? READERS[type] : undefined;
   return reader ? reader(c) : fallback(c);

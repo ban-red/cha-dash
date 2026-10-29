@@ -49,6 +49,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A self-signed certificate is a warning on a check, not an outage.** An HTTP check against a LAN service with an untrusted certificate showed it as down and raised a problem. It now shows as up with a warning naming the fingerprint to pin. A pin mismatch still fails.
 - **"Review the check" opens the check's settings.** It and other "open the integration" suggestions failed with "There's no action called integration.settings" outside the Demo Home.
 - **Long errors wrap.** A certificate fingerprint or long error in the Inbox ran past its card or was cut off. Long facts now sit under their label, and hashes and URLs break to fit.
+- **Proxmox tiles show the node.** An imported Proxmox tile was empty apart from its link. It now shows the node's CPU, memory and guests running, or for a cluster the nodes online and guests running, and turns red or amber with its worst node.
 - **A tile shows its own integration's trouble.** A Plex tile whose token was rejected before Plex was ever read showed Tautulli instead, as idle. Tiles bound to an integration (all imported ones) now say it needs repair and offer Reconnect, for Plex, the *arrs, Home Assistant, Frigate, OPNsense, Traefik, Uptime Kuma and downloads alike.
 - **Section headers line up.** A section header without a note beside its name sat a few pixels higher than its neighbours, and so did its tiles.
 - **Spaces between words are wider.** Numbers ran into the word after them, as in "1services".

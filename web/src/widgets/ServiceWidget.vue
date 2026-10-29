@@ -6,7 +6,9 @@
  *
  * What it shows, first match wins:
  * - its target, when the graph has it: an app by ID (`sonarr:<instance id>/app`)
- *   or type (`app:sonarr`), or a check (`check:<instance id>/<slug>`, an
+ *   or type (`app:sonarr`), a host or cluster an integration monitors without
+ *   an app (a Proxmox node: CPU, memory, guests; a cluster is as well as its
+ *   worst node), or a check (`check:<instance id>/<slug>`, an
  *   Uptime Kuma monitor), which is a plain URL: HTTP status, latency, uptime.
  *   `bind.resource` in the tile config is the target (WidgetHost);
  * - the app its tile config's `bind.instance` publishes, else its
@@ -29,7 +31,7 @@ import Glyph from '../components/marks/Glyph.vue';
 import Sparkline from '../components/marks/Sparkline.vue';
 import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
-import { glyphFor } from '../model/status';
+import { glyphFor, worst } from '../model/status';
 import { attr, label, outgoing, placeOf, resolve } from '../model/graph';
 import { findCheck, hostOf, serviceStatus } from '../model/service';
 import { resourceLinks, safeUrl } from '../model/types';
@@ -37,8 +39,8 @@ import { useBoard } from '../stores/board';
 import { useLive } from '../stores/live';
 import { originLabel, useTile } from '../stores/tiles';
 import { checkFor, checkWords } from './read';
-import { readService, TYPE_NAMES } from './serviceStats';
-import { isWithheld } from './subject';
+import { clusterNodes, readService, TYPE_NAMES } from './serviceStats';
+import { isWithheld, statusOf } from './subject';
 import { useSubject } from './use';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
@@ -63,7 +65,9 @@ const subjectId = computed(() => {
 const s = useSubject(() => subjectId.value);
 const r = computed(() => s.value.resource);
 /** Apps and checks have a stat; anything else (a container, a VM) shows its config and status. */
-const hasStat = computed(() => r.value?.kind === 'app' || r.value?.kind === 'check');
+const hasStat = computed(() => ['app', 'check', 'host', 'cluster'].includes(r.value?.kind ?? ''));
+/** A cluster is as well as its worst node. */
+const clusterStatus = computed(() => (r.value?.kind === 'cluster' ? worst([s.value.status, ...clusterNodes(live.graph.value, r.value.id).map(statusOf)]) : undefined));
 const reading = computed(() => (r.value && hasStat.value ? readService(live.graph.value, live.metrics.value, r.value, live.now.value) : undefined));
 const isCheck = computed(() => r.value?.kind === 'check');
 const check = computed(() => checkFor(live.graph.value, live.metrics.value, r.value));
@@ -141,7 +145,7 @@ const origin = computed(() => originLabel(meta.value));
     </template>
   </Frame>
 
-  <Frame v-else :size="size" :name="name" :context="context" :href="href" :subject="s" :stale="stale" :as-of="reading?.series?.as_of" :loading="loading">
+  <Frame v-else :size="size" :name="name" :context="context" :href="href" :subject="s" :status="clusterStatus" :stale="stale" :as-of="reading?.series?.as_of" :loading="loading">
     <template v-if="size === 'glyph'">
       <div v-if="isCheck" class="gv"><Glyph kind="link" /></div>
       <div v-else :class="['gv', { unknown: value === null }]">{{ limited ? '—' : reading?.text }}</div>
