@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,8 @@ type Record struct {
 
 // Applied is what Apply returns (and POST /api/import/<source> answers).
 type Applied struct {
+	// ImportID is the History row, when the import changed something.
+	ImportID    string   `json:"import_id,omitempty"`
 	BoardID     string   `json:"board_id"`
 	InstanceIDs []string `json:"instance_ids"`
 	Changes     []Change `json:"changes"`
@@ -82,6 +85,8 @@ type work struct {
 		tdoc   []byte
 		next   int64
 	}
+	// items are the layout items the board didn't have before.
+	items     []string
 	instances []instanceWork
 	secrets   []secretWork
 	record    struct {
@@ -106,11 +111,18 @@ type secretWork struct {
 // writing anything. Instance names that collide with instances the import
 // didn't create get a " (imported)" suffix, in the plan as in the diff.
 func (s *Service) Diff(ctx context.Context, res *Result, secrets Secrets) error {
-	w, err := s.compare(ctx, s.st.Reader(), res, secrets)
+	return s.DiffWith(ctx, res, secrets, Choices{})
+}
+
+// DiffWith is Diff after applying the Review sheet's choices to the plan. It
+// sets res.PlanHash, which ApplyWith checks.
+func (s *Service) DiffWith(ctx context.Context, res *Result, secrets Secrets, c Choices) error {
+	w, err := s.compare(ctx, s.st.Reader(), res, secrets, c)
 	if err != nil {
 		return err
 	}
 	res.Plan.Changes = w.changes
+	res.PlanHash = Hash(res)
 	return nil
 }
 
@@ -119,13 +131,40 @@ func (s *Service) Diff(ctx context.Context, res *Result, secrets Secrets) error 
 // secrets (sealed inside the same transaction) and the import record. Anything already equal is left alone, so applying the same
 // plan twice changes nothing the second time. userID may be empty.
 func (s *Service) Apply(ctx context.Context, res *Result, secrets Secrets, userID string) (Applied, error) {
+	return s.ApplyWith(ctx, res, secrets, Choices{}, Meta{UserID: userID})
+}
+
+// Meta is what ApplyWith records beside the plan.
+type Meta struct {
+	UserID string
+	// Files are the source files' names, for History. Never their text.
+	Files []string
+	// Hash, when set, is the reviewed plan's hash: ApplyWith refuses with
+	// ErrPlanChanged if the plan it would apply now hashes differently.
+	Hash string
+}
+
+// ApplyWith is Apply with the Review sheet's choices. An import that
+// changes something also leaves a row in History (the imports table).
+func (s *Service) ApplyWith(ctx context.Context, res *Result, secrets Secrets, c Choices, m Meta) (Applied, error) {
 	var w *work
+	var importID string
 	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
 		var err error
-		if w, err = s.compare(ctx, tx, res, secrets); err != nil {
+		if w, err = s.compare(ctx, tx, res, secrets, c); err != nil {
 			return err
 		}
-		return s.write(ctx, tx, &res.Plan, w, secrets, userID)
+		res.Plan.Changes = w.changes
+		if m.Hash != "" && Hash(res) != m.Hash {
+			return ErrPlanChanged
+		}
+		if err := s.write(ctx, tx, &res.Plan, w, secrets, m.UserID); err != nil {
+			return err
+		}
+		if changed(w.changes) {
+			importID, err = s.writeHistory(ctx, tx, res, w, c, m)
+		}
+		return err
 	})
 	if err != nil {
 		return Applied{}, err
@@ -135,7 +174,7 @@ func (s *Service) Apply(ctx context.Context, res *Result, secrets Secrets, userI
 	for _, in := range res.Plan.Instances {
 		ids = append(ids, in.ID)
 	}
-	return Applied{BoardID: res.Plan.Board.ID, InstanceIDs: ids, Changes: w.changes}, nil
+	return Applied{ImportID: importID, BoardID: res.Plan.Board.ID, InstanceIDs: ids, Changes: w.changes}, nil
 }
 
 // LoadRecord returns the stored record for source, or nil if the source was
@@ -156,13 +195,140 @@ func (s *Service) LoadRecord(ctx context.Context, source string) (*Record, error
 	return &r, nil
 }
 
-func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets Secrets) (*work, error) {
+func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets Secrets, c Choices) (*work, error) {
 	p := &res.Plan
 	w := &work{}
-	add := func(kind, id, name, action string) {
+	add := func(kind, id, name, action string) *Change {
 		w.changes = append(w.changes, Change{Kind: kind, ID: id, Name: name, Action: action})
+		return &w.changes[len(w.changes)-1]
 	}
+	if err := s.choose(ctx, q, res, secrets, c); err != nil {
+		return nil, err
+	}
+	if p.Board.ID != "" {
+		if err := s.compareBoard(ctx, q, p, w); err != nil {
+			return nil, err
+		}
+		add("board", p.Board.ID, p.Board.Name, w.board.action)
+		add("layout", p.Board.ID, p.Board.Name, w.layout.action)
+		add("tiles", p.Board.ID, p.Board.Name, w.layout.tiles)
+	}
+	if err := s.compareRest(ctx, q, res, secrets, w, add); err != nil {
+		return nil, err
+	}
+	return w, nil
+}
 
+// choose applies the Review sheet's choices to the plan, before it's
+// compared with the hub.
+func (s *Service) choose(ctx context.Context, q querier, res *Result, secrets Secrets, c Choices) error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	p := &res.Plan
+	for planned, existing := range c.UseExisting {
+		i := slices.IndexFunc(p.Instances, func(in Instance) bool { return in.ID == planned })
+		if i < 0 {
+			continue
+		}
+		var integ string
+		err := q.QueryRowContext(ctx, `SELECT integration FROM integration_instances WHERE id = ?`, existing).Scan(&integ)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && integ != p.Instances[i].Integration) {
+			return fmt.Errorf("%w: %s can't use %s instead", ErrInvalidChoices, p.Instances[i].Name, existing)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if err := fillSecrets(res, secrets, c.Secrets); err != nil {
+		return err
+	}
+	reuse(res, secrets, c.UseExisting)
+	skip(res, secrets, c.Skip)
+	if c.Target == TargetNone {
+		noBoard(p)
+	} else if id, ok := c.TargetBoard(); ok {
+		if err := s.onto(ctx, q, p, id); err != nil {
+			return err
+		}
+	} else if err := p.Board.Layout.Pack(); err != nil {
+		return err
+	}
+	if c.Target != TargetNone && len(p.Tiles) == 0 && len(c.Skip) > 0 {
+		noBoard(p) // every tile left out: no empty board
+	}
+	recount(res)
+	return nil
+}
+
+// onto moves the plan's tiles onto an existing board, after its own items:
+// into the section with the same ID, else into a new section at the end.
+// Items the board already has stay as they are.
+func (s *Service) onto(ctx context.Context, q querier, p *Plan, boardID string) error {
+	var title, slug, doc, tiles string
+	var fv int
+	err := q.QueryRowContext(ctx, `SELECT b.title, b.slug, l.format_version, l.document, l.tiles FROM boards b
+		JOIN layouts l ON l.board_id = b.id WHERE b.id = ? ORDER BY l.revision DESC LIMIT 1`, boardID).Scan(&title, &slug, &fv, &doc, &tiles)
+	if errors.Is(err, sql.ErrNoRows) {
+		var one int
+		if q.QueryRowContext(ctx, `SELECT 1 FROM boards WHERE id = ?`, boardID).Scan(&one) != nil {
+			return fmt.Errorf("%w: no board %s", ErrInvalidChoices, boardID)
+		}
+		doc, tiles, fv = `{"version":1,"columns":12,"sections":[]}`, `{}`, LayoutVersion
+		err = q.QueryRowContext(ctx, `SELECT title, slug FROM boards WHERE id = ?`, boardID).Scan(&title, &slug)
+	}
+	if err != nil {
+		return err
+	}
+	var base LayoutDocument
+	if err := json.Unmarshal([]byte(doc), &base); err != nil {
+		return fmt.Errorf("importer: board %s: layout: %w", boardID, err)
+	}
+	var baseTiles boards.Tiles
+	if tiles != "" {
+		if err := json.Unmarshal([]byte(tiles), &baseTiles); err != nil {
+			return fmt.Errorf("importer: board %s: tiles: %w", boardID, err)
+		}
+	}
+	have := map[string]bool{}
+	for _, sec := range base.Sections {
+		for _, it := range sec.Items {
+			have[it.ID] = true
+		}
+	}
+	for _, sec := range p.Board.Layout.Sections {
+		var items []LayoutItem
+		for _, it := range sec.Items {
+			if !have[it.ID] {
+				items = append(items, it)
+			}
+		}
+		if len(items) == 0 {
+			continue
+		}
+		i := slices.IndexFunc(base.Sections, func(b LayoutSection) bool { return b.ID == sec.ID })
+		if i < 0 {
+			sec.Items = []LayoutItem{}
+			base.Sections = append(base.Sections, sec)
+			i = len(base.Sections) - 1
+		}
+		dst := &base.Sections[i]
+		for _, it := range items {
+			if SizeWidth(it.Size) > dst.Span {
+				it.Size = ClosestFit(it.SupportedSizes, it.Size, dst.Span)
+			}
+			dst.Items = append(dst.Items, it)
+		}
+	}
+	if err := base.Pack(); err != nil {
+		return err
+	}
+	p.Board.ID, p.Board.Name, p.Board.Slug, p.Board.FormatVersion, p.Board.Layout = boardID, title, slug, fv, base
+	p.baseTiles = baseTiles
+	return nil
+}
+
+func (s *Service) compareBoard(ctx context.Context, q querier, p *Plan, w *work) error {
 	// Board.
 	var title, slug string
 	err := q.QueryRowContext(ctx, `SELECT title, slug FROM boards WHERE id = ?`, p.Board.ID).Scan(&title, &slug)
@@ -170,30 +336,29 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 	case errors.Is(err, sql.ErrNoRows):
 		w.board.action = ActionCreate
 		if w.board.slug, err = freeSlug(ctx, q, p.Board.Slug); err != nil {
-			return nil, err
+			return err
 		}
 		if err := q.QueryRowContext(ctx, `SELECT COALESCE(MAX(position) + 1, 0) FROM boards`).Scan(&w.board.position); err != nil {
-			return nil, err
+			return err
 		}
 	case err != nil:
-		return nil, err
+		return err
 	case title != p.Board.Name:
 		w.board.action, w.board.slug = ActionUpdate, slug
 	default:
 		w.board.action, w.board.slug = ActionUnchanged, slug
 	}
 	p.Board.Slug = w.board.slug
-	add("board", p.Board.ID, p.Board.Name, w.board.action)
 
 	// Layout and tiles: compared as JSON values, so key order and whitespace
 	// don't count. They share a revision, so either one changing writes both.
 	doc, err := json.Marshal(p.Board.Layout)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	tdoc, err := json.Marshal(TileConfigs(p))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	w.layout.doc, w.layout.tdoc = doc, tdoc
 	var rev sql.NullInt64
@@ -201,7 +366,7 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 	if w.board.action != ActionCreate {
 		err := q.QueryRowContext(ctx, `SELECT revision, document, tiles FROM layouts WHERE board_id = ? ORDER BY revision DESC LIMIT 1`, p.Board.ID).Scan(&rev, &cur, &curTiles)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
+			return err
 		}
 	}
 	compareDoc := func(stored sql.NullString, planned []byte) string {
@@ -217,9 +382,30 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 	w.layout.action = compareDoc(cur, doc)
 	w.layout.tiles = compareDoc(curTiles, tdoc)
 	w.layout.next = rev.Int64 + 1
-	add("layout", p.Board.ID, p.Board.Name, w.layout.action)
-	add("tiles", p.Board.ID, p.Board.Name, w.layout.tiles)
+	stored := map[string]bool{}
+	if cur.Valid {
+		var prev LayoutDocument
+		if json.Unmarshal([]byte(cur.String), &prev) == nil {
+			for _, sec := range prev.Sections {
+				for _, it := range sec.Items {
+					stored[it.ID] = true
+				}
+			}
+		}
+	}
+	for _, sec := range p.Board.Layout.Sections {
+		for _, it := range sec.Items {
+			if !stored[it.ID] {
+				w.items = append(w.items, it.ID)
+			}
+		}
+	}
+	return nil
+}
 
+func (s *Service) compareRest(ctx context.Context, q querier, res *Result, secrets Secrets, w *work, add func(kind, id, name, action string) *Change) error {
+	p := &res.Plan
+	var err error
 	// Instances.
 	planned := make(map[string]bool, len(p.Instances))
 	for _, in := range p.Instances {
@@ -229,7 +415,7 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 		in := &p.Instances[i]
 		cfg, err := json.Marshal(in.Config)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		var integ, name, stored string
 		err = q.QueryRowContext(ctx, `SELECT integration, name, config FROM integration_instances WHERE id = ?`, in.ID).Scan(&integ, &name, &stored)
@@ -238,27 +424,33 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 		case errors.Is(err, sql.ErrNoRows):
 			action = ActionCreate
 		case err != nil:
-			return nil, err
+			return err
 		case integ != in.Integration || name != in.Name || !sameJSON([]byte(stored), cfg):
 			action = ActionUpdate
 		}
+		asked := in.Name
 		if action != ActionUnchanged {
 			if in.Name, err = freeName(ctx, q, in.Integration, in.Name, planned); err != nil {
-				return nil, err
+				return err
 			}
 			if action == ActionUpdate && integ == in.Integration && name == in.Name && sameJSON([]byte(stored), cfg) {
 				action = ActionUnchanged // the only difference was a name we had to change anyway
 			}
 		}
 		w.instances = append(w.instances, instanceWork{action: action, inst: in, config: cfg, oldName: name})
-		add("instance", in.ID, in.Name, action)
+		ch := add("instance", in.ID, in.Name, action)
+		if action == ActionCreate {
+			if ch.Existing, ch.Match, err = resembles(ctx, q, in, asked, planned); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Secrets: equal values are left alone, so a re-import doesn't reseal.
 	for _, ref := range p.Secrets {
 		val, ok := secrets[ref.Name]
 		if !ok {
-			return nil, fmt.Errorf("importer: plan names secret %q but carries no value for it", ref.Name)
+			return fmt.Errorf("importer: plan names secret %q but carries no value for it", ref.Name)
 		}
 		action := ActionUnchanged
 		old, err := s.vault.Get(ctx, ref.Name)
@@ -268,7 +460,7 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 		case errors.Is(err, vault.ErrCorrupt), errors.Is(err, vault.ErrWrongKey):
 			action = ActionUpdate
 		case err != nil:
-			return nil, err
+			return err
 		case !val.Equal(string(old)):
 			action = ActionUpdate
 		}
@@ -288,7 +480,7 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 		rec.Instances = append(rec.Instances, in.ID)
 	}
 	if w.record.value, err = json.Marshal(rec); err != nil {
-		return nil, err
+		return err
 	}
 	var prevRaw string
 	err = q.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, RecordKey(p.Source)).Scan(&prevRaw)
@@ -296,7 +488,7 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 	case errors.Is(err, sql.ErrNoRows):
 		w.record.action = ActionCreate
 	case err != nil:
-		return nil, err
+		return err
 	default:
 		w.record.action = ActionUnchanged
 		if !sameJSON([]byte(prevRaw), w.record.value) {
@@ -313,17 +505,20 @@ func (s *Service) compare(ctx context.Context, q querier, res *Result, secrets S
 				if err == nil {
 					add("instance", id, name, ActionStale)
 				} else if !errors.Is(err, sql.ErrNoRows) {
-					return nil, err
+					return err
 				}
 			}
 		}
 	}
 	add("record", RecordKey(p.Source), "", w.record.action)
-	return w, nil
+	return nil
 }
 
 func (s *Service) write(ctx context.Context, tx *sql.Tx, p *Plan, w *work, secrets Secrets, userID string) error {
 	now := store.NowMillis()
+	if p.Board.ID == "" {
+		w.board.action, w.layout.action, w.layout.tiles = ActionUnchanged, ActionUnchanged, ActionUnchanged
+	}
 	switch w.board.action {
 	case ActionCreate:
 		if _, err := tx.ExecContext(ctx, `INSERT INTO boards (id, slug, title, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,

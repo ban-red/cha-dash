@@ -1,6 +1,9 @@
 package importer
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // LayoutVersion is packages/layout's LAYOUT_VERSION: the document format the
 // hub stores next to each layout revision (layouts.format_version).
@@ -25,6 +28,9 @@ type LayoutSection struct {
 	Title *string      `json:"title,omitempty"`
 	Span  int          `json:"span"`
 	Items []LayoutItem `json:"items"`
+	// Overrides are a board's per-breakpoint section overrides, kept as they
+	// are when an import adds to a board that has them.
+	Overrides json.RawMessage `json:"overrides,omitempty"`
 }
 
 // LayoutItem is an ItemDocument. X and Y are informational: the engine

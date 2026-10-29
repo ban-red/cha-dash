@@ -83,7 +83,11 @@ import (
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/icons"
 	"dash.cha.sh/internal/importer"
+	"dash.cha.sh/internal/importer/homarr"
 	"dash.cha.sh/internal/importer/homepage"
+	"dash.cha.sh/internal/importer/importhttp"
+	"dash.cha.sh/internal/importer/leads"
+	"dash.cha.sh/internal/importer/yamlboard"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
@@ -234,7 +238,7 @@ func New(d Deps) (http.Handler, error) {
 			// rather than at the manager's next periodic reload.
 			wrap = func(h http.Handler) http.Handler { return session(reloadAfter(h, d.Integrations, d.Log)) }
 		}
-		homepage.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log, rec)
+		importhttp.Register(mux, wrap, importer.New(d.Store, d.Vault), d.Log, rec, importSources(d)...)
 		exp := export.New(d.Store, d.Vault, export.Options{HubVersion: buildinfo.Version})
 		exp.Audit = rec
 		// A Home file can carry the security settings and correlation
@@ -364,6 +368,28 @@ func compressible(path string) bool {
 		}
 	}
 	return true
+}
+
+// importSources are the importers the hub offers. Homarr and plain YAML ask
+// the integration catalog which fields are secret and which are required.
+func importSources(d Deps) []importhttp.Source {
+	cat := importCatalog{d.Integrations}
+	return []importhttp.Source{homepage.ImportSource(), homarr.ImportSource(cat), yamlboard.ImportSource(cat), leads.ImportSource(cat)}
+}
+
+// importCatalog answers importer.Catalog from the running manager's catalog.
+type importCatalog struct{ m *runtime.Manager }
+
+func (c importCatalog) Integration(id string) (secret, required []string, ok bool) {
+	if c.m == nil {
+		return nil, nil, false
+	}
+	for _, e := range c.m.Catalog() {
+		if e.ID == id {
+			return e.SecretFields(), e.ConfigSchema.Required, true
+		}
+	}
+	return nil, nil, false
 }
 
 // reloadAfter reloads the integration instances after a successful POST.

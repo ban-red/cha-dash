@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"dash.cha.sh/internal/importer"
+	"dash.cha.sh/internal/importer/importhttp"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
 )
@@ -90,7 +91,7 @@ func newHub(t *testing.T) *hub {
 	}
 	h := &hub{st: st, vault: v, svc: importer.New(st, v), logs: logs}
 	mux := http.NewServeMux()
-	Register(mux, func(h http.Handler) http.Handler { return h }, h.svc, log, nil)
+	importhttp.Register(mux, func(h http.Handler) http.Handler { return h }, h.svc, log, nil, ImportSource())
 	h.srv = httptest.NewServer(mux)
 	t.Cleanup(h.srv.Close)
 	return h

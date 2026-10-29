@@ -4,7 +4,7 @@ Imports a [Homepage](https://gethomepage.dev) configuration. `services.yaml`, `d
 
 - **`Build(Input)`** parses and maps. It's pure: no database, no network. It returns the plan and, separately, the secret values the plan moves.
 - **`importer.Service`** ([`../`](../)) compares the plan with the hub (`Diff`, for the dry run) and applies it in one transaction (`Apply`).
-- **`Register`** mounts `POST /api/import/homepage` (and `GET` for the last import's record: the board, the instances it created, links, discovery entries and board settings; tiles live on the board).
+- **`ImportSource`** is its entry in the shared import API ([`importhttp`](../importhttp/)): `POST /api/import/homepage` (and `GET` for the last import's record: the board, the instances it created, links, discovery entries and board settings; tiles live on the board), plus detection of its files for a drop.
 
 The acceptance test is [`testdata/importers/homepage/dogfood`](../../../testdata/importers/homepage/dogfood/README.md); its dry-run plan is pinned in [`expected-plan.json`](../../../testdata/importers/homepage/dogfood/expected-plan.json) (`go test ./internal/importer/homepage -run TestDogfoodImport -update` rewrites it).
 

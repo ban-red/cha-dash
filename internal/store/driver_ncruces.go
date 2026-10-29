@@ -61,3 +61,14 @@ func dsn(path string, readOnly bool) string {
 	query := strings.ReplaceAll(q.Encode(), "+", "%20")
 	return "file:" + (&url.URL{Path: path}).EscapedPath() + "?" + query
 }
+
+// OpenForeign opens another program's SQLite database read-only and
+// immutable (an importer reading Homarr's backup): no WAL, no locks, no
+// writes, no pragmas of ours.
+func OpenForeign(path string) (*sql.DB, error) {
+	q := url.Values{}
+	q.Set("mode", "ro")
+	q.Set("immutable", "1")
+	q.Add("_pragma", "query_only(1)")
+	return sql.Open(driverName, "file:"+(&url.URL{Path: path}).EscapedPath()+"?"+q.Encode())
+}

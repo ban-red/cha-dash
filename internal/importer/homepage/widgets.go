@@ -94,26 +94,6 @@ var widgetSpecs = map[string]widgetSpec{
 // Cha Dash integrations negotiate the version themselves.
 var commonWidgetFields = map[string]bool{"type": true, "url": true, "fields": true, "version": true}
 
-// catalogSize is a tile's default size and its supported sizes, as declared
-// in web/src/model/widgets.ts. "service" is the generic service tile.
-type catalogSize struct {
-	size  string
-	sizes []string
-}
-
-var catalog = map[string]catalogSize{
-	"homeassistant": {"wide", []string{"small", "wide"}},
-	"cameras":       {"large", []string{"wide", "large", "hero"}},
-	"opnsense":      {"wide", []string{"small", "wide"}},
-	"uptimekuma":    {"small", []string{"small", "wide"}},
-	"traefik":       {"small", []string{"small", "wide"}},
-	"plex":          {"wide", []string{"small", "wide"}},
-	"arr":           {"small", []string{"small", "wide"}},
-	"downloads":     {"wide", []string{"small", "wide"}},
-	"calendar":      {"wide", []string{"wide", "tall"}},
-	"service":       {"small", []string{"small", "wide"}},
-}
-
 // calendarCapability is what the media calendar reads from Sonarr, Radarr and
 // Lidarr.
 const calendarCapability = "media.calendar"

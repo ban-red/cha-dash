@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
+	"dash.cha.sh/internal/boards"
 )
 
 // Result is the dry-run answer: POST /api/import/<source>?dry_run=1 returns
@@ -21,6 +23,9 @@ type Result struct {
 	Plan     Plan       `json:"plan"`
 	Hints    []Hint     `json:"hints"`
 	Unmapped []Unmapped `json:"unmapped"`
+	// PlanHash is Hash of this result, set by Service.Diff. Apply with the
+	// same hash refuses (ErrPlanChanged) if the plan it would apply differs.
+	PlanHash string `json:"plan_hash,omitempty"`
 }
 
 // Plan is everything an import would create or update.
@@ -45,6 +50,10 @@ type Plan struct {
 	// Changes compares the plan with what the hub already has. It's set by
 	// Service.Diff and Service.Apply, not by parsers.
 	Changes []Change `json:"changes,omitempty"`
+
+	// baseTiles are the tiles of the board a "board:<id>" target adds to:
+	// TileConfigs writes them next to the plan's own.
+	baseTiles boards.Tiles
 }
 
 // Board is the board the import creates, with its layout document.
@@ -215,6 +224,11 @@ type Change struct {
 	ID     string `json:"id"`
 	Name   string `json:"name,omitempty"`
 	Action string `json:"action"` // create, update, unchanged, stale
+	// Existing is an instance the hub already has that this one resembles,
+	// for "use my existing one instead": Match says how, "url" (it reads the
+	// same URL) or "name" (it has the name, so this one was renamed).
+	Existing string `json:"existing,omitempty"`
+	Match    string `json:"match,omitempty"`
 }
 
 // Change actions.

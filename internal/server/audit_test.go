@@ -115,6 +115,8 @@ var provenElsewhere = map[string]string{
 	"POST /api/correlate/decisions":                "correlate.TestAPI",
 	"DELETE /api/correlate/decisions/{id}":         "correlate.TestAPI",
 	"PUT /api/settings/security":                   "TestChangesAreAudited",
+	"POST /api/import/homarr":                      "this test's Homepage and plain-YAML imports: every source shares importhttp's handler, which records import.<source>",
+	"POST /api/import/discovery":                   "the same as POST /api/import/homarr",
 	"POST /api/nodes/{id}/revoke":                  "nodes.TestRevoke",
 	"POST /api/nodes/pairing/regenerate":           "nodes.TestRevokeRegeneratesTheSecret",
 	"POST /api/approvals/{id}/approve":             "action.TestTokenT2WaitsForAPerson",
@@ -190,6 +192,24 @@ func TestAuditedRoutesRecord(t *testing.T) {
 	if ev := expect("POST /api/import/homepage"); !strings.Contains(string(ev.Params), `"instance_ids":["i_`) {
 		t.Fatalf("homepage import: %s", ev.Params)
 	}
+	boardFile := "apiVersion: chadash/v1alpha1\nkind: Board\nname: Links\nsections:\n  - tiles:\n      - {name: Wiki, href: https://wiki.example, check: false}\n"
+	var yamlApplied struct {
+		ImportID string `json:"import_id"`
+	}
+	if err := json.Unmarshal(call("POST", "/api/import/yaml", map[string]any{"files": map[string]string{"board_yaml": boardFile}}, 200), &yamlApplied); err != nil || yamlApplied.ImportID == "" {
+		t.Fatalf("yaml import: %v %+v", err, yamlApplied)
+	}
+	if ev := expect("POST /api/import/yaml"); !strings.Contains(string(ev.Params), `"import_id":"imp_`) {
+		t.Fatalf("yaml import: %s", ev.Params)
+	}
+	call("POST", "/api/imports/"+yamlApplied.ImportID+"/revert?dry_run=1", nil, 200)
+	if _, ok := lastAudit(t, st, "import.revert"); ok {
+		t.Fatal("a revert dry run was audited")
+	}
+	call("POST", "/api/imports/"+yamlApplied.ImportID+"/revert", nil, 200)
+	if ev := expect("POST /api/imports/{id}/revert"); !strings.Contains(string(ev.Params), `"removed":`) {
+		t.Fatalf("revert: %s", ev.Params)
+	}
 	home := call("POST", "/api/export", map[string]string{"passphrase": "a long enough passphrase"}, 200)
 	if ev := expect("POST /api/export"); strings.Contains(string(ev.Params), "passphrase") || !strings.Contains(string(ev.Params), `"bundled"`) {
 		t.Fatalf("export: %s", ev.Params)
@@ -204,6 +224,18 @@ func TestAuditedRoutesRecord(t *testing.T) {
 	expect("PUT /api/onboarding")
 	call("POST", "/api/onboarding/discover", map[string]any{}, 200)
 	expect("POST /api/onboarding/discover")
+	call("POST", "/api/discover", map[string]any{}, 200)
+	expect("POST /api/discover")
+	if b := call("POST", "/api/discover/dismiss", map[string]any{"keys": []string{"sonarr|http://sonarr.example:8989"}}, 200); !strings.Contains(string(b), "sonarr|") {
+		t.Fatalf("dismiss: %s", b)
+	}
+	if ev := expect("POST /api/discover/dismiss"); !strings.Contains(string(ev.Params), `"keys":1`) {
+		t.Fatalf("dismiss: %s", ev.Params)
+	}
+	if b := call("POST", "/api/discover/restore", map[string]any{"keys": []string{"sonarr|http://sonarr.example:8989"}}, 200); strings.Contains(string(b), "sonarr|") {
+		t.Fatalf("restore: %s", b)
+	}
+	expect("POST /api/discover/restore")
 
 	// Stacks: drafts (never their content) and secrets (never their value).
 	call("PUT", "/api/stacks/n1/media", map[string]any{"content": "services:\n  web:\n    image: nginx\n    environment:\n      TOKEN: FAKE-compose-secret\n", "revision": 0}, 200)

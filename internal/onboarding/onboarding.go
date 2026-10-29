@@ -4,7 +4,9 @@
 //
 //	GET  /api/onboarding            {status, step, show, sidecar, updated_at}
 //	PUT  /api/onboarding            {status: started|skipped|done, step?} → the same
-//	POST /api/onboarding/discover   {sidecar?, docker?, hosts?} → {found, checked}
+//	POST /api/onboarding/discover   {sidecar?, docker?, hosts?, urls?} → {found, checked}
+//	POST /api/discover              the same, for Settings → Bring in → Discover
+//	GET  /api/discover/dismissed    hub-wide lead dismissals (dismissals.go), and dismiss / restore
 //
 // status is new (never opened), started (open, or closed to finish later),
 // skipped or done. show says whether the web app opens the wizard on its own:
@@ -186,6 +188,10 @@ func (s *Service) Register(mux *http.ServeMux, wrap func(http.Handler) http.Hand
 	mux.Handle("GET /api/onboarding", wrap(http.HandlerFunc(s.handleGet)))
 	mux.Handle("PUT /api/onboarding", wrap(http.HandlerFunc(s.handlePut)))
 	mux.Handle("POST /api/onboarding/discover", wrap(http.HandlerFunc(s.handleDiscover)))
+	mux.Handle("POST /api/discover", wrap(http.HandlerFunc(s.handleDiscover)))
+	mux.Handle("GET /api/discover/dismissed", wrap(http.HandlerFunc(s.handleDismissed)))
+	mux.Handle("POST /api/discover/dismiss", wrap(s.handleDismissal(true)))
+	mux.Handle("POST /api/discover/restore", wrap(s.handleDismissal(false)))
 }
 
 func (s *Service) handleGet(w http.ResponseWriter, r *http.Request) {

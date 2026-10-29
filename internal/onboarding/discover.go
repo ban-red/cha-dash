@@ -27,6 +27,7 @@ import (
 const (
 	MaxHosts        = 8
 	MaxDocker       = 8
+	MaxURLs         = 16
 	probeTimeout    = 3 * time.Second  // one GET
 	discoverTimeout = 20 * time.Second // the whole request
 	probeParallel   = 8
@@ -45,6 +46,17 @@ type DiscoverRequest struct {
 	// discover hint in their recipe, and Docker's 2375. Names or addresses,
 	// one machine each: no ranges, no subnets.
 	Hosts []string `json:"hosts"`
+	// URLs are leads to check (Settings → Bring in → Discover): an address
+	// the graph already knows for a service, and the integration it looks
+	// like. Each is one GET on the URL itself, plus the integration's
+	// recipe hint path when it has one; nothing else is probed.
+	URLs []URLCheck `json:"urls"`
+}
+
+// URLCheck is one lead to confirm.
+type URLCheck struct {
+	Integration string `json:"integration"`
+	URL         string `json:"url"`
 }
 
 // Candidate is something that answered, with the config to add it.
@@ -120,7 +132,24 @@ func (req DiscoverRequest) clean() (DiscoverRequest, error) {
 	out.Docker, err = norm(req.Docker, MaxDocker, "a Docker endpoint (tcp://host:port or unix:///path)", func(v string) bool {
 		return strings.HasPrefix(v, "tcp://") || strings.HasPrefix(v, "unix:///")
 	})
-	return out, err
+	if err != nil {
+		return out, err
+	}
+	if len(req.URLs) > MaxURLs {
+		return out, fmt.Errorf("%w: at most %d addresses at a time", ErrInvalid, MaxURLs)
+	}
+	for _, u := range req.URLs {
+		p, perr := url.Parse(strings.TrimSpace(u.URL))
+		if perr != nil || (p.Scheme != "http" && p.Scheme != "https") || p.Host == "" || p.User != nil || !validHost(p.Hostname()) {
+			return out, fmt.Errorf("%w: %q isn't an http(s) address of one machine", ErrInvalid, u.URL)
+		}
+		if u.Integration == "" {
+			return out, fmt.Errorf("%w: a URL check needs its integration", ErrInvalid)
+		}
+		p.Path, p.RawQuery, p.Fragment = strings.TrimRight(p.Path, "/"), "", ""
+		out.URLs = append(out.URLs, URLCheck{Integration: u.Integration, URL: p.String()})
+	}
+	return out, nil
 }
 
 // Discover looks at what req names and reports what answered.
@@ -164,6 +193,19 @@ func (s *Service) Discover(ctx context.Context, req DiscoverRequest) (DiscoverRe
 	for _, ep := range req.Docker {
 		wg.Add(1)
 		go docker("docker", ep, ep)
+	}
+	for _, u := range req.URLs {
+		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			c, why := s.checkURL(ctx, u)
+			if c == nil {
+				record(Checked{Target: u.URL, Source: "lead", Error: why})
+				return
+			}
+			c.Source, c.Target = "lead", u.URL
+			record(Checked{Target: u.URL, Source: "lead"}, *c)
+		})
 	}
 	for _, h := range req.Hosts {
 		wg.Go(func() {
@@ -216,8 +258,10 @@ func sourceRank(s string) string {
 		return "0"
 	case "docker":
 		return "1"
+	case "lead":
+		return "2"
 	}
-	return "2"
+	return "3"
 }
 
 func cmpKeys(a1, b1, a2, b2, a3, b3, a4, b4 string) int {
@@ -265,6 +309,53 @@ func (s *Service) testDocker(ctx context.Context, endpoint string) (*Candidate, 
 		c.Name = "Docker on " + u.Hostname()
 	}
 	return c, ""
+}
+
+// checkURL confirms a lead: a GET on its URL (and on the recipe's hint
+// path, when the integration has one) whose body names the service. An
+// integration without a hint counts as found when anything answers.
+func (s *Service) checkURL(ctx context.Context, u URLCheck) (*Candidate, string) {
+	_, m, ok := s.o.Registry.Get(u.Integration)
+	if !ok {
+		return nil, "this hub has no such integration"
+	}
+	cfg := map[string]any{"url": u.URL}
+	if strings.HasPrefix(u.URL, "https://") {
+		cfg["tls"] = map[string]any{"mode": string(integration.TLSTOFU)}
+	}
+	c := &Candidate{Integration: m.ID, Name: m.Name, Config: cfg,
+		Ready:  len(m.SecretFields()) == 0 && m.ConfigSchema.Property("url") != nil && !requiresMore(m),
+		Grants: []integration.Grant{}, Warnings: []integration.Warning{}}
+	r, _ := s.o.Registry.Recipe(m.ID)
+	if len(r.Discover) == 0 {
+		if s.answers(ctx, u.URL) {
+			return c, ""
+		}
+		return nil, "nothing answered there"
+	}
+	for _, h := range r.Discover {
+		if s.matches(ctx, u.URL+h.Path, h.Match) {
+			return c, ""
+		}
+	}
+	return nil, "something answered, but not as " + m.Name
+}
+
+// answers reports whether a GET on u gets any HTTP response.
+func (s *Service) answers(ctx context.Context, u string) bool {
+	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("User-Agent", runtime.UserAgent())
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return true
 }
 
 // probe is one GET that recognises a service on a host.

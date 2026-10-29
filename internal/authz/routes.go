@@ -198,14 +198,28 @@ var Routes = []Route{
 	{Pattern: "GET /api/integrations/authorize/{integration}/{id}", Access: Admin},
 
 	// Import, export and the first-run wizard (which adds integrations).
+	{Pattern: "POST /api/import/detect", Access: Admin},
 	{Pattern: "POST /api/import/homepage", Access: Admin},
 	{Pattern: "GET /api/import/homepage", Access: Admin},
+	{Pattern: "POST /api/import/homarr", Access: Admin},
+	{Pattern: "GET /api/import/homarr", Access: Admin},
+	{Pattern: "POST /api/import/yaml", Access: Admin},
+	{Pattern: "GET /api/import/yaml", Access: Admin},
+	{Pattern: "POST /api/import/discovery", Access: Admin},
+	{Pattern: "GET /api/import/discovery", Access: Admin},
+	{Pattern: "GET /api/imports", Access: Admin},
+	{Pattern: "GET /api/imports/{id}", Access: Admin},
+	{Pattern: "POST /api/imports/{id}/revert", Access: Admin},
 	{Pattern: "GET /api/export", Access: Admin},
 	{Pattern: "POST /api/export", Access: Admin},
 	{Pattern: "POST /api/import/chadash", Access: Admin},
 	{Pattern: "GET /api/onboarding", Access: Admin},
 	{Pattern: "PUT /api/onboarding", Access: Admin},
 	{Pattern: "POST /api/onboarding/discover", Access: Admin},
+	{Pattern: "POST /api/discover", Access: Admin},
+	{Pattern: "GET /api/discover/dismissed", Access: Admin},
+	{Pattern: "POST /api/discover/dismiss", Access: Admin},
+	{Pattern: "POST /api/discover/restore", Access: Admin},
 
 	// Settings → Security: the posture is shown to viewers; changing it, and
 	// the step-up rule, is the owner's.

@@ -8,7 +8,7 @@ import "dash.cha.sh/internal/boards"
 // http(s) are dropped, as the boards API would refuse them; migration 00004
 // converts the tiles an older import record held the same way.
 func TileConfigs(p *Plan) boards.Tiles {
-	out := make(boards.Tiles, len(p.Tiles))
+	out := make(boards.Tiles, len(p.Tiles)+len(p.baseTiles))
 	for _, t := range p.Tiles {
 		c := boards.Tile{
 			Name:        t.Name,
@@ -28,6 +28,10 @@ func TileConfigs(p *Plan) boards.Tiles {
 			}
 		}
 		out[t.ItemID] = c
+	}
+	// Adding to a board: what's already on it stays as the person left it.
+	for id, t := range p.baseTiles {
+		out[id] = t
 	}
 	return out
 }

@@ -1,0 +1,27 @@
+# A hand-written board (plain YAML import). Hosts and secrets are made up.
+apiVersion: chadash/v1alpha1
+kind: Board
+name: Home
+sections:
+  - title: Media
+    span: 8
+    tiles:
+      - name: Sonarr
+        href: https://sonarr.home.example
+        connect: sonarr
+        url: https://sonarr.home.example
+        api_key: 0123456789abcdef0123456789abcdef
+        size: wide
+      - name: Plex
+        connect: plex
+        url: https://plex.home.example
+        token: ${PLEX_TOKEN}
+      - name: Sonarr again
+        connect: sonarr
+        url: https://sonarr.home.example
+        widget: service
+  - title: Links
+    tiles:
+      - {name: Wiki, href: https://wiki.home.example}
+      - {name: Notes, href: https://notes.home.example, check: false}
+      - {name: Printer, href: http://printer.lan, check: "http://10.20.0.7:631"}

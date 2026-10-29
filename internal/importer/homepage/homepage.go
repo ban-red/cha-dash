@@ -869,13 +869,13 @@ func (b *builder) serviceItemID(sec *section, key, suffix string) string {
 // placeTile sizes a tile for its section and appends it to the plan and the
 // layout.
 func (b *builder) placeTile(sec *section, t importer.Tile) {
-	cs := catalog[t.Widget]
-	size := cs.size
+	cs := importer.WidgetSizes[t.Widget]
+	size := cs.Size
 	if importer.SizeWidth(size) > sec.span {
-		size = importer.ClosestFit(cs.sizes, cs.size, sec.span)
+		size = importer.ClosestFit(cs.Sizes, cs.Size, sec.span)
 		if size == "" { // nothing fits: widen the section to the narrowest size
-			narrowest := cs.sizes[0]
-			for _, s := range cs.sizes {
+			narrowest := cs.Sizes[0]
+			for _, s := range cs.Sizes {
 				if importer.SizeWidth(s) < importer.SizeWidth(narrowest) {
 					narrowest = s
 				}
@@ -887,7 +887,7 @@ func (b *builder) placeTile(sec *section, t importer.Tile) {
 	}
 	t.Section = sec.id
 	t.Size = size
-	sec.items = append(sec.items, importer.LayoutItem{ID: t.ItemID, Type: t.Widget, Size: size, SupportedSizes: slices.Clone(cs.sizes)})
+	sec.items = append(sec.items, importer.LayoutItem{ID: t.ItemID, Type: t.Widget, Size: size, SupportedSizes: slices.Clone(cs.Sizes)})
 	b.res.Plan.Tiles = append(b.res.Plan.Tiles, t)
 	idx := len(b.res.Plan.Tiles) - 1
 	if t.Check != "" {
@@ -1210,51 +1210,11 @@ func isHTTP(v string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
-// privateSuffixes are names that only resolve on a LAN, where certificates
-// are usually self-signed (Proxmox on :8006, for example).
-var privateSuffixes = []string{".lan", ".local", ".localdomain", ".home.arpa", ".internal", ".home", ".localhost", ".intranet", ".corp", ".private"}
+// tlsFor picks the TLS policy for an imported URL (importer.TLSFor).
+func tlsFor(raw string) map[string]any { return importer.TLSFor(raw) }
 
-// tlsFor picks the TLS policy for an imported URL. Homepage never verified
-// certificates. Trust-on-first-use keeps a LAN host's self-signed certificate
-// working while still catching a changed one; public names verify normally.
-func tlsFor(raw string) map[string]any {
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "https" {
-		return map[string]any{"mode": "verify"}
-	}
-	host := strings.ToLower(u.Hostname())
-	private := net.ParseIP(host) != nil || !strings.Contains(host, ".")
-	for _, s := range privateSuffixes {
-		private = private || strings.HasSuffix(host, s)
-	}
-	if private {
-		return map[string]any{"mode": "tofu"}
-	}
-	return map[string]any{"mode": "verify"}
-}
-
-// slug lowercases s and keeps ASCII letters and digits, joining runs of
-// anything else with a single dash.
-func slug(s string) string {
-	var sb strings.Builder
-	dash := false
-	for _, r := range strings.ToLower(s) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			if dash && sb.Len() > 0 {
-				sb.WriteByte('-')
-			}
-			sb.WriteRune(r)
-			dash = false
-			continue
-		}
-		dash = true
-	}
-	out := sb.String()
-	if len(out) > 48 {
-		out = strings.TrimRight(out[:48], "-")
-	}
-	return out
-}
+// slug is importer.Slug.
+func slug(s string) string { return importer.Slug(s) }
 
 // unique returns base, or base-2, base-3, … and marks it used.
 func unique(base string, used map[string]bool) string {
