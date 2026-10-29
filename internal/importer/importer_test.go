@@ -443,3 +443,21 @@ func TestApplyLayoutRevisionsAndSlug(t *testing.T) {
 		t.Fatalf("slug changed on rename: %q", slug)
 	}
 }
+
+// A board's flow survives an import that adds to it: the hub decodes the
+// layout and writes it back.
+func TestLayoutDocumentKeepsFlow(t *testing.T) {
+	in := `{"version":1,"columns":12,"flow":"bento","sections":[]}`
+	var d LayoutDocument
+	if err := json.Unmarshal([]byte(in), &d); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := json.Marshal(d)
+	if string(out) != in {
+		t.Fatalf("got %s", out)
+	}
+	d.Flow = ""
+	if out, _ := json.Marshal(d); strings.Contains(string(out), "flow") {
+		t.Fatalf("the default flow is written: %s", out)
+	}
+}

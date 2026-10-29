@@ -7,21 +7,29 @@
  * columns are exactly the board columns it covers (`span` = internal
  * columns), so an item's board column is `section.column + x`.
  *
- * Rows are tracks. Each band (row of sections) gets an optional header
- * track, then its unit rows; bands are separated by a spacer track so the
- * gap between bands is the section gap rather than the gutter.
+ * Rows are tracks. In the `sections` flow each band (row of sections) gets
+ * an optional header track, then its unit rows; bands are separated by a
+ * spacer track so the gap between bands is the section gap rather than the
+ * gutter. In `bento` and `mosaic` every track is half a unit row
+ * (`--layout-track`: two tracks and a gap make a unit), and the engine's
+ * track areas say where everything goes.
  */
-import type { Board, DerivedLayout, Item, PlacedItem, PlacedSection, Section } from '@chadash/layout';
+import { TRACKS_PER_ROW, type Board, type DerivedLayout, type Item, type PlacedItem, type PlacedSection, type Section } from '@chadash/layout';
 
 export interface PlannedSection {
   readonly placed: PlacedSection;
   readonly section: Section;
   /** Track index (0-based) of the band's header row, when the band has one. */
   readonly headerRow: number | undefined;
+  /** Board column and width of the header (a mosaic label is narrower than the board). */
+  readonly headerColumn: number;
+  readonly headerSpan: number;
   /** Track index (0-based) of the section's first unit row. */
   readonly rowStart: number;
   /** Unit rows the section's area covers (at least 1 while editing). */
   readonly rows: number;
+  /** Tracks the section's area covers: `rows`, or two a row in bento (0 in mosaic, which has no areas). */
+  readonly tracks: number;
 }
 
 export interface PlannedItem {
@@ -33,6 +41,8 @@ export interface PlannedItem {
   readonly column: number;
   /** Track index (0-based) of the item's top row. */
   readonly row: number;
+  /** Tracks the item covers: `h`, or `2h` in bento and mosaic. */
+  readonly tracks: number;
 }
 
 export type PlanCell =
@@ -60,6 +70,7 @@ export interface PlanOptions {
 const UNIT = 'var(--layout-unit)';
 const SPACER = 'var(--layout-band-gap)';
 const HEADER = 'auto';
+const TRACK = 'var(--layout-track)';
 
 function hasTitle(section: PlacedSection): boolean {
   return section.title !== undefined && section.title !== '';
@@ -69,6 +80,7 @@ export function planBoard(board: Board, layout: DerivedLayout, options: PlanOpti
   const sourceById = new Map(board.sections.map((s) => [s.id, s]));
   const itemsById = new Map<string, Item>();
   for (const s of board.sections) for (const item of s.items) itemsById.set(item.id, item);
+  if (layout.flow !== 'sections') return planTracks(layout, sourceById, itemsById, options);
 
   const bands: PlacedSection[][] = [];
   for (const s of layout.sections) (bands[s.band] ??= []).push(s);
@@ -82,7 +94,16 @@ export function planBoard(board: Board, layout: DerivedLayout, options: PlanOpti
     const unitRows = Math.max(0, ...band.map(areaRows));
     if (!showHeader && unitRows === 0) {
       for (const s of band) {
-        sections.push({ placed: s, section: sourceById.get(s.id) as Section, headerRow: undefined, rowStart: tracks.length, rows: 0 });
+        sections.push({
+          placed: s,
+          section: sourceById.get(s.id) as Section,
+          headerRow: undefined,
+          headerColumn: s.column,
+          headerSpan: s.span,
+          rowStart: tracks.length,
+          rows: 0,
+          tracks: 0,
+        });
       }
       continue;
     }
@@ -92,7 +113,8 @@ export function planBoard(board: Board, layout: DerivedLayout, options: PlanOpti
     const rowStart = tracks.length;
     for (let i = 0; i < unitRows; i++) tracks.push(UNIT);
     for (const s of band) {
-      sections.push({ placed: s, section: sourceById.get(s.id) as Section, headerRow, rowStart, rows: areaRows(s) });
+      const rows = areaRows(s);
+      sections.push({ placed: s, section: sourceById.get(s.id) as Section, headerRow, headerColumn: s.column, headerSpan: s.span, rowStart, rows, tracks: rows });
     }
   }
 
@@ -112,6 +134,7 @@ export function planBoard(board: Board, layout: DerivedLayout, options: PlanOpti
         section,
         column: placed.column + p.x,
         row: section.rowStart + p.y,
+        tracks: p.h,
       };
       items.push(planned);
       byId.set(p.id, planned);
@@ -119,6 +142,53 @@ export function planBoard(board: Board, layout: DerivedLayout, options: PlanOpti
     }
   }
 
+  return { columns: layout.columns, rowsTemplate: compressTracks(tracks), sections, items, cells, byId };
+}
+
+/** Bento and mosaic: every track is a half row, and the layout's track areas place everything. */
+function planTracks(
+  layout: DerivedLayout,
+  sourceById: ReadonlyMap<string, Section>,
+  itemsById: ReadonlyMap<string, Item>,
+  options: PlanOptions,
+): BoardPlan {
+  const sections: PlannedSection[] = [];
+  const items: PlannedItem[] = [];
+  const cells: PlanCell[] = [];
+  const byId = new Map<string, PlannedItem>();
+  for (const s of layout.sections) {
+    const { area, header } = s;
+    const rows = options.editing ? Math.max(s.rows, 1) : s.rows;
+    const top = area === undefined ? (s.items[0]?.area?.track ?? 0) : area.track + (header === undefined ? 0 : 1);
+    const section: PlannedSection = {
+      placed: s,
+      section: sourceById.get(s.id) as Section,
+      headerRow: header?.track,
+      headerColumn: header?.column ?? s.column,
+      headerSpan: header?.w ?? s.span,
+      rowStart: top,
+      rows: area === undefined ? 0 : rows,
+      tracks: area === undefined ? 0 : rows * TRACKS_PER_ROW,
+    };
+    sections.push(section);
+    if (header !== undefined) cells.push({ kind: 'header', key: `section:${s.id}`, section });
+    for (const p of s.items) {
+      const a = p.area;
+      const planned: PlannedItem = {
+        id: p.id,
+        item: itemsById.get(p.id) as Item,
+        placed: p,
+        section,
+        column: a?.column ?? s.column + p.x,
+        row: a?.track ?? top + p.y * TRACKS_PER_ROW,
+        tracks: a?.tracks ?? p.h * TRACKS_PER_ROW,
+      };
+      items.push(planned);
+      byId.set(p.id, planned);
+      cells.push({ kind: 'item', key: `item:${p.id}`, item: planned });
+    }
+  }
+  const tracks = Array.from({ length: layout.tracks }, () => TRACK);
   return { columns: layout.columns, rowsTemplate: compressTracks(tracks), sections, items, cells, byId };
 }
 
@@ -226,14 +296,14 @@ export function neighbourOf(plan: BoardPlan, id: string, direction: 'left' | 'ri
   if (direction === 'left') return items[index - 1]?.id;
   if (direction === 'right') return items[index + 1]?.id;
   const top = current.row;
-  const bottom = current.row + current.placed.h;
+  const bottom = current.row + current.tracks;
   const centre = current.column + current.placed.w / 2;
   let best: PlannedItem | undefined;
   let bestKey: readonly [number, number] | undefined;
   for (const candidate of items) {
     if (candidate === current) continue;
     const cTop = candidate.row;
-    const cBottom = candidate.row + candidate.placed.h;
+    const cBottom = candidate.row + candidate.tracks;
     let gap: number;
     if (direction === 'up') {
       if (cBottom > top) continue;

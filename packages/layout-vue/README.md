@@ -187,6 +187,8 @@ Undo/redo over the engine's immutable history, as Vue state.
 
 The derived layout (`deriveLayout(board, breakpoint)`) maps onto **one flat CSS grid**. A section's internal columns are exactly the board columns it covers, so an item sits at board column `section.column + x`. Each band of sections gets an optional header track, its unit rows, and a spacer track, so the gap between bands is `--section-gap` while everything else is `--gutter`. Unit rows are square: `--layout-unit` is the column width, computed with container query units on the board.
 
+In the `bento` and `mosaic` flows every row track is half a unit (`--layout-track`), so two tracks and a gap make one unit, and the engine's track areas place each header, section area and item (`data-flow` on `.layout-grid` says which). **A mosaic is edited as bento:** tiles stay in their sections while you drag them, and the mosaic comes back when `editing` is off.
+
 Because every item is a direct child of the same grid, keyed by id, **an item that moves to another section keeps its DOM node and its mounted widget**. DOM and focus order is the engine's: section by section, each section in its Z order.
 
 ### Pointer drag

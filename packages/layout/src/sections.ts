@@ -6,6 +6,7 @@ import {
   packItems,
   replaceSection,
   structureProblems,
+  withFlow,
   withOverrides,
 } from './board.ts';
 import { LayoutError } from './errors.ts';
@@ -13,13 +14,25 @@ import { SIZES, sizeFits } from './sizes.ts';
 import {
   BREAKPOINT_COLUMNS,
   DERIVED_BREAKPOINTS,
+  FLOWS,
   type Board,
   type DerivedBreakpoint,
+  type Flow,
   type Section,
   type SectionInput,
   type SectionOverride,
 } from './types.ts';
 import type { OpOptions } from './operations.ts';
+
+/**
+ * Set how sections share the board (see `Flow`). Positions inside sections
+ * don't change, only where sections and tiles sit on the board. Returns the
+ * same board when the flow is already `flow`.
+ */
+export function setFlow(board: Board, flow: Flow): Board {
+  if (!FLOWS.includes(flow)) throw new LayoutError('INVALID_ARGUMENT', `unknown flow "${String(flow)}"`);
+  return withFlow(board, flow);
+}
 
 /** Insert a new section (at the end by default). */
 export function addSection(board: Board, input: SectionInput, index: number = board.sections.length): Board {

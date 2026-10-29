@@ -27,11 +27,14 @@ export {
   BREAKPOINT_COLUMNS,
   CANONICAL_COLUMNS,
   DERIVED_BREAKPOINTS,
+  FLOWS,
+  TRACKS_PER_ROW,
   type Board,
   type BoardInput,
   type Breakpoint,
   type DerivedBreakpoint,
   type DerivedLayout,
+  type Flow,
   type Item,
   type ItemInput,
   type PlacedItem,
@@ -40,6 +43,7 @@ export {
   type SectionInput,
   type SectionOverride,
   type SectionOverrides,
+  type TrackArea,
 } from './types.ts';
 
 export {
@@ -70,6 +74,7 @@ export {
   clearOverrides,
   moveSection,
   removeSection,
+  setFlow,
   setSectionSpan,
   setSectionTitle,
   type ClearOverridesOptions,
@@ -79,8 +84,10 @@ export {
   deriveAll,
   deriveLayout,
   itemSize,
+  MOSAIC_LABEL_COLUMNS,
   sectionColumns,
   sectionOrder,
+  type DeriveOptions,
   type EffectiveSize,
 } from './derive.ts';
 

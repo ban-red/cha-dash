@@ -5,6 +5,7 @@ import {
   BREAKPOINT_COLUMNS,
   CANONICAL_COLUMNS,
   DERIVED_BREAKPOINTS,
+  FLOWS,
   type Board,
   type BoardInput,
   type DerivedBreakpoint,
@@ -371,8 +372,19 @@ export function buildSection(input: SectionInput): Section {
 export function createBoard(input: BoardInput = {}): Board {
   const sections = input.sections ?? [];
   const problems = structureProblems(sections);
+  if (input.flow !== undefined && !FLOWS.includes(input.flow)) problems.push(`unknown flow "${String(input.flow)}"`);
   if (problems.length > 0) {
     throw new LayoutError('INVALID_BOARD', `invalid board:\n- ${problems.join('\n- ')}`);
   }
-  return { sections: sections.map(buildSection) };
+  return withFlow({ sections: sections.map(buildSection) }, input.flow);
+}
+
+/** A board with `flow` set; `sections` (the default) is stored as no flow at all. */
+export function withFlow(board: Board, flow: Board['flow']): Board {
+  if (flow === undefined || flow === 'sections') {
+    if (board.flow === undefined) return board;
+    const { flow: _, ...rest } = board;
+    return rest;
+  }
+  return board.flow === flow ? board : { ...board, flow };
 }

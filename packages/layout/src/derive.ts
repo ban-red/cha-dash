@@ -1,16 +1,19 @@
 import { mergeOrder } from './board.ts';
-import { pack, type Cell } from './pack.ts';
+import { Occupancy, pack, type Cell } from './pack.ts';
 import { SIZES, autoSize, sizeFits, type SizeId } from './sizes.ts';
 import {
   BREAKPOINTS,
   BREAKPOINT_COLUMNS,
+  TRACKS_PER_ROW,
   type Board,
   type Breakpoint,
   type DerivedLayout,
+  type Flow,
   type Item,
   type PlacedItem,
   type PlacedSection,
   type Section,
+  type TrackArea,
 } from './types.ts';
 
 /**
@@ -85,17 +88,41 @@ export function placeSectionItems(section: Section, breakpoint: Breakpoint): rea
   });
 }
 
+export interface DeriveOptions {
+  /** Lay out with this flow instead of the board's: an editor shows a mosaic as bento. */
+  readonly flow?: Flow;
+  /** Bento and mosaic: `auto` gives titled sections a header track, `always` every section. */
+  readonly headers?: 'auto' | 'always';
+  /** Bento: the fewest rows a section's block keeps, so an empty one can still take a drop while editing. */
+  readonly minRows?: number;
+}
+
+/** The narrowest a section's label is in mosaic (or the whole board, when it's narrower). */
+export const MOSAIC_LABEL_COLUMNS = 2;
+
 /**
  * Derive the full layout at a breakpoint. `desktop` returns the canonical
  * layout; `tablet` and `phone` are derived deterministically from it plus
- * any overrides.
+ * any overrides. Tile sizes and positions inside a section are the same in
+ * every flow; the flow only decides where sections and tiles sit on the board.
  *
- * Sections flow across the board in Z order like CSS grid's default (sparse)
- * auto-placement: a section that doesn't fit in the rest of the band starts
- * a new band, and nothing back-fills.
+ * - `sections`: sections flow across the board in Z order like CSS grid's
+ *   default (sparse) auto-placement: a section that doesn't fit in the rest
+ *   of the band starts a new band, and nothing back-fills.
+ * - `bento`: each section is a block of one header track plus two tracks a
+ *   row, packed by the dense first-fit tiles use, in Z order. A later
+ *   section moves up into a hole that fits it.
+ * - `mosaic`: every tile is packed by the same rule onto the whole board,
+ *   section after section. A section's header is a label glued to the top
+ *   of its first tile: the two pack as one block, as wide as the tile or
+ *   `MOSAIC_LABEL_COLUMNS`, so a label never drifts into a gap of its own.
+ *
+ * All three are pure functions of the board: order is the source of truth,
+ * and a change to one section never moves a section before it.
  */
-export function deriveLayout(board: Board, breakpoint: Breakpoint): DerivedLayout {
+export function deriveLayout(board: Board, breakpoint: Breakpoint, options: DeriveOptions = {}): DerivedLayout {
   const columns = BREAKPOINT_COLUMNS[breakpoint];
+  const flow = options.flow ?? board.flow ?? 'sections';
   let column = 0;
   let band = 0;
   const sections: PlacedSection[] = board.sections.map((section) => {
@@ -113,12 +140,50 @@ export function deriveLayout(board: Board, breakpoint: Breakpoint): DerivedLayou
     column += span;
     return out;
   });
-  return { breakpoint, columns, sections };
+  if (flow === 'sections') return { breakpoint, columns, flow, tracks: 0, sections };
+
+  const grid = new Occupancy(columns);
+  const headed = (s: PlacedSection): boolean => options.headers === 'always' || (s.title !== undefined && s.title !== '');
+  const area = (x: number, track: number, w: number, tracks: number): TrackArea => ({ column: x, track, w, tracks });
+  const placedOn = (it: PlacedItem, x: number, track: number): PlacedItem => ({ ...it, area: area(x, track, it.w, it.h * TRACKS_PER_ROW) });
+
+  const out = sections.map((s): PlacedSection => {
+    const head = headed(s) ? 1 : 0;
+    if (flow === 'bento') {
+      const rows = Math.max(s.rows, options.minRows ?? 0);
+      const tracks = head + rows * TRACKS_PER_ROW;
+      if (tracks === 0) return s; // untitled and empty: nothing to show
+      const at = grid.add(s.span, tracks);
+      const top = at.y + head;
+      const items = s.items.map((it) => placedOn(it, at.x + it.x, top + it.y * TRACKS_PER_ROW));
+      const box = { ...s, column: at.x, items, area: area(at.x, at.y, s.span, tracks) };
+      return head ? { ...box, header: area(at.x, at.y, s.span, 1) } : box;
+    }
+    let header: TrackArea | undefined;
+    const items = s.items.map((it, i) => {
+      const tracks = it.h * TRACKS_PER_ROW;
+      if (i > 0 || !head) {
+        const at = grid.add(it.w, tracks);
+        return placedOn(it, at.x, at.y);
+      }
+      const w = Math.min(Math.max(it.w, MOSAIC_LABEL_COLUMNS), columns);
+      const at = grid.add(w, 1 + tracks);
+      header = area(at.x, at.y, w, 1);
+      return placedOn(it, at.x, at.y + 1);
+    });
+    if (head && s.items.length === 0) {
+      const w = Math.min(MOSAIC_LABEL_COLUMNS, columns);
+      const at = grid.add(w, 1);
+      header = area(at.x, at.y, w, 1);
+    }
+    return header ? { ...s, items, header } : { ...s, items };
+  });
+  return { breakpoint, columns, flow, tracks: grid.height, sections: out };
 }
 
 /** Derive every breakpoint at once. */
-export function deriveAll(board: Board): { readonly [K in Breakpoint]: DerivedLayout } {
+export function deriveAll(board: Board, options: DeriveOptions = {}): { readonly [K in Breakpoint]: DerivedLayout } {
   const out = {} as { [K in Breakpoint]: DerivedLayout };
-  for (const bp of BREAKPOINTS) out[bp] = deriveLayout(board, bp);
+  for (const bp of BREAKPOINTS) out[bp] = deriveLayout(board, bp, options);
   return out;
 }

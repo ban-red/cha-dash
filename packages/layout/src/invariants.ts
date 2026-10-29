@@ -6,11 +6,14 @@ import {
   BREAKPOINTS,
   BREAKPOINT_COLUMNS,
   DERIVED_BREAKPOINTS,
+  FLOWS,
+  TRACKS_PER_ROW,
   type Board,
   type DerivedLayout,
   type Item,
   type PlacedItem,
   type Section,
+  type TrackArea,
 } from './types.ts';
 
 interface Rect {
@@ -41,6 +44,38 @@ function geometryProblems(rects: readonly Rect[], columns: number, where: string
       }
     }
   }
+  return problems;
+}
+
+const trackRect = (id: string, a: TrackArea): Rect => ({ id, x: a.column, y: a.track, w: a.w, h: a.tracks });
+
+/**
+ * Bento and mosaic: what sits on the board (bento's section blocks, mosaic's
+ * labels and tiles) is in bounds and never overlaps, and every tile's area
+ * is its extent in tracks (inside its block, in bento).
+ */
+function trackProblems(layout: DerivedLayout): string[] {
+  const where = `${layout.breakpoint}.${layout.flow}`;
+  const problems: string[] = [];
+  const onBoard: Rect[] = [];
+  for (const s of layout.sections) {
+    if (layout.flow === 'bento') {
+      if (s.area !== undefined) onBoard.push(trackRect(s.id, s.area));
+    } else if (s.header !== undefined) onBoard.push(trackRect(`${s.id} (label)`, s.header));
+    for (const p of s.items) {
+      const a = p.area;
+      if (a === undefined) {
+        problems.push(`${where}: "${p.id}" has no area`);
+        continue;
+      }
+      if (a.w !== p.w || a.tracks !== p.h * TRACKS_PER_ROW) problems.push(`${where}: "${p.id}" area doesn't match its extent`);
+      if (layout.flow === 'mosaic') onBoard.push(trackRect(p.id, a));
+      else if (s.area === undefined || a.column < s.area.column || a.column + a.w > s.area.column + s.area.w || a.track < s.area.track || a.track + a.tracks > s.area.track + s.area.tracks) {
+        problems.push(`${where}: "${p.id}" is outside its section's block`);
+      }
+    }
+  }
+  problems.push(...geometryProblems(onBoard, layout.columns, where));
   return problems;
 }
 
@@ -125,6 +160,7 @@ export function checkLayout(board: Board, layout: DerivedLayout): string[] {
       }
     }
   }
+  if (layout.flow !== 'sections') problems.push(...trackProblems(layout));
   return problems;
 }
 
@@ -136,7 +172,7 @@ export function checkLayout(board: Board, layout: DerivedLayout): string[] {
  * - canonical positions equal the dense Z-reflow of item order (so items
  *   are in bounds and never overlap)
  * - overrides are in normal form (orders are permutations, sizes supported)
- * - every derived breakpoint is in bounds and overlap-free
+ * - every derived breakpoint is in bounds and overlap-free, in every flow
  */
 export function checkInvariants(board: Board): string[] {
   const problems = structureProblems(board.sections);
@@ -144,6 +180,9 @@ export function checkInvariants(board: Board): string[] {
   board.sections.forEach((section, s) => {
     problems.push(...sectionProblems(section, `sections[${s}]`));
   });
-  for (const bp of BREAKPOINTS) problems.push(...checkLayout(board, deriveLayout(board, bp)));
+  if (board.flow !== undefined && !FLOWS.includes(board.flow)) problems.push(`unknown flow "${String(board.flow)}"`);
+  for (const bp of BREAKPOINTS) {
+    for (const flow of FLOWS) problems.push(...checkLayout(board, deriveLayout(board, bp, { flow })));
+  }
   return problems;
 }

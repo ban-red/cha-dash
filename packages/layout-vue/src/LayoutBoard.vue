@@ -2,7 +2,9 @@
 /**
  * <LayoutBoard>: renders a `@chadash/layout` board and edits it.
  *
- * Rendering is one flat CSS grid (see plan.ts). Editing never mutates
+ * Rendering is one flat CSS grid (see plan.ts), in the board's flow. A
+ * mosaic is edited as bento: tiles stay in their sections while you move
+ * them, and the mosaic comes back when editing ends. Editing never mutates
  * anything: every gesture computes boards with engine operations from the
  * board it started on, shows them as a local preview, emits them as
  * `update:board`, and emits `commit` once when the gesture ends. Engine
@@ -23,6 +25,7 @@ import {
   stepSize,
   type Board,
   type Breakpoint,
+  type DeriveOptions,
   type Direction,
   type Item,
   type PlacedSection,
@@ -73,10 +76,15 @@ const source = computed(() => toRaw(props.board));
 /** The board shown while a gesture runs; `null` shows the prop. */
 const preview = shallowRef<Board | null>(null);
 const display = computed(() => preview.value ?? source.value);
-const layout = computed(() => deriveLayout(display.value, breakpoint.value));
-const plan = computed(() =>
-  planBoard(display.value, layout.value, { editing: props.editing, headers: slots.section === undefined ? 'auto' : 'always' }),
-);
+const headers = computed<'auto' | 'always'>(() => (slots.section === undefined ? 'auto' : 'always'));
+/** How the engine lays the board out here: the board's flow (a mosaic shows as bento while editing). */
+const deriveOptions = computed<DeriveOptions>(() => {
+  const flow = props.editing && display.value.flow === 'mosaic' ? 'bento' : display.value.flow;
+  const base = { headers: headers.value, minRows: props.editing ? 1 : 0 };
+  return flow === undefined ? base : { ...base, flow };
+});
+const layout = computed(() => deriveLayout(display.value, breakpoint.value, deriveOptions.value));
+const plan = computed(() => planBoard(display.value, layout.value, { editing: props.editing, headers: headers.value }));
 
 const instructionsId = `${useId()}-instructions`;
 
@@ -152,7 +160,7 @@ const tabStop = computed(() => {
 const dropArea = computed(() => {
   const id = dropFor.value;
   const planned = id === null ? undefined : plan.value.byId.get(id);
-  return planned === undefined ? undefined : gridArea(planned.column, planned.row, planned.placed.w, planned.placed.h);
+  return planned === undefined ? undefined : gridArea(planned.column, planned.row, planned.placed.w, planned.tracks);
 });
 
 // ---------------------------------------------------------------------------
@@ -196,7 +204,7 @@ function sectionName(section: PlacedSection): string {
 
 /** "row 2, column 5", with the section when the item changed section since `from`. */
 function positionText(board: Board, id: string, from?: Board): string {
-  const placedLayout = deriveLayout(board, breakpoint.value);
+  const placedLayout = deriveLayout(board, breakpoint.value, deriveOptions.value);
   for (const section of placedLayout.sections) {
     const placed = section.items.find((it) => it.id === id);
     if (placed === undefined) continue;
@@ -768,7 +776,7 @@ function cancelPointer(): void {
 // ---------------------------------------------------------------------------
 
 function headerStyle(section: PlannedSection): { gridColumn: string; gridRow: string } {
-  return { gridColumn: `${section.placed.column + 1} / span ${section.placed.span}`, gridRow: `${(section.headerRow ?? 0) + 1}` };
+  return { gridColumn: `${section.headerColumn + 1} / span ${section.headerSpan}`, gridRow: `${(section.headerRow ?? 0) + 1}` };
 }
 
 function itemName(id: string, size: SizeId): string {
@@ -786,15 +794,15 @@ function itemName(id: string, size: SizeId): string {
     :aria-label="editing ? messages.board : undefined"
     :aria-describedby="editing ? instructionsId : undefined"
   >
-    <div ref="grid" class="layout-grid" :style="{ '--layout-columns': plan.columns, gridTemplateRows: plan.rowsTemplate }">
+    <div ref="grid" class="layout-grid" :data-flow="layout.flow" :style="{ '--layout-columns': plan.columns, gridTemplateRows: plan.rowsTemplate }">
       <template v-if="editing">
         <div
-          v-for="section in plan.sections"
+          v-for="section in plan.sections.filter((s) => layout.flow === 'sections' || s.tracks > 0)"
           :key="`area:${section.placed.id}`"
           :ref="(el) => setAreaRef(section.placed.id, el)"
           class="layout-area"
           aria-hidden="true"
-          :style="gridArea(section.placed.column, section.rowStart, section.placed.span, Math.max(section.rows, 1))"
+          :style="gridArea(section.placed.column, section.rowStart, section.placed.span, Math.max(section.tracks, 1))"
           :data-section-area="section.placed.id"
           :data-column="section.placed.column"
           :data-span="section.placed.span"
@@ -823,7 +831,7 @@ function itemName(id: string, size: SizeId): string {
             'is-resizing': resizing === cell.item.id,
             'is-picked': picked?.id === cell.item.id,
           }"
-          :style="gridArea(cell.item.column, cell.item.row, cell.item.placed.w, cell.item.placed.h)"
+          :style="gridArea(cell.item.column, cell.item.row, cell.item.placed.w, cell.item.tracks)"
           :data-item-id="cell.item.id"
           :data-section="cell.item.section.placed.id"
           :data-size="cell.item.placed.size"
@@ -880,6 +888,8 @@ function itemName(id: string, size: SizeId): string {
   --layout-gap: var(--gutter, 12px);
   --layout-unit: calc((100cqi - (var(--layout-columns) - 1) * var(--layout-gap)) / var(--layout-columns));
   --layout-band-gap: max(0px, calc(var(--section-gap, 30px) - 2 * var(--layout-gap)));
+  /* bento and mosaic: half a unit row, so two tracks and a gap make a unit */
+  --layout-track: calc((var(--layout-unit) - var(--layout-gap)) / 2);
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--layout-columns), minmax(0, 1fr));
@@ -894,6 +904,11 @@ function itemName(id: string, size: SizeId): string {
   gap: var(--space-3, 12px);
   align-self: end;
   min-width: 0;
+}
+
+/* Bento and mosaic: a header has one track, so it sits in the middle of it. */
+.layout-grid:not([data-flow='sections']) .layout-section-header {
+  align-self: center;
 }
 
 .layout-section-header::after {

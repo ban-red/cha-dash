@@ -16,13 +16,15 @@
  *   grabbed), from the toolbar; Delete or Backspace removes it too. A
  *   tile's cog outside edit mode (`ui.state.editingTile`) opens its Edit. Removing
  *   never asks: Undo puts it back, config and all.
+ * - **Flow:** how sections share the board (Sections, Bento, Mosaic), for
+ *   everyone who views it. A mosaic is edited as bento (LayoutBoard).
  * - **History:** one step per gesture, add, edit or remove, over the board
  *   and its tiles together (useBoardHistory). Every step is shown and saved
  *   through the board store; on a 409 the store loads the other writer's
  *   board, which starts a fresh history because it isn't the present one.
  */
 import { computed, defineAsyncComponent, nextTick, onMounted, ref, watch } from 'vue';
-import { LayoutError, type Board, type Breakpoint, type Item } from '@chadash/layout';
+import { LayoutError, setFlow, type Board, type Breakpoint, type Flow, type Item } from '@chadash/layout';
 import { LayoutBoard } from '@chadash/layout-vue';
 import { onKeyStroke } from '@vueuse/core';
 import SectionHeader from './SectionHeader.vue';
@@ -90,6 +92,20 @@ function step(direction: 'undo' | 'redo'): void {
   const can = direction === 'undo' ? history.canUndo.value : history.canRedo.value;
   if (!can) return;
   persist(direction === 'undo' ? history.undo() : history.redo());
+}
+
+const FLOW_CHOICES: readonly { flow: Flow; name: string; hint: string }[] = [
+  { flow: 'sections', name: 'Sections', hint: 'Sections side by side, in rows' },
+  { flow: 'bento', name: 'Bento', hint: 'Sections fit together, filling the gaps' },
+  { flow: 'mosaic', name: 'Mosaic', hint: 'Every tile fits together, section by section. Edited as Bento.' },
+];
+const flow = computed<Flow>(() => present.value.board.flow ?? 'sections');
+
+function chooseFlow(next: Flow): void {
+  if (next === flow.value) return;
+  apply({ board: setFlow(present.value.board, next), tiles: present.value.tiles });
+  const choice = FLOW_CHOICES.find((c) => c.flow === next);
+  ui.toast(next === 'mosaic' ? 'Mosaic. You’ll see it when you’re done editing.' : `${choice?.name ?? next}.`);
 }
 
 /** "Queue: Sonarr", "Cameras": the name in labels, announcements and toasts. */
@@ -221,6 +237,9 @@ onKeyStroke('z', (e) => {
     </span>
     <span v-else class="edit-hint">Drag a tile, or resize it from its corner. Select one to edit or remove it. With the keyboard, Enter picks a tile up and the arrows move it.</span>
     <span v-if="store.state.unsaved" class="edit-unsaved" role="status">Not saved</span>
+    <div class="flow-seg" role="group" aria-label="Layout">
+      <button v-for="c in FLOW_CHOICES" :key="c.flow" type="button" :aria-pressed="flow === c.flow" :title="c.hint" @click="chooseFlow(c.flow)">{{ c.name }}</button>
+    </div>
     <button type="button" class="btn sm" @click="openPicker()">Add widget</button>
     <button v-if="dismissedCount" type="button" class="btn ghost sm" @click="showDismissed = true">Dismissed · {{ dismissedCount }}</button>
     <button type="button" class="btn ghost sm" :disabled="!history.canUndo.value" @click="step('undo')">Undo</button>
@@ -289,6 +308,37 @@ onKeyStroke('z', (e) => {
 .edit-unsaved {
   font-size: var(--type-caption);
   color: var(--attention-text);
+}
+/* Layout: Sections, Bento, Mosaic. */
+.flow-seg {
+  display: flex;
+  padding: 2px;
+  border-radius: calc(var(--radius-md) + 2px);
+  background: color-mix(in oklch, var(--text) 7%, transparent);
+}
+.flow-seg button {
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: var(--weight-medium) var(--type-small) / 1 var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.flow-seg button:hover {
+  color: var(--text);
+}
+.flow-seg button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 0 0 var(--hairline) var(--line-2),
+    0 1px 2px color-mix(in oklch, var(--bg) 60%, transparent);
+}
+.flow-seg button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 .sh-edit {
   display: flex;

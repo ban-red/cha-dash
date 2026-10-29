@@ -1,8 +1,18 @@
 <script setup lang="ts">
 /**
  * The read-only board renderer: @chadash/layout derives positions for the
- * board's own width (12 / 8 / 4 columns) and CSS grid places them. Sections
- * flow in bands; items sit at their derived x/y inside a square-unit grid.
+ * board's own width (12 / 8 / 4 columns) and CSS grid places them, in the
+ * board's flow:
+ * - `sections`: sections flow in bands; items sit at their derived x/y inside
+ *   a square-unit grid.
+ * - `bento`: the board's rows are half-unit tracks (two and a gap make a
+ *   unit). Each section is a block at its track area: a header track, then
+ *   the same square-unit grid as in bands.
+ * - `mosaic`: no section blocks. Every tile, and each section's label, sits
+ *   on the board at its track area; a section is a `display: contents`
+ *   region, so screen readers still hear it.
+ * The board's tracks need its width, so bento and mosaic wrap it in a
+ * container (`.board-flow`).
  *
  * Integration seam: its props and slots are a subset of `<LayoutBoard>` from
  * @chadash/layout-vue (`ItemSlotProps`, `SectionSlotProps`), so edit mode is a
@@ -21,6 +31,7 @@ import {
   type PlacedItem,
   type PlacedSection,
   type SizeId,
+  type TrackArea,
 } from '@chadash/layout';
 import { useBreakpoint } from './useBreakpoint';
 import { isFresh } from '../import/fresh';
@@ -39,7 +50,8 @@ defineSlots<{
 const root = ref<HTMLElement | null>(null);
 const { breakpoint: measured } = useBreakpoint(root);
 const bp = computed<Breakpoint>(() => forced ?? measured.value);
-const layout = computed(() => deriveLayout(board, bp.value));
+// Every section gets a header track: the app's section slot always draws one.
+const layout = computed(() => deriveLayout(board, bp.value, { headers: 'always' }));
 const columns = computed(() => BREAKPOINT_COLUMNS[bp.value]);
 /** Canonical items by id: the slot gets the item, plus its size at this breakpoint. */
 const items = computed(() => new Map(board.sections.flatMap((s) => s.items.map((i) => [i.id, i] as const))));
@@ -47,10 +59,38 @@ const items = computed(() => new Map(board.sections.flatMap((s) => s.items.map((
 const sectionStyle = (s: PlacedSection) => ({ gridColumn: `${s.column + 1} / span ${s.span}`, gridRow: `${s.band + 1}` });
 const gridStyle = (s: PlacedSection) => ({ '--scols': String(s.span), gridTemplateRows: s.rows ? `repeat(${s.rows}, var(--u))` : undefined });
 const itemStyle = (i: PlacedItem) => ({ gridColumn: `${i.x + 1} / span ${i.w}`, gridRow: `${i.y + 1} / span ${i.h}` });
+const areaStyle = (a: TrackArea | undefined) => (a ? { gridColumn: `${a.column + 1} / span ${a.w}`, gridRow: `${a.track + 1} / span ${a.tracks}` } : undefined);
+const flowStyle = computed(() => ({ '--cols': String(columns.value), gridTemplateRows: layout.value.tracks ? `repeat(${layout.value.tracks}, var(--track))` : undefined }));
 </script>
 
 <template>
-  <div ref="root" class="board" :data-breakpoint="bp" :style="{ '--cols': String(columns) }">
+  <div v-if="layout.flow !== 'sections'" ref="root" class="board-flow" :data-breakpoint="bp">
+    <div class="board" :data-flow="layout.flow" :style="flowStyle">
+      <template v-if="layout.flow === 'bento'">
+        <template v-for="s in layout.sections" :key="s.id">
+          <section v-if="s.area" class="sec" :style="areaStyle(s.area)" :aria-label="s.title ?? s.id">
+            <slot name="section" :section="s" :editing="false"></slot>
+            <div class="sec-grid" :style="gridStyle(s)">
+              <div v-for="i in s.items" :key="i.id" :class="['cell', { 'is-new': isFresh(i.id) }]" :data-item="i.id" :data-forced="i.forced || undefined" :style="itemStyle(i)">
+                <slot v-if="items.get(i.id)" name="item" :item="items.get(i.id)!" :size="i.size" :editing="false" :dragging="false" :placed="i"></slot>
+              </div>
+            </div>
+          </section>
+        </template>
+      </template>
+      <template v-else>
+        <section v-for="s in layout.sections" :key="s.id" class="sec mosaic-sec" :aria-label="s.title ?? s.id">
+          <div v-if="s.header" class="mosaic-label" :style="areaStyle(s.header)">
+            <slot name="section" :section="s" :editing="false"></slot>
+          </div>
+          <div v-for="i in s.items" :key="i.id" :class="['cell', { 'is-new': isFresh(i.id) }]" :data-item="i.id" :data-forced="i.forced || undefined" :style="areaStyle(i.area)">
+            <slot v-if="items.get(i.id)" name="item" :item="items.get(i.id)!" :size="i.size" :editing="false" :dragging="false" :placed="i"></slot>
+          </div>
+        </section>
+      </template>
+    </div>
+  </div>
+  <div v-else ref="root" class="board" :data-breakpoint="bp" :style="{ '--cols': String(columns) }">
     <section v-for="s in layout.sections" :key="s.id" class="sec" :style="sectionStyle(s)" :aria-label="s.title ?? s.id">
       <slot name="section" :section="s" :editing="false"></slot>
       <div class="sec-grid" :style="gridStyle(s)">
@@ -63,6 +103,41 @@ const itemStyle = (i: PlacedItem) => ({ gridColumn: `${i.x + 1} / span ${i.w}`, 
 </template>
 
 <style>
+/* Bento and mosaic: the board's rows are half-unit tracks, from the board's own width. */
+.board-flow {
+  container-type: inline-size;
+}
+.board-flow > .board {
+  --u: calc((100cqi - (var(--cols) - 1) * var(--gutter)) / var(--cols));
+  --track: calc((var(--u) - var(--gutter)) / 2);
+  row-gap: var(--gutter);
+  align-items: stretch;
+}
+.board[data-flow='bento'] > .sec {
+  display: grid;
+  grid-template-rows: var(--track) auto;
+  row-gap: var(--gutter);
+  align-content: start;
+}
+/* A header has one track: it sits in the middle of it, and long meta is cut. */
+.board[data-flow] .sh {
+  align-self: center;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.mosaic-sec {
+  display: contents;
+}
+.mosaic-label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.mosaic-label > .sh {
+  flex: 1;
+}
+
 /* Tiles an import just added: a ring for a few seconds (import/fresh.ts). */
 .cell.is-new {
   border-radius: var(--radius-md);

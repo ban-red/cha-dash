@@ -16,8 +16,11 @@ const LayoutColumns = 12
 // order matches serialize.ts, so a document built here encodes to the same
 // JSON the web app would write for the same board.
 type LayoutDocument struct {
-	Version  int             `json:"version"`
-	Columns  int             `json:"columns"`
+	Version int `json:"version"`
+	Columns int `json:"columns"`
+	// Flow is how sections share the board ("bento", "mosaic"); empty is
+	// the default ("sections"). Kept as it is when an import adds to a board.
+	Flow     string          `json:"flow,omitempty"`
 	Sections []LayoutSection `json:"sections"`
 }
 

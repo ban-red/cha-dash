@@ -241,6 +241,7 @@ Each widget **declares which sizes it supports**. The resize handle snaps only t
 ### Sections and reflow
 - The page is a column of **sections**, each with an internal column count. Sections flow in Z order.
 - When the viewport narrows, a section keeps its internal structure and wraps as a unit. This is Home Assistant's approach, chosen over masonry for predictability and muscle memory.
+- **Flow is a per-board choice** ([ADR-0030](../adr/0030-board-flows.md)). Sections in bands is the default. **Bento** packs sections densely so a short section stops leaving a hole, and **Mosaic** packs every tile, with each section's name as a label on its first tile. Neither is masonry: both are computed from order and sizes, so nothing reshuffles.
 - **One canonical layout.** Phone, tablet and wall layouts are derived from it automatically. Users can add per-device overrides, but never *have* to maintain a second layout.
 - **Needs attention** is a system section. It appears at the top **only when it has something in it**:
   - Tiles in an attention or down state are mirrored into it (not moved), so your layout never reshuffles.

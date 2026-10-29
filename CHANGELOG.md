@@ -29,6 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Warning icons explain themselves.** Hover over a tile's warning icon, or tab to it, to see the warning; click it to read it in full.
 - **Long tile notes open in full.** A warning longer than two lines, such as Prowlarr's own health messages, is cut with "more" on the tile. Click it to read the whole message in a dialog.
+- **Bento and Mosaic boards.** Edit layout has a Layout choice: **Sections** (side by side in rows, as before), **Bento** (sections fit together, so a short section no longer leaves a hole beside a tall one) and **Mosaic** (every tile fits together, with each section's name on its first tile). It's saved with the board for everyone. Nothing reshuffles: the same board always looks the same, and tile sizes don't change. A Mosaic board is edited as Bento.
 - **Bazarr says what its health issues are.** The tile lists them as Bazarr does ("/tv: Directory does not exist") instead of only counting them. The note links to Bazarr's System → Status page, or System → Providers for throttled providers, and opens it in a new tab; a cut note's dialog has the same link.
 
 ### Changed

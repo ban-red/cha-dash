@@ -4,8 +4,10 @@ import type { SizeId } from './sizes.ts';
 import {
   CANONICAL_COLUMNS,
   DERIVED_BREAKPOINTS,
+  FLOWS,
   type Board,
   type DerivedBreakpoint,
+  type Flow,
   type Section,
   type SectionInput,
 } from './types.ts';
@@ -44,6 +46,8 @@ export interface LayoutDocument {
   readonly version: typeof LAYOUT_VERSION;
   /** Canonical board columns. Always 12 in version 1. */
   readonly columns: typeof CANONICAL_COLUMNS;
+  /** How sections share the board. Written only when it isn't `sections`. */
+  readonly flow?: Exclude<Flow, 'sections'>;
   readonly sections: readonly SectionDocument[];
 }
 
@@ -103,7 +107,10 @@ function sectionDocument(section: Section): SectionDocument {
 
 /** Convert a board to its plain, versioned document form. */
 export function toDocument(board: Board): LayoutDocument {
-  return { version: LAYOUT_VERSION, columns: CANONICAL_COLUMNS, sections: board.sections.map(sectionDocument) };
+  const sections = board.sections.map(sectionDocument);
+  return board.flow === undefined || board.flow === 'sections'
+    ? { version: LAYOUT_VERSION, columns: CANONICAL_COLUMNS, sections }
+    : { version: LAYOUT_VERSION, columns: CANONICAL_COLUMNS, flow: board.flow, sections };
 }
 
 /** Serialize a board to JSON. Equal boards produce identical strings. */
@@ -173,7 +180,10 @@ export function fromDocument(input: unknown, options: ReadOptions = {}): Board {
   const inputs = sections as SectionInput[];
   const problems = structureProblems(inputs);
   if (problems.length > 0) throw invalid(`invalid layout document:\n- ${problems.join('\n- ')}`);
-  return { sections: inputs.map(buildSection) };
+  // A flow this engine doesn't know (a newer app's) reads as the default rather than failing the board.
+  const flow = document['flow'];
+  const known = typeof flow === 'string' && (FLOWS as readonly string[]).includes(flow) && flow !== 'sections';
+  return known ? { sections: inputs.map(buildSection), flow: flow as Flow } : { sections: inputs.map(buildSection) };
 }
 
 /** Parse JSON produced by `serialize` (or an older version of it). */

@@ -51,6 +51,7 @@ The package exports TypeScript source (`"exports": "./src/index.ts"`). Bun and V
 
 ```
 Board
+├── flow?                         sections (default), bento or mosaic: how sections share the board
 └── sections: Section[]          Z order (reading order) on the board
     ├── id, title?, span          span = width in board columns at desktop = internal columns
     ├── items: Item[]             Z order inside the section — the source of truth
@@ -61,11 +62,12 @@ Board
 
 | Type | Notes |
 |---|---|
-| `Board` | `{ sections }`. |
+| `Board` | `{ sections, flow? }`. An absent `flow` is `sections`. |
 | `Section` | `span` is 1–12. The section's internal grid has `span` columns. |
 | `Item` | `id` is unique across the whole board. `type` is the widget type and is opaque to the engine. `size` is always one of `supportedSizes`, and always fits the section. `x`/`y` are the canonical position inside the section, **derived from item order**; you never set them. |
 | `SectionOverride` | Optional per-breakpoint adjustments: a `span`, an item `order`, and per-item `sizes`. An absent field means "derive it". |
-| `DerivedLayout` | Output of `deriveLayout`: placed sections (`column`, `band`, `span`, `rows`) with placed items (`x`, `y`, `w`, `h`, `size`, `forced`). |
+| `DerivedLayout` | Output of `deriveLayout`: its `flow` and `tracks`, placed sections (`column`, `band`, `span`, `rows`, and in bento and mosaic `area` and `header`) with placed items (`x`, `y`, `w`, `h`, `size`, `forced`, and in bento and mosaic `area`). |
+| `TrackArea` | Bento and mosaic: a box on the board, `{ column, track, w, tracks }`, in board columns and half-row tracks. |
 
 ### Sizes
 
@@ -121,6 +123,25 @@ For each section at a breakpoint with *C* board columns:
 Sections then flow across the board in Z order, like CSS grid's default *sparse* auto-placement. A section that doesn't fit in the rest of the current band starts a new band, and nothing back-fills. Each placed section reports its `band`, its `column` and its height in `rows`.
 
 Derivation is a pure function of the board, so it's deterministic. Results are never stored.
+
+### Flows
+
+The board's `flow` decides where sections and tiles sit on the board. It never changes a tile's size or its position inside its section, so switching flows resizes nothing.
+
+| Flow | What it does |
+|---|---|
+| `sections` (default) | The sparse bands above. Each band is as tall as its tallest section, so a short section beside a tall one leaves a hole under it. |
+| `bento` | Each section is a block: one header track, then two tracks per row. Blocks are packed by the same dense first-fit as tiles, in Z order, so a later section moves up into a hole that fits it. |
+| `mosaic` | No blocks. Every tile is packed onto the whole board by the same rule, section after section. A section's header is a label glued to the top of its first tile: the two pack as one block, as wide as the tile or `MOSAIC_LABEL_COLUMNS` (2), so a label never drifts into a gap of its own. |
+
+Bento and mosaic work on **tracks**, each half a unit row (`TRACKS_PER_ROW` is 2). Two tracks and the gap between them are exactly one unit, so a tile `h` rows tall covers `2h` tracks and lines up with every other tile, and a header takes one track instead of a whole row. `deriveLayout` reports each section's `area` (bento), `header` (bento and mosaic) and each item's `area`, plus the board's total `tracks`.
+
+This is not masonry. Masonry places by measured heights and reshuffles when content or width changes. Both flows are pure functions of order and sizes, like everything else here: the same board gives the same picture, and a change to one section never moves a section before it (property-tested). See [ADR-0030](../../docs/adr/0030-board-flows.md).
+
+`deriveLayout(board, breakpoint, options)` takes options for renderers:
+- `flow`: lay out with another flow than the board's. The editor shows a mosaic as bento, so tiles stay in their sections while you move them.
+- `headers`: `auto` (the default) gives a header track to titled sections only, `always` to every section, for a renderer that always draws a header.
+- `minRows`: the fewest rows a bento block keeps, so an empty section can still take a drop while editing.
 
 ---
 
@@ -202,6 +223,7 @@ Returns the same board when there is nowhere to go.
 | `removeSection(board, id)` | Remove a section and its items. |
 | `moveSection(board, id, toIndex)` | Move a section to an index (clamped). |
 | `setSectionTitle(board, id, title?)` | Set or clear (with `undefined` or `''`) the title. |
+| `setFlow(board, flow)` | Set the board's flow (`sections`, `bento`, `mosaic`). `sections` is stored as no flow at all. Returns the same board when nothing changes; throws `INVALID_ARGUMENT` for an unknown flow. |
 | `setSectionSpan(board, id, span, { breakpoint? })` | At `desktop`, change the canonical span (1–12) and repack. Refuses with `NO_FIT` if an item would no longer fit; resize it first. At `tablet`/`phone`, store a span override (1–*C*), or clear it when it equals the derived default. |
 | `clearOverrides(board, { sectionId?, breakpoint? })` | Drop overrides so those layouts are fully derived again. |
 
@@ -209,8 +231,8 @@ Returns the same board when there is nowhere to go.
 
 | Function | Description |
 |---|---|
-| `deriveLayout(board, breakpoint)` | The full placed layout at a breakpoint. `desktop` returns the canonical layout. |
-| `deriveAll(board)` | `{ desktop, tablet, phone }`. |
+| `deriveLayout(board, breakpoint, options?)` | The full placed layout at a breakpoint, in the board's flow. `desktop` returns the canonical layout. Options: `flow`, `headers`, `minRows` (see [Flows](#flows)). |
+| `deriveAll(board, options?)` | `{ desktop, tablet, phone }`. |
 | `sectionColumns(section, breakpoint)` | Internal columns of a section at a breakpoint. |
 | `sectionOrder(section, breakpoint)` | Items in Z order at a breakpoint. |
 | `itemSize(section, item, breakpoint)` | `{ size, forced }` at a breakpoint. |
@@ -269,6 +291,7 @@ The hub stores layouts in SQLite as JSON. The format is versioned:
 {
   "version": 1,
   "columns": 12,
+  "flow": "bento",
   "sections": [
     {
       "id": "infra",
@@ -294,6 +317,7 @@ The hub stores layouts in SQLite as JSON. The format is versioned:
 - **Round trip:** `deserialize(serialize(b))` deep-equals `b`, and serializing again gives the identical string. Property-tested.
 - **Positions are informational.** `x`/`y` are written for readers that don't run the engine, such as server-side snapshots. On load they're recomputed from item order, which is authoritative.
 - **Migration hook.** A migration receives a plain object with `version: N` and must return one with `version: N + 1`. Pass extra or replacement migrations through `options.migrations`; they're consulted before the built-in ones. Documents from a newer version are refused rather than guessed at.
+- **Flow** is written only when it isn't `sections`, so a board in the default flow serializes exactly as before. An unknown flow (a newer app's) reads as `sections` rather than failing the board.
 - Unknown keys are ignored. Stale override references are dropped on load.
 
 ---
@@ -307,7 +331,7 @@ Non-obvious choices made in this spike. Each one is easy to revisit.
 3. **Drop-target semantics:** nearest landing cell by Euclidean distance to the requested top-left. Ties within a run of equal cells keep the current index, or else follow reading order (see [Drop targets](#drop-targets)).
 4. **Size names.** The experience doc calls both 4×1 and 8×1 "Strip". They're `strip` and `strip-long` here.
 5. **Narrow-grid fallback** keeps the height first, then the closest width (hero → large, long strip → strip), using supported sizes first. When nothing supported fits, the engine uses a system size and flags it `forced` rather than failing; the renderer decides how to show that. **Recommendation:** widgets that support `hero` should also support `large`, and `strip-long` should come with `strip`.
-6. **Sections:** `span` is both the desktop width and the internal column count. Derived span is `min(span, C)`, so sections that fit are untouched and only too-wide ones are re-flowed. Sections flow in sparse bands (no back-fill), like CSS grid's default auto-placement.
+6. **Sections:** `span` is both the desktop width and the internal column count. Derived span is `min(span, C)`, so sections that fit are untouched and only too-wide ones are re-flowed. By default sections flow in sparse bands (no back-fill), like CSS grid's default auto-placement; the `bento` and `mosaic` flows pack them densely instead ([Flows](#flows), ADR-0030).
 7. **Overrides** live per section and per derived breakpoint: span, order and sizes. Stored orders are complete permutations, and items added later slot in after their canonical predecessor. Writing an override that equals the derived default clears it. An order that merely *becomes* equal to the canonical order after canonical edits is kept, so a phone customization is never silently lost.
 8. **Section membership is canonical.** Cross-section moves only happen at `desktop`. They adopt the closest supported size that fits the destination. `setSectionSpan` at `desktop` refuses rather than resizing items behind your back.
 9. **Errors vs clamping.** Unknown ids, unsupported sizes and malformed input throw. Pointer-ish input (targets, indices) is clamped. No-ops return the same object, so `commit` ignores them.

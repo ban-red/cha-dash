@@ -1,4 +1,4 @@
-import { deriveLayout } from '@chadash/layout';
+import { deriveLayout, setFlow } from '@chadash/layout';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { BREAKPOINT_LIST, homeBoard, mountBoard } from './helpers.ts';
@@ -53,6 +53,32 @@ describe('rendered positions', () => {
     expect(item('cams').style.gridRow).toBe('8 / span 4');
     const headers = [...wrapper.element.querySelectorAll('.layout-section-header')].map((el) => el.textContent?.trim());
     expect(headers).toEqual(['Infrastructure', 'Today', 'Media']);
+  });
+
+  it('lays bento and mosaic out on half-row tracks, as the engine places them', () => {
+    for (const flow of ['bento', 'mosaic'] as const) {
+      const board = setFlow(homeBoard(), flow);
+      const { wrapper, item } = mountBoard({ board, breakpoint: 'desktop' });
+      const layout = deriveLayout(board, 'desktop', { headers: 'auto' });
+      const grid = wrapper.element.querySelector('.layout-grid') as HTMLElement;
+      expect(grid.dataset['flow']).toBe(flow);
+      expect(grid.style.gridTemplateRows).toBe(`repeat(${layout.tracks}, var(--layout-track))`);
+      for (const p of layout.sections.flatMap((s) => s.items)) {
+        expect(item(p.id).style.gridRow).toBe(`${p.area!.track + 1} / span ${p.h * 2}`);
+        expect(item(p.id).style.gridColumn.replace(/\s+/g, ' ')).toBe(`${p.area!.column + 1} / span ${p.w}`);
+      }
+      const headers = [...(wrapper.element as HTMLElement).querySelectorAll<HTMLElement>('.layout-section-header')];
+      expect(headers.map((el) => el.style.gridRow)).toEqual(layout.sections.filter((s) => s.header).map((s) => `${s.header!.track + 1}`));
+      wrapper.unmount();
+    }
+  });
+
+  it('edits a mosaic as bento, with an area for every section', () => {
+    const board = setFlow(homeBoard(), 'mosaic');
+    const { wrapper } = mountBoard({ board, breakpoint: 'desktop', editing: true });
+    const grid = wrapper.element.querySelector('.layout-grid') as HTMLElement;
+    expect(grid.dataset['flow']).toBe('bento');
+    expect(wrapper.element.querySelectorAll('[data-section-area]')).toHaveLength(board.sections.length);
   });
 
   it('derives the breakpoint from the container width when none is given', async () => {
