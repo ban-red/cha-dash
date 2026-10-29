@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -25,6 +26,7 @@ type fakeDocker struct {
 	nextID     int
 	calls      []string // "POST /containers/x/start", for asserting what the module did
 	failCreate bool
+	busyVols   []string // volumes DELETE /volumes refuses as in use
 	logs       []fakeLog
 	tty        bool
 }
@@ -232,6 +234,12 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 		default:
 			jsonOut(w, 404, map[string]string{"message": "page not found"})
 		}
+	case len(parts) == 2 && parts[0] == "volumes" && r.Method == http.MethodDelete:
+		if slices.Contains(f.busyVols, parts[1]) {
+			jsonOut(w, 409, map[string]string{"message": "remove " + parts[1] + ": volume is in use"})
+			return
+		}
+		w.WriteHeader(204)
 	case path == "/images/create" && r.Method == http.MethodPost:
 		ref := r.URL.Query().Get("fromImage")
 		if tag := r.URL.Query().Get("tag"); tag != "" {

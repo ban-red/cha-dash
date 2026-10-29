@@ -280,6 +280,24 @@ func TestRemove(t *testing.T) {
 	if f.byName("sonarr") != nil {
 		t.Fatal("still there")
 	}
+	// The node deletes the anonymous volume itself: Docker's RemoveVolumes
+	// skips one a recreate attached by name.
+	anon := strings.Repeat("a", 64)
+	if !slices.Contains(f.calls, "DELETE /volumes/"+anon) {
+		t.Fatalf("calls %v", f.calls)
+	}
+	// One still in use stays, and the answer says it was kept.
+	f, d = setup(t, "docker: { allow: [read, lifecycle, remove] }\n")
+	f.busyVols = []string{anon}
+	res, _, err = call(t, d, "container.remove", map[string]any{"id": "sonarr", "force": true, "volumes": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Kept, out.Removed = nil, nil
+	json.Unmarshal(res, &out)
+	if !slices.Equal(out.Kept, []string{"sonarr_config", anon}) || len(out.Removed) != 0 {
+		t.Fatalf("busy volume %s", res)
+	}
 	// The default policy has no remove.
 	_, d = setup(t, "")
 	if _, _, err := call(t, d, "container.remove", map[string]any{"id": "sonarr"}); nodeproto.CodeOf(err) != nodeproto.CodeForbidden {

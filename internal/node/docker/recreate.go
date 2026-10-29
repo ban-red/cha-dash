@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -192,6 +193,18 @@ func (m *Module) remove(ctx context.Context, req json.RawMessage, _ func(json.Ra
 	if _, err := m.cli.ContainerRemove(ctx, c.ID, client.ContainerRemoveOptions{RemoveVolumes: r.Volumes, Force: r.Force}); err != nil {
 		return nil, mapErr(err)
 	}
+	// Docker's RemoveVolumes skips an anonymous volume that a recreate
+	// attached by name, so delete the planned ones here. Gone already is
+	// fine; one still in use by another container stays, and says so.
+	deleted := removed[:0:0]
+	for _, v := range removed {
+		if _, err := m.cli.VolumeRemove(ctx, v, client.VolumeRemoveOptions{}); err != nil && !cerrdefs.IsNotFound(err) {
+			kept = append(kept, v)
+			continue
+		}
+		deleted = append(deleted, v)
+	}
+	removed = deleted
 	return reply(map[string]any{"id": c.ID, "name": name, "kept": nonNil(kept), "removed": nonNil(removed)})
 }
 
