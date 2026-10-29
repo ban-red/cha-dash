@@ -14,6 +14,7 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { AnimatePresence, motion } from 'motion-v';
 import Glyph from './marks/Glyph.vue';
 import DiscoveryItem from './DiscoveryItem.vue';
+import LeadsItem from './LeadsItem.vue';
 import IncidentItem from './IncidentItem.vue';
 import SuggestionItem from './SuggestionItem.vue';
 // Approvals are rare and only for owners and admins: their own chunk.
@@ -23,6 +24,7 @@ import { transition, useReducedMotion } from '../lib/motion';
 import { layerAbove } from '../lib/trap';
 import { groupInbox, hintsHeading, incidents, isApproval, isSuggestion, type InboxGroups } from '../model/inbox';
 import { useDiscovery } from '../stores/discovery';
+import { loadLeads, useLeads } from '../stores/leads';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 import type { Incident } from '../model/types';
@@ -30,7 +32,11 @@ import type { Incident } from '../model/types';
 const live = useLive();
 const ui = useUi();
 const discovery = useDiscovery();
-const discovered = computed(() => discovery.suggestions.value.length > 0);
+const labels = computed(() => discovery.suggestions.value.length > 0);
+// Leads are an admin's: they open Settings → Bring in. One Inbox item for all of them.
+const leads = useLeads(live);
+const leadsShown = computed(() => ui.can.value.panes.includes('import') && leads.value.length > 0);
+const discovered = computed(() => labels.value || leadsShown.value);
 const reduced = useReducedMotion();
 const panel = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 const expanded = reactive(new Set<string>());
@@ -134,6 +140,7 @@ watch(
   { immediate: true },
 );
 onMounted(() => {
+  if (ui.can.value.panes.includes('import')) void loadLeads();
   document.addEventListener('keydown', onKey);
   window.addEventListener('resize', onResize);
 });
@@ -217,7 +224,8 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
 
           <template v-if="discovered">
             <h3 class="ib-grp">Discovered</h3>
-            <DiscoveryItem />
+            <DiscoveryItem v-if="labels" />
+            <LeadsItem v-if="leadsShown" :leads="leads" />
           </template>
 
           <template v-if="suggestions.length">

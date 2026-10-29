@@ -43,6 +43,8 @@ export interface DiscoverRequest {
   sidecar?: boolean;
   docker?: string[];
   hosts?: string[];
+  /** Leads to check: one GET on each address (Settings → Bring in → Discover). */
+  urls?: { integration: string; url: string }[];
 }
 
 export const MAX_HOSTS = 8;

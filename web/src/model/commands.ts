@@ -221,8 +221,10 @@ export function buildCommands(ctx: CommandContext): Command[] {
   out.push(
     { id: 'settings:integrations', group: 'Settings', label: 'Settings: Integrations', keywords: 'connections tokens keys', run: () => d.openSettings('integrations') },
     { id: 'settings:stacks', group: 'Settings', label: 'Settings: Stacks', keywords: 'compose docker deploy rollback adopt yaml', run: () => d.openSettings('stacks') },
-    { id: 'settings:import', group: 'Settings', label: 'Import from Homepage', keywords: 'settings services.yaml docker.yaml migrate', run: () => d.openSettings('import') },
-    { id: 'settings:backup', group: 'Settings', label: 'Settings: Backup', keywords: 'export import restore yaml home file secrets', run: () => d.openSettings('backup') },
+    { id: 'settings:import', group: 'Settings', label: 'Import a config…', keywords: 'bring in homepage homarr yaml services.yaml docker.yaml migrate', run: () => d.openSettings('import') },
+    { id: 'settings:import:discover', group: 'Settings', label: 'Discover…', keywords: 'bring in find scan services leads docker hosts', run: () => d.openSettings('import', 'discover') },
+    { id: 'settings:import:history', group: 'Settings', label: 'Import history', keywords: 'bring in revert undo imports', run: () => d.openSettings('import', 'history') },
+    { id: 'settings:backup', group: 'Settings', label: 'Restore a backup…', keywords: 'settings backup export import restore yaml home file secrets', run: () => d.openSettings('backup') },
     { id: 'settings:users', group: 'Settings', label: 'Settings: Users', keywords: 'people roles accounts household owner admin', run: () => d.openSettings('users') },
     { id: 'settings:audit', group: 'Settings', label: 'Settings: Audit', keywords: 'log history who did what actions', run: () => d.openSettings('audit') },
     { id: 'settings:notifications', group: 'Settings', label: 'Settings: Notifications', keywords: 'push ntfy webhook alerts phone devices', run: () => d.openSettings('notifications') },
@@ -259,7 +261,7 @@ function allowed(c: CommandInput, can: CommandContext['can']): boolean {
   if (c.id === 'edit' || c.id === 'add-widget') return can.editBoards;
   if (c.group === 'Integrations') return can.integrations;
   if (c.group === 'Settings') {
-    const pane = c.id === 'settings:import' ? 'import' : c.id.replace(/^settings:/, '');
+    const pane = c.id.replace(/^settings:/, '').split(':')[0]!;
     return can.settings && (can.panes as readonly string[]).includes(pane);
   }
   return true;

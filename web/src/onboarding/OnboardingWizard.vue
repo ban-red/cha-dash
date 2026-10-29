@@ -4,8 +4,8 @@
  * offer. A layer over the front page, so the page fills in underneath as
  * things are connected, and it ends on that page. Three ways in:
  *
- * - Import from Homepage: the importer in Settings; applying it lands on the
- *   new board and finishes here.
+ * - Import a config: the same Import flow as Settings → Bring in, inside the
+ *   wizard's layer; applying it lands on the board and finishes here.
  * - Discover: the compose sidecar's socket proxy, then what the owner names.
  * - One by one: the catalog, each add form with its recipe beside it.
  *
@@ -13,10 +13,12 @@
  * shown once per hub. Settings opens above it; while it's open the wizard is
  * inert. Its own chunk, loaded only when it shows.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AddStep from './AddStep.vue';
 import ConnectedList from './ConnectedList.vue';
 import DiscoverStep from './DiscoverStep.vue';
+
+const ImportFlow = defineAsyncComponent(() => import('../import/ImportFlow.vue'));
 import { navigate, view } from '../lib/router';
 import { defaultBoard } from '../model/defaultLayout';
 import { resources } from '../model/graph';
@@ -39,7 +41,7 @@ const seen = computed(() => resources(live.graph.value).filter((r) => r.id !== '
 
 const TITLES: Record<WizardStep, string> = {
   start: 'Connect your home.',
-  import: 'Import from Homepage',
+  import: 'Import a config',
   discover: 'Discover what’s here',
   add: 'Add what you run',
   done: 'Your page is filling in.',
@@ -56,8 +58,13 @@ function to(s: WizardStep): void {
 }
 
 function startImport(): void {
-  goTo('import');
-  navigate('/settings/import');
+  to('import');
+}
+
+/** An applied import lands on its board (ImportFlow navigates); the path is done. */
+function imported(boardId: string): void {
+  if (!boardId) navigate('/');
+  to('done');
 }
 
 /**
@@ -160,8 +167,8 @@ onBeforeUnmount(() => {
             <p class="ob-lede">Cha Dash reads what you already run. Pick a way in; you can mix them, come back later, and none of it needs YAML.</p>
             <div class="ob-paths">
               <button type="button" class="ob-path" @click="startImport">
-                <span class="ob-path-t">Import from Homepage</span>
-                <span class="ob-path-m">Paste your <code>services.yaml</code>. Services, their connections and your layout come across; secrets go into the encrypted vault.</span>
+                <span class="ob-path-t">Import a config</span>
+                <span class="ob-path-m">Drop your Homepage files, a Homarr backup or a board in YAML. You see the board before anything changes; secrets go into the encrypted vault.</span>
               </button>
               <button type="button" class="ob-path" @click="to('discover')">
                 <span class="ob-path-t">Discover</span>
@@ -175,15 +182,9 @@ onBeforeUnmount(() => {
             <ConnectedList />
           </template>
 
-          <!-- Import: the importer lives in Settings -->
+          <!-- Import: the same flow as Settings → Bring in -->
           <template v-else-if="step === 'import'">
-            <p class="ob-lede">
-              The importer opens in Settings. Paste <code>services.yaml</code> (<code>docker.yaml</code> and <code>settings.yaml</code> help too), check the preview, then apply.
-              You land on the new board, and this guide finishes.
-            </p>
-            <div class="ob-acts">
-              <button type="button" class="btn primary" @click="navigate('/settings/import')">Open the importer</button>
-            </div>
+            <ImportFlow @applied="imported" />
             <ConnectedList />
           </template>
 

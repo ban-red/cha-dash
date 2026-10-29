@@ -23,6 +23,7 @@ import {
   type SizeId,
 } from '@chadash/layout';
 import { useBreakpoint } from './useBreakpoint';
+import { isFresh } from '../import/fresh';
 
 const { board, breakpoint: forced } = defineProps<{
   board: Board;
@@ -53,7 +54,7 @@ const itemStyle = (i: PlacedItem) => ({ gridColumn: `${i.x + 1} / span ${i.w}`, 
     <section v-for="s in layout.sections" :key="s.id" class="sec" :style="sectionStyle(s)" :aria-label="s.title ?? s.id">
       <slot name="section" :section="s" :editing="false"></slot>
       <div class="sec-grid" :style="gridStyle(s)">
-        <div v-for="i in s.items" :key="i.id" class="cell" :data-item="i.id" :data-forced="i.forced || undefined" :style="itemStyle(i)">
+        <div v-for="i in s.items" :key="i.id" :class="['cell', { 'is-new': isFresh(i.id) }]" :data-item="i.id" :data-forced="i.forced || undefined" :style="itemStyle(i)">
           <slot v-if="items.get(i.id)" name="item" :item="items.get(i.id)!" :size="i.size" :editing="false" :dragging="false" :placed="i"></slot>
         </div>
       </div>
@@ -62,6 +63,12 @@ const itemStyle = (i: PlacedItem) => ({ gridColumn: `${i.x + 1} / span ${i.w}`, 
 </template>
 
 <style>
+/* Tiles an import just added: a ring for a few seconds (import/fresh.ts). */
+.cell.is-new {
+  border-radius: var(--radius-md);
+  outline: 2px solid var(--accent, var(--text-2));
+  outline-offset: 2px;
+}
 .cell {
   display: grid;
   min-width: 0;

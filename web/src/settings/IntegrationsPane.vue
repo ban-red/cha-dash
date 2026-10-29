@@ -93,7 +93,7 @@ onMounted(() => {
         <div class="m">Add an integration to read a service: Proxmox, Docker, Plex and the rest. Coming from Homepage? Import its config and every service comes along, secrets into the vault.</div>
         <div class="st-acts">
           <a class="btn primary" href="/settings/integrations/new" @click.prevent="navigate('/settings/integrations/new')">Add integration</a>
-          <a class="btn" href="/settings/import" @click.prevent="navigate('/settings/import')">Import from Homepage</a>
+          <a class="btn" href="/settings/import" @click.prevent="navigate('/settings/import')">Import a config</a>
         </div>
       </div>
       <ul v-else class="st-list">

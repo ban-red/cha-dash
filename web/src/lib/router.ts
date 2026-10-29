@@ -16,7 +16,9 @@
  *   /settings/stacks/new               a new stack (saved as a draft)
  *   /settings/stacks/{node}/{name}     one stack: editor, plan, deploy, history
  *   /settings/nodes                    chadash-node on each host: state, policy, revoke, pairing (owner, admin)
- *   /settings/import                   import from Homepage
+ *   /settings/import                   Bring in → Import: drop or paste a config, review, apply
+ *   /settings/import/discover          Bring in → Discover: this host, leads, places you name
+ *   /settings/import/history           Bring in → History: applied imports, Import again, Revert
  *   /settings/backup                   export this hub, import a Home file
  *   /settings/users                    users and roles (owner, admin)
  *   /settings/audit                    the audit log (owner, admin)
@@ -67,6 +69,7 @@ export function resolve(r: Route): View {
     if (parts[2] === 'new' && !parts[3]) return { name: 'settings', pane, add: '' };
     return parts[2] && parts[3] ? { name: 'settings', pane, id: `${parts[2]}/${parts[3]}` } : { name: 'settings', pane };
   }
+  if (pane === 'import') return parts[2] ? { name: 'settings', pane, id: parts[2] } : { name: 'settings', pane };
   if (pane !== 'integrations') return { name: 'settings', pane };
   if (parts[2] === 'new') return parts[3] ? { name: 'settings', pane, add: parts[3] } : { name: 'settings', pane, add: '' };
   return parts[2] ? { name: 'settings', pane, id: parts[2] } : { name: 'settings', pane };

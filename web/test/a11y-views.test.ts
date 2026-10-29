@@ -21,7 +21,9 @@ import TaskPresence from '../src/components/TaskPresence.vue';
 import Toasts from '../src/components/Toasts.vue';
 import TypeConfirmDialog from '../src/components/TypeConfirmDialog.vue';
 import SettingsSheet from '../src/settings/SettingsSheet.vue';
-import ImportPane from '../src/settings/ImportPane.vue';
+import ImportFlow from '../src/import/ImportFlow.vue';
+import HistoryList from '../src/import/HistoryList.vue';
+import DiscoverPane from '../src/discover/DiscoverPane.vue';
 import LoginView from '../src/views/LoginView.vue';
 import PasskeyOffer from '../src/views/PasskeyOffer.vue';
 import SetupView from '../src/views/SetupView.vue';
@@ -380,14 +382,50 @@ describe('Settings', () => {
 
   it('the import preview', async () => {
     hubApi();
-    const hs = page(ImportPane);
-    const services = document.querySelector<HTMLTextAreaElement>('#yaml-services_yaml')!;
+    const hs = page(ImportFlow);
+    const services = document.querySelector<HTMLTextAreaElement>('#imp-services_yaml')!;
     services.value = '- Media:\n    - Plex:\n        href: https://plex.example.com\n';
     services.dispatchEvent(new Event('input'));
     await settle();
     [...document.querySelectorAll('button')].find((b) => b.textContent === 'Preview import')!.click();
     await settle();
-    expect(document.querySelector('.import-preview')).not.toBeNull();
+    expect(document.querySelector('.imp-review')).not.toBeNull();
+    // a connection unticked: the group is partly in, and the board follows
+    document.querySelector<HTMLInputElement>('.imp-row input[type="checkbox"]')!.click();
+    await settle();
+    expect(await axeViolations()).toEqual([]);
+    hs.live.stop();
+  });
+
+  it('the Discover tab', async () => {
+    hubApi({ 'GET /api/discover/dismissed': { status: 200, body: { dismissed: [] } }, 'POST /api/onboarding/discover': { status: 200, body: { found: [], checked: [] } } });
+    const hs = page(DiscoverPane);
+    await settle();
+    expect(document.querySelector('#leads-h')).not.toBeNull();
+    expect(await axeViolations()).toEqual([]);
+    hs.live.stop();
+  });
+
+  it('the import history, with a revert planned', async () => {
+    hubApi({
+      'GET /api/imports': {
+        status: 200,
+        body: {
+          imports: [
+            {
+              id: 'imp_1', source: 'homepage', created_at: Date.parse('2026-10-29T09:00:00Z'), files: ['services.yaml'], target: 'new', board_id: 'b1',
+              created: { board: 'b1', instances: ['i1'], secrets: [], items: ['plex'] }, counts: { created: 4, updated: 0, tiles: 1, instances: 1, secrets: 0 },
+            },
+          ],
+        },
+      },
+      'POST /api/imports/imp_1/revert?dry_run=1': { status: 200, body: { remove: [{ kind: 'board', id: 'b1', name: 'Home' }], keep: [{ kind: 'instance', id: 'i1', name: 'Plex', why: 'changed since the import' }], connections: false } },
+    });
+    const hs = page(HistoryList);
+    await settle();
+    [...document.querySelectorAll('button')].find((b) => b.textContent === 'Revert…')!.click();
+    await settle();
+    expect(document.querySelector('.hist-plan')?.textContent).toContain('Keeps the connection Plex: changed since the import');
     expect(await axeViolations()).toEqual([]);
     hs.live.stop();
   });

@@ -6,7 +6,7 @@ import OnboardingWizard from '../src/onboarding/OnboardingWizard.vue';
 import { cache, parseHosts, validHost, type Candidate } from '../src/onboarding/discover';
 import { takeDraft } from '../src/onboarding/draft';
 import { closeWizard, loadOnboarding, onboarding, openWizard, resetOnboarding } from '../src/onboarding/state';
-import { navigate, route, syncRoute } from '../src/lib/router';
+import { route, syncRoute } from '../src/lib/router';
 import { defaultBoard } from '../src/model/defaultLayout';
 import type { GraphDoc, Resource } from '../src/model/types';
 import { resetIntegrations } from '../src/stores/integrations';
@@ -156,7 +156,7 @@ describe('Connect your home', () => {
     const f = hub();
     await wizard();
     expect(heading()).toBe('Connect your home.');
-    expect([...document.querySelectorAll('.ob-path-t')].map((p) => p.textContent)).toEqual(['Import from Homepage', 'Discover', 'Add one by one']);
+    expect([...document.querySelectorAll('.ob-path-t')].map((p) => p.textContent)).toEqual(['Import a config', 'Discover', 'Add one by one']);
     expect(document.activeElement).toBe(document.getElementById('ob-h'));
     button('Skip setup')!.click();
     await flushPromises();
@@ -247,15 +247,25 @@ describe('Connect your home', () => {
     expect(document.querySelector('.layer-onboarding')!.hasAttribute('inert')).toBe(true);
   });
 
-  it('finishes the import path when the import lands on its board', async () => {
-    hub();
+  it('imports inside the wizard and finishes when the import lands on its board', async () => {
+    hub({
+      'POST /api/import/homepage?dry_run=1': { status: 200, body: { plan: { source: 'homepage', board: { name: 'Home', layout: { sections: [] } }, tiles: [], instances: [{ id: 'i1', integration: 'plex', name: 'Plex', config: {} }], changes: [] }, hints: [], unmapped: [], plan_hash: 'sha256:x' } },
+      'POST /api/import/homepage': { status: 200, body: { import_id: 'imp_1', board_id: 'b_new' } },
+    });
     await wizard();
     (document.querySelectorAll<HTMLButtonElement>('.ob-path')[0]!).click();
-    expect(route.value.path).toBe('/settings/import');
-    expect(onboarding.step).toBe('import');
-    await nextTick();
-    navigate('/boards/b_new'); // what applying an import does
+    await vi.dynamicImportSettled();
     await flushPromises();
+    expect(route.value.path).not.toBe('/settings/import'); // it stays in the wizard's layer
+    expect(onboarding.step).toBe('import');
+    const services = document.querySelector<HTMLTextAreaElement>('#imp-services_yaml')!;
+    services.value = '- Media:\n    - Plex:\n        href: https://plex.example\n';
+    services.dispatchEvent(new Event('input'));
+    [...document.querySelectorAll('button')].find((b) => b.textContent === 'Preview import')!.click();
+    await flushPromises();
+    [...document.querySelectorAll<HTMLButtonElement>('.imp-apply button')][0]!.click();
+    await flushPromises();
+    expect(route.value.path).toBe('/boards/b_new');
     expect(heading()).toBe('Your page is filling in.');
   });
 

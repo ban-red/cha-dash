@@ -25,6 +25,7 @@ import HubBanner from '../components/HubBanner.vue';
 import NeedsAttention from '../components/NeedsAttention.vue';
 import TaskPresence from '../components/TaskPresence.vue';
 import Toasts from '../components/Toasts.vue';
+import PageDrop from '../import/PageDrop.vue';
 import BoardSurface from '../board/BoardSurface.vue';
 import { api } from '../lib/api';
 import { setDisplayTimeZone } from '../lib/format';
@@ -251,4 +252,5 @@ onBeforeUnmount(() => {
   <TaskLogDialog v-if="ui.state.taskLog" />
   <TaskPresence />
   <Toasts />
+  <PageDrop v-if="ui.can.value.settings" />
 </template>

@@ -373,7 +373,7 @@ describe('Settings by role', () => {
     const $ = (sel: string) => [...document.querySelectorAll(sel)].map((e) => e.textContent?.trim());
     const o = sheetFor('owner');
     await settle();
-    expect($('.st-nav a span')).toEqual(['Integrations', 'Stacks', 'Nodes', 'Import', 'Backup', 'Users', 'Audit', 'Notifications', 'API tokens', 'Security']);
+    expect($('.st-nav a span')).toEqual(['Integrations', 'Stacks', 'Nodes', 'Bring in', 'Backup', 'Users', 'Audit', 'Notifications', 'API tokens', 'Security']);
     o.w.unmount();
     document.body.innerHTML = '';
     sheetFor('admin', '/settings/security');

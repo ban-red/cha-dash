@@ -1,16 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
-import { nextTick } from 'vue';
 import goldenRaw from '../../testdata/importers/homepage/dogfood/expected-plan.json?raw';
-import ImportPane from '../src/settings/ImportPane.vue';
+import ImportFlow from '../src/import/ImportFlow.vue';
+import HistoryList from '../src/import/HistoryList.vue';
+import { choicesBody, counts, emptyChoices, included, reviewOf, setIncluded } from '../src/import/model';
+import { isFresh } from '../src/import/fresh';
 import { route, syncRoute } from '../src/lib/router';
-import { previewOf } from '../src/model/importPlan';
 import { resetIntegrations } from '../src/stores/integrations';
 import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
 
 /** The importer's golden dry run for the dogfood home (internal/importer/homepage). */
-const golden = JSON.parse(goldenRaw) as { plan: Record<string, unknown>; hints: unknown[]; unmapped: unknown[] };
+const golden = JSON.parse(goldenRaw) as { plan: Record<string, unknown>; hints: unknown[]; unmapped: unknown[]; plan_hash: string };
+const SERVICES = '- Media:\n    - Plex:\n        href: https://plex.home.arpa\n';
+const HA = 'instance:i_zsqwalwibofrelao';
 
 beforeEach(() => {
   history.replaceState(null, '', '/settings/import');
@@ -18,169 +21,197 @@ beforeEach(() => {
   resetIntegrations();
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   document.body.innerHTML = '';
 });
 
-describe('the dry-run preview', () => {
-  it('reads the importer’s plan: sections and tiles, connections, secrets as a count, hints', () => {
-    const p = previewOf(golden);
-    expect(p.boardName).toBe('Alpaca Homepage');
-    expect(p.sections.map((s) => s.title)).toEqual(expect.arrayContaining(['Home', 'Servers']));
-    expect(p.tileCount).toBe(22);
-    expect(p.instances).toHaveLength(21);
-    expect(p.secretsMoved).toBe(18);
-    expect(p.checks).toBe(3);
-    const servers = p.sections.find((s) => s.id === 'servers')!;
-    expect(servers.tiles[1]).toEqual({ id: 'service@homepage:servers/proxmoxpluto', label: 'Pluto PVE (main opnsense)', widget: 'service', live: true });
-    expect(p.hints[0]).toMatchObject({ code: 'reused_secret', severity: 'attention', inbox: true });
-    expect(p.discovery.length).toBe(3);
-    expect(p.ignored.find((g) => g.what === 'settings.yaml › background')?.reason).toContain('wallpaper');
-    expect(p.notes[0]).toContain('Apps has no services');
-    expect(p.changes.create).toBeGreaterThan(20);
-    expect(p.nothingNew).toBe(false);
-    // values never ride along: the preview has names and counts only
-    expect(JSON.stringify(p)).not.toMatch(/\$\{secret:/);
+describe('the Review model', () => {
+  it('reads rows from the dry run: connections with their change, tiles with what they need', () => {
+    const r = reviewOf(golden);
+    expect(r.connections).toHaveLength(21);
+    expect(r.tiles).toHaveLength(22);
+    expect(r.planHash).toMatch(/^sha256:/);
+    const ha = r.connections.find((x) => x.object === HA)!;
+    expect(ha).toMatchObject({ name: 'HomeAssistant', integration: 'homeassistant', change: 'create' });
+    expect(r.tiles.find((t) => t.needs.includes(HA))?.name).toBe('HomeAssistant');
   });
 
-  it('reads unmapped entries, missing secrets and a re-import', () => {
-    const p = previewOf({
-      plan: {
-        board: { name: 'B', layout: { sections: [{ id: 's', title: 'S', items: [{ id: 'service@homepage:s/x', type: 'service' }] }] } },
-        tiles: [],
-        instances: [{ id: 'i1', integration: 'sonarr', name: 'Sonarr', config: { url: 'http://sonarr:8989' }, secret_fields: [], missing_secrets: ['api_key'] }],
-        changes: [
-          { kind: 'board', id: 'b', action: 'unchanged' },
-          { kind: 'instance', id: 'i1', name: 'Sonarr', action: 'unchanged' },
-          { kind: 'instance', id: 'i0', name: 'Old Radarr', action: 'stale' },
-        ],
-      },
-      hints: [],
-      unmapped: [{ kind: 'widget', origin: { file: 'services.yaml', group: 'Media', entry: 'Jellyseerr' }, type: 'jellyseerr', fields: ['key'], reason: 'no integration for jellyseerr yet' }],
-    });
-    expect(p.sections[0]!.tiles[0]!.label).toBe('x');
-    expect(p.instances[0]!.missingSecrets).toEqual(['api_key']);
-    expect(p.unmapped[0]).toEqual({ name: 'Jellyseerr', kind: 'widget', where: 'services.yaml › Media', reason: 'no integration for jellyseerr yet', fields: ['key'] });
-    expect(p.stale).toEqual(['Old Radarr']);
-    expect(p.nothingNew).toBe(true);
+  it('leaving a connection out leaves out the tiles that need only it; ticking a tile ticks its connection', () => {
+    const r = reviewOf(golden);
+    const c = emptyChoices();
+    const all = counts(r, c);
+    expect(setIncluded(r, c, HA, false)).toEqual(['HomeAssistant']);
+    const tile = r.tiles.find((t) => t.needs.includes(HA))!;
+    expect(included(r, c, tile.object)).toBe(false);
+    expect(counts(r, c).tiles).toBe(all.tiles - 1);
+    expect(choicesBody(c)).toEqual({ skip: [HA] });
+    setIncluded(r, c, tile.object, true);
+    expect(included(r, c, HA)).toBe(true);
+    expect(choicesBody(c)).toEqual({});
+  });
+
+  it('sends typed keys only for connections that are in, and targets other than new', () => {
+    const c = emptyChoices();
+    c.secrets.set('i_a', { api_key: 'FAKE-key', other: '' });
+    c.secrets.set('i_b', { token: 'FAKE-2' });
+    c.skip.add('instance:i_b');
+    c.target = 'board:b1';
+    expect(choicesBody(c)).toEqual({ skip: ['instance:i_b'], target: 'board:b1', secrets: { i_a: { api_key: 'FAKE-key' } } });
   });
 });
 
-describe('Settings → Import from Homepage', () => {
-  const SERVICES = '- Media:\n    - Plex:\n        href: https://plex.home.arpa\n';
-
-  function mountPane(over: Record<string, unknown> = {}) {
+describe('Settings → Bring in → Import', () => {
+  function mountFlow(over: Record<string, unknown> = {}) {
     const f = fakeFetch({
       'POST /api/import/homepage?dry_run=1': { status: 200, body: golden },
-      'POST /api/import/homepage': { status: 200, body: { board_id: 'b_ajrtwtlddnb3sgor', instance_ids: ['i1'], changes: [] } },
+      'POST /api/import/homepage': { status: 200, body: { import_id: 'imp_1', board_id: 'b_ajrtwtlddnb3sgor', instance_ids: ['i1'], changes: [] } },
       'GET /api/integrations/instances': { status: 200, body: [] },
       'GET /api/boards': { status: 200, body: { boards: [{ id: 'b_ajrtwtlddnb3sgor', name: 'Alpaca Homepage' }] } },
-      'GET /api/boards/b_ajrtwtlddnb3sgor/layout': {
-        status: 200,
-        body: { revision: 2, format_version: 1, layout: (golden.plan['board'] as Record<string, unknown>)['layout'], tiles: { plex: { name: 'Plex' } } },
-      },
+      'GET /api/boards/b_ajrtwtlddnb3sgor/layout': { status: 200, body: { revision: 2, format_version: 1, layout: (golden.plan['board'] as Record<string, unknown>)['layout'], tiles: {} } },
       ...over,
     });
     const h = harness();
-    const w = h.mountIn(ImportPane);
+    const w = h.mountIn(ImportFlow);
     return { ...h, w, f };
   }
 
-  it('picks Homepage as the source; Homarr and Plain YAML are v0.2', () => {
-    const { w } = mountPane();
-    const seg = w.findAll('.import-src button');
-    expect(seg.map((b) => [b.text(), b.attributes('aria-pressed'), b.attributes('disabled') !== undefined])).toEqual([
-      ['Homepage', 'true', false],
-      ['Homarrv0.2', 'false', true],
-      ['Plain YAMLv0.2', 'false', true],
-    ]);
-  });
+  async function previewPasted(w: ReturnType<typeof mountFlow>['w']) {
+    await w.find('#imp-services_yaml').setValue(SERVICES);
+    await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
+    await flushPromises();
+  }
 
   it('needs services.yaml before a preview', async () => {
-    const { w, f } = mountPane();
+    const { w, f } = mountFlow();
     await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
     expect(w.find('.err').text()).toContain('services.yaml first');
     expect(f.calls).toHaveLength(0);
   });
 
-  it('previews with a dry run, then applies and shows the new board', async () => {
-    const { w, f, ui } = mountPane();
-    await w.find('#yaml-services_yaml').setValue(SERVICES);
-    await w.find('#yaml-settings_yaml').setValue('title: Alpaca Homepage\n');
-    expect(w.text()).toContain('Pasted · 4 lines');
-    await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
-    await flushPromises();
-    expect(f.calls[0]).toEqual({ method: 'POST', path: '/api/import/homepage?dry_run=1', body: { services_yaml: SERVICES, docker_yaml: '', settings_yaml: 'title: Alpaca Homepage\n' } });
-    const plan = w.find('.import-preview');
-    expect(plan.text()).toContain('Alpaca Homepage');
-    expect(plan.find('.kv').text()).toContain('Secrets → vault18');
-    expect(plan.text()).toContain('18 credentials move into the encrypted vault');
-    expect(plan.text()).toContain('The same password is used by Traefik and qBittorrent');
-    expect(plan.text()).toContain('to the Inbox');
-    expect(plan.text()).toContain('Pluto PVE (main opnsense)');
-    expect(plan.text()).toContain('Fills in later');
+  it('previews pasted files, then applies exactly the reviewed plan and lands on the board', async () => {
+    const { w, f, ui } = mountFlow();
+    await previewPasted(w);
+    expect(f.calls[0]).toEqual({ method: 'POST', path: '/api/import/homepage?dry_run=1', body: { files: { services_yaml: SERVICES }, names: {} } });
+    const review = w.find('.imp-review');
+    expect(review.text()).toContain('43 of 43 selected');
+    expect(review.text()).toContain('18 secrets move into the vault');
+    expect(review.text()).toContain('The same password is used by Traefik and qBittorrent');
+    expect(review.findAll('.bp-tile').length).toBe(22);
 
-    await plan.findAll('button').find((b) => b.text().startsWith('Import 22 tiles'))!.trigger('click');
+    await review.findAll('button').find((b) => b.text().startsWith('Apply 43'))!.trigger('click');
     await flushPromises();
-    expect(f.last('POST', '/api/import/homepage')!.body).toEqual({ services_yaml: SERVICES, docker_yaml: '', settings_yaml: 'title: Alpaca Homepage\n' });
+    expect(f.last('POST', '/api/import/homepage')!.body).toEqual({ files: { services_yaml: SERVICES }, names: {}, choices: {}, plan_hash: golden.plan_hash });
     expect(route.value.path).toBe('/boards/b_ajrtwtlddnb3sgor');
-    expect(ui.state.toasts[0]!.text).toContain('22 tiles and 21 connections');
-    expect(ui.state.toasts[0]!.text).toContain('18 secrets are in the vault');
-    // landing on another board loads it (the front page follows the route); nothing reads the import record
-    expect(f.calls.some((c) => c.path === '/api/import/homepage' && c.method === 'GET')).toBe(false);
+    expect(ui.state.toasts[0]!.text).toContain('Imported from Homepage: 22 tiles, 21 connections. 18 secrets in the vault.');
+    expect(isFresh('homeassistant')).toBe(true);
   });
 
-  it('reloads the board on screen, with its tiles, after re-importing it', async () => {
-    const { w, f, board } = mountPane();
-    board.state.boardId = 'b_ajrtwtlddnb3sgor';
-    await w.find('#yaml-services_yaml').setValue(SERVICES);
-    await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
+  it('re-checks the plan with the choices before applying, and sends them', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { w, f } = mountFlow();
+    await previewPasted(w);
+    await w.find(`#row-${HA.replace(':', '\\:')}`).setValue(false);
+    expect(w.find('.imp-summary').text()).toContain('Also leaves out HomeAssistant');
+    expect(w.find('.imp-apply button').text()).toContain('Checking');
+    await vi.advanceTimersByTimeAsync(300);
     await flushPromises();
-    await w.find('.import-preview').findAll('button').find((b) => b.text().startsWith('Import'))!.trigger('click');
+    const recheck = f.calls.filter((c) => c.path === '/api/import/homepage?dry_run=1')[1]!;
+    expect(recheck.body).toMatchObject({ choices: { skip: [HA] } });
+    await w.find('.imp-apply button').trigger('click');
     await flushPromises();
-    expect(f.last('GET', '/api/boards/b_ajrtwtlddnb3sgor/layout')).toBeDefined();
-    expect(board.state.revision).toBe(2);
-    expect(board.tiles.value).toEqual({ plex: { name: 'Plex' } });
+    expect(f.last('POST', '/api/import/homepage')!.body).toMatchObject({ choices: { skip: [HA] } });
+  });
+
+  it('shows what changed when the hub says the plan moved, and stays in review', async () => {
+    const { w } = mountFlow({ 'POST /api/import/homepage': { status: 409, body: { error: { code: 'plan_changed', message: 'changed' }, result: golden } } });
+    await previewPasted(w);
+    await w.find('.imp-apply button').trigger('click');
+    await flushPromises();
+    expect(w.find('.imp-review').text()).toContain('Something changed since the preview');
+    expect(w.find('.imp-apply button').text()).toContain('Apply');
+  });
+
+  it('names a dropped file’s source, then previews it', async () => {
+    const { w, f } = mountFlow({ 'POST /api/import/detect': { status: 200, body: { source: 'homepage', name: 'Homepage', files: { 'services.yaml': 'services_yaml' }, unused: ['notes.txt'], missing: [] } } });
+    const input = w.find<HTMLInputElement>('input[type="file"]');
+    const files = [new File([SERVICES], 'services.yaml', { type: 'text/yaml' }), new File(['hi'], 'notes.txt')];
+    Object.defineProperty(input.element, 'files', { value: files, configurable: true });
+    await input.trigger('change');
+    await flushPromises();
+    expect(f.calls[0]).toMatchObject({ path: '/api/import/detect', body: { files: [{ name: 'services.yaml', head: SERVICES }, { name: 'notes.txt', head: 'hi' }] } });
+    expect(f.calls[1]).toMatchObject({ path: '/api/import/homepage?dry_run=1', body: { names: { services_yaml: 'services.yaml' } } });
+    expect(w.find('.imp-review').exists()).toBe(true);
+  });
+
+  it('sends a Cha Dash export to Backup, and says what a Homarr 0.x config needs', async () => {
+    const { w } = mountFlow({
+      'POST /api/import/detect': (body: unknown) => {
+        const name = (body as { files: { name: string }[] }).files[0]!.name;
+        return name === 'home.yaml'
+          ? { status: 200, body: { source: 'chadash', files: {}, unused: [], missing: [] } }
+          : { status: 200, body: { source: 'homarr_legacy', files: {}, unused: [], missing: [], message: 'This is a Homarr 0.x config. Upgrade to Homarr 2.' } };
+      },
+    });
+    const input = w.find<HTMLInputElement>('input[type="file"]');
+    Object.defineProperty(input.element, 'files', { value: [new File(['{}'], 'default.json')], configurable: true });
+    await input.trigger('change');
+    await flushPromises();
+    expect(w.find('.err').text()).toContain('Upgrade to Homarr 2');
+    Object.defineProperty(input.element, 'files', { value: [new File(['kind: Home'], 'home.yaml')], configurable: true });
+    await input.trigger('change');
+    await flushPromises();
+    expect(route.value.path).toBe('/settings/backup');
   });
 
   it('shows the hub’s YAML error, which names the file and line', async () => {
-    const { w } = mountPane({
+    const { w } = mountFlow({
       'POST /api/import/homepage?dry_run=1': { status: 422, body: { error: { code: 'invalid_config', message: 'services.yaml line 12: mapping values are not allowed here' } } },
     });
-    await w.find('#yaml-services_yaml').setValue('- broken: yaml: here');
-    await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
-    await flushPromises();
+    await previewPasted(w);
     expect(w.find('.err').text()).toBe('Services.yaml line 12: mapping values are not allowed here.');
-    expect(w.find('.import-preview').exists()).toBe(false);
+    expect(w.find('.imp-review').exists()).toBe(false);
+  });
+});
+
+describe('Settings → Bring in → History', () => {
+  const entry = {
+    id: 'imp_1', source: 'yaml', created_at: Date.parse('2026-10-29T09:00:00Z'), files: ['board.yaml'], target: 'new', board_id: 'b1',
+    created: { board: 'b1', instances: ['i1'], secrets: [], items: ['x'] }, counts: { created: 3, updated: 0, tiles: 1, instances: 1, secrets: 0 },
+  };
+
+  it('plans a revert, steps up when it removes connections, then runs it', async () => {
+    let tries = 0;
+    const f = fakeFetch({
+      'GET /api/imports': { status: 200, body: { imports: [entry] } },
+      'POST /api/imports/imp_1/revert?dry_run=1': { status: 200, body: { remove: [{ kind: 'instance', id: 'i1', name: 'Checks' }], keep: [], connections: true } },
+      'POST /api/imports/imp_1/revert': () =>
+        ++tries === 1 ? { status: 403, body: { error: { code: 'step_up_required', message: 'Confirm it’s you first.' } } } : { status: 200, body: { remove: [{ kind: 'instance', id: 'i1' }], keep: [], connections: true } },
+      'GET /api/integrations/instances': { status: 200, body: [] },
+    });
+    const h = harness();
+    const w = h.mountIn(HistoryList);
+    await flushPromises();
+    expect(w.text()).toContain('Plain YAML');
+    await w.findAll('button').find((b) => b.text() === 'Revert…')!.trigger('click');
+    await flushPromises();
+    expect(w.find('.hist-plan').text()).toContain('Removes the connection Checks');
+    const done = w.find('.hist-plan .btn.primary').trigger('click');
+    await flushPromises();
+    expect(h.ui.state.stepUp?.reason).toContain('removes connections');
+    h.ui.stepUpDone(true);
+    await done;
+    await flushPromises();
+    expect(f.calls.filter((c) => c.path === '/api/imports/imp_1/revert')).toHaveLength(2);
+    expect(h.ui.state.toasts[0]!.text).toContain('Reverted: 1 thing removed');
   });
 
-  it('says when the files are too large', async () => {
-    const { w } = mountPane({ 'POST /api/import/homepage?dry_run=1': { status: 413, body: { error: { code: 'too_large', message: 'too large' } } } });
-    await w.find('#yaml-services_yaml').setValue(SERVICES);
-    await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
+  it('Import again hands the source back', async () => {
+    fakeFetch({ 'GET /api/imports': { status: 200, body: { imports: [entry] } } });
+    const h = harness();
+    const w = h.mountIn(HistoryList);
     await flushPromises();
-    expect(w.find('.err').text()).toContain('larger than 1 MB');
-  });
-
-  it('reads an uploaded file', async () => {
-    const { w } = mountPane();
-    const input = w.find<HTMLInputElement>('input[type="file"]');
-    const file = new File([SERVICES], 'services.yaml', { type: 'text/yaml' });
-    Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
-    await input.trigger('change');
-    await flushPromises();
-    expect((w.find('#yaml-services_yaml').element as HTMLTextAreaElement).value).toBe(SERVICES);
-    expect(w.text()).toContain('services.yaml · 4 lines');
-  });
-
-  it('goes back to editing when a file changes after the preview', async () => {
-    const { w } = mountPane();
-    await w.find('#yaml-services_yaml').setValue(SERVICES);
-    await w.findAll('button').find((b) => b.text() === 'Preview import')!.trigger('click');
-    await flushPromises();
-    expect(w.find('.import-preview').exists()).toBe(true);
-    await w.find('#yaml-services_yaml').setValue(SERVICES + '#\n');
-    await nextTick();
-    expect(w.find('.import-preview').exists()).toBe(false);
+    await w.findAll('button').find((b) => b.text() === 'Import again')!.trigger('click');
+    expect(w.findComponent(HistoryList).emitted('again')).toEqual([['yaml']]);
   });
 });
