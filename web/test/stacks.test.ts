@@ -58,6 +58,7 @@ const NODES: StackNode[] = [
     detected: [
       { name: 'pihole', status: 'running', services: 1, running: 1, path: '/srv/pihole', config_files: ['/srv/pihole/docker-compose.yml'], adoptable: true, reason: null },
       { name: 'oddball', status: 'running', services: 1, running: 1, path: '/tmp/x', config_files: [], adoptable: false, reason: 'Its compose file is no longer on disk, so there’s nothing to adopt.' },
+      { name: 'hub', status: 'running', services: 2, running: 2, path: '/root/chadash', config_files: ['/root/chadash/compose.yaml', '/root/chadash/compose.override.yaml'], adoptable: false, protected: true, reason: 'This is Cha Dash’s own stack.' },
     ],
   },
   { node: 'edge', name: 'edge', online: false, error: { code: 'node_unavailable', message: 'The node edge hasn’t checked in for 4 minutes.' }, root: '/opt/stacks', stacks: [], detected: [] },
@@ -162,6 +163,10 @@ describe('Settings → Stacks: the list', () => {
     expect(detected[0]!.find('button').text()).toContain('Adopt');
     expect(detected[1]!.find('button').exists()).toBe(false);
     expect(detected[1]!.text()).toContain('Its compose file is no longer on disk, so there’s nothing to adopt.');
+    // Cha Dash's own project with an override: the protected chip, not "can't adopt".
+    expect(detected[2]!.text()).toContain('Cha Dash’s own stack · view only until self-update');
+    expect(detected[2]!.text()).not.toContain('can’t adopt');
+    expect(detected[2]!.find('button').exists()).toBe(false);
   });
 
   it('adopts through the ladder: T1 runs straight away with Undo', async () => {

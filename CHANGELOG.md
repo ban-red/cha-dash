@@ -23,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Remove with volumes deletes the anonymous volumes.** After Cha Dash had recreated a container, removing it with its volumes kept the anonymous volume while the task said it was deleted. The node now deletes them itself and reports what it kept.
 - **Secret fields have one input.** Every secret in an integration's form showed a second, empty text box under it. What you typed there was never saved.
 - **Cha Dash knows the Proxmox guest it runs in, behind a Docker bridge.** Its Docker engine, reached through the node, was only suggested as running on the guest with its name. With the guest's cores and memory too, the link is made, so shutting down, stopping or rebooting Cha Dash's own guest is T4 (off by default) instead of an ordinary action. Setting `hub_vmid` is still the sure way.
+- **Cha Dash's own stack is protected with an override file.** With a `compose.override.yaml`, Settings → Stacks listed it as "can't adopt" and accepted drafts under its name; deploying one was still refused. It's now shown as Cha Dash's own stack, and drafts are refused.
 - A deploy that rolls back on its own now ends its log on the rollback's commit, not the attempt's.
 
 ## [0.2.0-beta.1] - 2026-10-29

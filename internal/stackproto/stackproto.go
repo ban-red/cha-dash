@@ -192,7 +192,8 @@ type Detected struct {
 	Path        string   `json:"path"`
 	ConfigFiles []string `json:"config_files"`
 	Adoptable   bool     `json:"adoptable"`
-	Reason      string   `json:"reason,omitempty"` // why not, when it isn't
+	Protected   bool     `json:"protected,omitempty"` // Cha Dash's own project: Reason says so
+	Reason      string   `json:"reason,omitempty"`    // why not, when it isn't
 }
 
 // ── stack.get ────────────────────────────────────────────────────────────

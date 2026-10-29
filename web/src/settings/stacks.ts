@@ -47,6 +47,8 @@ export interface Detected {
   path: string;
   config_files?: string[];
   adoptable: boolean;
+  /** Cha Dash's own project: listed, never adopted or drafted. */
+  protected?: boolean;
   reason: string | null;
 }
 

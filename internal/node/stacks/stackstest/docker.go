@@ -272,6 +272,16 @@ func (f *Docker) SetHash(name, service, hash string) {
 	}
 }
 
+// SetFiles gives a running project other compose files, as an override
+// does, keeping its containers.
+func (f *Docker) SetFiles(name string, files []string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if p := f.projects[name]; p != nil {
+		p.files = files
+	}
+}
+
 // AddProject registers a project that runs no container the fake models,
 // such as one with override files.
 func (f *Docker) AddProject(name string, files []string) {

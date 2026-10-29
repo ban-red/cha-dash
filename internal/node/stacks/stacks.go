@@ -524,6 +524,9 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 			d.Path = filepath.Dir(p.ConfigFiles[0])
 		}
 		d.Reason = m.unadoptable(p)
+		if why := m.protectedReason(p.Name, nil, cs); why != "" {
+			d.Reason, d.Protected = why, true
+		}
 		d.Adoptable = d.Reason == ""
 		out.Projects = append(out.Projects, d)
 	}
@@ -579,6 +582,10 @@ func (m *Module) get(ctx context.Context, req stackproto.GetRequest, _ emitter) 
 		// it, read-only, so it can be looked at before adopting.
 		if ext, ok := m.detectedExternal(ctx, req.Stack); ok {
 			s = ext
+		} else if view, ok := m.protectedRunning(ctx, req.Stack); ok {
+			// Cha Dash's own project, even where it can't be adopted (an
+			// override makes two files): say so, so no draft is taken for it.
+			return view, nil
 		} else {
 			return stackproto.Stack{}, stackproto.Errorf(stackproto.CodeNotFound, "There's no stack called %s on this node.", req.Stack)
 		}
@@ -634,7 +641,31 @@ func (m *Module) get(ctx context.Context, req stackproto.GetRequest, _ emitter) 
 		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
 	}
 	out.ProtectedReason = m.protectedReason(s.name, []string{out.Content}, cs)
+	// The summary judged the committed file only; an uncommitted file or
+	// what runs can make it protected too.
+	out.Protected = out.Protected || out.ProtectedReason != ""
 	return out, nil
+}
+
+// protectedRunning is a running project that is protected but neither
+// managed nor adoptable, as a read-only view without its file.
+func (m *Module) protectedRunning(ctx context.Context, name string) (stackproto.Stack, bool) {
+	cs, _ := m.containers(ctx, name)
+	if len(cs) == 0 {
+		return stackproto.Stack{}, false
+	}
+	why := m.protectedReason(name, nil, cs)
+	if why == "" {
+		return stackproto.Stack{}, false
+	}
+	out := stackproto.Stack{Meta: map[string]any{}, Containers: []stackproto.Service{}, History: []stackproto.Commit{}, Secrets: []string{}, ProtectedReason: why}
+	out.Name, out.Protected, out.Location = name, true, stackproto.LocationExternal
+	out.Status, out.Services, out.Running = status(cs)
+	slices.SortFunc(cs, func(a, b Container) int { return strings.Compare(a.Service+a.Name, b.Service+b.Name) })
+	for _, c := range cs {
+		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
+	}
+	return out, true
 }
 
 // detectedExternal finds an unadopted running project outside the root.

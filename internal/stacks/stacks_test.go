@@ -414,6 +414,14 @@ func TestProtectedStack(t *testing.T) {
 	if h.docker.Called("up ") != 0 {
 		t.Error("nothing may start")
 	}
+	// Once the node can tell it's Cha Dash's own (here a file in the root,
+	// not adopted, with the hub's image), a draft is refused before it's kept.
+	h.do("DELETE", "/api/stacks/local/chadash/draft", nil)
+	mustWrite(t, filepath.Join(h.root, "dash", "compose.yaml"), own)
+	w := h.do("PUT", "/api/stacks/local/dash", map[string]any{"content": own})
+	if w.Code != 409 || !strings.Contains(w.Body.String(), `"protected"`) {
+		t.Fatalf("a draft of Cha Dash's own stack: %d %s", w.Code, w.Body)
+	}
 }
 
 func mustWrite(t *testing.T, path, content string) {

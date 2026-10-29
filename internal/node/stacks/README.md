@@ -61,7 +61,7 @@ To lock a node down, list features in `stacks.deny` (with `bind_roots` for the p
 
 ## Protected stacks
 
-Cha Dash's own stack can be viewed and diffed, not deployed (`protected`), until self-update lands in v0.3. A stack is protected when its name is in `Options.Protected` or is the node's own compose project (`Options.SelfProject`, asked again at most once a minute until Docker answers), or when a running container or the file uses an image starting with `ghcr.io/ban-red/chadash`. Separately, `docker.protect` holds for stack verbs: a deploy, plan or rollback that would recreate or remove a protected container is refused (`Options.ProtectContainer`, the node's `Policy.Protected`).
+Cha Dash's own stack can be viewed and diffed, not deployed (`protected`), until self-update lands in v0.3. A stack is protected when its name is in `Options.Protected` or is the node's own compose project (`Options.SelfProject`, asked again at most once a minute until Docker answers), or when a running container or the file uses an image starting with `ghcr.io/ban-red/chadash`. That holds for a running project the node can't adopt too, such as the hub's own with a `compose.override.yaml`: `stack.detect` lists it with `protected` and the reason, and `stack.get` returns a read-only view of it (its containers, no file) instead of `not_found`, so the hub takes no draft for it. Separately, `docker.protect` holds for stack verbs: a deploy, plan or rollback that would recreate or remove a protected container is refused (`Options.ProtectContainer`, the node's `Policy.Protected`).
 
 ## x-chadash
 

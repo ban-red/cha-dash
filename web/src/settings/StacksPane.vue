@@ -156,7 +156,8 @@ onMounted(load);
                 <span>
                   <span class="t">{{ d.name }}</span>
                   <span class="m">{{ statusWords(d) }} · <span class="st-mono">{{ d.path }}</span></span>
-                  <span v-if="!d.adoptable && d.reason" class="m sk-why">{{ d.reason }}</span>
+                  <span v-if="d.protected" class="chip sk-protected"><Glyph kind="lock" />{{ PROTECTED_WORDS }}</span>
+                  <span v-else-if="!d.adoptable && d.reason" class="m sk-why">{{ d.reason }}</span>
                 </span>
                 <span class="end">
                   <button
@@ -168,7 +169,7 @@ onMounted(load);
                   >
                     Adopt<span class="tier">T1</span>
                   </button>
-                  <span v-else-if="!d.adoptable">can’t adopt</span>
+                  <span v-else-if="!d.adoptable && !d.protected">can’t adopt</span>
                 </span>
               </div>
             </li>

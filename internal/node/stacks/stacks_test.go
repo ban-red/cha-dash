@@ -424,6 +424,32 @@ func TestAdoptFromAnotherTool(t *testing.T) {
 	}
 }
 
+// Cha Dash's own project with an override (two files) can't be adopted, but
+// it's still listed and read as protected, so the hub takes no draft for it.
+func TestOwnProjectWithAnOverrideIsProtected(t *testing.T) {
+	n := newTestNode(t, func(o *Options) { o.Protected = []string{"chadash"} })
+	startOutside(t, n.docker, "chadash", "/root/chadash/compose.yaml", "services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:0.2\n")
+	n.docker.SetFiles("chadash", []string{"/root/chadash/compose.yaml", "/root/chadash/compose.override.yaml"})
+	var det stackproto.DetectResponse
+	n.must("stack.detect", nil, &det)
+	i := slices.IndexFunc(det.Projects, func(d stackproto.Detected) bool { return d.Name == "chadash" })
+	if i < 0 {
+		t.Fatalf("not detected: %+v", det)
+	}
+	if d := det.Projects[i]; !d.Protected || d.Adoptable || !strings.Contains(d.Reason, "Cha Dash's own stack") {
+		t.Errorf("detected %+v", d)
+	}
+	var st stackproto.Stack
+	n.must("stack.get", stackproto.GetRequest{Stack: "chadash"}, &st)
+	if !st.Protected || st.ProtectedReason == "" || st.Managed || st.Content != "" || len(st.Containers) != 1 {
+		t.Errorf("get %+v", st)
+	}
+	// A project that isn't protected still isn't found.
+	if err := n.call("stack.get", stackproto.GetRequest{Stack: "nothing"}, nil); stackproto.ErrorFrom(err) == nil || stackproto.ErrorFrom(err).Code != stackproto.CodeNotFound {
+		t.Errorf("unknown stack: %v", err)
+	}
+}
+
 func TestAdoptInPlace(t *testing.T) {
 	n := newTestNode(t)
 	// A Dockge-style directory in the root, never adopted, not running.
