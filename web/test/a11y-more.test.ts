@@ -127,7 +127,7 @@ describe('edit mode: the widget picker and the tile editor', () => {
     });
     const w = hs.mountIn(Page);
     mounted.push(w, { unmount: () => hs.live.stop() });
-    await w.find('.board-tools button').trigger('click');
+    hs.ui.state.editing = true;
     await settle();
     return w;
   }

@@ -57,8 +57,48 @@ describe('front page with today’s incidents', () => {
     // A headline names two and counts the rest.
     expect(w.find('h1.sentence').text()).toBe('Nine things need you: Nextcloud is stuck in maintenance mode, sandbox is in internal‑error and seven more.');
     expect(w.find('.mast-meta [aria-label="Search and commands"]').exists()).toBe(true);
-    expect(w.find('.mast-meta .theme-menu, .mast-meta [aria-label*="heme"]').exists()).toBe(true); // themes stay reachable in Paper
+    expect(w.find('.mast-meta .settings-menu [aria-label="Settings"]').exists()).toBe(true); // themes stay reachable in Paper
     expect(w.find('.sentence-2').text()).toContain('Next: Starling Point at 04:00. Three integrations need reconnecting in the Inbox.');
+  });
+
+  it('keeps Theme, Settings and Sign out behind the settings button', async () => {
+    const { mountIn } = harness(docs(withIncidents));
+    const w = mountIn(Briefing);
+    const trigger = w.find('.settings-menu > button[aria-label="Settings"]');
+    await trigger.trigger('click');
+    await flushPromises();
+    const items = () => w.findAll('[role="menuitem"]');
+    expect(items().map((i) => i.text())).toEqual(['ThemeInstrument Dark', 'Settings', 'Sign out']);
+    expect(document.activeElement).toBe(items()[0]!.element);
+    // Arrows move through the menu and wrap.
+    await w.find('[role="menu"]').trigger('keydown', { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(items()[2]!.element);
+
+    // Theme opens the grid in the same popover, focused on the current theme.
+    await items()[0]!.trigger('click');
+    await flushPromises();
+    expect(w.find('[role="menu"]').exists()).toBe(false);
+    const current = w.find('[role="radio"][aria-checked="true"]');
+    expect(current.text()).toContain('Instrument Dark');
+    expect(document.activeElement).toBe(current.element);
+    await current.trigger('keydown', { key: 'ArrowRight' });
+    expect(w.find('[role="radio"][aria-checked="true"]').text()).toContain('Instrument Light');
+
+    // Escape steps back to the menu first, then closes it.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await flushPromises();
+    expect(items()[0]!.text()).toBe('ThemeInstrument Light');
+    expect(document.activeElement).toBe(items()[0]!.element);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await flushPromises();
+    expect(w.find('.settings-pop').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+
+    await trigger.trigger('click');
+    await flushPromises();
+    await items()[2]!.trigger('click');
+    expect(w.findComponent(Briefing).emitted('signOut')).toHaveLength(1);
+    expect(w.find('.settings-pop').exists()).toBe(false);
   });
 
   it('mirrors problems into Needs attention with the suggested action and its tier', async () => {

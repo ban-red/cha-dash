@@ -66,7 +66,7 @@ src/
     SectionHeader.vue label · meta · rule, meta live from the graph
   components/         Briefing, NeedsAttention, HubBanner, InboxSheet, ResourceSheet (lazy), IncidentItem, DiscoveryItem, LeadsItem,
                       SuggestionItem, ApprovalItem (lazy), CommandPalette (lazy), ConfirmDialog (hold), TypeConfirmDialog and
-                      StepUpDialog (lazy), TaskLogDialog (lazy), NoteDialog (lazy), ClampText, GlyphTip, HoldToConfirm, TaskPresence, ThemeMenu, Toasts, Tile, TileCog, marks/
+                      StepUpDialog (lazy), TaskLogDialog (lazy), NoteDialog (lazy), ClampText, GlyphTip, HoldToConfirm, SettingsMenu, TaskPresence, Toasts, Tile, TileCog, marks/ (Glyph, Meter, MiniGraph)
   widgets/            one component per widget type (see "Widgets"), registry.ts, WidgetHost.vue;
                       subject.ts (the eight states), read.ts, containers.ts (a container's state in words,
                       for the tile and its sheet), checks.ts, guests.ts, serviceStats.ts

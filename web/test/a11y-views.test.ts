@@ -238,6 +238,19 @@ describe('the front page', () => {
     });
   }
 
+  it('with the settings menu and its themes open', async () => {
+    const hs = page(Briefing, docs(withIncidents), {}, { main: true });
+    (document.querySelector('.settings-menu > button') as HTMLButtonElement).click();
+    await settle();
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    expect(await axeViolations()).toEqual([]);
+    (document.querySelector('[role="menuitem"][data-item="theme"]') as HTMLButtonElement).click();
+    await settle();
+    expect(document.querySelector('[role="radiogroup"]')).not.toBeNull();
+    expect(await axeViolations()).toEqual([]);
+    hs.live.stop();
+  });
+
   it('offline, on the last-known page', async () => {
     const hs = page(defineComponent({ setup: () => () => [h(Briefing), h(HubBanner), h(NeedsAttention), h(BoardSurface, { board: defaultBoard(docs(withIncidents).graph, Date.parse(withIncidents.now)), breakpoint: 'desktop' })] }), null, {}, { main: true });
     hs.ws.drop();
@@ -251,9 +264,7 @@ describe('the front page', () => {
 
   it('in edit mode', async () => {
     const hs = page(BoardSurface, docs(withIncidents), { board: defaultBoard(docs(withIncidents).graph, Date.parse(withIncidents.now)), breakpoint: 'desktop' }, { main: true });
-    const edit = [...document.querySelectorAll('button')].find((b) => /edit layout/i.test(b.textContent ?? ''));
-    expect(edit).toBeDefined();
-    edit!.click();
+    hs.ui.state.editing = true;
     await settle();
     await until(() => document.querySelector('.edit-hint') !== null, 'edit mode');
     expect(await axeViolations()).toEqual([]);

@@ -442,21 +442,83 @@
   height: 24px;
 }
 
-/* ───────────── Theme menu ───────────── */
-.theme-menu {
+/* ───────────── Settings menu ───────────── */
+.settings-menu {
   position: relative;
 }
-.theme-pop {
+.settings-pop {
   position: absolute;
   z-index: 45;
   right: 0;
   top: calc(100% + 8px);
-  width: 300px;
   padding: var(--space-2);
   border-radius: var(--radius-lg);
 }
-.theme-pop h3 {
-  padding: 6px 6px 8px;
+.menu-pop {
+  width: 240px;
+}
+.menu-who {
+  padding: 6px 8px 8px;
+  margin-bottom: 4px;
+  border-bottom: var(--hairline) solid var(--line);
+  font-size: var(--type-caption);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font: var(--weight-regular) var(--type-callout) / 1.2 var(--font-ui);
+  text-align: left;
+  text-decoration: none;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--surface-hover);
+}
+.menu-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-3);
+  font-size: var(--type-caption);
+}
+.menu-val svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.theme-pop {
+  width: 300px;
+}
+.theme-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 6px;
+}
+.theme-head .back {
+  width: 28px;
+  height: 28px;
+  border: 0;
+}
+.theme-title {
+  padding: 6px 2px;
   font: var(--weight-medium) var(--type-micro) / 1 var(--font-num);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
@@ -570,17 +632,6 @@
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.theme-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  padding: var(--space-2) 4px 2px;
-  border-top: var(--hairline) solid var(--line);
-  font-size: var(--type-caption);
-  color: var(--text-3);
 }
 
 /* ───────────── Doors: setup and sign-in ───────────── */

@@ -68,7 +68,7 @@ const ids = (b: Board) => b.sections.flatMap((s) => s.items.map((i) => i.id));
 
 async function editing(store: BoardStore) {
   const w = mountSurface(store);
-  await w.find('.board-tools button').trigger('click');
+  w.ui.state.editing = true;
   await settle();
   return w;
 }
@@ -84,7 +84,7 @@ describe('edit mode', () => {
     const w = mountSurface(fakeStore(start()));
     expect(w.findComponent(LayoutBoard).exists()).toBe(false);
 
-    await w.find('.board-tools button').trigger('click');
+    w.ui.state.editing = true;
     await settle();
     expect(w.findComponent(LayoutBoard).exists()).toBe(true);
     expect(w.findComponent(LayoutBoard).props('editing')).toBe(true);
@@ -95,7 +95,7 @@ describe('edit mode', () => {
     await w.findAll('.edit-bar button').find((b) => b.text() === 'Done')!.trigger('click');
     await flushPromises();
     expect(w.findComponent(LayoutBoard).exists()).toBe(false);
-    expect(w.find('.board-tools').exists()).toBe(true);
+    expect(w.ui.state.editing).toBe(false);
   });
 
   it('saves each committed gesture, and undo saves the previous board', async () => {
@@ -185,7 +185,7 @@ describe('removing a tile', () => {
         },
       });
       const wrapper = hs.mountIn(Page);
-      await wrapper.find('.board-tools button').trigger('click');
+      hs.ui.state.editing = true;
       await settle();
       return wrapper;
     })();
@@ -287,7 +287,7 @@ describe('label discovery in edit mode', () => {
       },
     });
     const w = Object.assign(hs.mountIn(Page), { ui: hs.ui });
-    await w.find('.board-tools button').trigger('click');
+    w.ui.state.editing = true;
     await settle();
     await settle();
     return w;

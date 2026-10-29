@@ -70,9 +70,6 @@ watch(
 <template>
   <EditableBoard v-if="ui.state.editing && ui.can.value.editBoards" :board="board" :breakpoint="breakpoint" @done="ui.state.editing = false" />
   <template v-else>
-    <div v-if="ui.can.value.editBoards" class="board-tools">
-      <button type="button" class="btn ghost sm" @click="ui.state.editing = true">Edit layout</button>
-    </div>
     <div v-if="empty && ui.can.value.panes.includes('import')" class="board-empty">
       <p><b>Bring in what you run.</b> Import another dashboard’s config, let Cha Dash discover services, or add them one by one.</p>
       <span class="board-empty-acts">
@@ -118,10 +115,5 @@ watch(
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-.board-tools {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 0 var(--space-2);
 }
 </style>

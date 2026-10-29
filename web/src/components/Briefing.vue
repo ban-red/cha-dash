@@ -8,12 +8,11 @@
  */
 import { computed } from 'vue';
 import Glyph from './marks/Glyph.vue';
-import ThemeMenu from './ThemeMenu.vue';
+import BriefTools from './BriefTools.vue';
 import { fmtPct, hhmm, longDate, numberWord, plural, shortDate } from '../lib/format';
 import { currentTheme, THEMES } from '../lib/theme';
 import { inSentence, joinAnd, peoplePhrase, summarize } from '../model/briefing';
-import { groupInbox, nbHyphen } from '../model/inbox';
-import { useDiscoveryIfAny } from '../stores/discovery';
+import { nbHyphen } from '../model/inbox';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 
@@ -27,16 +26,9 @@ interface Part {
 const emit = defineEmits<{ signOut: [] }>();
 const live = useLive();
 const ui = useUi();
-const discovery = useDiscoveryIfAny();
 
 const s = computed(() => summarize(live.graph.value, live.metrics.value, live.inbox.value, live.now.value));
 const headline = computed(() => THEMES.find((t) => t.id === currentTheme.value)?.briefing === 'headline');
-/** What the Inbox lists as open: needs you, not already being fixed, plus a discovery and suggestions waiting for an answer. */
-const inboxCount = computed(() => {
-  const g = groupInbox(live.inbox.value, live.fixes);
-  return g.open.length + g.suggestions.length + (discovery?.suggestions.value.length ? 1 : 0);
-});
-const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const clock = computed(() => hhmm(live.now.value));
 const eyebrow = computed(() => {
   if (live.stale.value && live.offlineAt.value) return ['Last known', `as of ${hhmm(live.offlineAt.value)}`];
@@ -148,13 +140,7 @@ function key(e: KeyboardEvent, id: string) {
       <div class="mast-meta">
         <span>{{ longDate(live.now.value) }}</span>
         <span class="n">{{ clock }}</span>
-        <button v-if="ui.can.value.inbox" type="button" class="pill" aria-haspopup="dialog" @click="ui.openInbox()">
-          Inbox <span :class="['badge', { zero: !inboxCount }]">{{ inboxCount }}</span>
-        </button>
-        <button type="button" class="tool search-tool" aria-haspopup="dialog" :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'" aria-label="Search and commands" :title="`Search and commands (${mac ? '⌘K' : 'Ctrl K'})`" @click="ui.openPalette()">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="m10.4 10.4 3.4 3.4" /></svg>
-        </button>
-        <ThemeMenu v-if="headline" @sign-out="emit('signOut')" />
+        <BriefTools v-if="headline" @sign-out="emit('signOut')" />
       </div>
     </div>
 
@@ -184,15 +170,7 @@ function key(e: KeyboardEvent, id: string) {
     <div class="brief-side">
       <span class="sr">{{ live.demo.value ? 'Simulated time in the Demo Home, UTC:' : 'Time at home:' }}</span>
       <div class="clock">{{ clock }}</div>
-      <div class="brief-tools">
-        <button v-if="ui.can.value.inbox" type="button" class="pill" aria-haspopup="dialog" :aria-label="`Inbox: ${inboxCount} need you`" @click="ui.openInbox()">
-          Inbox <span :class="['badge', { zero: !inboxCount }]">{{ inboxCount }}</span>
-        </button>
-        <button type="button" class="tool search-tool" aria-haspopup="dialog" :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'" aria-label="Search and commands" :title="`Search and commands (${mac ? '⌘K' : 'Ctrl K'})`" @click="ui.openPalette()">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="m10.4 10.4 3.4 3.4" /></svg>
-        </button>
-        <ThemeMenu v-if="!headline" @sign-out="emit('signOut')" />
-      </div>
+      <BriefTools v-if="!headline" @sign-out="emit('signOut')" />
     </div>
   </section>
 </template>
