@@ -13,7 +13,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtInt, plural, since } from '../lib/format';
 import { appsOfType, label, resolve } from '../model/graph';
@@ -155,7 +155,7 @@ const ratio = computed(() => `${fmtInt(c.value.up)}`);
             <Glyph :kind="glyphFor(single.status)" /><span>{{ rowWords(single) }}{{ single.reason && single.status === 'down' ? ` · ${single.reason}` : '' }}</span>
           </div>
         </div>
-        <Sparkline
+        <MiniGraph
           :values="single.latency?.history"
           :band="single.latency?.band"
           :tone="single.status === 'down' ? 'down' : single.status === 'attention' ? 'attn' : 'neutral'"
@@ -178,7 +178,7 @@ const ratio = computed(() => `${fmtInt(c.value.up)}`);
         <li v-for="r in rows.slice(0, 4)" :key="r.id" :class="['chk', { dim: r.status === 'off' }]">
           <Glyph :kind="glyphFor(r.status)" :label="rowWords(r)" />
           <span class="t">{{ r.name }}<small v-if="r.target">{{ hostOf(r.target) || r.target }}</small></span>
-          <Sparkline
+          <MiniGraph
             :values="r.latency?.history"
             :band="r.latency?.band"
             :tone="r.status === 'down' ? 'down' : r.status === 'attention' ? 'attn' : 'neutral'"

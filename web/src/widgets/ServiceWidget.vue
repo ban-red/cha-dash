@@ -28,7 +28,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
 import { glyphFor, worst } from '../model/status';
@@ -173,7 +173,7 @@ const origin = computed(() => originLabel(meta.value));
           <StateNote :subject="s" :limited="limited" :last-known="value !== null" />
           <div v-if="s.status === 'ok' && !limited && reading?.context && !reading.empty" class="lab svc-ctx">{{ reading.context }}</div>
         </div>
-        <Sparkline
+        <MiniGraph
           v-if="size === 'wide'"
           :values="limited ? [] : reading?.series?.history"
           :band="reading?.series?.band"

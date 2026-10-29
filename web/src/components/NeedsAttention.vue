@@ -8,7 +8,7 @@
 import { computed, ref, watch } from 'vue';
 import Glyph from './marks/Glyph.vue';
 import Meter from './marks/Meter.vue';
-import Sparkline from './marks/Sparkline.vue';
+import MiniGraph from './marks/MiniGraph.vue';
 import { fmtPct, hhmm } from '../lib/format';
 import { series } from '../model/graph';
 import { incidentKicker } from '../model/inbox';
@@ -125,7 +125,7 @@ function workingWords(i: Incident): string {
                 :label="`${i.title}: ${fmtPct(viz(i)!.s.value)}%`"
               />
             </template>
-            <Sparkline
+            <MiniGraph
               v-else-if="viz(i)?.kind === 'spark'"
               :values="viz(i)!.s.history"
               :band="viz(i)!.s.band"

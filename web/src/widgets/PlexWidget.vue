@@ -18,7 +18,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtInt, fmtNum, hhmm, plural, since } from '../lib/format';
 import { appsOfType, attr, placeOf, resolve, series } from '../model/graph';
@@ -136,7 +136,7 @@ const library = computed(() => [movies.value !== undefined ? `${fmtInt(movies.va
         </div>
       </div>
       <template v-if="size === 'large'">
-        <Sparkline :values="streams?.history" :band="streams?.band" :stale="streams?.stale || s.needsRepair" :height="56" label="Streams, 24 hours" :format="(v: number) => plural(Math.round(v), 'stream')" />
+        <MiniGraph :values="streams?.history" :band="streams?.band" :stale="streams?.stale || s.needsRepair" :height="56" label="Streams, 24 hours" :format="(v: number) => plural(Math.round(v), 'stream')" />
         <div class="tf"><span>Who's watching and recently added arrive when Plex publishes them</span></div>
       </template>
     </template>

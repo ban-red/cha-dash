@@ -16,7 +16,7 @@ import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
 import Meter from '../components/marks/Meter.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import { fmtInt, fmtNum, fmtPct, plural, since } from '../lib/format';
 import { attr, incoming, label, resolve, series } from '../model/graph';
 import { glyphFor } from '../model/status';
@@ -140,8 +140,8 @@ const pct = (v: number) => `${Math.round(v)}%`;
           <StateNote :subject="s" :line="downLine" />
         </div>
         <div class="col host-sparks">
-          <Sparkline :values="mem?.history" :band="mem?.band" :tone="memTone" :threshold="mem?.warn" :stale="mem?.stale" :height="size === 'large' ? 40 : 30" :label="`${label(host)} memory, 24 hours`" :format="pct" />
-          <Sparkline :values="cpu?.history" :band="cpu?.band" :tone="tone === 'down' ? 'down' : 'neutral'" :stale="cpu?.stale" :height="size === 'large' ? 28 : 18" :label="`${label(host)} CPU, 24 hours`" :format="pct" />
+          <MiniGraph :values="mem?.history" :band="mem?.band" :tone="memTone" :threshold="mem?.warn" :stale="mem?.stale" :height="size === 'large' ? 40 : 30" :label="`${label(host)} memory, 24 hours`" :format="pct" />
+          <MiniGraph :values="cpu?.history" :band="cpu?.band" :tone="tone === 'down' ? 'down' : 'neutral'" :stale="cpu?.stale" :height="size === 'large' ? 28 : 18" :label="`${label(host)} CPU, 24 hours`" :format="pct" />
         </div>
       </div>
       <template v-if="size === 'large'">

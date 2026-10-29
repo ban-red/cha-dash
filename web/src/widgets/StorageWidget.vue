@@ -15,7 +15,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Meter from '../components/marks/Meter.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtPct } from '../lib/format';
 import { label, outgoing, resolve, series } from '../model/graph';
@@ -92,7 +92,7 @@ const tone = computed(() => (status.value === 'down' ? 'down' : over.value ? 'at
           <div class="lab">{{ [full, size === 'small' ? '' : free].filter(Boolean).join(' · ') || free || 'steady' }}</div>
           <StateNote :subject="s" :limited="hidden && size !== 'small'" />
         </div>
-        <Sparkline
+        <MiniGraph
           v-if="size !== 'small'"
           :values="used.history"
           :band="used.band"

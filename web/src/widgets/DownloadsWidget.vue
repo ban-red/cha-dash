@@ -18,7 +18,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtInt, fmtNum, since } from '../lib/format';
 import { appsOfType, incoming, label, placeOf, resolve, series } from '../model/graph';
@@ -147,7 +147,7 @@ const MONO: Record<string, string> = { qbittorrent: 'QB', transmission: 'TR', sa
           <div v-else class="sub"><b class="n">{{ fmtInt(leeching?.value) }}</b> leeching · <b class="n">{{ fmtInt(seeding?.value) }}</b> seeding · ↑ <b class="n">{{ fmtNum(ul?.value) }}</b></div>
           <StateNote :subject="s" :line="downLine" :last-known="dl?.value != null" />
         </div>
-        <Sparkline :values="dl?.history" :band="dl?.band" :tone="tone" :stale="dl?.stale" :height="size === 'tall' ? 36 : 48" label="Download speed, 24 hours" :format="rate" />
+        <MiniGraph :values="dl?.history" :band="dl?.band" :tone="tone" :stale="dl?.stale" :height="size === 'tall' ? 36 : 48" label="Download speed, 24 hours" :format="rate" />
       </div>
       <ul class="list" aria-label="Queues">
         <li v-for="q in rows.slice(0, size === 'tall' ? 8 : 3)" :key="q.id" class="li">

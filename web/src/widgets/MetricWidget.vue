@@ -15,7 +15,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { since } from '../lib/format';
 import { label, series } from '../model/graph';
@@ -87,7 +87,7 @@ const sourceDown = computed(() => (status.value === 'down' ? `Source down ${sinc
     </template>
 
     <template v-else-if="size === 'strip' || size === 'strip-long'">
-      <Sparkline :values="sr.history" :band="sr.band" :tone="tone" :height="22" :stale="sr.stale" :label="`${words}, 24 hours`" :format="format" />
+      <MiniGraph :values="sr.history" :band="sr.band" :tone="tone" :height="22" :stale="sr.stale" :label="`${words}, 24 hours`" :format="format" />
       <span :class="['sv', 'n', { unknown: v === null }]">{{ shown }}<small>{{ unit }}</small></span>
     </template>
 
@@ -103,7 +103,7 @@ const sourceDown = computed(() => (status.value === 'down' ? `Source down ${sinc
           <div v-if="sourceDown" class="note w-note n-down"><Glyph kind="down" /><span>{{ sourceDown }}</span></div>
           <StateNote v-else :subject="s.status === 'ok' ? undefined : s" :limited="limited" :last-known="v !== null" />
         </div>
-        <Sparkline
+        <MiniGraph
           :values="limited ? [] : sr.history"
           :band="sr.band"
           :tone="tone"

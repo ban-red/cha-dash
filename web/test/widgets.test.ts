@@ -292,7 +292,7 @@ describe('metric stat and sparkline', () => {
     expect(w.find('.sub').text()).toContain('threshold 90%');
     expect(w.find('.spark').classes()).toContain('tone-attn');
     expect(w.find('.spark').attributes('aria-label')).toContain('threshold 90%');
-    expect(w.find('.sp-thr').exists()).toBe(true);
+    expect(w.find('.mg-thr').exists()).toBe(true);
   });
 
   it('is label · sparkline · value as a strip, and value plus unit as a glyph', () => {
@@ -536,7 +536,7 @@ describe('storage bar', () => {
     const { w, tile } = mountWidget(docs(withIncidents), 'storage', 'wide', 'pbs:main');
     expect(tile().classes()).toContain('is-attn');
     expect(w.find('.v').text()).toBe('92% used');
-    expect(w.find('.sp-thr').exists()).toBe(true);
+    expect(w.find('.mg-thr').exists()).toBe(true);
   });
 });
 

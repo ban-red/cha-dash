@@ -16,7 +16,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtInt, fmtNum, fmtPct, since } from '../lib/format';
 import { attr, byKind, incoming, label, placeOf, resolve, series } from '../model/graph';
@@ -85,7 +85,7 @@ const gb = (v: number | null | undefined) => (typeof v === 'number' && v >= 1000
     </template>
 
     <template v-else-if="size === 'strip' || size === 'strip-long'">
-      <Sparkline :values="rx?.history" :band="rx?.band" :tone="status === 'down' ? 'down' : 'neutral'" :stale="rx?.stale" :height="22" label="WAN download, 24 hours" :format="fmtRate" />
+      <MiniGraph :values="rx?.history" :band="rx?.band" :tone="status === 'down' ? 'down' : 'neutral'" :stale="rx?.stale" :height="22" label="WAN download, 24 hours" :format="fmtRate" />
       <span :class="['sv', 'n', { unknown: rx?.value == null }]">{{ fmtNum(rx?.value) }}<small>Mb/s ↓</small></span>
     </template>
 
@@ -110,7 +110,7 @@ const gb = (v: number | null | undefined) => (typeof v === 'number' && v >= 1000
           <StateNote v-if="status === 'down'" :line="{ glyph: 'down', text: `Internet is down ${since(wanSince, live.now.value)}`.trim() }" />
           <StateNote v-else :subject="s" />
         </div>
-        <Sparkline
+        <MiniGraph
           :values="rx?.history"
           :band="rx?.band"
           :tone="status === 'down' ? 'down' : 'neutral'"

@@ -7,7 +7,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import { fmtInt } from '../lib/format';
 import { label, placeOf, resolve, series } from '../model/graph';
 import { resourceLinks } from '../model/types';
@@ -52,7 +52,7 @@ const noted = computed(() => size !== 'small' || (s.value.status !== 'ok' && s.v
           <div class="v">{{ fmtInt(q) }}</div>
           <span class="lab">queued</span>
         </div>
-        <Sparkline :values="queue?.history" :band="queue?.band" :tone="tone" :stale="queue?.stale" :height="size === 'wide' ? 40 : 28" :label="`${label(app)} queue`" />
+        <MiniGraph :values="queue?.history" :band="queue?.band" :tone="tone" :stale="queue?.stale" :height="size === 'wide' ? 40 : 28" :label="`${label(app)} queue`" />
       </template>
       <template v-else>
         <div :class="['v', 'sm', 'word', { unknown: q === null }]">{{ q === null ? '—' : 'Queue clear' }}</div>

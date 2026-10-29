@@ -15,7 +15,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import { fmtInt, fmtNum } from '../lib/format';
 import { attr, placeOf, resolve, series } from '../model/graph';
 import { resourceLinks } from '../model/types';
@@ -79,13 +79,13 @@ const rows = computed(() => [
 
     <template v-else-if="size === 'strip' || size === 'strip-long'">
       <span class="sx"><span class="n">{{ fmtInt(people?.value) }}</span> home · <span class="n">{{ fmtInt(lights?.value) }}</span> lights</span>
-      <Sparkline :values="power?.history" :band="power?.band" :stale="power?.stale" :height="22" label="House power, 24 hours" :format="kw" />
+      <MiniGraph :values="power?.history" :band="power?.band" :stale="power?.stale" :height="22" label="House power, 24 hours" :format="kw" />
       <span :class="['sv', 'n', { unknown: power?.value == null }]">{{ fmtNum(power?.value) }}<small>kW</small></span>
     </template>
 
     <template v-else-if="size === 'small'">
       <div :class="['v', { unknown: power?.value == null }]">{{ fmtNum(power?.value) }}<span class="u">kW</span></div>
-      <Sparkline :values="power?.history" :band="power?.band" :stale="power?.stale" :height="28" label="House power, 24 hours" :format="kw" />
+      <MiniGraph :values="power?.history" :band="power?.band" :stale="power?.stale" :height="28" label="House power, 24 hours" :format="kw" />
       <StateNote :subject="s" :last-known="Boolean(power)" />
       <div class="tf">
         <span><span class="n">{{ fmtInt(people?.value) }}</span> home · <span class="n">{{ fmtInt(lights?.value) }}</span> lights on</span>
@@ -113,7 +113,7 @@ const rows = computed(() => [
             <div :class="['v', 'sm', { unknown: power?.value == null }]">{{ fmtNum(power?.value) }}<span class="u">kW</span></div>
             <span class="lab"><span class="n">{{ fmtNum(energy?.value) }}</span> kWh today</span>
           </div>
-          <Sparkline :values="power?.history" :band="power?.band" :stale="power?.stale" :height="40" label="House power" :format="kw" />
+          <MiniGraph :values="power?.history" :band="power?.band" :stale="power?.stale" :height="40" label="House power" :format="kw" />
         </div>
       </div>
       <StateNote :subject="s" :last-known="Boolean(power)" />

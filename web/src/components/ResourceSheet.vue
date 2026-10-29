@@ -21,7 +21,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
 import Glyph from './marks/Glyph.vue';
-import Sparkline from './marks/Sparkline.vue';
+import MiniGraph from './marks/MiniGraph.vue';
 import { copyText } from '../settings/recipe';
 import { api } from '../lib/api';
 import { isDone, listActions, type Offer } from '../lib/actions';
@@ -648,7 +648,7 @@ onBeforeUnmount(() => {
                   <span class="rs-mv">
                     <b>{{ m.shown }}</b>{{ m.of ? ' ' : '' }}<small v-if="m.of">{{ m.of }}</small>
                   </span>
-                  <Sparkline :values="m.values" :band="m.sr.band" :height="28" :stale="m.sr.stale || live.stale.value" :label="`${m.name} while this is open`" :format="m.fmt" />
+                  <MiniGraph :values="m.values" :band="m.sr.band" :height="28" :stale="m.sr.stale || live.stale.value" :label="`${m.name} while this is open`" :format="m.fmt" />
                 </li>
               </ul>
             </section>

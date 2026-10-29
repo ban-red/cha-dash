@@ -16,7 +16,7 @@ import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
 import Meter from '../components/marks/Meter.vue';
-import Sparkline from '../components/marks/Sparkline.vue';
+import MiniGraph from '../components/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { ago, fmtNum, fmtPct, plural } from '../lib/format';
 import { attr, incoming, label, outgoing, series } from '../model/graph';
@@ -216,7 +216,7 @@ const diskTip = (d: Disk) => `${d.name}: ${d.parity ? 'parity' : d.used === null
           </div>
           <div v-if="hottest">
             <div class="lab">Hottest disk · {{ hottest.name }} · 24 h</div>
-            <Sparkline
+            <MiniGraph
               :values="hottestSeries?.history"
               :band="hottestSeries?.band"
               :tone="(hottest.temp ?? 0) >= hottest.warnTemp ? 'attn' : 'neutral'"
