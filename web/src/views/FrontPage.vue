@@ -10,7 +10,7 @@
  *   its board render from it at once, and the socket supersedes it;
  * - the last-known snapshot: written while live, and the page opens on it
  *   when the hub was unreachable at start-up (session.state.offline);
- * - demo mode (GET /api/demo): UTC times;
+ * - demo mode (GET /api/demo): UTC times, and "Demo" in the tab title;
  * - the viewer's role: what the page hides (model/roles.ts; the hub enforces);
  * - label discovery for the board on screen (stores/discovery.ts);
  * - the first-run wizard (onboarding/), when the hub says to show it (admin
@@ -201,6 +201,19 @@ watch(
     if (was && !offline) void demo();
   },
 );
+
+// A demo tab says so in the tab strip too.
+const baseTitle = document.title || 'Cha Dash';
+watch(
+  live.demo,
+  (on) => {
+    document.title = on ? `Demo · ${baseTitle}` : baseTitle;
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => {
+  document.title = baseTitle;
+});
 </script>
 
 <template>

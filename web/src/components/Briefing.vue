@@ -144,7 +144,7 @@ function key(e: KeyboardEvent, id: string) {
 <template>
   <section class="brief" aria-label="Briefing">
     <div class="masthead">
-      <div class="wordmark">Cha <i>Dash</i></div>
+      <div class="wordmark">Cha <i>Dash</i><span v-if="live.demo.value" class="demo-tag">Demo</span></div>
       <div class="mast-meta">
         <span>{{ longDate(live.now.value) }}</span>
         <span class="n">{{ clock }}</span>
@@ -182,7 +182,7 @@ function key(e: KeyboardEvent, id: string) {
     </div>
 
     <div class="brief-side">
-      <span class="sr">Time at home:</span>
+      <span class="sr">{{ live.demo.value ? 'Simulated time in the Demo Home, UTC:' : 'Time at home:' }}</span>
       <div class="clock">{{ clock }}</div>
       <div class="brief-tools">
         <button v-if="ui.can.value.inbox" type="button" class="pill" aria-haspopup="dialog" :aria-label="`Inbox: ${inboxCount} need you`" @click="ui.openInbox()">

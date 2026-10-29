@@ -2,7 +2,8 @@
 /**
  * Hub offline / stale: the page keeps its last-known values under a clear
  * banner. Appears after a short grace period, so a quick reconnect doesn't
- * flash it.
+ * flash it. Otherwise, in demo mode, a standing note that the page is the
+ * Demo Home on its own clock.
  */
 import { computed } from 'vue';
 import Glyph from './marks/Glyph.vue';
@@ -61,5 +62,9 @@ const reload = () => location.reload();
     <Glyph kind="attn" label="update" />
     <span><b>The hub was updated.</b> Reload to get the matching version of this page.</span>
     <button type="button" class="btn sm" @click="reload">Reload</button>
+  </div>
+  <div v-else-if="live.demo.value" class="banner demo" role="note" aria-label="Demo mode">
+    <span class="demo-tag">Demo</span>
+    <span><b>You're looking at the Demo Home</b>, a simulated lab running a scripted day on its own clock, in UTC. Its hosts, incidents and fixes are all made up.</span>
   </div>
 </template>

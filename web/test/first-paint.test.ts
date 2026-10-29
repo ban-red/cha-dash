@@ -150,7 +150,10 @@ describe('the first paint', () => {
     ws.handshake({ graph: s.graph, metrics: s.metrics, inbox: s.inbox });
     await flushPromises();
     expect(page().innerHTML).toBe(before);
-    expect(document.querySelector('.banner')).toBeNull();
+    // No connection banner, only the standing demo note.
+    expect(document.querySelector('.banner:not(.demo)')).toBeNull();
+    expect(document.querySelector('.banner.demo')?.textContent).toContain('Demo Home');
+    expect(document.title).toMatch(/^Demo · /);
 
     // And then it's live like any page.
     const id = ws.subId('metrics');

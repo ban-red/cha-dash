@@ -197,6 +197,29 @@ describe('empty and offline', () => {
     expect(w.text()).not.toMatch(/\b0%/);
   });
 
+  it('says it is the Demo Home in demo mode, until a connection banner takes over', async () => {
+    const { mountIn, ws, live } = harness(docs(withIncidents), { demo: true });
+    const brief = mountIn(Briefing);
+    const banner = mountIn(HubBanner);
+    expect(brief.find('.wordmark .demo-tag').text()).toBe('Demo');
+    expect(brief.find('.brief-side .sr').text()).toContain('Simulated time');
+    expect(banner.find('.banner.demo').text()).toContain("You're looking at the Demo Home");
+    ws.drop();
+    vi.advanceTimersByTime(4000);
+    live.tick();
+    await nextTick();
+    expect(banner.find('.banner.demo').exists()).toBe(false);
+    expect(banner.find('.banner').text()).toContain('Cha Dash hub unreachable');
+    // The wordmark keeps saying so.
+    expect(brief.find('.wordmark .demo-tag').exists()).toBe(true);
+  });
+
+  it('shows no demo marks outside demo mode', () => {
+    const { mountIn } = harness(docs(withIncidents));
+    expect(mountIn(Briefing).find('.demo-tag').exists()).toBe(false);
+    expect(mountIn(HubBanner).find('.banner').exists()).toBe(false);
+  });
+
   it('keeps last-known values hatched under the offline banner', async () => {
     const { mountIn, ws, live } = harness(docs(withIncidents));
     const banner = mountIn(HubBanner);

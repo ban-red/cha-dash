@@ -26,7 +26,7 @@ bun run dev                                                 # in web/, then open
 
 The dev server proxies `/api` and `/ws` (`ws: true`) to `127.0.0.1:3696`. `changeOrigin` stays off: the hub's cross-origin checks compare `Origin` with `Host`, and through the proxy both are the dev server's. Run this way, the hub has no dev login (add `-tags devlogin` to `go run` for it), so the first visit asks for the setup token from the hub's log.
 
-Demo mode shows absolute times in UTC, because the Demo Home keeps UTC as its clock and its incident copy quotes UTC times. Outside demo mode times are local.
+Demo mode shows absolute times in UTC, because the Demo Home keeps UTC as its clock and its incident copy quotes UTC times. Outside demo mode times are local. Demo mode also marks itself: a "Demo" tag beside the wordmark (`Briefing.vue`, every theme), a standing note in `HubBanner.vue` that the connection banners replace, and "Demo · " before the tab title (`FrontPage.vue`).
 
 Passkeys work at `http://localhost:3697` (the dev server's URL) with no configuration; browsers refuse them on `127.0.0.1` and on any plain-http LAN address, and the page says so where the passkey button would be. The service worker only registers in a production build.
 

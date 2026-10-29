@@ -232,6 +232,29 @@
 .banner .btn {
   margin-left: auto;
 }
+/* Demo mode: solid, not hatched; hatching means last-known values. */
+.banner.demo {
+  border: var(--hairline) solid var(--accent-line);
+  background: var(--accent-bg);
+  color: var(--text);
+}
+.demo-tag {
+  flex: none;
+  display: inline-block;
+  padding: 3px 7px;
+  border: var(--hairline) solid var(--accent-line);
+  border-radius: var(--radius-full);
+  font: var(--weight-medium) var(--type-micro) / 1 var(--font-num);
+  font-style: normal;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--accent-text);
+  background: var(--accent-bg);
+}
+.wordmark .demo-tag {
+  margin-left: var(--space-3);
+  vertical-align: 0.5em;
+}
 
 /* ───────────── Board grid and sections ───────────── */
 .board {
