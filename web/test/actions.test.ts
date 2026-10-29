@@ -14,6 +14,7 @@ import NeedsAttention from '../src/components/NeedsAttention.vue';
 import TypeConfirmDialog from '../src/components/TypeConfirmDialog.vue';
 import Toasts from '../src/components/Toasts.vue';
 import TaskPresence from '../src/components/TaskPresence.vue';
+import TaskLogDialog from '../src/components/TaskLogDialog.vue';
 import BoardSurface from '../src/board/BoardSurface.vue';
 import { actionError } from '../src/lib/actions';
 import { ApiError } from '../src/lib/api';
@@ -24,6 +25,7 @@ import { buildCommands } from '../src/model/commands';
 import { defaultBoard } from '../src/model/defaultLayout';
 import { assignableRoles, permissions } from '../src/model/roles';
 import type { Incident } from '../src/model/types';
+import { axeViolations } from './axe';
 import { engine, planFor, refuse, taskFor } from './fake-engine';
 import { fakeFetch } from './fake-fetch';
 import { docs, withIncidents } from './fixtures';
@@ -370,6 +372,62 @@ describe('tasks', () => {
     await nextTick();
     expect(h.ui.state.toasts.at(-1)).toMatchObject({ text: 'The backup didn’t show up on pbs-jupiter within 10 minutes.', tone: 'error' });
     expect(h.live.fixes[BACKUP]).toEqual({ state: 'failed', error: 'The backup didn’t show up on pbs-jupiter within 10 minutes.' });
+  });
+
+  it('a task whose log is its result opens the log when it ends, and keeps a copy', async () => {
+    const e = engine({ plan: () => ({ tier: 'T0', confirm: 'none', label: 'Show the logs of sonarr' }) });
+    fakeFetch(e.routes);
+    const h = start();
+    void h.ui.runAction({ action: 'docker.container.logs', target: 'docker:i_d/container/sonarr', label: 'Show the logs of sonarr' });
+    await flushPromises();
+    const p = planFor('docker.container.logs', 'docker:i_d/container/sonarr', { label: 'Show the logs of sonarr' });
+    const task = taskFor(p, { state: 'succeeded', reads_data: true, log: ['starting', 'listening on :8989'] });
+    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 2, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', task.id), value: task }] });
+    await nextTick();
+    expect(h.ui.state.taskLog).toEqual({ label: 'Show the logs of sonarr', lines: ['starting', 'listening on :8989'] });
+    expect(h.ui.state.toasts.some((t) => t.text.startsWith('Done'))).toBe(false);
+
+    const w = h.mountIn(TaskLogDialog);
+    await flushPromises();
+    const pre = document.querySelector('dialog.tasklog pre')!;
+    expect(pre.textContent).toBe('starting\nlistening on :8989');
+    expect(pre.getAttribute('aria-label')).toBe('Log of Show the logs of sonarr');
+    expect(document.activeElement).toBe(pre);
+    expect(await axeViolations(document.querySelector('dialog.tasklog')!)).toEqual([]);
+    // The hub dropping the task (a restart) doesn't take the lines from an open dialog.
+    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 3, patch: [{ op: 'remove', path: toPointer('tasks', 'tasks', task.id) }] });
+    await nextTick();
+    expect(document.querySelector('dialog.tasklog pre')?.textContent).toBe('starting\nlistening on :8989');
+    await w.findAll('button').find((b) => b.text() === 'Close')!.trigger('click');
+    expect(h.ui.state.taskLog).toBeUndefined();
+  });
+
+  it('a task that read nothing back says so', async () => {
+    fakeFetch(engine().routes);
+    const h = start();
+    h.ui.state.taskLog = { label: 'Show the logs of quiet', lines: [] };
+    h.mountIn(TaskLogDialog);
+    await flushPromises();
+    expect(document.querySelector('dialog.tasklog pre')).toBeNull();
+    expect(document.querySelector('dialog.tasklog')?.textContent).toContain('No lines came back.');
+  });
+
+  it('any other task that ended with log lines offers them from its toast', async () => {
+    const e = engine();
+    fakeFetch(e.routes);
+    const h = start();
+    h.ui.act(h.inc(BACKUP));
+    await flushPromises();
+    const fix = h.inc(BACKUP).suggested!;
+    const task = taskFor(planFor(fix.id, fix.target), { state: 'failed', log: ['INFO: starting', 'ERROR: no space left'], error: { code: 'upstream', message: 'The backup failed.' } });
+    h.ws.push({ op: 'diff', id: h.ws.subId('tasks'), seq: 2, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', task.id), value: task }] });
+    await nextTick();
+    const t = h.ui.state.toasts.at(-1)!;
+    expect(t).toMatchObject({ text: 'The backup failed.', tone: 'error' });
+    expect(t.action?.label).toBe('Show log');
+    expect(h.ui.state.taskLog).toBeUndefined();
+    t.action!.run();
+    expect(h.ui.state.taskLog).toEqual({ label: task.label, lines: ['INFO: starting', 'ERROR: no space left'] });
   });
 
   it('are polled with GET /api/tasks/{id} on a hub without the topic', async () => {

@@ -60,7 +60,7 @@ src/
     SectionHeader.vue label · meta · rule, meta live from the graph
   components/         Briefing, NeedsAttention, HubBanner, InboxSheet, IncidentItem, DiscoveryItem,
                       SuggestionItem, ApprovalItem (lazy), CommandPalette (lazy), ConfirmDialog (hold), TypeConfirmDialog and
-                      StepUpDialog (lazy), HoldToConfirm, TaskPresence, ThemeMenu, Toasts, Tile, marks/
+                      StepUpDialog (lazy), TaskLogDialog (lazy), HoldToConfirm, TaskPresence, ThemeMenu, Toasts, Tile, marks/
   widgets/            one component per widget type (see "Widgets"), registry.ts, WidgetHost.vue;
                       subject.ts (the eight states), read.ts, checks.ts, guests.ts, serviceStats.ts
                       (the service tile's stat per integration), use.ts, parts/ (Frame, StateNote,
@@ -142,6 +142,8 @@ When the plan's `step_up` is `required` (no grant on this session) or `fresh` (T
 **Cha Dash itself.** When a plan's impact (or an incident's blast radius) holds the hub, `chadash:hub` or a resource marked `attrs.self` (`model/hub.ts`), both confirmations say so first, in the down colour: "This takes Cha Dash itself down: this page goes offline until it's back. The task still runs to the end and is audited." The hub leads the impact list, named **Cha Dash itself** (`model/words.ts`).
 
 **Tasks.** Approving returns a Task; the `tasks` topic (`{"tasks": {id: Task}}`) carries its state, current step and progress, and a hub that doesn't serve the topic is asked with `GET /api/tasks/{id}` every 1.5 s instead. The incident it works on shows the step and progress in its "working" row (and in Needs attention), `TaskPresence` shows the oldest running task and how many more at the bottom left (pressing it opens its incident), and a task started in this tab ends in a toast: done, cancelled, or the task's `error.message`. A failed task puts its sentence under the incident's action. **One live region** announces tasks: `TaskPresence`'s hidden announcer speaks when a task's step changes and when it ends (unless this tab started it, when the toast says so), never its percentage. The presence row, the incident's working row and the stack editor's task box aren't live regions, so the same task is never read out three times, and the stack log sits outside any of them.
+
+**Logs.** A task whose log is its result (`reads_data: true`, a container's logs) ends in `TaskLogDialog.vue` (lazy) instead of a toast: the lines, newest at the bottom, with Copy and Close. Any other task started here that ends with log lines (a failed pull, say) gets **Show log** on its toast. The dialog keeps a copy taken when the task ended (`ui.state.taskLog`), because the hub keeps a task's log only while it runs and never stores it; the copy goes when the dialog closes.
 
 **Cancel.** A running task whose action allows it (`cancellable: true` on the task) gets a **Cancel** button beside the presence and in the incident's working row, labelled with the task ("Cancel Back up homeassistant now"). It posts `POST /api/tasks/{id}/cancel`; the task then ends `cancelled` on the topic. The topic only carries tasks the viewer may see, and the hub lets them cancel exactly those, so the button needs no role check. Refusals (`not_cancellable`, `finished`) are the hub's sentence in a toast.
 

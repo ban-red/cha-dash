@@ -42,6 +42,7 @@ const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.v
 const ConfirmDialog = defineAsyncComponent(() => import('../components/ConfirmDialog.vue'));
 const TypeConfirmDialog = defineAsyncComponent(() => import('../components/TypeConfirmDialog.vue'));
 const StepUpDialog = defineAsyncComponent(() => import('../components/StepUpDialog.vue'));
+const TaskLogDialog = defineAsyncComponent(() => import('../components/TaskLogDialog.vue'));
 const CommandPalette = defineAsyncComponent(() => import('../components/CommandPalette.vue'));
 const SettingsSheet = defineAsyncComponent(() => import('../settings/SettingsSheet.vue'));
 const OnboardingWizard = defineAsyncComponent(() => import('../onboarding/OnboardingWizard.vue'));
@@ -224,6 +225,7 @@ watch(
   <SettingsSheet v-if="view.name === 'settings' && ui.can.value.settings" />
   <CommandPalette v-if="ui.state.paletteOpen" />
   <StepUpDialog v-if="ui.state.stepUp" :key="stepUpKey" />
+  <TaskLogDialog v-if="ui.state.taskLog" />
   <TaskPresence />
   <Toasts />
 </template>

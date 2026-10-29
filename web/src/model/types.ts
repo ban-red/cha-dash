@@ -226,6 +226,8 @@ export interface Task {
   audit?: string;
   /** Its action allows POST /api/tasks/{id}/cancel while it runs. */
   cancellable?: boolean;
+  /** Its log is the result (a container's logs): the page shows it when the task ends. */
+  reads_data?: boolean;
 }
 
 /** The `tasks` topic: `{"tasks": {id: Task}}`, running plus the last 24 hours, at most 50. */

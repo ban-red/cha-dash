@@ -505,6 +505,7 @@ func (e *Engine) launch(ctx context.Context, actor Actor, p *storedPlan, d *Def,
 	task := Task{
 		ID: "t_" + strings.ToLower(rand.Text()), Plan: p.id, Action: d.ID, Label: p.doc.Label, Target: t.ID,
 		Actor: TaskActor{Kind: actor.Kind, Name: actor.Name}, State: StateQueued, Cancellable: d.Cancellable,
+		ReadsData: d.ReadsData,
 	}
 	if approvedBy != nil {
 		task.ApprovedBy = &TaskActor{Kind: approvedBy.Kind, Name: approvedBy.Name}

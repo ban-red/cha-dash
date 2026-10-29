@@ -53,6 +53,9 @@ type Task struct {
 	// Cancellable: its action allows POST /api/tasks/{id}/cancel while it
 	// runs (Def.Cancellable).
 	Cancellable bool `json:"cancellable,omitempty"`
+	// ReadsData: its log is what the person asked for (Def.ReadsData, a
+	// container's logs), so the page shows it when the task ends.
+	ReadsData bool `json:"reads_data,omitempty"`
 }
 
 // Finished reports whether the task has ended.

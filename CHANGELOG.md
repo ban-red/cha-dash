@@ -78,6 +78,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Container logs show up.** Running Logs on a container read 50 lines and showed only "Done". The lines now open in a dialog, with Copy. Any other action that ends with log lines, such as a failed pull, offers Show log on its message.
 - **Esc on "Confirm it's you"** closes only that dialog. Settings and the Inbox behind it stay open.
 - **Hold-to-confirm works with screen readers, voice control and switch access.** A click that isn't a hold turns the button into a two-step **Confirm**, and the next press confirms. Holding still works as before.
 - **Task progress is read out once**, when its step changes and when it ends, without percentages.

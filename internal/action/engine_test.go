@@ -710,6 +710,10 @@ func TestFailures(t *testing.T) {
 			return ctx.Err()
 		}},
 		{ID: "x.panic", Tier: T1, Execute: func(context.Context, Request, *TaskRun) error { panic("boom") }},
+		{ID: "x.read", Tier: T0, ReadsData: true, Execute: func(_ context.Context, _ Request, run *TaskRun) error {
+			run.Logf("line one")
+			return nil
+		}},
 		{ID: "x.block", Tier: T1, Cancellable: true, Execute: func(ctx context.Context, _ Request, _ *TaskRun) error {
 			select {
 			case <-ctx.Done():
@@ -782,11 +786,15 @@ func TestFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fails.Cancellable {
+	if fails.Cancellable || fails.ReadsData {
 		t.Fatalf("task from an action that isn't cancellable = %+v", fails)
 	}
 	refusal(t, e.e.Cancel(t.Context(), owner, fails.ID), "not_cancellable")
 	e.wait(fails.ID)
+	// A task whose log is the result says so, for the page to show it.
+	if got := run("x.read"); !got.ReadsData || len(got.Log) != 1 || got.Log[0] != "line one" {
+		t.Fatalf("task from an action that reads data = %+v", got)
+	}
 	if rep, _ := e.audit.Verify(t.Context()); !rep.OK {
 		t.Fatalf("audit chain: %+v", rep)
 	}

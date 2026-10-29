@@ -19,7 +19,9 @@
  *
  * Tasks: approving returns a Task; the `tasks` realtime topic carries its
  * progress (or, on a hub without the topic, `GET /api/tasks/{id}` is polled).
- * Tasks started here end in a toast: done, or the hub's error sentence.
+ * Tasks started here end in a toast: done, or the hub's error sentence. A
+ * task whose log is its result (`reads_data`, a container's logs) opens the
+ * log instead; any other that ended with log lines offers "Show log".
  *
  * Owned by the UI store (stores/ui.ts), which hands it the toasts and the
  * dialog state; components reach it through `useUi()`.
@@ -79,6 +81,12 @@ export interface StepUpRequest {
   resolve: (ok: boolean) => void;
 }
 
+/** A finished task's log, as the log dialog shows it: a copy, kept while it's open. */
+export interface TaskLog {
+  label: string;
+  lines: string[];
+}
+
 export interface ToastAction {
   label: string;
   run: () => void;
@@ -88,6 +96,8 @@ export interface ActionsDeps {
   live: Live;
   state: { confirm: ConfirmRequest | undefined; stepUp: StepUpRequest | undefined };
   toast: (text: string, tone?: 'ok' | 'error', ms?: number, action?: ToastAction) => void;
+  /** Show a finished task's log lines (TaskLogDialog). */
+  showLog: (log: TaskLog) => void;
   openRecipe: (instance: string) => void;
   /** The viewer may open an integration's settings (where its recipe is). */
   canOpenRecipe?: () => boolean;
@@ -355,14 +365,18 @@ export function createActions(deps: ActionsDeps) {
     if (!mine.has(t.id) || announced.has(t.id)) return;
     announced.add(t.id);
     const incident = Object.entries(byIncident).find(([, id]) => id === t.id)?.[0];
+    // The lines live on the hub only while it runs, so the dialog keeps its own copy.
+    const log: TaskLog = { label: t.label, lines: [...(t.log ?? [])] };
+    const showLog = log.lines.length ? { label: 'Show log', run: () => deps.showLog(log) } : undefined;
     if (t.state === 'succeeded') {
-      toast(`Done: ${t.label}.`);
+      if (t.reads_data) deps.showLog(log);
+      else toast(`Done: ${t.label}.`, 'ok', showLog ? UNDO_MS : undefined, showLog);
     } else if (t.state === 'cancelled') {
       toast(`Cancelled: ${t.label}.`, 'error');
       if (incident) delete live.fixes[incident];
     } else {
       const message = t.error?.message ? t.error.message : `${t.label} didn’t work.`;
-      toast(message, 'error', 8000);
+      toast(message, 'error', showLog ? 10_000 : 8000, showLog);
       if (incident) live.fixes[incident] = { state: 'failed', error: message };
     }
   }

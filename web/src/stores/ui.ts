@@ -13,6 +13,8 @@
  * - Everywhere, `link.open` (T0) opens the target's link.
  * - A Repair's "Reconnect" opens the integration's settings with the field
  *   that failed focused.
+ * - A task whose log is its result (a container's logs) ends in the log
+ *   dialog (TaskLogDialog), not a toast.
  * - A suggestion's answer (Merge or Keep separate) goes to the hub's
  *   correlator, which remembers it.
  */
@@ -24,10 +26,10 @@ import { repairTarget } from '../model/integrations';
 import { label } from '../model/graph';
 import { permissions } from '../model/roles';
 import { resourceLinks, safeUrl, type Action, type Incident } from '../model/types';
-import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type ToastAction } from './actions';
+import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type TaskLog, type ToastAction } from './actions';
 import type { Live } from './live';
 
-export type { ConfirmRequest } from './actions';
+export type { ConfirmRequest, TaskLog } from './actions';
 
 export interface Toast {
   id: number;
@@ -67,6 +69,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     confirm: undefined as ConfirmRequest | undefined,
     stepUp: undefined as StepUpRequest | undefined,
     toasts: [] as Toast[],
+    /** The finished task's log the log dialog shows. */
+    taskLog: undefined as TaskLog | undefined,
   });
   let nextToast = 1;
   /** What the viewer's role may see and do. The hub enforces it; this only hides. */
@@ -128,6 +132,10 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     live,
     state,
     toast,
+    showLog: (log) => {
+      state.paletteOpen = false;
+      state.taskLog = log;
+    },
     // An action refused as unavailable: the instance's "Let Cha Dash act" section.
     openRecipe: (instance) => openSettings('integrations', instance, { section: 'control' }),
     canOpenRecipe: () => can.value.integrations,
@@ -253,6 +261,10 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     taskFor: actions.taskFor,
     /** This tab started the task (its end is toasted). */
     startedHere: actions.startedHere,
+    /** Close the log dialog. */
+    closeLog: () => {
+      state.taskLog = undefined;
+    },
     stepUp: actions.stepUp,
     stepUpDone: actions.stepUpDone,
     withStepUp: actions.withStepUp,
