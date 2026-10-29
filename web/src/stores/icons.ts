@@ -76,13 +76,17 @@ export function wantsIcon(cfg: TileConfig | undefined, href: string | undefined,
   return !!(cfg?.icon || href || cfg?.bind?.instance || serviceIconByName(name));
 }
 
-/** The cached icon for a tile: its icon URL, else its link's site, else its instance's, else a bundled logo by instance or by name. */
+/** The cached icon for a tile: its icon URL, else its link's site, else a bundled logo from its name, else its instance's (cached, then bundled). */
 export function iconFor(m: IconMap, cfg: TileConfig | undefined, href: string | undefined, name?: string): string | undefined {
   if (cfg?.icon && m.by_icon[cfg.icon]) return m.by_icon[cfg.icon];
   const o = originOf(href);
   if (o && m.by_origin[o]) return m.by_origin[o];
+  // A name that says a service beats the instance it's bound to: a "Sonarr"
+  // tile on the Unraid instance is Sonarr, not Unraid.
+  const named = serviceIconByName(name);
+  if (named) return named;
   const inst = cfg?.bind?.instance;
-  return (inst && (m.by_instance[inst] ?? bundledFor(inst))) || serviceIconByName(name);
+  return inst ? (m.by_instance[inst] ?? bundledFor(inst)) : undefined;
 }
 
 /** The bundled logo for an instance's integration: the manifest's icon slug, else its id. */

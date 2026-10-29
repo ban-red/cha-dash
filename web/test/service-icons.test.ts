@@ -36,6 +36,11 @@ describe('tile fallback', () => {
     expect(iconFor(empty, { bind: { instance: 'in_x' } } as never, undefined)).toBeUndefined();
     const cached = { ...empty, by_instance: { in_1: '/api/icons/ic_abcdefgh12' } };
     expect(iconFor(cached, { bind: { instance: 'in_1' } } as never, undefined)).toBe('/api/icons/ic_abcdefgh12');
+    // a tile named for a service keeps its own logo on a host's instance
+    integrations.instances = [{ id: 'in_u', integration: 'unraid', name: 'Unraid', status: 'ok' }];
+    const onUnraid = { by_icon: {}, by_origin: {}, by_instance: { in_u: '/api/icons/ic_unraidfav1' } };
+    expect(iconFor(onUnraid, { bind: { instance: 'in_u' } } as never, undefined, 'Sonarr')).toBe('/service-icons/sonarr.svg');
+    expect(iconFor(onUnraid, { bind: { instance: 'in_u' } } as never, undefined, 'Tower')).toBe('/api/icons/ic_unraidfav1');
     integrations.instances = [];
   });
 });
