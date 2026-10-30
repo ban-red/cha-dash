@@ -19,6 +19,7 @@ import type { Health, Incident } from '../../model/types';
 import { useLive } from '../../stores/live';
 import { useUi } from '../../stores/ui';
 import { incidentOf, stateLine, tagOf, type Subject } from '../subject';
+import type { TileViews } from '../views';
 
 const {
   size,
@@ -37,6 +38,7 @@ const {
   asOf,
   loading,
   incident,
+  views,
 } = defineProps<{
   size: SizeId;
   name: string;
@@ -58,6 +60,8 @@ const {
   /** Still loading something of its own (on top of the first snapshot). */
   loading?: boolean | undefined;
   incident?: Incident | undefined;
+  /** The widget's views (widgets/views.ts → useViews), paged by the tile. */
+  views?: TileViews | undefined;
 }>();
 
 const live = useLive();
@@ -111,6 +115,7 @@ const busy = computed(() => loading || live.loading.value);
     :tag-note="note"
     :tag-href="noteHref"
     :loading="busy"
+    :views="views"
     :clickable="Boolean(target)"
     @open="target && ui.openInbox(target.id)"
   >

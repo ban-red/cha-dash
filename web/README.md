@@ -70,7 +70,7 @@ src/
   widgets/            one component per widget type (see "Widgets"), registry.ts, WidgetHost.vue;
                       subject.ts (the eight states), read.ts, containers.ts (a container's state in words,
                       for the tile and its sheet), checks.ts, guests.ts, serviceStats.ts
-                      (the service tile's stat per integration), use.ts, parts/ (Frame, StateNote,
+                      (the service tile's stat per integration), use.ts, views.ts (a tile's views), parts/ (Frame, StateNote,
                       StatusBars, WxIcon, WidgetPending), widgets.css
   model/              pure views: graph, inbox (grouping), roles (what each role sees), briefing copy, widget catalog, default
                       layout, words, commands (⌘K), integrations, import plan, backup plan, service status,
@@ -317,6 +317,14 @@ The catalog (`model/widgets.ts`) covers the Workbench list's v0.1 rows ([docs/de
 **Permission-limited**, until the hub has field-level permissions: a resource lists what it didn't send in `attrs.withheld` (metric keys or attr names, such as `["photos"]` or `["target"]`), and the widget shows "—" with a lock and "Ask an admin" there; guests the role can't see are counted from the scope's `attrs['hidden.guests']`; bookmarks labelled `chadash.visibility: admin` are hidden from other roles and counted. Integration privileges a token lacks (OPNsense's CPU and gateways) show the same lock with the privilege's name.
 
 **Weather** reads `weather:<instance id>/here` (kind `weather`; [integrations/weather/README.md](../integrations/weather/README.md)): metrics `temp.c`, `feels.c`, `humidity.pct`, `wind.kmh` (always metric; `attrs.units: "imperial"` converts to °F and mph here); attrs `location`, `summary` (else the `condition` slug in words), `is_day`, `high_c`, `low_c`, `precip_pct`, `hourly` (`[{at, temp_c, condition, precip_pct, is_day}]`, nulls shown as "—", hours on the place's own clock), `attribution` and `attribution_url` (shown at small and wide). Health `attention` (a thunderstorm or freezing rain within six hours) is the hub's sentence; an unreachable provider leaves the series stale, so the last forecast stays, hatched. Without a weather resource: "Not connected. Set a location to see the weather here."
+
+**Views.** A tile with more to show than its size has room for pages between views (`widgets/views.ts` → `useViews()`; `Tile.vue` does the paging). The widget decides which views it offers, by size and by what its target has; with fewer than two there are no dots and the tile is as before. Swipe sideways on a touch screen, or use the dots at the foot, which take the arrow keys, Home and End (one tab stop). A mouse drag doesn't page, a swipe's closing click is swallowed, and edit mode doesn't swipe. The new view slides in from its side, a fade under reduced motion. The pick is remembered per tile on this device (`localStorage` `chadash.views`); one the tile no longer offers falls back to the first.
+
+| Widget | Sizes | Views |
+|---|---|---|
+| `weather` | small | Now · Next hours (when there's an hourly forecast) |
+| `host` | small · wide | Overview · Guests or Containers (problems first) · Storage, each only when it has rows |
+| `service` | small · wide | Now · 24 hours (small, when the stat has history) · Up next (an app with `attrs.calendar`: Sonarr, Radarr, Lidarr) |
 
 **Loading.** The widgets the default board uses ride with the front page, as before, the clock and the weather included. `metric`, `check`, `guests`, `unraid`, `unraidhost`, `storage` and `bookmarks` load on demand, each its own chunk (about 1.5–4.5 kB gzip), behind a skeleton tile; `preloadWidgets()` fetches them ahead (the tests do). The picker learns what the graph can feed each of them from `model/feeds.ts`.
 

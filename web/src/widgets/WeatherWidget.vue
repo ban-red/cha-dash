@@ -18,8 +18,9 @@
  * and where to set a location.
  *
  * Glyph: temperature. Strip: temperature · condition · high/low. Small:
- * temperature, condition, high/low. Wide: now plus the next six hours. The
- * provider's credit shows at small and wide.
+ * temperature, condition, high/low, and a second view with the next hours.
+ * Wide: now plus the next six hours. The provider's credit shows at small and
+ * wide.
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
@@ -31,6 +32,7 @@ import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
 import WxIcon, { type WxFamily } from './parts/WxIcon.vue';
 import { useSubject } from './use';
+import { useViews } from './views';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
@@ -128,6 +130,15 @@ function family(c: string, isDay = true): WxFamily {
   return 'cloud';
 }
 const nowFamily = computed(() => family(String(attr(place.value, 'condition') ?? ''), attr(place.value, 'is_day') !== false));
+/** Small has no room for the hours beside now, so they're its second view. */
+const { views, view } = useViews(() =>
+  size === 'small' && place.value && hours.value.length
+    ? [
+        { id: 'now', label: 'Now' },
+        { id: 'hours', label: 'Next hours' },
+      ]
+    : [],
+);
 /** The integrations catalog, where Weather is added (a location is its config). */
 const openSettings = () => ui.openSettings('integrations', 'new');
 </script>
@@ -142,6 +153,7 @@ const openSettings = () => ui.openSettings('integrations', 'new');
     :status="place ? status : 'ok'"
     :stale="Boolean(temp?.stale)"
     :as-of="temp?.as_of"
+    :views="views"
   >
     <template v-if="!place">
       <div :class="size === 'glyph' ? 'gv unknown' : 'v sm unknown'">—</div>
@@ -160,6 +172,17 @@ const openSettings = () => ui.openSettings('integrations', 'new');
       <WxIcon :family="nowFamily" />
       <span :class="['sv', 'n', { unknown: temp?.value == null }]">{{ deg(temp?.value) }}<small>°</small></span>
       <span class="sx">{{ condition }}{{ hl ? ` · ${hl}` : '' }}</span>
+    </template>
+
+    <template v-else-if="view === 'hours'">
+      <ol class="wx-rows" aria-label="Next hours">
+        <li v-for="h in hours.slice(0, 4)" :key="h.at">
+          <span class="n">{{ h.hour }}:00</span>
+          <WxIcon :family="family(h.condition, h.isDay)" :label="words(h.condition) || 'unknown'" />
+          <span class="n">{{ deg(h.temp) }}°</span>
+          <span class="n wx-rain">{{ h.rain === null ? '' : `${Math.round(h.rain)}%` }}</span>
+        </li>
+      </ol>
     </template>
 
     <template v-else>
@@ -239,6 +262,28 @@ const openSettings = () => ui.openSettings('integrations', 'new');
 }
 .wx-hours .wx-none {
   grid-column: 1 / -1;
+}
+.wx-rows {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-caption);
+}
+.wx-rows li {
+  display: grid;
+  grid-template-columns: 3.2em 16px 1fr auto;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-2);
+}
+.wx-rows .wx-ic {
+  width: 16px;
+  height: 16px;
+}
+.wx-rows .wx-rain {
+  color: var(--text-3);
 }
 .wx-credit a,
 .wx-credit span {

@@ -22,17 +22,22 @@
  * sparkline and its normal band, and two facts. Name and link come from the
  * tile config when it has them (Tile.vue applies them).
  *
+ * Views (widgets/views.ts), where there's something to page to: a small tile
+ * with history has its 24 hours as a sparkline, and an app with a calendar
+ * (Sonarr, Radarr, Lidarr) has what it expects next, at small and wide.
+ *
  * Icons are monograms for now: the CSP forbids hot-linking a logo from
  * another origin, and the hub doesn't cache icons yet.
  */
 import { computed } from 'vue';
+import { hhmm, shortDate } from '../lib/format';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
 import MiniGraph from '../components/marks/MiniGraph.vue';
 import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
 import { glyphFor, worst } from '../model/status';
-import { attr, label, outgoing, placeOf, resolve } from '../model/graph';
+import { attr, calendar, label, outgoing, placeOf, resolve } from '../model/graph';
 import { findCheck, hostOf, serviceStatus } from '../model/service';
 import { resourceLinks, safeUrl } from '../model/types';
 import { useBoard } from '../stores/board';
@@ -42,6 +47,7 @@ import { checkFor, checkWords } from './read';
 import { clusterNodes, readService, TYPE_NAMES } from './serviceStats';
 import { isWithheld, statusOf } from './subject';
 import { useSubject } from './use';
+import { useViews } from './views';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
@@ -110,6 +116,24 @@ const legacyNote = computed(() => {
 const loading = computed(() => board.state.status === 'loading' && !meta.value);
 const facts = computed(() => (limited.value ? [] : (reading.value?.facts ?? [])));
 const origin = computed(() => originLabel(meta.value));
+
+/** This app's own calendar, soonest first (unmonitored entries left out, as the calendar tile does by default). */
+const upcoming = computed(() => {
+  const app = r.value;
+  if (app?.kind !== 'app' || !Array.isArray(attr(app, 'calendar'))) return [];
+  return calendar({ resources: { [app.id]: app }, relations: {} }, live.now.value).slice(0, 8);
+});
+const day = (at: string) => {
+  const d = shortDate(at);
+  return d === shortDate(live.now.value) ? 'Today' : d === shortDate(live.now.value + 86_400_000) ? 'Tomorrow' : d;
+};
+const { views, view } = useViews(() => {
+  if (!hasStat.value || (size !== 'small' && size !== 'wide')) return [];
+  const out = [{ id: 'stat', label: 'Now' }];
+  if (size === 'small' && !limited.value && (reading.value?.series?.history?.length ?? 0) > 1) out.push({ id: 'trend', label: '24 hours' });
+  if (upcoming.value.length) out.push({ id: 'upcoming', label: 'Up next' });
+  return out;
+});
 </script>
 
 <template>
@@ -145,12 +169,33 @@ const origin = computed(() => originLabel(meta.value));
     </template>
   </Frame>
 
-  <Frame v-else :size="size" :name="name" :context="context" :href="href" :subject="s" :status="clusterStatus" :stale="stale" :as-of="reading?.series?.as_of" :loading="loading">
+  <Frame v-else :size="size" :name="name" :context="context" :href="href" :subject="s" :status="clusterStatus" :stale="stale" :as-of="reading?.series?.as_of" :loading="loading" :views="views">
     <template v-if="size === 'glyph'">
       <div v-if="isCheck" class="gv"><Glyph kind="link" /></div>
       <div v-else :class="['gv', { unknown: value === null }]">{{ limited ? '—' : reading?.text }}</div>
       <div class="gl">{{ isCheck ? checkWords(check) || reading?.unit : (reading?.empty ?? reading?.unit) }}</div>
     </template>
+
+    <template v-else-if="view === 'trend'">
+      <div class="lab">
+        <span class="n">{{ reading?.text }}</span> {{ reading?.unit }} now
+      </div>
+      <MiniGraph
+        :values="reading?.series?.history"
+        :band="reading?.series?.band"
+        :tone="tone"
+        :height="40"
+        :stale="stale || s.needsRepair"
+        :label="`${name}, ${reading?.unit ?? 'value'}, 24 hours`"
+      />
+    </template>
+
+    <div v-else-if="view === 'upcoming'" class="list" role="list" :aria-label="`Up next on ${name}`">
+      <div v-for="e in upcoming" :key="e.at + e.title" class="ag-row" role="listitem">
+        <span class="n">{{ hhmm(e.at) }}</span>
+        <span>{{ e.title }}<small>{{ day(e.at) }}{{ e.detail ? ` · ${e.detail}` : '' }}</small></span>
+      </div>
+    </div>
 
     <template v-else>
       <div :class="size === 'wide' ? 'split' : 'col svc-main'">

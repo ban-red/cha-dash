@@ -7,7 +7,8 @@
  * Glyph: name and memory %. Strip: name · memory bar · CPU. Small: memory with
  * its bar, CPU, guests up/total. Wide: CPU and memory sparklines with their
  * normal bands, guests and uptime. Large: Wide plus its storage as bars and
- * the top six guests.
+ * the top six guests. Small and wide page to what Large adds, as views:
+ * its guests (or containers), problems first, and its storage.
  *
  * Down says what goes with it ("3 guests, the router"). PVE has no
  * temperatures (only the node agent will), so temperature shows only when known.
@@ -24,10 +25,12 @@ import { resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
 import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
+import { containerRow } from './containers';
 import { guestRow, sortGuests } from './guests';
 import { containersOf, guestsOf, storageOf, upFor } from './read';
 import { isWithheld } from './subject';
 import { useSubject } from './use';
+import { useViews } from './views';
 
 const { size, target = '' } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
@@ -66,6 +69,23 @@ const disks = computed(() =>
     .slice(0, 4),
 );
 
+/** The guests view's rows: guests as the guest list sorts them, else containers with problems first. */
+const RANK: Record<string, number> = { down: 0, attention: 1, repair: 2, maintenance: 3, unknown: 4, ok: 5, off: 6 };
+const peers = computed(() => {
+  if (guests.value.kind === 'guests') return rows.value.map((g) => ({ id: g.id, name: g.name, word: g.word, status: g.status, progress: g.progress, value: g.mem === null ? '—' : `${fmtInt(g.mem)}%` }));
+  return guests.value.list
+    .map((r) => containerRow(live.graph.value, r))
+    .sort((a, b) => (RANK[a.status] ?? 4) - (RANK[b.status] ?? 4) || label(a.r).localeCompare(label(b.r)))
+    .map((c) => ({ id: c.r.id, name: label(c.r), word: c.word, status: c.status, progress: false, value: c.r.state === 'running' ? '' : (c.r.state ?? '') }));
+});
+const { views, view } = useViews(() => {
+  if (!host.value || (size !== 'small' && size !== 'wide')) return [];
+  const out = [{ id: 'overview', label: 'Overview' }];
+  if (peers.value.length) out.push({ id: 'guests', label: guests.value.kind === 'guests' ? 'Guests' : 'Containers' });
+  if (disks.value.length) out.push({ id: 'storage', label: 'Storage' });
+  return out;
+});
+
 /** What goes down with it: its guests, and the router when one of them runs it. */
 const blast = computed(() => {
   const g = live.graph.value;
@@ -99,6 +119,7 @@ const pct = (v: number) => `${Math.round(v)}%`;
     :subject="s"
     :stale="Boolean(mem?.stale)"
     :as-of="mem?.as_of"
+    :views="views"
   >
     <template v-if="!host">
       <div :class="size === 'glyph' ? 'gv unknown' : 'v sm unknown'">—</div>
@@ -115,6 +136,22 @@ const pct = (v: number) => `${Math.round(v)}%`;
       <span class="sv n">{{ fmtPct(mem?.value) }}<small>%</small></span>
       <span class="sx">CPU <span class="n">{{ fmtPct(cpu?.value) }}%</span></span>
     </template>
+
+    <ul v-else-if="view === 'guests'" class="list" :aria-label="`${guests.kind === 'guests' ? 'Guests' : 'Containers'} on ${label(host)}`">
+      <li v-for="g in peers" :key="g.id" :class="['li', { dim: g.status === 'off' }]">
+        <Glyph :kind="g.progress ? 'prog' : glyphFor(g.status)" :label="g.word || 'running'" />
+        <span><span class="t">{{ g.name }}</span><small v-if="g.word">{{ g.word }}</small></span>
+        <span class="n">{{ g.value }}</span>
+      </li>
+    </ul>
+
+    <div v-else-if="view === 'storage'" class="host-disks" role="list" aria-label="Storage">
+      <div v-for="d in disks" :key="d.r.id" class="disk" role="listitem">
+        <span class="dn">{{ label(d.r) }}</span>
+        <Meter :value="d.used?.value" :warn="d.used?.warn ?? 85" :crit="d.used?.crit ?? 95" :tick="d.used?.warn ?? 85" thin :label="`${label(d.r)} used`" />
+        <span class="n">{{ fmtPct(d.used?.value) }}%</span>
+      </div>
+    </div>
 
     <template v-else-if="size === 'small'">
       <div :class="['v', { unknown: mem?.value == null }]">{{ fmtPct(mem?.value) }}<span class="u">% mem</span></div>

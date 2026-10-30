@@ -18,8 +18,13 @@
  * that needs you keeps the monogram, whose colour is the state.
  *
  * Hovering or focusing a tile shows its settings cog (TileCog.vue).
+ *
+ * A tile with views (widgets/views.ts) pages between them: a horizontal swipe
+ * on a touch screen, or the dots at the foot, which take the arrow keys, Home
+ * and End. The new view slides in from the side it came from (a fade under
+ * reduced motion). Edit mode drags tiles, so it doesn't swipe them.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
 import GlyphTip from './GlyphTip.vue';
@@ -32,6 +37,8 @@ import { useTile } from '../stores/tiles';
 import { instanceName } from '../stores/integrations';
 import { serviceIconUrl } from '../lib/serviceIcons';
 import { iconFor, iconMap, wantsIcon } from '../stores/icons';
+import { useUiIfAny } from '../stores/ui';
+import type { TileViews } from '../widgets/views';
 
 export type TileStatus = 'ok' | 'attention' | 'down' | 'off' | 'maintenance' | 'repair' | 'unknown';
 
@@ -51,6 +58,7 @@ const {
   tagHref,
   clickable = false,
   loading = false,
+  views,
 } = defineProps<{
   size: SizeId;
   name: string;
@@ -73,11 +81,14 @@ const {
   tagHref?: string | undefined;
   clickable?: boolean;
   loading?: boolean;
+  /** Views to page between (widgets/views.ts); none or one shows no dots. */
+  views?: TileViews | undefined;
 }>();
 
 const emit = defineEmits<{ open: [] }>();
 const live = useLive();
 const tile = useTile();
+const ui = useUiIfAny();
 
 /** A tile bound to an integration instance carries that instance's name, so renaming it in Settings renames the tile. */
 const boundName = computed(() => instanceName(tile.config.value?.bind?.instance));
@@ -96,6 +107,66 @@ const staleSince = computed(() => {
   return asOf ? hhmm(asOf) : '';
 });
 
+// Views: the dots, the swipe, and which way the new view slides in.
+const paging = computed(() => (views?.list.length ?? 0) > 1 && !loading);
+const viewIndex = computed(() => views?.list.findIndex((v) => v.id === views.current) ?? -1);
+const currentView = computed(() => (paging.value ? views?.list[viewIndex.value] : undefined));
+const slide = ref<'' | 'next' | 'prev'>('');
+let slideTimer: ReturnType<typeof setTimeout> | undefined;
+const dots = ref<HTMLElement | null>(null);
+
+function show(i: number, focus = false): void {
+  const list = views?.list;
+  if (!list || !paging.value) return;
+  const n = list.length;
+  const to = ((i % n) + n) % n;
+  if (to === viewIndex.value) return;
+  slide.value = to > viewIndex.value ? 'next' : 'prev';
+  clearTimeout(slideTimer);
+  slideTimer = setTimeout(() => (slide.value = ''), 600);
+  views.select(list[to]!.id);
+  if (focus) void nextTick(() => dots.value?.querySelectorAll<HTMLElement>('button')[to]?.focus());
+}
+
+function onDotsKey(e: KeyboardEvent): void {
+  const n = views?.list.length ?? 0;
+  const to = { ArrowRight: viewIndex.value + 1, ArrowDown: viewIndex.value + 1, ArrowLeft: viewIndex.value - 1, ArrowUp: viewIndex.value - 1, Home: 0, End: n - 1 }[e.key];
+  if (to === undefined) return;
+  e.preventDefault();
+  e.stopPropagation();
+  show(to, true);
+}
+
+// A swipe: a touch or pen that moves mostly sideways, far enough. The click
+// that ends it is swallowed, so a swipe never opens the tile or follows a link.
+const SWIPE_PX = 40;
+let start: { id: number; x: number; y: number } | undefined;
+let swiped = false;
+const canSwipe = computed(() => paging.value && !ui?.state.editing);
+
+function onPointerDown(e: PointerEvent): void {
+  swiped = false;
+  start = canSwipe.value && e.pointerType !== 'mouse' && e.isPrimary ? { id: e.pointerId, x: e.clientX, y: e.clientY } : undefined;
+}
+function onPointerUp(e: PointerEvent): void {
+  if (!start || e.pointerId !== start.id) return;
+  const dx = e.clientX - start.x;
+  const dy = e.clientY - start.y;
+  start = undefined;
+  if (Math.abs(dx) < SWIPE_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  swiped = true;
+  show(viewIndex.value + (dx < 0 ? 1 : -1));
+}
+function onPointerCancel(): void {
+  start = undefined;
+}
+function onClickCapture(e: MouseEvent): void {
+  if (!swiped) return;
+  swiped = false;
+  e.preventDefault();
+  e.stopPropagation();
+}
+
 const classes = computed(() => [
   'tile',
   `s-${size}`,
@@ -106,11 +177,13 @@ const classes = computed(() => [
     'is-maint': status === 'maintenance',
     'is-stale': isStale.value,
     'is-loading': loading,
+    'has-views': paging.value,
     clickable,
   },
+  slide.value ? `slide-${slide.value}` : '',
 ]);
 
-const label = computed(() => [shownName.value, context, tag].filter(Boolean).join(', '));
+const label = computed(() => [shownName.value, context, tag, currentView.value?.label].filter(Boolean).join(', '));
 const mark = computed(() => (tile.config.value?.name || boundName.value ? monogram(shownName.value) : (mono ?? monogram(name))));
 
 // The cached icon, once the board has loaded the map; an image that fails
@@ -138,7 +211,10 @@ const fromControl = (e: Event) =>
 const root = ref<HTMLElement | null>(null);
 let stopScrollables: (() => void) | undefined;
 onMounted(() => root.value && (stopScrollables = focusScrollables(root.value)));
-onBeforeUnmount(() => stopScrollables?.());
+onBeforeUnmount(() => {
+  stopScrollables?.();
+  clearTimeout(slideTimer);
+});
 
 function onClick(e: MouseEvent) {
   if (clickable && !fromControl(e)) emit('open');
@@ -161,7 +237,11 @@ function onKey(e: KeyboardEvent) {
     :aria-busy="loading || undefined"
     :tabindex="clickable ? 0 : undefined"
     @click="onClick"
+    @click.capture="onClickCapture"
     @keydown="onKey"
+    @pointerdown="onPointerDown"
+    @pointerup="onPointerUp"
+    @pointercancel="onPointerCancel"
   >
     <div v-if="!chromeless" class="th">
       <a v-if="shownHref" :class="['mono', { 'has-icon': icon }]" :href="shownHref" target="_blank" rel="noopener noreferrer" :aria-label="linkLabel" @click.stop>
@@ -187,5 +267,18 @@ function onKey(e: KeyboardEvent) {
       <span class="skel"></span>
     </template>
     <slot v-else></slot>
+    <div v-if="paging && views" ref="dots" class="tile-views" role="group" :aria-label="`${shownName} views`" @keydown="onDotsKey">
+      <button
+        v-for="(v, i) in views.list"
+        :key="v.id"
+        type="button"
+        class="tile-view-dot"
+        :aria-label="v.label"
+        :aria-pressed="i === viewIndex"
+        :title="v.label"
+        :tabindex="i === viewIndex ? 0 : -1"
+        @click.stop="show(i)"
+      ></button>
+    </div>
   </article>
 </template>
