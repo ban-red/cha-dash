@@ -33,6 +33,13 @@ describe('SplitChecks', () => {
     expect(takeDraft('unraid')).toEqual({ name: 'Jupiter Unraid', config: { url: 'http://10.0.0.5', tls: { mode: 'tofu' } } });
   });
 
+  it('moves an API key out of the target URL and into the draft', async () => {
+    integrations.catalog = [entry('linkding', 'Linkding')];
+    const w = mount(SplitChecks, { props: { targets: [{ name: 'Linkding', kind: 'http', url: 'https://links.example/health?apikey=abc123&x=1' }] } });
+    await w.find('.rel li button').trigger('click');
+    expect(takeDraft('linkding')).toEqual({ name: 'Linkding', config: { url: 'https://links.example/health?x=1' }, key: 'abc123' });
+  });
+
   it('says so when nothing matches', () => {
     integrations.catalog = [entry('unraid', 'Unraid')];
     const w = mount(SplitChecks, { props: { targets: [{ name: 'Cockpit', kind: 'http', url: 'https://x' }] } });

@@ -31,7 +31,7 @@ import { ApiError } from '../lib/api';
 import { ago } from '../lib/format';
 import { navigate, settingsPath } from '../lib/router';
 import { takeDraft } from '../onboarding/draft';
-import { clean, fieldId, fieldLabel, fieldPaths, initialValue, typedSecrets, validate, type Errors, type JsonSchema } from '../lib/schema';
+import { clean, fieldId, fieldLabel, fieldPaths, initialValue, secretPaths, typedSecrets, validate, type Errors, type JsonSchema } from '../lib/schema';
 import {
   findInstance,
   focusField,
@@ -157,6 +157,8 @@ function reset(d: InstanceDetail | undefined): void {
   for (const k of Object.keys(values)) delete values[k];
   Object.assign(values, initialValue(schema.value, d?.config ?? draft?.config) as Record<string, unknown>);
   for (const k of Object.keys(secrets)) delete secrets[k];
+  const keyAt = draft?.key ? secretPaths(schema.value)[0] : undefined;
+  if (draft?.key && keyAt) secrets[keyAt] = draft.key;
   held.value = setOf(d);
   touched.clear();
   showAll.value = false;
