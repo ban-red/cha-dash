@@ -21,6 +21,7 @@ import { computed, onMounted, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import HoldToConfirm from '../components/HoldToConfirm.vue';
 import { api } from '../lib/api';
+import { focusFirst } from '../lib/focus';
 import { hubWords } from '../lib/actions';
 import { ago } from '../lib/format';
 import { navigate, settingsPath } from '../lib/router';
@@ -124,6 +125,11 @@ const rowError = ref<Record<string, string>>({});
 function askRevoke(n: HubNode): void {
   revoking.value = n.id;
   typed.value = '';
+  void focusFirst(`${uid}-rt-${n.id}`);
+}
+function cancelRevoke(n: HubNode): void {
+  revoking.value = undefined;
+  void focusFirst(`${uid}-rv-${n.id}`);
 }
 async function revoke(n: HubNode): Promise<void> {
   if (typed.value !== n.name || busy.value) return;
@@ -133,6 +139,7 @@ async function revoke(n: HubNode): Promise<void> {
     revoking.value = undefined;
     ui.toast(`Revoked ${n.name}. Its key won’t work again.`);
     await load();
+    void focusFirst(`${uid}-dt-${n.id}`, 'nd-h');
   } catch (err) {
     rowError.value = { ...rowError.value, [n.id]: hubWords(err, `${n.name} wasn’t revoked.`) };
   } finally {
@@ -164,7 +171,7 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
 <template>
   <section class="st-section" aria-labelledby="nd-h">
     <header>
-      <h3 id="nd-h">Nodes</h3>
+      <h3 id="nd-h" tabindex="-1">Nodes</h3>
       <span v-if="status === 'ready'" class="st-meta">{{ active.length }} {{ active.length === 1 ? 'node' : 'nodes' }}</span>
     </header>
     <SettingsHelp summary="chadash-node is Cha Dash’s hands on a Docker host, limited by its own policy file.">
@@ -192,7 +199,7 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
             <span class="t">{{ n.name }}</span>
             <span class="m">{{ stateWords(n) }}<template v-if="n.version"> · {{ n.version }}</template><template v-if="n.address"> · {{ n.address }}</template></span>
           </span>
-          <button type="button" class="btn sm ghost" :aria-expanded="open === n.id" :aria-controls="`${uid}-${n.id}`" @click="toggle(n.id)">
+          <button :id="`${uid}-dt-${n.id}`" type="button" class="btn sm ghost" :aria-expanded="open === n.id" :aria-controls="`${uid}-${n.id}`" @click="toggle(n.id)">
             {{ open === n.id ? 'Less' : 'Details' }}<span class="sr"> for {{ n.name }}</span>
           </button>
         </div>
@@ -220,16 +227,24 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
           </template>
           <div class="st-acts">
             <a v-if="dockerOf(n)" class="btn sm" :href="settingsPath('integrations', dockerOf(n))" @click.prevent="navigate(settingsPath('integrations', dockerOf(n)))">Its Docker integration</a>
-            <button v-if="n.state !== 'revoked' && revoking !== n.id" type="button" class="btn sm danger" @click="askRevoke(n)">Revoke {{ n.name }}</button>
+            <button v-if="n.state !== 'revoked' && revoking !== n.id" :id="`${uid}-rv-${n.id}`" type="button" class="btn sm danger" @click="askRevoke(n)">Revoke {{ n.name }}</button>
           </div>
           <div v-if="revoking === n.id" class="st-confirm nd-confirm" role="group" :aria-labelledby="`${uid}-rq-${n.id}`">
             <span :id="`${uid}-rq-${n.id}`">
               Revoking ends {{ n.name }}’s session now, and its key never works again. The hub writes a fresh pairing token, and the Docker integration reading
               through it stops updating. Type <b class="st-mono">{{ n.name }}</b> to confirm.
             </span>
-            <input v-model="typed" class="st-mono" type="text" autocomplete="off" spellcheck="false" :aria-label="`Type ${n.name} to confirm`" />
-            <button type="button" class="btn sm ghost" @click="revoking = undefined">Cancel</button>
-            <button type="button" class="btn sm danger solid" :disabled="typed !== n.name || busy" :aria-busy="busy || undefined" @click="revoke(n)">Revoke</button>
+            <input
+              :id="`${uid}-rt-${n.id}`"
+              v-model="typed"
+              class="st-mono"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              :aria-label="`Type ${n.name} to confirm`"
+            />
+            <button type="button" class="btn sm ghost" @click="cancelRevoke(n)">Cancel</button>
+            <button type="button" class="btn sm danger solid" :aria-disabled="typed !== n.name || busy || undefined" :aria-busy="busy || undefined" @click="revoke(n)">Revoke</button>
           </div>
           <p v-if="rowError[n.id]" class="err" role="alert">{{ rowError[n.id] }}</p>
         </div>

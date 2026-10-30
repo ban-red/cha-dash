@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode"
 
+	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/runtime"
 )
@@ -431,6 +432,22 @@ func (s *Service) matches(ctx context.Context, u, match string) bool {
 	return strings.Contains(strings.ToLower(string(b)), strings.ToLower(match))
 }
 
+// errProbeRefused is a probe to an address no service on the LAN has.
+var errProbeRefused = errors.New("onboarding: not an address a service answers at")
+
+// probeAllowed refuses link-local (cloud metadata lives at 169.254.169.254),
+// unspecified and multicast addresses, as such or inside NAT64 and 6to4: a
+// lead can come from a container label anyone who starts a container wrote.
+// LAN and loopback addresses are where services are.
+func probeAllowed(a netip.Addr) error {
+	for _, ip := range append([]netip.Addr{a.Unmap()}, httpx.EmbeddedIPv4(a)...) {
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() {
+			return errProbeRefused
+		}
+	}
+	return nil
+}
+
 // probeClient is the host probes' client: short timeouts, no proxy from
 // the environment, no keep-alives, redirects followed only within the
 // origin. Certificates aren't verified: self-signed is the norm on a LAN
@@ -439,7 +456,7 @@ func (s *Service) matches(ctx context.Context, u, match string) bool {
 // TLS mode tofu.
 func probeClient(dial func(ctx context.Context, network, addr string) (net.Conn, error)) *http.Client {
 	if dial == nil {
-		dial = (&net.Dialer{Timeout: probeTimeout}).DialContext
+		dial = httpx.GuardDial(&net.Dialer{Timeout: probeTimeout}, probeAllowed)
 	}
 	tr := &http.Transport{
 		DialContext:            dial,

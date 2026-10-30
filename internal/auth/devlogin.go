@@ -43,8 +43,8 @@ func (s *Service) registerDevLogin(mux *http.ServeMux) {
 
 func (s *Service) handleDevLogin(w http.ResponseWriter, r *http.Request) {
 	// RemoteAddr, not the forwarded client IP: a trusted proxy could vouch for anyone.
-	if !fromLoopback(r) {
-		httpx.Error(w, http.StatusForbidden, "forbidden", "dev login only answers on this machine")
+	if !fromLoopback(r) || !localHost(r) {
+		httpx.Error(w, http.StatusForbidden, "forbidden", "dev login only answers on this machine, at localhost or 127.0.0.1")
 		return
 	}
 	u, err := s.devOwner(r.Context())

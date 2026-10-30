@@ -1115,8 +1115,11 @@ func (m *Manager) List() []InstanceView {
 }
 
 // Refresh asks a running instance to sync now with Interest.Refresh set,
-// without waiting for it. The result arrives on the usual topics.
-func (m *Manager) Refresh(id string) error {
+// without waiting for it. The result arrives on the usual topics. Asks
+// close together, or soon after a failed attempt, are dropped.
+func (m *Manager) Refresh(id string) error { return m.refresh(id, false) }
+
+func (m *Manager) refresh(id string, force bool) error {
 	mi := m.get(id)
 	if mi == nil {
 		return ErrNotFound
@@ -1126,7 +1129,7 @@ func (m *Manager) Refresh(id string) error {
 	if mi.coord == nil {
 		return ErrNotRunning
 	}
-	mi.coord.refreshNow()
+	mi.coord.refreshNow(force)
 	return nil
 }
 
@@ -1213,8 +1216,9 @@ func (m *Manager) Test(ctx context.Context, req TestRequest) (integration.TestRe
 
 // TestSaved runs "Test connection" on a saved instance. In tofu mode with
 // no pin yet, the certificate seen is pinned (the first success). A running
-// instance then syncs at once (as Check now does), so a fixed connection
-// clears its status and problems without waiting for the next interval.
+// instance whose test works then syncs at once, past Check now's throttle,
+// so a fixed connection clears its status and problems without waiting for
+// the next interval.
 func (m *Manager) TestSaved(ctx context.Context, id string) (integration.TestResult, error) {
 	mi := m.get(id)
 	if mi == nil {
@@ -1230,7 +1234,10 @@ func (m *Manager) TestSaved(ctx context.Context, id string) (integration.TestRes
 	}
 	cfg := integration.Config{InstanceID: r.ID, Name: r.Name, Values: full}
 	res := m.runTest(ctx, mi, gen, mi.integ, mi.man, cfg, newRedactor(secrets))
-	_ = m.Refresh(id) // a disabled or stopped instance has nothing to sync
+	if res.OK {
+		// The upstream just answered, so a sync now can't hammer it.
+		_ = m.refresh(id, true) // a disabled or stopped instance has nothing to sync
+	}
 	return res, nil
 }
 

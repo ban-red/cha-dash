@@ -94,3 +94,25 @@ func TestBuildNamesTheLine(t *testing.T) {
 		}
 	}
 }
+
+// A file's tls never reaches a connection: TLS comes from the URL.
+func TestBuildIgnoresTLSFromTheFile(t *testing.T) {
+	src := "apiVersion: chadash/v1alpha1\nkind: Board\nname: X\nsections:\n  - tiles:\n      - name: A\n        connect: sonarr\n        url: https://sonarr.example\n        tls: {mode: insecure}\n"
+	res, _, err := Build([]byte(src), testCatalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Plan.Instances) != 1 {
+		t.Fatalf("instances = %+v", res.Plan.Instances)
+	}
+	if tls, _ := json.Marshal(res.Plan.Instances[0].Config["tls"]); strings.Contains(string(tls), "insecure") {
+		t.Fatalf("tls = %s", tls)
+	}
+	unmapped := false
+	for _, u := range res.Unmapped {
+		unmapped = unmapped || slices.Contains(u.Fields, "tls")
+	}
+	if !unmapped {
+		t.Fatal("tls isn't listed as left out")
+	}
+}
