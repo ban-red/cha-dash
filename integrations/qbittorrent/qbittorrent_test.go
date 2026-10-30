@@ -39,14 +39,15 @@ type webui struct {
 	maindata  map[string]string // rid → body, overriding the fixture files
 	maindatas []string          // the rids asked for
 
-	// For actions (actions_test.go): how many torrents run and are
-	// stopped, and the POSTs received.
-	running, stopped int
-	posts            []string
+	// For actions (actions_test.go): each torrent, paused or not (its hash
+	// is its index, zero-padded to 40 digits), and the POSTs received.
+	paused []bool
+	posts  []string
 }
 
 func newWebUI(t *testing.T) *webui {
-	w := &webui{dir: fixture.Dir(t, ID), sids: map[string]bool{}, maindata: map[string]string{}, running: 11, stopped: 1}
+	w := &webui{dir: fixture.Dir(t, ID), sids: map[string]bool{}, maindata: map[string]string{}, paused: make([]bool, 12)}
+	w.paused[11] = true // 11 running, one paused
 	w.Server = httptest.NewServer(http.HandlerFunc(w.serve))
 	t.Cleanup(w.Close)
 	return w

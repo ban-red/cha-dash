@@ -76,13 +76,13 @@ qBittorrent has one WebUI account and no read-only mode, so Test reports one gra
 
 | Action | Tier | Undo | What it does | Verify |
 |---|---|---|---|---|
-| `qbittorrent.app.pause` | T1 | `qbittorrent.app.resume` | `POST /api/v2/torrents/stop` (`pause` before Web API 2.11, qBittorrent 4) with `hashes=all` | no torrent is left running (`torrents/info?filter=running`, or `resumed`) |
-| `qbittorrent.app.resume` | T1 | `qbittorrent.app.pause` | `POST /api/v2/torrents/start` (`resume` before 2.11) with `hashes=all` | no torrent is left stopped (`filter=stopped`, or `paused`) |
+| `qbittorrent.app.pause` | T1 | `qbittorrent.app.resume` of the torrents it stopped | `POST /api/v2/torrents/stop` (`pause` before Web API 2.11, qBittorrent 4) with `hashes=all`, or the `hashes` param | none of them is left running (`torrents/info?filter=running`, or `resumed`) |
+| `qbittorrent.app.resume` | T1 | `qbittorrent.app.pause` of the torrents it started | `POST /api/v2/torrents/start` (`resume` before 2.11) with `hashes=all`, or the `hashes` param | none of them is left stopped (`filter=stopped`, or `paused`) |
 
 - **Preconditions** (`409 precondition`): nothing to pause (no torrent running) or to resume (none stopped).
-- **All means all:** resuming starts every stopped torrent, including ones that were stopped before the pause.
+- **Undo puts back only what changed.** Planning records the torrents the action will change (running ones for a pause, stopped ones for a resume) in the target, and the undo passes exactly those as `hashes`, so undoing a pause leaves torrents someone had stopped before it alone. They're also the target's state: if one changes between planning and approving, the approval is `409 plan_changed`. Resume all, run on its own, still starts every stopped torrent. Found in the v0.2 live run; until then, undo was resume all.
 - **Credential:** the WebUI account. qBittorrent has one account with full control and no scopes, so there's no separate control credential to add.
-- **Audit:** the target and empty params; the password never appears in a plan, task log or audit record.
+- **Audit:** the target, and for an undo the torrents' hashes (never their names); the password never appears in a plan, task log or audit record.
 
 ## Limits
 
