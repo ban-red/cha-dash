@@ -126,6 +126,9 @@ function hub(over: Record<string, Handler | { status: number; body?: unknown }> 
     'GET /api/stacks': { status: 200, body: { nodes: NODES } },
     'GET /api/stacks/secrets': { status: 200, body: { secrets: [{ name: 'db_password', set: true, updated_at: '2026-10-03T10:00:00Z' }] } },
     'GET /api/stacks/local/media': { status: 200, body: media() },
+    // Wave 12: no webhooks, and media doesn't follow git (stack-sync.test.ts covers both).
+    'GET /api/stacks/hooks': { status: 200, body: { hooks: [] } },
+    'GET /api/stacks/local/media/sync': { status: 200, body: { sync: null } },
     'POST /api/stacks/local/media/validate': (b) => ({ status: 200, body: validate((b as { content: string }).content) }),
     ...over,
   });

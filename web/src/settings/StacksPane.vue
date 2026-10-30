@@ -18,6 +18,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import StackEditor from './StackEditor.vue';
 import StackSecrets from './StackSecrets.vue';
+import StackHooks from './StackHooks.vue';
 import { ago } from '../lib/format';
 import { hubWords, isDone } from '../lib/actions';
 import { navigate, stackPath, view } from '../lib/router';
@@ -175,6 +176,7 @@ onMounted(load);
       </section>
     </template>
 
+    <StackHooks />
     <StackSecrets />
   </template>
 </template>

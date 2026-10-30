@@ -47,6 +47,8 @@ import {
 } from './stacks';
 import UiButton from '../ui/Button.vue';
 import UiField from '../ui/Field.vue';
+import StackSync from './StackSync.vue';
+import { editWhere, sourceWords, type SyncView } from './sync';
 
 const props = withDefaults(defineProps<{ node?: string; name?: string; fresh?: boolean; nodes?: StackNode[]; debounceMs?: number }>(), {
   node: '',
@@ -92,6 +94,15 @@ async function load(): Promise<void> {
 
 const isProtected = computed(() => !!detail.value?.protected);
 const protectedWords = computed(() => detail.value?.protected_reason || PROTECTED_WORDS);
+/** A stack that follows git is edited in git: the file here is read-only. */
+const synced = computed(() => detail.value?.sync ?? null);
+const readOnly = computed(() => isProtected.value || !!synced.value);
+
+function onSyncChanged(s: SyncView | null): void {
+  if (!detail.value) return;
+  detail.value = { ...detail.value, sync: s };
+  if (s) content.value = base.value;
+}
 
 // ── a new stack: where and what it's called ──
 
@@ -450,6 +461,7 @@ onBeforeUnmount(() => {
         <template v-if="metaLine"> · x-chadash: {{ metaLine }}</template>
       </p>
       <div v-if="isProtected" class="st-note sk-prot" role="note"><Glyph kind="lock" /><span>{{ protectedWords }}. You can read it and see what would change; deploying it from here comes with self-update.</span></div>
+      <div v-if="synced" class="st-note sk-synced" role="note"><Glyph kind="link" /><span>This stack follows git. {{ editWhere(synced) }}</span></div>
       <div v-if="detail?.drift && !isProtected" class="st-note attn" role="note">
         <Glyph kind="attn" />
         <span>The file on disk was edited outside Cha Dash since its last commit. Accept those edits to make them the stack’s history, or deploying will refuse.</span>
@@ -491,7 +503,7 @@ onBeforeUnmount(() => {
       <div class="sk-ed-head">
         <label :for="`${uid}-yaml`" class="sk-label">{{ fresh ? 'compose.yaml' : detail?.file || 'compose.yaml' }}</label>
         <span v-if="detail?.draft && !fresh" class="st-meta">
-          draft · revision {{ detail.draft.revision }} · saved by {{ detail.draft.updated_by }} <span :title="absolute(detail.draft.updated_at)">{{ ago(detail.draft.updated_at, now) }}</span>
+          draft · revision {{ detail.draft.revision }} · saved by {{ detail.draft.updated_by }}<template v-if="sourceWords(detail.draft.source)"> · {{ sourceWords(detail.draft.source) }}</template> <span :title="absolute(detail.draft.updated_at)">{{ ago(detail.draft.updated_at, now) }}</span>
         </span>
         <span v-else-if="!fresh" class="st-meta">no draft · showing the committed file</span>
         <span v-if="dirty" class="chip">unsaved edits</span>
@@ -509,7 +521,7 @@ onBeforeUnmount(() => {
           autocapitalize="off"
           autocomplete="off"
           wrap="off"
-          :readonly="isProtected"
+          :readonly="readOnly"
           :aria-invalid="counts.error ? true : undefined"
           :aria-describedby="`${uid}-sum`"
           @scroll="syncScroll"
@@ -585,10 +597,10 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-if="!isProtected" class="st-acts sk-acts">
-        <UiButton :disabled="saving || (fresh ? !where || !onlineNodes.length : !dirty)" :aria-busy="saving || undefined" @click="save()">
+        <UiButton v-if="!synced" :disabled="saving || (fresh ? !where || !onlineNodes.length : !dirty)" :aria-busy="saving || undefined" @click="save()">
           {{ saving ? 'Saving…' : 'Save draft' }}
         </UiButton>
-        <UiButton v-if="!fresh && detail?.draft && !confirmDiscard" variant="ghost" :disabled="saving" @click="confirmDiscard = true">Discard draft</UiButton>
+        <UiButton v-if="!fresh && detail?.draft && !confirmDiscard && !synced" variant="ghost" :disabled="saving" @click="confirmDiscard = true">Discard draft</UiButton>
         <template v-if="!fresh && canHold">
           <UiButton variant="primary" class="sk-deploy" :aria-disabled="deployBlock ? 'true' : undefined" :aria-describedby="deployBlock ? `${uid}-why` : undefined" @click="deploy">
             Deploy<span class="tier">T2</span>
@@ -657,6 +669,16 @@ onBeforeUnmount(() => {
           </li>
         </ol>
       </section>
+
+      <StackSync
+        v-if="detail && !fresh"
+        :node="node"
+        :stack="name"
+        :protected="isProtected"
+        :protected-reason="detail.protected_reason ?? ''"
+        :secret-names="detail.secrets.map((s) => s.name)"
+        @changed="onSyncChanged"
+      />
     </template>
   </section>
 </template>

@@ -16,6 +16,7 @@
  */
 import { ApiError, api } from '../lib/api';
 import type { GlyphKind } from '../ui/marks/Glyph.vue';
+import type { SyncView } from './sync';
 
 export type StackStatus = 'running' | 'partial' | 'stopped' | 'down' | 'unknown';
 
@@ -83,6 +84,8 @@ export interface Draft {
   revision: number;
   updated_at: string;
   updated_by: string;
+  /** web, or git:<sha> from a sync (sync.ts). */
+  source?: string;
 }
 
 export interface SecretRef {
@@ -108,6 +111,8 @@ export interface StackDetail {
   history: HistoryEntry[];
   draft: Draft | null;
   secrets: SecretRef[];
+  /** Set while the stack follows git: the editor is read-only (sync.ts). */
+  sync?: SyncView | null;
 }
 
 export type Severity = 'error' | 'warning' | 'info';
