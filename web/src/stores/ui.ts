@@ -16,7 +16,7 @@
  * - A Repair's "Reconnect" opens the integration's settings with the field
  *   that failed focused.
  * - A tile's cog opens its settings: the integration that feeds it, else
- *   the tile's editor over the board (`state.editingTile`), without edit mode.
+ *   the tile's Edit in edit mode (`state.editingTile`).
  * - A task whose log is its result (a container's logs) ends in the log
  *   dialog (TaskLogDialog), not a toast.
  * - A note too long for its tile (an upstream's health message) opens whole
@@ -90,7 +90,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     addSection: '' as string,
     /** A widget picked on the normal board: edit mode starts with it added (EditableBoard), then clears this. */
     pendingAdd: undefined as AddRequest | undefined,
-    /** A tile's cog asked for its Edit: the board opens the tile editor on this item (over the normal board, or in edit mode), then clears this. */
+    /** A tile's cog asked for its Edit: edit mode opens the tile editor on this item, then clears this. */
     editingTile: '' as string,
     confirm: undefined as ConfirmRequest | undefined,
     stepUp: undefined as StepUpRequest | undefined,
@@ -182,8 +182,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
       closeSheet();
       state.inboxOpen = false;
       state.paletteOpen = false;
-      // The editor opens over the board as it is (BoardSurface); edit mode isn't switched on.
       state.editingTile = itemId;
+      state.editing = true;
     }
   }
 
@@ -236,8 +236,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     if (live.stale.value) return { ok: false, why: 'Actions come back when the hub does.' };
     if (action.id === 'link.open') return linkOf(action.target) ? { ok: true } : { ok: false, why: 'No link known for this yet.' };
     if (opensSettings(action)) return can.value.integrations ? { ok: true } : { ok: false, hidden: true, why: 'Your role can’t open integration settings.' };
-    // The route is viewer and up: household's boards don't ask sources to read.
-    if (action.id === 'integration.refresh') return can.value.role === 'household' ? { ok: false, hidden: true } : { ok: true };
+    if (action.id === 'integration.refresh') return { ok: true };
     if (action.unavailable) return { ok: false, why: action.unavailable };
     if (action.plan_ready === false) return { ok: false, why: 'Cha Dash can’t run this here yet.' };
     if (live.fixes[incident.id]?.state === 'sending') return { ok: false };

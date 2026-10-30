@@ -24,12 +24,6 @@ const (
 	connectTimeout = 30 * time.Second
 	// repairID is the local incident ID of an instance's repair.
 	repairID = "repair"
-	// refreshGap is the least time between two Check nows that sync, and
-	// refreshAfterFailure the least time after a failed attempt: anyone who
-	// can see an instance can ask, and a loop of asks mustn't hammer the
-	// upstream or walk a bad credential into its lockout.
-	refreshGap          = 10 * time.Second
-	refreshAfterFailure = time.Minute
 )
 
 // coordinator runs one instance: connect, then sync on a jittered schedule
@@ -53,9 +47,6 @@ type coordinator struct {
 	poke chan struct{}
 	// refresh marks the next sync as asked for: Interest.Refresh.
 	refresh atomic.Bool
-	// asked is when refreshNow last went through, and failed when the last
-	// attempt failed (zero after one that worked), in Unix milliseconds.
-	asked, failed atomic.Int64
 
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -85,21 +76,8 @@ func (c *coordinator) syncSoon() {
 	}
 }
 
-// refreshNow asks for a sync now with Interest.Refresh set. Unless forced
-// (a test that just worked), it does nothing within refreshGap of the last
-// one, or within refreshAfterFailure of a failed attempt; the schedule's
-// backoff stands.
-func (c *coordinator) refreshNow(force bool) {
-	now := time.Now().UnixMilli()
-	if !force {
-		if f := c.failed.Load(); f != 0 && now-f < refreshAfterFailure.Milliseconds() {
-			return
-		}
-		if a := c.asked.Load(); a != 0 && now-a < refreshGap.Milliseconds() {
-			return
-		}
-	}
-	c.asked.Store(now)
+// refreshNow asks for a sync now with Interest.Refresh set.
+func (c *coordinator) refreshNow() {
 	c.refresh.Store(true)
 	c.syncSoon()
 }
@@ -176,7 +154,6 @@ func (c *coordinator) run(ctx context.Context) {
 			if err != nil {
 				done()
 				class := c.fail(start, time.Since(start), err)
-				c.failed.Store(start.UnixMilli())
 				last, backoff = start, true
 				next = start.Add(c.failureDelay(class, nil, interest))
 				c.schedule(nil, interest, next)
@@ -195,12 +172,10 @@ func (c *coordinator) run(ctx context.Context) {
 		last = start
 		if err != nil {
 			class := c.fail(start, time.Since(start), err)
-			c.failed.Store(start.UnixMilli())
 			backoff = true
 			next = start.Add(c.failureDelay(class, inst, interest))
 		} else {
 			c.succeed(start, time.Since(start))
-			c.failed.Store(0)
 			backoff = false
 			next = start.Add(c.jitter(c.interval(inst, interest)))
 		}

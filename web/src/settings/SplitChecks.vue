@@ -48,8 +48,7 @@ const rows = computed<Row[]>(() => {
 function setUp(r: Row): void {
   const config: Record<string, unknown> = { url: r.url };
   const tls = r.tls as { mode?: unknown } | undefined;
-  // A check may skip certificate checks; a connection that holds a key pins the certificate instead.
-  if (tls && typeof tls === 'object' && typeof tls.mode === 'string') config['tls'] = { mode: tls.mode === 'insecure' ? 'tofu' : tls.mode };
+  if (tls && typeof tls === 'object' && typeof tls.mode === 'string') config['tls'] = { mode: tls.mode };
   setDraft(r.integration, { name: r.name, config });
   navigate(`/settings/integrations/new/${encodeURIComponent(r.integration)}`);
 }

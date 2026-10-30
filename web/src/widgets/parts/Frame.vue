@@ -4,12 +4,17 @@
  * header's state word, last-known values while the integration needs repair,
  * and a click that opens the incident (the problem first, else the repair).
  * Anything passed explicitly (status, tag) wins over the subject.
+ *
+ * While the Pulse strip is scrubbed, the frame and the state word are the
+ * subject's health at that moment ("down at 03:15"), when the hub knows it.
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Tile, { type TileStatus } from '../../components/Tile.vue';
 import type { GlyphKind } from '../../components/marks/Glyph.vue';
-import { monogram } from '../../lib/format';
+import { hhmm, monogram } from '../../lib/format';
+import { pastStatus, stateWords } from '../../model/history';
+import { cursor, pulse } from '../../stores/cursor';
 import type { Health, Incident } from '../../model/types';
 import { useLive } from '../../stores/live';
 import { useUi } from '../../stores/ui';
@@ -55,8 +60,24 @@ const {
 const live = useLive();
 const ui = useUi();
 
-const st = computed<TileStatus>(() => status ?? subject?.status ?? 'ok');
+/** The subject's health at the moment the Pulse strip is on. */
+const past = computed(() => {
+  const c = cursor.value;
+  const id = subject?.resource?.id;
+  if (c?.source !== 'pulse' || !id) return undefined;
+  const was = pastStatus(pulse.value, id, c.at);
+  return was ? { status: was, at: c.at } : undefined;
+});
+const PAST_GLYPH: Record<string, GlyphKind> = { ok: 'ok', attention: 'attn', down: 'down', repair: 'repair' };
+const st = computed<TileStatus>(() => {
+  const p = past.value?.status;
+  if (p === 'down' || p === 'attention') return p;
+  if (p) return 'ok'; // a repair stays quiet, as it does now
+  return status ?? subject?.status ?? 'ok';
+});
 const header = computed(() => {
+  const p = past.value;
+  if (p) return { tag: `${stateWords(p.status).toLowerCase()} at ${hhmm(p.at)}`, glyph: PAST_GLYPH[p.status] };
   if (tag !== undefined) return { tag, glyph: tagGlyph };
   const health: Health = subject?.health ?? { status: 'ok' };
   return tagOf({ status: st.value, health, resource: subject?.resource }, live.now.value, okTag);

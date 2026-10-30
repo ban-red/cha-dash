@@ -283,8 +283,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  /* A field Tab reaches scrolls clear of a form's sticky Save bar (WCAG 2.4.11). */
-  scroll-padding-bottom: 72px;
   padding: var(--space-6) var(--space-6) calc(var(--space-12) + env(safe-area-inset-bottom));
 }
 @media (max-width: 719px) {

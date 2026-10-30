@@ -24,6 +24,10 @@ const (
 	// historyDefaultPoints the number when the request doesn't say.
 	historyPoints        = 2000
 	historyDefaultPoints = 300
+	// pulsePoints bounds the slots of GET /api/history/pulse; 96 is 24
+	// hours by the quarter hour.
+	pulsePoints        = 288
+	pulseDefaultPoints = 96
 )
 
 // historySeriesJSON is one series of GET /api/history. Point i is at
@@ -44,6 +48,8 @@ type historySeriesJSON struct {
 //	  → 200 {"level", "series": {"<key>": {"unit", "start", "step", "avg", "min", "max"}}}
 //	GET /api/history/states?resource=<id>&from=<ms>&to=<ms>
 //	  → 200 {"level", "states": [{"at", "status"}], "totals": {"<status>": ms}, "up": share or null}
+//	GET /api/history/pulse?from=<ms>&to=<ms>&points=<n>
+//	  → 200 {"level", "start", "step", "slots": [{"counts": {"<status>": n}, "issues": {"<resource>": "<status>"}}]}
 //
 // from defaults to a day before to, and to to now. The tier is the finest
 // that gives at most points points (default 300, at most 2,000). A series
@@ -57,6 +63,13 @@ type historySeriesJSON struct {
 // up is the share of the watched time it was ok or attention (null when
 // none was watched). Stopped means the hub wasn't running; gone, that the
 // resource had left the graph.
+//
+// pulse is the whole home's health for the Briefing's Pulse strip: the
+// range in points equal slots (default 96, at most 288; from defaults to a
+// day before to). Each slot counts the resources by the worst they were
+// during it (ok, attention, repair, down; unwatched ones aren't counted),
+// and issues names the ones that weren't ok. Household counts only what its
+// graph shows.
 func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler, rec *history.Recorder, g *graph.Graph) {
 	visible := func(r *http.Request, resource string) bool {
 		id, _ := auth.FromContext(r.Context())
@@ -115,6 +128,44 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 			out["up"] = sum.Up
 		}
 		httpx.WriteJSON(w, http.StatusOK, out)
+	})))
+
+	mux.Handle("GET /api/history/pulse", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		now := time.Now()
+		to, ok := msParam(q.Get("to"), now)
+		from, ok2 := msParam(q.Get("from"), to.Add(-24*time.Hour))
+		if !ok || !ok2 || !from.Before(to) {
+			httpx.Error(w, http.StatusBadRequest, "bad_range", "from and to are Unix milliseconds, from before to")
+			return
+		}
+		points := pulseDefaultPoints
+		if s := q.Get("points"); s != "" {
+			n, err := strconv.Atoi(s)
+			if err != nil || n < 1 || n > pulsePoints {
+				httpx.Error(w, http.StatusBadRequest, "bad_points", "points is 1 to 288")
+				return
+			}
+			points = n
+		}
+		type slot struct {
+			Counts map[string]int    `json:"counts"`
+			Issues map[string]string `json:"issues"`
+		}
+		if rec == nil {
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"level": history.Off, "start": from.UnixMilli(), "step": 0, "slots": []slot{}})
+			return
+		}
+		p, err := rec.Pulse(r.Context(), from, to, points, func(id string) bool { return visible(r, id) })
+		if err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't read the history")
+			return
+		}
+		slots := make([]slot, len(p.Slots))
+		for i, s := range p.Slots {
+			slots[i] = slot{Counts: s.Counts, Issues: s.Issues}
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"level": rec.Level(), "start": p.Start.UnixMilli(), "step": p.Step.Milliseconds(), "slots": slots})
 	})))
 
 	mux.Handle("GET /api/history", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

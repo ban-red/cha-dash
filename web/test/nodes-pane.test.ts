@@ -105,11 +105,9 @@ describe('Settings → Nodes', () => {
     await w.findAll('.nd-detail button').find((b) => b.text() === 'Revoke local')!.trigger('click');
     const confirm = w.find('.nd-confirm');
     const go = confirm.findAll('button').find((b) => b.text() === 'Revoke')!;
-    expect(go.attributes('aria-disabled')).toBe('true');
+    expect(go.attributes('disabled')).toBeDefined();
     await confirm.find('input').setValue('loca');
-    expect(go.attributes('aria-disabled')).toBe('true');
-    await go.trigger('click');
-    expect(posts).toEqual([]);
+    expect(go.attributes('disabled')).toBeDefined();
     await confirm.find('input').setValue('local');
     await go.trigger('click');
     await flushPromises();

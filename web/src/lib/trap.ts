@@ -18,8 +18,7 @@ export function trapTab(e: KeyboardEvent, root: HTMLElement | null | undefined):
   if (!root.contains(active)) {
     e.preventDefault();
     first.focus();
-  } else if (e.shiftKey && (active === first || (active && active.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING))) {
-    // From the first item, or from a heading above it that took focus (tabindex -1).
+  } else if (e.shiftKey && active === first) {
     e.preventDefault();
     last.focus();
   } else if (!e.shiftKey && active === last) {

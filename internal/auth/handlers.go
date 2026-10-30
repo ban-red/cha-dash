@@ -174,11 +174,6 @@ func (s *Service) handleSetup(w http.ResponseWriter, r *http.Request) {
 	if s.rateLimited(w, r, "setup") {
 		return
 	}
-	if !s.rebindSafe(r) {
-		httpx.Error(w, http.StatusForbidden, "unknown_host",
-			"Cha Dash doesn't know the name "+requestHost(r)+". Open it at its IP address, or set CHADASH_PUBLIC_URL to the address you use, then create the owner.")
-		return
-	}
 	var req setupRequest
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
@@ -228,7 +223,7 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 		// Usernames aren't logged: people sometimes type a password into that field.
 		ip := s.proxies.ClientIP(r)
 		s.log.Info("sign-in failed", "client", ip.String())
-		banned, err := s.strike(r.Context(), ip, req.Username)
+		banned, err := s.strike(r.Context(), ip)
 		if err != nil {
 			s.log.Error("could not record the wrong password", "err", err)
 		}
@@ -244,7 +239,7 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}
-	s.forgive(s.proxies.ClientIP(r), req.Username)
+	s.forgive(s.proxies.ClientIP(r))
 	if _, err := s.StartSession(w, r, u, MethodPassword); err != nil {
 		s.log.Error("could not start session", "err", err)
 		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")

@@ -2,6 +2,7 @@
 /**
  * The Briefing: a status sentence (A) or a headline with a deck (Paper),
  * the clock, and the Inbox. Phrases that name an incident open it in the Inbox.
+ * Under them, the Pulse strip: the last day's health, which scrubs the board.
  *
  * The copy is assembled as parts (text, bold, or a phrase bound to an
  * incident) so spacing and punctuation never depend on template whitespace.
@@ -9,6 +10,7 @@
 import { computed } from 'vue';
 import Glyph from './marks/Glyph.vue';
 import BriefTools from './BriefTools.vue';
+import PulseStrip from './PulseStrip.vue';
 import { fmtPct, hhmm, longDate, numberWord, plural, shortDate } from '../lib/format';
 import { currentTheme, THEMES } from '../lib/theme';
 import { inSentence, joinAnd, peoplePhrase, summarize } from '../model/briefing';
@@ -165,10 +167,11 @@ function key(e: KeyboardEvent, id: string) {
           <template v-else>{{ p.text }}</template>
         </template>
       </p>
+      <PulseStrip v-if="s.ready && !live.demo.value" />
     </div>
 
     <div class="brief-side">
-      <span class="sr">{{ live.demo.value ? 'Simulated time in the Demo Home:' : 'Time at home:' }}</span>
+      <span class="sr">{{ live.demo.value ? 'Simulated time in the Demo Home, UTC:' : 'Time at home:' }}</span>
       <div class="clock">{{ clock }}</div>
       <BriefTools v-if="!headline" @sign-out="emit('signOut')" />
     </div>

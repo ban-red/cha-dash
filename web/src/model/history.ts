@@ -194,3 +194,46 @@ export function csvName(resource: string, span: string, now: number): string {
     .slice(0, 60);
   return `${base || 'history'}-${span}-${new Date(now).toISOString().slice(0, 10)}.csv`;
 }
+
+/** One slot of the Pulse strip: resources by the worst they were, and the ones that weren't ok. */
+export interface PulseSlot {
+  counts: Partial<Record<'ok' | 'attention' | 'repair' | 'down', number>>;
+  issues: Record<string, string>;
+}
+
+export interface PulseReply {
+  level: HistoryLevel;
+  /** Unix ms of slot 0; slot i is [start + i × step, start + (i + 1) × step). */
+  start: number;
+  step: number;
+  slots: PulseSlot[];
+}
+
+/** The whole home's health over the last day, by the quarter hour (GET /api/history/pulse). */
+export function fetchPulse(now: number, points = 96): Promise<PulseReply> {
+  const q = new URLSearchParams({ from: String(now - 86_400_000), to: String(now), points: String(points) });
+  return api<PulseReply>(`/api/history/pulse?${q.toString()}`);
+}
+
+/** A slot's colour: the worst anyone was, or 'none' when nothing was watched. */
+export function pulseTone(s: PulseSlot | undefined): 'down' | 'attention' | 'ok' | 'none' {
+  if (!s) return 'none';
+  if (s.counts.down) return 'down';
+  if (s.counts.attention || s.counts.repair) return 'attention';
+  return s.counts.ok ? 'ok' : 'none';
+}
+
+/** The slot holding at, or undefined outside the reply. */
+export function pulseSlotAt(p: PulseReply | undefined, at: number): number | undefined {
+  if (!p || p.step <= 0) return undefined;
+  const i = Math.floor((at - p.start) / p.step);
+  return i >= 0 && i < p.slots.length ? i : undefined;
+}
+
+/** What a resource was at a moment the Pulse covers: its issue, else ok; undefined when nothing was watched then. */
+export function pastStatus(p: PulseReply | undefined, resource: string, at: number): string | undefined {
+  const i = pulseSlotAt(p, at);
+  const s = i === undefined ? undefined : p!.slots[i];
+  if (!s || pulseTone(s) === 'none') return undefined;
+  return s.issues[resource] ?? 'ok';
+}

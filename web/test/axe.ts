@@ -17,12 +17,15 @@ function documentBasics(): void {
   if (!document.title) document.title = 'Cha Dash';
 }
 
-/** Readable violations under root: "rule (impact): help — target: summary". Empty means clean. */
-export async function axeViolations(root: Element = document.body): Promise<string[]> {
+/**
+ * Readable violations under root: "rule (impact): help — target: summary". Empty means clean.
+ * skip names rules that don't apply to a part tested alone, such as region for one the page puts in a landmark.
+ */
+export async function axeViolations(root: Element = document.body, skip: readonly string[] = []): Promise<string[]> {
   documentBasics();
   const res = await axe.run(root, {
     runOnly: { type: 'tag', values: WCAG_TAGS },
-    rules: { 'color-contrast': { enabled: false } },
+    rules: Object.fromEntries(['color-contrast', ...skip].map((r) => [r, { enabled: false }])),
     resultTypes: ['violations'],
   });
   return res.violations.flatMap((v) =>

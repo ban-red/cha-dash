@@ -68,15 +68,13 @@ export function authMessage(err: unknown, context: 'setup' | 'login' | 'dev'): s
   }
   if (context === 'setup') {
     if (err.status === 409) return 'Setup is already done. Sign in instead.';
-    if (err.status === 422 || err.code === 'unknown_host') return sentence(err.message);
+    if (err.status === 422) return sentence(err.message);
   } else if (context === 'login' && err.status === 401) {
     return 'That username and password don’t match.';
   } else if (context === 'login' && err.code === 'ip_banned') {
     return IP_BANNED_MESSAGE;
   } else if (context === 'dev' && err.status === 404) {
     return 'This hub wasn’t built with dev login. Start it with bun run dev.';
-  } else if (context === 'dev' && err.status === 403) {
-    return 'Dev login only works at localhost or 127.0.0.1. Open Cha Dash there.';
   }
   return 'The hub couldn’t do that. Try again.';
 }

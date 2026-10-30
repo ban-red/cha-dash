@@ -9,7 +9,7 @@
  * With the upstream's page for it (`href`), the dialog offers to open that.
  * Without the Popover API (older engines, test DOMs) the click still works.
  */
-import { nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
+import { nextTick, onBeforeUnmount, ref, useId, useTemplateRef } from 'vue';
 import Glyph, { type GlyphKind } from './marks/Glyph.vue';
 import { useUi } from '../stores/ui';
 
@@ -74,16 +74,7 @@ function open(): void {
   ui.showNote({ title, text, glyph: kind, ...(href && { href }) });
 }
 
-// Esc dismisses a tooltip that hover opened too, wherever focus is (WCAG 1.4.13).
-function onKey(e: KeyboardEvent): void {
-  if (e.key === 'Escape') hide();
-}
-watch(shown, (on) => (on ? document.addEventListener('keydown', onKey) : document.removeEventListener('keydown', onKey)));
-
-onBeforeUnmount(() => {
-  hide();
-  document.removeEventListener('keydown', onKey);
-});
+onBeforeUnmount(hide);
 </script>
 
 <template>
@@ -114,9 +105,8 @@ onBeforeUnmount(() => {
 <style>
 .gtip-btn {
   display: inline-flex;
-  /* A 24 px target around the 8 px glyph (WCAG 2.5.8), without moving it. */
-  margin: -8px;
-  padding: 8px;
+  margin: -4px;
+  padding: 4px;
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
@@ -145,7 +135,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .gtip:hover .gtip-hint {
-  color: var(--text);
+  color: var(--text-2);
 }
 .gtip-head {
   display: flex;
@@ -174,6 +164,6 @@ onBeforeUnmount(() => {
 .gtip-hint {
   margin: 6px 0 0;
   font: var(--weight-regular) var(--type-caption) / 1.2 var(--font-ui);
-  color: var(--text-2);
+  color: var(--text-3);
 }
 </style>

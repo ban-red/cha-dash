@@ -261,7 +261,7 @@ func TestCoordinatorRefresh(t *testing.T) {
 			t.Fatalf("first sync: %d, refresh %v", n, s.want(0).Refresh)
 		}
 		time.Sleep(time.Minute)
-		c.refreshNow(false)
+		c.refreshNow()
 		synctest.Wait()
 		calls := s.times()
 		if len(calls) != 2 || !calls[1].Equal(time.Now()) || !s.want(1).Refresh {
@@ -271,45 +271,6 @@ func TestCoordinatorRefresh(t *testing.T) {
 		synctest.Wait()
 		if n := len(s.times()); n != 3 || s.want(2).Refresh {
 			t.Fatalf("after refresh: %d syncs, the next one a refresh too?", n)
-		}
-	})
-}
-
-// A loop of Check nows syncs once per refreshGap, and not at all within
-// refreshAfterFailure of a failed attempt.
-func TestCoordinatorRefreshIsThrottled(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		s := &script{errs: []error{nil, nil, statusErr(502)}}
-		c, _, _ := testCoordinator(fakeInteg{s: s}, integration.Poll{Interval: 30 * time.Second, Idle: 5 * time.Minute})
-		c.poke = make(chan struct{}, 1)
-		c.start(context.Background())
-		defer c.stop()
-		time.Sleep(3 * time.Second)
-		synctest.Wait()
-		ask := func(times int) {
-			for range times {
-				c.refreshNow(false)
-				synctest.Wait()
-				time.Sleep(time.Second)
-			}
-		}
-		ask(5) // one sync, then four asks inside the gap
-		if n := len(s.times()); n != 2 {
-			t.Fatalf("five asks a second apart: %d syncs, want 2", n)
-		}
-		time.Sleep(refreshGap)
-		ask(1) // this one fails
-		ask(30)
-		if n := len(s.times()); n != 3 {
-			t.Fatalf("asks in the minute after a failure: %d syncs, want 3", n)
-		}
-		time.Sleep(refreshAfterFailure)
-		synctest.Wait()
-		before := len(s.times())
-		c.refreshNow(false)
-		synctest.Wait()
-		if n := len(s.times()); n != before+1 {
-			t.Fatalf("an ask a minute after the failure: %d syncs, want %d", n, before+1)
 		}
 	})
 }

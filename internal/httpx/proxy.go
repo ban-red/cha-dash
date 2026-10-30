@@ -30,12 +30,6 @@ func (p Proxies) isTrusted(a netip.Addr) bool {
 	return false
 }
 
-// ViaTrusted reports whether the request's TCP peer is a trusted proxy.
-func (p Proxies) ViaTrusted(r *http.Request) bool {
-	peer := PeerAddr(r)
-	return peer.IsValid() && p.isTrusted(peer)
-}
-
 // PeerAddr is the TCP peer of the request.
 func PeerAddr(r *http.Request) netip.Addr {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)

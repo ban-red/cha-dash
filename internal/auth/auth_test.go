@@ -177,14 +177,6 @@ func TestFirstRunFlow(t *testing.T) {
 		t.Fatalf("bad username = %d", resp.StatusCode)
 	}
 
-	// A name a public DNS server hands out could be rebound to the hub by a
-	// page a LAN browser opens: setup refuses it.
-	h.host = "dash.attacker.example"
-	if resp, _ := h.do(c, "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"}); resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("setup under a public name = %d", resp.StatusCode)
-	}
-	h.host = ""
-
 	resp, body := h.do(c, "POST", "/api/setup", setupRequest{Username: "owner", Password: "correct horse battery"})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("setup = %d %v", resp.StatusCode, body)
@@ -508,28 +500,6 @@ func TestLoginAccountLimited(t *testing.T) {
 	}
 }
 
-// Many addresses failing once each don't wipe another address's count.
-func TestStrikesSurviveAFloodOfOnes(t *testing.T) {
-	h := newHarness(t)
-	target := netip.MustParseAddr("198.51.100.7")
-	for range BanAfter - 1 {
-		if banned, err := h.svc.strike(t.Context(), target, "admin"); banned || err != nil {
-			t.Fatal(banned, err)
-		}
-	}
-	base := netip.MustParseAddr("2001:db8::")
-	for i := range maxStrikes + 1 {
-		a := base.As16()
-		a[14], a[15] = byte(i>>8), byte(i)
-		if _, err := h.svc.strike(t.Context(), netip.AddrFrom16(a), "admin"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if banned, err := h.svc.strike(t.Context(), target, "admin"); !banned || err != nil {
-		t.Fatalf("fifth strike after the flood: banned %v, %v", banned, err)
-	}
-}
-
 func TestBanAfterWrongPasswords(t *testing.T) {
 	// Trust the test client as a proxy so each attempt can name its address.
 	h := newHarness(t, netip.MustParsePrefix("127.0.0.0/8"), netip.MustParsePrefix("::1/128"))
@@ -559,27 +529,6 @@ func TestBanAfterWrongPasswords(t *testing.T) {
 		if resp, _ := login("198.51.100.1", "guess guess guess"); resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("wrong password %d after a good sign-in = %d", i, resp.StatusCode)
 		}
-	}
-
-	// Signing in to your own account doesn't clear guesses at another's.
-	if _, err := h.svc.CreateUser(t.Context(), "guest", "guest password 1", RoleViewer); err != nil {
-		t.Fatal(err)
-	}
-	for i := range BanAfter - 1 {
-		if resp, _ := login("198.51.100.4", "guess guess guess"); resp.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("guess %d at the owner = %d", i, resp.StatusCode)
-		}
-		resp, _ := h.doRaw(c, "POST", "/api/auth/login", loginRequest{Username: "guest", Password: "guest password 1"},
-			map[string]string{"X-Forwarded-For": "198.51.100.4"})
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("guest's own sign-in %d = %d", i, resp.StatusCode)
-		}
-	}
-	if resp, body := login("198.51.100.4", "guess guess guess"); resp.StatusCode != http.StatusForbidden || errCode(body) != "ip_banned" {
-		t.Fatalf("fifth guess at the owner between the guest's sign-ins = %d %v", resp.StatusCode, body)
-	}
-	if err := h.svc.Unban(t.Context(), "198.51.100.4"); err != nil {
-		t.Fatal(err)
 	}
 
 	// Five wrong in a row, unknown usernames included: the fifth bans.

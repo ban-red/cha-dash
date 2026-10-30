@@ -99,10 +99,6 @@
   align-items: center;
   gap: var(--space-2);
 }
-/* While it floats, what Tab reaches scrolls clear of it (WCAG 2.4.11). */
-html:has(.brief-tools.stuck) {
-  scroll-padding-top: 64px;
-}
 /* Past the top of the page the row floats there; the slot keeps its place. */
 .brief-tools.stuck {
   position: fixed;

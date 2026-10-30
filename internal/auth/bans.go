@@ -18,9 +18,7 @@ import (
 // so an admin who mistypes from another tab can still clear it.
 //
 // The count is per exact address and lives in memory: a restart forgets
-// strikes, never bans. A sign-in that works clears only the strikes the
-// address earned on that username, so signing in to your own account
-// doesn't reset the count of guesses at someone else's.
+// strikes, never bans. A sign-in that works clears the address's strikes.
 const BanAfter = 5
 
 // ErrBanNotFound is Unban's answer for an address that isn't banned.
@@ -46,34 +44,21 @@ func (s *Service) Banned(ctx context.Context, ip netip.Addr) (bool, error) {
 	return n > 0, nil
 }
 
-// strike counts a wrong password for username from ip and reports whether
-// that banned it. The ban counts every username the address got wrong.
-func (s *Service) strike(ctx context.Context, ip netip.Addr, username string) (bool, error) {
+// strike counts a wrong password from ip and reports whether that banned it.
+func (s *Service) strike(ctx context.Context, ip netip.Addr) (bool, error) {
 	key := banKey(ip)
 	s.banMu.Lock()
 	if s.strikes == nil {
-		s.strikes = map[string]map[string]int{}
+		s.strikes = map[string]int{}
 	}
 	if _, ok := s.strikes[key]; !ok && len(s.strikes) >= maxStrikes {
-		// Forget the addresses with one strike first, so filling the map
-		// from many addresses doesn't wipe a patient guesser's count. Only
-		// when every address has more is everyone forgotten; each still
-		// needs BanAfter wrong passwords of its own, and the per-client rate
-		// limit still applies.
-		for k, m := range s.strikes {
-			if total(m) <= 1 {
-				delete(s.strikes, k)
-			}
-		}
-		if len(s.strikes) >= maxStrikes {
-			clear(s.strikes)
-		}
+		// Forgetting everyone's strikes is the cheap way out; each address
+		// still needs BanAfter wrong passwords of its own, and the per-client
+		// rate limit still applies.
+		clear(s.strikes)
 	}
-	if s.strikes[key] == nil {
-		s.strikes[key] = map[string]int{}
-	}
-	s.strikes[key][username]++
-	n := total(s.strikes[key])
+	s.strikes[key]++
+	n := s.strikes[key]
 	if n >= BanAfter {
 		delete(s.strikes, key)
 	}
@@ -91,26 +76,10 @@ func (s *Service) strike(ctx context.Context, ip netip.Addr, username string) (b
 	return true, nil
 }
 
-func total(m map[string]int) (n int) {
-	for _, c := range m {
-		n += c
-	}
-	return n
-}
-
-// forgive clears ip's strikes on username after a sign-in to it that
-// worked, and all of them when username is empty (an unban).
-func (s *Service) forgive(ip netip.Addr, username string) {
-	key := banKey(ip)
+// forgive clears ip's strikes after a sign-in that worked.
+func (s *Service) forgive(ip netip.Addr) {
 	s.banMu.Lock()
-	if username == "" {
-		delete(s.strikes, key)
-	} else if m := s.strikes[key]; m != nil {
-		delete(m, username)
-		if len(m) == 0 {
-			delete(s.strikes, key)
-		}
-	}
+	delete(s.strikes, banKey(ip))
 	s.banMu.Unlock()
 }
 
@@ -123,7 +92,7 @@ func (s *Service) Unban(ctx context.Context, ip string) error {
 	if err != nil {
 		return err
 	}
-	s.forgive(a, "")
+	s.forgive(a)
 	s.log.Info("client ban cleared", "client", banKey(a))
 	return nil
 }

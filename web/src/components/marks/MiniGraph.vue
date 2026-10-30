@@ -14,8 +14,13 @@
  * `stale`, which hatches the gap after the last known sample instead of
  * leaving it blank. `spanMin` is the minutes the whole series covers (the
  * 24 h history by default), for the readout's "6 h ago"; `at` replaces it.
+ *
+ * Linked scrubbing: a graph without `at` ends now, so it shares the page's
+ * time cursor (stores/cursor.ts). Scrubbing it moves the cursor, and every
+ * other such graph and the Pulse strip mark the same moment.
  */
 import { computed, ref, useId } from 'vue';
+import { clearCursor, cursor, setCursor } from '../../stores/cursor';
 
 const {
   values,
@@ -42,6 +47,8 @@ const {
 }>();
 
 const gid = useId();
+/** This graph, as the cursor's source. */
+const me = {};
 const known = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
 const nums = computed(() => (values ?? []).filter(known));
 
@@ -146,10 +153,30 @@ function move(e: PointerEvent): void {
     else if (g.pts[want + d]) best = want + d;
   }
   scrub.value = best;
+  if (!at && best !== undefined) setCursor(Date.now() - minutesAgo(best, g.n) * 60_000, me);
 }
+function leave(): void {
+  scrub.value = undefined;
+  clearCursor(me);
+}
+/** How long ago point i of n is, in minutes. */
+const minutesAgo = (i: number, n: number) => (n - 1 - i) * (spanMin / n);
+/** The point another graph or the Pulse strip is scrubbing: the nearest known one to the cursor. */
+const linked = computed(() => {
+  const c = cursor.value;
+  const g = geom.value;
+  if (at || !c || c.source === me || !g) return undefined;
+  const want = g.n - 1 - Math.round((Date.now() - c.at) / 60_000 / (spanMin / g.n));
+  if (want < 0 || want > g.n - 1) return undefined;
+  for (let d = 0; d <= 1; d++) {
+    if (g.pts[want - d]) return want - d;
+    if (g.pts[want + d]) return want + d;
+  }
+  return undefined;
+});
 const at_ = computed(() => {
   const g = geom.value;
-  const i = scrub.value;
+  const i = scrub.value ?? linked.value;
   const p = g && i !== undefined ? g.pts[i] : undefined;
   if (!g || i === undefined || !p) return undefined;
   return { x: p[0], y: p[1], text: format(values![i] as number), when: ago(i, g.n) };
@@ -164,8 +191,8 @@ const at_ = computed(() => {
     :aria-label="summary"
     @pointermove="move"
     @pointerdown="move"
-    @pointerleave="scrub = undefined"
-    @pointercancel="scrub = undefined"
+    @pointerleave="leave"
+    @pointercancel="leave"
   >
     <div v-if="geom" class="mg-plot">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">

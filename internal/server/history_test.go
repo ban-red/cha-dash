@@ -170,6 +170,35 @@ func TestHistoryStatesRoute(t *testing.T) {
 	}
 	get(owner, "", http.StatusBadRequest)
 	get(owner, "resource=host:pve&from=9&to=3", http.StatusBadRequest)
+
+	// The Pulse strip: the last five hours in five slots.
+	type pulse struct {
+		Level string `json:"level"`
+		Step  int64  `json:"step"`
+		Slots []struct {
+			Counts map[string]int    `json:"counts"`
+			Issues map[string]string `json:"issues"`
+		} `json:"slots"`
+	}
+	pulseOf := func(c *http.Client, query string, want int) pulse {
+		t.Helper()
+		status, _, b := e.call(t, c, "GET", "/api/history/pulse?"+query, nil)
+		if status != want {
+			t.Fatalf("GET /api/history/pulse?%s: %d %s", query, status, b)
+		}
+		var out pulse
+		_ = json.Unmarshal(b, &out)
+		return out
+	}
+	q := fmt.Sprintf("from=%d&to=%d&points=5", from, now.UnixMilli())
+	p := pulseOf(owner, q, http.StatusOK)
+	if p.Step != 3_600_000 || len(p.Slots) != 5 || p.Slots[0].Counts["ok"] != 0 || p.Slots[1].Counts["ok"] != 2 || p.Slots[2].Issues["host:pve"] != "down" || p.Slots[3].Counts["ok"] != 2 {
+		t.Fatalf("owner's pulse = %+v", p)
+	}
+	if hp := pulseOf(household, q, http.StatusOK); hp.Slots[1].Counts["ok"] != 1 {
+		t.Fatalf("household's pulse counts the node: %+v", hp)
+	}
+	pulseOf(owner, "points=289", http.StatusBadRequest)
 }
 
 func TestHistorySettings(t *testing.T) {
