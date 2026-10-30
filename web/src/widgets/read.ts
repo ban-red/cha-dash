@@ -173,6 +173,18 @@ export function arrayFor(g: GraphDoc | undefined, target: string | undefined): R
   return byKind(g, 'array')[0];
 }
 
+/**
+ * The Unraid server a widget means: the target host, the host of a target
+ * array, or with none the first host whose `platform` is `unraid`.
+ */
+export function unraidHostFor(g: GraphDoc | undefined, target: string | undefined): Resource | undefined {
+  const t = target ? resolve(g, target) : undefined;
+  if (t?.kind === 'host') return t;
+  if (t?.kind === 'array') return outgoing(g, t.id, 'part_of').find((r) => r.kind === 'host');
+  if (t) return undefined;
+  return byKind(g, 'host').find((r) => attr<string>(r, 'platform') === 'unraid');
+}
+
 /** Human words for metric keys, for labels and accessible names. */
 const METRIC_WORDS: Record<string, string> = {
   'cpu.pct': 'CPU',

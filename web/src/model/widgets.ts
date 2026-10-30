@@ -58,6 +58,7 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   guests: spec('guests', 'Guests', 'wide', ['wide', 'tall', 'large'], { accepts: { kinds: ['host', 'cluster'] }, group: 'servers', about: 'VMs and LXCs, problems first, the ones stopped on purpose dimmed.', icon: 'proxmox' }),
   containers: spec('containers', 'Containers', 'small', ['small', 'wide', 'tall', 'large'], { accepts: { kinds: ['engine', 'host'] }, group: 'servers', about: 'Docker containers on an engine or host; problems rise to the top.', icon: 'docker' }),
   unraid: spec('unraid', 'Unraid array', 'wide', ['glyph', 'strip', 'small', 'wide', 'tall', 'large', 'hero'], { accepts: { kinds: ['array', 'host'] }, group: 'servers', about: 'The Unraid array, from its fill to a map of every disk.', icon: 'unraid' }),
+  unraidhost: spec('unraidhost', 'Unraid server', 'wide', ['glyph', 'strip', 'small', 'wide', 'tall', 'large'], { accepts: { kinds: ['host', 'array'] }, group: 'servers', about: 'The whole Unraid server: CPU, memory, array, parity, containers and VMs.', icon: 'unraid' }),
   storage: spec('storage', 'Storage', 'small', ['glyph', 'strip', 'small', 'wide'], {
     group: 'servers', about: 'How full one pool, datastore or share is.',
     bound: true,

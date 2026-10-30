@@ -30,6 +30,7 @@ import { safeUrl } from '../model/types';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
 import { instanceName } from '../stores/integrations';
+import { serviceIconUrl } from '../lib/serviceIcons';
 import { iconFor, iconMap, wantsIcon } from '../stores/icons';
 
 export type TileStatus = 'ok' | 'attention' | 'down' | 'off' | 'maintenance' | 'repair' | 'unknown';
@@ -39,6 +40,7 @@ const {
   name,
   context = '',
   mono,
+  logo,
   href,
   status = 'ok',
   stale = false,
@@ -54,6 +56,8 @@ const {
   name: string;
   context?: string;
   mono?: string;
+  /** A bundled logo slug (lib/serviceIcons.ts) for a widget that is one service; shown in every state. */
+  logo?: string | undefined;
   href?: string | undefined;
   status?: TileStatus;
   /** This widget's own data is last-known (e.g. its integration needs repair). */
@@ -113,8 +117,11 @@ const mark = computed(() => (tile.config.value?.name || boundName.value ? monogr
 // to load falls back to the monogram.
 const broken = ref('');
 const icon = computed(() => {
-  if (status === 'attention' || status === 'down' || !wantsIcon(tile.config.value, shownHref.value, shownName.value)) return undefined;
-  const src = iconFor(iconMap.value, tile.config.value, shownHref.value, shownName.value);
+  const own =
+    status === 'attention' || status === 'down' || !wantsIcon(tile.config.value, shownHref.value, shownName.value)
+      ? undefined
+      : iconFor(iconMap.value, tile.config.value, shownHref.value, shownName.value);
+  const src = own ?? serviceIconUrl(logo);
   return src && src !== broken.value ? src : undefined;
 });
 

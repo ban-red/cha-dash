@@ -297,6 +297,7 @@ The catalog (`model/widgets.ts`) covers the Workbench list's v0.1 rows ([docs/de
 | `guests` | wide · tall · large | a host, a cluster, or none | VMs and LXCs: state, `onboot`, `lock` (in progress), `started_at`, `backup.last_ok`/`last_status`, `cpu.pct`, `mem.pct` |
 | `containers` | small · wide · tall · large | an engine, a host, or none | containers: state, health, `image`, `started_at`, `finished_at`, `exit_code`/`last_exit`, `oom_killed`; `cpu.pct`, `mem.mib` when published |
 | `unraid` | all seven | an array, its host, or none | the array's `used.pct`, `size_tb`, `parity`, `parity_checked_at`; disks' `role`, `used.pct`, `temp.c`; pools; the host's containers |
+| `unraidhost` | glyph · strip · small · wide · tall · large | an Unraid host, its array, or none | the host's `cpu.pct`, `mem.pct`, `boot_at`, `version`; the array's `used.pct`, `parity`, `parity_checked_at`; disks' `temp.c`; containers, VMs and shares on the host |
 | `storage` | glyph · strip · small · wide | a storage, pool, array, datastore or disk | `used.pct`, `size_tb`/`capacity_tb`, `full_in_days` |
 | `backups` | strip · small · wide · large | a datastore, or the first | the datastore's `used.pct`, `full_in_days`, `prune_job`, `retention`; the app's `tasks.failed_24h`; PVE backup jobs' `last_run.*` |
 | `opnsense` | glyph · strip · small · wide · large | a router, or the first | the WAN's `rx.mbps`, `tx.mbps`, `rx.gb_30d`, `tx.gb_30d`; the router's `cpu.pct` (permission-limited without *Lobby: Dashboard*) |
@@ -317,7 +318,7 @@ The catalog (`model/widgets.ts`) covers the Workbench list's v0.1 rows ([docs/de
 
 **Weather** reads `weather:<instance id>/here` (kind `weather`; [integrations/weather/README.md](../integrations/weather/README.md)): metrics `temp.c`, `feels.c`, `humidity.pct`, `wind.kmh` (always metric; `attrs.units: "imperial"` converts to °F and mph here); attrs `location`, `summary` (else the `condition` slug in words), `is_day`, `high_c`, `low_c`, `precip_pct`, `hourly` (`[{at, temp_c, condition, precip_pct, is_day}]`, nulls shown as "—", hours on the place's own clock), `attribution` and `attribution_url` (shown at small and wide). Health `attention` (a thunderstorm or freezing rain within six hours) is the hub's sentence; an unreachable provider leaves the series stale, so the last forecast stays, hatched. Without a weather resource: "Not connected. Set a location to see the weather here."
 
-**Loading.** The widgets the default board uses ride with the front page, as before, the clock and the weather included. `metric`, `check`, `guests`, `unraid`, `storage` and `bookmarks` load on demand, each its own chunk (about 1.5–4.5 kB gzip), behind a skeleton tile; `preloadWidgets()` fetches them ahead (the tests do). The picker learns what the graph can feed each of them from `model/feeds.ts`.
+**Loading.** The widgets the default board uses ride with the front page, as before, the clock and the weather included. `metric`, `check`, `guests`, `unraid`, `unraidhost`, `storage` and `bookmarks` load on demand, each its own chunk (about 1.5–4.5 kB gzip), behind a skeleton tile; `preloadWidgets()` fetches them ahead (the tests do). The picker learns what the graph can feed each of them from `model/feeds.ts`.
 
 ## The CSP
 

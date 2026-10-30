@@ -57,6 +57,7 @@ export const WIDGET_COMPONENTS: Record<string, Component> = {
   metric: lazy(() => import('./MetricWidget.vue')),
   storage: lazy(() => import('./StorageWidget.vue')),
   unraid: lazy(() => import('./UnraidWidget.vue')),
+  unraidhost: lazy(() => import('./UnraidHostWidget.vue')),
 };
 
 /** Fetch every on-demand widget now; afterwards they render without a skeleton. */

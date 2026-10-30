@@ -78,6 +78,7 @@ describe('the catalog', () => {
       guests: ['wide', 'tall', 'large'],
       containers: ['wide', 'tall', 'large'],
       unraid: ['glyph', 'strip', 'small', 'wide', 'tall', 'large', 'hero'],
+      unraidhost: ['glyph', 'strip', 'small', 'wide', 'tall', 'large'],
       storage: ['glyph', 'strip', 'small', 'wide'],
       backups: ['strip', 'small', 'wide', 'large'],
       opnsense: ['glyph', 'strip', 'small', 'wide', 'large'],
@@ -521,6 +522,40 @@ describe('Unraid array', () => {
     m = mountWidget(d2, 'unraid', 'small');
     expect(m.tile().classes()).toContain('is-down');
     expect(m.w.find('.note').text()).toBe('disk3 disabled · parity protects data');
+  });
+});
+
+describe('Unraid server', () => {
+  it('finds the first Unraid host without a target and re-lays out at every size', () => {
+    let m = mountWidget(docs(withIncidents), 'unraidhost', 'glyph');
+    expect(m.w.find('.gv').text()).toMatch(/^\d+%$/);
+    m.w.unmount();
+    m = mountWidget(docs(withIncidents), 'unraidhost', 'strip');
+    expect(m.w.find('.sx').text()).toMatch(/CPU .*array 71%/);
+    m.w.unmount();
+    m = mountWidget(docs(withIncidents), 'unraidhost', 'small');
+    expect(m.w.findAll('.disk')).toHaveLength(3);
+    m.w.unmount();
+    m = mountWidget(docs(withIncidents), 'unraidhost', 'wide');
+    expect(m.w.find('.uh-facts').text()).toContain('Hottest');
+    expect(m.w.text()).not.toMatch(BAD);
+    m.w.unmount();
+    m = mountWidget(docs(withIncidents), 'unraidhost', 'large');
+    expect(m.w.findAll('.spark').length).toBeGreaterThan(0);
+  });
+
+  it('marks a disabled disk down and a running parity check as in progress', () => {
+    const d = docs(healthy);
+    setHealth(d, 'unraid:magpie/disk/disk3', { status: 'down', since: '2026-10-03T14:02:00Z' });
+    let m = mountWidget(d, 'unraidhost', 'small');
+    expect(m.tile().classes()).toContain('is-down');
+    m.w.unmount();
+    const d2 = docs(healthy);
+    d2.graph.resources['unraid:magpie/array']!.attrs!['parity'] = 'checking';
+    d2.graph.resources['unraid:magpie/array']!.attrs!['parity_check.progress'] = 40;
+    m = mountWidget(d2, 'unraidhost', 'wide');
+    expect(m.tile().classes()).not.toContain('is-maint');
+    expect(m.w.find('.tg').text()).toContain('parity check · 40%');
   });
 });
 

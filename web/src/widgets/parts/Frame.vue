@@ -24,6 +24,7 @@ const {
   size,
   name,
   mono,
+  logo,
   context = '',
   href,
   subject,
@@ -40,6 +41,8 @@ const {
   size: SizeId;
   name: string;
   mono?: string | undefined;
+  /** A bundled logo slug for the tile's mark (lib/serviceIcons.ts). */
+  logo?: string | undefined;
   context?: string | undefined;
   href?: string | undefined;
   subject?: Subject | undefined;
@@ -97,6 +100,7 @@ const busy = computed(() => loading || live.loading.value);
     :size="size"
     :name="name"
     :mono="mono || monogram(name)"
+    :logo="logo"
     :context="context"
     :href="href"
     :status="st"

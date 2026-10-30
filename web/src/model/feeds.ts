@@ -19,6 +19,7 @@
  */
 import { DOWNLOAD_CLIENTS, type WidgetSpec } from './widgets';
 import { appsOfType, byKind, calendar, label, placeOf, resolve, resources } from './graph';
+import { unraidHostFor } from '../widgets/read';
 import { resourceLinks, type GraphDoc, type Resource } from './types';
 
 export type BindKind = 'none' | 'resource' | 'service';
@@ -84,6 +85,7 @@ const RULES: Record<string, Rule> = {
   containers: { available: anyOf(kind('container'), kind('engine')) },
   guests: { available: anyOf(kind('vm'), kind('lxc')) },
   unraid: { available: kind('array') },
+  unraidhost: { available: (g) => unraidHostFor(g, undefined) !== undefined },
   storage: { candidates: (g) => STORAGE_KINDS.flatMap((k) => byKind(g, k)) },
   metric: { candidates: metricCandidates },
   check: { available: anyOf(kind('check'), app('uptimekuma')) },

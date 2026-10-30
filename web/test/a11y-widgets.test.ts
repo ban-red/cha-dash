@@ -20,6 +20,7 @@ import { harness } from './harness';
 /** A Demo Home target for each widget that shows one (`type@target`), as in widgets.test.ts. */
 const TARGETS: Record<string, string> = {
   host: 'unraid:magpie',
+  unraidhost: 'unraid:magpie',
   arr: 'app:sonarr',
   service: 'homepage:servers/proxmox',
   metric: 'pve:stork#mem.pct',

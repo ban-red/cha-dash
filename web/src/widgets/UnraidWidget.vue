@@ -122,6 +122,7 @@ const diskTip = (d: Disk) => `${d.name}: ${d.parity ? 'parity' : d.used === null
     :size="size"
     :name="name"
     mono="UN"
+    logo="unraid"
     :context="size === 'glyph' || size === 'small' ? '' : 'Unraid · array'"
     :href="resourceLinks(host)[0]?.url"
     :subject="s"
