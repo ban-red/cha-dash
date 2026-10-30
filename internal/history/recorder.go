@@ -666,6 +666,11 @@ func (r *Recorder) Query(ctx context.Context, key string, from, to time.Time, ma
 			break
 		}
 	}
+	// No tier fits: keep the newest maxPoints of the one chosen, so a range
+	// back to 1970 (or out to 9999) costs what a full chart does.
+	if n := time.Duration(maxPoints) * tiers[t].step; to.Sub(from) > n {
+		from = to.Add(-n)
+	}
 	start := floor(from.UnixMilli(), t.step())
 	pts, err := r.points(ctx, key, t, start, to.UnixMilli())
 	var unit string

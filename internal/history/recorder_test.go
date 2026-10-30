@@ -191,6 +191,14 @@ func TestLongTermFoldsHoursAndDays(t *testing.T) {
 	if err != nil || rg.Step != time.Hour || len(rg.Points) != 48 {
 		t.Fatalf("Query picked %v with %d points (%v)", rg.Step, len(rg.Points), err)
 	}
+	// A range no tier fits is cut to the newest points of the coarsest, so
+	// its size doesn't follow from and to (the v0.2 review's history finding).
+	for _, rng := range [][2]time.Time{{time.UnixMilli(0), t0.Add(48 * time.Hour)}, {t0, time.UnixMilli(1 << 52)}} {
+		rg, err := r.Query(t.Context(), key, rng[0], rng[1], 100)
+		if err != nil || len(rg.Points) > 101 {
+			t.Fatalf("Query %v–%v = step %v, %d points (%v)", rng[0], rng[1], rg.Step, len(rg.Points), err)
+		}
+	}
 }
 
 func TestRetentionDropsOldChunksAndForgetsSeries(t *testing.T) {

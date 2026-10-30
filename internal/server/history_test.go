@@ -92,6 +92,14 @@ func TestHistoryRoute(t *testing.T) {
 	for _, bad := range []string{"", "series=a%23b&points=0", "series=a%23b&from=5&to=4", "series=a%23b&to=soon"} {
 		get(owner, bad, http.StatusBadRequest)
 	}
+	// Any range costs at most a full chart: back to 1970, or out to the far
+	// future (which used to panic sizing the answer).
+	for _, rng := range []string{"from=0", fmt.Sprintf("from=%d&to=9000000000000000", from)} {
+		got := get(household, "series=host:pve%23cpu&points=2000&"+rng, http.StatusOK)
+		if n := len(got.Series["host:pve#cpu"].Avg); n == 0 || n > 2001 {
+			t.Fatalf("%s: %d points", rng, n)
+		}
+	}
 }
 
 func TestHistoryRouteWhenOff(t *testing.T) {

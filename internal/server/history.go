@@ -177,6 +177,9 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 		}
 		now := time.Now()
 		to, ok := msParam(q.Get("to"), now)
+		if to.After(now) {
+			to = now // nothing is recorded ahead of now
+		}
 		from, ok2 := msParam(q.Get("from"), to.Add(-24*time.Hour))
 		if !ok || !ok2 || !from.Before(to) {
 			httpx.Error(w, http.StatusBadRequest, "bad_range", "from and to are Unix milliseconds, from before to")
