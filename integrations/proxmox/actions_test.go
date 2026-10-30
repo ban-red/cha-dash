@@ -49,7 +49,7 @@ type fakePVE struct {
 	failing map[string]string   // write path suffix → the task's exit status
 	inert   bool                // tasks succeed but change nothing (a verify that fails)
 	writeBy []string            // the token ID of each write
-	lacks   map[string][]string // ACL path ("/vms/202") → the privileges the control token lacks there
+	lacks   map[string][]string // ACL path ("/vms/202") → the privileges the control token lacks there; "*" for all
 	readBy  map[string]bool     // token IDs that read
 }
 
@@ -170,6 +170,11 @@ func (f *fakePVE) get(w http.ResponseWriter, r *http.Request, path string) {
 		// holds everything below, except where lacks says otherwise.
 		at := r.URL.Query().Get("path")
 		privs := map[string]int{"VM.Audit": 1}
+		if slices.Contains(f.lacks[at], "*") {
+			// Outside every ACL the token has: PVE still names the path, with nothing under it.
+			f.reply(w, 200, "", map[string]any{at: map[string]int{}})
+			return
+		}
 		if r.Header.Get("Authorization") == "PVEAPIToken="+controlTok+"="+controlSecret {
 			for _, p := range []string{"VM.PowerMgmt", "VM.Snapshot", "VM.Snapshot.Rollback", "VM.Backup"} {
 				if !slices.Contains(f.lacks[at], p) {
@@ -584,7 +589,7 @@ func TestOutsideTheControlTokensACL(t *testing.T) {
 	h, acts := actionsOn(t, f, false, nil)
 	// 202 isn't in the token's pool; on 201 its role can't roll back.
 	f.set(func(f *fakePVE) {
-		f.lacks["/vms/202"] = []string{"VM.PowerMgmt", "VM.Snapshot", "VM.Snapshot.Rollback", "VM.Backup"}
+		f.lacks["/vms/202"] = []string{"*"}
 		f.lacks["/vms/201"] = []string{"VM.Snapshot.Rollback"}
 	})
 	ref := acts.Refused(actStart, gid("lxc/202"), nil)
