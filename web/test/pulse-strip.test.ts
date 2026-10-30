@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { setDisplayTimeZone } from '../src/lib/format';
+import PeekBanner from '../src/components/PeekBanner.vue';
 import PulseStrip from '../src/components/PulseStrip.vue';
 import MiniGraph from '../src/ui/marks/MiniGraph.vue';
 import Frame from '../src/widgets/parts/Frame.vue';
@@ -14,6 +15,7 @@ import { clearCursor, cursor, pulse, setCursor } from '../src/stores/cursor';
 import { axeViolations } from './axe';
 import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
+import { createLive } from '../src/stores/live';
 
 const NOW = Date.parse('2026-10-29T12:00:00Z');
 const STEP = 900_000;
@@ -63,6 +65,8 @@ describe('the Pulse strip', () => {
     expect(await axeViolations(w.element.parentElement!, ['region'])).toEqual([]); // the Briefing is its landmark
 
     await bar.trigger('focus');
+    expect(cursor.value).toBeUndefined(); // focus alone pins nothing
+    await bar.trigger('keydown', { key: 'End' });
     expect(cursor.value?.source).toBe('pulse');
     expect(bar.attributes('aria-valuenow')).toBe('95');
     expect(bar.attributes('aria-valuetext')).toBe('11:45–12:00: all 30 resources healthy');
@@ -77,6 +81,65 @@ describe('the Pulse strip', () => {
     await bar.trigger('keydown', { key: 'Escape' });
     expect(cursor.value).toBeUndefined();
     expect(w.find('.pulse-read').exists()).toBe(false);
+  });
+
+  it('hovering reads the strip alone; a click pins the moment and a second click lets go', async () => {
+    fakeFetch({ 'GET /api/history/pulse': { status: 200, body: reply() } });
+    const w = harness().mountIn(PulseStrip);
+    await flushPromises();
+    const bar = w.find('[role="slider"]');
+    const box = { left: 0, top: 0, width: 960, height: 10, right: 960, bottom: 10, x: 0, y: 0, toJSON: () => ({}) };
+    bar.element.getBoundingClientRect = () => box as DOMRect;
+    // Slot 61 is 03:15.
+    await bar.trigger('pointermove', { clientX: 615 });
+    expect(w.find('.pulse-read').text()).toBe('03:15–03:30: app:plex down, app:arr needs attention');
+    expect(cursor.value).toBeUndefined();
+    await bar.trigger('pointerdown', { clientX: 615 });
+    await bar.trigger('pointerup');
+    expect(cursor.value?.source).toBe('pulse');
+    expect(pastStatus(pulse.value, 'app:plex', cursor.value!.at)).toBe('down');
+    expect(w.findAll('.pulse-slot.pin')).toHaveLength(1);
+    // The pin outlasts the pointer.
+    await bar.trigger('pointerleave');
+    expect(cursor.value?.source).toBe('pulse');
+    expect(w.find('.pulse-read').text()).toBe('03:15–03:30: app:plex down, app:arr needs attention');
+    // Dragging moves it; a click on the pinned slot lets go.
+    await bar.trigger('pointerdown', { clientX: 615 });
+    await bar.trigger('pointermove', { clientX: 955 });
+    await bar.trigger('pointerup');
+    expect(bar.attributes('aria-valuenow')).toBe('95');
+    await bar.trigger('pointerdown', { clientX: 955 });
+    await bar.trigger('pointerup');
+    expect(cursor.value).toBeUndefined();
+    await bar.trigger('pointerleave');
+    expect(w.find('.pulse-read').exists()).toBe(false);
+  });
+
+  it('the Peek banner says the board shows the past, and goes back to now', async () => {
+    pulse.value = reply();
+    const w = mount(PeekBanner, { attachTo: document.body });
+    expect(w.find('.peek').exists()).toBe(false);
+    setCursor(Date.parse('2026-10-29T03:20:00Z'), 'pulse');
+    await flushPromises();
+    expect(w.find('.peek').text()).toContain('Peeking at 03:15–03:30');
+    expect(w.find('.peek').text()).toContain('9 h ago');
+    expect(w.find('.peek-frame').exists()).toBe(true);
+    expect(await axeViolations(document.body, ['region'])).toEqual([]);
+    await w.find('.peek button').trigger('click');
+    expect(cursor.value).toBeUndefined();
+    // Esc and a click elsewhere go back too; a sparkline's moment isn't a peek.
+    setCursor(Date.parse('2026-10-29T03:20:00Z'), 'pulse');
+    await flushPromises();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(cursor.value).toBeUndefined();
+    setCursor(Date.parse('2026-10-29T03:20:00Z'), 'pulse');
+    await flushPromises();
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    expect(cursor.value).toBeUndefined();
+    setCursor(Date.parse('2026-10-29T03:20:00Z'), {});
+    await flushPromises();
+    expect(w.find('.peek').exists()).toBe(false);
+    w.unmount();
   });
 
   it('hides while the hub keeps no history', async () => {
@@ -136,6 +199,23 @@ describe('linked scrubbing', () => {
 });
 
 describe('time travel', () => {
+  it('while peeking, numbers come from each series’ history; the rest stays as now', () => {
+    const live = createLive();
+    // 48 points over the day, half an hour apart; the newest is now.
+    const history = Array.from({ length: 48 }, (_, i) => (i === 30 ? null : i));
+    live.doc.metrics = { series: { 'app:plex|streams': { value: 99, history, unit: '' }, 'app:plex|cost': { value: 7 } } };
+    expect(live.metrics.value!.series['app:plex|streams']!.value).toBe(99);
+    setCursor(NOW - 10 * 30 * 60_000, 'pulse'); // point 37
+    expect(live.metrics.value!.series['app:plex|streams']!.value).toBe(37);
+    expect(live.metrics.value!.series['app:plex|streams']!.history).toBe(live.doc.metrics.series['app:plex|streams']!.history);
+    expect(live.metrics.value!.series['app:plex|cost']!.value).toBe(7); // keeps no history: stays live
+    expect(Object.keys(live.metrics.value!.series)).toEqual(['app:plex|streams', 'app:plex|cost']);
+    setCursor(NOW - 17 * 30 * 60_000, 'pulse'); // point 30 is a gap: the nearest known
+    expect(live.metrics.value!.series['app:plex|streams']!.value).toBe(29);
+    setCursor(NOW - 10 * 30 * 60_000, {}); // a sparkline's moment isn't a peek
+    expect(live.metrics.value!.series['app:plex|streams']!.value).toBe(99);
+  });
+
   it('a tile shows its health at the moment the Pulse strip is on, and only then', async () => {
     pulse.value = reply();
     const subject = { resource: { id: 'app:plex', kind: 'app', name: 'Plex' }, health: { status: 'ok' }, status: 'ok', needsRepair: false };

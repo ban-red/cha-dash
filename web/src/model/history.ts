@@ -6,6 +6,7 @@
  */
 import { api } from '../lib/api';
 import { hhmm, shortDate } from '../lib/format';
+import type { MetricsDoc, Series } from './types';
 
 export type HistoryLevel = 'off' | 'standard' | 'long-term';
 
@@ -236,4 +237,58 @@ export function pastStatus(p: PulseReply | undefined, resource: string, at: numb
   const s = i === undefined ? undefined : p!.slots[i];
   if (!s || pulseTone(s) === 'none') return undefined;
   return s.issues[resource] ?? 'ok';
+}
+
+/** Minutes a board series' history covers: the last day, ending now, as the sparklines draw it. */
+const SPARK_SPAN_MIN = 1440;
+
+/**
+ * A series' value at a moment of the last day, from its history: the
+ * nearest known point (within one) to at. Null when the history doesn't
+ * reach that far, or knew nothing then; undefined for a series that keeps
+ * no history, which stays live.
+ */
+export function pastValue(s: Series, at: number, now: number): number | null | undefined {
+  const h = s.history;
+  const n = h?.length ?? 0;
+  if (!h || n < 2) return undefined;
+  const want = n - 1 - Math.round((now - at) / 60_000 / (SPARK_SPAN_MIN / n));
+  if (want < 0 || want > n - 1) return null;
+  for (const i of [want, want - 1, want + 1]) {
+    const v = h[i];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+/**
+ * The metrics as they were at a moment (the Pulse strip's peek): every
+ * series' value from its history, the rest as now. Wrapped, not copied, so
+ * a widget still tracks only the series it reads, and a live patch to a
+ * value it no longer shows doesn't render it again. A series without
+ * history (weather, costly stats) stays as now, like the board's text.
+ */
+export function rewind(m: MetricsDoc, at: number, now: number): MetricsDoc {
+  const done = new WeakMap<Series, Series>();
+  const past = (s: Series): Series => {
+    let p = done.get(s);
+    if (!p) {
+      p = new Proxy(s, {
+        get: (t, k, r) => {
+          const v = k === 'value' || k === 'stale' ? pastValue(t, at, now) : undefined;
+          if (v === undefined) return Reflect.get(t, k, r);
+          return k === 'value' ? v : false;
+        },
+      });
+      done.set(s, p);
+    }
+    return p;
+  };
+  const series = new Proxy(m.series, {
+    get: (t, k, r) => {
+      const s: unknown = Reflect.get(t, k, r);
+      return typeof k === 'string' && s && typeof s === 'object' ? past(s as Series) : s;
+    },
+  });
+  return new Proxy(m, { get: (t, k, r) => (k === 'series' ? series : Reflect.get(t, k, r)) });
 }

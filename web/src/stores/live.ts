@@ -21,6 +21,8 @@ import { RealtimeClient, sameOriginWs, type ConnectionInfo, type WebSocketFactor
 import type { BackoffOptions } from '../realtime/backoff';
 import type { GraphDoc, InboxDoc, LiveDoc, MetricsDoc } from '../model/types';
 import { openProblems, openRepairs } from '../model/inbox';
+import { rewind } from '../model/history';
+import { cursor } from './cursor';
 
 export const TOPICS = ['graph', 'metrics', 'inbox', 'tasks'] as const;
 
@@ -171,7 +173,12 @@ export function createLive(opts: LiveOptions = {}) {
   }
 
   const graph = computed<GraphDoc | undefined>(() => doc.graph);
-  const metrics = computed<MetricsDoc | undefined>(() => doc.metrics);
+  /** The metrics, or, while the Pulse strip pins a moment, as they were then (model/history.ts → rewind). */
+  const metrics = computed<MetricsDoc | undefined>(() => {
+    const m = doc.metrics;
+    const c = cursor.value;
+    return m && c?.source === 'pulse' ? rewind(m, c.at, Date.now()) : m;
+  });
   const inbox = computed<InboxDoc | undefined>(() => doc.inbox);
   const problems = computed(() => openProblems(doc.inbox));
   const repairs = computed(() => openRepairs(doc.inbox));

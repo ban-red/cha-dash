@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Peeking at the past shows the numbers then.** With a moment pinned on the Pulse strip, tiles now show their numbers as they were (CPU, memory, network rates, streams and the rest) as well as their health, from the same 24 hours the graphs draw, by the half hour. A number with a gap in its history at that moment shows as unknown. Lists, titles and other text stay live, and so do numbers the hub keeps no history for.
 - **A container that's down reaches the Inbox.** A Docker container that was OOM-killed while it should run, is dead or fails its health check now opens a problem in the Inbox, with Start, Restart or Remove as the suggested fix. Before, it showed as down on its tile and on the Briefing's 24-hour health strip while the Briefing said all was quiet. The problem resolves itself once the container is back.
 - **Camera controls are off by default.** The Cameras tile shows its switches for detection, recording and more only once you turn on **Show camera controls** in its Widget settings, which also says how to add the Frigate admin account they need.
 - **Two node names are taken.** A node can't be called `hooks` or `secrets`, in any case, since Cha Dash's stacks API uses those names. A node that asks for one is refused with a message saying so; pick another `CHADASH_NODE_NAME`.
@@ -22,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Hovering the Pulse strip no longer moves the whole board.** Passing the pointer over the Briefing's 24-hour health strip made every tile and graph jump to that moment. Hovering now only shows the strip's own readout. Click a moment to peek at it: the board stays there, a coloured frame and a banner at the top say you're looking at the past, and Back to now, Esc, a second click or a click anywhere else returns. Dragging moves the moment, and the arrow keys still work.
 - **Whole numbers on count graphs.** The graph on a Plex, Jellyfin or Tautulli tile showed a 24 h average like 1.5 for streams or transcodes. Counts now read as whole numbers.
 - **One reason, not a dozen.** A camera's Actions tab repeated the same "add a control account" paragraph under every switch. Actions that can't run for the same reason now say it once.
 - **Danger buttons always look like danger buttons.** The board's Remove section button only turned red once Settings had been opened, and the tile menu's Remove used a fainter red. Buttons, fields and dialogs now share one set of styles, so they look the same wherever they appear.

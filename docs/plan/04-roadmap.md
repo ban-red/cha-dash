@@ -235,7 +235,7 @@ Compare it for one day against a gridstack 14 prototype.
 - The **Atlas** view.
 
 **History**
-- Host metrics from nodes. ~~Metric rollups, the **Pulse strip** with time travel, **linked scrubbing**~~ ✅ built with [13 · History](13-history.md) (2026-10-29); tiles travel back in health, sparklines in value.
+- Host metrics from nodes. ~~Metric rollups, the **Pulse strip** with time travel, **linked scrubbing**~~ ✅ built with [13 · History](13-history.md) (2026-10-29); tiles travel back in health and in numbers that keep a history, sparklines in value.
 
 **Extras**
 - Logs streaming and exec through nodes.

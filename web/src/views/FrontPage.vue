@@ -22,6 +22,7 @@
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Briefing from '../components/Briefing.vue';
 import HubBanner from '../components/HubBanner.vue';
+import PeekBanner from '../components/PeekBanner.vue';
 import NeedsAttention from '../components/NeedsAttention.vue';
 import TaskPresence from '../components/TaskPresence.vue';
 import Toasts from '../components/Toasts.vue';
@@ -257,6 +258,7 @@ onBeforeUnmount(() => {
   <NoteDialog v-if="ui.state.note" />
   <CameraEventDialog v-if="ui.state.cameraEvent" :key="`${ui.state.cameraEvent.camera} ${ui.state.cameraEvent.event ?? ''}`" />
   <HomeAssistantPanel v-if="ui.state.homePanel" :key="ui.state.homePanel.app" />
+  <PeekBanner />
   <TaskPresence />
   <Toasts />
   <PageDrop v-if="ui.can.value.settings" />

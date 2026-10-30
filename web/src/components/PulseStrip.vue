@@ -5,14 +5,17 @@
  * was (GET /api/history/pulse). Quiet grey is all well, a gap is a time
  * nothing was watched.
  *
- * Scrubbing it time-travels the board: it sets the page's time cursor
- * (stores/cursor.ts), so every board sparkline marks its value then and
- * each tile shows its health then; the readout names what wasn't well.
- * A sparkline being scrubbed marks its moment here too.
+ * Hovering reads the strip alone. A click pins a moment, and the board peeks
+ * into the past: the strip sets the page's time cursor (stores/cursor.ts),
+ * so every board sparkline marks its value then, each tile shows its health
+ * then, and the Peek banner says so. Dragging moves the pin; clicking the
+ * pinned slot again, Esc, a click elsewhere or the banner's Back to now
+ * lets go. A sparkline being scrubbed marks its moment here too.
  *
  * It's a slider for keyboards and assistive tech: arrows move a quarter
- * hour, Page Up and Down an hour, Home and End the ends, Esc lets go. The
- * strip hides while the hub keeps no history or has none for the day yet.
+ * hour, Page Up and Down an hour, Home and End the ends, and each pins
+ * where it lands; Esc lets go. The strip hides while the hub keeps no
+ * history or has none for the day yet.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { hhmm, plural } from '../lib/format';
@@ -48,8 +51,16 @@ const slots = computed(() => pulse.value?.slots ?? []);
 const shown = computed(() => pulse.value?.level !== 'off' && slots.value.some((s) => pulseTone(s) !== 'none'));
 const tones = computed(() => slots.value.map(pulseTone));
 
-/** The slot the cursor is on, whoever set it. */
-const index = computed(() => (cursor.value ? pulseSlotAt(pulse.value, cursor.value.at) : undefined));
+/** The slot under a pointer that only hovers: read here, not shared. */
+const hover = ref<number | undefined>();
+/** The slot pinned here, which the board is peeking at. */
+const pinned = computed(() => (cursor.value?.source === 'pulse' ? pulseSlotAt(pulse.value, cursor.value.at) : undefined));
+/** The slot hovered, else the one the cursor is on, whoever set it. */
+const index = computed(() => hover.value ?? (cursor.value ? pulseSlotAt(pulse.value, cursor.value.at) : undefined));
+/** Pressed: the pointer drags the pin. */
+let pressed = false;
+/** The press began on the pinned slot and hasn't moved off it: letting go unpins. */
+let unpin = false;
 
 /** "Plex down, Sonarr needs attention", worst first, at most three named. */
 function issuesWords(s: PulseSlot): string {
@@ -78,34 +89,68 @@ const summary = computed(() => {
   return `Health over the last 24 hours: ${[down ? `something down in ${plural(down, 'quarter hour')}` : '', attn ? `something needing attention in ${plural(attn, 'quarter hour')}` : ''].filter(Boolean).join(', ')}`;
 });
 
+const clamp = (i: number) => Math.min(slots.value.length - 1, Math.max(0, i));
 function select(i: number): void {
   const p = pulse.value;
   if (!p || !p.slots.length) return;
-  const k = Math.min(p.slots.length - 1, Math.max(0, i));
+  const k = clamp(i);
   setCursor(p.start + k * p.step + p.step / 2, 'pulse');
 }
-function move(e: PointerEvent): void {
+/** The slot under the pointer, or undefined off a strip with no size. */
+function slotOf(e: PointerEvent): number | undefined {
   const box = el.value?.getBoundingClientRect();
-  if (!box || box.width <= 0) return;
-  select(Math.floor(((e.clientX - box.left) / box.width) * slots.value.length));
+  if (!box || box.width <= 0 || !slots.value.length) return undefined;
+  return clamp(Math.floor(((e.clientX - box.left) / box.width) * slots.value.length));
 }
-const leave = () => clearCursor('pulse');
+function move(e: PointerEvent): void {
+  const i = slotOf(e);
+  if (i === undefined) return;
+  hover.value = i;
+  if (!pressed || i === pinned.value) return;
+  unpin = false;
+  select(i);
+}
+function press(e: PointerEvent): void {
+  const i = slotOf(e);
+  if (i === undefined) return;
+  pressed = true;
+  // Keep the drag ours when it strays off the strip.
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  unpin = i === pinned.value;
+  hover.value = i;
+  select(i);
+}
+function release(): void {
+  if (!pressed) return;
+  pressed = false;
+  if (unpin) clearCursor('pulse');
+  unpin = false;
+}
+/** The pointer left: the hover goes, the pin stays. */
+function leave(): void {
+  pressed = false;
+  unpin = false;
+  hover.value = undefined;
+}
 function key(e: KeyboardEvent): void {
   const n = slots.value.length;
-  const now = index.value ?? n - 1;
+  const now = pinned.value ?? n - 1;
   const to: Record<string, number> = { ArrowLeft: now - 1, ArrowDown: now - 1, ArrowRight: now + 1, ArrowUp: now + 1, PageDown: now - 4, PageUp: now + 4, Home: 0, End: n - 1 };
   if (e.key === 'Escape') {
-    leave();
+    if (pinned.value === undefined) return;
+    e.stopPropagation();
+    clearCursor('pulse');
     return;
   }
   if (!(e.key in to)) return;
   e.preventDefault();
+  hover.value = undefined;
   select(to[e.key]!);
 }
 </script>
 
 <template>
-  <div v-if="shown" :class="['pulse', { 'is-on': index !== undefined }]">
+  <div v-if="shown" :class="['pulse', { 'is-on': index !== undefined, 'is-pinned': pinned !== undefined }]">
     <div
       ref="el"
       class="pulse-bar"
@@ -114,17 +159,16 @@ function key(e: KeyboardEvent): void {
       aria-label="Health over the last 24 hours"
       :aria-valuemin="0"
       :aria-valuemax="slots.length - 1"
-      :aria-valuenow="index ?? slots.length - 1"
-      :aria-valuetext="index === undefined ? summary : readout"
+      :aria-valuenow="pinned ?? slots.length - 1"
+      :aria-valuetext="pinned === undefined ? summary : words(pinned)"
       @pointermove="move"
-      @pointerdown="move"
+      @pointerdown="press"
+      @pointerup="release"
       @pointerleave="leave"
       @pointercancel="leave"
-      @focus="select(index ?? slots.length - 1)"
-      @blur="leave"
       @keydown="key"
     >
-      <span v-for="(t, i) in tones" :key="i" :class="['pulse-slot', `t-${t}`, { on: i === index }]"></span>
+      <span v-for="(t, i) in tones" :key="i" :class="['pulse-slot', `t-${t}`, { on: i === index, pin: i === pinned }]"></span>
     </div>
     <div class="pulse-axis" aria-hidden="true">
       <span>24 h ago</span>
@@ -171,6 +215,15 @@ function key(e: KeyboardEvent): void {
 }
 .pulse-slot.on {
   box-shadow: inset 0 0 0 1.5px var(--text);
+}
+.pulse-slot.pin {
+  opacity: 1;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.pulse.is-pinned .pulse-bar {
+  overflow: visible;
 }
 .pulse-axis {
   display: flex;
