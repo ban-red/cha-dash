@@ -570,9 +570,15 @@ describe('home and media widgets on real instances', () => {
     expect(w.find('.v').text()).toBe('14°C');
     expect(w.find('.lab').text()).toBe('H 15° L 10°');
     expect(w.find('.sub').text()).toContain('feels 13°');
+    // Now, then the hours on the place's clock, with a chance of rain worth saying.
     const hours = w.findAll('.wx-hours li');
-    expect(hours.map((h) => h.text())).toEqual(['1614°', '1714°', '18—°']);
-    expect(hours[1]!.find('[aria-label="rain"]').exists()).toBe(true);
+    expect(hours.map((h) => h.find('.wx-h').text())).toEqual(['Now', '16', '17', '18']);
+    expect(hours.map((h) => h.find('.wx-t').text())).toEqual(['14°', '14°', '14°', '—°']);
+    expect(hours[2]!.find('[aria-label="rain"]').exists()).toBe(true);
+    expect(hours.map((h) => h.find('.wx-rain').text())).toEqual(['', '', '45%', '']);
+    // The curve runs through the known hours and stops at the missing one.
+    expect(w.find('.wx-trace').attributes('d')).toMatch(/^M10 [\d.]+C.* 50 [\d.]+$/);
+    expect(hours.map((h) => h.find('.wx-pt i').exists())).toEqual([true, true, true, false]);
     expect(w.find('.wx-credit a').attributes('href')).toBe('https://open-meteo.com/');
     expect(w.find('.wx-credit').text()).toBe('Weather data by Open-Meteo.com');
   });
@@ -590,6 +596,56 @@ describe('home and media widgets on real instances', () => {
     expect(w.find('.note').text()).toBe('Thunderstorm expected around 18:00');
     const glyph = mountReal('weather', 'glyph', undefined, d);
     expect(glyph.w.find('.gv').text()).toBe('58°');
+  });
+
+  /** The README's example, with the sun, the wind's direction, humidity and three days. */
+  function fullWeather(): Data {
+    const d = home();
+    Object.assign(d.graph.resources['weather:i_w/here']!.attrs!, {
+      sunrise: '2026-10-03T07:06:00+01:00',
+      sunset: '2026-10-03T18:38:00+01:00',
+      wind_dir_deg: 247,
+      daily: [
+        { date: '2026-10-03', code: 61, condition: 'rain', summary: 'Light rain', high_c: 15.1, low_c: 9.8, precip_mm: 2.4, precip_pct: 60 },
+        { date: '2026-10-04', code: 2, condition: 'partly_cloudy', summary: 'Partly cloudy', high_c: 13.9, low_c: 7.9, precip_mm: 0.2, precip_pct: null },
+        { date: '2026-10-05', code: 0, condition: 'clear', summary: 'Clear sky', high_c: 17.9, low_c: null, precip_mm: 0, precip_pct: 5 },
+      ],
+    });
+    d.metrics.series['weather:i_w/here#humidity.pct'] = s(72, { unit: '%' });
+    return d;
+  }
+
+  it('shows the sun, the days on the week’s range and the details at large', () => {
+    const { w } = mountReal('weather', 'large', undefined, fullWeather());
+    // 15:05 at the place: the sun is up, part of its arc travelled.
+    expect(w.find('.wx-sun figcaption').text()).toContain('Sunrise 07:06');
+    expect(w.find('.wx-sun figcaption').text()).toContain('Sunset 18:38');
+    expect(w.find('.wx-sun-dot').exists()).toBe(true);
+    expect(w.find('.wx-sun-done').attributes('d')).toMatch(/^M8 44A42 36 0 0 1 /);
+    expect(w.find('.sub').text()).toBe('feels 13° · wind 18 km/h SW · humidity 72% · 60% rain today');
+    const days = w.findAll('.wx-days li');
+    expect(days.map((li) => li.find('.wx-day').text())).toEqual(['Today', 'Sun', 'Mon']);
+    expect(days.map((li) => li.find('.wx-rain').text())).toEqual(['60%', '', '']);
+    expect(days[1]!.find('[aria-label="Partly cloudy"]').exists()).toBe(true);
+    // The week runs 7.9–17.9 °C, so today's 9.8–15.1 starts 19% in, with now on it.
+    expect(days[0]!.find('.wx-bar i').attributes('style')).toMatch(/left: 19(\.0)?%/);
+    expect(days[0]!.find('.wx-bar b').exists()).toBe(true);
+    // A day without a low has no bar.
+    expect(days[2]!.find('.wx-bar i').exists()).toBe(false);
+    expect(w.findAll('.wx-hours li')).toHaveLength(4);
+  });
+
+  it('lists the details and the days at tall, the sun and the hours at panel', () => {
+    const tall = mountReal('weather', 'tall', undefined, fullWeather()).w;
+    expect(tall.findAll('.wx-facts dt').map((t) => t.text())).toEqual(['Feels', 'Wind', 'Rain']);
+    expect(tall.findAll('.wx-facts dd').map((t) => t.text())).toEqual(['13°', '18 km/h SW', '60%']);
+    expect(tall.findAll('.wx-days li')).toHaveLength(3);
+    expect(tall.find('.wx-sun').exists()).toBe(false);
+    expect(tall.find('.wx-hours').exists()).toBe(false);
+    const panel = mountReal('weather', 'panel', undefined, fullWeather()).w;
+    expect(panel.find('.wx-sun').exists()).toBe(true);
+    expect(panel.findAll('.wx-hours li')).toHaveLength(4);
+    expect(panel.find('.wx-days').exists()).toBe(false);
   });
 });
 

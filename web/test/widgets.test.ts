@@ -89,7 +89,7 @@ describe('the catalog', () => {
       downloads: ['glyph', 'small', 'wide', 'tall'],
       bookmarks: ['glyph', 'small', 'wide', 'tall'],
       clock: ['glyph', 'strip', 'small', 'wide'],
-      weather: ['glyph', 'strip', 'small', 'wide'],
+      weather: ['glyph', 'strip', 'small', 'wide', 'panel', 'tall', 'large'],
     };
     for (const [type, sizes] of Object.entries(rows)) for (const s of sizes) expect(WIDGETS[type]!.sizes, `${type} ${s}`).toContain(s);
   });

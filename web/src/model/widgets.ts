@@ -88,7 +88,7 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   check: spec('check', 'Uptime checks', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['check', 'app', 'integration'], types: ['uptimekuma'] }, group: 'network', about: 'The built-in checks and Uptime Kuma monitors, up or down.' }),
   bookmarks: spec('bookmarks', 'Bookmarks', 'small', ['glyph', 'small', 'wide', 'panel', 'tall', 'column'], { group: 'basics', about: 'Links to the services Cha Dash found, with their state.' }),
   clock: spec('clock', 'Clock', 'small', ['glyph', 'strip', 'small', 'wide'], { group: 'basics', about: 'The time, on the dot-matrix face.' }),
-  weather: spec('weather', 'Weather', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['weather'] }, group: 'home', about: 'Temperature, today’s range, wind and rain.' }),
+  weather: spec('weather', 'Weather', 'small', ['glyph', 'strip', 'small', 'wide', 'panel', 'tall', 'large'], { accepts: { kinds: ['weather'] }, group: 'home', about: 'Now, the next hours and five days, with the sun, wind and rain.' }),
 };
 
 export function itemId(type: string, target?: string): string {
