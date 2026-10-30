@@ -46,6 +46,7 @@
 //	GET  /api/history   metrics history: points of up to 20 series over a range (session, or graph.read; see history.go)
 //	GET  /api/icons, GET /api/icons/{id}   icons the hub cached for tiles (session; see icons)
 //	GET  /ws                   realtime WebSocket                  (session)
+//	GET  /metrics              Prometheus, only on its own listener (CHADASH_METRICS_LISTEN; see MetricsHandler)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
 //	                           with the first-paint snapshot for any signed-in role)
 //

@@ -84,6 +84,29 @@ func runServer(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 		return err
 	}
 	log.Info("listening", "addr", ln.Addr().String())
+	if cfg.MetricsListen != "" {
+		// /metrics on a listener of its own, and nothing else there.
+		mln, err := lc.Listen(ctx, "tcp", cfg.MetricsListen)
+		if err != nil {
+			ln.Close()
+			return fmt.Errorf("metrics listener: %w", err)
+		}
+		log.Info("serving /metrics", "addr", mln.Addr().String(), "token", cfg.MetricsToken != "")
+		// It stops before the app closes (deferred above, so run after
+		// this), so no scrape reads a closed history.db.
+		mctx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			if err := server.Serve(mctx, mln, server.MetricsHandler(a.topics, a.history, cfg.MetricsToken), log.With("component", "metrics")); err != nil {
+				log.Error("metrics listener stopped", "err", err)
+			}
+		}()
+		defer func() {
+			cancel()
+			<-done
+		}()
+	}
 	return server.Serve(ctx, ln, a.handler, log, a.hub.Close)
 }
 

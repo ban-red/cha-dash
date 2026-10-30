@@ -111,6 +111,7 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | Route | Auth | Notes |
 |---|---|---|
 | `GET /healthz` | none | `200 ok` if both database pools answer within 2 s, else `503`. Reveals nothing else |
+| `GET /metrics` | none, or a bearer token | Only on its own listener, off by default (`CHADASH_METRICS_LISTEN`; `CHADASH_METRICS_TOKEN` adds `Authorization: Bearer`). The Prometheus text format: `chadash_build_info{version}`, `chadash_series_value{resource,metric,unit,source}` for every series with a current value (unknown and stale left out), `chadash_resource_health{resource,kind,source,status}` 1 per resource, `chadash_history_series` and `chadash_history_file_bytes` with history on, and the Go runtime (`chadash_go_goroutines`, `_heap_bytes`, `_memory_bytes`, `_gc_cycles_total`). Sorted, so scrapes are stable. Nothing else is on that listener, never pprof (09 → E9) |
 | `GET /api/setup` | none | `{"required": bool}` |
 | `POST /api/setup` | none (first run only) | `{"username"?,"password"}` → `201 {"user"}` + session cookie. `username` defaults to `admin`. `422` invalid input (setup stays open), `409` already done |
 | `POST /api/auth/login` | none | `{"username","password"}` → `200 {"user"}` + cookie, `401` otherwise |

@@ -86,6 +86,14 @@ type Config struct {
 	// HistoryDir holds history.db (CHADASH_HISTORY_DIR). Empty: DataDir.
 	// It can move to an SSD when DataDir is on an SD card or a slow share.
 	HistoryDir string
+
+	// MetricsListen is where /metrics (Prometheus) listens, on a listener
+	// of its own (CHADASH_METRICS_LISTEN). Empty: off.
+	MetricsListen string
+	// MetricsToken, when set, is the bearer token a scrape must send
+	// (CHADASH_METRICS_TOKEN, from the environment only, so it stays out
+	// of the process list).
+	MetricsToken string
 }
 
 // DefaultDemoAt is when the demo day starts: 14:05, the moment every
@@ -127,6 +135,7 @@ type Loader struct {
 	publicURL                                                 string
 	nodePairing, nodePairingFrom                              string
 	history, historyDir                                       string
+	metricsListen, metricsToken                               string
 	demo                                                      bool
 	demoAt, demoSeed                                          string
 	envErrs                                                   []error // env values a flag default can't hold
@@ -165,6 +174,8 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 	fs.StringVar(&l.demoSeed, "demo-seed", env("CHADASH_DEMO_SEED", "1"), "demo simulator seed (env CHADASH_DEMO_SEED)")
 	fs.StringVar(&l.history, "history", env("CHADASH_HISTORY", "standard"), "metrics history to keep: off, standard (48 hours by the minute, 14 days by the quarter hour) or long-term (also hourly for a year, daily forever); Settings → History wins, except over off (env CHADASH_HISTORY)")
 	fs.StringVar(&l.historyDir, "history-dir", env("CHADASH_HISTORY_DIR", ""), "directory for history.db; default the data dir (env CHADASH_HISTORY_DIR)")
+	fs.StringVar(&l.metricsListen, "metrics-listen", env("CHADASH_METRICS_LISTEN", ""), "address for /metrics (Prometheus) on a listener of its own, e.g. 127.0.0.1:3697; empty turns it off (env CHADASH_METRICS_LISTEN)")
+	l.metricsToken = env("CHADASH_METRICS_TOKEN", "")
 	return l
 }
 
@@ -190,6 +201,16 @@ func (l *Loader) Config() (Config, error) {
 			c.HistoryDir = filepath.Clean(d)
 		}
 	}
+	if m := strings.TrimSpace(l.metricsListen); m != "" {
+		if err := checkListen(m); err != nil {
+			errs = append(errs, fmt.Errorf("metrics %w", err))
+		} else if m == l.listen {
+			errs = append(errs, fmt.Errorf("metrics listen address %q: the hub already listens there; /metrics needs a listener of its own", m))
+		} else {
+			c.MetricsListen = m
+		}
+	}
+	c.MetricsToken = l.metricsToken
 	if p := strings.TrimSpace(l.nodePairing); p != "" {
 		if !filepath.IsAbs(p) {
 			errs = append(errs, fmt.Errorf("node pairing file %q: want an absolute path", p))

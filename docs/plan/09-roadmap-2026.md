@@ -188,7 +188,7 @@ Runs alongside every milestone. ✅ marks what this review did.
 | E6 | ✅ **A flake budget**: `stress.yml` runs `action`, `realtime`, `notify`, `spec`, `nodes` and `stacks` nightly, `-race -count=20 -cpu 1,4` | This review found four timing bugs that one run in CI doesn't show | Done |
 | E7 | **SLSA Build L3**: images built in a reusable workflow, `actions/attest` with `push-to-registry`, immutable releases, `gh attestation verify --signer-workflow` in the release notes | cosign and provenance are already in; L3 is a small step from here | v0.3 |
 | E8 | **Workflow hardening**: ✅ `cache-mode: none` on the release workflow; next, try `actions.lock` (public preview) beside the SHA pins | The May 2026 TanStack attack went through a poisoned Actions cache | v0.2.x |
-| E9 | **`/metrics`** (Prometheus) on a separate, off-by-default listener; never `pprof` on the main one | Homelabbers run Prometheus and Grafana; it's also what a footprint claim is checked with | v0.3 |
+| E9 | ✅ **`/metrics`** (Prometheus) on a separate, off-by-default listener; never `pprof` on the main one. Built with 13 · History: `CHADASH_METRICS_LISTEN`, an optional bearer token | Homelabbers run Prometheus and Grafana; it's also what a footprint claim is checked with | v0.3 |
 | E10 | **Vue 3.6 stable** when it lands (rc.13 now); **TypeScript 7** once typescript-eslint and vue-tsc support it (Renovate holds it below 6.1) | Planned in ADR-0003; RC churn is already a listed risk | When upstream is ready |
 | E11 | **Release cadence**: a beta every 2–3 weeks while 0.x, each with its changelog | Dockge's stall cost it its users, and Arcane's cadence wins mindshare. The hand-written, user-facing changelog is a strength: keep it, don't generate it | Ongoing |
 

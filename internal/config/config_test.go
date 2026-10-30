@@ -230,3 +230,19 @@ func TestHistory(t *testing.T) {
 		}
 	}
 }
+
+func TestMetricsListener(t *testing.T) {
+	c, err := load(t, nil)
+	if err != nil || c.MetricsListen != "" || c.MetricsToken != "" {
+		t.Fatalf("defaults: %q %q (%v)", c.MetricsListen, c.MetricsToken, err)
+	}
+	c, err = load(t, map[string]string{"CHADASH_METRICS_LISTEN": "127.0.0.1:3697", "CHADASH_METRICS_TOKEN": "fake-token-value"})
+	if err != nil || c.MetricsListen != "127.0.0.1:3697" || c.MetricsToken != "fake-token-value" {
+		t.Fatalf("set: %q %q (%v)", c.MetricsListen, c.MetricsToken, err)
+	}
+	for _, v := range []string{"nope", ":3696"} {
+		if _, err := load(t, map[string]string{"CHADASH_METRICS_LISTEN": v}); err == nil {
+			t.Errorf("CHADASH_METRICS_LISTEN=%s: no error", v)
+		}
+	}
+}

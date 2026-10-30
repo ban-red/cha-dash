@@ -163,7 +163,7 @@ For 1,000 series, at Standard:
 4. **Done. State history:** the `states` table, "down since" across restarts, `GET /api/history/states`, and uptime with a status bar on the sheet's History tab.
 5. **Mostly done. Settings → History:** the level (applied at once, kept in `settings`), what `history.db` holds, the estimate per level, the size limit, and Clear. Past the limit, hourly retention drops the oldest tenth of the tier holding the most data until the pages in use fit; health rows are never dropped. Instead of an Inbox note, the hub logs it and the pane says when it last happened. Exclusions are per integration: its metrics stop, its health is still recorded, and its history can be cleared on its own. Not built: per-tier retention, and excluding single metrics by key.
 6. **Done. `Interest.Record`:** a board's reads once a minute while recording, in the runtime, with no integration changed.
-7. Later: `/metrics` for Prometheus (03), CSV export from a chart, the Pulse strip and linked scrubbing on top of the query route.
+7. **`/metrics` is done**: the Prometheus text format on its own off-by-default listener (`CHADASH_METRICS_LISTEN`, optional bearer token), for anyone who wants their own long-term store: series values, health and the hub's own runtime. Later: CSV export from a chart, the Pulse strip and linked scrubbing on top of the query route.
 
 ## Alternatives considered
 

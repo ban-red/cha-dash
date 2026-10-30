@@ -293,3 +293,19 @@ func (r *Recorder) Clear(ctx context.Context) error {
 	_, err = r.st.Writer().ExecContext(ctx, `PRAGMA incremental_vacuum`)
 	return err
 }
+
+// SeriesCount is how many series the recorder knows.
+func (r *Recorder) SeriesCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.series)
+}
+
+// FileBytes is the size of history.db's pages, without the WAL.
+func (r *Recorder) FileBytes(ctx context.Context) (int64, error) {
+	var pages, size int64
+	if err := r.st.Reader().QueryRowContext(ctx, `SELECT (SELECT page_count FROM pragma_page_count), (SELECT page_size FROM pragma_page_size)`).Scan(&pages, &size); err != nil {
+		return 0, fmt.Errorf("history: %w", err)
+	}
+	return pages * size, nil
+}

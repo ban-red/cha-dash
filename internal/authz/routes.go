@@ -123,6 +123,11 @@ const TokenAny = "(any token)"
 var Routes = []Route{
 	// Unauthenticated.
 	{Pattern: "GET /healthz", Access: Public},
+	// Prometheus scrapes, on a listener of their own (server.MetricsHandler,
+	// CHADASH_METRICS_LISTEN): no session, an optional bearer token. The
+	// hub's own listener doesn't serve it; there it gets the web app, like
+	// any unknown path.
+	{Pattern: "GET /metrics", Access: Public},
 	{Pattern: "GET /api/setup", Access: Public},
 	{Pattern: "POST /api/setup", Access: Public},
 	{Pattern: "POST /api/auth/login", Access: Public},
