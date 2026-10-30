@@ -103,6 +103,31 @@ async function stepUpWhenAsked(h: ReturnType<typeof open>): Promise<void> {
 }
 
 describe('Follow git', () => {
+  it('leaves “Checking now…” once the hub’s check ends, and says the sync changed', async () => {
+    vi.useFakeTimers();
+    try {
+      let gets = 0;
+      fakeFetch({ [`GET ${SYNC_PATH}`]: () => ({ status: 200, body: { sync: synced({ running: ++gets < 3, last_seen_sha: gets < 3 ? '1'.repeat(40) : '3'.repeat(40) }) } }) });
+      const h = open();
+      const w = h.mountIn(StackSync, { node: 'local', stack: 'media', secretNames: [] });
+      await settle();
+      expect(w.text()).toContain('Checking now…');
+      expect(w.findComponent(StackSync).emitted('changed')).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(2100);
+      await settle();
+      expect(w.text()).not.toContain('Checking now…');
+      expect(gets).toBe(3);
+      const changed = w.findComponent(StackSync).emitted('changed') as [SyncView][];
+      expect(changed).toHaveLength(1);
+      expect(changed[0]![0].last_seen_sha).toBe('3'.repeat(40));
+      // Done: no more reads.
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(gets).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('starts empty, then follows: the PUT carries the form, the secret goes once, and step-up is asked for deploy on push', async () => {
     let puts = 0;
     const f = fakeFetch({

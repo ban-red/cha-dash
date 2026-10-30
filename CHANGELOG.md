@@ -36,6 +36,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **The Inbox badge counts approvals.** A plan waiting for approval showed in the Inbox but not in the number on its button.
 - **A git sync's approval says where it came from.** It used to say a token asked "through the API". It now says a git sync acting for its owner asked, and shows the commit and its subject.
+- **Following git updates the page when the check ends.** After Follow or Check now, the sync stayed on "Checking now…" and the editor kept the old draft until a reload.
 - **`compose.node.yaml` runs on another host.** The node it starts couldn't read its own `/etc/chadash-node` and restarted over and over with "permission denied". It now runs with the same user and groups as the node in `compose.yaml`.
 - **A Docker integration says why its node is gone.** When the node it reads through is revoked, waiting for approval or unknown to the hub, the integration now says so instead of "answered 503 Service Unavailable".
 - **Strangers can't lock your nodes out.** Five failed node handshakes from one address used to refuse every node behind it for a while, so behind a shared NAT, or a reverse proxy not listed in `CHADASH_TRUSTED_PROXIES`, anyone could cut your nodes off. The limit now applies only to keys the hub doesn't know: approved and pending nodes always get through. An IPv6 /64 counts as one address, and refused join tokens reach the audit log once per address every 10 minutes, with a count of the rest.

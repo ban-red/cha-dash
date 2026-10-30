@@ -12,7 +12,7 @@
  * Making deploy on push, changing the URL, and taking over someone else's
  * sync need a step-up: `ui.withStepUp` asks and tries once more.
  */
-import { computed, onMounted, ref, useId } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import { ago, absolute } from '../lib/format';
 import { hubWords } from '../lib/actions';
@@ -62,11 +62,35 @@ async function load(): Promise<void> {
     sync.value = await getSync(props.node, props.stack);
     status.value = 'ready';
     now.value = Date.now();
+    void watchCheck();
   } catch (err) {
     status.value = 'error';
     loadError.value = hubWords(err, 'The git sync couldn’t be loaded.');
   }
 }
+
+/**
+ * While the hub checks the remote, read the sync again each second, up to a
+ * minute, so the card leaves "Checking now…" and the editor shows the new
+ * draft without a reload.
+ */
+let watching = 0;
+let gone = false;
+async function watchCheck(): Promise<void> {
+  const run = ++watching;
+  for (let i = 0; i < 60 && sync.value?.running && run === watching && !gone; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    if (run !== watching || gone) return;
+    try {
+      const s = await getSync(props.node, props.stack);
+      sync.value = s;
+      if (!s?.running) emit('changed', s);
+    } catch {
+      return;
+    }
+  }
+}
+onBeforeUnmount(() => (gone = true));
 
 // ── the form ──
 
@@ -172,6 +196,7 @@ async function save(): Promise<void> {
     sync.value = s;
     editing.value = false;
     emit('changed', s);
+    void watchCheck();
     ui.toast(creating ? `${props.stack} follows ${s.branch} now. Its editor is read-only.` : 'Saved.');
     void focusFirst(`${uid}-edit`, `${uid}-h`);
   } catch (err) {
@@ -227,6 +252,8 @@ async function checkNow(): Promise<void> {
   try {
     await syncNow(props.node, props.stack);
     ui.toast(`Checking ${sync.value.branch} now.`);
+    sync.value = { ...sync.value, running: true };
+    void watchCheck();
   } catch (err) {
     actError.value = hubWords(err, 'Cha Dash couldn’t check now.');
   } finally {

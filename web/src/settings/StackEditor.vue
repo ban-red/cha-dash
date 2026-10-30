@@ -103,6 +103,8 @@ function onSyncChanged(s: SyncView | null): void {
   if (!detail.value) return;
   detail.value = { ...detail.value, sync: s };
   if (s) content.value = base.value;
+  // A check that finished may have made a new draft.
+  if (s && !s.running) void load();
 }
 
 // ── a new stack: where and what it's called ──
