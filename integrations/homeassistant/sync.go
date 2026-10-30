@@ -17,10 +17,11 @@ import (
 )
 
 // Scopes: the service's health comes from every sync, the readings only
-// from syncs that read /api/states.
+// from syncs that read /api/states, the calendars from syncs that read them.
 const (
-	scopeGraph  = "graph"
-	scopeStates = "states"
+	scopeGraph     = "graph"
+	scopeStates    = "states"
+	scopeCalendars = "calendars"
 )
 
 // instance is one Home Assistant. Sync runs on one goroutine and Test on a
@@ -33,6 +34,7 @@ type instance struct {
 	token        string
 	name         string
 	link         string
+	key          string // the instance ID in resource IDs
 	appID        string
 	powerEntity  string
 	energyEntity string
@@ -51,6 +53,9 @@ type instance struct {
 	day       string               // the local date the baselines belong to
 	baselines map[string]float64   // energy meters' readings at local midnight, kWh
 	tried     map[string]time.Time // when each meter's baseline was last asked for
+
+	calendarsAt time.Time  // when the calendars were last read
+	calendars   []calendar // calendar entities, by entity ID
 }
 
 // haConfig is the part of /api/config the integration reads.
@@ -226,13 +231,28 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) (err er
 		}
 		in.statesAt = now
 	}
+	// Calendars on the states' cadence, but at most every 5 minutes.
+	readCalendars := readStates && (in.calendarsAt.IsZero() || now.Sub(in.calendarsAt) >= calendarsEvery)
+	if readCalendars {
+		publish, err := in.readCalendars(ctx, localMidnight(now, in.tz))
+		if err != nil {
+			return err
+		}
+		in.calendarsAt = now
+		readCalendars = publish
+	}
 	in.needFull = false
 	in.d.Emit.SetVersion(in.version)
 	if err := in.d.Emit.Replace(scopeGraph, in.graphFacts()); err != nil {
 		return err
 	}
 	if readStates {
-		return in.d.Emit.Replace(scopeStates, in.statesFacts())
+		if err := in.d.Emit.Replace(scopeStates, in.statesFacts()); err != nil {
+			return err
+		}
+	}
+	if readCalendars {
+		return in.d.Emit.Replace(scopeCalendars, in.calendarFacts())
 	}
 	return nil
 }
@@ -476,6 +496,12 @@ func personWhere(state string) string {
 }
 
 func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
+// localMidnight is the start of now's day in tz.
+func localMidnight(now time.Time, tz *time.Location) time.Time {
+	local := now.In(tz)
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, tz)
+}
 
 // batteryName drops "battery" and "battery low" from a sensor's name, so
 // the list says the device: "Hallway motion Battery" is "Hallway motion".

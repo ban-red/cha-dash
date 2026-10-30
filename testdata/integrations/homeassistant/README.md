@@ -1,7 +1,7 @@
 # Home Assistant fixtures: synthetic
 
-**These fixtures are synthetic.** Nothing here was recorded from a real Home Assistant. They were written by hand on 2026-10-03 for the v0.1 Home Assistant integration's contract tests, following Home Assistant's public API documentation:
-- the REST API (`developers.home-assistant.io/docs/api/rest`): `GET /api/`, `GET /api/config`, `GET /api/states` and `GET /api/history/period/<timestamp>` with `filter_entity_id`, `end_time`, `minimal_response` and `no_attributes`;
+**These fixtures are synthetic.** Nothing here was recorded from a real Home Assistant. They were written by hand on 2026-10-03 (the calendars on 2026-10-29) for the v0.1 Home Assistant integration's contract tests, following Home Assistant's public API documentation:
+- the REST API (`developers.home-assistant.io/docs/api/rest`): `GET /api/`, `GET /api/config`, `GET /api/states` and `GET /api/history/period/<timestamp>` with `filter_entity_id`, `end_time`, `minimal_response` and `no_attributes`, and `GET /api/calendars` and `GET /api/calendars/<entity_id>?start=…&end=…` (events with `{"dateTime"}` or `{"date"}` starts and ends, `summary`, `description`, `location`, `uid`, `recurrence_id`, `rrule`);
 - the WebSocket API (`developers.home-assistant.io/docs/api/websocket`): the `auth_required` / `auth` / `auth_ok` handshake and the `auth/current_user` command.
 
 Entity shapes (attributes, `state_class`, `device_class`, `last_reset` on a daily utility meter, `entity_id` on light and switch groups, `is_hue_group` on a Hue room) follow what those integrations put in their state attributes. Names are neutral (`light.kitchen`, `person.resident_a`, user "Dashboard"); the location is a city centre and the URL is `home.lab.example`.
@@ -14,6 +14,9 @@ Entity shapes (attributes, `state_class`, `device_class`, `last_reset` on a dail
 | `config.json` | `GET /api/config` | Version `2026.9.3`, `state: RUNNING`, time zone `Europe/Berlin` (UTC+2 on the test day, so local midnight is 22:00 UTC) |
 | `states.json` | `GET /api/states` | 55 entities, below |
 | `history_midnight.json` | `GET /api/history/period/2026-10-02T22:00:00Z?filter_entity_id=sensor.coffee_machine_energy,sensor.house_energy&end_time=…&minimal_response&no_attributes` | Each meter's state at local midnight: the first item of each list |
+| `calendars.json` | `GET /api/calendars` | Two calendars: `calendar.family` ("Family") and `calendar.holidays` ("Public holidays") |
+| `calendar_family.json` | `GET /api/calendars/calendar.family?start=2026-10-02T22:00:00Z&end=2026-10-16T22:00:00Z` | Six events, out of order: one that ended before midnight and one after the window (both dropped), a film night running over midnight (kept), a recurring school run given in UTC (republished as `+02:00`), a dentist with a location, and a two-day all-day trip. Descriptions are set, to check they're never published |
+| `calendar_holidays.json` | `GET /api/calendars/calendar.holidays?…` | One all-day holiday, today |
 | `ws_current_user.json` | WebSocket `auth/current_user` | The result: user "Dashboard", `is_admin: true`, `is_owner: false` |
 
 ## What `states.json` holds, and what it should derive

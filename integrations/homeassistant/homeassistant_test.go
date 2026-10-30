@@ -46,6 +46,7 @@ type fake struct {
 	files   map[string][]byte // path → body; nil means 404
 	hits    map[string]int
 	history []string // each history request's path and query
+	events  []string // each calendar events request's path and query
 	admin   bool
 	noWS    bool
 	// calls are the service calls received, "<path> <body>", and onCall
@@ -56,10 +57,14 @@ type fake struct {
 
 func newFake(t *testing.T) *fake {
 	f := &fake{t: t, hits: map[string]int{}, admin: true, files: map[string][]byte{
-		"/api/":       fixture(t, "api.json"),
-		"/api/config": fixture(t, "config.json"),
-		"/api/states": fixture(t, "states.json"),
-		"history":     fixture(t, "history_midnight.json"),
+		"/api/":                            fixture(t, "api.json"),
+		"/api/config":                      fixture(t, "config.json"),
+		"/api/states":                      fixture(t, "states.json"),
+		"history":                          fixture(t, "history_midnight.json"),
+		"/api/calendars":                   fixture(t, "calendars.json"),
+		"/api/calendars/calendar.family":   fixture(t, "calendar_family.json"),
+		"/api/calendars/calendar.holidays": fixture(t, "calendar_holidays.json"),
+		"calendar":                         []byte("[]"), // any other calendar: no events
 	}}
 	f.Server = httptest.NewServer(f)
 	t.Cleanup(f.Close)
@@ -82,6 +87,12 @@ func (f *fake) historyRequests() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.history)
+}
+
+func (f *fake) eventRequests() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.events)
 }
 
 func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -114,14 +125,18 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.t.Errorf("%s %s: only actions call services; everything else reads", r.Method, r.URL.Path)
 	}
 	key := r.URL.Path
+	f.mu.Lock()
 	if strings.HasPrefix(key, "/api/history/period/") {
 		key = "history"
-	}
-	f.mu.Lock()
-	f.hits[key]++
-	if key == "history" {
 		f.history = append(f.history, r.URL.Path+"?"+r.URL.RawQuery)
 	}
+	if strings.HasPrefix(key, "/api/calendars/") {
+		f.events = append(f.events, r.URL.Path+"?"+r.URL.RawQuery)
+		if _, ok := f.files[key]; !ok {
+			key = "calendar"
+		}
+	}
+	f.hits[key]++
 	b, ok := f.files[key]
 	f.mu.Unlock()
 	if !ok {

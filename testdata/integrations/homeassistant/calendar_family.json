@@ -1,0 +1,62 @@
+[
+  {
+    "start": {"dateTime": "2026-10-02T19:00:00+02:00"},
+    "end": {"dateTime": "2026-10-02T21:00:00+02:00"},
+    "summary": "Dinner with neighbours",
+    "description": null,
+    "location": null,
+    "uid": "evt-0001@calendar.example",
+    "recurrence_id": null,
+    "rrule": null
+  },
+  {
+    "start": {"dateTime": "2026-10-07T09:00:00+02:00"},
+    "end": {"dateTime": "2026-10-07T09:45:00+02:00"},
+    "summary": "Dentist",
+    "description": "Bring the insurance card",
+    "location": "Example Street 1, Townsville",
+    "uid": "evt-0002@calendar.example",
+    "recurrence_id": null,
+    "rrule": null
+  },
+  {
+    "start": {"date": "2026-10-10"},
+    "end": {"date": "2026-10-12"},
+    "summary": "Trip to the coast",
+    "description": "Pack the bikes",
+    "location": "",
+    "uid": "evt-0003@calendar.example",
+    "recurrence_id": null,
+    "rrule": null
+  },
+  {
+    "start": {"dateTime": "2026-10-05T06:30:00Z"},
+    "end": {"dateTime": "2026-10-05T07:00:00Z"},
+    "summary": "School run",
+    "description": null,
+    "location": null,
+    "uid": "evt-0004@calendar.example",
+    "recurrence_id": "20261005T063000Z",
+    "rrule": "FREQ=WEEKLY;BYDAY=MO"
+  },
+  {
+    "start": {"dateTime": "2026-10-02T23:00:00+02:00"},
+    "end": {"dateTime": "2026-10-03T01:00:00+02:00"},
+    "summary": "Late film night",
+    "description": null,
+    "location": null,
+    "uid": "evt-0005@calendar.example",
+    "recurrence_id": null,
+    "rrule": null
+  },
+  {
+    "start": {"dateTime": "2026-10-17T00:00:00+02:00"},
+    "end": {"dateTime": "2026-10-17T01:00:00+02:00"},
+    "summary": "After the window",
+    "description": null,
+    "location": null,
+    "uid": "evt-0006@calendar.example",
+    "recurrence_id": null,
+    "rrule": null
+  }
+]

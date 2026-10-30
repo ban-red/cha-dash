@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Home Assistant calendars.** Each of Home Assistant's calendars is now published with its events from today to two weeks ahead, recurring ones included, for a Calendar tile to show. Cha Dash reads them with the states, at most every 5 minutes, and never reads descriptions.
 - **Calendar feeds.** A new Calendar feed (iCal) connection reads any calendar's `.ics` address, such as Google Calendar's secret address in iCal format, iCloud, Outlook or Nextcloud. It publishes the events from today to two weeks ahead, recurring events included, with titles, times and places only. The address stays secret: it's stored like a password and never shown in errors or logs.
 
 ## [0.2.0-beta.2] - 2026-10-29

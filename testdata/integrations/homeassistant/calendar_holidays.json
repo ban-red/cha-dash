@@ -1,0 +1,12 @@
+[
+  {
+    "start": {"date": "2026-10-03"},
+    "end": {"date": "2026-10-04"},
+    "summary": "Public holiday",
+    "description": "A day off",
+    "location": null,
+    "uid": "hol-0001@calendar.example",
+    "recurrence_id": null,
+    "rrule": null
+  }
+]

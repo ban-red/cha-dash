@@ -251,6 +251,7 @@ Widgets bind to **capabilities, never to vendors**. One DNS widget serves Pi-hol
 | `downloads.queue` / `downloads.indexers` | qBittorrent, Transmission, SABnzbd / Prowlarr |
 | `cameras` / `cameras.events` | Frigate |
 | `home.entities` | Home Assistant |
+| `calendar.events` | Home Assistant, iCal feeds |
 | `checks.uptime` | built-in checks, Uptime Kuma, Gatus |
 | `power.ups` | NUT, Unraid UPS |
 | `primitives.*` (stat, list, table, series, status, progress) | escape hatch for anything else |

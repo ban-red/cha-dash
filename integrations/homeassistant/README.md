@@ -1,8 +1,8 @@
 # Home Assistant (`homeassistant`)
 
-Home Assistant's health and version, and readings derived from its entity states: people home, lights on, switches on, house power and energy today, and what needs a look (open doors and windows, unlocked locks, low batteries, pending updates, unavailable entities, the alarm). REST only; Test also asks the WebSocket API whose token it holds.
+Home Assistant's health and version, readings derived from its entity states (people home, lights on, switches on, house power and energy today, and what needs a look: open doors and windows, unlocked locks, low batteries, pending updates, unavailable entities, the alarm), and its calendars' events. REST only; Test also asks the WebSocket API whose token it holds.
 
-**Tier:** silver (repairs, version detection, honest grants, fixture tests). **Capability:** `home.entities`. **Secrets:** `token`.
+**Tier:** silver (repairs, version detection, honest grants, fixture tests). **Capabilities:** `home.entities`, `calendar.events`. **Secrets:** `token`.
 
 ## Config
 
@@ -28,9 +28,11 @@ Home Assistant's health and version, and readings derived from its entity states
 | `GET /api/config` | every sync | `version`, `state` (`RUNNING`, `STARTING`, …), `safe_mode`, `recovery_mode`, `time_zone` |
 | `GET /api/states` | every watched sync; every 30 min while idle; after a failure | Every entity's state and attributes. It can be megabytes in a big home, hence the idle plan |
 | `GET /api/history/period/<local midnight>?filter_entity_id=<meters>&end_time=<midnight + 1 min>&minimal_response&no_attributes` | once per local day, for up to 64 meters; a meter without a reading is asked again after an hour | Each energy meter's reading at local midnight, for energy today |
+| `GET /api/calendars` | with `/api/states`, but at most every 5 min | The calendar entities, `[{entity_id, name}]`. A 404 (no calendar integration) means no calendars |
+| `GET /api/calendars/<entity_id>?start=<local midnight>&end=<midnight + 14 days>` | after `/api/calendars`, for up to 20 calendars (by entity ID) | Each calendar's events in the window; Home Assistant expands recurring ones |
 | `GET /api/` and WebSocket `/api/websocket` | Test only | The API answers, and `auth/current_user` |
 
-**Poll plan.** `Poll.Interval` 60 s while watched, `Poll.Idle` 5 min otherwise, 30 s timeout. An idle sync reads only `/api/config`, which keeps health and repairs current; the readings refresh every 30 minutes (one point per history slot) until someone watches again.
+**Poll plan.** `Poll.Interval` 60 s while watched, `Poll.Idle` 5 min otherwise, 30 s timeout. An idle sync reads only `/api/config`, which keeps health and repairs current; the readings and calendars refresh every 30 minutes (one point per history slot) until someone watches again.
 
 The WebSocket isn't used for live state in v0.1: polling a minute apart is enough for counts. A `subscribe_events` channel while watched is the obvious next step.
 
@@ -115,7 +117,18 @@ Values nobody can read are unknown (`null`), never 0: no power sensor, no meter 
 | `safety_tripped` | count | 0 – safety sensors | 0 – 0 |
 | `media_playing` | count | 0 – media players | 0 – total |
 
-Scopes: `graph` (the app, every sync) and `states` (the readings, when `/api/states` was read), so the readings' `as_of` is when the states were read.
+**`homeassistant:<id>/calendar/<slug>`**, one per `calendar.*` entity (`<slug>` is the entity ID after `calendar.`), at most 20: kind `calendar`, named after the calendar, state `online`, `caps: ["calendar.events"]`, no metrics. `integration:<id> monitors` it and the app `exposes` it.
+
+| Attr | From |
+|---|---|
+| `type` | `calendar` |
+| `provider` | `homeassistant` |
+| `time_zone` | Home Assistant's `time_zone` (`UTC` if it's unknown) |
+| `events` | from local midnight today to 14 days ahead, soonest first, at most 60: `[{start, end, all_day, title, location?}]`. A timed event's `start` and `end` are RFC 3339 in Home Assistant's zone, with the offset; an all-day event's are dates (`YYYY-MM-DD`), `end` exclusive. An event still running at midnight is included. `title` is the summary; `location` only when set. **Descriptions are never published** |
+
+A calendar whose events can't be read keeps its last events (logged at debug); a failing `/api/calendars` keeps the last calendars. The attr is `events`, not `calendar`, which the web reads as media releases.
+
+Scopes: `graph` (the app, every sync), `states` (the readings, when `/api/states` was read), so the readings' `as_of` is when the states were read, and `calendars` (when the calendars were read).
 
 ## Test connection and grants
 
@@ -151,4 +164,5 @@ All of them are write grants, so the runtime adds its write-grant warning: Cha D
 - **Groups from other integrations** (zigbee2mqtt, deCONZ) that don't list `entity_id` or set `is_hue_group` count as single lights.
 - **Names, not rooms.** The lists use friendly names; areas are in the registry (WebSocket only). Lock names aren't listed, only the count.
 - **Hidden and disabled entities** count: `/api/states` doesn't say which are hidden (that's the entity registry, WebSocket only).
-- **No resources for rooms, devices or entities**, no incidents (Home Assistant's repairs and updates aren't read), and no live updates.
+- **Calendars are read-only** and limited to 20, two weeks and 60 events each.
+- **No resources for rooms, devices or entities** (calendars aside), no incidents (Home Assistant's repairs and updates aren't read), and no live updates.

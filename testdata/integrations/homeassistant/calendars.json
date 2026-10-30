@@ -1,0 +1,4 @@
+[
+  {"entity_id": "calendar.holidays", "name": "Public holidays"},
+  {"entity_id": "calendar.family", "name": "Family"}
+]

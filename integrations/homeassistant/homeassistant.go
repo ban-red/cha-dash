@@ -1,7 +1,7 @@
 // Package homeassistant is the Home Assistant integration: the service's
 // health and version from the REST API, and counts and readings derived
 // from /api/states (who's home, lights and switches on, house power and
-// energy today). Test reads the token's user over the WebSocket API to
+// energy today), and its calendars' events. Test reads the token's user over the WebSocket API to
 // report its rights honestly. See README.md.
 package homeassistant
 
@@ -28,6 +28,10 @@ const (
 	statesEveryIdle = 30 * time.Minute // /api/states while nobody watches: one point per history slot
 	baselineRetry   = time.Hour        // energy meters whose midnight reading is still missing
 	maxBaselines    = 64               // meters per history request
+	calendarsEvery  = 5 * time.Minute  // calendars, at most this often
+	maxCalendars    = 20               // calendar entities read
+	calendarDays    = 14               // days of events, from local midnight
+	maxEvents       = 60               // events per calendar
 )
 
 func init() { integration.Register(Integration{}) }
@@ -42,7 +46,7 @@ func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Home Assistant", Icon: "homeassistant", Version: "0.1.0", Tier: integration.Silver,
 		Category:     integration.CatHome,
-		Capabilities: []integration.Capability{"home.entities"},
+		Capabilities: []integration.Capability{"home.entities", "calendar.events"},
 		ConfigSchema: integration.Object(
 			integration.URLProp(),
 			integration.TLSProp(),
@@ -104,7 +108,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 		name = "Home Assistant"
 	}
 	return &instance{
-		d: d, http: client, base: base, token: c.Token, name: name, link: c.URL,
+		d: d, http: client, base: base, token: c.Token, name: name, link: c.URL, key: key,
 		appID: ID + ":" + key + "/app", powerEntity: c.PowerEntity, energyEntity: c.EnergyEntity, scripts: c.Scripts,
 		needFull: true, tz: time.UTC,
 		baselines: map[string]float64{}, tried: map[string]time.Time{},
