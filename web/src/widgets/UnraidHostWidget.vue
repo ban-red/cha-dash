@@ -244,6 +244,11 @@ const parityShort = computed(() => (checking.value ? parityWords.value : checked
 .uh-bars .disk {
   grid-template-columns: 4.4em minmax(0, 1fr) 2.8em;
 }
+@container (max-width: 260px) {
+  .uh-bars .disk {
+    grid-template-columns: 4.2em minmax(0, 1fr) 2.6em;
+  }
+}
 .uh-kv {
   margin: 0;
 }

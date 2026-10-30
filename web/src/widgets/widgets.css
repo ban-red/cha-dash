@@ -302,6 +302,27 @@ a.gv {
   width: 7px;
   height: 7px;
 }
+/* The parity row has no fill or %: its word takes the bar's and the % column. */
+.disk .sub.par {
+  grid-column: 2 / 4;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A narrow tile (2 columns): tighter columns, so the bar keeps room. */
+@container (max-width: 260px) {
+  .disk {
+    grid-template-columns: 3.6em minmax(0, 1fr) 2.4em 2.2em;
+    gap: 4px;
+  }
+  .host-disks .disk {
+    grid-template-columns: 4.6em minmax(0, 1fr) 2.4em;
+  }
+  .disk .dn {
+    gap: 3px;
+  }
+}
 .fleet-tall {
   flex: 1;
   min-height: 0;

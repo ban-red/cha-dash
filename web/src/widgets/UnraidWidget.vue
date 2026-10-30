@@ -186,9 +186,9 @@ const diskTip = (d: Disk) => `${d.name}: ${d.parity ? 'parity' : d.used === null
       <div class="disks" role="list" aria-label="Disks">
         <div v-for="d in disks" :key="d.r.id" class="disk" role="listitem" :aria-label="diskTip(d)">
           <span class="dn"><Glyph v-if="d.status !== 'ok'" :kind="glyphFor(d.status)" />{{ d.name }}</span>
-          <span v-if="d.parity" class="sub">{{ parity === 'valid' ? 'valid' : parity }}</span>
+          <span v-if="d.parity" class="sub par">{{ parity === 'valid' ? 'valid' : parity }}</span>
           <Meter v-else :value="d.used" :warn="90" :crit="97" thin :label="`${d.name} used`" />
-          <span class="n">{{ d.parity || d.used === null ? '' : `${Math.round(d.used)}%` }}</span>
+          <span v-if="!d.parity" class="n">{{ d.used === null ? '' : `${Math.round(d.used)}%` }}</span>
           <span class="n">{{ d.temp === null ? '—' : `${d.temp}°` }}</span>
         </div>
       </div>
