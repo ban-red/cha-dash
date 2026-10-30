@@ -6,9 +6,9 @@
  * spring (the CSS token is the spring, sampled into linear()).
  */
 import { computed, ref, watch } from 'vue';
-import Glyph from './marks/Glyph.vue';
-import Meter from './marks/Meter.vue';
-import MiniGraph from './marks/MiniGraph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
+import Meter from '../ui/marks/Meter.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import { fmtPct, hhmm } from '../lib/format';
 import { series } from '../model/graph';
 import { incidentKicker } from '../model/inbox';
@@ -16,6 +16,7 @@ import type { Incident } from '../model/types';
 import { useLive } from '../stores/live';
 import { canMute, isMuted, mute, unmute } from '../stores/muted';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const live = useLive();
 const ui = useUi();
@@ -141,25 +142,18 @@ function workingWords(i: Incident): string {
             />
           </div>
           <div class="acts">
-            <button type="button" class="btn" @click="ui.openInbox(i.id)">Details</button>
-            <button
-              v-if="i.suggested && fixState(i.id) !== 'accepted' && !ui.canRun(i).hidden"
-              type="button"
-              class="btn"
-              :disabled="!ui.canRun(i).ok"
-              :title="ui.canRun(i).why"
-              @click="ui.act(i)"
-            >
+            <UiButton @click="ui.openInbox(i.id)">Details</UiButton>
+            <UiButton v-if="i.suggested && fixState(i.id) !== 'accepted' && !ui.canRun(i).hidden" :disabled="!ui.canRun(i).ok" :title="ui.canRun(i).why" @click="ui.act(i)">
               {{ i.suggested.label }} <span class="tier">{{ i.suggested.tier }}</span>
-            </button>
+            </UiButton>
             <span v-else-if="fixState(i.id) === 'accepted'" class="working"><Glyph kind="prog" label="in progress" />Working · {{ workingWords(i) }}</span>
-            <button v-if="canMute(i)" type="button" class="btn ghost" title="Hide this warning until it turns critical" @click="hide(i)">Hide</button>
+            <UiButton v-if="canMute(i)" variant="ghost" title="Hide this warning until it turns critical" @click="hide(i)">Hide</UiButton>
           </div>
         </article>
       </TransitionGroup>
-      <button v-if="hidden > 0" type="button" class="btn ghost attn-more" :aria-expanded="expanded" @click="expanded = !expanded">
+      <UiButton v-if="hidden > 0" variant="ghost" class="attn-more" :aria-expanded="expanded" @click="expanded = !expanded">
         {{ expanded ? 'Show fewer' : `Show all ${all.length}` }}
-      </button>
+      </UiButton>
     </section>
   </Transition>
 </template>

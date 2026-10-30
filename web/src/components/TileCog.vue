@@ -27,6 +27,7 @@ import { useBoardIfAny } from '../stores/board';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
 import { useUiIfAny } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const { name } = defineProps<{ name: string }>();
 const live = useLive();
@@ -303,8 +304,8 @@ function remove(): void {
         <div v-else role="alertdialog" :aria-label="`Remove ${name}?`" class="tile-confirm" @keydown="onMenuKey">
           <p>Remove <b>{{ name }}</b> from the board? Its settings on this tile go too.</p>
           <div class="tile-confirm-acts">
-            <button type="button" class="btn sm" data-confirm @click="goto('menu')">Cancel</button>
-            <button type="button" class="btn sm danger" data-confirm @click="remove">Remove</button>
+            <UiButton size="sm" data-confirm @click="goto('menu')">Cancel</UiButton>
+            <UiButton variant="danger" size="sm" data-confirm @click="remove">Remove</UiButton>
           </div>
         </div>
       </div>
@@ -375,8 +376,5 @@ function remove(): void {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-.tile-confirm .btn.danger {
-  color: var(--down);
 }
 </style>

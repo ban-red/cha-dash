@@ -6,21 +6,18 @@
  * hub keeps them only while it runs and never stores them, and they leave
  * the page when the dialog closes.
  *
- * A native modal <dialog>: focus moves in, Esc closes it and nothing behind
- * it. Its own chunk, loaded the first time a log is shown.
+ * A UiDialog: focus moves in, Esc closes it and nothing behind it. Its own chunk, loaded the first time a log is shown.
  */
-import { computed, onMounted, ref, useId, useTemplateRef } from 'vue';
+import { computed, onMounted, ref, useTemplateRef } from 'vue';
 import '../styles/act-dialog.css';
-import { useModal } from '../board/useModal';
 import { copyText } from '../settings/recipe';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
+import UiDialog from '../ui/Dialog.vue';
 
 const ui = useUi();
-const uid = useId();
-const dlg = useTemplateRef<HTMLDialogElement>('dlg');
 const pre = useTemplateRef<HTMLPreElement>('pre');
-const closeBtn = useTemplateRef<HTMLButtonElement>('closeBtn');
-useModal(dlg);
+const closeBtn = useTemplateRef<InstanceType<typeof UiButton>>('closeBtn');
 
 const log = computed(() => ui.state.taskLog);
 const lines = computed(() => log.value?.lines ?? []);
@@ -43,30 +40,22 @@ function close(): void {
 </script>
 
 <template>
-  <dialog ref="dlg" class="act-dlg tasklog" :aria-labelledby="`${uid}-h`" @cancel.prevent="close" @keydown.esc.stop>
-    <div class="act-dlg-body">
-      <header class="act-dlg-head">
-        <h2 :id="`${uid}-h`">{{ log?.label }}</h2>
-        <button type="button" class="x" aria-label="Close" @click="close">
-          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-        </button>
-      </header>
-      <template v-if="lines.length">
-        <p class="act-hint">The last {{ lines.length === 1 ? 'line' : `${lines.length} lines` }}, newest at the bottom. Cha Dash doesn’t keep them: they’re gone when you close this.</p>
-        <pre ref="pre" class="tl-lines" tabindex="0" :aria-label="`Log of ${log?.label ?? 'the task'}`">{{ lines.join('\n') }}</pre>
-      </template>
-      <p v-else class="act-hint">No lines came back.</p>
-      <p class="sr" aria-live="polite">{{ copied ? 'Copied to the clipboard.' : '' }}</p>
-      <div class="act-dlg-foot">
-        <button v-if="lines.length" type="button" class="btn ghost" @click="copy">{{ copied ? 'Copied' : 'Copy' }}</button>
-        <button ref="closeBtn" type="button" class="btn primary" @click="close">Close</button>
-      </div>
-    </div>
-  </dialog>
+  <UiDialog class="tasklog" :title="log?.label" @close="close" @keydown.esc.stop>
+    <template v-if="lines.length">
+      <p class="act-hint">The last {{ lines.length === 1 ? 'line' : `${lines.length} lines` }}, newest at the bottom. Cha Dash doesn’t keep them: they’re gone when you close this.</p>
+      <pre ref="pre" class="tl-lines" tabindex="0" :aria-label="`Log of ${log?.label ?? 'the task'}`">{{ lines.join('\n') }}</pre>
+    </template>
+    <p v-else class="act-hint">No lines came back.</p>
+    <p class="sr" aria-live="polite">{{ copied ? 'Copied to the clipboard.' : '' }}</p>
+    <template #foot>
+      <UiButton v-if="lines.length" variant="ghost" @click="copy">{{ copied ? 'Copied' : 'Copy' }}</UiButton>
+      <UiButton ref="closeBtn" variant="primary" @click="close">Close</UiButton>
+    </template>
+  </UiDialog>
 </template>
 
 <style>
-.act-dlg.tasklog {
+.dlg.tasklog {
   width: min(880px, calc(100% - 32px));
 }
 .tl-lines {

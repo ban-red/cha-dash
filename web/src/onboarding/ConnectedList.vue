@@ -3,10 +3,11 @@
  * What's connected so far, with each instance's status in words: "Reading"
  * once its first sync worked, "Needs repair" with a way to fix it.
  */
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { navigate, settingsPath } from '../lib/router';
 import { STATUS_WORDS, statusGlyph } from '../model/integrations';
 import { catalogEntry, integrations } from '../stores/integrations';
+import UiButton from '../ui/Button.vue';
 </script>
 
 <template>
@@ -21,13 +22,7 @@ import { catalogEntry, integrations } from '../stores/integrations';
         <span class="ob-c-status">
           <Glyph :kind="statusGlyph(x.status)" :label="STATUS_WORDS[x.status] ?? x.status" />
           <span aria-hidden="true">{{ STATUS_WORDS[x.status] ?? x.status }}</span>
-          <a
-            v-if="x.status === 'repair' || x.status === 'error' || x.status === 'degraded'"
-            class="btn sm"
-            :href="settingsPath('integrations', x.id)"
-            @click.prevent="navigate(settingsPath('integrations', x.id))"
-            >Fix</a
-          >
+          <UiButton v-if="x.status === 'repair' || x.status === 'error' || x.status === 'degraded'" size="sm" :href="settingsPath('integrations', x.id)" @click.prevent="navigate(settingsPath('integrations', x.id))">Fix</UiButton>
         </span>
       </li>
     </ul>

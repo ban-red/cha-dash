@@ -6,7 +6,7 @@
  * list is what a screen reader reads. Tiles the board already had are
  * quiet; the import's own are marked.
  */
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import type { PreviewSection } from '../model/importPlan';
 
 const { sections, ours, highlight } = defineProps<{

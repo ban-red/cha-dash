@@ -19,6 +19,7 @@ import { loadInstances } from '../stores/integrations';
 import { settingsPath } from '../lib/router';
 import { editTile, type AddRequest } from '../model/edit';
 import type { TileConfig } from '../stores/tiles';
+import UiButton from '../ui/Button.vue';
 
 const EditableBoard = defineAsyncComponent(() => import('./EditableBoard.vue'));
 const WidgetPicker = defineAsyncComponent(() => import('./WidgetPicker.vue'));
@@ -101,9 +102,9 @@ watch(
     <div v-if="empty && ui.can.value.panes.includes('import')" class="board-empty">
       <p><b>Bring in what you run.</b> Import another dashboard’s config, let Cha Dash discover services, or add them one by one.</p>
       <span class="board-empty-acts">
-        <button type="button" class="btn primary sm" @click="ui.openSettings('import')">Import a config</button>
-        <button type="button" class="btn sm" @click="ui.openSettings('import', 'discover')">Discover</button>
-        <a class="btn sm ghost" :href="settingsPath('integrations', 'new')" @click.prevent="ui.openSettings('integrations', 'new')">Add one</a>
+        <UiButton variant="primary" size="sm" @click="ui.openSettings('import')">Import a config</UiButton>
+        <UiButton size="sm" @click="ui.openSettings('import', 'discover')">Discover</UiButton>
+        <UiButton variant="ghost" size="sm" :href="settingsPath('integrations', 'new')" @click.prevent="ui.openSettings('integrations', 'new')">Add one</UiButton>
       </span>
     </div>
     <StaticBoard :board="board" :breakpoint="breakpoint">
@@ -111,7 +112,7 @@ watch(
         <!-- Editors get an Add on hover or focus: it opens the picker on this section. -->
         <div v-if="ui.can.value.editBoards" class="sh-live">
           <SectionHeader :section="section" />
-          <button type="button" class="btn ghost sm sh-add" :aria-label="`Add a widget to ${section.title ?? section.id}`" @click="addTo(section.id)">Add</button>
+          <UiButton variant="ghost" size="sm" class="sh-add" :aria-label="`Add a widget to ${section.title ?? section.id}`" @click="addTo(section.id)">Add</UiButton>
           <SectionMenu :section="section" />
         </div>
         <SectionHeader v-else :section="section" />

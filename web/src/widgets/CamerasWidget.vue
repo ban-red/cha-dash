@@ -28,7 +28,7 @@
  */
 import { computed, ref, watch } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import CameraPicture from './CameraPicture.vue';
 import CameraScene from './CameraScene.vue';

@@ -7,12 +7,13 @@
  * (session.state.offline) instead of the unreachable door.
  */
 import { defineAsyncComponent, onMounted } from 'vue';
-import Glyph from './components/marks/Glyph.vue';
+import Glyph from './ui/marks/Glyph.vue';
 import LoginView from './views/LoginView.vue';
 import SetupView from './views/SetupView.vue';
 import { takeInlineSnapshot } from './lib/inline';
 import { startRouter } from './lib/router';
 import { createSession, provideSession } from './stores/session';
+import UiButton from './ui/Button.vue';
 
 const FrontPage = defineAsyncComponent(() => import('./views/FrontPage.vue'));
 const PasskeyOffer = defineAsyncComponent(() => import('./views/PasskeyOffer.vue'));
@@ -35,7 +36,7 @@ onMounted(() => void session.refresh());
       <div class="wordmark-row"><span class="brand">Cha Dash</span><span class="caps">Hub unreachable</span></div>
       <h1><Glyph kind="down" label="unreachable" />{{ session.state.error }}</h1>
       <p class="lede">Check that the hub is running, then try again.</p>
-      <button type="button" class="btn primary" @click="session.refresh()">Try again</button>
+      <UiButton variant="primary" @click="session.refresh()">Try again</UiButton>
     </div>
   </main>
 </template>

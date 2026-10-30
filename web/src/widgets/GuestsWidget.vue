@@ -14,8 +14,8 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph from '../components/marks/Glyph.vue';
-import Meter from '../components/marks/Meter.vue';
+import Glyph from '../ui/marks/Glyph.vue';
+import Meter from '../ui/marks/Meter.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtPct, plural } from '../lib/format';
 import { attr, label, resolve } from '../model/graph';

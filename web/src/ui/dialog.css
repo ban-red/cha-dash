@@ -1,0 +1,60 @@
+/*
+ * UiDialog's shell: the box, the backdrop, the header with its × and the
+ * footer. Imported by Dialog.vue, so it loads with the first dialog chunk
+ * instead of blocking the first paint. What goes inside a dialog (a lede, a
+ * list of what an action touches) is styled by the feature that puts it there.
+ */
+.dlg {
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100dvh - 64px);
+  margin: auto;
+  padding: 0;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-overlay);
+  overflow: auto;
+}
+.dlg.dlg-sm {
+  width: min(460px, calc(100% - 32px));
+}
+.dlg.dlg-lg {
+  width: min(720px, calc(100% - 32px));
+}
+.dlg::backdrop {
+  background: var(--scrim);
+}
+.dlg-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+.dlg-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.dlg-head h2 {
+  margin: 0;
+  min-width: 0;
+  font: var(--weight-semibold) var(--type-title) / 1.25 var(--font-ui);
+}
+.dlg-head .x {
+  margin-left: auto;
+  width: var(--target-min);
+  height: var(--target-min);
+  border: 0;
+  border-radius: var(--radius-md);
+}
+.dlg-head .x svg {
+  width: 12px;
+  height: 12px;
+}
+.dlg-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

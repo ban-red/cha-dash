@@ -3,7 +3,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Tile from '../components/Tile.vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { hhmm } from '../lib/format';
 import { resolved, settling } from '../model/inbox';
 import { glyphFor } from '../model/status';

@@ -32,19 +32,19 @@ import { useLive } from '../stores/live';
 import { hrefOk, type TileConfig, type TilesDoc } from '../stores/tiles';
 import WidgetHost from '../widgets/WidgetHost.vue';
 import { preloadWidgets } from '../widgets/registry';
-import { useModal } from './useModal';
 import './editDialog.css';
+import UiButton from '../ui/Button.vue';
+import UiDialog from '../ui/Dialog.vue';
+import UiField from '../ui/Field.vue';
 
 const { board, tiles, sectionId: initialSection } = defineProps<{ board: Board; tiles: TilesDoc; sectionId?: string | undefined }>();
 const emit = defineEmits<{ add: [req: AddRequest]; close: [] }>();
 
 const live = useLive();
 const uid = useId();
-const dlg = useTemplateRef<HTMLDialogElement>('dlg');
-const form = useTemplateRef<HTMLFormElement>('form');
+const dlg = useTemplateRef<InstanceType<typeof UiDialog>>('dlg');
 const search = useTemplateRef<HTMLInputElement>('search');
 const list = useTemplateRef<HTMLElement>('list');
-useModal(dlg);
 // The widgets a board only has once someone adds them load on demand; fetch them now so previews don't flicker.
 onMounted(() => void preloadWidgets());
 
@@ -270,7 +270,7 @@ function onListKey(ev: KeyboardEvent): void {
 function onDialogKey(ev: KeyboardEvent): void {
   if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) {
     ev.preventDefault();
-    form.value?.requestSubmit?.();
+    dlg.value?.requestSubmit();
   } else if (ev.key === '/' && !(ev.target instanceof HTMLInputElement || ev.target instanceof HTMLSelectElement)) {
     ev.preventDefault();
     search.value?.focus();
@@ -301,200 +301,181 @@ const footprint = (s: SizeId) => ({ '--fw': SIZES[s].w, '--fh': SIZES[s].h });
 </script>
 
 <template>
-  <dialog ref="dlg" class="edit-dlg picker" :aria-labelledby="`${uid}-h`" @cancel.prevent="emit('close')" @keydown="onDialogKey">
-    <form ref="form" class="edit-dlg-body" novalidate @submit.prevent="submit">
-      <header class="edit-dlg-head">
-        <h2 :id="`${uid}-h`">Add a widget</h2>
-        <label class="pk-to">
-          <span>to</span>
-          <select v-model="sectionId" aria-label="Section">
-            <option v-for="s in board.sections" :key="s.id" :value="s.id">{{ sectionTitle(s) }}</option>
-          </select>
-        </label>
-        <button type="button" class="x" aria-label="Close" @click="emit('close')">
-          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-        </button>
-      </header>
+  <UiDialog ref="dlg" as="form" class="edit-dlg picker" title="Add a widget" @close="emit('close')" @submit="submit" @keydown="onDialogKey">
+    <template #head>
+    <label class="pk-to">
+      <span>to</span>
+      <select v-model="sectionId" aria-label="Section">
+        <option v-for="s in board.sections" :key="s.id" :value="s.id">{{ sectionTitle(s) }}</option>
+      </select>
+    </label>
+    </template>
 
-      <div class="pk-cols">
-        <div class="pk-browse">
-          <div class="pk-search">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-            <input
-              ref="search"
-              v-model="query"
-              type="search"
-              autofocus
-              autocomplete="off"
-              spellcheck="false"
-              aria-label="Search widgets"
-              placeholder="Search widgets"
-              :aria-controls="`${uid}-list`"
-              @keydown="onSearchKey"
-            />
-            <kbd v-if="!query" class="kbd" aria-hidden="true">/</kbd>
-          </div>
-          <div class="pk-groups" role="group" aria-label="Groups">
-            <button v-for="g in groups" :key="g.id" type="button" class="pk-chip" :aria-pressed="group === g.id" @click="group = g.id">
-              {{ g.name }}<span class="n" aria-hidden="true">{{ counts[g.id] ?? 0 }}</span>
-            </button>
-          </div>
+    <div class="pk-cols">
+      <div class="pk-browse">
+        <div class="pk-search">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+          <input
+            ref="search"
+            v-model="query"
+            type="search"
+            autofocus
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="Search widgets"
+            placeholder="Search widgets"
+            :aria-controls="`${uid}-list`"
+            @keydown="onSearchKey"
+          />
+          <kbd v-if="!query" class="kbd" aria-hidden="true">/</kbd>
+        </div>
+        <div class="pk-groups" role="group" aria-label="Groups">
+          <button v-for="g in groups" :key="g.id" type="button" class="pk-chip" :aria-pressed="group === g.id" @click="group = g.id">
+            {{ g.name }}<span class="n" aria-hidden="true">{{ counts[g.id] ?? 0 }}</span>
+          </button>
+        </div>
 
-          <div :id="`${uid}-list`" ref="list" class="pk-list" role="group" aria-label="Widgets" @keydown="onListKey">
-            <template v-for="sec in sections" :key="sec.id">
-              <h3 v-if="sec.name" class="pk-group-h caps">{{ sec.name }}</h3>
-              <button
-                v-for="e in sec.items"
-                :key="e.spec.type"
-                type="button"
-                class="pk-item"
-                :aria-pressed="chosen === e.spec.type"
-                :data-type="e.spec.type"
-                @click="choose(e.spec.type)"
-                @dblclick="quickAdd(e.spec.type)"
-              >
-                <span class="pk-mark" aria-hidden="true">
-                  <img v-if="e.mark.icon" :src="e.mark.icon" alt="" width="20" height="20" />
-                  <template v-else>{{ e.mark.text }}</template>
-                </span>
-                <span class="pk-text">
-                  <span class="pk-name">{{ e.spec.name }}</span>
-                  <span class="pk-about">{{ e.spec.about }}</span>
-                  <span class="pk-meta">
-                    <span class="pk-feet" aria-hidden="true">
-                      <span v-for="s in e.fits" :key="s" class="pk-foot" :style="footprint(s)" />
-                    </span>
-                    <span class="sr">{{ e.status }}</span>
-                    <span v-if="e.kind === 'resource' && e.free.length > 1" class="pk-count" aria-hidden="true">{{ e.free.length }} to choose from</span>
+        <div :id="`${uid}-list`" ref="list" class="pk-list" role="group" aria-label="Widgets" @keydown="onListKey">
+          <template v-for="sec in sections" :key="sec.id">
+            <h3 v-if="sec.name" class="pk-group-h caps">{{ sec.name }}</h3>
+            <button
+              v-for="e in sec.items"
+              :key="e.spec.type"
+              type="button"
+              class="pk-item"
+              :aria-pressed="chosen === e.spec.type"
+              :data-type="e.spec.type"
+              @click="choose(e.spec.type)"
+              @dblclick="quickAdd(e.spec.type)"
+            >
+              <span class="pk-mark" aria-hidden="true">
+                <img v-if="e.mark.icon" :src="e.mark.icon" alt="" width="20" height="20" />
+                <template v-else>{{ e.mark.text }}</template>
+              </span>
+              <span class="pk-text">
+                <span class="pk-name">{{ e.spec.name }}</span>
+                <span class="pk-about">{{ e.spec.about }}</span>
+                <span class="pk-meta">
+                  <span class="pk-feet" aria-hidden="true">
+                    <span v-for="s in e.fits" :key="s" class="pk-foot" :style="footprint(s)" />
                   </span>
+                  <span class="sr">{{ e.status }}</span>
+                  <span v-if="e.kind === 'resource' && e.free.length > 1" class="pk-count" aria-hidden="true">{{ e.free.length }} to choose from</span>
                 </span>
-              </button>
-            </template>
-            <div v-if="!ready.length" class="pk-empty">
-              <template v-if="searching">
-                <p>No widget that fits here matches “{{ query.trim() }}”.</p>
-                <button type="button" class="btn ghost" @click="clearSearch">Clear the search</button>
-              </template>
-              <p v-else>Nothing more fits {{ sectionTitle(section) }} from what the Home Graph has right now.</p>
-            </div>
-            <details v-if="waiting.length" class="pk-waiting">
-              <summary>Not available here · {{ waiting.length }}</summary>
-              <div v-for="e in waiting" :key="e.spec.type" class="pk-item off" :data-type="e.spec.type">
-                <span class="pk-mark" aria-hidden="true">
-                  <img v-if="e.mark.icon" :src="e.mark.icon" alt="" width="20" height="20" />
-                  <template v-else>{{ e.mark.text }}</template>
-                </span>
-                <span class="pk-text">
-                  <span class="pk-name">{{ e.spec.name }}</span>
-                  <span class="pk-sub">{{ e.status }}</span>
-                </span>
-              </div>
-            </details>
-          </div>
-        </div>
-
-        <div v-if="entry" class="pk-detail">
-          <div class="pk-detail-head">
-            <h3 class="pk-title">{{ entry.spec.name }}</h3>
-            <p class="pk-lede">{{ entry.spec.about }}</p>
-          </div>
-
-          <figure class="pk-stage">
-            <div v-if="preview" class="pk-preview" inert :style="{ '--w': preview.w, '--h': preview.h }">
-              <WidgetHost :item="preview.item" :size="preview.size" :preview="preview.config" />
-            </div>
-            <figcaption>Live from your Home Graph · {{ size ? sizeName(size) : '' }}</figcaption>
-          </figure>
-
-          <fieldset class="pk-sizes">
-            <legend>Size</legend>
-            <div class="pk-size-row">
-              <label v-for="s in entry.fits" :key="s" class="pk-size">
-                <input v-model="size" type="radio" :name="`${uid}-size`" :value="s" />
-                <span class="pk-foot lg" :style="footprint(s)" aria-hidden="true" />
-                <span class="pk-size-name">{{ SIZES[s].name }}</span>
-                <span class="pk-size-dim n">{{ SIZES[s].w }}×{{ SIZES[s].h }}</span>
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset v-if="entry.kind === 'resource'" class="pk-targets">
-            <legend>Shows</legend>
-            <input
-              v-if="manyTargets"
-              v-model="targetQuery"
-              class="pk-target-q"
-              type="search"
-              autocomplete="off"
-              spellcheck="false"
-              :aria-label="`Search what ${entry.spec.name} can show`"
-              :placeholder="`Search ${plural(entry.free.length + entry.shown.length, 'choice')}`"
-            />
-            <div class="pk-target-list">
-              <label v-for="t in targets" :key="t.id" class="pk-target" :class="{ taken: t.taken }">
-                <input v-model="target" type="radio" :name="`${uid}-target`" :value="t.id" :disabled="t.taken" />
-                <span class="pk-target-main">{{ t.main }}</span>
-                <span v-if="t.place" class="pk-target-place">{{ t.place }}</span>
-                <span v-if="t.taken" class="pk-target-taken">On the board</span>
-              </label>
-              <p v-if="!targets.length" class="pk-hint">Nothing matches “{{ targetQuery.trim() }}”.</p>
-            </div>
-          </fieldset>
-
-          <template v-if="entry.kind === 'service'">
-            <div class="field">
-              <label :for="`${uid}-name`">Name</label>
-              <input :id="`${uid}-name`" v-model="name" type="text" autocomplete="off" maxlength="200" required placeholder="Router admin" />
-            </div>
-            <div class="field">
-              <label :for="`${uid}-href`">Link</label>
-              <input
-                :id="`${uid}-href`"
-                v-model="href"
-                type="url"
-                inputmode="url"
-                autocomplete="off"
-                placeholder="https://"
-                :aria-invalid="hrefBad || undefined"
-                :aria-describedby="hrefBad ? `${uid}-href-bad` : undefined"
-              />
-              <span v-if="hrefBad" :id="`${uid}-href-bad`" class="help bad">Links start with http:// or https://.</span>
-            </div>
-            <div class="field">
-              <label :for="`${uid}-bind`">Status from</label>
-              <select :id="`${uid}-bind`" v-model="binding">
-                <option value="">Nothing (no status)</option>
-                <optgroup v-for="gr in bindingGroups" :key="gr.label" :label="gr.label">
-                  <option v-for="c in gr.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
-                </optgroup>
-              </select>
-            </div>
+              </span>
+            </button>
           </template>
-        </div>
-        <div v-else class="pk-detail pk-detail-empty">
-          <p class="pk-hint">Pick a widget to see it here, live, before it goes on the board.</p>
+          <div v-if="!ready.length" class="pk-empty">
+            <template v-if="searching">
+              <p>No widget that fits here matches “{{ query.trim() }}”.</p>
+              <UiButton variant="ghost" @click="clearSearch">Clear the search</UiButton>
+            </template>
+            <p v-else>Nothing more fits {{ sectionTitle(section) }} from what the Home Graph has right now.</p>
+          </div>
+          <details v-if="waiting.length" class="pk-waiting">
+            <summary>Not available here · {{ waiting.length }}</summary>
+            <div v-for="e in waiting" :key="e.spec.type" class="pk-item off" :data-type="e.spec.type">
+              <span class="pk-mark" aria-hidden="true">
+                <img v-if="e.mark.icon" :src="e.mark.icon" alt="" width="20" height="20" />
+                <template v-else>{{ e.mark.text }}</template>
+              </span>
+              <span class="pk-text">
+                <span class="pk-name">{{ e.spec.name }}</span>
+                <span class="pk-sub">{{ e.status }}</span>
+              </span>
+            </div>
+          </details>
         </div>
       </div>
 
-      <footer class="edit-dlg-foot pk-foot-bar">
-        <p class="pk-where">Goes into the first gap in {{ sectionTitle(section) }} where it fits; drag it anywhere after.</p>
-        <span class="pk-keys" aria-hidden="true"><kbd class="kbd">⌘</kbd><kbd class="kbd">↵</kbd></span>
-        <button type="button" class="btn ghost" @click="emit('close')">Cancel</button>
-        <span :id="`${uid}-blocked`" class="sr">{{ blocked }}</span>
-        <button type="submit" class="btn primary" :aria-disabled="!canAdd || undefined" :aria-describedby="blocked ? `${uid}-blocked` : undefined">
-          Add to {{ sectionTitle(section) }}
-        </button>
-      </footer>
-    </form>
-  </dialog>
+      <div v-if="entry" class="pk-detail">
+        <div class="pk-detail-head">
+          <h3 class="pk-title">{{ entry.spec.name }}</h3>
+          <p class="pk-lede">{{ entry.spec.about }}</p>
+        </div>
+
+        <figure class="pk-stage">
+          <div v-if="preview" class="pk-preview" inert :style="{ '--w': preview.w, '--h': preview.h }">
+            <WidgetHost :item="preview.item" :size="preview.size" :preview="preview.config" />
+          </div>
+          <figcaption>Live from your Home Graph · {{ size ? sizeName(size) : '' }}</figcaption>
+        </figure>
+
+        <fieldset class="pk-sizes">
+          <legend>Size</legend>
+          <div class="pk-size-row">
+            <label v-for="s in entry.fits" :key="s" class="pk-size">
+              <input v-model="size" type="radio" :name="`${uid}-size`" :value="s" />
+              <span class="pk-foot lg" :style="footprint(s)" aria-hidden="true" />
+              <span class="pk-size-name">{{ SIZES[s].name }}</span>
+              <span class="pk-size-dim n">{{ SIZES[s].w }}×{{ SIZES[s].h }}</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset v-if="entry.kind === 'resource'" class="pk-targets">
+          <legend>Shows</legend>
+          <input
+            v-if="manyTargets"
+            v-model="targetQuery"
+            class="pk-target-q"
+            type="search"
+            autocomplete="off"
+            spellcheck="false"
+            :aria-label="`Search what ${entry.spec.name} can show`"
+            :placeholder="`Search ${plural(entry.free.length + entry.shown.length, 'choice')}`"
+          />
+          <div class="pk-target-list">
+            <label v-for="t in targets" :key="t.id" class="pk-target" :class="{ taken: t.taken }">
+              <input v-model="target" type="radio" :name="`${uid}-target`" :value="t.id" :disabled="t.taken" />
+              <span class="pk-target-main">{{ t.main }}</span>
+              <span v-if="t.place" class="pk-target-place">{{ t.place }}</span>
+              <span v-if="t.taken" class="pk-target-taken">On the board</span>
+            </label>
+            <p v-if="!targets.length" class="pk-hint">Nothing matches “{{ targetQuery.trim() }}”.</p>
+          </div>
+        </fieldset>
+
+        <template v-if="entry.kind === 'service'">
+          <UiField label="Name" v-slot="{ control }">
+            <input v-bind="control" v-model="name" type="text" autocomplete="off" maxlength="200" required placeholder="Router admin" />
+          </UiField>
+          <UiField label="Link" :error="hrefBad && 'Links start with http:// or https://.'" v-slot="{ control }">
+            <input v-bind="control" v-model="href" type="url" inputmode="url" autocomplete="off" placeholder="https://" />
+          </UiField>
+          <UiField label="Status from" v-slot="{ control }">
+            <select v-bind="control" v-model="binding">
+              <option value="">Nothing (no status)</option>
+              <optgroup v-for="gr in bindingGroups" :key="gr.label" :label="gr.label">
+                <option v-for="c in gr.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
+              </optgroup>
+            </select>
+          </UiField>
+        </template>
+      </div>
+      <div v-else class="pk-detail pk-detail-empty">
+        <p class="pk-hint">Pick a widget to see it here, live, before it goes on the board.</p>
+      </div>
+    </div>
+
+    <template #foot>
+      <p class="pk-where">Goes into the first gap in {{ sectionTitle(section) }} where it fits; drag it anywhere after.</p>
+      <span class="pk-keys" aria-hidden="true"><kbd class="kbd">⌘</kbd><kbd class="kbd">↵</kbd></span>
+      <UiButton variant="ghost" @click="emit('close')">Cancel</UiButton>
+      <span :id="`${uid}-blocked`" class="sr">{{ blocked }}</span>
+      <UiButton variant="primary" type="submit" :aria-disabled="!canAdd || undefined" :aria-describedby="blocked ? `${uid}-blocked` : undefined">
+        Add to {{ sectionTitle(section) }}
+      </UiButton>
+    </template>
+  </UiDialog>
 </template>
 
 <style>
-.edit-dlg.picker {
+.dlg.picker {
   width: min(1040px, calc(100% - 32px));
   overflow: hidden;
 }
-.picker .edit-dlg-body {
+.picker .dlg-body {
   max-height: calc(100dvh - 64px);
   padding-bottom: var(--space-4);
 }
@@ -920,7 +901,8 @@ button.pk-item:hover {
   color: var(--text-3);
 }
 
-.pk-foot-bar {
+.picker .dlg-foot {
+  flex-wrap: nowrap;
   align-items: center;
   padding-top: var(--space-4);
   border-top: var(--hairline) solid var(--line);

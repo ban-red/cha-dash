@@ -17,13 +17,15 @@
 import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, reactive, ref, useId } from 'vue';
 import { route } from '../lib/router';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { absolute, duration, fmtInt, hhmm, shortDate } from '../lib/format';
 import { api } from '../lib/api';
 import { hubWords } from '../lib/actions';
 import { focusFirst } from '../lib/focus';
 import { label } from '../model/graph';
 import { useLive } from '../stores/live';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 export interface AuditEvent {
   id: string;
@@ -207,36 +209,31 @@ onMounted(() => {
     </header>
 
     <form class="au-filters" aria-label="Filter events" @submit.prevent="runFilter">
-      <div class="field">
-        <label :for="`${uid}-actor`">Who</label>
-        <input :id="`${uid}-actor`" v-model="filters.actor" type="text" autocomplete="off" placeholder="username" />
-      </div>
-      <div class="field">
-        <label :for="`${uid}-action`">Action</label>
-        <input :id="`${uid}-action`" v-model="filters.action" type="text" autocomplete="off" placeholder="proxmox.guest.reboot" />
-      </div>
-      <div class="field">
-        <label :for="`${uid}-target`">Target</label>
-        <input :id="`${uid}-target`" v-model="filters.target" type="text" autocomplete="off" placeholder="resource ID" />
-      </div>
-      <div class="field">
-        <label :for="`${uid}-result`">Result</label>
-        <select :id="`${uid}-result`" v-model="filters.result">
+      <UiField label="Who" v-slot="{ control }">
+        <input v-bind="control" v-model="filters.actor" type="text" autocomplete="off" placeholder="username" />
+      </UiField>
+      <UiField label="Action" v-slot="{ control }">
+        <input v-bind="control" v-model="filters.action" type="text" autocomplete="off" placeholder="proxmox.guest.reboot" />
+      </UiField>
+      <UiField label="Target" v-slot="{ control }">
+        <input v-bind="control" v-model="filters.target" type="text" autocomplete="off" placeholder="resource ID" />
+      </UiField>
+      <UiField label="Result" v-slot="{ control }">
+        <select v-bind="control" v-model="filters.result">
           <option value="">Any</option>
           <option value="ok">Done</option>
           <option value="failed">Failed</option>
           <option value="refused">Refused</option>
         </select>
-      </div>
-      <div class="field">
-        <label :for="`${uid}-since`">When</label>
-        <select :id="`${uid}-since`" v-model="filters.since">
+      </UiField>
+      <UiField label="When" v-slot="{ control }">
+        <select v-bind="control" v-model="filters.since">
           <option v-for="s in SINCE" :key="s.id" :value="s.id">{{ s.label }}</option>
         </select>
-      </div>
+      </UiField>
       <div class="au-filter-acts">
-        <button type="submit" class="btn sm primary">Filter</button>
-        <button v-if="filtered" type="button" class="btn sm ghost" @click="clear">Clear</button>
+        <UiButton variant="primary" size="sm" type="submit">Filter</UiButton>
+        <UiButton v-if="filtered" variant="ghost" size="sm" @click="clear">Clear</UiButton>
       </div>
     </form>
     <p class="sr" role="status">{{ announce }}</p>
@@ -261,16 +258,9 @@ onMounted(() => {
           </span>
           <span class="end">
             <time :datetime="e.at" :title="absolute(e.at)">{{ when(e.at) }}</time>
-            <button
-              :id="`${uid}-dt-${e.id}`"
-              type="button"
-              class="btn sm ghost"
-              :aria-expanded="open.has(e.id)"
-              :aria-controls="open.has(e.id) ? `${uid}-d-${e.id}` : undefined"
-              @click="toggle(e.id)"
-            >
+            <UiButton variant="ghost" size="sm" :id="`${uid}-dt-${e.id}`" :aria-expanded="open.has(e.id)" :aria-controls="open.has(e.id) ? `${uid}-d-${e.id}` : undefined" @click="toggle(e.id)">
               Details<span class="sr">: {{ summary(e) }}</span>
-            </button>
+            </UiButton>
           </span>
         </div>
         <dl v-if="open.has(e.id)" :id="`${uid}-d-${e.id}`" class="kv au-detail">
@@ -285,9 +275,9 @@ onMounted(() => {
       </li>
     </ol>
     <div v-if="status === 'ready' && next" class="st-acts au-older">
-      <button type="button" class="btn sm" :aria-disabled="more ? 'true' : undefined" :aria-busy="more || undefined" :aria-describedby="olderError ? `${uid}-older-e` : undefined" @click="older">
+      <UiButton size="sm" :aria-disabled="more ? 'true' : undefined" :aria-busy="more || undefined" :aria-describedby="olderError ? `${uid}-older-e` : undefined" @click="older">
         {{ more ? 'Loading…' : olderError ? 'Try again' : 'Show older' }}
-      </button>
+      </UiButton>
       <p v-if="olderError" :id="`${uid}-older-e`" class="err" role="alert">{{ olderError }}</p>
     </div>
   </section>
@@ -295,7 +285,7 @@ onMounted(() => {
   <section class="st-section" aria-labelledby="au-chain-h">
     <header>
       <h3 id="au-chain-h">The chain</h3>
-      <a class="btn sm" href="/api/audit/export" download>Export · NDJSON</a>
+      <UiButton size="sm" href="/api/audit/export" download>Export · NDJSON</UiButton>
     </header>
     <SettingsHelp summary="Each event carries the hash of the one before it, so a gap or an edit shows." label="More">Every change Cha Dash makes, or refuses to make, is recorded here. Each event carries the hash of the one before it, so a gap or an edit shows.</SettingsHelp>
     <div v-if="verifying && !verify" class="st-skel" aria-busy="true"><span class="skel"></span></div>
@@ -311,7 +301,7 @@ onMounted(() => {
       </span>
     </div>
     <div class="st-acts">
-      <button type="button" class="btn sm ghost" :disabled="verifying" :aria-busy="verifying || undefined" @click="check">{{ verifying ? 'Checking…' : 'Check again' }}</button>
+      <UiButton variant="ghost" size="sm" :disabled="verifying" :aria-busy="verifying || undefined" @click="check">{{ verifying ? 'Checking…' : 'Check again' }}</UiButton>
     </div>
   </section>
 </template>

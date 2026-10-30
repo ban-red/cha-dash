@@ -38,7 +38,7 @@ import { hasSheet } from '../model/sheets';
 import { resourceLinks, safeUrl, type Action, type Incident } from '../model/types';
 import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type TaskLog, type ToastAction } from './actions';
 import type { Live } from './live';
-import type { GlyphKind } from '../components/marks/Glyph.vue';
+import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import type { AddRequest } from '../model/edit';
 
 export type { ConfirmRequest, TaskLog } from './actions';

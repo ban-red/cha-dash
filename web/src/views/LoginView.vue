@@ -7,9 +7,11 @@
  * checked inline, and said in words when they can't.
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { DevLogin } from '../dev';
 import { authMessage, useSession } from '../stores/session';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const session = useSession();
 const username = ref('');
@@ -100,20 +102,18 @@ async function submit() {
 
       <div v-if="error" class="form-error" role="alert"><Glyph kind="attn" /><span>{{ error }}</span></div>
 
-      <div class="field">
-        <label for="login-user">Username</label>
-        <input id="login-user" ref="userInput" v-model="username" autocomplete="username webauthn" autocapitalize="off" spellcheck="false" required />
-      </div>
-      <div class="field">
-        <label for="login-pass">Password</label>
-        <input id="login-pass" v-model="password" type="password" autocomplete="current-password" required />
-      </div>
-      <button type="submit" class="btn primary" :disabled="busy || pkBusy" :aria-busy="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</button>
+      <UiField id="login-user" label="Username" v-slot="{ control }">
+        <input v-bind="control" ref="userInput" v-model="username" autocomplete="username webauthn" autocapitalize="off" spellcheck="false" required />
+      </UiField>
+      <UiField id="login-pass" label="Password" v-slot="{ control }">
+        <input v-bind="control" v-model="password" type="password" autocomplete="current-password" required />
+      </UiField>
+      <UiButton variant="primary" type="submit" :disabled="busy || pkBusy" :aria-busy="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</UiButton>
       <div v-if="pkSupport !== 'unsupported'" class="door-or" aria-hidden="true"><span class="caps">or</span></div>
-      <button v-if="pkSupport === 'ok'" type="button" class="btn pk-btn" :disabled="busy || pkBusy" :aria-busy="pkBusy" @click="passkey">
+      <UiButton v-if="pkSupport === 'ok'" class="pk-btn" :disabled="busy || pkBusy" :aria-busy="pkBusy" @click="passkey">
         <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="5.5" r="2.6" /><path d="M1.8 13.5c.5-2.4 2.2-3.7 4.2-3.7 1 0 1.9.3 2.6.9M11.5 8.2a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 0 1 0-3.8Zm0 3.8v2.6m0-1.3h1.2" /></svg>
         {{ pkBusy ? 'Waiting for your passkey…' : 'Sign in with a passkey' }}
-      </button>
+      </UiButton>
       <p v-else-if="pkSupport === 'insecure'" class="door-foot pk-off" role="note">
         Passkeys need a secure connection: open Cha Dash at its https:// address, or on localhost, to sign in with one.
       </p>

@@ -6,17 +6,18 @@
  * WebAuthn code, so the doors stay small.
  */
 import { onMounted, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { registerPasskey } from '../lib/passkeys';
 import { INSECURE_MESSAGE, passkeySupport, UNSUPPORTED_MESSAGE } from '../lib/webauthn';
 import { useSession } from '../stores/session';
+import UiButton from '../ui/Button.vue';
 
 const session = useSession();
 const support = passkeySupport();
 const busy = ref(false);
 const error = ref('');
 const done = ref('');
-const primary = ref<HTMLButtonElement | null>(null);
+const primary = ref<InstanceType<typeof UiButton> | null>(null);
 
 onMounted(() => primary.value?.focus());
 
@@ -61,13 +62,13 @@ function next(): void {
       <div v-if="error" class="form-error" role="alert"><Glyph kind="attn" /><span>{{ error }}</span></div>
 
       <template v-if="done">
-        <button ref="primary" type="button" class="btn primary" @click="next">Open the front page</button>
+        <UiButton ref="primary" variant="primary" @click="next">Open the front page</UiButton>
       </template>
       <template v-else-if="support === 'ok'">
-        <button ref="primary" type="button" class="btn primary" :disabled="busy" :aria-busy="busy" @click="add">{{ busy ? 'Waiting for your device…' : 'Add a passkey' }}</button>
-        <button type="button" class="btn ghost" :disabled="busy" @click="next">Skip for now</button>
+        <UiButton ref="primary" variant="primary" :disabled="busy" :aria-busy="busy" @click="add">{{ busy ? 'Waiting for your device…' : 'Add a passkey' }}</UiButton>
+        <UiButton variant="ghost" :disabled="busy" @click="next">Skip for now</UiButton>
       </template>
-      <button v-else ref="primary" type="button" class="btn primary" @click="next">Continue</button>
+      <UiButton v-else ref="primary" variant="primary" @click="next">Continue</UiButton>
       <p class="door-foot">The passkey stays on your device; the hub keeps only its public half.</p>
     </section>
   </main>

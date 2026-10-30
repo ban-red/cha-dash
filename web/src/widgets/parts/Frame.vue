@@ -11,7 +11,7 @@
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Tile, { type TileStatus } from '../../components/Tile.vue';
-import type { GlyphKind } from '../../components/marks/Glyph.vue';
+import type { GlyphKind } from '../../ui/marks/Glyph.vue';
 import { hhmm, monogram } from '../../lib/format';
 import { pastStatus, stateWords } from '../../model/history';
 import { cursor, pulse } from '../../stores/cursor';

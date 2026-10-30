@@ -15,9 +15,9 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph from '../components/marks/Glyph.vue';
-import Meter from '../components/marks/Meter.vue';
-import MiniGraph from '../components/marks/MiniGraph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
+import Meter from '../ui/marks/Meter.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import { fmtInt, fmtNum, fmtPct, plural, since } from '../lib/format';
 import { attr, incoming, label, resolve, series } from '../model/graph';
 import { glyphFor } from '../model/status';

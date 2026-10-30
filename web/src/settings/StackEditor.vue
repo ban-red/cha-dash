@@ -16,7 +16,7 @@
  * chunk.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ago, absolute, plural } from '../lib/format';
 import { hubWords, isDone } from '../lib/actions';
 import { ApiError } from '../lib/api';
@@ -45,6 +45,8 @@ import {
   type StackNode,
   type Validation,
 } from './stacks';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const props = withDefaults(defineProps<{ node?: string; name?: string; fresh?: boolean; nodes?: StackNode[]; debounceMs?: number }>(), {
   node: '',
@@ -436,7 +438,7 @@ onBeforeUnmount(() => {
     <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
     <div v-else-if="status === 'error'" :class="['st-note', loadCode === 'node_unavailable' ? 'hatched' : 'bad']" role="alert">
       <Glyph :kind="loadCode === 'node_unavailable' ? 'off' : 'down'" /><span>{{ loadError }}</span>
-      <button v-if="loadCode !== 'not_found'" type="button" class="btn sm" @click="load">Try again</button>
+      <UiButton v-if="loadCode !== 'not_found'" size="sm" @click="load">Try again</UiButton>
     </div>
 
     <template v-else>
@@ -451,23 +453,27 @@ onBeforeUnmount(() => {
       <div v-if="detail?.drift && !isProtected" class="st-note attn" role="note">
         <Glyph kind="attn" />
         <span>The file on disk was edited outside Cha Dash since its last commit. Accept those edits to make them the stack’s history, or deploying will refuse.</span>
-        <button v-if="canUndoable" type="button" class="btn sm" :disabled="running" @click="acceptDrift">Accept edits made outside Cha Dash<span class="tier">T1</span></button>
+        <UiButton v-if="canUndoable" size="sm" :disabled="running" @click="acceptDrift">Accept edits made outside Cha Dash<span class="tier">T1</span></UiButton>
       </div>
 
       <!-- a new stack's node and name -->
       <div v-if="fresh" class="sk-new">
         <div v-if="!onlineNodes.length" class="st-note hatched" role="status"><Glyph kind="off" /><span>No node is online, so there’s nowhere to put a new stack right now.</span></div>
         <template v-else>
-          <div class="field">
-            <label :for="`${uid}-node`">Node</label>
-            <select :id="`${uid}-node`" v-model="newNode">
+          <UiField label="Node" v-slot="{ control }">
+            <select v-bind="control" v-model="newNode">
               <option v-for="n in onlineNodes" :key="n.node" :value="n.node">{{ n.name || n.node }} · {{ n.root }}</option>
             </select>
-          </div>
-          <div class="field">
-            <label :for="`${uid}-name`">Name</label>
+          </UiField>
+          <UiField
+            :id="`${uid}-name`"
+            label="Name"
+            help="The compose project name. Deploying creates its folder and compose.yaml in the node’s stacks root."
+            :error="nameTouched && nameProblem"
+            v-slot="{ control }"
+          >
             <input
-              :id="`${uid}-name`"
+              v-bind="control"
               v-model="newName"
               type="text"
               autocomplete="off"
@@ -475,14 +481,9 @@ onBeforeUnmount(() => {
               spellcheck="false"
               maxlength="64"
               placeholder="media"
-              :aria-invalid="nameTouched && nameProblem ? true : undefined"
-              :aria-describedby="`${uid}-name-h`"
               @blur="nameTouched = true"
             />
-            <span :id="`${uid}-name-h`" :class="['help', { bad: nameTouched && nameProblem }]">{{
-              nameTouched && nameProblem ? nameProblem : 'The compose project name. Deploying creates its folder and compose.yaml in the node’s stacks root.'
-            }}</span>
-          </div>
+          </UiField>
         </template>
       </div>
 
@@ -573,30 +574,30 @@ onBeforeUnmount(() => {
       <div v-if="conflict !== undefined" class="st-note attn" role="alert">
         <Glyph kind="attn" />
         <span>Someone saved this draft since you opened it (now revision {{ conflict }}). Load theirs, or save yours over it.</span>
-        <button type="button" class="btn sm" @click="loadTheirs">Load theirs</button>
-        <button type="button" class="btn sm" :disabled="saving" @click="save(conflict)">Save mine anyway</button>
+        <UiButton size="sm" @click="loadTheirs">Load theirs</UiButton>
+        <UiButton size="sm" :disabled="saving" @click="save(conflict)">Save mine anyway</UiButton>
       </div>
       <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
       <div v-if="confirmDiscard" class="st-confirm" role="group" aria-label="Discard the draft?">
         <span>Discard the draft? The saved edits go; the committed file stays as it is.</span>
-        <button type="button" class="btn danger solid sm" :disabled="saving" @click="discard">Discard draft</button>
-        <button type="button" class="btn sm" @click="confirmDiscard = false">Keep it</button>
+        <UiButton variant="danger-solid" size="sm" :disabled="saving" @click="discard">Discard draft</UiButton>
+        <UiButton size="sm" @click="confirmDiscard = false">Keep it</UiButton>
       </div>
 
       <div v-if="!isProtected" class="st-acts sk-acts">
-        <button type="button" class="btn" :disabled="saving || (fresh ? !where || !onlineNodes.length : !dirty)" :aria-busy="saving || undefined" @click="save()">
+        <UiButton :disabled="saving || (fresh ? !where || !onlineNodes.length : !dirty)" :aria-busy="saving || undefined" @click="save()">
           {{ saving ? 'Saving…' : 'Save draft' }}
-        </button>
-        <button v-if="!fresh && detail?.draft && !confirmDiscard" type="button" class="btn ghost" :disabled="saving" @click="confirmDiscard = true">Discard draft</button>
+        </UiButton>
+        <UiButton v-if="!fresh && detail?.draft && !confirmDiscard" variant="ghost" :disabled="saving" @click="confirmDiscard = true">Discard draft</UiButton>
         <template v-if="!fresh && canHold">
-          <button type="button" class="btn primary sk-deploy" :aria-disabled="deployBlock ? 'true' : undefined" :aria-describedby="deployBlock ? `${uid}-why` : undefined" @click="deploy">
+          <UiButton variant="primary" class="sk-deploy" :aria-disabled="deployBlock ? 'true' : undefined" :aria-describedby="deployBlock ? `${uid}-why` : undefined" @click="deploy">
             Deploy<span class="tier">T2</span>
-          </button>
+          </UiButton>
           <span v-if="deployBlock" :id="`${uid}-why`" class="st-meta sk-why">{{ deployBlock }}</span>
         </template>
       </div>
       <p v-else-if="!fresh && canHold" class="st-acts sk-acts">
-        <button type="button" class="btn primary sk-deploy" aria-disabled="true" :aria-describedby="`${uid}-why`">Deploy<span class="tier">T2</span></button>
+        <UiButton variant="primary" class="sk-deploy" aria-disabled="true" :aria-describedby="`${uid}-why`">Deploy<span class="tier">T2</span></UiButton>
         <span :id="`${uid}-why`" class="st-meta sk-why">{{ deployBlock }}</span>
       </p>
 
@@ -618,7 +619,7 @@ onBeforeUnmount(() => {
           <p v-if="outcome.message" class="sk-task-m">{{ outcome.message }}</p>
         </template>
         <pre v-if="task.log?.length" class="sk-log" tabindex="0">{{ task.log.slice(-12).join('\n') }}</pre>
-        <button v-if="!running" type="button" class="btn sm ghost" @click="dismiss">Dismiss</button>
+        <UiButton v-if="!running" variant="ghost" size="sm" @click="dismiss">Dismiss</UiButton>
       </div>
 
       <!-- services -->
@@ -649,16 +650,9 @@ onBeforeUnmount(() => {
               <span class="m"><span class="st-mono">{{ h.short }}</span> · {{ h.author }} · <span :title="absolute(h.at)">{{ ago(h.at, now) }}</span><template v-if="i === 0"> · current</template></span>
             </span>
             <span class="end">
-              <button
-                v-if="i > 0 && canHold && !isProtected"
-                type="button"
-                class="btn sm ghost"
-                :disabled="running || detail.drift"
-                :aria-label="`Roll back to ${h.short}: ${h.subject}`"
-                @click="rollback(h)"
-              >
+              <UiButton v-if="i > 0 && canHold && !isProtected" variant="ghost" size="sm" :disabled="running || detail.drift" :aria-label="`Roll back to ${h.short}: ${h.subject}`" @click="rollback(h)">
                 Roll back to this<span class="tier">T2</span>
-              </button>
+              </UiButton>
             </span>
           </li>
         </ol>

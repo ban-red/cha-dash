@@ -20,8 +20,8 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
-import Glyph from './marks/Glyph.vue';
-import MiniGraph from './marks/MiniGraph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import { copyText } from '../settings/recipe';
 import { api } from '../lib/api';
 import { isDone, listActions, type Offer } from '../lib/actions';
@@ -56,6 +56,8 @@ import {
   type SpanId,
   type StatesReply,
 } from '../model/history';
+import UiButton from '../ui/Button.vue';
+import UiCloseButton from '../ui/CloseButton.vue';
 
 const live = useLive();
 const ui = useUi();
@@ -613,9 +615,7 @@ onBeforeUnmount(() => {
                 <template v-if="status"> · <span :class="['rs-word', status]">{{ statusWord }}</span></template>
               </p>
             </div>
-            <button type="button" class="x" :aria-label="`Close ${label(r) || 'the sheet'}`" @click="close">
-              <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-            </button>
+            <UiCloseButton :label="`Close ${label(r) || 'the sheet'}`" @click="close" />
           </header>
 
           <p v-if="live.stale.value" class="rs-note"><Glyph kind="down" /><span>The hub is unreachable. This is how it was at {{ hhmm(live.offlineAt.value) }}.</span></p>
@@ -674,8 +674,8 @@ onBeforeUnmount(() => {
                 </ul>
               </template>
               <div v-if="stackLink || nodeLink" class="rs-acts">
-                <a v-if="stackLink" class="btn sm" :href="stackLink" @click.prevent="navigate(stackLink)">Open in Settings → Stacks</a>
-                <a v-if="nodeLink" class="btn sm" :href="settingsPath('nodes')" @click.prevent="ui.openSettings('nodes')">Its node in Settings → Nodes</a>
+                <UiButton v-if="stackLink" size="sm" :href="stackLink" @click.prevent="navigate(stackLink)">Open in Settings → Stacks</UiButton>
+                <UiButton v-if="nodeLink" size="sm" :href="settingsPath('nodes')" @click.prevent="ui.openSettings('nodes')">Its node in Settings → Nodes</UiButton>
               </div>
               <ul v-if="links.length" class="rs-links">
                 <li v-for="l in links" :key="l.url"><a :href="l.url" target="_blank" rel="noopener noreferrer">{{ l.title }}</a></li>
@@ -702,30 +702,17 @@ onBeforeUnmount(() => {
             >
               <div v-if="working" class="rs-working">
                 <span>{{ working.label }} · {{ stepOf(working) }}{{ pct(working) }}</span>
-                <button
-                  v-if="working.cancellable"
-                  type="button"
-                  class="btn sm ghost"
-                  :disabled="live.stale.value || ui.cancelling[working.id]"
-                  :aria-label="`Cancel ${working.label}`"
-                  @click="ui.cancelTask(working)"
-                >
+                <UiButton v-if="working.cancellable" variant="ghost" size="sm" :disabled="live.stale.value || ui.cancelling[working.id]" :aria-label="`Cancel ${working.label}`" @click="ui.cancelTask(working)">
                   Cancel
-                </button>
+                </UiButton>
               </div>
               <div v-for="g in byTier" :key="g.tier" class="rs-tier">
                 <h3>{{ g.tier }}</h3>
                 <ul>
                   <li v-for="o in g.list" :key="o.params ? `${o.id} ${JSON.stringify(o.params)}` : o.id">
-                    <button
-                      type="button"
-                      class="btn"
-                      :aria-disabled="!o.available || live.stale.value || !!working || undefined"
-                      :aria-describedby="!o.available ? `${uid}-why-${o.id}` : undefined"
-                      @click="!working && run(o)"
-                    >
+                    <UiButton :aria-disabled="!o.available || live.stale.value || !!working || undefined" :aria-describedby="!o.available ? `${uid}-why-${o.id}` : undefined" @click="!working && run(o)">
                       {{ o.label }}<span class="tier">{{ o.tier }}</span>
-                    </button>
+                    </UiButton>
                     <label v-if="o.id === REMOVE && o.available" class="rs-check">
                       <input v-model="deleteVolumes" type="checkbox" />
                       Also delete its anonymous volumes (named volumes always stay)
@@ -759,16 +746,10 @@ onBeforeUnmount(() => {
               <p class="rs-hint top">The last 50 lines when you ask, newest at the bottom. Cha Dash doesn’t keep them: they go when you close this. Live logs come with v0.3.</p>
               <p v-if="!logOffer.available" class="rs-why">{{ logOffer.unavailable ?? 'Cha Dash can’t read these logs here yet.' }}</p>
               <div class="rs-acts">
-                <button
-                  type="button"
-                  class="btn"
-                  :aria-disabled="!logOffer.available || live.stale.value || logBusy || undefined"
-                  :aria-busy="logBusy || undefined"
-                  @click="!logBusy && showLogs()"
-                >
+                <UiButton :aria-disabled="!logOffer.available || live.stale.value || logBusy || undefined" :aria-busy="logBusy || undefined" @click="!logBusy && showLogs()">
                   {{ logBusy ? 'Reading…' : logLines ? 'Show again' : 'Show the last 50 lines' }}
-                </button>
-                <button v-if="logLines?.lines.length" type="button" class="btn ghost" @click="copyLogs">{{ logCopied ? 'Copied' : 'Copy' }}</button>
+                </UiButton>
+                <UiButton v-if="logLines?.lines.length" variant="ghost" @click="copyLogs">{{ logCopied ? 'Copied' : 'Copy' }}</UiButton>
               </div>
               <p class="sr" aria-live="polite">{{ logCopied ? 'Copied to the clipboard.' : logLines ? `${logLines.lines.length} lines.` : '' }}</p>
               <pre v-if="logLines?.lines.length" class="rs-log" tabindex="0" :aria-label="`Last lines of ${label(r)}’s log`">{{ logLines.lines.join('\n') }}</pre>
@@ -791,7 +772,7 @@ onBeforeUnmount(() => {
                   <button type="button" :aria-pressed="span === 'now'" @click="span = 'now'">Now</button>
                   <button v-for="s in SPANS" :key="s.id" type="button" :aria-pressed="span === s.id" @click="span = s.id">{{ s.name }}</button>
                 </div>
-                <button v-if="pastShown" type="button" class="btn sm ghost" @click="downloadCsv">Download CSV</button>
+                <UiButton v-if="pastShown" variant="ghost" size="sm" @click="downloadCsv">Download CSV</UiButton>
               </div>
               <p v-if="span !== 'now' && past.state === 'error'" class="rs-hint">Couldn’t load the history. Try again in a moment.</p>
               <ul class="rs-metrics" :aria-busy="span !== 'now' && past.state === 'loading'">
@@ -865,8 +846,8 @@ onBeforeUnmount(() => {
                 </ul>
                 <p v-else-if="audit.state === 'idle' && audit.target === id" class="rs-hint">Nothing in the audit log for it yet.</p>
                 <div class="rs-acts">
-                  <button v-if="audit.next" type="button" class="btn sm" :aria-busy="audit.state === 'loading' || undefined" @click="loadAudit(true)">Older</button>
-                  <button type="button" class="btn sm ghost" @click="openAudit">Open in Settings → Audit</button>
+                  <UiButton v-if="audit.next" size="sm" :aria-busy="audit.state === 'loading' || undefined" @click="loadAudit(true)">Older</UiButton>
+                  <UiButton variant="ghost" size="sm" @click="openAudit">Open in Settings → Audit</UiButton>
                 </div>
               </template>
               <p v-else class="rs-hint">Older history is in the audit log, for admins and the owner.</p>

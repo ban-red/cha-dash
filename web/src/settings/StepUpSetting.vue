@@ -14,11 +14,12 @@
  * Owner only.
  */
 import { onMounted, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { api } from '../lib/api';
 import { StepUpCancelled } from '../stores/actions';
 import { hubWords } from '../lib/actions';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 export type StepUpMode = 'passkey_or_password' | 'passkey_only';
 
@@ -104,16 +105,9 @@ onMounted(load);
       </label>
     </fieldset>
     <div v-if="status === 'ready'" class="st-acts">
-      <button
-        type="button"
-        class="btn sm"
-        aria-label="Save how destructive actions are confirmed"
-        :aria-disabled="choice === mode || saving ? 'true' : undefined"
-        :aria-busy="saving || undefined"
-        @click="save"
-      >
+      <UiButton size="sm" aria-label="Save how destructive actions are confirmed" :aria-disabled="choice === mode || saving ? 'true' : undefined" :aria-busy="saving || undefined" @click="save">
         Save
-      </button>
+      </UiButton>
     </div>
     <div v-if="status === 'ready' && mode === 'passkey_only' && hasPasskey === false" class="st-note attn" role="note">
       <Glyph kind="attn" />

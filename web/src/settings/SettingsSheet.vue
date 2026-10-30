@@ -19,6 +19,7 @@ import SecurityPane from './SecurityPane.vue';
 import { back, navigate, settingsPath, view, type SettingsPane } from '../lib/router';
 import { layerAbove, trapTab } from '../lib/trap';
 import { useUi } from '../stores/ui';
+import UiCloseButton from '../ui/CloseButton.vue';
 
 // Rarely opened: each its own chunk, loaded with the pane.
 const StacksPane = defineAsyncComponent(() => import('./StacksPane.vue'));
@@ -126,9 +127,7 @@ onBeforeUnmount(() => {
             <h2 id="settings-h">{{ title }}</h2>
             <p v-if="note" class="st-sub">{{ note }}</p>
           </div>
-          <button type="button" class="x" aria-label="Close settings" @click="close">
-            <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-          </button>
+          <UiCloseButton label="Close settings" @click="close" />
         </header>
         <div class="st-body">
           <nav class="st-nav" aria-label="Settings sections">
@@ -525,15 +524,6 @@ a.st-row:hover {
 .st-confirm > span {
   flex: 1 1 18rem;
 }
-.btn.danger {
-  border-color: color-mix(in oklch, var(--down) 55%, var(--line-2));
-  color: var(--down-text);
-}
-.btn.danger.solid {
-  background: var(--down);
-  border-color: transparent;
-  color: var(--on-down);
-}
 
 /* Form controls beyond the doors' .field input */
 .st-form {
@@ -541,48 +531,6 @@ a.st-row:hover {
   flex-direction: column;
   gap: var(--space-3);
   max-width: 620px;
-}
-.field select,
-.field textarea {
-  width: 100%;
-  min-height: var(--control-h);
-  padding: 6px 10px;
-  border: var(--hairline) solid var(--line-2);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  font: var(--weight-regular) var(--control-font) / 1.4 var(--font-ui);
-  color: var(--text);
-}
-.field select:hover:not(:disabled, :focus),
-.field textarea:hover:not(:disabled, :focus) {
-  border-color: color-mix(in oklch, var(--text) 22%, transparent);
-}
-.field textarea {
-  min-height: 9rem;
-  resize: vertical;
-  font-family: var(--font-num);
-  font-size: var(--type-small);
-  line-height: 1.5;
-  tab-size: 2;
-}
-.field select:focus,
-.field textarea:focus {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-.field textarea[aria-invalid='true'],
-.field select[aria-invalid='true'] {
-  border-color: color-mix(in oklch, var(--down) 60%, var(--line-2));
-}
-.field .label-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.field .label-row .opt-word {
-  margin-left: auto;
-  font: var(--weight-regular) var(--type-caption) / 1 var(--font-num);
-  color: var(--text-3);
 }
 .field.st-focus {
   border-radius: var(--radius-md);

@@ -17,7 +17,7 @@
  */
 import SettingsHelp from './SettingsHelp.vue';
 import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ago, absolute } from '../lib/format';
 import { api } from '../lib/api';
 import { hubWords } from '../lib/actions';
@@ -25,6 +25,8 @@ import { useSession } from '../stores/session';
 import { useUi } from '../stores/ui';
 import { copyText } from './recipe';
 import { focusFirst } from '../lib/focus';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 export interface HubToken {
   id: string;
@@ -227,7 +229,7 @@ onMounted(load);
     <header>
       <h3 id="tk-h" tabindex="-1">{{ seesAll ? 'Everyone’s tokens' : 'Your tokens' }}</h3>
       <span v-if="status === 'ready' && tokens.length" class="st-meta">{{ tokens.filter((t) => !t.revoked_at).length }} active</span>
-      <button v-if="!creating && !fresh" :id="`${uid}-new`" type="button" class="btn sm" @click="startCreate">New token</button>
+      <UiButton v-if="!creating && !fresh" size="sm" :id="`${uid}-new`" @click="startCreate">New token</UiButton>
     </header>
     <SettingsHelp summary="For scripts and automations. A token never has more access than you.">
       For scripts and automations. A token acts as you, never with more than your role allows, and only for what you pick here. Send it as
@@ -242,26 +244,23 @@ onMounted(load);
         <div class="secret-row">
           <label :for="`${uid}-secret`" class="sr">The new token</label>
           <input :id="`${uid}-secret`" class="st-mono" type="text" readonly :value="fresh.secret" spellcheck="false" autocomplete="off" @focus="($event.target as HTMLInputElement).select()" />
-          <button type="button" class="btn" @click="copy">{{ copied ? 'Copied' : 'Copy' }}</button>
+          <UiButton @click="copy">{{ copied ? 'Copied' : 'Copy' }}</UiButton>
         </div>
         <p class="sr" aria-live="polite">{{ copied ? 'Copied to the clipboard.' : '' }}</p>
-        <div class="st-acts"><button type="button" class="btn primary sm" @click="done">I’ve saved it</button></div>
+        <div class="st-acts"><UiButton variant="primary" size="sm" @click="done">I’ve saved it</UiButton></div>
       </div>
     </div>
 
     <form v-if="creating" class="st-form tk-add" novalidate aria-labelledby="tk-add-h" @submit.prevent="create">
       <h4 id="tk-add-h" class="sr">New token</h4>
-      <div class="field">
-        <label :for="`${uid}-name`">Name</label>
-        <input :id="`${uid}-name`" v-model="draft.name" type="text" maxlength="64" autocomplete="off" :aria-invalid="nameError ? true : undefined" :aria-describedby="`${uid}-name-h`" />
-        <span :id="`${uid}-name-h`" :class="['help', { bad: nameError }]">{{ nameError || 'What will use it, so you can tell tokens apart later.' }}</span>
-      </div>
-      <div class="field">
-        <label :for="`${uid}-days`">Expires</label>
-        <select :id="`${uid}-days`" v-model.number="draft.days">
+      <UiField :id="`${uid}-name`" label="Name" help="What will use it, so you can tell tokens apart later." :error="nameError" v-slot="{ control }">
+        <input v-bind="control" v-model="draft.name" type="text" maxlength="64" autocomplete="off" />
+      </UiField>
+      <UiField label="Expires" v-slot="{ control }">
+        <select v-bind="control" v-model.number="draft.days">
           <option v-for="d in DAY_CHOICES.filter((x) => x <= (catalog?.max_days ?? 365))" :key="d" :value="d">in {{ d }} days{{ d === (catalog?.default_days ?? 90) ? ' (default)' : '' }}</option>
         </select>
-      </div>
+      </UiField>
 
       <div v-if="!catalog" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span></div>
       <template v-else>
@@ -302,19 +301,18 @@ onMounted(load);
 
         <details class="tk-more">
           <summary>Scopes by hand</summary>
-        <div class="field">
-          <label :for="`${uid}-extra`">More scopes <span class="opt-word">optional</span></label>
-          <input :id="`${uid}-extra`" v-model="draft.extra" class="st-mono" type="text" autocomplete="off" spellcheck="false" :aria-describedby="`${uid}-extra-h`" />
-          <span :id="`${uid}-extra-h`" class="help">Scopes by hand, separated by spaces: an action limited to one target, such as <code>proxmox.guest.start:target=proxmox:i_x/qemu/201</code>.</span>
-        </div>
+        <UiField label="More scopes" optional>
+          <template #default="{ control }"><input v-bind="control" v-model="draft.extra" class="st-mono" type="text" autocomplete="off" spellcheck="false" /></template>
+          <template #help>Scopes by hand, separated by spaces: an action limited to one target, such as <code>proxmox.guest.start:target=proxmox:i_x/qemu/201</code>.</template>
+        </UiField>
         </details>
         <p v-if="catalog.approval" class="st-note"><Glyph kind="attn" /><span>{{ catalog.approval }}</span></p>
       </template>
 
       <p v-if="createError" class="err" role="alert">{{ createError }}</p>
       <div class="st-acts">
-        <button type="submit" class="btn primary" :aria-disabled="saving || !catalog ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Making…' : 'Make token' }}</button>
-        <button type="button" class="btn ghost" @click="cancelCreate">Cancel</button>
+        <UiButton variant="primary" type="submit" :aria-disabled="saving || !catalog ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Making…' : 'Make token' }}</UiButton>
+        <UiButton variant="ghost" @click="cancelCreate">Cancel</UiButton>
       </div>
     </form>
 
@@ -345,13 +343,13 @@ onMounted(load);
             <span v-if="rowError[t.id]" class="err" role="alert">{{ rowError[t.id] }}</span>
           </span>
           <span v-if="!t.revoked_at && revoking !== t.id" class="end">
-            <button :id="`${uid}-rvb-${t.id}`" type="button" class="btn sm ghost" :aria-label="`Revoke ${t.name}`" @click="askRevoke(t)">Revoke</button>
+            <UiButton variant="ghost" size="sm" :id="`${uid}-rvb-${t.id}`" :aria-label="`Revoke ${t.name}`" @click="askRevoke(t)">Revoke</UiButton>
           </span>
         </div>
         <div v-if="revoking === t.id" class="st-confirm tk-revoke" role="group" :aria-labelledby="`${uid}-rv-${t.id}`">
           <span :id="`${uid}-rv-${t.id}`">Revoke <b>{{ t.name }}</b>? Anything using it stops working at once, and plans it left waiting for approval are withdrawn.</span>
-          <button type="button" class="btn danger solid" :aria-disabled="busy === t.id ? 'true' : undefined" :aria-busy="busy === t.id || undefined" @click="revoke(t)">Revoke {{ t.name }}</button>
-          <button :id="`${uid}-rvc-${t.id}`" type="button" class="btn" @click="cancelRevoke(t)">Cancel</button>
+          <UiButton variant="danger-solid" :aria-disabled="busy === t.id ? 'true' : undefined" :aria-busy="busy === t.id || undefined" @click="revoke(t)">Revoke {{ t.name }}</UiButton>
+          <UiButton :id="`${uid}-rvc-${t.id}`" @click="cancelRevoke(t)">Cancel</UiButton>
         </div>
       </li>
     </ul>

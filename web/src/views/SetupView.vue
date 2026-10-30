@@ -6,9 +6,11 @@
  * request.
  */
 import { computed, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { DevLogin } from '../dev';
 import { authMessage, MIN_PASSWORD, passwordLength, USERNAME_RE, useSession } from '../stores/session';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const session = useSession();
 const username = ref('admin');
@@ -53,53 +55,19 @@ async function submit() {
 
       <div v-if="error" class="form-error" role="alert"><Glyph kind="attn" /><span>{{ error }}</span></div>
 
-      <div class="field">
-        <label for="setup-user">Username</label>
-        <input
-          id="setup-user"
-          v-model="username"
-          autocomplete="username"
-          autocapitalize="off"
-          spellcheck="false"
-          :aria-invalid="touched && !usernameOk"
-          aria-describedby="setup-user-help"
-          required
-        />
-        <span id="setup-user-help" :class="['help', { bad: touched && !usernameOk }]">Letters, digits and . _ @ -, starting with a letter or digit.</span>
-      </div>
+      <UiField id="setup-user" label="Username" help="Letters, digits and . _ @ -, starting with a letter or digit." :invalid="touched && !usernameOk" v-slot="{ control }">
+        <input v-bind="control" v-model="username" autocomplete="username" autocapitalize="off" spellcheck="false" required />
+      </UiField>
 
-      <div class="field">
-        <label for="setup-pass">Password</label>
-        <input
-          id="setup-pass"
-          v-model="password"
-          type="password"
-          autocomplete="new-password"
-          autofocus
-          :aria-invalid="touched && !passwordOk"
-          aria-describedby="setup-pass-help"
-          required
-        />
-        <span id="setup-pass-help" :class="['help', { bad: touched && !passwordOk }]">
-          {{ remaining ? `At least ${MIN_PASSWORD} characters · ${remaining} to go` : `At least ${MIN_PASSWORD} characters ✓` }}. A passphrase works well.
-        </span>
-      </div>
+      <UiField id="setup-pass" label="Password" :help="`${remaining ? `At least ${MIN_PASSWORD} characters · ${remaining} to go` : `At least ${MIN_PASSWORD} characters ✓`}. A passphrase works well.`" :invalid="touched && !passwordOk" v-slot="{ control }">
+        <input v-bind="control" v-model="password" type="password" autocomplete="new-password" autofocus required />
+      </UiField>
 
-      <div class="field">
-        <label for="setup-confirm">Password again</label>
-        <input
-          id="setup-confirm"
-          v-model="confirm"
-          type="password"
-          autocomplete="new-password"
-          :aria-invalid="touched && !confirmOk"
-          aria-describedby="setup-confirm-help"
-          required
-        />
-        <span v-if="touched && !confirmOk" id="setup-confirm-help" class="help bad">The two passwords don't match.</span>
-      </div>
+      <UiField id="setup-confirm" label="Password again" :error="touched && !confirmOk && 'The two passwords don\'t match.'" v-slot="{ control }">
+        <input v-bind="control" v-model="confirm" type="password" autocomplete="new-password" required />
+      </UiField>
 
-      <button type="submit" class="btn primary" :disabled="busy" :aria-busy="busy">{{ busy ? 'Creating…' : 'Create owner account' }}</button>
+      <UiButton variant="primary" type="submit" :disabled="busy" :aria-busy="busy">{{ busy ? 'Creating…' : 'Create owner account' }}</UiButton>
       <p class="door-foot">Cha Dash runs on your hardware. The account lives on this hub only; nothing is sent anywhere else.</p>
       <component :is="DevLogin" v-if="DevLogin && session.state.devLogin" />
     </form>

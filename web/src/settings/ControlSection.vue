@@ -15,7 +15,7 @@
  * section and scrolls to it.
  */
 import { computed, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import SchemaField from './SchemaField.vue';
 import type { JsonSchema } from '../lib/schema';
 import { actWords, modeConsequence, modeOn, type ActStatus, type ControlSpec } from '../model/control';

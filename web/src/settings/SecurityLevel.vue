@@ -15,10 +15,11 @@
  * trust (internal/httpx/proxycheck.go). They clear when the hub restarts.
  */
 import { onMounted, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { api } from '../lib/api';
 import { errorWords } from '../stores/integrations';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 export interface SecurityLevelInfo {
   id: string;
@@ -100,16 +101,9 @@ onMounted(load);
       </label>
     </fieldset>
     <div v-if="status === 'ready' && view" class="st-acts">
-      <button
-        type="button"
-        class="btn sm"
-        aria-label="Save security level"
-        :aria-disabled="choice === view.posture || saving ? 'true' : undefined"
-        :aria-busy="saving || undefined"
-        @click="save"
-      >
+      <UiButton size="sm" aria-label="Save security level" :aria-disabled="choice === view.posture || saving ? 'true' : undefined" :aria-busy="saving || undefined" @click="save">
         Save
-      </button>
+      </UiButton>
     </div>
     <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
   </section>

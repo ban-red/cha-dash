@@ -6,11 +6,12 @@
  * Review sheet; Dismiss remembers the answer hub-wide, with Undo. Nothing
  * is connected without asking.
  */
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { integrationName, type Lead } from '../model/leads';
 import { catalogEntry, errorWords } from '../stores/integrations';
 import { dismissLeads, restoreLeads } from '../stores/leads';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const { leads } = defineProps<{ leads: Lead[] }>();
 const ui = useUi();
@@ -41,8 +42,8 @@ async function dismiss(): Promise<void> {
         <li v-if="leads.length > 6"><span class="disc-where">and {{ leads.length - 6 }} more</span></li>
       </ul>
       <div class="acts disc-acts">
-        <button type="button" class="btn primary sm" @click="ui.openSettings('import', 'discover')">Review</button>
-        <button type="button" class="btn ghost sm" @click="dismiss">Dismiss</button>
+        <UiButton variant="primary" size="sm" @click="ui.openSettings('import', 'discover')">Review</UiButton>
+        <UiButton variant="ghost" size="sm" @click="dismiss">Dismiss</UiButton>
       </div>
     </div>
     <span class="when"><span class="ib-kind">Discovery</span></span>

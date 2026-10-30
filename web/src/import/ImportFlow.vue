@@ -12,7 +12,7 @@
  * back only as a field name.
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import BoardPreview from './BoardPreview.vue';
 import { ApiError, api } from '../lib/api';
 import { plural } from '../lib/format';
@@ -40,6 +40,8 @@ import {
   type Review,
   type SourceId,
 } from './model';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const { initialSource, preset } = defineProps<{
   initialSource?: SourceId | undefined;
@@ -332,7 +334,7 @@ onBeforeUnmount(() => timer && clearTimeout(timer));
       >
         <p>
           Drop your config files, or
-          <button type="button" class="btn sm" :disabled="step === 'detecting' || step === 'previewing'" @click="picker?.click()">Choose…</button>
+          <UiButton size="sm" :disabled="step === 'detecting' || step === 'previewing'" @click="picker?.click()">Choose…</UiButton>
         </p>
         <p class="imp-quiet">Homepage · Homarr · plain YAML · a Cha Dash export</p>
         <input ref="picker" class="sr" type="file" multiple accept=".yaml,.yml,.zip,.json,text/yaml,application/yaml,application/zip" tabindex="-1" aria-hidden="true" @change="onPick" />
@@ -378,9 +380,9 @@ onBeforeUnmount(() => timer && clearTimeout(timer));
       </div>
       <p v-if="error" class="err" role="alert">{{ error }}</p>
       <div class="st-acts">
-        <button type="button" class="btn primary" :disabled="step === 'previewing' || step === 'detecting'" :aria-busy="step === 'previewing'" @click="preview">
+        <UiButton variant="primary" :disabled="step === 'previewing' || step === 'detecting'" :aria-busy="step === 'previewing'" @click="preview">
           {{ step === 'previewing' ? 'Building the preview…' : 'Preview import' }}
-        </button>
+        </UiButton>
         <span class="st-meta">A dry run: nothing changes until you apply.</span>
       </div>
     </section>
@@ -442,15 +444,14 @@ onBeforeUnmount(() => timer && clearTimeout(timer));
                 </span>
                 <span v-if="x.missing.length && included(r, choices, x.object) && !choices.useExisting.has(x.id)" class="imp-sub">
                   <Glyph kind="attn" /> Needs {{ x.missing.join(' and ') }}.
-                  <button type="button" class="btn sm ghost" :aria-expanded="keysOpen.has(x.id)" @click="keysOpen.has(x.id) ? keysOpen.delete(x.id) : keysOpen.add(x.id)">
+                  <UiButton variant="ghost" size="sm" :aria-expanded="keysOpen.has(x.id)" @click="keysOpen.has(x.id) ? keysOpen.delete(x.id) : keysOpen.add(x.id)">
                     {{ keysOpen.has(x.id) ? 'Later' : 'Add key' }}
-                  </button>
+                  </UiButton>
                 </span>
                 <div v-if="keysOpen.has(x.id) && included(r, choices, x.object)" class="imp-keys">
-                  <label v-for="f in x.missing" :key="f" class="field">
-                    <span>{{ f }}</span>
-                    <input type="password" autocomplete="off" :value="choices.secrets.get(x.id)?.[f] ?? ''" @input="typed(x.id, f, ($event.target as HTMLInputElement).value)" />
-                  </label>
+                  <UiField v-for="f in x.missing" :key="f" :label="f" v-slot="{ control }">
+                    <input v-bind="control" type="password" autocomplete="off" :value="choices.secrets.get(x.id)?.[f] ?? ''" @input="typed(x.id, f, ($event.target as HTMLInputElement).value)" />
+                  </UiField>
                   <p class="imp-quiet">
                     It goes into the encrypted vault and is never shown again. Leave it empty to add it later: the connection shows a repair in the Inbox until then.
                     <a v-if="catalogEntry(x.integration)?.recipe" :href="settingsPath('integrations') + '/new/' + encodeURIComponent(x.integration)" target="_blank" rel="noopener">How to make one</a>
@@ -522,10 +523,10 @@ onBeforeUnmount(() => timer && clearTimeout(timer));
 
       <p v-if="error" class="err" role="alert">{{ error }}</p>
       <div class="st-acts imp-apply">
-        <button type="button" class="btn primary" :disabled="step === 'applying' || checking || n.total === 0" :aria-busy="step === 'applying' || checking" @click="apply">
+        <UiButton variant="primary" :disabled="step === 'applying' || checking || n.total === 0" :aria-busy="step === 'applying' || checking" @click="apply">
           {{ step === 'applying' ? 'Importing…' : checking ? 'Checking…' : `Apply ${n.total}` }}<span class="tier">T1</span>
-        </button>
-        <button type="button" class="btn" :disabled="step === 'applying'" @click="preset ? emit('cancel') : reset()">Cancel</button>
+        </UiButton>
+        <UiButton :disabled="step === 'applying'" @click="preset ? emit('cancel') : reset()">Cancel</UiButton>
         <span class="st-meta">One step; nothing is deleted. Importing the same files again changes only what changed.</span>
       </div>
     </section>

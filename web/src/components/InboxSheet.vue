@@ -12,7 +12,7 @@
  */
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import DiscoveryItem from './DiscoveryItem.vue';
 import LeadsItem from './LeadsItem.vue';
 import IncidentItem from './IncidentItem.vue';
@@ -28,6 +28,7 @@ import { loadLeads, useLeads } from '../stores/leads';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 import type { Incident } from '../model/types';
+import UiCloseButton from '../ui/CloseButton.vue';
 
 const live = useLive();
 const ui = useUi();
@@ -199,9 +200,7 @@ const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { 
           <div class="ib-head">
             <h2 id="inbox-h">Inbox</h2>
             <span class="n">{{ openCount ? `${openCount} need${openCount === 1 ? 's' : ''} you` : 'nothing open' }}</span>
-            <button type="button" class="x" aria-label="Close Inbox" @click="ui.closeInbox()">
-              <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-            </button>
+            <UiCloseButton label="Close Inbox" @click="ui.closeInbox()" />
           </div>
 
           <div v-if="live.stale.value" class="ib">

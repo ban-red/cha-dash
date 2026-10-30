@@ -6,7 +6,7 @@
  * write grant is flagged: the credential can do more than Cha Dash needs.
  */
 import { computed } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { isWrite, normalizeGrant, testError, type TestResult } from '../model/integrations';
 
 const { result, readOnly = true } = defineProps<{ result: TestResult; readOnly?: boolean }>();

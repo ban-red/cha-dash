@@ -18,7 +18,7 @@
  * - **Off (expected)** is a healthy resource in a stopped state: quiet,
  *   dimmed, "stopped (expected)". Not a problem.
  */
-import type { GlyphKind } from '../components/marks/Glyph.vue';
+import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { since } from '../lib/format';
 import { attr, integrationOf, label, outgoing } from '../model/graph';

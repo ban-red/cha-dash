@@ -166,7 +166,7 @@ describe('the ladder, driven by the plan', () => {
     document.body.innerHTML = '';
     h.mountIn(TypeConfirmDialog);
     await nextTick();
-    const dlg = document.querySelector<HTMLDialogElement>('dialog.act-dlg')!;
+    const dlg = document.querySelector<HTMLDialogElement>('dialog.typeconfirm')!;
     expect(dlg.textContent).toContain('This can’t be undone.');
     expect(dlg.textContent).toContain('What will be lost or affected');
     const input = dlg.querySelector<HTMLInputElement>('input')!;

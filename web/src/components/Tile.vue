@@ -26,7 +26,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph, { type GlyphKind } from './marks/Glyph.vue';
+import Glyph, { type GlyphKind } from '../ui/marks/Glyph.vue';
 import GlyphTip from './GlyphTip.vue';
 import TileCog from './TileCog.vue';
 import { hhmm, monogram } from '../lib/format';

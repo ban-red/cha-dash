@@ -20,7 +20,7 @@
  * that needs them, then cleared; secret values never come back from the hub.
  */
 import { computed, reactive, ref, useTemplateRef, watch } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ApiError, api } from '../lib/api';
 import { absolute } from '../lib/format';
 import { navigate, settingsPath } from '../lib/router';
@@ -36,6 +36,8 @@ import {
 import { useBoard } from '../stores/board';
 import { errorWords, loadInstances } from '../stores/integrations';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const ui = useUi();
 const board = useBoard();
@@ -50,6 +52,8 @@ const MAX_BYTES = 4 * 1024 * 1024;
 const out = reactive({ withSecrets: false, pass: '', again: '', busy: false, error: '', saved: '' });
 const passShort = computed(() => out.withSecrets && out.pass !== '' && [...out.pass].length < MIN_PASSPHRASE);
 const passMismatch = computed(() => out.withSecrets && out.again !== '' && out.again !== out.pass);
+// Too short turns the same words red rather than replacing them.
+const passHelp = `At least ${MIN_PASSPHRASE} characters. Cha Dash doesn’t keep it: without it, the secrets in this file can’t be read back by anyone.`;
 // Unticking drops a passphrase typed so far: it's held only for the request that needs it.
 watch(
   () => out.withSecrets,
@@ -268,42 +272,19 @@ const OP_WORD: Record<FieldRow['op'], string> = { add: 'added', replace: 'change
         <span>Include secrets, encrypted with a passphrase</span>
       </label>
       <template v-if="out.withSecrets">
-        <div class="field">
-          <label for="bk-pass">Passphrase</label>
-          <input
-            id="bk-pass"
-            v-model="out.pass"
-            type="password"
-            autocomplete="new-password"
-            spellcheck="false"
-            :disabled="out.busy"
-            :aria-invalid="passShort ? 'true' : undefined"
-            aria-describedby="bk-pass-help"
-          />
-          <span id="bk-pass-help" :class="['help', { bad: passShort }]">
-            At least {{ MIN_PASSPHRASE }} characters. Cha Dash doesn’t keep it: without it, the secrets in this file can’t be read back by anyone.
-          </span>
-        </div>
-        <div class="field">
-          <label for="bk-pass2">The same passphrase again</label>
-          <input
-            id="bk-pass2"
-            v-model="out.again"
-            type="password"
-            autocomplete="new-password"
-            spellcheck="false"
-            :disabled="out.busy"
-            :aria-invalid="passMismatch ? 'true' : undefined"
-          />
-          <span v-if="passMismatch" class="help bad">The two passphrases differ.</span>
-        </div>
+        <UiField id="bk-pass" label="Passphrase" :help="passHelp" :error="passShort && passHelp" v-slot="{ control }">
+          <input v-bind="control" v-model="out.pass" type="password" autocomplete="new-password" spellcheck="false" :disabled="out.busy" />
+        </UiField>
+        <UiField id="bk-pass2" label="The same passphrase again" :error="passMismatch && 'The two passphrases differ.'" v-slot="{ control }">
+          <input v-bind="control" v-model="out.again" type="password" autocomplete="new-password" spellcheck="false" :disabled="out.busy" />
+        </UiField>
       </template>
       <p v-if="out.error" class="err" role="alert">{{ out.error }}</p>
       <p v-else-if="out.saved" class="st-note" role="status"><Glyph kind="check" /><span>Saved {{ out.saved }}. Keep it somewhere safe; it describes your whole home.</span></p>
       <div class="st-acts">
-        <button type="submit" class="btn primary" :disabled="out.busy" :aria-busy="out.busy">
+        <UiButton variant="primary" type="submit" :disabled="out.busy" :aria-busy="out.busy">
           {{ out.busy ? 'Exporting…' : out.withSecrets ? 'Download with secrets' : 'Download export' }}
-        </button>
+        </UiButton>
         <span class="st-meta">Also on the hub: <code>chadash export</code></span>
       </div>
     </form>
@@ -327,17 +308,16 @@ const OP_WORD: Record<FieldRow['op'], string> = { add: 'added', replace: 'change
           <template v-else>Drop it here, or choose it</template>
         </span>
         <span class="if-acts">
-          <button type="button" class="btn sm" :disabled="busy" @click="picker?.click()">Choose file…</button>
-          <button v-if="yaml" type="button" class="btn sm ghost" :disabled="busy" @click="clearFile">Clear</button>
+          <UiButton size="sm" :disabled="busy" @click="picker?.click()">Choose file…</UiButton>
+          <UiButton v-if="yaml" variant="ghost" size="sm" :disabled="busy" @click="clearFile">Clear</UiButton>
         </span>
         <input ref="picker" class="sr" type="file" accept=".yaml,.yml,text/yaml,application/yaml,text/plain" tabindex="-1" aria-hidden="true" @change="onPick" />
       </div>
       <details class="bk-paste" :open="!fileName && yaml !== ''">
         <summary>Or paste the YAML</summary>
-        <div class="field">
-          <label for="bk-yaml" class="sr">Home file YAML</label>
+        <UiField id="bk-yaml" label="Home file YAML" hide-label v-slot="{ control }">
           <textarea
-            id="bk-yaml"
+            v-bind="control"
             :value="yaml"
             placeholder="apiVersion: chadash/v1alpha1&#10;kind: Home&#10;…"
             spellcheck="false"
@@ -346,31 +326,17 @@ const OP_WORD: Record<FieldRow['op'], string> = { add: 'added', replace: 'change
             :disabled="busy"
             @input="edited(($event.target as HTMLTextAreaElement).value)"
           ></textarea>
-        </div>
+        </UiField>
       </details>
     </div>
-    <div v-if="bundled" class="field bk-unlock">
-      <label for="bk-unlock">Passphrase for the secrets</label>
-      <input
-        id="bk-unlock"
-        v-model="pass"
-        type="password"
-        autocomplete="off"
-        spellcheck="false"
-        :disabled="busy"
-        :aria-invalid="passError ? 'true' : undefined"
-        aria-describedby="bk-unlock-help"
-        @input="passError = ''"
-      />
-      <span id="bk-unlock-help" :class="['help', { bad: passError }]" :role="passError ? 'alert' : undefined">
-        {{ passError || 'This file carries its secrets, encrypted. Enter its passphrase to restore them, or leave it empty to import without them.' }}
-      </span>
-    </div>
+    <UiField v-if="bundled" id="bk-unlock" class="bk-unlock" label="Passphrase for the secrets" help="This file carries its secrets, encrypted. Enter its passphrase to restore them, or leave it empty to import without them." :error="passError" alert v-slot="{ control }">
+      <input v-bind="control" v-model="pass" type="password" autocomplete="off" spellcheck="false" :disabled="busy" @input="passError = ''" />
+    </UiField>
     <p v-if="error" class="err" role="alert">{{ error }}</p>
     <div class="st-acts">
-      <button type="button" class="btn primary" :disabled="busy" :aria-busy="step === 'previewing'" @click="runPreview">
+      <UiButton variant="primary" :disabled="busy" :aria-busy="step === 'previewing'" @click="runPreview">
         {{ step === 'previewing' ? 'Reading…' : step === 'preview' ? 'Preview again' : 'Preview import' }}
-      </button>
+      </UiButton>
       <span class="st-meta">A dry run: nothing changes until you apply.</span>
     </div>
     <div v-if="done" class="st-note" role="status">
@@ -475,10 +441,10 @@ const OP_WORD: Record<FieldRow['op'], string> = { add: 'added', replace: 'change
     <div class="plan-apply">
       <p class="sub">Applies everything in one step, or nothing. A changed board keeps its history: its layout gains a revision you can undo past.</p>
       <div class="st-acts">
-        <button type="button" class="btn primary" :disabled="step === 'applying' || preview.nothingNew" :aria-busy="step === 'applying'" @click="apply">
+        <UiButton variant="primary" :disabled="step === 'applying' || preview.nothingNew" :aria-busy="step === 'applying'" @click="apply">
           {{ step === 'applying' ? 'Importing…' : preview.nothingNew ? 'Nothing to import' : `Import ${changes} change${changes === 1 ? '' : 's'}` }}<span class="tier">T1</span>
-        </button>
-        <button type="button" class="btn" :disabled="step === 'applying'" @click="step = 'edit'">Back</button>
+        </UiButton>
+        <UiButton :disabled="step === 'applying'" @click="step = 'edit'">Back</UiButton>
       </div>
     </div>
   </section>

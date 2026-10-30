@@ -8,7 +8,7 @@
  * incident) so spacing and punctuation never depend on template whitespace.
  */
 import { computed } from 'vue';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import BriefTools from './BriefTools.vue';
 import PulseStrip from './PulseStrip.vue';
 import { fmtPct, hhmm, longDate, numberWord, plural, shortDate } from '../lib/format';

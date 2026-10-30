@@ -10,12 +10,13 @@
  * the hub's host when nobody can sign in.
  */
 import { onMounted, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ago, absolute } from '../lib/format';
 import { api } from '../lib/api';
 import { hubWords } from '../lib/actions';
 import { focusFirst } from '../lib/focus';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 export interface IpBan {
   ip: string;
@@ -88,16 +89,9 @@ onMounted(load);
             <span v-if="rowError[b.ip]" class="err" role="alert">{{ rowError[b.ip] }}</span>
           </span>
           <span class="end">
-            <button
-              type="button"
-              class="btn sm"
-              :aria-label="`Clear the ban on ${b.ip}`"
-              :aria-disabled="busy === b.ip ? 'true' : undefined"
-              :aria-busy="busy === b.ip || undefined"
-              @click="unban(b)"
-            >
+            <UiButton size="sm" :aria-label="`Clear the ban on ${b.ip}`" :aria-disabled="busy === b.ip ? 'true' : undefined" :aria-busy="busy === b.ip || undefined" @click="unban(b)">
               Clear ban
-            </button>
+            </UiButton>
           </span>
         </div>
       </li>

@@ -6,9 +6,10 @@
  * passwordless `dev` owner on first run.
  */
 import { ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { api } from '../lib/api';
 import { authMessage, useSession, type User } from '../stores/session';
+import UiButton from '../ui/Button.vue';
 
 const session = useSession();
 const busy = ref(false);
@@ -34,9 +35,9 @@ async function enter() {
   <section class="dev-login" aria-label="Local development">
     <div class="dev-rule" aria-hidden="true"><span class="caps">Dev build</span></div>
     <div v-if="error" class="form-error" role="alert"><Glyph kind="attn" /><span>{{ error }}</span></div>
-    <button type="button" class="btn dev-btn" :disabled="busy" :aria-busy="busy" @click="enter">
+    <UiButton class="dev-btn" :disabled="busy" :aria-busy="busy" @click="enter">
       {{ busy ? 'Signing in…' : 'Login as Local Dev' }}
-    </button>
+    </UiButton>
     <p class="door-foot">Skips the token and passwords: signs in as the owner, or creates a passwordless <code>dev</code> owner on first run. Only in <code>bun run dev</code>.</p>
   </section>
 </template>

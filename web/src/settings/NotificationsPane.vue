@@ -21,7 +21,7 @@
  */
 import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, reactive, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import NotifyDevice from './NotifyDevice.vue';
 import { ago } from '../lib/format';
 import { hubWords } from '../lib/actions';
@@ -47,6 +47,8 @@ import {
   type NotifyRule,
   type RuleSettings,
 } from './notify';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const ui = useUi();
 const uid = useId();
@@ -367,7 +369,7 @@ onMounted(() => {
       <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
       <div v-else-if="status === 'error'" class="st-note bad" role="alert">
         <Glyph kind="down" /><span>{{ loadError }}</span>
-        <button type="button" class="btn sm" @click="load">Try again</button>
+        <UiButton size="sm" @click="load">Try again</UiButton>
       </div>
       <ul v-else class="st-list nr-list" aria-label="Rules">
         <li v-for="r in rules" :key="r.id" class="nr-rule">
@@ -396,24 +398,16 @@ onMounted(() => {
               />
               <span>Also when it’s resolved</span>
             </label>
-            <div v-if="r.grace_minutes !== undefined && r.grace_minutes > 0" class="field nr-grace">
-              <label :for="`${uid}-${r.id}-g`">Wait before notifying</label>
+            <UiField v-if="r.grace_minutes !== undefined && r.grace_minutes > 0" class="nr-grace" label="Wait before notifying" v-slot="{ control }">
               <div class="nr-grace-row">
-                <select :id="`${uid}-${r.id}-g`" :value="graceDraft[r.id] ?? r.grace_minutes" @change="graceDraft[r.id] = Number(($event.target as HTMLSelectElement).value)">
+                <select v-bind="control" :value="graceDraft[r.id] ?? r.grace_minutes" @change="graceDraft[r.id] = Number(($event.target as HTMLSelectElement).value)">
                   <option v-for="g in GRACE" :key="g" :value="g">{{ g === 1 ? '1 minute' : `${g} minutes` }}</option>
                 </select>
-                <button
-                  type="button"
-                  class="btn sm"
-                  :aria-label="`Save the wait for ${r.label}`"
-                  :aria-disabled="!graceDirty(r) || ruleBusy === r.id ? 'true' : undefined"
-                  :aria-busy="(ruleBusy === r.id && graceDirty(r)) || undefined"
-                  @click="saveGrace(r)"
-                >
+                <UiButton size="sm" :aria-label="`Save the wait for ${r.label}`" :aria-disabled="!graceDirty(r) || ruleBusy === r.id ? 'true' : undefined" :aria-busy="(ruleBusy === r.id && graceDirty(r)) || undefined" @click="saveGrace(r)">
                   Save
-                </button>
+                </UiButton>
               </div>
-            </div>
+            </UiField>
             <fieldset v-if="channels.length > 1" class="nr-chans">
               <legend>Send to</legend>
               <label v-for="c in channels" :key="c.id" class="check-row">
@@ -436,7 +430,7 @@ onMounted(() => {
     <section class="st-section" aria-labelledby="nc-h">
       <header>
         <h3 id="nc-h" tabindex="-1">Channels</h3>
-        <button v-if="status === 'ready' && editing !== 'new'" :id="`${uid}-addc`" type="button" class="btn sm" @click="openForm()">Add a channel</button>
+        <UiButton v-if="status === 'ready' && editing !== 'new'" size="sm" :id="`${uid}-addc`" @click="openForm()">Add a channel</UiButton>
       </header>
       <div v-if="status === 'ready' && !publicURL" class="st-note hatched">
         <Glyph kind="link" /><span>Messages carry no link back to Cha Dash until <code>CHADASH_PUBLIC_URL</code> is set. Web Push opens the right page either way.</span>
@@ -452,31 +446,22 @@ onMounted(() => {
               <span v-if="tested[c.id]" :class="tested[c.id]!.ok ? 'm' : 'err'" role="status">{{ tested[c.id]!.text }}</span>
             </span>
             <span class="end">
-              <button
-                type="button"
-                class="btn sm"
-                :disabled="!c.enabled"
-                :aria-disabled="testing === c.id ? 'true' : undefined"
-                :aria-busy="testing === c.id || undefined" :aria-label="`Send a test to ${c.name}`" @click="test(c)">
+              <UiButton size="sm" :disabled="!c.enabled" :aria-disabled="testing === c.id ? 'true' : undefined" :aria-busy="testing === c.id || undefined" :aria-label="`Send a test to ${c.name}`" @click="test(c)">
                 {{ testing === c.id ? 'Sending…' : 'Test' }}
-              </button>
-              <button
-                type="button"
-                class="btn sm ghost"
-                :aria-disabled="rowBusy === c.id ? 'true' : undefined"
-                :aria-label="`${c.enabled ? 'Turn off' : 'Turn on'} ${c.name}`" @click="setEnabled(c, !c.enabled)">
+              </UiButton>
+              <UiButton variant="ghost" size="sm" :aria-disabled="rowBusy === c.id ? 'true' : undefined" :aria-label="`${c.enabled ? 'Turn off' : 'Turn on'} ${c.name}`" @click="setEnabled(c, !c.enabled)">
                 {{ c.enabled ? 'Turn off' : 'Turn on' }}
-              </button>
+              </UiButton>
               <template v-if="!c.builtin">
-                <button :id="`${uid}-edit-${c.id}`" type="button" class="btn sm ghost" :aria-label="`Edit ${c.name}`" @click="openForm(c)">Edit</button>
-                <button v-if="confirmDelete !== c.id" :id="`${uid}-del-${c.id}`" type="button" class="btn sm ghost" :aria-label="`Delete ${c.name}`" @click="askDelete(c)">Delete</button>
+                <UiButton variant="ghost" size="sm" :id="`${uid}-edit-${c.id}`" :aria-label="`Edit ${c.name}`" @click="openForm(c)">Edit</UiButton>
+                <UiButton v-if="confirmDelete !== c.id" variant="ghost" size="sm" :id="`${uid}-del-${c.id}`" :aria-label="`Delete ${c.name}`" @click="askDelete(c)">Delete</UiButton>
               </template>
             </span>
           </div>
           <div v-if="confirmDelete === c.id" class="st-confirm nc-confirm" role="group" :aria-label="`Delete ${c.name}?`">
             <span>Delete <b>{{ c.name }}</b> and its secret? Its deliveries stay in the log.</span>
-            <button type="button" class="btn danger solid sm" :aria-disabled="rowBusy === c.id ? 'true' : undefined" :aria-busy="rowBusy === c.id || undefined" @click="remove(c)">Delete</button>
-            <button :id="`${uid}-dc-${c.id}`" type="button" class="btn sm" @click="cancelDelete(c)">Cancel</button>
+            <UiButton variant="danger-solid" size="sm" :aria-disabled="rowBusy === c.id ? 'true' : undefined" :aria-busy="rowBusy === c.id || undefined" @click="remove(c)">Delete</UiButton>
+            <UiButton size="sm" :id="`${uid}-dc-${c.id}`" @click="cancelDelete(c)">Cancel</UiButton>
           </div>
         </li>
       </ul>
@@ -487,67 +472,48 @@ onMounted(() => {
           <label><input :id="`${uid}-kind-ntfy`" v-model="form.kind" type="radio" value="ntfy" name="nc-kind" />ntfy</label>
           <label><input v-model="form.kind" type="radio" value="webhook" name="nc-kind" />Webhook</label>
         </div>
-        <div class="field">
-          <label :for="`${uid}-name`">Name</label>
-          <input :id="`${uid}-name`" v-model="form.name" type="text" maxlength="64" autocomplete="off" :aria-invalid="errors.name ? true : undefined" :aria-describedby="errors.name ? `${uid}-name-e` : undefined" />
-          <span v-if="errors.name" :id="`${uid}-name-e`" class="help bad">{{ errors.name }}</span>
-        </div>
+        <UiField :id="`${uid}-name`" label="Name" :error="errors.name" v-slot="{ control }">
+          <input v-bind="control" v-model="form.name" type="text" maxlength="64" autocomplete="off" />
+        </UiField>
         <template v-if="form.kind === 'ntfy'">
           <div class="nc-fields">
-            <div class="field">
-              <label :for="`${uid}-server`">Server</label>
-              <input :id="`${uid}-server`" v-model="form.server" type="url" inputmode="url" autocomplete="off" spellcheck="false" :aria-invalid="errors.server ? true : undefined" :aria-describedby="errors.server ? `${uid}-server-e` : undefined" />
-              <span v-if="errors.server" :id="`${uid}-server-e`" class="help bad">{{ errors.server }}</span>
-            </div>
-            <div class="field">
-              <label :for="`${uid}-topic`">Topic</label>
-              <input :id="`${uid}-topic`" v-model="form.topic" type="text" autocomplete="off" spellcheck="false" maxlength="64" :aria-invalid="errors.topic ? true : undefined" :aria-describedby="`${uid}-topic-h`" />
-              <span :id="`${uid}-topic-h`" :class="['help', { bad: errors.topic }]">{{ errors.topic || 'On a public server, anyone who knows the topic can read it: pick something hard to guess, or use a token.' }}</span>
-            </div>
+            <UiField label="Server" :error="errors.server" v-slot="{ control }">
+              <input v-bind="control" v-model="form.server" type="url" inputmode="url" autocomplete="off" spellcheck="false" />
+            </UiField>
+            <UiField label="Topic" help="On a public server, anyone who knows the topic can read it: pick something hard to guess, or use a token." :error="errors.topic" v-slot="{ control }">
+              <input v-bind="control" v-model="form.topic" type="text" autocomplete="off" spellcheck="false" maxlength="64" />
+            </UiField>
           </div>
-          <div class="field">
-            <div class="label-row">
-              <label :for="`${uid}-token`">Access token</label>
-              <span v-if="editingChannel?.secrets['token']?.set" class="set-chip">set</span>
-              <span class="opt-word">optional</span>
-            </div>
-            <input :id="`${uid}-token`" v-model="form.token" type="password" autocomplete="new-password" spellcheck="false" :aria-describedby="`${uid}-token-h`" />
-            <span :id="`${uid}-token-h`" class="help">An ntfy access token (tk_…), sent as a bearer token. Write-only{{ editingChannel?.secrets['token']?.set ? ': leave it empty to keep the one stored' : '' }}.</span>
-            <label v-if="editingChannel?.secrets['token']?.set" class="check-row"><input v-model="form.clearToken" type="checkbox" :disabled="!!form.token" />Remove the stored token</label>
-          </div>
+          <UiField label="Access token" optional :help="`An ntfy access token (tk_…), sent as a bearer token. Write-only${editingChannel?.secrets['token']?.set ? ': leave it empty to keep the one stored' : ''}.`">
+            <template #aside><span v-if="editingChannel?.secrets['token']?.set" class="set-chip">set</span></template>
+            <template #default="{ control }">
+              <input v-bind="control" v-model="form.token" type="password" autocomplete="new-password" spellcheck="false" />
+              <label v-if="editingChannel?.secrets['token']?.set" class="check-row"><input v-model="form.clearToken" type="checkbox" :disabled="!!form.token" />Remove the stored token</label>
+            </template>
+          </UiField>
         </template>
         <template v-else>
-          <div class="field">
-            <label :for="`${uid}-url`">URL</label>
-            <input :id="`${uid}-url`" v-model="form.url" type="url" inputmode="url" autocomplete="off" spellcheck="false" :aria-invalid="errors.url ? true : undefined" :aria-describedby="`${uid}-url-h`" />
-            <span :id="`${uid}-url-h`" :class="['help', { bad: errors.url }]">{{ errors.url || 'Cha Dash POSTs JSON here. Redirects aren’t followed.' }}</span>
-          </div>
-          <div class="field">
-            <div class="label-row">
-              <label :for="`${uid}-secret`">Signing secret</label>
-              <span v-if="editingChannel?.secrets['secret']?.set" class="set-chip">set</span>
-            </div>
-            <div class="secret-row">
-              <input
-                :id="`${uid}-secret`"
-                v-model="form.secret"
-                :type="shown ? 'text' : 'password'"
-                autocomplete="new-password"
-                spellcheck="false"
-                :aria-invalid="errors.secret ? true : undefined"
-                :aria-describedby="`${uid}-secret-h`"
-              />
-              <button type="button" class="btn sm" @click="newSecret">Generate</button>
-            </div>
-            <span :id="`${uid}-secret-h`" :class="['help', { bad: errors.secret }]">
-              {{ errors.secret || 'Each request carries X-Chadash-Signature: an HMAC-SHA256 of the timestamp and the body with this secret. Copy it to the receiver now: it can’t be read back.' }}
-            </span>
-          </div>
+          <UiField label="URL" help="Cha Dash POSTs JSON here. Redirects aren’t followed." :error="errors.url" v-slot="{ control }">
+            <input v-bind="control" v-model="form.url" type="url" inputmode="url" autocomplete="off" spellcheck="false" />
+          </UiField>
+          <UiField
+            label="Signing secret"
+            help="Each request carries X-Chadash-Signature: an HMAC-SHA256 of the timestamp and the body with this secret. Copy it to the receiver now: it can’t be read back."
+            :error="errors.secret"
+          >
+            <template #aside><span v-if="editingChannel?.secrets['secret']?.set" class="set-chip">set</span></template>
+            <template #default="{ control }">
+              <div class="secret-row">
+                <input v-bind="control" v-model="form.secret" :type="shown ? 'text' : 'password'" autocomplete="new-password" spellcheck="false" />
+                <UiButton size="sm" @click="newSecret">Generate</UiButton>
+              </div>
+            </template>
+          </UiField>
         </template>
         <p v-if="formError" class="err" role="alert">{{ formError }}</p>
         <div class="st-acts">
-          <button type="submit" class="btn" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : editing === 'new' ? 'Add channel' : 'Save' }}</button>
-          <button type="button" class="btn ghost" @click="closeForm">Cancel</button>
+          <UiButton type="submit" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : editing === 'new' ? 'Add channel' : 'Save' }}</UiButton>
+          <UiButton variant="ghost" @click="closeForm">Cancel</UiButton>
         </div>
       </form>
     </section>
@@ -555,7 +521,7 @@ onMounted(() => {
     <section class="st-section" aria-labelledby="nl-h">
       <header>
         <h3 id="nl-h">Delivery log</h3>
-        <button type="button" class="btn sm ghost" @click="loadLog">Refresh</button>
+        <UiButton variant="ghost" size="sm" @click="loadLog">Refresh</UiButton>
       </header>
       <div class="seg nl-seg" role="group" aria-label="Show">
         <button type="button" :aria-pressed="logFilter === ''" @click="filterLog('')">All</button>

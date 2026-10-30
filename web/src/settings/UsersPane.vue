@@ -24,7 +24,7 @@
  */
 import SettingsHelp from './SettingsHelp.vue';
 import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import BannedAddresses from './BannedAddresses.vue';
 import { ago, absolute } from '../lib/format';
 import { api } from '../lib/api';
@@ -34,6 +34,8 @@ import { StepUpCancelled } from '../stores/actions';
 import { MIN_PASSWORD, passwordLength, USERNAME_RE, useSession, type User } from '../stores/session';
 import { focusFirst } from '../lib/focus';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 export interface HubUser {
   id: string;
@@ -222,7 +224,7 @@ onMounted(load);
     <header>
       <h3 id="us-h" tabindex="-1">People</h3>
       <span v-if="status === 'ready'" class="st-meta">{{ sorted.length }}</span>
-      <button v-if="assignable.length && !adding" :id="`${uid}-add`" type="button" class="btn sm" @click="startAdd">Add a user</button>
+      <UiButton v-if="assignable.length && !adding" size="sm" :id="`${uid}-add`" @click="startAdd">Add a user</UiButton>
     </header>
     <SettingsHelp summary="Everyone who signs in, and what their role lets them do.">
       Everyone who signs in to this hub, and what their role lets them do. There’s one owner; users are disabled rather than deleted, so the audit log keeps
@@ -231,27 +233,21 @@ onMounted(load);
 
     <form v-if="adding" class="st-form us-add" novalidate aria-labelledby="us-add-h" @submit.prevent="add">
       <h4 id="us-add-h" class="sr">Add a user</h4>
-      <div class="field">
-        <label :for="`${uid}-un`">Username</label>
-        <input :id="`${uid}-un`" v-model="draft.username" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64" :aria-invalid="addErrors.username ? true : undefined" :aria-describedby="addErrors.username ? `${uid}-un-e` : undefined" />
-        <span v-if="addErrors.username" :id="`${uid}-un-e`" class="help bad">{{ addErrors.username }}</span>
-      </div>
-      <div class="field">
-        <label :for="`${uid}-pw`">Password</label>
-        <input :id="`${uid}-pw`" v-model="draft.password" type="password" autocomplete="new-password" :aria-invalid="addErrors.password ? true : undefined" :aria-describedby="`${uid}-pw-h`" />
-        <span :id="`${uid}-pw-h`" :class="['help', { bad: addErrors.password }]">{{ addErrors.password ?? `At least ${MIN_PASSWORD} characters. They can add a passkey after signing in.` }}</span>
-      </div>
-      <div class="field">
-        <label :for="`${uid}-role`">Role</label>
-        <select :id="`${uid}-role`" v-model="draft.role" :aria-describedby="`${uid}-role-h`">
+      <UiField :id="`${uid}-un`" label="Username" :error="addErrors.username" v-slot="{ control }">
+        <input v-bind="control" v-model="draft.username" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64" />
+      </UiField>
+      <UiField label="Password" :help="`At least ${MIN_PASSWORD} characters. They can add a passkey after signing in.`" :error="addErrors.password" v-slot="{ control }">
+        <input v-bind="control" v-model="draft.password" type="password" autocomplete="new-password" />
+      </UiField>
+      <UiField label="Role" :help="ROLE_WORDS[draft.role].note" v-slot="{ control }">
+        <select v-bind="control" v-model="draft.role">
           <option v-for="r in assignable" :key="r" :value="r">{{ ROLE_WORDS[r].label }}</option>
         </select>
-        <span :id="`${uid}-role-h`" class="help">{{ ROLE_WORDS[draft.role].note }}</span>
-      </div>
+      </UiField>
       <p v-if="addErrors.form" class="err" role="alert">{{ addErrors.form }}</p>
       <div class="st-acts">
-        <button type="submit" class="btn primary" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Adding…' : 'Add user' }}</button>
-        <button type="button" class="btn ghost" @click="cancelAdd">Cancel</button>
+        <UiButton variant="primary" type="submit" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Adding…' : 'Add user' }}</UiButton>
+        <UiButton variant="ghost" @click="cancelAdd">Cancel</UiButton>
       </div>
     </form>
 
@@ -282,20 +278,12 @@ onMounted(load);
                 <option v-if="!assignable.includes(asRole(u.role))" :value="u.role" disabled>{{ ROLE_WORDS[asRole(u.role)].label }}</option>
                 <option v-for="r in assignable" :key="r" :value="r">{{ ROLE_WORDS[r].label }}</option>
               </select>
-              <button
-                v-if="!u.disabled"
-                type="button"
-                class="btn sm"
-                :aria-label="`Save role for ${u.username}`"
-                :aria-disabled="!roleDirty(u) || busy === u.id ? 'true' : undefined"
-                :aria-busy="(busy === u.id && roleDirty(u)) || undefined"
-                @click="saveRole(u)"
-              >
+              <UiButton v-if="!u.disabled" size="sm" :aria-label="`Save role for ${u.username}`" :aria-disabled="!roleDirty(u) || busy === u.id ? 'true' : undefined" :aria-busy="(busy === u.id && roleDirty(u)) || undefined" @click="saveRole(u)">
                 Save
-              </button>
-              <button type="button" class="btn sm ghost" :aria-disabled="busy === u.id ? 'true' : undefined" @click="toggleDisabled(u)">{{ u.disabled ? 'Enable' : 'Disable' }}</button>
+              </UiButton>
+              <UiButton variant="ghost" size="sm" :aria-disabled="busy === u.id ? 'true' : undefined" @click="toggleDisabled(u)">{{ u.disabled ? 'Enable' : 'Disable' }}</UiButton>
             </template>
-            <button v-if="canTransfer(u) && transferring !== u.id" :id="`${uid}-mo-${u.id}`" type="button" class="btn sm ghost" @click="startTransfer(u)">Make owner…</button>
+            <UiButton v-if="canTransfer(u) && transferring !== u.id" variant="ghost" size="sm" :id="`${uid}-mo-${u.id}`" @click="startTransfer(u)">Make owner…</UiButton>
           </span>
         </div>
         <form v-if="transferring === u.id" class="st-confirm us-transfer" :aria-labelledby="`${uid}-tr-h-${u.id}`" novalidate @submit.prevent="transfer(u)">
@@ -303,13 +291,14 @@ onMounted(load);
             Hand ownership to <b>{{ u.username }}</b>? They get everything, including users and security; you become an admin. Only they can hand it back.
             <b>This can’t be undone from your side.</b>
           </span>
-          <div class="field us-type">
-            <label :for="`${uid}-tr-${u.id}`">Type <b class="st-mono">{{ u.username }}</b> to confirm</label>
-            <input :id="`${uid}-tr-${u.id}`" v-model="typed" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" :aria-invalid="transferError ? true : undefined" :aria-describedby="transferError ? `${uid}-tr-e` : undefined" />
-            <span v-if="transferError" :id="`${uid}-tr-e`" class="help bad" role="alert">{{ transferError }}</span>
-          </div>
-          <button type="submit" class="btn danger solid" :disabled="typed.trim() !== u.username" :aria-disabled="busy === u.id ? 'true' : undefined" :aria-busy="busy === u.id || undefined">Make {{ u.username }} owner<span class="tier">T3</span></button>
-          <button type="button" class="btn" @click="cancelTransfer(u)">Cancel</button>
+          <UiField :id="`${uid}-tr-${u.id}`" class="us-type" :error="transferError" alert>
+            <template #label>Type <b class="st-mono">{{ u.username }}</b> to confirm</template>
+            <template #default="{ control }">
+              <input v-bind="control" v-model="typed" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
+            </template>
+          </UiField>
+          <UiButton variant="danger-solid" type="submit" :disabled="typed.trim() !== u.username" :aria-disabled="busy === u.id ? 'true' : undefined" :aria-busy="busy === u.id || undefined">Make {{ u.username }} owner<span class="tier">T3</span></UiButton>
+          <UiButton @click="cancelTransfer(u)">Cancel</UiButton>
         </form>
       </li>
     </ul>

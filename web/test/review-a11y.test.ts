@@ -350,8 +350,10 @@ describe('motion and CSS', () => {
 
   it('the action dialogs’ CSS is no longer render-blocking', () => {
     expect(chromeCss).not.toMatch(/\.act-(dlg|impact|hub|note|lede)/);
-    expect(actCss).toMatch(/\.act-dlg \{/);
     expect(actCss).toMatch(/\.act-impact li\.is-self/);
+    // UiDialog's shell loads with the first dialog, not with the first paint.
+    expect(readFileSync(join(SRC, 'ui', 'dialog.css'), 'utf8')).toMatch(/\.dlg \{/);
+    for (const css of ['styles/base.css', 'styles/chrome.css', 'ui/ui.css']) expect(readFileSync(join(SRC, css), 'utf8')).not.toMatch(/\.dlg\b/);
   });
 });
 

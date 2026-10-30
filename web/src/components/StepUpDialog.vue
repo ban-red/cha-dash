@@ -6,22 +6,21 @@
  * and the hub allows the fallback, with a nudge to add one. Under "Passkey
  * only" with no passkey it explains and links to Settings → Security.
  *
- * A native modal <dialog>: focus moves in and stays, Esc cancels it and
- * nothing behind it (Settings and the Inbox stay open). Its own
- * chunk with the WebAuthn code, loaded the first time something needs it.
+ * A UiDialog: focus moves in and stays, Esc cancels it and nothing behind
+ * it (Settings and the Inbox stay open). Its own chunk with the WebAuthn code, loaded the first time something needs it.
  */
-import { computed, nextTick, onMounted, ref, useId, useTemplateRef } from 'vue';
-import Glyph from './marks/Glyph.vue';
+import { computed, nextTick, onMounted, ref, useId } from 'vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import '../styles/act-dialog.css';
-import { useModal } from '../board/useModal';
 import { beginStepUp, stepUpWithPasskey, stepUpWithPassword } from '../lib/stepup';
 import { INSECURE_MESSAGE, passkeySupport, PasskeyError } from '../lib/webauthn';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
+import UiDialog from '../ui/Dialog.vue';
+import UiField from '../ui/Field.vue';
 
 const ui = useUi();
 const uid = useId();
-const dlg = useTemplateRef<HTMLDialogElement>('dlg');
-useModal(dlg);
 
 type Phase = 'loading' | 'passkey' | 'password' | 'none' | 'error';
 const phase = ref<Phase>('loading');
@@ -32,7 +31,7 @@ const error = ref('');
 const busy = ref(false);
 const password = ref('');
 const pwInput = ref<HTMLInputElement | null>(null);
-const firstButton = ref<HTMLButtonElement | null>(null);
+const firstButton = ref<InstanceType<typeof UiButton> | null>(null);
 const support = passkeySupport();
 
 const reason = computed(() => ui.state.stepUp?.reason ?? '');
@@ -113,76 +112,57 @@ onMounted(begin);
 </script>
 
 <template>
-  <dialog ref="dlg" class="act-dlg stepup" :aria-labelledby="`${uid}-h`" :aria-describedby="`${uid}-d`" @cancel.prevent="cancel" @keydown.esc.stop>
-    <form class="act-dlg-body" novalidate @submit.prevent="phase === 'password' ? usePassword() : usePasskey()">
-      <header class="act-dlg-head">
-        <Glyph kind="lock" />
-        <h2 :id="`${uid}-h`">Confirm it’s you</h2>
-        <button type="button" class="x" aria-label="Cancel" @click="cancel">
-          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-        </button>
-      </header>
-      <p :id="`${uid}-d`" class="act-lede">
-        <template v-if="reason">Before “{{ reason }}”, </template>
-        <template v-else>First, </template>Cha Dash checks it’s really you.
-        {{ fresh ? 'This one is critical, so it asks every time.' : 'It won’t ask again for 5 minutes.' }}
-      </p>
+  <UiDialog as="form" class="stepup" title="Confirm it’s you" close-label="Cancel" :aria-describedby="`${uid}-d`" @close="cancel" @submit="phase === 'password' ? usePassword() : usePasskey()" @keydown.esc.stop>
+    <template #lead><Glyph kind="lock" /></template>
+    <p :id="`${uid}-d`" class="act-lede">
+      <template v-if="reason">Before “{{ reason }}”, </template>
+      <template v-else>First, </template>Cha Dash checks it’s really you.
+      {{ fresh ? 'This one is critical, so it asks every time.' : 'It won’t ask again for 5 minutes.' }}
+    </p>
 
-      <p v-if="phase === 'loading'" class="act-hint" aria-busy="true">Asking the hub how…</p>
+    <p v-if="phase === 'loading'" class="act-hint" aria-busy="true">Asking the hub how…</p>
 
-      <template v-else-if="phase === 'passkey'">
-        <p v-if="support === 'insecure'" class="act-note" role="note"><Glyph kind="lock" /><span>{{ INSECURE_MESSAGE }}</span></p>
-        <p v-if="error" class="err" role="alert">{{ error }}</p>
-        <div class="act-dlg-foot">
-          <button type="button" class="btn ghost" @click="cancel">Cancel</button>
-          <button ref="firstButton" type="submit" class="btn primary" :disabled="busy || support === 'insecure'" :aria-busy="busy || undefined">
-            {{ busy ? 'Waiting for you…' : 'Use your passkey' }}
-          </button>
-        </div>
+    <template v-else-if="phase === 'passkey'">
+      <p v-if="support === 'insecure'" class="act-note" role="note"><Glyph kind="lock" /><span>{{ INSECURE_MESSAGE }}</span></p>
+      <p v-if="error" class="err" role="alert">{{ error }}</p>
+    </template>
+
+    <template v-else-if="phase === 'password'">
+      <UiField label="Your password" :error="error" alert v-slot="{ control }">
+        <input v-bind="control" ref="pwInput" v-model="password" type="password" autocomplete="current-password" />
+      </UiField>
+      <p class="act-hint">Your account has no passkey yet, so the password does. <template v-if="canSettings">Add a passkey in Settings → Security and this takes a touch instead.</template></p>
+    </template>
+
+    <p v-else-if="phase === 'none'" class="act-note" role="alert"><Glyph kind="lock" /><span>{{ message }}</span></p>
+
+    <p v-else class="err" role="alert">{{ message }}</p>
+
+    <template v-if="phase !== 'loading'" #foot>
+      <template v-if="phase === 'passkey'">
+        <UiButton variant="ghost" @click="cancel">Cancel</UiButton>
+        <UiButton ref="firstButton" variant="primary" type="submit" :disabled="busy || support === 'insecure'" :aria-busy="busy || undefined">
+          {{ busy ? 'Waiting for you…' : 'Use your passkey' }}
+        </UiButton>
       </template>
-
       <template v-else-if="phase === 'password'">
-        <div class="field">
-          <label :for="`${uid}-pw`">Your password</label>
-          <input
-            :id="`${uid}-pw`"
-            ref="pwInput"
-            v-model="password"
-            type="password"
-            autocomplete="current-password"
-            :aria-invalid="error ? true : undefined"
-            :aria-describedby="error ? `${uid}-err` : undefined"
-          />
-          <span v-if="error" :id="`${uid}-err`" class="help bad" role="alert">{{ error }}</span>
-        </div>
-        <p class="act-hint">Your account has no passkey yet, so the password does. <template v-if="canSettings">Add a passkey in Settings → Security and this takes a touch instead.</template></p>
-        <div class="act-dlg-foot">
-          <button type="button" class="btn ghost" @click="cancel">Cancel</button>
-          <button type="submit" class="btn primary" :disabled="busy" :aria-busy="busy || undefined">{{ busy ? 'Checking…' : 'Confirm' }}</button>
-        </div>
+        <UiButton variant="ghost" @click="cancel">Cancel</UiButton>
+        <UiButton variant="primary" type="submit" :disabled="busy" :aria-busy="busy || undefined">{{ busy ? 'Checking…' : 'Confirm' }}</UiButton>
       </template>
-
       <template v-else-if="phase === 'none'">
-        <p class="act-note" role="alert"><Glyph kind="lock" /><span>{{ message }}</span></p>
-        <div class="act-dlg-foot">
-          <button ref="firstButton" type="button" class="btn ghost" @click="cancel">Close</button>
-          <button v-if="addPasskey && canSettings" type="button" class="btn primary" @click="openSecurity">Open Settings → Security</button>
-        </div>
+        <UiButton ref="firstButton" variant="ghost" @click="cancel">Close</UiButton>
+        <UiButton v-if="addPasskey && canSettings" variant="primary" @click="openSecurity">Open Settings → Security</UiButton>
       </template>
-
       <template v-else>
-        <p class="err" role="alert">{{ message }}</p>
-        <div class="act-dlg-foot">
-          <button type="button" class="btn ghost" @click="cancel">Cancel</button>
-          <button ref="firstButton" type="button" class="btn primary" @click="begin">Try again</button>
-        </div>
+        <UiButton variant="ghost" @click="cancel">Cancel</UiButton>
+        <UiButton ref="firstButton" variant="primary" @click="begin">Try again</UiButton>
       </template>
-    </form>
-  </dialog>
+    </template>
+  </UiDialog>
 </template>
 
 <style>
-.stepup .act-dlg-head .g {
+.stepup .dlg-head .g {
   width: 14px;
   height: 14px;
 }

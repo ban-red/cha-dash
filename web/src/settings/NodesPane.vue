@@ -18,7 +18,7 @@
  */
 import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import HoldToConfirm from '../components/HoldToConfirm.vue';
 import { api } from '../lib/api';
 import { focusFirst } from '../lib/focus';
@@ -28,6 +28,7 @@ import { navigate, settingsPath } from '../lib/router';
 import { attr, byKind } from '../model/graph';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 interface Verb {
   name: string;
@@ -181,7 +182,7 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
     <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span></div>
     <div v-else-if="status === 'error'" class="st-note bad" role="alert">
       <Glyph kind="down" /><span>{{ loadError }}</span>
-      <button type="button" class="btn sm" @click="load">Try again</button>
+      <UiButton size="sm" @click="load">Try again</UiButton>
     </div>
     <div v-else-if="!nodes.length" class="st-empty">
       <div class="t">No nodes yet</div>
@@ -199,9 +200,9 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
             <span class="t">{{ n.name }}</span>
             <span class="m">{{ stateWords(n) }}<template v-if="n.version"> · {{ n.version }}</template><template v-if="n.address"> · {{ n.address }}</template></span>
           </span>
-          <button :id="`${uid}-dt-${n.id}`" type="button" class="btn sm ghost" :aria-expanded="open === n.id" :aria-controls="`${uid}-${n.id}`" @click="toggle(n.id)">
+          <UiButton variant="ghost" size="sm" :id="`${uid}-dt-${n.id}`" :aria-expanded="open === n.id" :aria-controls="`${uid}-${n.id}`" @click="toggle(n.id)">
             {{ open === n.id ? 'Less' : 'Details' }}<span class="sr"> for {{ n.name }}</span>
-          </button>
+          </UiButton>
         </div>
 
         <div v-if="open === n.id" :id="`${uid}-${n.id}`" class="nd-detail">
@@ -226,8 +227,8 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
             <p class="st-lede">Refused means refused by {{ n.name }}’s own policy file. Change it on that host; the hub can’t.</p>
           </template>
           <div class="st-acts">
-            <a v-if="dockerOf(n)" class="btn sm" :href="settingsPath('integrations', dockerOf(n))" @click.prevent="navigate(settingsPath('integrations', dockerOf(n)))">Its Docker integration</a>
-            <button v-if="n.state !== 'revoked' && revoking !== n.id" :id="`${uid}-rv-${n.id}`" type="button" class="btn sm danger" @click="askRevoke(n)">Revoke {{ n.name }}</button>
+            <UiButton v-if="dockerOf(n)" size="sm" :href="settingsPath('integrations', dockerOf(n))" @click.prevent="navigate(settingsPath('integrations', dockerOf(n)))">Its Docker integration</UiButton>
+            <UiButton v-if="n.state !== 'revoked' && revoking !== n.id" variant="danger" size="sm" :id="`${uid}-rv-${n.id}`" @click="askRevoke(n)">Revoke {{ n.name }}</UiButton>
           </div>
           <div v-if="revoking === n.id" class="st-confirm nd-confirm" role="group" :aria-labelledby="`${uid}-rq-${n.id}`">
             <span :id="`${uid}-rq-${n.id}`">
@@ -243,8 +244,8 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
               spellcheck="false"
               :aria-label="`Type ${n.name} to confirm`"
             />
-            <button type="button" class="btn sm ghost" @click="cancelRevoke(n)">Cancel</button>
-            <button type="button" class="btn sm danger solid" :aria-disabled="typed !== n.name || busy || undefined" :aria-busy="busy || undefined" @click="revoke(n)">Revoke</button>
+            <UiButton variant="ghost" size="sm" @click="cancelRevoke(n)">Cancel</UiButton>
+            <UiButton variant="danger-solid" size="sm" :aria-disabled="typed !== n.name || busy || undefined" :aria-busy="busy || undefined" @click="revoke(n)">Revoke</UiButton>
           </div>
           <p v-if="rowError[n.id]" class="err" role="alert">{{ rowError[n.id] }}</p>
         </div>

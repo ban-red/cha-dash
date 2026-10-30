@@ -8,10 +8,11 @@
  * Answering is for admins and the owner; everyone else reads the question.
  */
 import { ref } from 'vue';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import type { Incident } from '../model/types';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const { incident } = defineProps<{ incident: Incident }>();
 const live = useLive();
@@ -37,12 +38,12 @@ async function answer(verdict: 'confirm' | 'reject'): Promise<void> {
       <p v-if="incident.suggested?.detail" class="sub sugg-detail">{{ incident.suggested.detail }}</p>
       <p v-if="!ui.can.value.decide" class="sub sugg-detail">An admin or the owner can answer this.</p>
       <div v-else class="sugg-acts">
-        <button type="button" class="btn primary sm" :disabled="busy || live.stale.value" @click="answer('confirm')">
+        <UiButton variant="primary" size="sm" :disabled="busy || live.stale.value" @click="answer('confirm')">
           {{ incident.suggested?.label ?? 'Merge' }}
-        </button>
-        <button type="button" class="btn ghost sm" :disabled="busy || live.stale.value" @click="answer('reject')">
+        </UiButton>
+        <UiButton variant="ghost" size="sm" :disabled="busy || live.stale.value" @click="answer('reject')">
           {{ incident.alternatives?.[0]?.label ?? 'Keep separate' }}
-        </button>
+        </UiButton>
       </div>
     </div>
     <span class="when"><span class="ib-kind">Suggestion</span></span>

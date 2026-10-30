@@ -10,11 +10,12 @@
  * also every critical action (internal/notify).
  */
 import { computed, onMounted, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ago } from '../lib/format';
 import { hubWords } from '../lib/actions';
 import { currentSubscription, disablePush, enablePush, fingerprint, listDevices, permission, pushSupport, removeDevice, type PushDevice } from '../lib/push';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const ui = useUi();
 const support = pushSupport();
@@ -108,10 +109,10 @@ onMounted(async () => {
     <div v-if="!support.ok" class="st-note hatched"><Glyph kind="off" /><span>{{ support.reason }}</span></div>
     <template v-else>
       <div class="nd-toggle">
-        <button type="button" class="btn nd-switch" :aria-pressed="on" :disabled="busy" :aria-busy="busy || undefined" @click="toggle">
+        <UiButton class="nd-switch" :aria-pressed="on" :disabled="busy" :aria-busy="busy || undefined" @click="toggle">
           <span class="nd-track" aria-hidden="true"><span class="nd-knob"></span></span>
           Notify me on this device
-        </button>
+        </UiButton>
         <span class="st-meta" role="status">{{ busy ? 'Working…' : on ? 'On' : 'Off' }}</span>
       </div>
       <div v-if="blocked && !on" class="st-note attn">
@@ -122,7 +123,7 @@ onMounted(async () => {
 
     <div v-if="status === 'error'" class="st-note bad" role="alert">
       <Glyph kind="down" /><span>{{ loadError }}</span>
-      <button type="button" class="btn sm" @click="refresh">Try again</button>
+      <UiButton size="sm" @click="refresh">Try again</UiButton>
     </div>
     <ul v-else-if="devices.length" class="st-list" aria-label="Your devices">
       <li v-for="d in devices" :key="d.id">
@@ -136,7 +137,7 @@ onMounted(async () => {
             <span v-if="d.last_error" class="m">{{ d.last_error }}</span>
           </span>
           <span class="end">
-            <button type="button" class="btn sm ghost" :disabled="removing === d.id" :aria-label="`Remove ${d.label || 'this browser'}`" @click="remove(d)">Remove</button>
+            <UiButton variant="ghost" size="sm" :disabled="removing === d.id" :aria-label="`Remove ${d.label || 'this browser'}`" @click="remove(d)">Remove</UiButton>
           </span>
         </div>
       </li>

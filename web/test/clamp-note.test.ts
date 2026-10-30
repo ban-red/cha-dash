@@ -52,7 +52,7 @@ describe('a long tile note', () => {
     expect(d.find('.note-dlg-text').text()).toBe(LONG);
     expect(document.activeElement).toBe(d.find('.note-dlg-text').element);
     expect(await axeViolations()).toEqual([]);
-    await d.find('.act-dlg-foot .btn').trigger('click');
+    await d.find('.dlg-foot .btn').trigger('click');
     expect(h.ui.state.note).toBeUndefined();
   });
 
@@ -73,7 +73,7 @@ describe('a long tile note', () => {
     expect(h.ui.state.note).toEqual({ title: 'Bazarr', text: LONG, glyph: 'attn', href: url });
     const d = h.mountIn(NoteDialog);
     await flushPromises();
-    const open = d.find('.act-dlg-foot a.btn');
+    const open = d.find('.dlg-foot a.btn');
     expect(open.attributes()).toMatchObject({ href: url, target: '_blank' });
     expect(open.text()).toBe('Open in Bazarr ↗');
     // The bare tile above sits outside any landmark here, unlike in the app: check the dialog.

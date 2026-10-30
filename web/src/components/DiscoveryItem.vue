@@ -9,12 +9,13 @@
  * it becomes, or which integration to connect for one.
  */
 import { computed, ref } from 'vue';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { placementSentence, type LabelService } from '../model/discovery';
 import { WIDGETS } from '../model/widgets';
 import { useDiscovery } from '../stores/discovery';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const discovery = useDiscovery();
 const live = useLive();
@@ -79,8 +80,8 @@ async function dismiss(): Promise<void> {
         </li>
       </ul>
       <div class="acts disc-acts">
-        <button type="button" class="btn primary sm" :disabled="busy || live.stale.value" @click="add">{{ list.length === 1 ? 'Add it' : 'Add them' }}</button>
-        <button type="button" class="btn ghost sm" :disabled="busy || live.stale.value" @click="dismiss">Dismiss</button>
+        <UiButton variant="primary" size="sm" :disabled="busy || live.stale.value" @click="add">{{ list.length === 1 ? 'Add it' : 'Add them' }}</UiButton>
+        <UiButton variant="ghost" size="sm" :disabled="busy || live.stale.value" @click="dismiss">Dismiss</UiButton>
       </div>
     </div>
     <span class="when"><span class="ib-kind">Discovery</span></span>

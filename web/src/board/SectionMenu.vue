@@ -23,6 +23,7 @@ import { addSection, moveSection, setSectionSpan, setSectionTitle, SIZES, CANONI
 import { removeSectionAndTiles } from '../model/edit';
 import { useBoardIfAny } from '../stores/board';
 import { useUiIfAny } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const { section } = defineProps<{ section: { id: string; title?: string | undefined } }>();
 const store = useBoardIfAny();
@@ -284,8 +285,8 @@ function pick(span: number): void {
           <label for="sec-name">Name</label>
           <input id="sec-name" v-model="name" data-focus type="text" maxlength="80" autocomplete="off" placeholder="No name" />
           <div class="tile-confirm-acts">
-            <button type="button" class="btn sm" @click="goto('menu')">Cancel</button>
-            <button type="submit" class="btn sm">Save</button>
+            <UiButton size="sm" @click="goto('menu')">Cancel</UiButton>
+            <UiButton size="sm" type="submit">Save</UiButton>
           </div>
         </form>
         <div v-else-if="view === 'remove'" role="alertdialog" :aria-label="`Remove ${title}?`" class="tile-confirm" @keydown="onMenuKey">
@@ -293,8 +294,8 @@ function pick(span: number): void {
             Remove <b>{{ title }}</b>{{ widgetCount ? ` and its ${widgetCount} ${widgetCount === 1 ? 'widget' : 'widgets'}` : '' }} from the board? Their settings go too.
           </p>
           <div class="tile-confirm-acts">
-            <button type="button" class="btn sm" data-confirm @click="goto('menu')">Cancel</button>
-            <button type="button" class="btn sm danger" data-confirm @click="remove">Remove</button>
+            <UiButton size="sm" data-confirm @click="goto('menu')">Cancel</UiButton>
+            <UiButton variant="danger" size="sm" data-confirm @click="remove">Remove</UiButton>
           </div>
         </div>
         <div v-else-if="view === 'reorder'" role="menu" :aria-label="`Reorder ${title}`" @keydown="onMenuKey">

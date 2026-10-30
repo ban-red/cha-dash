@@ -4,8 +4,10 @@
  * action (for its 10 s), or "Open its settings" when an action is
  * unavailable until a credential is added.
  */
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { useUi, type Toast } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
+import UiCloseButton from '../ui/CloseButton.vue';
 
 const ui = useUi();
 
@@ -21,10 +23,8 @@ function run(t: Toast): void {
     <div v-for="t in ui.state.toasts" :key="t.id" class="toast glass">
       <Glyph :kind="t.tone === 'error' ? 'attn' : 'check'" />
       <span>{{ t.text }}</span>
-      <button v-if="t.action" type="button" class="btn sm toast-act" @click="run(t)">{{ t.action.label }}</button>
-      <button type="button" class="x" aria-label="Dismiss" @click="ui.dismiss(t.id)">
-        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-      </button>
+      <UiButton v-if="t.action" size="sm" class="toast-act" @click="run(t)">{{ t.action.label }}</UiButton>
+      <UiCloseButton label="Dismiss" @click="ui.dismiss(t.id)" />
     </div>
   </TransitionGroup>
   </div>

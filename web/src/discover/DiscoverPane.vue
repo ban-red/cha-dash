@@ -10,7 +10,7 @@
  * - This host and places you name: the wizard's Discover step.
  */
 import { computed, onMounted, reactive, ref, shallowRef } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import DiscoverStep from '../onboarding/DiscoverStep.vue';
 import ImportFlow from '../import/ImportFlow.vue';
 import { setDraft } from '../onboarding/draft';
@@ -22,6 +22,7 @@ import { catalogEntry, errorWords } from '../stores/integrations';
 import { dismissLeads, leadsState, loadLeads, restoreLeads, useDismissedLeads, useLeads } from '../stores/leads';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const live = useLive();
 const ui = useUi();
@@ -109,25 +110,25 @@ onMounted(() => void loadLeads());
           <span class="imp-sub">
             <span>Found as {{ l.ways.map((w) => w.text).join('; ') }}.</span>
             <span v-if="verdict(l)" :class="verdict(l)!.ok ? 'lead-ok' : 'lead-miss'"><Glyph :kind="verdict(l)!.ok ? 'check' : 'attn'" /> {{ verdict(l)!.text }}</span>
-            <button v-if="!l.url" type="button" class="btn sm" @click="byHand(l)">Add by hand…</button>
-            <button type="button" class="btn sm ghost" @click="dismiss(l)">Dismiss</button>
+            <UiButton v-if="!l.url" size="sm" @click="byHand(l)">Add by hand…</UiButton>
+            <UiButton variant="ghost" size="sm" @click="dismiss(l)">Dismiss</UiButton>
           </span>
         </li>
       </ul>
       <div v-if="withURL.length" class="st-acts">
-        <button type="button" class="btn primary" :disabled="!chosen.length" @click="review">Review {{ chosen.length || '' }} selected</button>
-        <button type="button" class="btn" :disabled="checking" :aria-busy="checking" @click="check">
+        <UiButton variant="primary" :disabled="!chosen.length" @click="review">Review {{ chosen.length || '' }} selected</UiButton>
+        <UiButton :disabled="checking" :aria-busy="checking" @click="check">
           {{ checking ? 'Checking…' : chosen.length ? `Check ${chosen.length}` : `Check all ${Math.min(withURL.length, 16)}` }}
-        </button>
+        </UiButton>
         <span class="st-meta">Check sends one GET to each address on screen, and nothing else.</span>
       </div>
       <p v-if="dismissed.length" class="imp-quiet">
-        <button type="button" class="btn sm ghost" :aria-expanded="showDismissed" @click="showDismissed = !showDismissed">Dismissed · {{ dismissed.length }}</button>
+        <UiButton variant="ghost" size="sm" :aria-expanded="showDismissed" @click="showDismissed = !showDismissed">Dismissed · {{ dismissed.length }}</UiButton>
       </p>
       <ul v-if="showDismissed" class="rel">
         <li v-for="l in dismissed" :key="l.key">
           <span>{{ l.name }} · {{ kindName(l.integration) }}<template v-if="l.url"> · <span class="n">{{ l.url }}</span></template></span>
-          <button type="button" class="btn sm" @click="restoreLeads([l.key])">Offer again</button>
+          <UiButton size="sm" @click="restoreLeads([l.key])">Offer again</UiButton>
         </li>
       </ul>
       <p v-if="checked" class="imp-quiet" role="status">Checked {{ plural(checked.checked.length, 'address', 'addresses') }}: {{ checked.found.length }} answered as expected.</p>

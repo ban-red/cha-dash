@@ -32,8 +32,8 @@
 import { computed } from 'vue';
 import { hhmm, shortDate } from '../lib/format';
 import type { SizeId } from '@chadash/layout';
-import Glyph from '../components/marks/Glyph.vue';
-import MiniGraph from '../components/marks/MiniGraph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
 import { glyphFor, worst } from '../model/status';

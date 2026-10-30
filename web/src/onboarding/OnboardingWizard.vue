@@ -27,6 +27,8 @@ import { integrations, loadCatalog, loadInstances } from '../stores/integrations
 import { useBoard } from '../stores/board';
 import { useLive } from '../stores/live';
 import { closeWizard, goTo, onboarding, type WizardStep } from './state';
+import UiButton from '../ui/Button.vue';
+import UiCloseButton from '../ui/CloseButton.vue';
 
 const live = useLive();
 const board = useBoard();
@@ -154,9 +156,7 @@ onBeforeUnmount(() => {
       <section class="onboarding" role="dialog" aria-modal="true" aria-labelledby="ob-h">
         <header class="ob-head">
           <span class="caps">First run · Connect your home</span>
-          <button type="button" class="x" aria-label="Close, and finish later" title="Finish later" @click="later">
-            <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-          </button>
+          <UiCloseButton label="Close, and finish later" title="Finish later" @click="later" />
         </header>
 
         <div class="ob-body">
@@ -217,14 +217,14 @@ onBeforeUnmount(() => {
         </div>
 
         <footer class="ob-foot">
-          <button v-if="step === 'start'" type="button" class="btn ghost" @click="skip">Skip setup</button>
-          <button v-else type="button" class="btn ghost" @click="to('start')">‹ Back</button>
+          <UiButton v-if="step === 'start'" variant="ghost" @click="skip">Skip setup</UiButton>
+          <UiButton v-else variant="ghost" @click="to('start')">‹ Back</UiButton>
           <span class="ob-foot-gap"></span>
-          <button v-if="step === 'discover'" type="button" class="btn" @click="to('add')">Add more by hand</button>
-          <button v-if="step !== 'done' && (step !== 'start' || instances.length)" type="button" class="btn primary" @click="to('done')">
+          <UiButton v-if="step === 'discover'" @click="to('add')">Add more by hand</UiButton>
+          <UiButton v-if="step !== 'done' && (step !== 'start' || instances.length)" variant="primary" @click="to('done')">
             {{ instances.length ? 'Done' : 'Finish' }}
-          </button>
-          <button v-if="step === 'done'" type="button" class="btn primary" :disabled="finishing" :aria-busy="finishing" @click="finish">Open the front page</button>
+          </UiButton>
+          <UiButton v-if="step === 'done'" variant="primary" :disabled="finishing" :aria-busy="finishing" @click="finish">Open the front page</UiButton>
         </footer>
       </section>
     </div>

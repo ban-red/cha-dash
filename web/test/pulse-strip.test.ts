@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { setDisplayTimeZone } from '../src/lib/format';
 import PulseStrip from '../src/components/PulseStrip.vue';
-import MiniGraph from '../src/components/marks/MiniGraph.vue';
+import MiniGraph from '../src/ui/marks/MiniGraph.vue';
 import Frame from '../src/widgets/parts/Frame.vue';
 import { pastStatus, pulseTone, type PulseReply } from '../src/model/history';
 import { clearCursor, cursor, pulse, setCursor } from '../src/stores/cursor';

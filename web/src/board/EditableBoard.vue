@@ -39,6 +39,7 @@ import { useDiscoveryIfAny } from '../stores/discovery';
 import { useLive } from '../stores/live';
 import type { TileConfig } from '../stores/tiles';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const WidgetPicker = defineAsyncComponent(() => import('./WidgetPicker.vue'));
 const TileEditor = defineAsyncComponent(() => import('./TileEditor.vue'));
@@ -247,22 +248,22 @@ onKeyStroke('z', (e) => {
   <div class="edit-bar" role="toolbar" aria-label="Edit layout">
     <span v-if="selectedItem" class="edit-sel">
       <span class="edit-sel-name">{{ itemLabel(selectedItem) }}</span>
-      <button type="button" class="btn sm" @click="editingId = selectedItem.id">Edit</button>
-      <button type="button" class="btn sm" @click="removeItem(selectedItem.id)">Remove</button>
+      <UiButton size="sm" @click="editingId = selectedItem.id">Edit</UiButton>
+      <UiButton size="sm" @click="removeItem(selectedItem.id)">Remove</UiButton>
     </span>
     <span v-else class="edit-hint">Drag a tile, or resize it from its corner. Select one to edit or remove it. With the keyboard, Enter picks a tile up and the arrows move it.</span>
     <span v-if="store.state.unsaved" class="edit-unsaved" role="status">Not saved</span>
     <div class="flow-seg" role="group" aria-label="Layout">
       <button v-for="c in FLOW_CHOICES" :key="c.flow" type="button" :aria-pressed="flow === c.flow" :title="c.hint" @click="chooseFlow(c.flow)">{{ c.name }}</button>
     </div>
-    <button type="button" class="btn sm" @click="openPicker()">Add widget</button>
-    <button v-if="dismissedCount" type="button" class="btn ghost sm" @click="showDismissed = true">Dismissed · {{ dismissedCount }}</button>
-    <button type="button" class="btn ghost sm" :disabled="!history.canUndo.value" @click="step('undo')">Undo</button>
-    <button type="button" class="btn ghost sm" :disabled="!history.canRedo.value" @click="step('redo')">Redo</button>
-    <button type="button" class="btn primary sm" @click="emit('done')">Done</button>
+    <UiButton size="sm" @click="openPicker()">Add widget</UiButton>
+    <UiButton v-if="dismissedCount" variant="ghost" size="sm" @click="showDismissed = true">Dismissed · {{ dismissedCount }}</UiButton>
+    <UiButton variant="ghost" size="sm" :disabled="!history.canUndo.value" @click="step('undo')">Undo</UiButton>
+    <UiButton variant="ghost" size="sm" :disabled="!history.canRedo.value" @click="step('redo')">Redo</UiButton>
+    <UiButton variant="primary" size="sm" @click="emit('done')">Done</UiButton>
   </div>
   <!-- The toolbar's own Done can sit under the page's buttons once you scroll, so there's always this one too. -->
-  <button type="button" class="btn primary edit-exit" aria-keyshortcuts="Escape" @click="emit('done')">Exit layout editing<kbd class="edit-exit-key" aria-hidden="true">Esc</kbd></button>
+  <UiButton variant="primary" class="edit-exit" aria-keyshortcuts="Escape" @click="emit('done')">Exit layout editing<kbd class="edit-exit-key" aria-hidden="true">Esc</kbd></UiButton>
   <div class="edit-surface" @keydown="onKeydown">
     <LayoutBoard
       :board="present.board"
@@ -275,7 +276,7 @@ onKeyStroke('z', (e) => {
       <template #section="{ section }">
         <div class="sh-edit">
           <SectionHeader :section="section" />
-          <button type="button" class="btn ghost sm sh-add" :aria-label="`Add a widget to ${section.title ?? section.id}`" @click="openPicker(section.id)">Add</button>
+          <UiButton variant="ghost" size="sm" class="sh-add" :aria-label="`Add a widget to ${section.title ?? section.id}`" @click="openPicker(section.id)">Add</UiButton>
         </div>
       </template>
       <template #item="{ item, size }">

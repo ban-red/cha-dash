@@ -26,7 +26,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { duration, hhmm, plural, shortDate } from '../lib/format';
 import { attr, calendar, distinct, label, outgoing, resolve, type CalendarEntry } from '../model/graph';

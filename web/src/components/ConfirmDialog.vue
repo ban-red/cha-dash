@@ -10,7 +10,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import HoldToConfirm from './HoldToConfirm.vue';
 import { HUB_WARNING, hitsHub, hubFirst, relationWords, impactName } from '../model/words';
 import { isHub } from '../model/hub';
@@ -18,6 +18,7 @@ import { transition, useReducedMotion } from '../lib/motion';
 import { trapTab } from '../lib/trap';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const live = useLive();
 const ui = useUi();
@@ -113,13 +114,13 @@ const lit = (i: number) => review.value || progress.value >= ((i + 0.5) / Math.m
           </ul>
           <div class="foot">
             <template v-if="review">
-              <button type="button" class="btn primary" @click="ui.confirmed()">Run it</button>
+              <UiButton variant="primary" @click="ui.confirmed()">Run it</UiButton>
             </template>
             <template v-else>
               <HoldToConfirm :label="verb" @progress="progress = $event" @confirm="ui.confirmed()" />
               <span id="hold-hint" class="hint">hold · or hold Space</span>
             </template>
-            <button type="button" class="btn ghost sm" @click="ui.cancelConfirm()">Cancel</button>
+            <UiButton variant="ghost" size="sm" @click="ui.cancelConfirm()">Cancel</UiButton>
           </div>
         </motion.div>
       </AnimatePresence>

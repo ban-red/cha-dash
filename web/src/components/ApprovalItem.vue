@@ -18,7 +18,7 @@
  * Its own chunk, loaded when the Inbox first shows an approval.
  */
 import { computed, nextTick, ref, useId, useTemplateRef } from 'vue';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import HoldToConfirm from './HoldToConfirm.vue';
 import { api } from '../lib/api';
 import { hubWords, needsStepUp } from '../lib/actions';
@@ -27,6 +27,8 @@ import { impactName, relationWords } from '../model/words';
 import type { Incident, Task } from '../model/types';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const { incident } = defineProps<{ incident: Incident }>();
 const live = useLive();
@@ -142,17 +144,19 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
             <HoldToConfirm :key="attempt" label="approve" :hint="`${uid}-hint`" @progress="progress = $event" @confirm="approve" />
             <span :id="`${uid}-hint`" class="hint">hold to approve · then confirm it’s you</span>
           </template>
-          <button v-else type="button" class="btn primary apv-approve" :disabled="!!busy || live.stale.value" @click="approve">Approve<span class="tier">{{ tier }}</span></button>
-          <button type="button" class="btn ghost sm apv-deny-btn" :disabled="!!busy || live.stale.value" @click="startDeny">Deny</button>
+          <UiButton v-else variant="primary" class="apv-approve" :disabled="!!busy || live.stale.value" @click="approve">Approve<span class="tier">{{ tier }}</span></UiButton>
+          <UiButton variant="ghost" size="sm" class="apv-deny-btn" :disabled="!!busy || live.stale.value" @click="startDeny">Deny</UiButton>
         </div>
         <form v-else class="apv-deny" novalidate @submit.prevent="deny">
-          <div class="field">
-            <label :for="`${uid}-why`">Why not? <span class="opt-word">optional, shown to whoever asked</span></label>
-            <input :id="`${uid}-why`" v-model="reason" type="text" maxlength="300" autocomplete="off" />
-          </div>
+          <UiField>
+            <template #label>Why not? <span class="opt-word">optional, shown to whoever asked</span></template>
+            <template #default="{ control }">
+              <input v-bind="control" v-model="reason" type="text" maxlength="300" autocomplete="off" />
+            </template>
+          </UiField>
           <div class="st-acts">
-            <button type="submit" class="btn sm" :disabled="!!busy">Deny it</button>
-            <button type="button" class="btn ghost sm" @click="backFromDeny">Back</button>
+            <UiButton size="sm" type="submit" :disabled="!!busy">Deny it</UiButton>
+            <UiButton variant="ghost" size="sm" @click="backFromDeny">Back</UiButton>
           </div>
         </form>
         <p v-if="busy === 'approve'" class="sub" role="status">Approving…</p>

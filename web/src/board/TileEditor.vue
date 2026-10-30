@@ -13,7 +13,7 @@
  * It only describes the change; EditableBoard records it in the history, so
  * Undo takes it back, and saves it.
  */
-import { computed, ref, useId, useTemplateRef } from 'vue';
+import { computed, ref } from 'vue';
 import type { Item } from '@chadash/layout';
 import { WIDGETS, parseItemId } from '../model/widgets';
 import { bindKind, candidateLabel, decodeBinding, encodeBinding, feedFor, serviceBindingGroups } from '../model/feeds';
@@ -23,16 +23,15 @@ import { optionValue, sizesValue, type OptionValue } from '../widgets/options';
 import { useLive } from '../stores/live';
 import { instanceName } from '../stores/integrations';
 import { hrefOk, type TileConfig } from '../stores/tiles';
-import { useModal } from './useModal';
 import './editDialog.css';
+import UiButton from '../ui/Button.vue';
+import UiDialog from '../ui/Dialog.vue';
+import UiField from '../ui/Field.vue';
 
 const { item, config } = defineProps<{ item: Pick<Item, 'id' | 'type'>; config?: TileConfig | undefined }>();
 const emit = defineEmits<{ save: [config: TileConfig | undefined]; close: [] }>();
 
 const live = useLive();
-const uid = useId();
-const dlg = useTemplateRef<HTMLDialogElement>('dlg');
-useModal(dlg);
 
 const spec = computed(() => WIDGETS[item.type]);
 const kind = computed(() => (spec.value ? bindKind(spec.value) : 'none'));
@@ -164,101 +163,75 @@ function submit(): void {
 </script>
 
 <template>
-  <dialog ref="dlg" class="edit-dlg editor" :aria-labelledby="`${uid}-h`" @cancel.prevent="emit('close')">
-    <form class="edit-dlg-body" novalidate @submit.prevent="submit">
-      <header class="edit-dlg-head">
-        <h2 :id="`${uid}-h`">Edit {{ config?.name || placeholder }}</h2>
-        <span class="edit-dlg-kind">{{ spec?.name ?? item.type }}</span>
-        <button type="button" class="x" aria-label="Close" @click="emit('close')">
-          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-        </button>
-      </header>
+  <UiDialog as="form" class="edit-dlg editor" size="sm" :title="`Edit ${config?.name || placeholder}`" @close="emit('close')" @submit="submit">
+    <template #head><span class="edit-dlg-kind">{{ spec?.name ?? item.type }}</span></template>
 
-      <div class="field">
-        <label :for="`${uid}-name`">Name</label>
-        <input :id="`${uid}-name`" v-model="name" type="text" autocomplete="off" maxlength="200" :placeholder="boundName ?? placeholder" :disabled="boundName !== undefined" />
-        <span v-if="boundName !== undefined" class="help">Named after its integration. Rename that in Settings → Integrations.</span>
-        <span v-else class="help">Empty uses the widget’s own name.</span>
-      </div>
-      <div class="field">
-        <label :for="`${uid}-href`">Link</label>
-        <input :id="`${uid}-href`" v-model="href" type="url" inputmode="url" autocomplete="off" placeholder="https://" :aria-invalid="hrefBad || undefined" />
-        <span v-if="hrefBad" class="help bad">Links start with http:// or https://.</span>
-      </div>
-      <div v-if="kind === 'service'" class="field">
-        <label :for="`${uid}-desc`">Description</label>
-        <input :id="`${uid}-desc`" v-model="description" type="text" autocomplete="off" maxlength="500" />
-      </div>
+    <UiField label="Name" :help="boundName !== undefined ? 'Named after its integration. Rename that in Settings → Integrations.' : 'Empty uses the widget’s own name.'" v-slot="{ control }">
+      <input v-bind="control" v-model="name" type="text" autocomplete="off" maxlength="200" :placeholder="boundName ?? placeholder" :disabled="boundName !== undefined" />
+    </UiField>
+    <UiField label="Link" :error="hrefBad && 'Links start with http:// or https://.'" v-slot="{ control }">
+      <input v-bind="control" v-model="href" type="url" inputmode="url" autocomplete="off" placeholder="https://" />
+    </UiField>
+    <UiField v-if="kind === 'service'" label="Description" v-slot="{ control }">
+      <input v-bind="control" v-model="description" type="text" autocomplete="off" maxlength="500" />
+    </UiField>
 
-      <div v-if="kind === 'resource'" class="field">
-        <label :for="`${uid}-target`">Shows</label>
-        <select :id="`${uid}-target`" v-model="target">
-          <option v-for="r in candidates" :key="r.id" :value="r.id">{{ r.kind ? candidateLabel(live.graph.value, r) : r.name }}</option>
+    <UiField v-if="kind === 'resource'" label="Shows" v-slot="{ control }">
+      <select v-bind="control" v-model="target">
+        <option v-for="r in candidates" :key="r.id" :value="r.id">{{ r.kind ? candidateLabel(live.graph.value, r) : r.name }}</option>
+      </select>
+    </UiField>
+    <UiField v-else-if="kind === 'service'" label="Status from" v-slot="{ control }">
+      <select v-bind="control" v-model="binding">
+        <option value="">Nothing (no status)</option>
+        <option v-if="binding && !groups.some((g) => g.choices.some((c) => c.value === binding))" :value="binding">{{ binding.replace(/^[a-z]+:/, '') }} (not in the graph)</option>
+        <optgroup v-for="gr in groups" :key="gr.label" :label="gr.label">
+          <option v-for="c in gr.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
+        </optgroup>
+      </select>
+    </UiField>
+
+    <UiField v-if="isCalendar" check label="Include unmonitored releases" help="Lists what Sonarr, Radarr and Lidarr know about but aren’t monitoring, marked as such." v-slot="{ control }">
+      <input v-bind="control" v-model="unmonitored" type="checkbox" />
+    </UiField>
+
+    <template v-for="o in widgetOptions" :key="o.key">
+      <UiField v-if="o.kind === 'boolean'" check :label="o.label" :help="o.help" v-slot="{ control }">
+        <input v-bind="control" v-model="values[o.key]" type="checkbox" />
+      </UiField>
+      <UiField v-else-if="o.kind === 'choice'" :label="o.label" :help="o.help" v-slot="{ control }">
+        <select v-bind="control" v-model="values[o.key]">
+          <option v-for="c in o.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
         </select>
-      </div>
-      <div v-else-if="kind === 'service'" class="field">
-        <label :for="`${uid}-bind`">Status from</label>
-        <select :id="`${uid}-bind`" v-model="binding">
-          <option value="">Nothing (no status)</option>
-          <option v-if="binding && !groups.some((g) => g.choices.some((c) => c.value === binding))" :value="binding">{{ binding.replace(/^[a-z]+:/, '') }} (not in the graph)</option>
-          <optgroup v-for="gr in groups" :key="gr.label" :label="gr.label">
-            <option v-for="c in gr.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
-          </optgroup>
-        </select>
-      </div>
-
-      <div v-if="isCalendar" class="field check">
-        <label :for="`${uid}-unmon`">
-          <input :id="`${uid}-unmon`" v-model="unmonitored" type="checkbox" :aria-describedby="`${uid}-unmon-help`" />
-          Include unmonitored releases
-        </label>
-        <span :id="`${uid}-unmon-help`" class="help">Lists what Sonarr, Radarr and Lidarr know about but aren’t monitoring, marked as such.</span>
-      </div>
-
-      <template v-for="o in widgetOptions" :key="o.key">
-        <div v-if="o.kind === 'boolean'" class="field check">
-          <label :for="`${uid}-o-${o.key}`">
-            <input :id="`${uid}-o-${o.key}`" v-model="values[o.key]" type="checkbox" :aria-describedby="o.help ? `${uid}-o-${o.key}-help` : undefined" />
-            {{ o.label }}
+      </UiField>
+      <fieldset v-else-if="o.kind === 'resources' && pickable(o).length" class="field picks">
+        <legend>{{ o.label }}</legend>
+        <div v-for="r in pickable(o)" :key="r.id" class="pick">
+          <label class="pick-name">
+            <input type="checkbox" :checked="(values[o.key] as string[]).includes(r.id)" @change="togglePick(o.key, r.id, ($event.target as HTMLInputElement).checked)" />
+            {{ label(r) }}
           </label>
-          <span v-if="o.help" :id="`${uid}-o-${o.key}-help`" class="help">{{ o.help }}</span>
-        </div>
-        <div v-else-if="o.kind === 'choice'" class="field">
-          <label :for="`${uid}-o-${o.key}`">{{ o.label }}</label>
-          <select :id="`${uid}-o-${o.key}`" v-model="values[o.key]" :aria-describedby="o.help ? `${uid}-o-${o.key}-help` : undefined">
-            <option v-for="c in o.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
+          <select
+            v-if="o.sizes"
+            class="pick-size"
+            :aria-label="`${o.sizes.label} of ${label(r)}`"
+            :value="sizes[o.sizes.key]?.[r.id] ?? o.sizes.default"
+            @change="setSize(o.sizes.key, r.id, ($event.target as HTMLSelectElement).value, o.sizes.default)"
+          >
+            <option v-for="c in o.sizes.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
           </select>
-          <span v-if="o.help" :id="`${uid}-o-${o.key}-help`" class="help">{{ o.help }}</span>
+          <template v-if="o.ordered && (values[o.key] as string[]).includes(r.id)">
+            <button type="button" class="pick-mv" :aria-label="`Move ${label(r)} earlier`" :disabled="(values[o.key] as string[]).indexOf(r.id) === 0" @click="move(o.key, r.id, -1)">↑</button>
+            <button type="button" class="pick-mv" :aria-label="`Move ${label(r)} later`" :disabled="(values[o.key] as string[]).indexOf(r.id) === (values[o.key] as string[]).length - 1" @click="move(o.key, r.id, 1)">↓</button>
+          </template>
         </div>
-        <fieldset v-else-if="o.kind === 'resources' && pickable(o).length" class="field picks">
-          <legend>{{ o.label }}</legend>
-          <div v-for="r in pickable(o)" :key="r.id" class="pick">
-            <label class="pick-name">
-              <input type="checkbox" :checked="(values[o.key] as string[]).includes(r.id)" @change="togglePick(o.key, r.id, ($event.target as HTMLInputElement).checked)" />
-              {{ label(r) }}
-            </label>
-            <select
-              v-if="o.sizes"
-              class="pick-size"
-              :aria-label="`${o.sizes.label} of ${label(r)}`"
-              :value="sizes[o.sizes.key]?.[r.id] ?? o.sizes.default"
-              @change="setSize(o.sizes.key, r.id, ($event.target as HTMLSelectElement).value, o.sizes.default)"
-            >
-              <option v-for="c in o.sizes.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
-            </select>
-            <template v-if="o.ordered && (values[o.key] as string[]).includes(r.id)">
-              <button type="button" class="pick-mv" :aria-label="`Move ${label(r)} earlier`" :disabled="(values[o.key] as string[]).indexOf(r.id) === 0" @click="move(o.key, r.id, -1)">↑</button>
-              <button type="button" class="pick-mv" :aria-label="`Move ${label(r)} later`" :disabled="(values[o.key] as string[]).indexOf(r.id) === (values[o.key] as string[]).length - 1" @click="move(o.key, r.id, 1)">↓</button>
-            </template>
-          </div>
-          <span v-if="o.help" class="help">{{ o.help }}</span>
-        </fieldset>
-      </template>
+        <span v-if="o.help" class="help">{{ o.help }}</span>
+      </fieldset>
+    </template>
 
-      <div class="edit-dlg-foot">
-        <button type="button" class="btn ghost" @click="emit('close')">Cancel</button>
-        <button type="submit" class="btn primary" :disabled="hrefBad">Save</button>
-      </div>
-    </form>
-  </dialog>
+    <template #foot>
+      <UiButton variant="ghost" @click="emit('close')">Cancel</UiButton>
+      <UiButton variant="primary" type="submit" :disabled="hrefBad">Save</UiButton>
+    </template>
+  </UiDialog>
 </template>

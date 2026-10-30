@@ -6,13 +6,14 @@
  * asking for a step-up when it removes connections.
  */
 import { onMounted, ref, shallowRef } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ApiError, api } from '../lib/api';
 import { absolute, plural } from '../lib/format';
 import { navigate } from '../lib/router';
 import { errorWords, loadInstances } from '../stores/integrations';
 import { useUi } from '../stores/ui';
 import { sourceInfo, type SourceId } from './model';
+import UiButton from '../ui/Button.vue';
 
 const emit = defineEmits<{ again: [source: SourceId] }>();
 const ui = useUi();
@@ -119,9 +120,9 @@ onMounted(load);
           </span>
         </span>
         <span class="hist-acts">
-          <button v-if="e.board_id && !e.reverted_at" type="button" class="btn sm" @click="navigate(`/boards/${encodeURIComponent(e.board_id)}`)">Open</button>
-          <button v-if="sourceInfo(e.source)" type="button" class="btn sm" @click="emit('again', e.source as SourceId)">Import again</button>
-          <button v-if="!e.reverted_at" type="button" class="btn sm ghost" :disabled="planning === e.id" :aria-busy="planning === e.id" @click="planRevert(e)">Revert…</button>
+          <UiButton v-if="e.board_id && !e.reverted_at" size="sm" @click="navigate(`/boards/${encodeURIComponent(e.board_id)}`)">Open</UiButton>
+          <UiButton v-if="sourceInfo(e.source)" size="sm" @click="emit('again', e.source as SourceId)">Import again</UiButton>
+          <UiButton v-if="!e.reverted_at" variant="ghost" size="sm" :disabled="planning === e.id" :aria-busy="planning === e.id" @click="planRevert(e)">Revert…</UiButton>
         </span>
       </li>
     </ul>
@@ -137,8 +138,8 @@ onMounted(load);
       </ul>
       <p class="imp-quiet">What the import updated rather than created stays as it is now.<template v-if="plan.plan.connections"> Removing connections asks you to confirm it’s you.</template></p>
       <div class="st-acts">
-        <button type="button" class="btn primary" :disabled="reverting || !plan.plan.remove.length" :aria-busy="reverting" @click="revert">Revert<span class="tier">T3</span></button>
-        <button type="button" class="btn" :disabled="reverting" @click="plan = undefined">Keep it</button>
+        <UiButton variant="primary" :disabled="reverting || !plan.plan.remove.length" :aria-busy="reverting" @click="revert">Revert<span class="tier">T3</span></UiButton>
+        <UiButton :disabled="reverting" @click="plan = undefined">Keep it</UiButton>
       </div>
     </div>
   </section>

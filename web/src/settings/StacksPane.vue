@@ -15,7 +15,7 @@
  */
 import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, ref, watch } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import StackEditor from './StackEditor.vue';
 import StackSecrets from './StackSecrets.vue';
 import { ago } from '../lib/format';
@@ -23,6 +23,7 @@ import { hubWords, isDone } from '../lib/actions';
 import { navigate, stackPath, view } from '../lib/router';
 import { useUi } from '../stores/ui';
 import { PROTECTED_WORDS, STATUS_GLYPH, listStacks, statusWords, targetOf, type Detected, type StackNode } from './stacks';
+import UiButton from '../ui/Button.vue';
 
 const ui = useUi();
 const v = computed(() => (view.value.name === 'settings' && view.value.pane === 'stacks' ? view.value : undefined));
@@ -87,7 +88,7 @@ onMounted(load);
     <section class="st-section" aria-labelledby="sk-h">
       <header>
         <h3 id="sk-h">Stacks</h3>
-        <a v-if="anyOnline" class="btn sm" href="/settings/stacks/new" @click.prevent="navigate('/settings/stacks/new')">New stack</a>
+        <UiButton v-if="anyOnline" size="sm" href="/settings/stacks/new" @click.prevent="navigate('/settings/stacks/new')">New stack</UiButton>
       </header>
       <SettingsHelp summary="Compose stacks Cha Dash owns, kept in git on their node, with rollback on a failed health check.">
         Compose stacks Cha Dash owns. Each lives in git on its node; deploying checks the file, pulls, starts it, holds it to a health check, and rolls back on
@@ -97,7 +98,7 @@ onMounted(load);
       <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
       <div v-else-if="status === 'error'" class="st-note bad" role="alert">
         <Glyph kind="down" /><span>{{ loadError }}</span>
-        <button type="button" class="btn sm" @click="load">Try again</button>
+        <UiButton size="sm" @click="load">Try again</UiButton>
       </div>
       <div v-else-if="!nodes.length" class="st-empty">
         <div class="t">No nodes connected</div>
@@ -121,7 +122,7 @@ onMounted(load);
           <div class="t">No stacks on {{ n.name || n.node }} yet</div>
           <div class="m">Write one here, or start a compose project on this node and adopt it where it is.</div>
           <div class="st-acts">
-            <a class="btn primary" href="/settings/stacks/new" @click.prevent="navigate('/settings/stacks/new')">New stack</a>
+            <UiButton variant="primary" href="/settings/stacks/new" @click.prevent="navigate('/settings/stacks/new')">New stack</UiButton>
           </div>
         </div>
 
@@ -161,15 +162,9 @@ onMounted(load);
                   <span v-else-if="!d.adoptable && d.reason" class="m sk-why">{{ d.reason }}</span>
                 </span>
                 <span class="end">
-                  <button
-                    v-if="d.adoptable && canAdopt"
-                    type="button"
-                    class="btn sm"
-                    :aria-label="`Adopt ${d.name} where it is`"
-                    @click="adopt(n, d)"
-                  >
+                  <UiButton v-if="d.adoptable && canAdopt" size="sm" :aria-label="`Adopt ${d.name} where it is`" @click="adopt(n, d)">
                     Adopt<span class="tier">T1</span>
-                  </button>
+                  </UiButton>
                   <span v-else-if="!d.adoptable && !d.protected">can’t adopt</span>
                 </span>
               </div>

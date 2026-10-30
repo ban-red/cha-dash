@@ -8,7 +8,7 @@
  * new tab, and the dialog of cut text offers the same link.
  */
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
-import type { GlyphKind } from './marks/Glyph.vue';
+import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import { useUi } from '../stores/ui';
 
 const {

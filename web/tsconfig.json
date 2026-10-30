@@ -10,6 +10,7 @@
   },
   "vueCompilerOptions": {
     "strictTemplates": true,
+    "fallthroughAttributes": true,
     "dataAttributes": ["data-*"]
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "vite.config.ts", "env.d.ts"]

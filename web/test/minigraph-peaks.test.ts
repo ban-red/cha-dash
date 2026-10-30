@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import MiniGraph from '../src/components/marks/MiniGraph.vue';
+import MiniGraph from '../src/ui/marks/MiniGraph.vue';
 
 const values = Array.from({ length: 48 }, () => 20);
 const peaks = values.map((v, i) => (i === 24 ? 1000 : v));

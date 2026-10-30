@@ -1,5 +1,5 @@
 /** Mapping between graph health, tile treatment, glyphs and words. */
-import type { GlyphKind } from '../components/marks/Glyph.vue';
+import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import type { Health, Resource, Severity } from './types';
 

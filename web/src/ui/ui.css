@@ -1,0 +1,308 @@
+/*
+ * The primitives' styles (ADR-0032): UiButton (.btn), UiCloseButton (.x),
+ * UiField (.field) and the marks (.g, .meter). Loaded by main.ts straight
+ * after base.css, so every feature stylesheet comes later in the cascade and
+ * can lay these out. Features place primitives; they don't restyle them.
+ * UiDialog's shell is in dialog.css, which loads with the first dialog.
+ */
+
+/* ───────────── Buttons ───────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 7px 12px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: var(--weight-medium) var(--type-small) / 1 var(--font-ui);
+  color: var(--text);
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color var(--motion-press-duration) var(--motion-press-easing),
+    transform var(--motion-press-duration) var(--motion-press-easing),
+    border-color var(--motion-press-duration) var(--motion-press-easing);
+}
+.btn:hover {
+  background: var(--surface-hover);
+}
+.btn:not(.primary):hover .tier {
+  color: var(--text-2); /* text-3 is too faint on surface-hover (WCAG AA) */
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn.primary {
+  background: var(--text);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.btn.primary:hover {
+  background: color-mix(in oklch, var(--text) 88%, var(--bg));
+}
+.btn.ghost {
+  border-color: transparent;
+  color: var(--text-2);
+}
+.btn.danger {
+  border-color: color-mix(in oklch, var(--down) 55%, var(--line-2));
+  color: var(--down-text);
+}
+.btn.danger.solid {
+  background: var(--down);
+  border-color: transparent;
+  color: var(--on-down);
+}
+.btn.sm {
+  min-height: 28px;
+  padding: 5px 9px;
+  font-size: var(--type-caption);
+}
+.btn[disabled],
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn .tier {
+  padding: 2px 3px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-xs);
+  font: 600 9px/1 var(--font-num);
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+.btn.primary .tier {
+  border-color: color-mix(in oklch, var(--text-inverse) 40%, transparent);
+  color: inherit;
+  opacity: 0.75;
+}
+.x {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-2);
+}
+.x:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.x svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* ───────────── Fields ───────────── */
+.field {
+  /* Compact controls with a pointer; touch keeps the 44px target and 16px
+     text (iOS zooms into anything smaller). */
+  --control-h: 34px;
+  --control-font: var(--type-body);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+@media (pointer: coarse) {
+  .field {
+    --control-h: var(--target-min);
+    --control-font: var(--type-callout);
+  }
+}
+.field label {
+  font: var(--weight-medium) var(--type-small) / 1.2 var(--font-ui);
+  color: var(--text-2);
+}
+.field input {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 6px 10px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: var(--weight-regular) var(--control-font) / 1.2 var(--font-ui);
+  color: var(--text);
+  transition: border-color var(--motion-press-duration) var(--motion-press-easing);
+}
+.field input:hover:not(:disabled, :focus) {
+  border-color: color-mix(in oklch, var(--text) 22%, transparent);
+}
+.field input::placeholder {
+  color: var(--text-3);
+}
+.field input.mono-input {
+  font-family: var(--font-num);
+  letter-spacing: 0.02em;
+}
+.field input:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.field input[aria-invalid='true'] {
+  border-color: color-mix(in oklch, var(--down) 60%, var(--line-2));
+}
+.field .help {
+  font-size: var(--type-caption);
+  line-height: 1.4;
+  color: var(--text-3);
+}
+.field .help.bad {
+  color: var(--down-text);
+}
+.form-error {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: var(--hairline) solid color-mix(in oklch, var(--down) 50%, var(--line));
+  border-radius: var(--radius-md);
+  background: var(--down-bg);
+  font-size: var(--type-small);
+  color: var(--text);
+}
+.form-error .g {
+  margin-top: 3px;
+}
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 6px 10px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: var(--weight-regular) var(--control-font) / 1.4 var(--font-ui);
+  color: var(--text);
+}
+.field select:hover:not(:disabled, :focus),
+.field textarea:hover:not(:disabled, :focus) {
+  border-color: color-mix(in oklch, var(--text) 22%, transparent);
+}
+.field textarea {
+  min-height: 9rem;
+  resize: vertical;
+  font-family: var(--font-num);
+  font-size: var(--type-small);
+  line-height: 1.5;
+  tab-size: 2;
+}
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.field textarea[aria-invalid='true'],
+.field select[aria-invalid='true'] {
+  border-color: color-mix(in oklch, var(--down) 60%, var(--line-2));
+}
+.field .label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.field .opt-word {
+  margin-left: auto;
+  font: var(--weight-regular) var(--type-caption) / 1 var(--font-num);
+  color: var(--text-3);
+}
+.field.check label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  color: var(--text);
+}
+.field.check input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--text);
+}
+
+/* ───────────── Glyphs: state is shape + word + colour ───────────── */
+.g {
+  display: inline-flex;
+  width: 0.72em;
+  height: 0.72em;
+  flex: none;
+  vertical-align: baseline;
+  position: relative;
+  top: 0.02em;
+}
+.g svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.g-attn {
+  color: var(--attention);
+}
+.g-down {
+  color: var(--down);
+}
+.g-ok,
+.g-lock,
+.g-link,
+.g-off {
+  color: var(--text-3);
+}
+.g-prog {
+  color: var(--progress);
+}
+.g-maint {
+  color: var(--maint);
+}
+.g-repair,
+.g-check {
+  color: var(--text-2);
+}
+
+/* ───────────── Marks: meters and sparklines ───────────── */
+.meter {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  color: var(--text-3);
+  background: color-mix(in oklch, currentColor 22%, transparent);
+}
+.meter.sev-attn {
+  color: var(--attention);
+}
+.meter.sev-down {
+  color: var(--down);
+}
+.meter.thin {
+  height: 4px;
+}
+.meter.thick {
+  height: 14px;
+  border-radius: 7px;
+}
+.m-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: currentColor;
+  transition: width var(--motion-value-duration) var(--motion-value-easing);
+}
+.m-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1.5px;
+  margin-left: -0.75px;
+  border-radius: 1px;
+  background: var(--text-2);
+}
+.meter.unknown {
+  background: repeating-linear-gradient(90deg, var(--line-2) 0 4px, transparent 4px 8px);
+}

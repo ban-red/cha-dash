@@ -17,7 +17,7 @@
  * resolution arrives live from the `inbox` topic.
  */
 import { computed } from 'vue';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { hhmm, since } from '../lib/format';
 import { label } from '../model/graph';
 import { glyphFor } from '../model/status';
@@ -26,6 +26,7 @@ import type { Action, Incident } from '../model/types';
 import { useLive } from '../stores/live';
 import { canMute, isMarked, mute, unmute } from '../stores/muted';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const { incident, expanded = false } = defineProps<{ incident: Incident; expanded?: boolean }>();
 const emit = defineEmits<{ toggle: [] }>();
@@ -102,7 +103,7 @@ const id = computed(() => `ib-${incident.id}`);
     <span class="when" :title="isResolved ? 'resolved' : 'opened'"><span v-if="isRepair && !isResolved" class="ib-kind">Repair · </span>{{ whenText }}</span>
 
     <div v-if="!expanded && isRepair && !isResolved && ui.can.value.integrations" class="ib-quick">
-      <button type="button" class="btn sm" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect</button>
+      <UiButton size="sm" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect</UiButton>
     </div>
 
     <div v-if="expanded && !isResolved" :id="id" class="flow">
@@ -112,16 +113,9 @@ const id = computed(() => `ib-${incident.id}`);
           <circle class="arc" cx="6" cy="6" r="5" stroke-dasharray="31.4" :stroke-dashoffset="ringOffset" />
         </svg>
         <span>{{ workingWords }}</span>
-        <button
-          v-if="canCancel && task"
-          type="button"
-          class="btn sm ghost working-cancel"
-          :disabled="ui.cancelling[task.id]"
-          :aria-label="`Cancel ${task.label}`"
-          @click="ui.cancelTask(task)"
-        >
+        <UiButton v-if="canCancel && task" variant="ghost" size="sm" class="working-cancel" :disabled="ui.cancelling[task.id]" :aria-label="`Cancel ${task.label}`" @click="ui.cancelTask(task)">
           {{ ui.cancelling[task.id] ? 'Cancelling…' : 'Cancel' }}
-        </button>
+        </UiButton>
       </div>
 
       <div v-else-if="isRepair" class="col">
@@ -132,21 +126,14 @@ const id = computed(() => `ib-${incident.id}`);
         </p>
         <p v-else class="action-detail">Cha Dash can’t read this integration, but the service itself may be fine. Ask an admin or the owner to reconnect it.</p>
         <div class="acts">
-          <button v-if="ui.can.value.integrations" type="button" class="btn primary" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect<span class="tier">T0</span></button>
-          <button
-            v-if="demoRepairAction"
-            type="button"
-            class="btn"
-            :disabled="!runnable(demoRepairAction).ok"
-            :title="runnable(demoRepairAction).why ?? 'Runs in the Demo Home'"
-            @click="ui.act(incident, demoRepairAction)"
-          >
+          <UiButton v-if="ui.can.value.integrations" variant="primary" :disabled="live.stale.value" @click="ui.reconnect(incident)">Reconnect<span class="tier">T0</span></UiButton>
+          <UiButton v-if="demoRepairAction" :disabled="!runnable(demoRepairAction).ok" :title="runnable(demoRepairAction).why ?? 'Runs in the Demo Home'" @click="ui.act(incident, demoRepairAction)">
             {{ demoRepairAction.label }}<span class="tier">{{ demoRepairAction.tier }}</span>
-          </button>
+          </UiButton>
           <template v-for="alt in incident.alternatives ?? []" :key="alt.id + alt.label">
-            <button v-if="alt.id === 'link.open'" type="button" class="btn" :disabled="!runnable(alt).ok" :title="runnable(alt).why" @click="ui.act(incident, alt)">
+            <UiButton v-if="alt.id === 'link.open'" :disabled="!runnable(alt).ok" :title="runnable(alt).why" @click="ui.act(incident, alt)">
               {{ alt.label }}<span class="tier">{{ alt.tier }}</span>
-            </button>
+            </UiButton>
           </template>
         </div>
         <p v-if="demoRepairAction" class="sub">In the Demo Home, “{{ demoRepairAction.label }}” settles this one without opening settings.</p>
@@ -157,26 +144,26 @@ const id = computed(() => `ib-${incident.id}`);
         <h4>Suggested · {{ action.tier }}</h4>
         <p v-if="action.detail" class="action-detail">{{ action.detail }}</p>
         <div class="acts">
-          <button v-if="!primary.hidden" type="button" class="btn primary" :disabled="!primary.ok" :title="primary.why" @click="ui.act(incident)">
+          <UiButton v-if="!primary.hidden" variant="primary" :disabled="!primary.ok" :title="primary.why" @click="ui.act(incident)">
             {{ action.label }}<span class="tier">{{ action.tier }}</span>
-          </button>
+          </UiButton>
           <template v-for="alt in incident.alternatives ?? []" :key="alt.id + alt.label">
-            <button v-if="!runnable(alt).hidden" type="button" class="btn" :disabled="!runnable(alt).ok" :title="runnable(alt).why" @click="ui.act(incident, alt)">
+            <UiButton v-if="!runnable(alt).hidden" :disabled="!runnable(alt).ok" :title="runnable(alt).why" @click="ui.act(incident, alt)">
               {{ alt.label }}<span class="tier">{{ alt.tier }}</span>
-            </button>
+            </UiButton>
           </template>
         </div>
         <p v-if="primary.hidden" class="sub">Your role can see this but not run “{{ action.label }}”. Ask an admin or the owner.</p>
         <p v-else-if="!primary.ok && primary.why && !live.stale.value && fix?.state !== 'failed'" class="sub">{{ primary.why }}</p>
         <p v-if="fix?.state === 'failed'" class="err" role="alert">{{ fix.error }}</p>
-        <button v-if="recipe && ui.can.value.integrations" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe, { section: 'control' })">Open its settings</button>
+        <UiButton v-if="recipe && ui.can.value.integrations" size="sm" @click="ui.openSettings('integrations', recipe, { section: 'control' })">Open its settings</UiButton>
       </div>
 
       <p v-if="sheetName || hideable" class="sheet-link">
-        <button v-if="sheetName" type="button" class="btn sm" @click="ui.openSheet(incident.target)">Open {{ sheetName }}</button>
-        <button v-if="hideable" type="button" class="btn sm ghost" :aria-pressed="marked" @click="toggleHidden">
+        <UiButton v-if="sheetName" size="sm" @click="ui.openSheet(incident.target)">Open {{ sheetName }}</UiButton>
+        <UiButton v-if="hideable" variant="ghost" size="sm" :aria-pressed="marked" @click="toggleHidden">
           {{ marked ? 'Hidden until critical · Show again' : 'Hide until critical' }}
-        </button>
+        </UiButton>
       </p>
 
       <div v-if="facts.length">

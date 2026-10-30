@@ -336,7 +336,7 @@ describe('layers', () => {
     const plan = planFor('pve.snapshot.delete', 'pve:stork/qemu/221', { tier: 'T3', confirm_text: 'sandbox', label: 'Delete snapshot pre-upgrade', impact: [{ resource: 'pve:stork/qemu/221', via: 'snapshot_of', depth: 1 }] });
     hs.ui.state.confirm = { kind: 'type', req: { action: plan.action, target: plan.target, label: plan.label }, plan, action: { id: plan.action, label: plan.label, tier: 'T3', target: plan.target }, error: 'That doesn’t match. Type it exactly as shown.' };
     await settle();
-    expect(document.querySelector('dialog.act-dlg')).not.toBeNull();
+    expect(document.querySelector('dialog.typeconfirm')).not.toBeNull();
     expect(await axeViolations()).toEqual([]);
   });
 

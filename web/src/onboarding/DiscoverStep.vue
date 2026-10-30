@@ -8,7 +8,7 @@
  * address filled in and its recipe beside it.
  */
 import { computed, onMounted, reactive, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { monogram } from '../lib/format';
 import { navigate } from '../lib/router';
 import { catalogEntry, createInstance, errorWords, integrations, loadInstances } from '../stores/integrations';
@@ -17,6 +17,8 @@ import { useUi } from '../stores/ui';
 import { setDraft } from './draft';
 import { cache, candidateKey, discover, MAX_HOSTS, parseHosts, targetOf, WELL_KNOWN_DOCKER, type Candidate, type DiscoverResult } from './discover';
 import { onboarding } from './state';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const ui = useUi();
 
@@ -122,7 +124,7 @@ onMounted(() => void checkSidecar());
       </p>
       <div v-else-if="sidecar.state === 'error'" class="form-error" role="alert">
         <Glyph kind="down" /><span>{{ sidecar.message }}</span>
-        <button type="button" class="btn sm" @click="checkSidecar(true)">Try again</button>
+        <UiButton size="sm" @click="checkSidecar(true)">Try again</UiButton>
       </div>
       <ul v-else-if="sidecarFound" class="ob-cands">
         <li class="ob-cand">
@@ -136,16 +138,9 @@ onMounted(() => void checkSidecar());
           </span>
           <span class="ob-cand-end">
             <span v-if="isAdded(sidecarFound)" class="ob-done"><Glyph kind="check" /> Added</span>
-            <button
-              v-else
-              type="button"
-              class="btn primary sm"
-              :disabled="adding === candidateKey(sidecarFound)"
-              :aria-busy="adding === candidateKey(sidecarFound)"
-              @click="add(sidecarFound)"
-            >
+            <UiButton v-else variant="primary" size="sm" :disabled="adding === candidateKey(sidecarFound)" :aria-busy="adding === candidateKey(sidecarFound)" @click="add(sidecarFound)">
               {{ adding === candidateKey(sidecarFound) ? 'Adding…' : 'Add' }}
-            </button>
+            </UiButton>
           </span>
         </li>
       </ul>
@@ -161,20 +156,9 @@ onMounted(() => void checkSidecar());
         Cha Dash checks only what you list here: a few GET requests to the usual ports of the services it knows, on each machine. It never scans your network, and it sends no
         passwords.
       </p>
-      <div class="field">
-        <label for="ob-hosts">Machines to check</label>
-        <textarea
-          id="ob-hosts"
-          v-model="hostsText"
-          class="ob-hosts"
-          rows="3"
-          spellcheck="false"
-          autocapitalize="off"
-          :placeholder="'nas.home.example\n192.0.2.20'"
-          aria-describedby="ob-hosts-help"
-        ></textarea>
-        <span id="ob-hosts-help" class="help">One per line: a name or an address. Up to {{ MAX_HOSTS }}.</span>
-      </div>
+      <UiField id="ob-hosts" label="Machines to check" :help="`One per line: a name or an address. Up to ${MAX_HOSTS}.`" v-slot="{ control }">
+        <textarea v-bind="control" v-model="hostsText" class="ob-hosts" rows="3" spellcheck="false" autocapitalize="off" :placeholder="'nas.home.example\n192.0.2.20'"></textarea>
+      </UiField>
       <fieldset class="ob-wellknown">
         <legend>Also try these Docker addresses</legend>
         <label v-for="w in WELL_KNOWN_DOCKER" :key="w.endpoint" class="ob-check">
@@ -184,9 +168,9 @@ onMounted(() => void checkSidecar());
       </fieldset>
       <p v-if="inputError" class="form-error" role="alert"><Glyph kind="attn" /><span>{{ inputError }}</span></p>
       <div class="ob-acts">
-        <button type="button" class="btn" :disabled="further.state === 'checking'" :aria-busy="further.state === 'checking'" @click="checkFurther">
+        <UiButton :disabled="further.state === 'checking'" :aria-busy="further.state === 'checking'" @click="checkFurther">
           {{ further.state === 'checking' ? 'Checking…' : 'Check these' }}
-        </button>
+        </UiButton>
       </div>
 
       <div v-if="further.state === 'error'" class="form-error" role="alert"><Glyph kind="down" /><span>{{ further.message }}</span></div>
@@ -203,17 +187,10 @@ onMounted(() => void checkSidecar());
             </span>
             <span class="ob-cand-end">
               <span v-if="isAdded(c)" class="ob-done"><Glyph kind="check" /> Added</span>
-              <button
-                v-else-if="c.ready"
-                type="button"
-                class="btn primary sm"
-                :disabled="adding === candidateKey(c)"
-                :aria-busy="adding === candidateKey(c)"
-                @click="add(c)"
-              >
+              <UiButton v-else-if="c.ready" variant="primary" size="sm" :disabled="adding === candidateKey(c)" :aria-busy="adding === candidateKey(c)" @click="add(c)">
                 {{ adding === candidateKey(c) ? 'Adding…' : 'Add' }}
-              </button>
-              <button v-else type="button" class="btn sm" @click="add(c)">Set up…</button>
+              </UiButton>
+              <UiButton v-else size="sm" @click="add(c)">Set up…</UiButton>
             </span>
           </li>
         </ul>

@@ -21,10 +21,11 @@
  * repair's focus.
  */
 import { computed, reactive, ref, watch } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import AuthorizeButton from './AuthorizeButton.vue';
 import { choices, effective, fieldId, fieldLabel, kindOf, newItem, type JsonSchema } from '../lib/schema';
 import { useForm } from './form';
+import UiButton from '../ui/Button.vue';
 
 const {
   schema,
@@ -228,27 +229,20 @@ async function testItem(i: number): Promise<void> {
             <span>{{ itemTests[i].state === 'ok' && itemTests[i].warn ? `${itemTests[i].text} ${itemTests[i].warn}` : itemTests[i].text }}</span>
           </p>
           <div class="item-acts">
-            <button
-              v-if="canTestItems"
-              type="button"
-              class="btn sm"
-              :disabled="form.disabled.value || itemTests[i]?.state === 'running'"
-              :aria-busy="itemTests[i]?.state === 'running'"
-              @click="testItem(i)"
-            >
+            <UiButton v-if="canTestItems" size="sm" :disabled="form.disabled.value || itemTests[i]?.state === 'running'" :aria-busy="itemTests[i]?.state === 'running'" @click="testItem(i)">
               {{ itemTests[i]?.state === 'running' ? 'Testing…' : `Test ${singular.toLowerCase()} ${i + 1}` }}
-            </button>
-            <button type="button" class="btn sm ghost" :disabled="form.disabled.value" @click="removeItem(i)">Remove {{ singular.toLowerCase() }} {{ i + 1 }}</button>
+            </UiButton>
+            <UiButton variant="ghost" size="sm" :disabled="form.disabled.value" @click="removeItem(i)">Remove {{ singular.toLowerCase() }} {{ i + 1 }}</UiButton>
           </div>
         </fieldset>
         <div v-else class="secret-row">
           <SchemaField :schema="schema.items ?? { type: 'string' }" :container="list" :k="i" :path="`${path}.${i}`" :required="true" />
-          <button type="button" class="btn sm ghost" :aria-label="`Remove ${singular} ${i + 1}`" :disabled="form.disabled.value" @click="removeItem(i)">Remove</button>
+          <UiButton variant="ghost" size="sm" :aria-label="`Remove ${singular} ${i + 1}`" :disabled="form.disabled.value" @click="removeItem(i)">Remove</UiButton>
         </div>
       </template>
-      <button type="button" class="btn sm" :disabled="form.disabled.value || (schema.maxItems !== undefined && list.length >= schema.maxItems)" @click="addItem">
+      <UiButton size="sm" :disabled="form.disabled.value || (schema.maxItems !== undefined && list.length >= schema.maxItems)" @click="addItem">
         Add {{ singular.toLowerCase() }}
-      </button>
+      </UiButton>
     </div>
     <span v-if="error" :id="`${id}-err`" class="help bad">{{ error }}</span>
   </div>
@@ -291,28 +285,13 @@ async function testItem(i: number): Promise<void> {
         @input="onSecret"
         @blur="blur"
       />
-      <button
-        type="button"
-        class="btn sm ghost"
-        :aria-pressed="reveal"
-        :aria-label="reveal ? `Hide ${label}` : `Show what you typed for ${label}`"
-        :disabled="!form.secrets[path]"
-        @click="reveal = !reveal"
-      >
+      <UiButton variant="ghost" size="sm" :aria-pressed="reveal" :aria-label="reveal ? `Hide ${label}` : `Show what you typed for ${label}`" :disabled="!form.secrets[path]" @click="reveal = !reveal">
         {{ reveal ? 'Hide' : 'Show' }}
-      </button>
+      </UiButton>
       <!-- One button for both, so focus stays put when it flips. -->
-      <button
-        v-if="canRemove"
-        type="button"
-        class="btn sm ghost"
-        :aria-pressed="removing"
-        :aria-label="removing ? `Keep the saved ${label}` : `Remove the saved ${label}`"
-        :disabled="form.disabled.value"
-        @click="toggleRemove"
-      >
+      <UiButton v-if="canRemove" variant="ghost" size="sm" :aria-pressed="removing" :aria-label="removing ? `Keep the saved ${label}` : `Remove the saved ${label}`" :disabled="form.disabled.value" @click="toggleRemove">
         {{ removing ? 'Keep it' : 'Remove' }}
-      </button>
+      </UiButton>
     </div>
 
     <input

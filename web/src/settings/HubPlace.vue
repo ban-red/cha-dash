@@ -8,7 +8,7 @@
  * is the self-aware T4.
  */
 import { computed } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { hubPlace, placeWords } from '../model/hub';
 import { useLive } from '../stores/live';
 

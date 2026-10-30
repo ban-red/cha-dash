@@ -15,7 +15,7 @@
  * safety ladder like any other. Only the Stacks chunk imports this file.
  */
 import { ApiError, api } from '../lib/api';
-import type { GlyphKind } from '../components/marks/Glyph.vue';
+import type { GlyphKind } from '../ui/marks/Glyph.vue';
 
 export type StackStatus = 'running' | 'partial' | 'stopped' | 'down' | 'unknown';
 

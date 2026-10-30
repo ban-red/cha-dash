@@ -8,11 +8,12 @@
  * it had been typed: nothing is saved until the user saves.
  */
 import { computed, onBeforeUnmount, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ApiError } from '../lib/api';
 import { safeUrl } from '../model/types';
 import { beginAuthorize, errorWords, pollAuthorize } from '../stores/integrations';
 import { useForm } from './form';
+import UiButton from '../ui/Button.vue';
 
 const { label } = defineProps<{ label: string }>();
 const form = useForm();
@@ -114,12 +115,12 @@ onBeforeUnmount(stop);
   <div class="auth-row" aria-live="polite">
     <template v-if="state === 'starting' || state === 'waiting'">
       <span class="auth-wait"><Glyph kind="prog" />Waiting for {{ who }}: approve Cha Dash in the tab that opened.</span>
-      <a v-if="link" class="btn sm ghost" :href="link" target="_blank" rel="noopener noreferrer">Open {{ who }} again <Glyph kind="link" /></a>
-      <button type="button" class="btn sm ghost" @click="cancel">Cancel</button>
+      <UiButton v-if="link" variant="ghost" size="sm" :href="link" target="_blank" rel="noopener noreferrer">Open {{ who }} again <Glyph kind="link" /></UiButton>
+      <UiButton variant="ghost" size="sm" @click="cancel">Cancel</UiButton>
     </template>
-    <button v-else type="button" class="btn sm" :disabled="form.disabled.value || !form.integration?.value" @click="start">
+    <UiButton v-else size="sm" :disabled="form.disabled.value || !form.integration?.value" @click="start">
       Sign in with {{ who }}
-    </button>
+    </UiButton>
     <span v-if="state === 'done'" class="help auth-done"><Glyph kind="check" /> {{ message }}</span>
     <span v-else-if="state === 'error'" class="help bad" role="alert">{{ message }}</span>
   </div>

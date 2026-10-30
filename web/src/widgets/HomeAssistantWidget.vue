@@ -45,8 +45,8 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph from '../components/marks/Glyph.vue';
-import MiniGraph from '../components/marks/MiniGraph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import { fmtInt, fmtNum, plural } from '../lib/format';
 import { attr, placeOf, resolve, series } from '../model/graph';
 import { resourceLinks } from '../model/types';

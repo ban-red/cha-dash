@@ -10,7 +10,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import MiniGraph from '../components/marks/MiniGraph.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import { duration, fmtInt, shortDate } from '../lib/format';
 import { attr, label, placeOf, resolve, series } from '../model/graph';
 import { resourceLinks } from '../model/types';

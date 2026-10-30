@@ -9,7 +9,7 @@
  *   /settings/integrations/{id}        the edit form (?field=… focuses a field)
  */
 import { computed, onMounted, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import IntegrationEditor from './IntegrationEditor.vue';
 import { ago, monogram } from '../lib/format';
 import { navigate, route, settingsPath, view } from '../lib/router';
@@ -18,6 +18,8 @@ import { groupCatalog, STATUS_WORDS, statusGlyph } from '../model/integrations';
 import { catalogEntry, integrations, loadCatalog, loadInstances } from '../stores/integrations';
 import { accessOf } from './recipe';
 import { openWizard } from '../onboarding/state';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 /** Focus the filter when the catalog opens. */
 const vFocus = { mounted: (el: HTMLElement) => el.focus({ preventScroll: true }) };
@@ -85,10 +87,9 @@ onMounted(() => {
     <a class="st-crumb" :href="settingsPath('integrations')" @click.prevent="navigate(settingsPath('integrations'), { replace: true })">‹ Integrations</a>
     <header><h3 id="catalog-h">Add an integration</h3><span class="st-meta">{{ integrations.catalog.length }} available</span></header>
     <p class="st-lede">Pick the service to read. Each one shows how to make a read-only credential, and Cha Dash tests what that credential can actually do before you save.</p>
-    <div class="field">
-      <label for="catalog-q" class="sr">Filter integrations</label>
+    <UiField id="catalog-q" label="Filter integrations" hide-label v-slot="{ control }">
       <input
-        id="catalog-q"
+        v-bind="control"
         v-model="query"
         v-focus
         type="search"
@@ -97,11 +98,11 @@ onMounted(() => {
         spellcheck="false"
         @keydown.enter.prevent="openFirst"
       />
-    </div>
+    </UiField>
     <div v-if="integrations.catalogStatus === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
     <div v-else-if="integrations.catalogStatus === 'error'" class="st-note bad" role="alert">
       <Glyph kind="down" /><span>{{ integrations.error }}</span>
-      <button type="button" class="btn sm" @click="loadCatalog(true)">Try again</button>
+      <UiButton size="sm" @click="loadCatalog(true)">Try again</UiButton>
     </div>
     <template v-else>
       <section v-for="g in groups" :key="g.id" class="cat-group" :aria-labelledby="`cat-${g.id}`">
@@ -141,29 +142,28 @@ onMounted(() => {
       <header>
         <h3 id="inst-h">Connected</h3>
         <span v-if="integrations.instances.length" class="st-meta">{{ integrations.instances.length }}<template v-if="needHelp"> · {{ needHelp }} need{{ needHelp === 1 ? 's' : '' }} attention</template></span>
-        <button type="button" class="btn sm ghost" @click="openGuide">Setup guide</button>
-        <a class="btn sm primary" :href="'/settings/integrations/new'" @click.prevent="navigate('/settings/integrations/new')">Add integration</a>
+        <UiButton variant="ghost" size="sm" @click="openGuide">Setup guide</UiButton>
+        <UiButton variant="primary" size="sm" :href="'/settings/integrations/new'" @click.prevent="navigate('/settings/integrations/new')">Add integration</UiButton>
       </header>
       <div v-if="integrations.instancesStatus === 'loading' && !integrations.instances.length" class="st-skel" aria-busy="true">
         <span class="skel"></span><span class="skel"></span><span class="skel"></span>
       </div>
       <div v-else-if="integrations.instancesStatus === 'error' && !integrations.instances.length" class="st-note bad" role="alert">
         <Glyph kind="down" /><span>{{ integrations.error }}</span>
-        <button type="button" class="btn sm" @click="loadInstances(true)">Try again</button>
+        <UiButton size="sm" @click="loadInstances(true)">Try again</UiButton>
       </div>
       <div v-else-if="!integrations.instances.length" class="st-empty">
         <div class="t">Nothing connected yet</div>
         <div class="m">Add an integration to read a service: Proxmox, Docker, Plex and the rest. Coming from Homepage? Import its config and every service comes along, secrets into the vault.</div>
         <div class="st-acts">
-          <a class="btn primary" href="/settings/integrations/new" @click.prevent="navigate('/settings/integrations/new')">Add integration</a>
-          <a class="btn" href="/settings/import" @click.prevent="navigate('/settings/import')">Import a config</a>
+          <UiButton variant="primary" href="/settings/integrations/new" @click.prevent="navigate('/settings/integrations/new')">Add integration</UiButton>
+          <UiButton href="/settings/import" @click.prevent="navigate('/settings/import')">Import a config</UiButton>
         </div>
       </div>
       <template v-else>
-      <div v-if="integrations.instances.length >= FILTER_FROM" class="field">
-        <label for="inst-q" class="sr">Filter connected integrations</label>
-        <input id="inst-q" v-model="listQuery" type="search" placeholder="Filter by name or kind" autocomplete="off" spellcheck="false" />
-      </div>
+      <UiField v-if="integrations.instances.length >= FILTER_FROM" id="inst-q" label="Filter connected integrations" hide-label v-slot="{ control }">
+        <input v-bind="control" v-model="listQuery" type="search" placeholder="Filter by name or kind" autocomplete="off" spellcheck="false" />
+      </UiField>
       <ul class="st-list">
         <li v-for="x in listShown" :key="x.id">
           <a class="st-row" :href="settingsPath('integrations', x.id)" @click.prevent="navigate(settingsPath('integrations', x.id))">

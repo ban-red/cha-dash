@@ -463,7 +463,7 @@ describe('adding a widget', () => {
     const pk = w.findComponent(WidgetPicker);
     await pk.find('button.pk-item[data-type="service"]').trigger('click');
     expect(pk.find('button[type="submit"]').attributes('aria-disabled')).toBe('true'); // a name first
-    expect(pk.find('.pk-foot-bar .sr').text()).toBe('Give it a name first.');
+    expect(pk.find('.picker .dlg-foot .sr').text()).toBe('Give it a name first.');
     await pk.find('input[type="text"]').setValue('Router admin');
     await pk.find('input[type="url"]').setValue('https://router.home.example');
     const bind = pk.findAll('.pk-detail select')[0]!;

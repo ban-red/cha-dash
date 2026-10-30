@@ -21,7 +21,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import MiniGraph from '../components/marks/MiniGraph.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { ago, fmtInt, fmtNum, hhmm, plural, since } from '../lib/format';
 import { appsOfType, attr, placeOf, resolve, series } from '../model/graph';

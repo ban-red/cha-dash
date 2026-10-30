@@ -38,6 +38,7 @@ import { persistSnapshots } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { loadOnboarding, onboarding } from '../onboarding/state';
 import { createUi, provideUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.vue'));
 const ResourceSheet = defineAsyncComponent(() => import('../components/ResourceSheet.vue'));
@@ -238,7 +239,7 @@ onBeforeUnmount(() => {
         <BoardSurface v-if="board.board.value" :board="board.board.value" />
         <div v-else-if="board.state.status === 'error'" class="banner" role="alert">
           <span><b>{{ board.state.error }}</b></span>
-          <button type="button" class="btn sm" @click="board.load()">Try again</button>
+          <UiButton size="sm" @click="board.load()">Try again</UiButton>
         </div>
       </main>
     </div>

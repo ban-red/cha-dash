@@ -14,8 +14,8 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Meter from '../components/marks/Meter.vue';
-import MiniGraph from '../components/marks/MiniGraph.vue';
+import Meter from '../ui/marks/Meter.vue';
+import MiniGraph from '../ui/marks/MiniGraph.vue';
 import type { TileStatus } from '../components/Tile.vue';
 import { fmtPct } from '../lib/format';
 import { label, outgoing, resolve, series } from '../model/graph';

@@ -6,7 +6,7 @@
  * with the recipe beside it; closing Settings comes back here.
  */
 import { computed } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { monogram } from '../lib/format';
 import { navigate } from '../lib/router';
 import { accessOf } from '../settings/recipe';

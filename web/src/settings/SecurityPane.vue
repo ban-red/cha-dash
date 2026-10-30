@@ -12,7 +12,7 @@
  * work. The WebAuthn code loads only when you add one.
  */
 import { nextTick, onMounted, ref } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import HubPlace from './HubPlace.vue';
 import SecurityLevel from './SecurityLevel.vue';
 import StepUpSetting from './StepUpSetting.vue';
@@ -21,6 +21,7 @@ import { INSECURE_MESSAGE, passkeySupport, UNSUPPORTED_MESSAGE } from '../lib/we
 import type { Passkey } from '../lib/passkeys';
 import { errorWords } from '../stores/integrations';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 const ui = useUi();
 const support = passkeySupport();
@@ -123,7 +124,7 @@ onMounted(load);
   <section class="st-section" aria-labelledby="pk-h">
     <header>
       <h3 id="pk-h">Passkeys</h3>
-      <button v-if="support === 'ok'" type="button" class="btn sm" :disabled="adding" :aria-busy="adding" @click="add">{{ adding ? 'Waiting for you…' : 'Add a passkey' }}</button>
+      <UiButton v-if="support === 'ok'" size="sm" :disabled="adding" :aria-busy="adding" @click="add">{{ adding ? 'Waiting for you…' : 'Add a passkey' }}</UiButton>
     </header>
     <p class="st-lede">Sign in with Touch ID, Face ID, Windows Hello or a security key instead of your password. Each device or key is its own passkey; your password keeps working.</p>
 
@@ -148,8 +149,8 @@ onMounted(load);
             <form v-if="renaming === k.id" class="pk-rename" @submit.prevent="saveRename(k)">
               <label :for="`pk-name-${k.id}`" class="sr">Passkey name</label>
               <input :id="`pk-name-${k.id}`" v-model="draft" maxlength="64" autocomplete="off" @keydown.esc.stop.prevent="renaming = ''" />
-              <button type="submit" class="btn sm primary" :disabled="busy === k.id">Save</button>
-              <button type="button" class="btn sm ghost" @click="renaming = ''">Cancel</button>
+              <UiButton variant="primary" size="sm" type="submit" :disabled="busy === k.id">Save</UiButton>
+              <UiButton variant="ghost" size="sm" @click="renaming = ''">Cancel</UiButton>
             </form>
             <template v-else>
               <span class="t">
@@ -167,14 +168,14 @@ onMounted(load);
             <span v-if="rowError[k.id]" class="err" role="alert">{{ rowError[k.id] }}</span>
           </span>
           <span v-if="renaming !== k.id && confirming !== k.id" class="end">
-            <button type="button" class="btn sm ghost" @click="startRename(k)">Rename</button>
-            <button type="button" class="btn sm ghost" @click="confirming = k.id">Delete…</button>
+            <UiButton variant="ghost" size="sm" @click="startRename(k)">Rename</UiButton>
+            <UiButton variant="ghost" size="sm" @click="confirming = k.id">Delete…</UiButton>
           </span>
         </div>
         <div v-if="confirming === k.id" class="st-confirm pk-confirm" role="alertdialog" :aria-labelledby="`pk-del-${k.id}`">
           <span :id="`pk-del-${k.id}`">Delete <b>{{ k.name }}</b>? That device or key can’t sign in to this hub any more. Remove it from the device’s password manager too.</span>
-          <button type="button" class="btn danger solid" :disabled="busy === k.id" @click="remove(k)">Delete<span class="tier">T1</span></button>
-          <button type="button" class="btn" @click="confirming = ''">Cancel</button>
+          <UiButton variant="danger-solid" :disabled="busy === k.id" @click="remove(k)">Delete<span class="tier">T1</span></UiButton>
+          <UiButton @click="confirming = ''">Cancel</UiButton>
         </div>
       </li>
     </ul>

@@ -16,7 +16,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { monogram } from '../lib/format';
 import { attr, distinct, label, resolve } from '../model/graph';
 import { hostOf } from '../model/service';

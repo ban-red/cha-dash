@@ -1,7 +1,11 @@
 /*
- * The action dialogs (TypeConfirmDialog, StepUpDialog): imported by both
- * lazy chunks, so it loads with the first of them instead of blocking the
- * first paint from styles/chrome.css.
+ * What goes inside the action dialogs (TypeConfirmDialog, StepUpDialog,
+ * TaskLogDialog, NoteDialog): the lede, the steps, what an action touches.
+ * Their shell is UiDialog (ui/dialog.css). Imported by those lazy chunks, so
+ * it loads with the first of them instead of blocking the first paint.
+ *
+ * The .act-dlg shell rules below are only for widgets/HomeAssistantPanel.vue,
+ * which was written before UiDialog. Remove them when it moves over.
  */
 .act-dlg {
   width: min(520px, calc(100% - 32px));
@@ -118,18 +122,6 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-.act-dlg .btn.danger {
-  border-color: color-mix(in oklch, var(--down) 55%, var(--line-2));
-  color: var(--down-text);
-}
-.act-dlg .btn.danger.solid {
-  background: var(--down);
-  border-color: transparent;
-  color: var(--on-down);
-}
-.act-dlg .btn.danger.solid:disabled {
-  opacity: 0.5;
 }
 
 /* Cha Dash itself in the blast radius (model/hub.ts), in the down colour. */

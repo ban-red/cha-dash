@@ -12,7 +12,7 @@
  */
 import { computed } from 'vue';
 import ClampText from '../../components/ClampText.vue';
-import Glyph, { type GlyphKind } from '../../components/marks/Glyph.vue';
+import Glyph, { type GlyphKind } from '../../ui/marks/Glyph.vue';
 import { label } from '../../model/graph';
 import { useLive } from '../../stores/live';
 import { useUi } from '../../stores/ui';

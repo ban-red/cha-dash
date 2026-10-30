@@ -11,6 +11,7 @@ import { computed } from 'vue';
 import { navigate } from '../lib/router';
 import { setDraft } from '../onboarding/draft';
 import { integrations } from '../stores/integrations';
+import UiButton from '../ui/Button.vue';
 
 const { targets } = defineProps<{ targets: readonly unknown[] }>();
 
@@ -85,7 +86,7 @@ function setUp(r: Row): void {
           <b>{{ r.name }}</b> looks like {{ r.label }}
           <span class="help">{{ r.url }}</span>
         </span>
-        <button type="button" class="btn sm" @click="setUp(r)">Set up {{ r.label }}</button>
+        <UiButton size="sm" @click="setUp(r)">Set up {{ r.label }}</UiButton>
       </li>
     </ul>
     <p v-else class="help">None of these targets look like an app Cha Dash has an integration for.</p>

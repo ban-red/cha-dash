@@ -10,7 +10,7 @@
  * Without the Popover API (older engines, test DOMs) the click still works.
  */
 import { nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue';
-import Glyph, { type GlyphKind } from './marks/Glyph.vue';
+import Glyph, { type GlyphKind } from '../ui/marks/Glyph.vue';
 import { useUi } from '../stores/ui';
 
 const { kind, text, title, href } = defineProps<{ kind: GlyphKind; text: string; title: string; href?: string | undefined }>();

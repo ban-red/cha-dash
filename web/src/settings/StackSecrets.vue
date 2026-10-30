@@ -6,13 +6,15 @@
  * goes out once on Save, and is cleared straight after, whatever the answer.
  */
 import { nextTick, onMounted, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { ago } from '../lib/format';
 import { hubWords } from '../lib/actions';
 import { StepUpCancelled } from '../stores/actions';
 import { focusFirst } from '../lib/focus';
 import { useUi } from '../stores/ui';
 import { SECRET_NAME_RE, deleteSecret, listSecrets, putSecret, type StackSecret } from './stacks';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const ui = useUi();
 const uid = useId();
@@ -117,7 +119,7 @@ onMounted(load);
     <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span></div>
     <div v-else-if="status === 'error'" class="st-note bad" role="alert">
       <Glyph kind="down" /><span>{{ loadError }}</span>
-      <button type="button" class="btn sm" @click="load">Try again</button>
+      <UiButton size="sm" @click="load">Try again</UiButton>
     </div>
     <p v-else-if="!secrets.length" class="st-meta">No stack secrets yet.</p>
     <ul v-else class="st-list sks-list" aria-label="Stack secrets">
@@ -130,14 +132,14 @@ onMounted(load);
             <span v-if="rowError[s.name]" class="err" role="alert">{{ rowError[s.name] }}</span>
           </span>
           <span class="end">
-            <button type="button" class="btn sm ghost" :aria-label="`${s.set ? 'Replace' : 'Set'} ${s.name}`" @click="replace(s)">{{ s.set ? 'Replace' : 'Set' }}</button>
-            <button v-if="confirmDelete !== s.name" :id="`${uid}-del-${s.name}`" type="button" class="btn sm ghost" :aria-label="`Delete ${s.name}`" @click="askDelete(s)">Delete</button>
+            <UiButton variant="ghost" size="sm" :aria-label="`${s.set ? 'Replace' : 'Set'} ${s.name}`" @click="replace(s)">{{ s.set ? 'Replace' : 'Set' }}</UiButton>
+            <UiButton v-if="confirmDelete !== s.name" variant="ghost" size="sm" :id="`${uid}-del-${s.name}`" :aria-label="`Delete ${s.name}`" @click="askDelete(s)">Delete</UiButton>
           </span>
         </div>
         <div v-if="confirmDelete === s.name" class="st-confirm sks-confirm" role="group" :aria-label="`Delete ${s.name}?`">
           <span>Delete <b class="st-mono">{{ s.name }}</b>? Stacks that reference it won’t deploy until it’s set again.</span>
-          <button type="button" class="btn danger solid sm" :aria-disabled="deleting === s.name ? 'true' : undefined" :aria-busy="deleting === s.name || undefined" @click="remove(s)">Delete</button>
-          <button :id="`${uid}-dc-${s.name}`" type="button" class="btn sm" @click="cancelDelete(s)">Cancel</button>
+          <UiButton variant="danger-solid" size="sm" :aria-disabled="deleting === s.name ? 'true' : undefined" :aria-busy="deleting === s.name || undefined" @click="remove(s)">Delete</UiButton>
+          <UiButton size="sm" :id="`${uid}-dc-${s.name}`" @click="cancelDelete(s)">Cancel</UiButton>
         </div>
       </li>
     </ul>
@@ -145,10 +147,9 @@ onMounted(load);
     <form class="st-form sks-form" novalidate aria-labelledby="sks-add-h" @submit.prevent="save">
       <h4 id="sks-add-h" class="sk-sub">Set a secret</h4>
       <div class="sks-fields">
-        <div class="field">
-          <label :for="`${uid}-name`">Name</label>
+        <UiField label="Name" :error="nameError" v-slot="{ control }">
           <input
-            :id="`${uid}-name`"
+            v-bind="control"
             v-model="name"
             type="text"
             autocomplete="off"
@@ -156,20 +157,15 @@ onMounted(load);
             spellcheck="false"
             maxlength="64"
             placeholder="db_password"
-            :aria-invalid="nameError ? true : undefined"
-            :aria-describedby="nameError ? `${uid}-name-e` : undefined"
           />
-          <span v-if="nameError" :id="`${uid}-name-e`" class="help bad">{{ nameError }}</span>
-        </div>
-        <div class="field">
-          <label :for="`${uid}-val`">Value</label>
-          <input :id="`${uid}-val`" v-model="value" type="password" autocomplete="new-password" spellcheck="false" :aria-describedby="`${uid}-val-h`" />
-          <span :id="`${uid}-val-h`" class="help">Write-only. Saving replaces any value already stored.</span>
-        </div>
+        </UiField>
+        <UiField :id="`${uid}-val`" label="Value" help="Write-only. Saving replaces any value already stored." v-slot="{ control }">
+          <input v-bind="control" v-model="value" type="password" autocomplete="new-password" spellcheck="false" />
+        </UiField>
       </div>
       <p v-if="formError" class="err" role="alert">{{ formError }}</p>
       <div class="st-acts">
-        <button type="submit" class="btn" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : 'Save secret' }}</button>
+        <UiButton type="submit" :aria-disabled="saving ? 'true' : undefined" :aria-busy="saving || undefined">{{ saving ? 'Saving…' : 'Save secret' }}</UiButton>
       </div>
     </form>
   </section>

@@ -25,12 +25,13 @@
  * Its own chunk: SettingsSheet loads it when the pane opens.
  */
 import { computed, onMounted, ref, useId } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { api } from '../lib/api';
 import { fmtInt, shortDate } from '../lib/format';
 import type { HistoryLevel } from '../model/history';
 import { errorWords, integrations, loadInstances } from '../stores/integrations';
 import { useUi } from '../stores/ui';
+import UiButton from '../ui/Button.vue';
 
 interface TierView {
   tier: string;
@@ -360,16 +361,9 @@ onMounted(() => {
             </label>
           </fieldset>
           <div class="st-acts">
-            <button
-              type="button"
-              class="btn sm"
-              aria-label="Save history level"
-              :aria-disabled="choice === view.level || saving ? 'true' : undefined"
-              :aria-busy="saving || undefined"
-              @click="save"
-            >
+            <UiButton size="sm" aria-label="Save history level" :aria-disabled="choice === view.level || saving ? 'true' : undefined" :aria-busy="saving || undefined" @click="save">
               Save
-            </button>
+            </UiButton>
           </div>
           <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
         </template>
@@ -408,16 +402,9 @@ onMounted(() => {
           </tbody>
         </table>
         <div class="st-acts">
-          <button
-            type="button"
-            class="btn sm"
-            aria-label="Save how long each level of detail is kept"
-            :aria-disabled="!keepDirty || keeping || keepProblem ? 'true' : undefined"
-            :aria-busy="keeping || undefined"
-            @click="saveKeep"
-          >
+          <UiButton size="sm" aria-label="Save how long each level of detail is kept" :aria-disabled="!keepDirty || keeping || keepProblem ? 'true' : undefined" :aria-busy="keeping || undefined" @click="saveKeep">
             Save
-          </button>
+          </UiButton>
         </div>
         <p v-if="keepProblem" class="err" role="alert">{{ keepProblem }}</p>
         <p v-if="keepError" class="err" role="alert">{{ keepError }}</p>
@@ -426,16 +413,9 @@ onMounted(() => {
           <select id="hp-limit" v-model.number="limit" :disabled="limiting" aria-describedby="hp-limit-d">
             <option v-for="b in limitChoices" :key="b" :value="b">{{ limitWords(b) }}</option>
           </select>
-          <button
-            type="button"
-            class="btn sm"
-            aria-label="Save size limit"
-            :aria-disabled="limit === view.max_bytes || limiting ? 'true' : undefined"
-            :aria-busy="limiting || undefined"
-            @click="saveLimit"
-          >
+          <UiButton size="sm" aria-label="Save size limit" :aria-disabled="limit === view.max_bytes || limiting ? 'true' : undefined" :aria-busy="limiting || undefined" @click="saveLimit">
             Save
-          </button>
+          </UiButton>
           <p id="hp-limit-d" class="hp-limit-d">
             Past it, Cha Dash drops the oldest points of the level of detail that takes the most room, within the hour. Health changes are kept.{{
               view.trimmed_at ? ` It last did on ${shortDate(view.trimmed_at)}.` : ''
@@ -444,12 +424,12 @@ onMounted(() => {
         </div>
         <p v-if="limitError" class="err" role="alert">{{ limitError }}</p>
         <div v-if="confirming !== 'all'" class="st-acts">
-          <button type="button" class="btn sm ghost" :disabled="view.series === 0 && view.resources === 0" @click="confirming = 'all'">Clear history…</button>
+          <UiButton variant="ghost" size="sm" :disabled="view.series === 0 && view.resources === 0" @click="confirming = 'all'">Clear history…</UiButton>
         </div>
         <div v-else class="st-confirm" role="alertdialog" aria-labelledby="hp-clear-q">
           <span id="hp-clear-q">Delete every point and health change in <code>history.db</code>? Charts start over from now. This can’t be undone.</span>
-          <button type="button" class="btn danger solid" :disabled="clearing" :aria-busy="clearing || undefined" @click="clear">Clear history<span class="tier">T3</span></button>
-          <button type="button" class="btn" @click="confirming = ''">Cancel</button>
+          <UiButton variant="danger-solid" :disabled="clearing" :aria-busy="clearing || undefined" @click="clear">Clear history<span class="tier">T3</span></UiButton>
+          <UiButton @click="confirming = ''">Cancel</UiButton>
         </div>
         <p v-if="clearError && confirming === 'all'" class="err" role="alert">{{ clearError }}</p>
       </section>
@@ -478,17 +458,17 @@ onMounted(() => {
                 <td class="n">{{ row.bytes ? size(row.bytes) : '—' }}</td>
                 <td><input v-model="recorded[row.id]" type="checkbox" :aria-label="`Record ${row.name}’s metrics`" :disabled="excluding" /></td>
                 <td class="n">
-                  <button v-if="row.series" type="button" class="btn sm ghost" :aria-label="`Clear ${row.name}’s history…`" @click="confirming = row.id">Clear…</button>
+                  <UiButton v-if="row.series" variant="ghost" size="sm" :aria-label="`Clear ${row.name}’s history…`" @click="confirming = row.id">Clear…</UiButton>
                 </td>
               </tr>
               <tr v-if="confirming === row.id">
                 <td colspan="5">
                   <div class="st-confirm" role="alertdialog" :aria-labelledby="`hp-clear-${row.id}`">
                     <span :id="`hp-clear-${row.id}`">Delete the {{ fmtInt(row.series) }} series {{ row.name }} recorded? Its health history stays. This can’t be undone.</span>
-                    <button type="button" class="btn danger solid" :disabled="clearing" :aria-busy="clearing || undefined" @click="clearOne(row.id, row.name)">
+                    <UiButton variant="danger-solid" :disabled="clearing" :aria-busy="clearing || undefined" @click="clearOne(row.id, row.name)">
                       Clear<span class="tier">T3</span>
-                    </button>
-                    <button type="button" class="btn" @click="confirming = ''">Cancel</button>
+                    </UiButton>
+                    <UiButton @click="confirming = ''">Cancel</UiButton>
                   </div>
                   <p v-if="clearError" class="err" role="alert">{{ clearError }}</p>
                 </td>
@@ -497,16 +477,9 @@ onMounted(() => {
           </tbody>
         </table>
         <div class="st-acts">
-          <button
-            type="button"
-            class="btn sm"
-            aria-label="Save what’s recorded"
-            :aria-disabled="!excludeDirty || excluding ? 'true' : undefined"
-            :aria-busy="excluding || undefined"
-            @click="saveExcluded"
-          >
+          <UiButton size="sm" aria-label="Save what’s recorded" :aria-disabled="!excludeDirty || excluding ? 'true' : undefined" :aria-busy="excluding || undefined" @click="saveExcluded">
             Save
-          </button>
+          </UiButton>
         </div>
         <p v-if="excludeError" class="err" role="alert">{{ excludeError }}</p>
       </section>
@@ -521,13 +494,13 @@ onMounted(() => {
           <li v-for="k in view.exclude_keys" :key="k.pattern">
             <code>{{ k.pattern }}</code>
             <span class="hp-keys-n">{{ k.series === 1 ? '1 series' : `${fmtInt(k.series)} series` }}</span>
-            <button type="button" class="btn sm ghost" :aria-label="`Record ${k.pattern} again`" :disabled="patterning" @click="removePattern(k.pattern)">Remove</button>
+            <UiButton variant="ghost" size="sm" :aria-label="`Record ${k.pattern} again`" :disabled="patterning" @click="removePattern(k.pattern)">Remove</UiButton>
           </li>
         </ul>
         <form class="hp-limit" @submit.prevent="addPattern">
           <label for="hp-key">Leave out</label>
           <input id="hp-key" v-model="pattern" type="text" spellcheck="false" autocomplete="off" maxlength="200" placeholder="docker:*#net_rx" aria-describedby="hp-key-d" />
-          <button type="submit" class="btn sm" :aria-disabled="!pattern.trim() || patterning ? 'true' : undefined" :aria-busy="patterning || undefined">Add</button>
+          <UiButton size="sm" type="submit" :aria-disabled="!pattern.trim() || patterning ? 'true' : undefined" :aria-busy="patterning || undefined">Add</UiButton>
         </form>
         <p v-if="patternError" class="err" role="alert">{{ patternError }}</p>
       </section>

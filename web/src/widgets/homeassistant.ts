@@ -5,7 +5,7 @@
  * players, and every light and switch. Also which of them the owner lets
  * Cha Dash control (`attrs.control`) and the actions that do it.
  */
-import type { GlyphKind } from '../components/marks/Glyph.vue';
+import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import { plural, since } from '../lib/format';
 import { attr } from '../model/graph';
 import type { Resource } from '../model/types';

@@ -10,10 +10,12 @@
  * credential holds more than the recipe gives it.
  */
 import { computed, reactive, ref, useId, watch } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import RecipeText from './RecipeText.vue';
 import { normalizeGrant, type TestResult } from '../model/integrations';
 import { accessOf, boundField, copyText, extraGrants, fills, gaps, paramValues, render, segments, type Recipe, type RecipeParam } from './recipe';
+import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const {
   recipe,
@@ -103,25 +105,20 @@ function patternHint(p: RecipeParam): string {
 
       <fieldset v-if="editable.length" class="rc-gen">
         <legend>Names to use</legend>
-        <div v-for="p in editable" :key="p.name" class="field">
-          <label :for="`${uid}-${p.name}`">{{ p.label }}</label>
-          <select v-if="p.options?.length" :id="`${uid}-${p.name}`" v-model="inputs[p.name]" :aria-describedby="p.help ? `${uid}-${p.name}-h` : undefined">
+        <UiField
+          v-for="p in editable"
+          :key="p.name"
+          :id="`${uid}-${p.name}`"
+          :label="p.label"
+          :help="p.help"
+          :error="invalid(p) && !p.options?.length && `${patternHint(p)}That can’t go into a command as typed.`"
+          v-slot="{ control }"
+        >
+          <select v-if="p.options?.length" v-bind="control" v-model="inputs[p.name]">
             <option v-for="o in p.options" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
-          <input
-            v-else
-            :id="`${uid}-${p.name}`"
-            v-model.trim="inputs[p.name]"
-            class="mono-input"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            :aria-invalid="invalid(p) ? 'true' : undefined"
-            :aria-describedby="`${uid}-${p.name}-h`"
-          />
-          <span v-if="invalid(p) && !p.options?.length" :id="`${uid}-${p.name}-h`" class="help bad">{{ patternHint(p) }}That can’t go into a command as typed.</span>
-          <span v-else-if="p.help" :id="`${uid}-${p.name}-h`" class="help">{{ p.help }}</span>
-        </div>
+          <input v-else v-bind="control" v-model.trim="inputs[p.name]" class="mono-input" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        </UiField>
       </fieldset>
       <p v-if="waiting.length" class="rc-wait"><Glyph kind="ok" /> Fill in {{ waiting.map((p) => p.label).join(' and ') }} in the form to complete the commands.</p>
 
@@ -136,16 +133,10 @@ function patternHint(p: RecipeParam): string {
             <div v-else class="rc-code">
               <pre :aria-label="`${b.lang === 'url' ? 'Address' : 'Commands'} for step ${i + 1}`"><code><template v-for="(seg, k) in segments(b.code ?? '', recipe, values)" :key="k"><span v-if="seg.t === 'val'" class="rc-val">{{ seg.v }}</span><span v-else-if="seg.t === 'gap'" class="rc-gap">‹{{ seg.label }}›</span><template v-else>{{ seg.v }}</template></template></code></pre>
               <div class="rc-code-acts">
-                <button
-                  type="button"
-                  class="btn sm"
-                  :disabled="gaps(b.code ?? '', recipe, values).length > 0"
-                  :title="gaps(b.code ?? '', recipe, values).length ? `Needs ${gaps(b.code ?? '', recipe, values).join(', ')}` : undefined"
-                  @click="copy(`${i}.${j}`, b.code ?? '')"
-                >
+                <UiButton size="sm" :disabled="gaps(b.code ?? '', recipe, values).length > 0" :title="gaps(b.code ?? '', recipe, values).length ? `Needs ${gaps(b.code ?? '', recipe, values).join(', ')}` : undefined" @click="copy(`${i}.${j}`, b.code ?? '')">
                   {{ copied === `${i}.${j}` ? 'Copied' : 'Copy' }}
-                </button>
-                <a v-if="b.lang === 'url' && openable(b.code ?? '')" class="btn sm" :href="openable(b.code ?? '')" target="_blank" rel="noopener noreferrer">Open <Glyph kind="link" /></a>
+                </UiButton>
+                <UiButton v-if="b.lang === 'url' && openable(b.code ?? '')" size="sm" :href="openable(b.code ?? '')" target="_blank" rel="noopener noreferrer">Open <Glyph kind="link" /></UiButton>
                 <span v-if="copyFailed === `${i}.${j}`" class="rc-copy-fail" role="status">Select the text and copy it by hand.</span>
               </div>
             </div>
@@ -162,7 +153,7 @@ function patternHint(p: RecipeParam): string {
           </li>
         </ul>
         <div class="st-acts">
-          <button type="button" class="btn sm" :disabled="!pendingFills" @click="emit('fill', filled)">Use in the form</button>
+          <UiButton size="sm" :disabled="!pendingFills" @click="emit('fill', filled)">Use in the form</UiButton>
         </div>
       </div>
 

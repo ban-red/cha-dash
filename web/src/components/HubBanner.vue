@@ -6,9 +6,10 @@
  * Demo Home on its own clock, with a way to sign out of it.
  */
 import { computed } from 'vue';
-import Glyph from './marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { hhmm, shortDate } from '../lib/format';
 import { useLive } from '../stores/live';
+import UiButton from '../ui/Button.vue';
 
 const emit = defineEmits<{ signOut: [] }>();
 const live = useLive();
@@ -47,26 +48,26 @@ const reload = () => location.reload();
   <div v-if="mode === 'offline' && restored" class="banner" role="status">
     <Glyph kind="down" label="unreachable" />
     <span><b>Cha Dash hub unreachable.</b> You're looking at the last-known page, as of <span class="n nb">{{ asOf }}</span>. <span class="n nb">{{ retryIn }}</span></span>
-    <button type="button" class="btn sm" @click="live.retry()">Retry now</button>
+    <UiButton size="sm" @click="live.retry()">Retry now</UiButton>
   </div>
   <div v-else-if="mode === 'offline'" class="banner" role="status">
     <Glyph kind="down" label="unreachable" />
     <span><b>Cha Dash hub unreachable since {{ since }}.</b> You're looking at the last-known page. <span class="n nb">{{ retryIn }}</span></span>
-    <button type="button" class="btn sm" @click="live.retry()">Retry now</button>
+    <UiButton size="sm" @click="live.retry()">Retry now</UiButton>
   </div>
   <div v-else-if="mode === 'stale'" class="banner" role="status">
     <Glyph kind="repair" label="stale" />
     <span><b>No word from the hub since {{ since }}.</b> Values may be out of date while Cha Dash checks the connection.</span>
-    <button type="button" class="btn sm" @click="live.retry()">Reconnect</button>
+    <UiButton size="sm" @click="live.retry()">Reconnect</UiButton>
   </div>
   <div v-else-if="mode === 'incompatible'" class="banner" role="alert">
     <Glyph kind="attn" label="update" />
     <span><b>The hub was updated.</b> Reload to get the matching version of this page.</span>
-    <button type="button" class="btn sm" @click="reload">Reload</button>
+    <UiButton size="sm" @click="reload">Reload</UiButton>
   </div>
   <div v-else-if="live.demo.value" class="banner demo" role="note" aria-label="Demo mode">
     <span class="demo-tag">Demo</span>
     <span><b>You're looking at the Demo Home</b>, a simulated lab replaying a scripted day. Its hosts, incidents and fixes are all made up.</span>
-    <button type="button" class="btn sm" @click="emit('signOut')">Sign out</button>
+    <UiButton size="sm" @click="emit('signOut')">Sign out</UiButton>
   </div>
 </template>

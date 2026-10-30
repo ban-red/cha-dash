@@ -20,7 +20,7 @@
  *   form. `?section=control` (an action refused as unavailable) opens it.
  */
 import { computed, nextTick, onMounted, provide, reactive, ref, shallowRef } from 'vue';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import ControlSection from './ControlSection.vue';
 import RecipePanel from './RecipePanel.vue';
 import SplitChecks from './SplitChecks.vue';
@@ -56,6 +56,7 @@ import {
 } from '../stores/integrations';
 import { useUi } from '../stores/ui';
 import { actStatus, controlKeys, hasControl } from '../model/control';
+import UiButton from '../ui/Button.vue';
 
 const { instanceRef, integrationId, focus, reason, section } = defineProps<{
   /** An instance id (or, from a Repair, a name or integration id to resolve). */
@@ -392,14 +393,8 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
         <template v-else>There’s no integration “{{ instanceRef }}” on this hub. It may have been deleted.</template>
       </div>
       <div class="st-acts">
-        <a
-          v-if="addInstead"
-          class="btn primary"
-          :href="`/settings/integrations/new/${encodeURIComponent(addInstead.id)}`"
-          @click.prevent="navigate(addPath(addInstead.id), { replace: true })"
-          >Add {{ addInstead.name }}</a
-        >
-        <a class="btn" :href="settingsPath('integrations')" @click.prevent="navigate(settingsPath('integrations'), { replace: true })">All integrations</a>
+        <UiButton v-if="addInstead" variant="primary" :href="`/settings/integrations/new/${encodeURIComponent(addInstead.id)}`" @click.prevent="navigate(addPath(addInstead.id), { replace: true })">Add {{ addInstead.name }}</UiButton>
+        <UiButton :href="settingsPath('integrations')" @click.prevent="navigate(settingsPath('integrations'), { replace: true })">All integrations</UiButton>
       </div>
     </div>
 
@@ -483,13 +478,13 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
             <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
 
             <div class="st-acts ed-acts">
-              <button type="button" :class="['btn', { primary: isNew && !testPassed }]" :disabled="test.state === 'running' || saving" :aria-busy="test.state === 'running'" @click="runTest">
+              <UiButton :variant="isNew && !testPassed ? 'primary' : 'default'" :disabled="test.state === 'running' || saving" :aria-busy="test.state === 'running'" @click="runTest">
                 {{ test.state === 'running' ? 'Testing…' : 'Test connection' }}
-              </button>
-              <button type="submit" :class="['btn', { primary: !isNew || testPassed }]" :disabled="saving || (!isNew && !dirty)" :aria-busy="saving">
+              </UiButton>
+              <UiButton type="submit" :variant="!isNew || testPassed ? 'primary' : 'default'" :disabled="saving || (!isNew && !dirty)" :aria-busy="saving">
                 {{ saving ? 'Saving…' : isNew ? 'Save' : 'Save changes' }}
-              </button>
-              <button v-if="!isNew && !confirmDelete" type="button" class="btn ghost ed-del" :disabled="saving" @click="confirmDelete = true">Delete…</button>
+              </UiButton>
+              <UiButton v-if="!isNew && !confirmDelete" variant="ghost" class="ed-del" :disabled="saving" @click="confirmDelete = true">Delete…</UiButton>
             </div>
 
             <p v-if="isNew" class="help ed-hint">
@@ -500,10 +495,10 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
 
             <div v-if="confirmDelete" class="st-confirm" role="alertdialog" aria-labelledby="del-q">
               <span id="del-q">Delete <b>{{ detail?.name }}</b>? Its tiles stop updating, and its stored secrets are erased from the vault.</span>
-              <button type="button" class="btn danger solid" :disabled="deleting" :aria-busy="deleting" @click="remove">
+              <UiButton variant="danger-solid" :disabled="deleting" :aria-busy="deleting" @click="remove">
                 {{ deleting ? 'Deleting…' : 'Delete' }}<span class="tier">T1</span>
-              </button>
-              <button type="button" class="btn" :disabled="deleting" @click="confirmDelete = false">Cancel</button>
+              </UiButton>
+              <UiButton :disabled="deleting" @click="confirmDelete = false">Cancel</UiButton>
             </div>
           </form>
 
