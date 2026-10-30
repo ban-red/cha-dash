@@ -40,6 +40,7 @@ import { useSession } from '../stores/session';
 import { loadOnboarding, onboarding } from '../onboarding/state';
 import { createUi, provideUi } from '../stores/ui';
 import UiButton from '../ui/Button.vue';
+import { oidcErrorWords, takeOidcReturn } from '../settings/signin';
 
 const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.vue'));
 const ResourceSheet = defineAsyncComponent(() => import('../components/ResourceSheet.vue'));
@@ -194,7 +195,17 @@ onMounted(() => {
   document.addEventListener('keydown', onKey);
   stopPersist = persistSnapshots(live, board, session);
   openFromLink();
+  noteProviderReturn();
 });
+
+/** Back from the identity provider (a step-up, a link, a test): say how it went, once. */
+function noteProviderReturn(): void {
+  const back = takeOidcReturn();
+  if (back.error) ui.toast(oidcErrorWords(back.error), 'error', 8000);
+  else if (back.result === 'step_up') ui.toast('Confirmed it’s you. Start what you were doing again; it won’t ask for 5 minutes.');
+  else if (back.result === 'linked') ui.toast('Linked. You can sign in with it now.');
+  else if (back.result === 'tested') ui.toast('Test sign-in done. The result is in Settings → Security → Sign-in.');
+}
 
 /** A notification's link: `/?incident=<id>` opens the Inbox on it, `/?inbox=1` the Inbox. The query then goes. */
 function openFromLink(): void {

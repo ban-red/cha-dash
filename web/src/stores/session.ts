@@ -16,6 +16,7 @@ import { inject, provide, reactive, type InjectionKey } from 'vue';
 import { ApiError, api, IP_BANNED_MESSAGE } from '../lib/api';
 import type { InlineSnapshot } from '../lib/inline';
 import type { Snapshot } from '../lib/snapshot';
+import type { PublicSignIn } from '../settings/signin';
 
 export interface User {
   id: string;
@@ -44,6 +45,12 @@ export interface SessionState {
    * e.g. ["passkey", "password"]); undefined until a hub that has step-up says.
    */
   stepUpMethods: string[] | undefined;
+  /**
+   * How the sign-in page may sign in (`GET /api/setup` → `sign_in`): the
+   * identity provider's button, and whether the password form shows.
+   * Undefined until the hub says, or on a hub without it.
+   */
+  signIn: PublicSignIn | undefined;
 }
 
 interface SessionDoc {
@@ -89,7 +96,16 @@ export interface SessionOptions {
 }
 
 export function createSession(opts: SessionOptions = {}) {
-  const state = reactive<SessionState>({ phase: 'loading', user: undefined, error: '', devLogin: false, offerPasskey: false, offline: false, stepUpMethods: undefined });
+  const state = reactive<SessionState>({
+    phase: 'loading',
+    user: undefined,
+    error: '',
+    devLogin: false,
+    offerPasskey: false,
+    offline: false,
+    stepUpMethods: undefined,
+    signIn: undefined,
+  });
   /** The snapshot the offline front page opens on; taken once by the shell. Not reactive. */
   let restored: Snapshot | undefined;
   /** The hub's first-paint snapshot; taken once by the shell. Not reactive. */
@@ -118,6 +134,23 @@ export function createSession(opts: SessionOptions = {}) {
     }
   }
 
+  function noteSignIn(v: unknown): void {
+    if (!v || typeof v !== 'object') return;
+    const s = v as { oidc?: { name?: unknown }; password_form?: unknown };
+    const name = typeof s.oidc?.name === 'string' && s.oidc.name ? s.oidc.name : undefined;
+    state.signIn = { password_form: s.password_form !== false, ...(name ? { oidc: { name } } : {}) };
+  }
+
+  /** Asks when the sign-in page will show without knowing: signing out of a first-paint session. */
+  async function loadSignIn(): Promise<void> {
+    if (state.signIn) return;
+    try {
+      noteSignIn((await api<{ sign_in?: unknown }>('/api/setup'))?.sign_in);
+    } catch {
+      /* the password form shows, as on a hub without it */
+    }
+  }
+
   function noteStepUp(s: SessionDoc | undefined): void {
     if (Array.isArray(s?.step_up_methods)) state.stepUpMethods = s.step_up_methods.filter((m) => typeof m === 'string');
   }
@@ -128,8 +161,9 @@ export function createSession(opts: SessionOptions = {}) {
       return;
     }
     try {
-      const setup = await api<{ required: boolean; dev_login?: boolean }>('/api/setup');
+      const setup = await api<{ required: boolean; dev_login?: boolean; sign_in?: unknown }>('/api/setup');
       state.devLogin = import.meta.env.DEV && setup?.dev_login === true;
+      noteSignIn(setup?.sign_in);
       if (setup?.required) {
         state.user = undefined;
         state.phase = 'setup';
@@ -190,6 +224,7 @@ export function createSession(opts: SessionOptions = {}) {
       restored = undefined;
       inline = undefined;
       state.phase = 'login';
+      void loadSignIn(); // a first-paint session never asked
       try {
         const { clearSnapshot } = await import('../lib/snapshot');
         await clearSnapshot();
@@ -245,7 +280,7 @@ export function createSession(opts: SessionOptions = {}) {
     }
   }
 
-  return { state, refresh, setup, login, signedIn, logout, check, confirm, takeRestored, takeInline };
+  return { state, refresh, setup, login, signedIn, logout, check, confirm, takeRestored, takeInline, loadSignIn };
 }
 
 export type Session = ReturnType<typeof createSession>;

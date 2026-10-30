@@ -4,8 +4,10 @@
  * security findings interrupt you) and how destructive actions are confirmed
  * (StepUpSetting.vue), both the owner's; then your passkeys. Add one (on this
  * device), rename them so you can tell them apart, delete the ones you no
- * longer have. Admins see only their passkeys here. Last, where Cha Dash
- * itself runs (HubPlace.vue).
+ * longer have. Admins see only their passkeys here. The owner also sets how
+ * people sign in (SignInPane.vue: OIDC, forward-auth, roles from groups);
+ * everyone sees their linked sign-ins (LinkedIdentities.vue). Last, where
+ * Cha Dash itself runs (HubPlace.vue).
  *
  * Passkeys need a secure context (HTTPS, or localhost). On a plain LAN
  * address the page explains that instead of offering a button that can't
@@ -14,6 +16,8 @@
 import { nextTick, onMounted, ref } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import HubPlace from './HubPlace.vue';
+import LinkedIdentities from './LinkedIdentities.vue';
+import SignInPane from './SignInPane.vue';
 import SecurityLevel from './SecurityLevel.vue';
 import StepUpSetting from './StepUpSetting.vue';
 import { ago, absolute } from '../lib/format';
@@ -120,6 +124,7 @@ onMounted(load);
   <template v-if="ui.can.value.securitySettings">
     <SecurityLevel />
     <StepUpSetting :has-passkey="status === 'ready' ? keys.length > 0 : undefined" />
+    <SignInPane />
   </template>
   <section class="st-section" aria-labelledby="pk-h">
     <header>
@@ -180,6 +185,7 @@ onMounted(load);
       </li>
     </ul>
   </section>
+  <LinkedIdentities />
   <HubPlace />
 </template>
 

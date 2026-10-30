@@ -4,7 +4,9 @@
  * session; T4 always asks again.
  *
  *   POST /api/auth/step-up/begin  → WebAuthn request options ({publicKey}),
- *                                   or {"method": "password"} when the fallback applies
+ *                                   or {"method": "password"} when the fallback applies,
+ *                                   or {"method": "oidc", "url", "provider"} for an account that
+ *                                   signs in only through the identity provider
  *   POST /api/auth/step-up        the assertion, or {"password"} → {"until"}
  *
  * Loaded with the step-up dialog, so the WebAuthn code stays out of the
@@ -13,7 +15,11 @@
 import { ApiError, api } from './api';
 import { getPasskey, PasskeyError, type CeremonyOptions } from './webauthn';
 
-export type StepUpBegin = { method: 'passkey'; options: unknown } | { method: 'password' } | { method: 'none'; message: string; addPasskey: boolean };
+export type StepUpBegin =
+  | { method: 'passkey'; options: unknown }
+  | { method: 'password' }
+  | { method: 'oidc'; url: string; provider: string }
+  | { method: 'none'; message: string; addPasskey: boolean };
 
 /** Codes a hub may use when no method is left (Passkey only, and no passkey yet). */
 const NO_METHOD = new Set(['passkey_required', 'no_passkey', 'step_up_unavailable', 'passkeys_unavailable']);
@@ -24,8 +30,11 @@ export const PASSKEY_ONLY_MESSAGE =
 /** Ask the hub how to step up. A refusal that leaves no way (Passkey only, no passkey) comes back as `none`. */
 export async function beginStepUp(): Promise<StepUpBegin> {
   try {
-    const res = await api<{ method?: string; publicKey?: unknown }>('/api/auth/step-up/begin', { method: 'POST' });
+    const res = await api<{ method?: string; publicKey?: unknown; url?: unknown; provider?: unknown }>('/api/auth/step-up/begin', { method: 'POST' });
     if (res?.method === 'password') return { method: 'password' };
+    if (res?.method === 'oidc' && typeof res.url === 'string' && res.url.startsWith('/api/')) {
+      return { method: 'oidc', url: res.url, provider: typeof res.provider === 'string' && res.provider ? res.provider : 'your provider' };
+    }
     return { method: 'passkey', options: res };
   } catch (err) {
     if (err instanceof ApiError && (NO_METHOD.has(err.code) || err.status === 409 || err.status === 412)) {

@@ -1,6 +1,6 @@
 # @chadash/web
 
-The Cha Dash web app: first-run setup (with an optional passkey, then "Connect your home") and sign-in (password or passkey), the front page (Briefing, Needs attention, the board), the Inbox, the safety ladder on the hub's action engine (plan, confirm by tier, step-up, tasks and cancelling them), the ⌘K command bar with actions, Settings (integrations, owned stacks, Bring in (import, discover, history), backup, users, the audit log, notifications, API tokens, the security level, step-up and passkeys), approvals for plans API tokens leave waiting, and the realtime client. An installable PWA that opens on the last-known page when the hub can't be reached, and shows the hub's Web Push notifications. Vue 3.6 and Vite, built into `internal/webui/dist`, which the hub embeds with `go build -tags webui`.
+The Cha Dash web app: first-run setup (with an optional passkey, then "Connect your home") and sign-in (password, passkey, or your identity provider), the front page (Briefing, Needs attention, the board), the Inbox, the safety ladder on the hub's action engine (plan, confirm by tier, step-up, tasks and cancelling them), the ⌘K command bar with actions, Settings (integrations, owned stacks, Bring in (import, discover, history), backup, users, the audit log, notifications, API tokens, the security level, step-up, sign-in through an identity provider or a proxy, passkeys and linked sign-ins), approvals for plans API tokens leave waiting, and the realtime client. An installable PWA that opens on the last-known page when the hub can't be reached, and shows the hub's Web Push notifications. Vue 3.6 and Vite, built into `internal/webui/dist`, which the hub embeds with `go build -tags webui`.
 
 Design: Direction A ("Instrument") from [02 · Experience](../docs/plan/02-experience.md), following [prototype v2](../design/prototypes/m0-v2.html). Every colour, size and spring comes from [`@chadash/tokens`](../design/tokens/README.md). Buttons, the ×, fields, dialogs and the marks are primitives in [`src/ui`](src/ui/README.md) ([ADR-0032](../docs/adr/0032-ui-primitives.md)); features compose them rather than writing that markup by hand, and `/dev/ui` on the dev server shows them all.
 
@@ -54,7 +54,9 @@ src/
                       BackupPane, HistoryPane, UsersPane, AuditPane, TokensPane and NodesPane (each its own chunk), StacksPane (one
                       chunk with StackEditor, StackSecrets, StackSync, StackHooks, stacks.ts and sync.ts), NotificationsPane (one
                       chunk with NotifyDevice and notify.ts), SecurityPane
-                      (with SecurityLevel and StepUpSetting)
+                      (with SecurityLevel, StepUpSetting, SignInPane (OIDC, forward-auth,
+                      group mappings; owner) and LinkedIdentities (your linked sign-ins);
+                      signin.ts holds their types, the ?oidc= return and its sentences)
   ui/                 the primitives (ADR-0032; see ui/README.md): UiButton, UiCloseButton, UiField, UiDialog,
                       marks/ (Glyph, Meter, MiniGraph), ui.css (loaded straight after base.css), dialog.css
   dev/                dev-server-only pieces (Login as Local Dev, the primitives' catalog at /dev/ui); each
@@ -133,7 +135,7 @@ test/                 Vitest: patches, protocol, stores, components, ⌘K, Inbox
 | `/settings/audit` | the audit log and its chain (owner, admin) |
 | `/settings/notifications` | "Notify me on this device" and your devices (every role); the rules, channels with tests, and the delivery log (owner, admin) |
 | `/settings/tokens` | API tokens: your own (every role); everyone's for the owner, everyone's but the owner's for admins |
-| `/settings/security` | the security level and step-up (owner), then passkeys |
+| `/settings/security` | the security level, step-up and sign-in (owner), then passkeys and linked sign-ins |
 
 Settings is a sheet over the front page, not a separate app: the board, the socket and the Inbox stay live underneath, and Esc goes back.
 
@@ -142,6 +144,8 @@ Settings is a sheet over the front page, not a separate app: the board, the sock
 **Hiding a warning** (`stores/muted.ts`). A warning (a problem with severity `attention`) has a **Hide** button on its Needs attention strip and a **Hide until critical** button in the Inbox. A hidden warning leaves Needs attention and the briefing's count, and comes back as soon as it turns critical (`down`). The tile and the Inbox still show it, marked hidden, with **Show again**, and the toast has Undo. It's kept in `localStorage` (`chadash.muted`), per device, keyed by the problem's scenario and target, so one that resolves and returns stays hidden. Down problems, repairs and approvals can't be hidden.
 
 **Approvals** (`components/ApprovalItem.vue`, its own chunk, loaded when the Inbox first shows one). An API token's T2 plan waits for a person. The item is built from the hub's plan (`incident.approval`), never from the token's words: who asked (`originator.name`, "backup script (sam)", and the user it acts for), the plan's label and tier, when it was asked and when it expires, the plan's steps and the resources it affects. **Approve** is the tier's confirmation (the hold ring, lighting the impact as you hold), then the step-up dialog with `fresh` (every time: the hub wants a step-up made after the request), then `POST /api/approvals/{id}/approve` `{hash}`; a closed step-up sends nothing, and a refusal is the hub's sentence under the item. **Deny** takes an optional reason (`POST …/deny`) and needs no step-up. The item resolves live on the `inbox` topic. Approvals count in the Inbox badge, never in Needs attention, a tile's incidents or Resolved. Below admin it says who can approve and offers nothing (the hub doesn't send them below admin anyway).
+
+**Sign-in through a provider** (ADR-0022). `GET /api/setup` carries `sign_in`: the provider's name for the "Sign in with" button, and whether the password form shows (`session.state.signIn`). The button, linking a provider account and step-up at the provider are browser navigations to `/api/auth/oidc/start` (through `browser.go` in `settings/signin.ts`, which tests replace), and the hub's redirect back carries `?oidc=linked|step_up|tested` or `?oidc_error=<code>`: `takeOidcReturn()` reads and removes them once (the front page toasts them; the sign-in page shows the error). The step-up dialog's `oidc` method can't finish in place: it goes to the provider and back to the same page, and the person starts the action again. Settings → Security → Sign-in saves only on Save, behind a step-up; the client secret is write-only.
 
 **Safety ladder** (`stores/actions.ts`, through `useUi()`). Every action, an incident's suggested one or an alternative, in demo mode or not, is planned by the hub's engine (`POST /api/actions/plan` `{action, target, params?}`), and the plan's `confirm` picks the rung ([08 · v0.2 → API shapes](../docs/plan/08-v0.2.md#api-shapes)):
 

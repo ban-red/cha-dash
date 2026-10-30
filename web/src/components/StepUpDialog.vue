@@ -3,8 +3,11 @@
  * Step-up: confirm it's you before a T3+ action or a change to the hub's
  * security. It asks the hub how (`POST /api/auth/step-up/begin`): a passkey
  * (the browser's prompt), or the password when the account has no passkey
- * and the hub allows the fallback, with a nudge to add one. Under "Passkey
- * only" with no passkey it explains and links to Settings → Security.
+ * and the hub allows the fallback, with a nudge to add one. An account that
+ * signs in only through the identity provider confirms there: the page goes
+ * to the provider, which asks for a fresh sign-in, and comes back here with
+ * the grant, so the action is started again. Under "Passkey only" with no
+ * passkey it explains and links to Settings → Security.
  *
  * A UiDialog: focus moves in and stays, Esc cancels it and nothing behind
  * it (Settings and the Inbox stay open). Its own chunk with the WebAuthn code, loaded the first time something needs it.
@@ -15,6 +18,7 @@ import '../styles/act-dialog.css';
 import { beginStepUp, stepUpWithPasskey, stepUpWithPassword } from '../lib/stepup';
 import { INSECURE_MESSAGE, passkeySupport, PasskeyError } from '../lib/webauthn';
 import { useUi } from '../stores/ui';
+import { browser, herePath, withReturn } from '../settings/signin';
 import UiButton from '../ui/Button.vue';
 import UiDialog from '../ui/Dialog.vue';
 import UiField from '../ui/Field.vue';
@@ -22,11 +26,12 @@ import UiField from '../ui/Field.vue';
 const ui = useUi();
 const uid = useId();
 
-type Phase = 'loading' | 'passkey' | 'password' | 'none' | 'error';
+type Phase = 'loading' | 'passkey' | 'password' | 'oidc' | 'none' | 'error';
 const phase = ref<Phase>('loading');
 const options = ref<unknown>(undefined);
 const message = ref('');
 const addPasskey = ref(false);
+const oidc = ref<{ url: string; provider: string }>({ url: '', provider: '' });
 const error = ref('');
 const busy = ref(false);
 const password = ref('');
@@ -44,7 +49,10 @@ async function begin(): Promise<void> {
   try {
     const b = await beginStepUp();
     if (b.method === 'password') phase.value = 'password';
-    else if (b.method === 'none') {
+    else if (b.method === 'oidc') {
+      oidc.value = { url: b.url, provider: b.provider };
+      phase.value = 'oidc';
+    } else if (b.method === 'none') {
       message.value = b.message;
       addPasskey.value = b.addPasskey;
       phase.value = 'none';
@@ -97,6 +105,11 @@ async function usePassword(): Promise<void> {
   }
 }
 
+function goToProvider(): void {
+  busy.value = true;
+  browser.go(withReturn(oidc.value.url, herePath()));
+}
+
 function cancel(): void {
   password.value = '';
   ui.stepUpDone(false);
@@ -112,7 +125,7 @@ onMounted(begin);
 </script>
 
 <template>
-  <UiDialog as="form" class="stepup" title="Confirm it’s you" close-label="Cancel" :aria-describedby="`${uid}-d`" @close="cancel" @submit="phase === 'password' ? usePassword() : usePasskey()" @keydown.esc.stop>
+  <UiDialog as="form" class="stepup" title="Confirm it’s you" close-label="Cancel" :aria-describedby="`${uid}-d`" @close="cancel" @submit="phase === 'password' ? usePassword() : phase === 'oidc' ? goToProvider() : usePasskey()" @keydown.esc.stop>
     <template #lead><Glyph kind="lock" /></template>
     <p :id="`${uid}-d`" class="act-lede">
       <template v-if="reason">Before “{{ reason }}”, </template>
@@ -134,6 +147,11 @@ onMounted(begin);
       <p class="act-hint">Your account has no passkey yet, so the password does. <template v-if="canSettings">Add a passkey in Settings → Security and this takes a touch instead.</template></p>
     </template>
 
+    <p v-else-if="phase === 'oidc'" class="act-hint">
+      Your account signs in with {{ oidc.provider }}, so you confirm it there: sign in again, then you come back to this page. Start what you were doing
+      again, and it won’t ask for 5 minutes.
+    </p>
+
     <p v-else-if="phase === 'none'" class="act-note" role="alert"><Glyph kind="lock" /><span>{{ message }}</span></p>
 
     <p v-else class="err" role="alert">{{ message }}</p>
@@ -148,6 +166,10 @@ onMounted(begin);
       <template v-else-if="phase === 'password'">
         <UiButton variant="ghost" @click="cancel">Cancel</UiButton>
         <UiButton variant="primary" type="submit" :disabled="busy" :aria-busy="busy || undefined">{{ busy ? 'Checking…' : 'Confirm' }}</UiButton>
+      </template>
+      <template v-else-if="phase === 'oidc'">
+        <UiButton variant="ghost" @click="cancel">Cancel</UiButton>
+        <UiButton ref="firstButton" variant="primary" type="submit" :disabled="busy" :aria-busy="busy || undefined">{{ busy ? `Going to ${oidc.provider}…` : `Continue with ${oidc.provider}` }}</UiButton>
       </template>
       <template v-else-if="phase === 'none'">
         <UiButton ref="firstButton" variant="ghost" @click="cancel">Close</UiButton>

@@ -5,13 +5,19 @@
  * autofill (conditional mediation). The WebAuthn code loads on demand;
  * whether passkeys can work here at all (they need HTTPS or localhost) is
  * checked inline, and said in words when they can't.
+ *
+ * With an identity provider set up (GET /api/setup → sign_in.oidc), "Sign
+ * in with <provider>" goes there and comes back signed in, or with
+ * ?oidc_error=… for the message here. The owner can hide the password form
+ * behind "Use a password instead"; it still works (break-glass).
  */
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import { DevLogin } from '../dev';
 import { authMessage, useSession } from '../stores/session';
 import UiButton from '../ui/Button.vue';
 import UiField from '../ui/Field.vue';
+import { browser, herePath, oidcErrorWords, oidcStartURL, takeOidcReturn } from '../settings/signin';
 
 const session = useSession();
 const username = ref('');
@@ -19,6 +25,24 @@ const password = ref('');
 const busy = ref(false);
 const error = ref('');
 const userInput = ref<HTMLInputElement | null>(null);
+const providerButton = ref<InstanceType<typeof UiButton> | null>(null);
+const showPassword = ref(false);
+const going = ref(false);
+const provider = computed(() => session.state.signIn?.oidc?.name);
+const passwordForm = computed(() => showPassword.value || session.state.signIn?.password_form !== false);
+
+function withProvider(): void {
+  if (going.value) return;
+  going.value = true;
+  conditional?.abort();
+  browser.go(oidcStartURL({ returnTo: herePath() }));
+}
+
+async function usePassword(): Promise<void> {
+  showPassword.value = true;
+  await nextTick();
+  userInput.value?.focus();
+}
 const pkBusy = ref(false);
 const pkSupport: 'ok' | 'insecure' | 'unsupported' =
   typeof window === 'undefined' || window.isSecureContext === false
@@ -66,8 +90,12 @@ async function passkey() {
   }
 }
 
-onMounted(() => {
-  userInput.value?.focus();
+onMounted(async () => {
+  const back = takeOidcReturn();
+  if (back.error) error.value = oidcErrorWords(back.error);
+  await nextTick();
+  if (passwordForm.value) userInput.value?.focus();
+  else providerButton.value?.focus();
   void autofill();
 });
 onBeforeUnmount(() => conditional?.abort());
@@ -102,13 +130,23 @@ async function submit() {
 
       <div v-if="error" class="form-error" role="alert"><Glyph kind="attn" /><span>{{ error }}</span></div>
 
-      <UiField id="login-user" label="Username" v-slot="{ control }">
-        <input v-bind="control" ref="userInput" v-model="username" autocomplete="username webauthn" autocapitalize="off" spellcheck="false" required />
-      </UiField>
-      <UiField id="login-pass" label="Password" v-slot="{ control }">
-        <input v-bind="control" v-model="password" type="password" autocomplete="current-password" required />
-      </UiField>
-      <UiButton variant="primary" type="submit" :disabled="busy || pkBusy" :aria-busy="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</UiButton>
+      <template v-if="provider">
+        <UiButton ref="providerButton" :variant="passwordForm ? 'default' : 'primary'" class="idp-btn" :disabled="busy || pkBusy" :aria-busy="going || undefined" @click="withProvider">
+          {{ going ? `Going to ${provider}…` : `Sign in with ${provider}` }}
+        </UiButton>
+        <div v-if="passwordForm" class="door-or" aria-hidden="true"><span class="caps">or</span></div>
+      </template>
+
+      <template v-if="passwordForm">
+        <UiField id="login-user" label="Username" v-slot="{ control }">
+          <input v-bind="control" ref="userInput" v-model="username" autocomplete="username webauthn" autocapitalize="off" spellcheck="false" required />
+        </UiField>
+        <UiField id="login-pass" label="Password" v-slot="{ control }">
+          <input v-bind="control" v-model="password" type="password" autocomplete="current-password" required />
+        </UiField>
+        <UiButton variant="primary" type="submit" :disabled="busy || pkBusy" :aria-busy="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</UiButton>
+      </template>
+      <UiButton v-else variant="ghost" class="pw-reveal" @click="usePassword">Use a password instead</UiButton>
       <div v-if="pkSupport !== 'unsupported'" class="door-or" aria-hidden="true"><span class="caps">or</span></div>
       <UiButton v-if="pkSupport === 'ok'" class="pk-btn" :disabled="busy || pkBusy" :aria-busy="pkBusy" @click="passkey">
         <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="5.5" r="2.6" /><path d="M1.8 13.5c.5-2.4 2.2-3.7 4.2-3.7 1 0 1.9.3 2.6.9M11.5 8.2a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 0 1 0-3.8Zm0 3.8v2.6m0-1.3h1.2" /></svg>
