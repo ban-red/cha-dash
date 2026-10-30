@@ -27,7 +27,8 @@ const (
 	VerbAdopt    = "stack.adopt"
 	VerbUnadopt  = "stack.unadopt"
 
-	// Served from v0.3 (waves 12 and 14). Until then the node answers them
+	// v0.3: git sync (stack.remote.check, stack.fetch), moving a project
+	// into the root, and Cha Dash updating itself. A v0.2 node answers them
 	// as it answers any verb it doesn't know.
 	VerbRemoteCheck      = "stack.remote.check"
 	VerbFetch            = "stack.fetch"
