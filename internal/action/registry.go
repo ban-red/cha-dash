@@ -41,6 +41,8 @@ func (r *Registry) Register(source string, defs ...Def) error {
 			return fmt.Errorf("action: %s: %s registered twice", source, d.ID)
 		case d.Execute == nil:
 			return fmt.Errorf("action: %s: %s has no Execute", source, d.ID)
+		case d.Resumes && d.Resume == nil:
+			return fmt.Errorf("action: %s: %s resumes but has no Resume", source, d.ID)
 		case d.Tier > T4:
 			return fmt.Errorf("action: %s: %s has tier %d", source, d.ID, d.Tier)
 		}

@@ -20,6 +20,10 @@ const (
 	// deletes its sessions), or ownership moved to or from it. Whatever its
 	// sessions were allowed before may no longer hold.
 	EventUserChanged EventKind = "user.changed"
+	// EventSignedIn: a person signed in and a session started. Method is
+	// the one the session records (password, passkey, dev). Every sign-in
+	// method ends in StartSession, which emits it once.
+	EventSignedIn EventKind = "signed_in"
 	// EventStepUp: a step-up was granted (Method is password or passkey).
 	EventStepUp EventKind = "step_up"
 	// EventStepUpFailed: a step-up attempt didn't confirm the person
@@ -41,7 +45,8 @@ type Event struct {
 	SessionID string
 	// Passkey and Name: the passkey's ID and name (passkey events).
 	Passkey, Name string
-	// Method: how a step-up confirmed the person (password, passkey).
+	// Method: how a sign-in or a step-up confirmed the person (password,
+	// passkey; dev for a sign-in).
 	Method string
 	// Reason: why a step-up failed, in a few words.
 	Reason string

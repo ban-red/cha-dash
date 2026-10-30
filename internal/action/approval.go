@@ -3,7 +3,8 @@ package action
 // Plans that wait for a person (03 · Architecture → Action engine, Approve;
 // ADR-0017). When the policy says a plan's maker can't run it alone
 // (ApprovalPolicy: an API token's plans from T2 up, and later every agent's
-// plan), approving it doesn't run it: it becomes an Approval, awaiting a
+// plan), or the plan was made with RequireApproval (a git sync's "draft and
+// ask"), approving it doesn't run it: it becomes an Approval, awaiting a
 // person. The plan is unchanged and keeps its hash; its actor is the
 // originator. An Inbox item (class "approval") shows it to approvers, who
 // approve it in a session, with a step-up made after it was asked, bound to
@@ -51,7 +52,8 @@ const (
 const ApprovalClass = "approval"
 
 // Originator is who made a plan that waits, as approvals show it: the
-// token (or agent) and the user it acts for. Never a session or an address.
+// token (agent, sync) and the user it acts for, or the person. Never a
+// session or an address.
 type Originator struct {
 	Kind     string `json:"kind"`
 	ID       string `json:"id"`
@@ -516,15 +518,20 @@ func (e *Engine) publishApproval(apv Approval, target string) {
 		return
 	}
 	who := apv.Originator.Name
-	what := "a token"
-	if apv.Originator.Kind == KindAgent {
-		what = "an agent"
+	by := "Planned through the API by a token"
+	switch apv.Originator.Kind {
+	case KindAgent:
+		by = "Planned through the API by an agent"
+	case KindSync:
+		by = "Planned by a git sync"
+	case KindUser:
+		by = "Planned by " + who
 	}
 	item := approvalItem{
 		ID: ApprovalItemID(apv.ID), Scenario: "approval", Class: ApprovalClass, Severity: "attention",
 		Status: "open", Phase: apv.State,
 		Title:   who + " asks to run: " + apv.Plan.Label,
-		Summary: fmt.Sprintf("Planned through the API by %s, a %s action. It runs only if an admin or the owner approves it here.", what, apv.Plan.Tier),
+		Summary: fmt.Sprintf("%s, a %s action. It runs only if an admin or the owner approves it here.", by, apv.Plan.Tier),
 		Target:  target, OpenedAt: apv.RequestedAt, UpdatedAt: apv.RequestedAt,
 		Facts:  map[string]string{"approval": apv.ID, "plan": apv.Plan.ID, "action": apv.Plan.Action, "tier": apv.Plan.Tier.String(), "originator": apv.Originator.ID},
 		Causes: []any{}, BlastRadius: apv.Plan.Impact,

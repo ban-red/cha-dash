@@ -10,6 +10,8 @@ import (
 
 func TestDevLoginCreatesOwnerOnFirstRun(t *testing.T) {
 	h := newHarness(t)
+	var log eventLog
+	h.svc.OnEvent(log.add)
 	c := h.client()
 	if _, body := h.do(c, "GET", "/api/setup", nil); body["required"] != true || body["dev_login"] != true {
 		t.Fatalf("setup status = %v", body)
@@ -21,6 +23,9 @@ func TestDevLoginCreatesOwnerOnFirstRun(t *testing.T) {
 	}
 	if u := body["user"].(map[string]any); u["username"] != "dev" || u["role"] != "owner" {
 		t.Fatalf("dev login user = %v", u)
+	}
+	if got := log.kinds(); len(got) != 1 || got[0] != string(EventSignedIn) || log.last().Method != MethodDev {
+		t.Fatalf("dev login told %v", got)
 	}
 	if resp, body := h.do(c, "GET", "/api/auth/session", nil); resp.StatusCode != http.StatusOK || body["session"].(map[string]any)["method"] != MethodDev {
 		t.Fatalf("session = %d %v", resp.StatusCode, body)

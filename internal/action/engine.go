@@ -123,7 +123,8 @@ const tasksColl = "tasks"
 
 // New starts an engine. Tasks the previous run left unfinished are marked
 // failed (and audited) before it returns, and the last day's tasks fill
-// the topic.
+// the topic. Those whose Def resumes (Def.Resumes) are handed to
+// Def.Resume in the background instead, and end as its result says.
 func New(ctx context.Context, o Options) (*Engine, error) {
 	if o.Store == nil || o.Audit == nil || o.Registry == nil || o.Policy == nil {
 		return nil, errors.New("action: Store, Audit, Registry and Policy are required")
@@ -147,7 +148,8 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 		e.now = time.Now
 	}
 	e.ctx, e.cancel = context.WithCancel(context.Background())
-	if err := e.recover(ctx); err != nil {
+	resume, err := e.recover(ctx)
+	if err != nil {
 		return nil, err
 	}
 	if err := e.load(ctx); err != nil {
@@ -155,6 +157,9 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 	}
 	if err := e.loadApprovals(ctx); err != nil {
 		return nil, err
+	}
+	for _, o := range resume {
+		e.resume(o)
 	}
 	return e, nil
 }

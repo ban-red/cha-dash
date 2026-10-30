@@ -39,7 +39,7 @@ func (p tokenPolicy) Authorize(_ context.Context, a Actor, scope, _ string, tier
 		return ErrForbidden
 	}
 	switch a.Kind {
-	case KindToken:
+	case KindToken, KindSync:
 		if p.revoked[a.ID] || tier >= T3 {
 			return ErrForbidden
 		}

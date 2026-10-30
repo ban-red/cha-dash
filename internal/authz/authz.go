@@ -16,6 +16,12 @@
 // plans from T2 up wait for a person (NeedsApproval), who approves them in a
 // session (DecideApproval).
 //
+// A git sync (KindSync) acts for its owner the same way: the owner's current
+// role, refused once the owner is disabled or gone, and no step-up, so T3
+// and T4 are out of reach. Its stack.* plans need the owner to be an admin
+// still (the settings rule). Its plans wait for a person only when the
+// syncer asks (action.Plan.RequireApproval), never by kind.
+//
 // Roles and their tier caps:
 //
 //	owner      T0–T4; T4 only for scopes enabled in the actions.t4 setting
@@ -95,7 +101,8 @@ func (t Tier) rank() int {
 type Actor struct {
 	Kind, ID, Name, Role, Via, Session, IP string
 	StepUpUntil                            time.Time
-	// User and UserName are the user an API token acts for (kind token).
+	// User and UserName are the user an API token acts for (kind token), or
+	// a sync's owner (kind sync).
 	User, UserName string
 }
 
@@ -104,6 +111,9 @@ const (
 	KindUser  = "user"
 	KindToken = "token" // an API token (wave 10); it can't step up
 	KindAgent = "agent" // an agent's token (ADR-0017, later); every plan waits for a person
+	// KindSync is a git sync (v0.3): ID is the sync's, User its owner. It
+	// acts with the owner's current role and can't step up.
+	KindSync = "sync"
 )
 
 // Errors. A refusal unwraps to one of these and reads as a sentence the web
@@ -397,6 +407,9 @@ func Decide(a Actor, req Request, env Env) error {
 	if tr >= T3.rank() && a.Kind == KindToken {
 		return forbid("API tokens can't run %s actions; they need a person to confirm.", req.Tier)
 	}
+	if tr >= T3.rank() && a.Kind == KindSync {
+		return forbid("A git sync can't run %s actions; they need a person to confirm.", req.Tier)
+	}
 	if tr >= T4.rank() && a.Kind == KindAgent {
 		return forbid("Agents can never propose %s actions.", req.Tier)
 	}
@@ -420,6 +433,8 @@ func Decide(a Actor, req Request, env Env) error {
 // waits for a person instead of running when its maker approves it: an API
 // token's plans from T2 up ("API-originated actions above T1 always require
 // human approval", 02 · Experience), and every plan of an agent's (ADR-0017).
+// A sync's never do by kind: the syncer sets action.Plan.RequireApproval for
+// "draft and ask", and the engine makes those wait.
 func NeedsApproval(kind string, tier Tier) bool {
 	switch kind {
 	case KindToken:
@@ -463,6 +478,7 @@ type Policy struct {
 	now    func() time.Time
 	grants func(context.Context, Actor) ([]string, error)
 	tokens func(context.Context, string) (auth.TokenAccess, error)
+	users  func(context.Context, string) (auth.UserInfo, error)
 }
 
 // PolicyOption adjusts NewPolicy.
@@ -480,6 +496,14 @@ func WithGrants(f func(context.Context, Actor) ([]string, error)) PolicyOption {
 // a revoked or expired token is refused. Without it every token is refused.
 func WithTokens(f func(ctx context.Context, id string) (auth.TokenAccess, error)) PolicyOption {
 	return func(p *Policy) { p.tokens = f }
+}
+
+// WithUsers resolves sync actors (kind sync) to their owner: f returns the
+// user (auth.Service.GetUser), or auth.ErrUserNotFound. The owner's current
+// role replaces the one recorded, and a disabled or missing owner is
+// refused. Without it every sync is refused.
+func WithUsers(f func(ctx context.Context, id string) (auth.UserInfo, error)) PolicyOption {
+	return func(p *Policy) { p.users = f }
 }
 
 // WithClock replaces time.Now, for tests.
@@ -516,9 +540,15 @@ func (p *Policy) Authorize(ctx context.Context, a Actor, scope, target string, t
 // rather than allows.
 func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 	env := Env{Now: p.now()}
-	if a.Kind == KindToken {
+	switch a.Kind {
+	case KindToken:
 		var err error
 		if a, env.Grants, err = p.token(ctx, a); err != nil {
+			return err
+		}
+	case KindSync:
+		var err error
+		if a, err = p.syncOwner(ctx, a); err != nil {
 			return err
 		}
 	}
@@ -571,9 +601,34 @@ func (p *Policy) token(ctx context.Context, a Actor) (Actor, []string, error) {
 	return a, acc.Scopes, nil
 }
 
+// syncOwner resolves a sync actor to its owner's current role, or a refusal
+// when the owner is disabled, gone or can't be read. A sync never has a
+// step-up grant.
+func (p *Policy) syncOwner(ctx context.Context, a Actor) (Actor, error) {
+	if p.users == nil || a.User == "" {
+		return a, forbid("Git syncs aren't accepted here.")
+	}
+	u, err := p.users(ctx, a.User)
+	switch {
+	case errors.Is(err, auth.ErrUserNotFound):
+		return a, forbid("The user this sync acts for no longer exists.")
+	case err != nil:
+		p.log.Error("authz: reading a sync's owner failed; refusing", "err", err, "sync", a.ID)
+		return a, forbid("The hub couldn't check what this sync is allowed to do.")
+	case u.Disabled:
+		return a, forbid("The user this sync acts for has been disabled.")
+	}
+	a.Role, a.UserName, a.StepUpUntil = u.Role, u.Username, time.Time{}
+	return a, nil
+}
+
 // ReadScope decides a read that isn't an action (audit.read, tasks.all):
-// Admin and Owner, and for a token, one whose scopes include it.
+// Admin and Owner, and for a token, one whose scopes include it. A sync
+// reads only its own tasks, so never these.
 func (p *Policy) ReadScope(ctx context.Context, a Actor, scope string) error {
+	if a.Kind == KindSync {
+		return forbid("A git sync can't read %s.", scope)
+	}
 	var grants []string
 	if a.Kind == KindToken {
 		var err error

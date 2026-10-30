@@ -76,18 +76,19 @@ func ParseTier(s string) (Tier, error) {
 	return 0, fmt.Errorf("action: unknown tier %q", s)
 }
 
-// Actor is who asks: a signed-in user, an API token, or (later) an agent.
-// internal/authz decides what an Actor may do. A plan's actor is its
-// originator: the plans table keeps it, and an approval names it.
+// Actor is who asks: a signed-in user, an API token, a git sync, or (later)
+// an agent. internal/authz decides what an Actor may do. A plan's actor is
+// its originator: the plans table keeps it, and an approval names it.
 type Actor struct {
-	Kind    string `json:"kind"` // user, token, agent, system
+	Kind    string `json:"kind"` // user, token, sync, agent, system
 	ID      string `json:"id,omitempty"`
 	Name    string `json:"name"`
 	Role    string `json:"role,omitempty"`
 	Via     string `json:"via,omitempty"` // web, api, mcp
 	Session string `json:"session,omitempty"`
 	IP      string `json:"ip,omitempty"`
-	// User and UserName are the user a token (or agent) acts for.
+	// User and UserName are the user a token, a sync (its owner) or an
+	// agent acts for.
 	User     string `json:"user,omitempty"`
 	UserName string `json:"user_name,omitempty"`
 	// StepUpUntil is when the session's step-up grant ends; zero for none.
@@ -99,16 +100,18 @@ const (
 	KindUser   = "user"
 	KindToken  = "token" // an API token, acting for its user
 	KindAgent  = "agent" // an agent's token (ADR-0017; not issued yet)
+	KindSync   = "sync"  // a git sync (ID), acting for its owner (User); no session, no step-up
 	KindSystem = "system"
 )
 
 // binding is what may approve a plan the actor made: its session, or for a
-// token, the token itself. "" binds to nothing, so nothing can approve.
+// token, an agent or a sync, the actor itself ("sync:<id>"). "" binds to
+// nothing, so nothing can approve.
 func (a Actor) binding() string {
 	switch {
 	case a.Session != "":
 		return a.Session
-	case (a.Kind == KindToken || a.Kind == KindAgent) && a.ID != "":
+	case (a.Kind == KindToken || a.Kind == KindAgent || a.Kind == KindSync) && a.ID != "":
 		return a.Kind + ":" + a.ID
 	}
 	return ""
@@ -127,7 +130,8 @@ type Policy interface {
 // ApprovalPolicy is an optional extension of Policy: plans by the actors it
 // names wait for a person (an approval in a session) instead of running when
 // their maker approves them. internal/authz implements it: an API token's
-// plans from T2 up, every agent's plan. Without it, nothing waits.
+// plans from T2 up, every agent's plan. Without it, only plans made with
+// RequireApproval wait.
 type ApprovalPolicy interface {
 	NeedsApproval(a Actor, tier Tier) bool
 }
@@ -313,6 +317,22 @@ type Def struct {
 	// reads ("the guest reports running"). It may wait (until its context
 	// ends) and report progress. Nil skips verification.
 	Verify func(ctx context.Context, req Request, run *TaskRun) error
+	// Resumes marks an action whose task can outlive the hub (Cha Dash
+	// updating itself restarts the hub mid-task). At start, a task the last
+	// run left running is handed to Resume instead of being marked
+	// interrupted. Without Resumes it's interrupted; Register refuses
+	// Resumes without a Resume. A task that never started is interrupted
+	// either way.
+	Resumes bool
+	// Resume finds out how a task the hub lost track of ended (asking the
+	// node for the last result) and reports it as Execute does: nil
+	// succeeded, a *Error failed with that code. The engine finishes the
+	// task with it, audit record, tasks topic and OnTaskDone included, as
+	// any task ends; Verify isn't run. It runs in the background once the
+	// engine has started, bounded by Timeout, holding the target's lock,
+	// with t as stored (its state running). If the hub stops again before
+	// it returns, the task stays running and is resumed at the next start.
+	Resume func(ctx context.Context, t Task, run *TaskRun) error
 }
 
 // Timeouts used when a Def doesn't set its own.

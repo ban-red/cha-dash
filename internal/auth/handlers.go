@@ -86,14 +86,16 @@ func (s *Service) Require(next http.Handler) http.Handler {
 	})
 }
 
-// StartSession signs u in on this response. Every sign-in method (password
-// today, passkeys and OIDC later) ends here.
+// StartSession signs u in on this response and emits EventSignedIn with
+// method. Every sign-in method (password, passkey and dev today, OIDC
+// later) ends here.
 func (s *Service) StartSession(w http.ResponseWriter, r *http.Request, u User, method string) (Session, error) {
 	token, sess, err := s.createSession(r.Context(), u.ID, method, s.proxies.ClientIP(r).String(), r.UserAgent())
 	if err != nil {
 		return Session{}, err
 	}
 	s.setCookie(w, r, token, sess.ExpiresAt)
+	s.emit(Event{Kind: EventSignedIn, UserID: u.ID, SessionID: sess.ID, Method: method, Request: r})
 	return sess, nil
 }
 

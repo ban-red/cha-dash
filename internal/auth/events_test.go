@@ -166,3 +166,53 @@ func (s *Service) mustOwnerID(t *testing.T) string {
 	}
 	return id
 }
+
+// Every sign-in tells the listeners once, with the session's method: setup
+// signs the owner in with a password, then a password sign-in and a passkey
+// sign-in. A failed sign-in tells nobody. (Dev login: devlogin_test.go.)
+func TestSignedInEvents(t *testing.T) {
+	h := newPasskeyHarness(t)
+	var log eventLog
+	h.svc.OnEvent(log.add)
+	signedIn := func() []Event {
+		log.mu.Lock()
+		defer log.mu.Unlock()
+		var out []Event
+		for _, e := range log.got {
+			if e.Kind == EventSignedIn {
+				out = append(out, e)
+			}
+		}
+		return out
+	}
+	check := func(what string, n int, method string) {
+		t.Helper()
+		got := signedIn()
+		if len(got) != n {
+			t.Fatalf("%s: %d signed_in events, want %d", what, len(got), n)
+		}
+		e := got[n-1]
+		if e.Method != method || e.UserID == "" || !strings.HasPrefix(e.SessionID, "s_") || e.Request == nil {
+			t.Fatalf("%s: %+v", what, e)
+		}
+	}
+
+	c := h.owner()
+	check("setup", 1, MethodPassword)
+	if resp, _ := h.do(h.client(), "POST", "/api/auth/login", map[string]string{"username": "owner", "password": "not the password"}); resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("wrong login = %d", resp.StatusCode)
+	}
+	if len(signedIn()) != 1 {
+		t.Fatal("a failed sign-in was told")
+	}
+	if resp, _ := h.do(h.client(), "POST", "/api/auth/login", map[string]string{"username": "owner", "password": "correct horse battery"}); resp.StatusCode != http.StatusOK {
+		t.Fatalf("login = %d", resp.StatusCode)
+	}
+	check("password", 2, MethodPassword)
+	p := newSoftPasskey(t, testOrigin)
+	h.register(c, p)
+	if resp, body := h.login(p); resp.StatusCode != http.StatusOK {
+		t.Fatalf("passkey login = %d %v", resp.StatusCode, body)
+	}
+	check("passkey", 3, MethodPasskey)
+}

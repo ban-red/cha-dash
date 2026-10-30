@@ -25,6 +25,10 @@ type PlanRequest struct {
 	Action string          `json:"action"`
 	Target string          `json:"target"`
 	Params json.RawMessage `json:"params,omitempty"`
+	// RequireApproval makes the plan wait for a person when its maker
+	// approves it, whatever the policy says (the git syncer's "draft and
+	// ask"). Set by callers in the hub, not by the HTTP body.
+	RequireApproval bool `json:"-"`
 }
 
 // Plan is what the engine will do, as POST /api/actions/plan returns it.
@@ -43,6 +47,10 @@ type Plan struct {
 	Impact      []Impact        `json:"impact"`
 	Undo        *Undo           `json:"undo"`
 	ExpiresAt   time.Time       `json:"expires_at"`
+	// RequireApproval: approving it submits it for a person
+	// (PlanRequest.RequireApproval), as ApprovalPolicy would. Stored with
+	// the plan's document; not part of its hash.
+	RequireApproval bool `json:"require_approval,omitempty"`
 }
 
 // confirmFor is the confirmation UX a tier gets.
@@ -106,6 +114,8 @@ func (e *Engine) Plan(ctx context.Context, a Actor, req PlanRequest) (*Plan, err
 		Steps:     stepsOf(d, r),
 		Impact:    e.impactOf(ctx, d, r),
 		ExpiresAt: now.Add(PlanTTL),
+
+		RequireApproval: req.RequireApproval,
 	}
 	if p.Confirm == "type" {
 		p.ConfirmText = t.Name
@@ -332,8 +342,8 @@ func auditParams(p json.RawMessage) json.RawMessage {
 
 func auditActor(a Actor) audit.Actor {
 	out := audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
-	if a.Kind == KindToken || a.Kind == KindAgent {
-		out.OnBehalfOf = a.User // the user the token acts for
+	if a.Kind == KindToken || a.Kind == KindAgent || a.Kind == KindSync {
+		out.OnBehalfOf = a.User // the user the token (or sync) acts for
 	}
 	return out
 }
@@ -382,8 +392,9 @@ func (e *Engine) loadPlan(ctx context.Context, id string) (*storedPlan, error) {
 // hash, a fresh step-up where the tier needs one, and an unchanged target.
 // With an idempotency key, a repeated approval returns the task the first
 // one started. Refusals are *Refusal and are audited. A plan that must wait
-// for a person (ApprovalPolicy) isn't run: Approve returns *AwaitingApproval
-// carrying the approval; ApproveOrSubmit returns it without the error.
+// for a person (ApprovalPolicy, or Plan.RequireApproval) isn't run: Approve
+// returns *AwaitingApproval carrying the approval; ApproveOrSubmit returns it
+// without the error.
 func (e *Engine) Approve(ctx context.Context, a Actor, planID string, req ApproveRequest, idemKey string) (Task, error) {
 	t, apv, err := e.ApproveOrSubmit(ctx, a, planID, req, idemKey)
 	if err == nil && apv != nil {
@@ -460,7 +471,7 @@ func (e *Engine) ApproveOrSubmit(ctx context.Context, a Actor, planID string, re
 	if p.tier == T4 && !a.StepUpUntil.Add(-StepUpTTL).After(p.created) {
 		return refuse(forbidden(ErrStepUpRequired))
 	}
-	if ap, ok := e.policy.(ApprovalPolicy); ok && ap.NeedsApproval(a, p.tier) {
+	if e.needsApproval(a, p) {
 		apv, err := e.submit(ctx, a, p, t)
 		return Task{}, apv, err
 	}
@@ -561,6 +572,17 @@ func (e *Engine) launch(ctx context.Context, actor Actor, p *storedPlan, d *Def,
 }
 
 var errSpent = errors.New("action: plan already approved")
+
+// needsApproval reports whether approving p waits for a person: the plan
+// asks for it (RequireApproval), or the policy says a's plans at its tier
+// do (ApprovalPolicy).
+func (e *Engine) needsApproval(a Actor, p *storedPlan) bool {
+	if p.doc.RequireApproval {
+		return true
+	}
+	ap, ok := e.policy.(ApprovalPolicy)
+	return ok && ap.NeedsApproval(a, p.tier)
+}
 
 // idempotent returns the task an earlier approval with the same key
 // started, if there was one.

@@ -153,7 +153,12 @@ func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tie
 			}
 		}
 	}
+	e.end(ctx, d, r, id, tier, undo, started, err)
+}
 
+// end records how a task ended, given what Execute and Verify (or Resume)
+// returned: its audit record first, then its state, then OnTaskDone.
+func (e *Engine) end(ctx context.Context, d *Def, r Request, id string, tier Tier, undo *Undo, started time.Time, err error) {
 	state, result := StateSucceeded, audit.OK
 	var fail *Error
 	switch {
@@ -358,44 +363,53 @@ func (e *Engine) trimLocked() []string {
 }
 
 // recover marks tasks a previous run left unfinished as failed, with an
-// audit record each: the hub stopped while they ran.
-func (e *Engine) recover(ctx context.Context) error {
-	rows, err := e.st.Reader().QueryContext(ctx, `SELECT t.id, t.document, p.actor, p.params, p.tier, t.created_at FROM tasks t JOIN plans p ON p.id = t.plan_id
+// audit record each: the hub stopped while they ran. A task that had
+// started and whose Def resumes (Def.Resumes, with a Resume) is kept
+// instead, for resume to finish once the topic is loaded.
+func (e *Engine) recover(ctx context.Context) ([]resumable, error) {
+	rows, err := e.st.Reader().QueryContext(ctx, `SELECT t.id, t.actor_id, t.document, p.actor, p.params, p.tier, p.document, t.created_at FROM tasks t JOIN plans p ON p.id = t.plan_id
 		WHERE t.finished_at IS NULL`)
 	if err != nil {
-		return fmt.Errorf("action: %w", err)
+		return nil, fmt.Errorf("action: %w", err)
 	}
-	type orphan struct {
-		id      string
-		task    Task
-		actor   Actor
-		params  json.RawMessage
-		tier    string
-		created int64
-	}
-	var orphans []orphan
+	var orphans []resumable
 	for rows.Next() {
-		var o orphan
-		var doc, actor, params string
-		if err := rows.Scan(&o.id, &doc, &actor, &params, &o.tier, &o.created); err != nil {
+		var o resumable
+		var doc, actor, params, tier, plan string
+		var created int64
+		if err := rows.Scan(&o.task.ID, &o.owner, &doc, &actor, &params, &tier, &plan, &created); err != nil {
 			rows.Close()
-			return err
+			return nil, err
 		}
+		id := o.task.ID
 		if json.Unmarshal([]byte(doc), &o.task) != nil || json.Unmarshal([]byte(actor), &o.actor) != nil {
 			continue
 		}
-		o.params = json.RawMessage(params)
+		o.task.ID = id
+		o.params, o.tierName, o.created = json.RawMessage(params), tier, time.UnixMilli(created)
+		o.tier, _ = ParseTier(tier)
+		var pd Plan
+		if json.Unmarshal([]byte(plan), &pd) == nil {
+			o.undo = pd.Undo
+		}
 		orphans = append(orphans, o)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return err
+		return nil, err
 	}
+	var resume []resumable
 	for _, o := range orphans {
+		d, ok := e.reg.Get(o.task.Action)
+		if ok && d.Resumes && d.Resume != nil && o.task.StartedAt != nil {
+			o.def = d
+			resume = append(resume, o)
+			continue
+		}
 		now := e.now().UTC().Truncate(time.Millisecond)
 		fail := Fail("interrupted", "The hub stopped while this was running, so whether it finished isn't known.")
 		var secrets []string
-		if d, ok := e.reg.Get(o.task.Action); ok && d.Params != nil {
+		if ok && d.Params != nil {
 			secrets = d.Params.Secrets()
 		}
 		var dur time.Duration
@@ -404,21 +418,65 @@ func (e *Engine) recover(ctx context.Context) error {
 		}
 		ev, err := e.audit.Append(ctx, audit.Entry{
 			Actor: auditActor(o.actor), Action: o.task.Action, Target: o.task.Target, Params: o.params, Secrets: secrets,
-			Tier: o.tier, Result: audit.Failed, Error: &audit.Error{Code: fail.Code, Message: fail.Message}, Duration: dur, Task: o.id,
+			Tier: o.tierName, Result: audit.Failed, Error: &audit.Error{Code: fail.Code, Message: fail.Message}, Duration: dur, Task: o.task.ID,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		o.task.State, o.task.FinishedAt, o.task.Error, o.task.Audit = StateFailed, &now, fail, &ev.ID
 		o.task.Log = nil // never stored (see save); older rows may still hold some
 		doc, _ := json.Marshal(o.task)
 		if _, err := e.st.Writer().ExecContext(ctx, `UPDATE tasks SET state = ?, document = ?, finished_at = ? WHERE id = ?`,
-			o.task.State, string(doc), now.UnixMilli(), o.id); err != nil {
-			return err
+			o.task.State, string(doc), now.UnixMilli(), o.task.ID); err != nil {
+			return nil, err
 		}
-		e.log.Warn("action: a task was interrupted by a restart", "task", o.id, "action", o.task.Action)
+		e.log.Warn("action: a task was interrupted by a restart", "task", o.task.ID, "action", o.task.Action)
 	}
-	return nil
+	return resume, nil
+}
+
+// resumable is a task the last run left running, as recover reads it.
+type resumable struct {
+	task     Task
+	owner    string // the tasks row's actor_id
+	actor    Actor  // the plan's originator
+	params   json.RawMessage
+	tierName string
+	tier     Tier
+	undo     *Undo
+	created  time.Time
+	def      *Def // set when it resumes
+}
+
+// resume finishes, in the background, a task the last run left running
+// whose Def resumes: it holds the target's lock and the task is live (and
+// cancellable, if its Def is) while Resume runs, then it ends like any task.
+// If the hub stops again before Resume returns, the task stays running in
+// the table, to be resumed at the next start.
+func (e *Engine) resume(o resumable) {
+	d, task := o.def, o.task
+	task.Log = nil
+	task.Cancellable = d.Cancellable
+	ctx, cancel := context.WithCancel(e.ctx)
+	e.mu.Lock()
+	e.live[task.ID] = &liveTask{task: task, actorID: o.owner, created: o.created, cancel: cancel}
+	e.locks[task.Target] = task.ID
+	e.wg.Add(1)
+	e.mu.Unlock()
+	e.publish(task.ID)
+	e.log.Info("action: resuming a task the last run left running", "task", task.ID, "action", task.Action)
+	r := Request{Action: d.ID, Target: Target{ID: task.Target}, Params: o.params, Actor: o.actor, Plan: task.Plan, Task: task.ID}
+	go func() {
+		defer e.wg.Done()
+		defer cancel()
+		run := &TaskRun{e: e, id: task.ID}
+		err := e.call(ctx, d.timeout(), func(ctx context.Context) error { return d.Resume(ctx, task, run) })
+		if err != nil && e.ctx.Err() != nil {
+			e.log.Warn("action: the hub stopped while resuming a task; it resumes at the next start", "task", task.ID)
+			return
+		}
+		e.end(ctx, d, r, task.ID, o.tier, o.undo, *task.StartedAt, err)
+	}()
 }
 
 // load fills the topic with the last RecentTasks of tasks.

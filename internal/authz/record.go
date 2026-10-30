@@ -68,11 +68,11 @@ func (c *Recorder) record(r *http.Request, action, target string, params any, ti
 	}
 }
 
-// AuditActor is a's audit record. A token's (or an agent's) names the user
-// it acts for in on_behalf_of.
+// AuditActor is a's audit record. A token's, an agent's or a sync's names
+// the user it acts for in on_behalf_of.
 func AuditActor(a Actor) audit.Actor {
 	out := audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, Session: a.Session, IP: a.IP}
-	if a.Kind == KindToken || a.Kind == KindAgent {
+	if a.Kind == KindToken || a.Kind == KindAgent || a.Kind == KindSync {
 		out.OnBehalfOf = a.User
 	}
 	return out
