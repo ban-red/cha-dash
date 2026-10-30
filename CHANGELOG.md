@@ -81,6 +81,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **chadash-node logs the policy it loaded.** With a policy file mounted, the node said nothing about it. It now logs what the file grants, denies and protects at start.
 - **Guests outside the control token's reach can't be planned.** A Proxmox guest outside the control token's pool, or one its role lacks a privilege on, planned like any other and failed with a 403 once approved. Its actions are now unavailable, naming the privilege and the guest.
 - **A rollback leaves untouched services alone.** Rolling a stack back, on its own or when asked, pinned every service to its image digest, so it recreated services the failed deploy never changed, and their pins stayed in the file. Only the services it recreates are pinned now.
+- **Accessibility fixes from the review.** The widget picker no longer reads its whole detail pane aloud on every arrow key, its faint text on the selected card and rows is readable (4.5:1), a widget not available here keeps its text at full contrast, the link error is tied to its field, and Add says why it can't go yet. The resource sheet keeps Tab inside it. Nodes → Revoke moves focus into its confirm and back. A warning glyph's target is 24 px, and Esc closes its tooltip wherever focus is. A field Tab reaches no longer hides under the floating Edit layout row or a form's Save bar. The demo clock no longer says UTC to screen readers when it shows the hub's zone.
 
 ### Security
 

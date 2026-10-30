@@ -73,13 +73,16 @@ interface Entry {
 const sizesWords = (sizes: SizeId[]) => sizes.map((s) => sizeName(s)).join(' · ');
 const groupName = (g: WidgetGroup) => WIDGET_GROUPS.find((x) => x.id === g)?.name ?? g;
 
+// The catalog only needs the clock to the minute; live.now ticks every second.
+const minute = computed(() => Math.floor(live.now.value / 60_000) * 60_000);
+
 const entries = computed<Entry[]>(() => {
   const g = live.graph.value;
   const state = { board, tiles };
   const span = section.value?.span ?? 12;
   return Object.values(WIDGETS).map((spec): Entry => {
     const kind = bindKind(spec);
-    const feed = feedFor(spec, g, live.now.value);
+    const feed = feedFor(spec, g, minute.value);
     const fits = sizesFor(spec, span);
     const free: Resource[] = [];
     const shown: Resource[] = [];
@@ -199,13 +202,16 @@ const targets = computed(() => {
 const manyTargets = computed(() => (entry.value?.free.length ?? 0) + (entry.value?.shown.length ?? 0) > 6);
 
 const hrefBad = computed(() => href.value.trim() !== '' && !hrefOk(href.value.trim()));
-const canAdd = computed(() => {
+/** Why Add can't go yet, said beside it; empty when it can. */
+const blocked = computed(() => {
   const e = entry.value;
-  if (!e || !size.value || !sectionId.value) return false;
-  if (e.kind === 'resource' && !target.value) return false;
-  if (e.kind === 'service' && (!name.value.trim() || hrefBad.value)) return false;
-  return true;
+  if (!e || !size.value || !sectionId.value) return 'Pick a widget and a size first.';
+  if (e.kind === 'resource' && !target.value) return 'Choose what it shows first.';
+  if (e.kind === 'service' && !name.value.trim()) return 'Give it a name first.';
+  if (e.kind === 'service' && hrefBad.value) return 'Fix the link first.';
+  return '';
 });
+const canAdd = computed(() => !blocked.value);
 
 function serviceConfig(): TileConfig {
   const config: TileConfig = { name: name.value.trim() };
@@ -387,7 +393,7 @@ const footprint = (s: SizeId) => ({ '--fw': SIZES[s].w, '--fh': SIZES[s].h });
           </div>
         </div>
 
-        <div v-if="entry" class="pk-detail" aria-live="polite">
+        <div v-if="entry" class="pk-detail">
           <div class="pk-detail-head">
             <h3 class="pk-title">{{ entry.spec.name }}</h3>
             <p class="pk-lede">{{ entry.spec.about }}</p>
@@ -442,8 +448,17 @@ const footprint = (s: SizeId) => ({ '--fw': SIZES[s].w, '--fh': SIZES[s].h });
             </div>
             <div class="field">
               <label :for="`${uid}-href`">Link</label>
-              <input :id="`${uid}-href`" v-model="href" type="url" inputmode="url" autocomplete="off" placeholder="https://" :aria-invalid="hrefBad || undefined" />
-              <span v-if="hrefBad" class="help bad">Links start with http:// or https://.</span>
+              <input
+                :id="`${uid}-href`"
+                v-model="href"
+                type="url"
+                inputmode="url"
+                autocomplete="off"
+                placeholder="https://"
+                :aria-invalid="hrefBad || undefined"
+                :aria-describedby="hrefBad ? `${uid}-href-bad` : undefined"
+              />
+              <span v-if="hrefBad" :id="`${uid}-href-bad`" class="help bad">Links start with http:// or https://.</span>
             </div>
             <div class="field">
               <label :for="`${uid}-bind`">Status from</label>
@@ -465,7 +480,10 @@ const footprint = (s: SizeId) => ({ '--fw': SIZES[s].w, '--fh': SIZES[s].h });
         <p class="pk-where">Goes into the first gap in {{ sectionTitle(section) }} where it fits; drag it anywhere after.</p>
         <span class="pk-keys" aria-hidden="true"><kbd class="kbd">⌘</kbd><kbd class="kbd">↵</kbd></span>
         <button type="button" class="btn ghost" @click="emit('close')">Cancel</button>
-        <button type="submit" class="btn primary" :disabled="!canAdd">Add to {{ sectionTitle(section) }}</button>
+        <span :id="`${uid}-blocked`" class="sr">{{ blocked }}</span>
+        <button type="submit" class="btn primary" :aria-disabled="!canAdd || undefined" :aria-describedby="blocked ? `${uid}-blocked` : undefined">
+          Add to {{ sectionTitle(section) }}
+        </button>
       </footer>
     </form>
   </dialog>
@@ -526,7 +544,7 @@ const footprint = (s: SizeId) => ({ '--fw': SIZES[s].w, '--fh': SIZES[s].h });
   color: var(--text);
 }
 .pk-search input::placeholder {
-  color: var(--text-3);
+  color: var(--text-2);
 }
 .pk-search .kbd {
   position: absolute;
@@ -607,8 +625,15 @@ button.pk-item:hover {
   border-color: var(--line-2);
   background: var(--surface-2);
 }
-.pk-item.off {
+/* Only the mark fades: the name and the reason stay readable. */
+.pk-item.off .pk-mark {
   opacity: 0.62;
+}
+/* --text-3 is under 4.5:1 on --surface-2, the selected rows' background. */
+.pk-item[aria-pressed='true'] :is(.pk-about, .pk-count),
+.pk-size:has(input:checked) .pk-size-dim,
+.pk-target:has(input:checked) .pk-target-place {
+  color: var(--text-2);
 }
 .pk-mark {
   flex: none;

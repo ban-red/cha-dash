@@ -27,7 +27,7 @@ import { api } from '../lib/api';
 import { isDone, listActions, type Offer } from '../lib/actions';
 import { absolute, duration, hhmm, shortDate } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
-import { layerAbove } from '../lib/trap';
+import { layerAbove, trapTab } from '../lib/trap';
 import { attr, incoming, label, mergedHealth, outgoing, series, sourcesOf } from '../model/graph';
 import { glyphFor } from '../model/status';
 import { resourceLinks, safeUrl, type Resource, type Task, type Tier } from '../model/types';
@@ -39,14 +39,11 @@ import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '
 import { statusOf } from '../widgets/subject';
 import { fmtValue, metricWords, upFor } from '../widgets/read';
 import {
-  csvName,
   fetchHistory,
   fetchStates,
-  historyCsv,
   keepWords,
   peak,
   pointTime,
-  saveText,
   segments,
   SPANS,
   stateWords,
@@ -403,20 +400,6 @@ async function loadPast(want: SpanId): Promise<void> {
   }
 }
 const historyLevel = computed(() => (past.value.target === id.value ? past.value.reply?.level : undefined));
-/** The shown range's series, for Download CSV; undefined while it isn't loaded or holds nothing. */
-const pastShown = computed(() => {
-  const p = past.value;
-  if (span.value === 'now' || p.span !== span.value || p.target !== id.value || p.state !== 'idle' || !p.reply) return undefined;
-  return Object.keys(p.reply.series).length ? p.reply : undefined;
-});
-function downloadCsv(): void {
-  const reply = pastShown.value;
-  if (!reply || span.value === 'now') return;
-  const names = Object.fromEntries(METRICS.map((k) => [`${id.value}#${k}`, metricWords(k)]));
-  const name = csvName(label(r.value) || id.value || '', span.value, Date.now());
-  if (saveText(historyCsv(reply, names), name)) ui.toast(`Saved ${name}.`);
-  else ui.toast('This browser can’t save files from the page.', 'error');
-}
 
 const metricRows = computed(() =>
   METRICS.flatMap((key) => {
@@ -500,6 +483,8 @@ function close(): void {
 function onKey(e: KeyboardEvent): void {
   // A confirm, the step-up or a modal <dialog> above the sheet takes its own Esc.
   if (e.key === 'Escape' && open.value && !e.defaultPrevented && !layerAbove(ui.state)) close();
+  // It's a modal dialog (the scrim closes it), so Tab stays inside it.
+  if (e.key === 'Tab' && open.value && !layerAbove(ui.state)) trapTab(e, heading.value?.closest<HTMLElement>('.rsheet'));
 }
 function onResize(): void {
   compact.value = window.innerWidth < 640;
@@ -748,12 +733,9 @@ onBeforeUnmount(() => {
               <p class="rs-hint top">
                 Read while this is open, every few seconds.<template v-if="historyLevel"> {{ keepWords(historyLevel) }}</template>
               </p>
-              <div v-if="historyLevel && historyLevel !== 'off'" class="rs-span-row">
-                <div class="rs-span" role="group" aria-label="Time range">
-                  <button type="button" :aria-pressed="span === 'now'" @click="span = 'now'">Now</button>
-                  <button v-for="s in SPANS" :key="s.id" type="button" :aria-pressed="span === s.id" @click="span = s.id">{{ s.name }}</button>
-                </div>
-                <button v-if="pastShown" type="button" class="btn sm ghost" @click="downloadCsv">Download CSV</button>
+              <div v-if="historyLevel && historyLevel !== 'off'" class="rs-span" role="group" aria-label="Time range">
+                <button type="button" :aria-pressed="span === 'now'" @click="span = 'now'">Now</button>
+                <button v-for="s in SPANS" :key="s.id" type="button" :aria-pressed="span === s.id" @click="span = s.id">{{ s.name }}</button>
               </div>
               <p v-if="span !== 'now' && past.state === 'error'" class="rs-hint">Couldn’t load the history. Try again in a moment.</p>
               <ul class="rs-metrics" :aria-busy="span !== 'now' && past.state === 'loading'">
@@ -1055,17 +1037,6 @@ onBeforeUnmount(() => {
 }
 .rs-span button:hover {
   color: var(--text);
-}
-.rs-span-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-.rs-span-row .rs-span {
-  margin-bottom: 0;
 }
 .rs-span button[aria-pressed='true'] {
   background: var(--surface);

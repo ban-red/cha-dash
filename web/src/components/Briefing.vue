@@ -168,7 +168,7 @@ function key(e: KeyboardEvent, id: string) {
     </div>
 
     <div class="brief-side">
-      <span class="sr">{{ live.demo.value ? 'Simulated time in the Demo Home, UTC:' : 'Time at home:' }}</span>
+      <span class="sr">{{ live.demo.value ? 'Simulated time in the Demo Home:' : 'Time at home:' }}</span>
       <div class="clock">{{ clock }}</div>
       <BriefTools v-if="!headline" @sign-out="emit('signOut')" />
     </div>
