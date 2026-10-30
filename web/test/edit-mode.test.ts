@@ -592,7 +592,7 @@ describe('a tile’s menu', () => {
     expect(cog.attributes('aria-label')).toMatch(/ menu$/);
     await cog.trigger('click');
     await settle();
-    expect(items().map((e) => /^(Integration settings|Widget settings|Resize|Remove)/.exec(e.textContent?.trim() ?? '')?.[1])).toEqual(['Integration settings', 'Widget settings', 'Resize', 'Remove']);
+    expect(items().map((e) => /^(Integration settings|Widget settings|Resize|Reorder|Remove)/.exec(e.textContent?.trim() ?? '')?.[1])).toEqual(['Integration settings', 'Widget settings', 'Resize', 'Reorder', 'Remove']);
     item('Integration settings').click();
     await settle();
     expect(route.value.path).toBe('/settings/integrations/plex');
@@ -630,6 +630,26 @@ describe('a tile’s menu', () => {
     expect(document.querySelector('.tile-pop')).toBeNull();
   });
 
+  it('reorders the tile within its section and saves the layout', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    const section = store.board.value!.sections.find((s) => s.items.some((i) => i.id === 'clock'))!;
+    const was = section.items.findIndex((i) => i.id === 'clock');
+    await w.find('[data-item="clock"] .tile-cog').trigger('click');
+    await settle();
+    item('Reorder').click();
+    await settle();
+    const names = items().map((e) => e.textContent?.trim());
+    expect(names.length).toBeGreaterThan(0);
+    const first = names.includes('Move earlier') ? 'Move earlier' : 'Move later';
+    item(first).click();
+    await settle();
+    const now = store.board.value!.sections.find((s) => s.id === section.id)!.items.findIndex((i) => i.id === 'clock');
+    expect(now).toBe(first === 'Move earlier' ? was - 1 : was + 1);
+    expect(store.save).toHaveBeenCalled();
+  });
+
   it('asks before removing, and Undo puts the tile back', async () => {
     const store = fakeStore(start());
     const w = mountSurface(store);
@@ -658,6 +678,24 @@ describe('a tile’s menu', () => {
     w.session.state.user!.role = 'viewer';
     await flushPromises();
     expect(w.find('.tile-cog').exists()).toBe(false);
+  });
+});
+
+describe('leaving edit mode', () => {
+  it('has an exit button and Escape leaves edit mode', async () => {
+    const w = mountSurface(fakeStore(start()));
+    await settle();
+    w.ui.state.editing = true;
+    await settle();
+    expect(w.find('.edit-exit').exists()).toBe(true);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+    expect(w.ui.state.editing).toBe(false);
+    w.ui.state.editing = true;
+    await settle();
+    await w.find('.edit-exit').trigger('click');
+    await settle();
+    expect(w.ui.state.editing).toBe(false);
   });
 });
 

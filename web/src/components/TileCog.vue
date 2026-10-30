@@ -7,6 +7,8 @@
  *   (model/integrations.ts → tileInstance), for a viewer who may open them;
  * - **Widget settings:** the tile's own Edit (name, link, icon, binding);
  * - **Resize:** the sizes the widget has that fit its section, saved at once;
+ * - **Reorder:** earlier or later in its section, or to its start or end (the
+ *   keyboard move's swap, so it never leaves the section), saved at once;
  * - **Remove widget:** asks first, then removes it and its config, with Undo.
  *
  * Widget settings, Resize and Remove need a role that may edit boards. The menu is absent
@@ -16,7 +18,7 @@
  * (older engines, test DOMs) it is a fixed-position box.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { findItem, resize, SIZES, sectionColumns, type SizeId } from '@chadash/layout';
+import { findItem, nudge, resize, SIZES, sectionColumns, type SizeId } from '@chadash/layout';
 import { removeTile, sizeName } from '../model/edit';
 import { tileInstance } from '../model/integrations';
 import { useBoardIfAny } from '../stores/board';
@@ -44,10 +46,23 @@ const sizes = computed<SizeId[]>(() => {
 });
 const current = computed(() => located.value?.item.size);
 const canResize = computed(() => canEdit.value && sizes.value.length > 1);
+/** The moves that would change something: the tile's place among its section's tiles. */
+const moves = computed(() => {
+  const loc = located.value;
+  if (!loc || !canEdit.value) return [];
+  const i = loc.index;
+  const last = loc.section.items.length - 1;
+  return [
+    { id: 'start', name: 'Move to start', steps: -i, show: i > 0, d: 'M3 3v10M13 8H6M8.5 5.5 6 8l2.5 2.5' },
+    { id: 'earlier', name: 'Move earlier', steps: -1, show: i > 0, d: 'M13 8H3M6.5 4.5 3 8l3.5 3.5' },
+    { id: 'later', name: 'Move later', steps: 1, show: i < last, d: 'M3 8h10M9.5 4.5 13 8l-3.5 3.5' },
+    { id: 'end', name: 'Move to end', steps: last - i, show: i < last, d: 'M13 3v10M3 8h7M7.5 5.5 10 8l-2.5 2.5' },
+  ].filter((m) => m.show);
+});
 const shown = computed(() => Boolean(integration.value || widget.value || canEdit.value));
 
 const open = ref(false);
-const view = ref<'menu' | 'resize' | 'remove'>('menu');
+const view = ref<'menu' | 'resize' | 'reorder' | 'remove'>('menu');
 const trigger = ref<HTMLButtonElement | null>(null);
 const pop = ref<HTMLElement | null>(null);
 
@@ -116,7 +131,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKey, true);
 });
 
-async function goto(v: 'menu' | 'resize' | 'remove'): Promise<void> {
+async function goto(v: 'menu' | 'resize' | 'reorder' | 'remove'): Promise<void> {
   view.value = v;
   await focusFirst();
 }
@@ -166,6 +181,16 @@ function pickSize(size: SizeId): void {
   }
 }
 
+function move(steps: number, what: string): void {
+  let board = store?.board.value;
+  close(true);
+  if (!store || !board) return;
+  const dir = steps < 0 ? 'left' : 'right';
+  for (let n = Math.abs(steps); n > 0; n--) board = nudge(board, tile.itemId, dir);
+  saved(store.save(board));
+  ui?.toast(`${name}: ${what.toLowerCase()}.`);
+}
+
 function remove(): void {
   const board = store?.board.value;
   const tiles = store?.tiles.value;
@@ -209,10 +234,21 @@ function remove(): void {
             <span>Resize</span>
             <span class="menu-val">{{ current ? sizeName(current) : '' }}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg></span>
           </button>
+          <button v-if="moves.length" type="button" role="menuitem" aria-haspopup="menu" class="menu-item" tabindex="-1" @click="goto('reorder')">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11M5 5.5 2.5 8 5 10.5M11 5.5 13.5 8 11 10.5" /></svg>
+            <span>Reorder</span>
+            <span class="menu-val">{{ (located?.index ?? 0) + 1 }} of {{ located?.section.items.length ?? 0 }}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg></span>
+          </button>
           <div v-if="canEdit" class="menu-sep" role="separator"></div>
           <button v-if="canEdit" type="button" role="menuitem" class="menu-item danger" tabindex="-1" @click="goto('remove')">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8M7 7v3.5M9 7v3.5" /></svg>
             <span>Remove widget</span>
+          </button>
+        </div>
+        <div v-else-if="view === 'reorder'" role="menu" :aria-label="`Reorder ${name}`" @keydown="onMenuKey">
+          <button v-for="m in moves" :key="m.id" type="button" role="menuitem" class="menu-item" tabindex="-1" @click="move(m.steps, m.name)">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path :d="m.d" /></svg>
+            <span>{{ m.name }}</span>
           </button>
         </div>
         <div v-else-if="view === 'resize'" role="menu" :aria-label="`Resize ${name}`" @keydown="onMenuKey">

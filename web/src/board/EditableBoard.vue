@@ -221,6 +221,21 @@ function onKeydown(e: KeyboardEvent): void {
   removeItem(id);
 }
 
+/**
+ * Escape leaves edit mode, unless it has something nearer to close: a dialog or
+ * sheet, the picker or editor, a field being typed in, or a tile picked up
+ * (the layout stops that Escape itself, and puts the tile back).
+ */
+onKeyStroke('Escape', (e) => {
+  if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+  const el = e.target instanceof HTMLElement ? e.target : null;
+  if (el?.closest('input, textarea, select, [contenteditable="true"], dialog, [popover]:popover-open, [aria-pressed="true"][data-item-id]')) return;
+  const s = ui.state;
+  if (picking.value || editingId.value || showDismissed.value || s.inboxOpen || s.paletteOpen || s.confirm || s.stepUp || s.note || s.taskLog || ui.sheet.value) return;
+  e.preventDefault();
+  emit('done');
+});
+
 onKeyStroke('z', (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || picking.value || editingId.value) return;
   e.preventDefault();
@@ -246,6 +261,8 @@ onKeyStroke('z', (e) => {
     <button type="button" class="btn ghost sm" :disabled="!history.canRedo.value" @click="step('redo')">Redo</button>
     <button type="button" class="btn primary sm" @click="emit('done')">Done</button>
   </div>
+  <!-- The toolbar's own Done can sit under the page's buttons once you scroll, so there's always this one too. -->
+  <button type="button" class="btn primary edit-exit" aria-keyshortcuts="Escape" @click="emit('done')">Exit layout editing<kbd class="edit-exit-key" aria-hidden="true">Esc</kbd></button>
   <div class="edit-surface" @keydown="onKeydown">
     <LayoutBoard
       :board="present.board"
@@ -272,6 +289,24 @@ onKeyStroke('z', (e) => {
 </template>
 
 <style>
+.edit-exit {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-4);
+  z-index: 6;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-shadow: var(--shadow-overlay);
+}
+.edit-exit-key {
+  padding: 1px 5px;
+  border: var(--hairline) solid currentColor;
+  border-radius: var(--radius-xs);
+  font: var(--weight-medium) var(--type-caption) / 1.2 var(--font-num);
+  opacity: 0.75;
+}
 .edit-bar {
   position: sticky;
   top: var(--space-2);
