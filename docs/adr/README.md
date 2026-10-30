@@ -57,3 +57,4 @@
 | [0029](0029-short-passwords-and-address-bans.md) | Six-character passwords, backed by banning an address after five wrong passwords | accepted | 2026-10-29 |
 | [0030](0030-board-flows.md) | Board flows: sections in bands (default), bento and mosaic, chosen per board (adds to 0013) | accepted | 2026-10-29 |
 | [0031](0031-history-storage.md) | History: rollup tiers in compressed chunks in `history.db`; standard recording on by default | accepted | 2026-10-29 |
+| [0032](0032-ui-primitives.md) | UI primitives live in `web/src/ui`; features compose them instead of restyling | accepted | 2026-10-30 |
