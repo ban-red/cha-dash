@@ -289,9 +289,14 @@ func TestSync(t *testing.T) {
 		// one doesn't), with the action, else the mode; what's playing (not
 		// idle or off); nothing tripped.
 		"people_items":  `[{"name":"Resident A","since":"2026-10-03T13:58:41Z","where":"home"},{"name":"Resident B","since":"2026-10-03T13:58:41Z","where":"away"},{"name":"Resident C","since":"2026-10-03T13:58:41Z","where":"home"}]`,
-		"climate_items": `[{"action":"heating","current":21.5,"humidity":46,"name":"Living room","target":22},{"action":"idle","current":18.9,"name":"Bedroom","target":17}]`,
-		"media_items":   `[{"artist":"Marconi Union","name":"Living room speaker","title":"Weightless"}]`,
+		"climate_items": `[{"action":"heating","current":21.5,"entity":"climate.living_room","humidity":46,"mode":"heat","name":"Living room","target":22},{"action":"idle","current":18.9,"entity":"climate.bedroom","mode":"heat","name":"Bedroom","target":17}]`,
+		"media_items":   `[{"artist":"Marconi Union","entity":"media_player.living_room_speaker","name":"Living room speaker","title":"Weightless"}]`,
 		"safety_items":  `[]`,
+		// For the tile's panel: every light and switch (groups left out), on
+		// first, then by name; every player, playing first.
+		"light_items":  `[{"brightness":71,"entity":"light.desk","name":"Desk","state":"on"},{"brightness":71,"entity":"light.kitchen","name":"Kitchen","state":"on"},{"brightness":71,"entity":"light.living_room","name":"Living room","state":"on"},{"entity":"light.bedroom","name":"Bedroom","state":"off"},{"entity":"light.hallway","name":"Hallway","state":"off"},{"entity":"light.porch","name":"Porch","state":"unavailable"}]`,
+		"switch_items": `[{"entity":"switch.coffee_machine","name":"Coffee machine","state":"on"},{"entity":"switch.server_rack","name":"Server rack","state":"on"},{"entity":"switch.fan","name":"Fan","state":"off"},{"entity":"switch.garden_pump","name":"Garden pump","state":"off"}]`,
+		"player_items": `[{"artist":"Marconi Union","entity":"media_player.living_room_speaker","name":"Living room speaker","state":"playing","title":"Weightless"},{"entity":"media_player.bedroom_tv","name":"Bedroom TV","state":"idle"},{"entity":"media_player.kitchen_display","name":"Kitchen display","state":"off"}]`,
 	}
 	for k, want := range lists {
 		if got, _ := json.Marshal(app.Attrs[k]); string(got) != want {

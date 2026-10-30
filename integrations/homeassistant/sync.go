@@ -39,6 +39,7 @@ type instance struct {
 	powerEntity  string
 	energyEntity string
 	scripts      []string // the scripts the owner lets Cha Dash run (actions.go)
+	control      []string // the entity domains the owner lets Cha Dash control (control.go)
 	runs         runs     // what each script run saw before it started
 
 	needFull  bool
@@ -94,6 +95,10 @@ type entity struct {
 		HVACAction      string   `json:"hvac_action"`         // a climate's: heating, cooling, idle, off…
 		MediaTitle      string   `json:"media_title"`         // a media player's
 		MediaArtist     string   `json:"media_artist"`        // a media player's
+		MinTemp         *float64 `json:"min_temp"`            // a climate's
+		MaxTemp         *float64 `json:"max_temp"`            // a climate's
+		TempStep        *float64 `json:"target_temp_step"`    // a climate's
+		Brightness      *float64 `json:"brightness"`          // a light's, 0–255
 	} `json:"attributes"`
 }
 
@@ -168,6 +173,9 @@ type derived struct {
 	safety      []map[string]any // smoke, CO, gas and leak sensors that are tripped
 	mediaTotal  int
 	media       []map[string]any // media players that are playing
+	players     []map[string]any // every media player, for the tile's panel
+	lightItems  []map[string]any // every light (groups excluded), for the tile's panel
+	switchItems []map[string]any // every switch (groups excluded), for the tile's panel
 	tempUnit    string
 }
 
@@ -184,6 +192,12 @@ const lowBattery = 20
 
 // listRows is how many items each list attr keeps.
 const listRows = 8
+
+// Longer lists for the tile's panel: every light and switch, every player.
+const (
+	deviceRows = 200
+	playerRows = 30
+)
 
 // openings are the binary_sensor device classes that are a door or window,
 // and the cover device classes that are one.
@@ -342,7 +356,12 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 			if e.Attributes.CurrentTemp == nil || e.State == "unavailable" {
 				continue
 			}
-			row := map[string]any{"name": e.name(), "current": round1(*e.Attributes.CurrentTemp)}
+			row := map[string]any{"entity": e.EntityID, "name": e.name(), "current": round1(*e.Attributes.CurrentTemp), "mode": e.State}
+			for k, v := range map[string]*float64{"min": e.Attributes.MinTemp, "max": e.Attributes.MaxTemp, "step": e.Attributes.TempStep} {
+				if v != nil {
+					row[k] = *v
+				}
+			}
 			if t := e.Attributes.TargetTemp; t != nil {
 				row["target"] = round1(*t)
 			}
@@ -357,16 +376,17 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 			d.climate = append(d.climate, row)
 		case "media_player":
 			d.mediaTotal++
+			row := map[string]any{"entity": e.EntityID, "name": e.name()}
+			if e.Attributes.MediaTitle != "" {
+				row["title"] = e.Attributes.MediaTitle
+			}
+			if e.Attributes.MediaArtist != "" {
+				row["artist"] = e.Attributes.MediaArtist
+			}
 			if e.State == "playing" {
-				row := map[string]any{"name": e.name()}
-				if e.Attributes.MediaTitle != "" {
-					row["title"] = e.Attributes.MediaTitle
-				}
-				if e.Attributes.MediaArtist != "" {
-					row["artist"] = e.Attributes.MediaArtist
-				}
 				d.media = append(d.media, row)
 			}
+			d.players = append(d.players, withState(row, e.State))
 		case "cover":
 			if dc := e.Attributes.DeviceClass; openingCovers[dc] {
 				d.openingsTotal++
@@ -390,6 +410,11 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 				if e.State == "on" {
 					d.lights++
 				}
+				row := map[string]any{"entity": e.EntityID, "name": e.name(), "state": e.State}
+				if b := e.Attributes.Brightness; b != nil && e.State == "on" {
+					row["brightness"] = math.Round(*b / 255 * 100)
+				}
+				d.lightItems = append(d.lightItems, row)
 			}
 		case "switch":
 			if !e.group() {
@@ -397,6 +422,7 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 				if e.State == "on" {
 					d.switches++
 				}
+				d.switchItems = append(d.switchItems, map[string]any{"entity": e.EntityID, "name": e.name(), "state": e.State})
 			}
 		case "sensor":
 			v, ok := e.number()
@@ -468,6 +494,11 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 	if !math.IsNaN(d.energyKWh) {
 		d.energyKWh = math.Round(d.energyKWh*100) / 100
 	}
+	// On first, then by name, so the panel's lists read the same way every
+	// time; players likewise, playing first.
+	for _, l := range [][]map[string]any{d.lightItems, d.switchItems, d.players} {
+		slices.SortStableFunc(l, byStateThenName)
+	}
 	// Lowest battery first; one that only says "low" goes after the levels.
 	slices.SortStableFunc(d.batteries, func(a, b battery) int {
 		switch {
@@ -481,6 +512,37 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 		return cmp.Compare(*a.level, *b.level)
 	})
 	in.derived = d
+}
+
+// withState is a copy of row with state.
+func withState(row map[string]any, state string) map[string]any {
+	out := make(map[string]any, len(row)+1)
+	for k, v := range row {
+		out[k] = v
+	}
+	out["state"] = state
+	return out
+}
+
+// stateRank puts what's on or playing first, then paused, then the rest.
+func stateRank(state string) int {
+	switch state {
+	case "on", "playing":
+		return 0
+	case "paused", "buffering":
+		return 1
+	case "unavailable", "unknown":
+		return 3
+	}
+	return 2
+}
+
+func byStateThenName(a, b map[string]any) int {
+	sa, _ := a["state"].(string)
+	sb, _ := b["state"].(string)
+	na, _ := a["name"].(string)
+	nb, _ := b["name"].(string)
+	return cmp.Or(cmp.Compare(stateRank(sa), stateRank(sb)), cmp.Compare(strings.ToLower(na), strings.ToLower(nb)))
 }
 
 // personWhere is where a person is: "home", "away" for not_home, else the
@@ -586,6 +648,9 @@ func (in *instance) baselinesFor(ctx context.Context, meters []meter, midnight, 
 // graphFacts is the service.
 func (in *instance) graphFacts() integration.Facts {
 	attrs := map[string]any{"type": ID, "version": in.version, "url": in.link}
+	if len(in.control) > 0 {
+		attrs["control"] = in.control // what the tile's panel may switch
+	}
 	if d := in.derived; d.read {
 		attrs["entities"] = d.entities
 		attrs["people_total"] = d.peopleTotal
@@ -620,6 +685,9 @@ func (in *instance) graphFacts() integration.Facts {
 		attrs["safety_items"] = head(d.safety)
 		attrs["media_total"] = d.mediaTotal
 		attrs["media_items"] = head(d.media)
+		attrs["player_items"] = headN(d.players, playerRows)
+		attrs["light_items"] = headN(d.lightItems, deviceRows)
+		attrs["switch_items"] = headN(d.switchItems, deviceRows)
 		if d.tempUnit != "" {
 			attrs["temperature_unit"] = d.tempUnit
 		}
@@ -635,11 +703,14 @@ func (in *instance) graphFacts() integration.Facts {
 }
 
 // head is the first listRows of a list, never nil.
-func head(l []map[string]any) []map[string]any {
+func head(l []map[string]any) []map[string]any { return headN(l, listRows) }
+
+// headN is the first n of a list, never nil.
+func headN(l []map[string]any, n int) []map[string]any {
 	if l == nil {
 		return []map[string]any{}
 	}
-	return l[:min(len(l), listRows)]
+	return l[:min(len(l), n)]
 }
 
 // statesFacts is the readings, on the simulator's scales.

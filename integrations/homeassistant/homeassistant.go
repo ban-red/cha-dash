@@ -58,6 +58,9 @@ func (Integration) Manifest() integration.Manifest {
 			integration.Prop("scripts", &integration.Schema{Type: "array", Title: "Scripts Cha Dash may run",
 				Description: "Optional: the scripts (script.…) Cha Dash may run from tiles and ⌘K. Nothing else can be run: no other script, and no other service.",
 				Items:       &integration.Schema{Type: "string", Title: "Script", Pattern: scriptPattern}, MaxItems: new(maxScripts)}),
+			integration.Prop("control", &integration.Schema{Type: "array", Title: "Devices Cha Dash may control",
+				Description: "Optional: what the Home Assistant tile may switch from its panel. Locks, covers and the alarm are never controlled.",
+				Items:       integration.Enum("Kind", controlDomains...).Titled(controlTitles...), MaxItems: new(len(controlDomains))}),
 		).Require("url", "token"),
 		Poll: integration.Poll{Interval: 60 * time.Second, Idle: 5 * time.Minute, Timeout: 30 * time.Second},
 	}
@@ -69,6 +72,7 @@ type config struct {
 	PowerEntity  string   `json:"power_entity"`
 	EnergyEntity string   `json:"energy_entity"`
 	Scripts      []string `json:"scripts"`
+	Control      []string `json:"control"`
 }
 
 // ValidateConfig implements integration.ConfigValidator.
@@ -109,7 +113,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	}
 	return &instance{
 		d: d, http: client, base: base, token: c.Token, name: name, link: c.URL, key: key,
-		appID: ID + ":" + key + "/app", powerEntity: c.PowerEntity, energyEntity: c.EnergyEntity, scripts: c.Scripts,
+		appID: ID + ":" + key + "/app", powerEntity: c.PowerEntity, energyEntity: c.EnergyEntity, scripts: c.Scripts, control: c.Control,
 		needFull: true, tz: time.UTC,
 		baselines: map[string]float64{}, tried: map[string]time.Time{},
 	}, nil

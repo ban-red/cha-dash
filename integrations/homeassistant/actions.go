@@ -65,13 +65,15 @@ func (r *runs) take(task string) string {
 	return last
 }
 
-// Actions implements integration.Actor: none without an allow-list.
+// Actions implements integration.Actor: the scripts and the device
+// controls the owner allows; none without either allow-list.
 func (in *instance) Actions() []action.Def {
+	defs := in.controlDefs()
 	if len(in.scripts) == 0 {
-		return nil
+		return defs
 	}
 	script := integration.Enum("Script", in.scripts...)
-	return []action.Def{{
+	return append([]action.Def{{
 		ID: ActRunScript, Title: "Run", Targets: []string{"app"}, Tier: action.T1,
 		Params:        integration.Params(integration.Object(integration.Prop("script", script)).Require("script")),
 		Choices:       func(action.Target) []json.RawMessage { return scriptChoices(in.scripts) },
@@ -87,7 +89,7 @@ func (in *instance) Actions() []action.Def {
 			return act.Steps("Ask "+r.Target.Name+" to run "+scriptOf(r), "Check that it ran")
 		},
 		Verify: in.scriptVerify,
-	}}
+	}}, defs...)
 }
 
 // choices are the listing's offers: one per allowed script.
@@ -132,9 +134,13 @@ func (in *instance) scriptPreconditions(ctx context.Context, req action.Request)
 	return nil
 }
 
-// Execute implements integration.Actor: POST /api/services/script/turn_on,
-// which starts the script without waiting for it to finish.
+// Execute implements integration.Actor. A script: POST
+// /api/services/script/turn_on, which starts it without waiting for it to
+// finish. A device action: executeDevice (control.go).
 func (in *instance) Execute(ctx context.Context, req action.Request, run *action.TaskRun) error {
+	if req.Action != ActRunScript {
+		return in.executeDevice(ctx, req, run)
+	}
 	entity := scriptOf(req)
 	s, err := in.readScript(ctx, entity)
 	if err != nil {

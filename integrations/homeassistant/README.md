@@ -17,9 +17,10 @@ Home Assistant's health and version, readings derived from its entity states (pe
 | `token` | yes | A long-lived access token (profile → Security). Sent as `Authorization: Bearer` on every request, and in the WebSocket's auth message; never in a URL |
 | `power_entity` | no | `sensor.…`: the whole house's power sensor, when the default pick is wrong |
 | `energy_entity` | no | `sensor.…`: the whole house's energy meter, when the default pick is wrong |
-| `scripts` | no | `["script.movie_night", …]`, at most 50: the scripts Cha Dash may run (see Actions). Empty or missing: no actions |
+| `scripts` | no | `["script.movie_night", …]`, at most 50: the scripts Cha Dash may run (see Actions). Empty or missing: no script actions |
+| `control` | no | Any of `["light", "switch", "media_player", "climate"]`: the kinds of device the tile's panel may control (see Actions). Empty or missing: no device actions |
 
-`power_entity`, `energy_entity` and `scripts` are additions to the shared keys in [07 · v0.1](../../docs/plan/07-v0.1.md#instance-config-keys); both are optional, and the importer's shape (`url`, `tls`, `token`) validates as is.
+`power_entity`, `energy_entity`, `scripts` and `control` are additions to the shared keys in [07 · v0.1](../../docs/plan/07-v0.1.md#instance-config-keys); both are optional, and the importer's shape (`url`, `tls`, `token`) validates as is.
 
 ## What it reads
 
@@ -88,10 +89,13 @@ Values nobody can read are unknown (`null`), never 0: no power sensor, no meter 
 | `battery_items` | the low ones, lowest first, `[{name, level}]` (no `level` for a binary sensor), at most 8. "Battery", "battery level" and "battery low" are dropped from the end of the name, so it names the device |
 | `update_items` | the pending updates, `[{name, installed, latest}]` (`name` is the update's `title`, else its friendly name), at most 8 |
 | `people_items` | every person, `[{name, where, since}]`: `where` is `home`, `away` (for `not_home`), a zone's name, or `unknown`; `since` is when the state last changed (UTC) |
-| `climate_items` | thermostats that report a temperature, `[{name, current, target, humidity, action}]` (`target` and `humidity` only when reported; `action` is `hvac_action`, else the mode), at most 8. Temperatures are in `temperature_unit` |
+| `climate_items` | thermostats that report a temperature, `[{entity, name, current, target, humidity, action, mode, min, max, step}]` (`target`, `humidity`, `min`, `max` and `step` only when reported; `action` is `hvac_action`, else the mode; `mode` is the state), at most 8. Temperatures are in `temperature_unit` |
 | `temperature_unit` | the unit Home Assistant is set to, from `/api/config`'s `unit_system` (`°C` or `°F`) |
 | `safety_total`, `safety_items` | the safety sensors, and the tripped ones, `[{name, kind}]` (`kind` is the device class) |
-| `media_total`, `media_items` | the media players, and the playing ones, `[{name, title, artist}]` (`title` and `artist` only when reported) |
+| `media_total`, `media_items` | the media players, and the playing ones, `[{entity, name, title, artist}]` (`title` and `artist` only when reported) |
+| `player_items` | every media player, playing first, then paused, then by name, `[{entity, name, state, title, artist}]`, at most 30 |
+| `light_items`, `switch_items` | every light and every switch (groups excluded, as for the counts), on first, then by name, `[{entity, name, state, brightness}]` (`brightness` 0–100, a light's while it's on), at most 200 each. For the tile's panel |
+| `control` | the instance's `control`, when set: what the panel may switch |
 | `alarm` | the first `alarm_control_panel.*`'s state (`disarmed`, `armed_home`, `triggered`, …); missing without one |
 
 | State and health | When |
@@ -158,6 +162,20 @@ All of them are write grants, so the runtime adds its write-grant warning: Cha D
 - **Credential:** the instance's token. Home Assistant's tokens carry their user's rights and have no scopes, so the allow-list is the limit; there's no separate control credential. A non-administrator user can still run scripts.
 - **Audit:** the target and the script's entity ID; the token never appears in a plan, task log or audit record.
 
+Device control, for the tile's panel. Each kind is offered only when the instance's `control` lists it:
+
+| Action | Tier | Undo | Params | Calls | Verify |
+|---|---|---|---|---|---|
+| `homeassistant.entity.on`, `.off` | T1 | each other, same params | `{"entity": "light.…" \| "switch.…"}` | `<domain>.turn_on` / `turn_off` | the state is `on` / `off` |
+| `homeassistant.media.play`, `.pause` | T1 | each other, same params | `{"entity": "media_player.…"}` | `media_player.media_play` / `media_pause` | `playing` / not `playing` |
+| `homeassistant.climate.set` | T1 | — | `{"entity": "climate.…", "temperature": n}` | `climate.set_temperature` | its `temperature` attribute is the one asked |
+
+- **Only allowed kinds.** The params' `entity` pattern names only the allowed domains (`^(light|switch)\.[a-z0-9_]+$` with both), so anything else, an extra field included, is `422 invalid` before anything is sent. Locks, covers and the alarm panel are never offered: opening a door or disarming from a tile is too easy to do by accident.
+- **Preconditions** (`409 precondition`), each one read of `/api/states/<entity>`: Home Assistant has no such entity; it's `unavailable` or `unknown`; it's already as asked (on, off, playing); a player to pause isn't playing, or one to play is off; a thermostat is off, or the target is outside its `min_temp`–`max_temp`.
+- **Not listed.** They target the app and name the entity in their params, so ⌘K and the listing (`GET /api/actions`) offer none of them: with no entity, the precondition refuses before any read. The tile's panel plans them with the entity it shows.
+- **Household** may switch lights (when switches aren't allowed too: a switch can be a server's smart plug), play and pause, and set thermostats. Switches need Operator.
+- **Credential:** the instance's token, as for scripts.
+
 ## Limits
 
 - **The power and energy picks are heuristics.** A home with a split-tariff meter (two energy sensors), solar production larger than consumption, or no whole-house meter at all needs `power_entity`/`energy_entity`. Home Assistant's own Energy dashboard settings are only readable over the WebSocket (`energy/get_prefs`), which v0.1 doesn't use for polling.
@@ -165,4 +183,5 @@ All of them are write grants, so the runtime adds its write-grant warning: Cha D
 - **Names, not rooms.** The lists use friendly names; areas are in the registry (WebSocket only). Lock names aren't listed, only the count.
 - **Hidden and disabled entities** count: `/api/states` doesn't say which are hidden (that's the entity registry, WebSocket only).
 - **Calendars are read-only** and limited to 20, two weeks and 60 events each.
-- **No resources for rooms, devices or entities** (calendars aside), no incidents (Home Assistant's repairs and updates aren't read), and no live updates.
+- **No resources for rooms, devices or entities** (calendars aside), no incidents (Home Assistant's repairs and updates aren't read), and no live updates. The panel's lists are attrs on the app, read once a minute, so a change made from the panel shows as asked for until the next read.
+- **On and off only.** Lights get no brightness or colour control, and media players no volume or source.
