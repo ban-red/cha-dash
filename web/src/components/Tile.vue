@@ -14,8 +14,9 @@
  * widget's, its link the widget's, and a chromeless tile has no header.
  *
  * The mark is the tile's icon when the hub has cached one (stores/icons.ts:
- * the CSP keeps images from other origins out), else the monogram. A tile
- * that needs you keeps the monogram, whose colour is the state.
+ * the CSP keeps images from other origins out), else the monogram, whose
+ * colour is the state. The icon shows in every state; the bar and the glyph
+ * say a tile needs you.
  *
  * Hovering or focusing a tile shows its settings cog (TileCog.vue).
  *
@@ -30,6 +31,7 @@ import Glyph, { type GlyphKind } from '../ui/marks/Glyph.vue';
 import GlyphTip from './GlyphTip.vue';
 import TileCog from './TileCog.vue';
 import { hhmm, monogram } from '../lib/format';
+import { iconTone, type IconTone } from '../lib/iconTone';
 import { focusScrollables } from '../lib/scrollable';
 import { safeUrl } from '../model/types';
 import { useLive } from '../stores/live';
@@ -190,13 +192,19 @@ const mark = computed(() => (tile.config.value?.name || boundName.value ? monogr
 // to load falls back to the monogram.
 const broken = ref('');
 const icon = computed(() => {
-  const own =
-    status === 'attention' || status === 'down' || !wantsIcon(tile.config.value, shownHref.value, shownName.value)
-      ? undefined
-      : iconFor(iconMap.value, tile.config.value, shownHref.value, shownName.value);
+  const own = !wantsIcon(tile.config.value, shownHref.value, shownName.value)
+    ? undefined
+    : iconFor(iconMap.value, tile.config.value, shownHref.value, shownName.value);
   const src = own ?? serviceIconUrl(logo);
   return src && src !== broken.value ? src : undefined;
 });
+
+// The icon sits on a plate in the theme's colour; a logo too dark or too
+// light for it gets the opposite plate (tiles.css).
+const toneOfIcon = ref<IconTone>('mid');
+function onIconLoad(e: Event) {
+  toneOfIcon.value = iconTone(e.target as HTMLImageElement);
+}
 
 // The mark's link. An icon is a graphic, so its name is "Open Photos"; a
 // monogram is text people see and may say ("click PH"), so the name starts
@@ -244,12 +252,12 @@ function onKey(e: KeyboardEvent) {
     @pointercancel="onPointerCancel"
   >
     <div v-if="!chromeless" class="th">
-      <a v-if="shownHref" :class="['mono', { 'has-icon': icon }]" :href="shownHref" target="_blank" rel="noopener noreferrer" :aria-label="linkLabel" @click.stop>
-        <img v-if="icon" class="mono-img" :src="icon" alt="" @error="broken = icon ?? ''" />
+      <a v-if="shownHref" :class="['mono', { 'has-icon': icon, [`tone-${toneOfIcon}`]: icon }]" :href="shownHref" target="_blank" rel="noopener noreferrer" :aria-label="linkLabel" @click.stop>
+        <img v-if="icon" class="mono-img" :src="icon" alt="" @load="onIconLoad" @error="broken = icon ?? ''" />
         <template v-else>{{ mark }}</template>
       </a>
-      <span v-else :class="['mono', { 'has-icon': icon }]" aria-hidden="true">
-        <img v-if="icon" class="mono-img" :src="icon" alt="" @error="broken = icon ?? ''" />
+      <span v-else :class="['mono', { 'has-icon': icon, [`tone-${toneOfIcon}`]: icon }]" aria-hidden="true">
+        <img v-if="icon" class="mono-img" :src="icon" alt="" @load="onIconLoad" @error="broken = icon ?? ''" />
         <template v-else>{{ mark }}</template>
       </span>
       <span class="tn">{{ shownName }}</span>

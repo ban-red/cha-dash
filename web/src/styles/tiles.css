@@ -190,10 +190,9 @@ a.mono:hover {
   border-color: transparent;
   overflow: hidden;
 }
-a.mono.has-icon:hover {
-  background: var(--surface-hover);
-}
 .mono-img {
+  padding: 2px;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -454,6 +453,29 @@ a.mono.has-icon:hover {
   background: var(--down);
   color: var(--on-down);
   border-color: transparent;
+}
+/* The icon sits on a plate in the theme’s colour. A logo drawn in black (or
+   white) would vanish on it, so Tile.vue's tone class turns the plate the
+   other way: light behind dark artwork on a dark theme, dark behind light
+   artwork on a light one. These come after the state colours above and
+   match their specificity, so the amber and red never tint the plate. */
+.tile .mono.has-icon {
+  background: var(--surface-2);
+}
+.tile .mono.has-icon.tone-dark {
+  background: light-dark(var(--surface-2), oklch(0.93 0.008 80));
+}
+.tile .mono.has-icon.tone-light {
+  background: light-dark(oklch(0.27 0.008 80), var(--surface-2));
+}
+.tile a.mono.has-icon:hover {
+  background: var(--surface-hover);
+}
+.tile a.mono.has-icon.tone-dark:hover {
+  background: light-dark(var(--surface-hover), oklch(1 0.008 80));
+}
+.tile a.mono.has-icon.tone-light:hover {
+  background: light-dark(oklch(0.34 0.008 80), var(--surface-hover));
 }
 .tile.is-stale::after {
   content: '';

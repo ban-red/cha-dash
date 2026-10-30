@@ -460,7 +460,7 @@ describe('hub-cached icons', () => {
     expect(iconFor(m, {}, 'https://other.home.example')).toBeUndefined();
   });
 
-  it('shows the icon in the tile, and the monogram when there’s none, it fails, or the tile needs you', async () => {
+  it('shows the icon in the tile, and the monogram when there’s none or it fails, and keeps the icon when the tile needs you', async () => {
     fakeFetch({ 'GET /api/icons': { status: 200, body: { by_icon: {}, by_origin: { 'https://photos.home.example': '/api/icons/ic_photos234567?v=ff' }, by_instance: {} } } });
     await loadIcons();
     const hs = harness();
@@ -487,7 +487,7 @@ describe('hub-cached icons', () => {
     document.body.innerHTML = '';
     hs.mountIn(Host('down'));
     await nextTick();
-    expect(document.querySelector('.mono-img')).toBeNull();
+    expect(document.querySelector('.mono-img')?.getAttribute('src')).toBe('/api/icons/ic_photos234567?v=ff');
   });
 });
 

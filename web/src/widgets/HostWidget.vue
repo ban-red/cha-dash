@@ -43,6 +43,8 @@ const mem = computed(() => m('mem.pct'));
 const cpu = computed(() => m('cpu.pct'));
 const temp = computed(() => m('temp.c'));
 const platform = computed(() => String(attr(host.value, 'platform') ?? ''));
+/** The platform's bundled logo, when it has one. */
+const logo = computed(() => (platform.value === 'pve' ? 'proxmox' : platform.value === 'unraid' ? 'unraid' : undefined));
 const context = computed(() => {
   const parts = [
     platform.value === 'unraid' ? `Unraid ${attr(host.value, 'version') ?? ''}`.trim() : platform.value === 'pve' ? 'Proxmox VE' : host.value?.kind === 'engine' ? 'Docker' : platform.value,
@@ -116,6 +118,7 @@ const pct = (v: number) => `${Math.round(v)}%`;
     :name="label(host) || target || 'Host'"
     :context="size === 'small' || size === 'glyph' ? '' : context"
     :href="resourceLinks(host)[0]?.url"
+    :logo="logo"
     :subject="s"
     :stale="Boolean(mem?.stale)"
     :as-of="mem?.as_of"

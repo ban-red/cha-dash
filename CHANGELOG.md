@@ -21,6 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Whole numbers on count graphs.** The graph on a Plex, Jellyfin or Tautulli tile showed a 24 h average like 1.5 for streams or transcodes. Counts now read as whole numbers.
 - **Danger buttons always look like danger buttons.** The board's Remove section button only turned red once Settings had been opened, and the tile menu's Remove used a fainter red. Buttons, fields and dialogs now share one set of styles, so they look the same wherever they appear.
 - **Screen readers read a field's help.** Some form fields showed help under the input without tying it to the input, so a screen reader didn't read it. Every field now does.
+- **Logos stay on tiles that need you.** A tile's logo used to give way to a coloured monogram when the tile needed attention or was down. The logo now always shows; the bar and the glyph say what's wrong. Proxmox and Unraid host tiles show their logo too.
+- **Logos sit on a plate that fits the theme.** A tile's logo now has a background in the theme's colour. A logo drawn in black, such as Frigate's, GitHub's or Ollama's, gets a light plate on a dark theme and was invisible before; a white one gets a dark plate on a light theme.
 
 ## [0.2.0-beta.2] - 2026-10-29
 
