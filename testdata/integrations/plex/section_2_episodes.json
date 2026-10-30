@@ -1,0 +1,14 @@
+{
+  "MediaContainer": {
+    "size": 0,
+    "totalSize": 14212,
+    "offset": 0,
+    "allowSync": true,
+    "identifier": "com.plexapp.plugins.library",
+    "librarySectionID": 2,
+    "librarySectionTitle": "TV Shows",
+    "title1": "TV Shows",
+    "title2": "All Episodes",
+    "viewGroup": "episode"
+  }
+}

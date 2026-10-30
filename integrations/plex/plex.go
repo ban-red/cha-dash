@@ -1,5 +1,5 @@
-// Package plex reads a Plex Media Server: what's playing, and how big the
-// movie and show libraries are. Its token can come from plex.tv's PIN
+// Package plex reads a Plex Media Server: what's playing (and how it
+// plays), what was added lately, and how big the libraries are. Its token can come from plex.tv's PIN
 // sign-in (see auth.go), so nobody has to dig an X-Plex-Token out of the
 // web app. See README.md.
 package plex
@@ -7,6 +7,8 @@ package plex
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -21,6 +23,16 @@ const ID = "plex"
 // librariesEvery is how often the library counts are read again while
 // someone watches.
 const librariesEvery = 30 * time.Minute
+
+// recentEvery is how often recently added is read again while someone
+// watches; recentRows is how many items it keeps.
+const (
+	recentEvery = 5 * time.Minute
+	recentRows  = 8
+)
+
+// playingRows is how many sessions now_playing lists.
+const playingRows = 8
 
 func init() { integration.Register(Integration{}) }
 
@@ -59,6 +71,8 @@ type instance struct {
 	identity  identity
 	libraries *libraries // nil until read
 	readAt    time.Time
+	recent    []map[string]any // nil until read
+	recentAt  time.Time
 }
 
 // container is Plex's JSON envelope.
@@ -73,11 +87,76 @@ type identity struct {
 }
 
 type sessions struct {
-	Size     *int `json:"size"`
-	Metadata []struct {
-		Type             string    `json:"type"`
-		TranscodeSession *struct{} `json:"TranscodeSession"`
-	} `json:"Metadata"`
+	Size     *int      `json:"size"`
+	Metadata []session `json:"Metadata"`
+}
+
+type session struct {
+	Type             string `json:"type"`
+	Title            string `json:"title"`
+	GrandparentTitle string `json:"grandparentTitle"` // the show, for an episode
+	ParentIndex      *int   `json:"parentIndex"`      // the season
+	Index            *int   `json:"index"`            // the episode
+	Duration         int64  `json:"duration"`         // ms
+	ViewOffset       int64  `json:"viewOffset"`       // ms
+	Media            []struct {
+		VideoResolution string `json:"videoResolution"`
+	} `json:"Media"`
+	User *struct {
+		Title string `json:"title"`
+	} `json:"User"`
+	Player *struct {
+		Title   string `json:"title"`
+		Product string `json:"product"`
+		State   string `json:"state"`
+		Local   *bool  `json:"local"`
+	} `json:"Player"`
+	Session *struct {
+		Bandwidth float64 `json:"bandwidth"` // kb/s
+		Location  string  `json:"location"`  // lan or wan
+	} `json:"Session"`
+	TranscodeSession *struct {
+		VideoDecision string `json:"videoDecision"`
+		AudioDecision string `json:"audioDecision"`
+	} `json:"TranscodeSession"`
+}
+
+// decision is Tautulli's word for how a session plays: "transcode" when
+// Plex re-encodes the video or the audio, "direct stream" when it only
+// remuxes, "direct play" otherwise.
+func (s session) decision() string {
+	switch t := s.TranscodeSession; {
+	case t == nil:
+		return "direct play"
+	case t.VideoDecision == "transcode" || t.AudioDecision == "transcode":
+		return "transcode"
+	default:
+		return "direct stream"
+	}
+}
+
+// title is the session's title as Tautulli's full_title has it: "Show -
+// Episode" for an episode, "Artist - Track" for a track.
+func (s session) title() string {
+	if (s.Type == "episode" || s.Type == "track") && s.GrandparentTitle != "" {
+		return s.GrandparentTitle + " - " + s.Title
+	}
+	return s.Title
+}
+
+// remote is true when the player is outside the server's network.
+func (s session) remote() bool {
+	if s.Session != nil && s.Session.Location != "" {
+		return s.Session.Location == "wan"
+	}
+	return s.Player != nil && s.Player.Local != nil && !*s.Player.Local
+}
+
+// playing is what the Sync publishes from one read of /status/sessions.
+type playing struct {
+	streams, transcode, remote int
+	mbps                       float64
+	list                       []map[string]any
 }
 
 type sections struct {
@@ -93,9 +172,31 @@ type sectionAll struct {
 	Size      int  `json:"size"`
 }
 
-// libraries are the counts the Demo Home keeps in attrs.
+func (a sectionAll) count() int {
+	if a.TotalSize != nil {
+		return *a.TotalSize
+	}
+	return a.Size
+}
+
+// libraries are the counts the Demo Home keeps in attrs (movies, shows),
+// and the rest of what the sections hold.
 type libraries struct {
-	movies, shows, sections int
+	movies, shows, episodes, artists, sections int
+}
+
+type recentlyAdded struct {
+	Metadata []struct {
+		Type             string `json:"type"` // movie, show, season, episode, album, …
+		Title            string `json:"title"`
+		ParentTitle      string `json:"parentTitle"`      // the show for a season, the artist for an album
+		GrandparentTitle string `json:"grandparentTitle"` // the show for an episode
+		ParentIndex      *int   `json:"parentIndex"`
+		Index            *int   `json:"index"`
+		Year             int    `json:"year"`
+		AddedAt          int64  `json:"addedAt"` // Unix seconds
+		LibrarySection   string `json:"librarySectionTitle"`
+	} `json:"Metadata"`
 }
 
 // get reads path into dst with the token in X-Plex-Token. A 401 is an auth
@@ -146,45 +247,164 @@ func (in *instance) readIdentity(ctx context.Context) error {
 	return nil
 }
 
-func (in *instance) streams(ctx context.Context) (int, error) {
+// streams reads what's playing: the counts, the bandwidth and the first
+// sessions as a list. Player addresses and ids aren't kept.
+func (in *instance) streams(ctx context.Context) (playing, error) {
 	var c container[sessions]
 	if err := in.get(ctx, "/status/sessions", nil, &c); err != nil {
-		return 0, err
+		return playing{}, err
 	}
+	p := playing{streams: len(c.MediaContainer.Metadata), list: []map[string]any{}}
 	if c.MediaContainer.Size != nil {
-		return *c.MediaContainer.Size, nil
+		p.streams = *c.MediaContainer.Size
 	}
-	return len(c.MediaContainer.Metadata), nil
+	var kbps float64
+	for _, s := range c.MediaContainer.Metadata {
+		d := s.decision()
+		if d == "transcode" {
+			p.transcode++
+		}
+		if s.remote() {
+			p.remote++
+		}
+		if s.Session != nil {
+			kbps += s.Session.Bandwidth
+		}
+		if len(p.list) == playingRows || s.Title == "" {
+			continue
+		}
+		row := map[string]any{"title": s.title(), "kind": s.Type, "decision": d, "remote": s.remote()}
+		if s.User != nil && s.User.Title != "" {
+			row["user"] = s.User.Title
+		}
+		if s.Player != nil {
+			row["state"] = s.Player.State
+			if s.Player.Title != "" {
+				row["player"] = s.Player.Title
+			} else if s.Player.Product != "" {
+				row["player"] = s.Player.Product
+			}
+		}
+		if s.Duration > 0 {
+			row["progress"] = int(min(100, max(0, s.ViewOffset*100/s.Duration)))
+		}
+		if s.Type == "episode" && s.ParentIndex != nil && s.Index != nil {
+			row["episode"] = fmt.Sprintf("S%d E%d", *s.ParentIndex, *s.Index)
+		}
+		if len(s.Media) > 0 && s.Media[0].VideoResolution != "" {
+			row["resolution"] = resolution(s.Media[0].VideoResolution)
+		}
+		p.list = append(p.list, row)
+	}
+	p.mbps = math.Round(kbps/100) / 10
+	return p, nil
 }
 
-// readLibraries counts the movies and shows across the movie and show
-// sections, one zero-size page each.
+// resolution is Plex's videoResolution as people say it: "1080" is 1080p,
+// "4k" is 4K, "sd" is SD.
+func resolution(r string) string {
+	switch strings.ToLower(r) {
+	case "4k":
+		return "4K"
+	case "sd":
+		return "SD"
+	}
+	if strings.Trim(r, "0123456789") == "" {
+		return r + "p"
+	}
+	return r
+}
+
+// readLibraries counts what the sections hold, one zero-size page each:
+// movies, shows and their episodes (type 4), and music artists.
 func (in *instance) readLibraries(ctx context.Context) (*libraries, error) {
 	var c container[sections]
 	if err := in.get(ctx, "/library/sections", nil, &c); err != nil {
 		return nil, err
 	}
 	lib := &libraries{sections: len(c.MediaContainer.Directory)}
-	page := url.Values{"X-Plex-Container-Start": {"0"}, "X-Plex-Container-Size": {"0"}}
-	for _, s := range c.MediaContainer.Directory {
-		if s.Type != "movie" && s.Type != "show" {
-			continue
+	count := func(key string, typ string) (int, error) {
+		q := url.Values{"X-Plex-Container-Start": {"0"}, "X-Plex-Container-Size": {"0"}}
+		if typ != "" {
+			q.Set("type", typ)
 		}
 		var all container[sectionAll]
-		if err := in.get(ctx, "/library/sections/"+url.PathEscape(s.Key)+"/all", page, &all); err != nil {
+		if err := in.get(ctx, "/library/sections/"+url.PathEscape(key)+"/all", q, &all); err != nil {
+			return 0, err
+		}
+		return all.MediaContainer.count(), nil
+	}
+	for _, s := range c.MediaContainer.Directory {
+		var dst *int
+		switch s.Type {
+		case "movie":
+			dst = &lib.movies
+		case "show":
+			dst = &lib.shows
+		case "artist":
+			dst = &lib.artists
+		default:
+			continue
+		}
+		n, err := count(s.Key, "")
+		if err != nil {
 			return nil, err
 		}
-		n := all.MediaContainer.Size
-		if all.MediaContainer.TotalSize != nil {
-			n = *all.MediaContainer.TotalSize
-		}
-		if s.Type == "movie" {
-			lib.movies += n
-		} else {
-			lib.shows += n
+		*dst += n
+		if s.Type == "show" {
+			if n, err = count(s.Key, "4"); err != nil {
+				return nil, err
+			}
+			lib.episodes += n
 		}
 	}
 	return lib, nil
+}
+
+// readRecent reads the newest items across the libraries, newest first.
+// Plex groups a run of new episodes into their season. Photos and clips
+// are left out.
+func (in *instance) readRecent(ctx context.Context) ([]map[string]any, error) {
+	var c container[recentlyAdded]
+	q := url.Values{"X-Plex-Container-Start": {"0"}, "X-Plex-Container-Size": {fmt.Sprint(recentRows * 2)}}
+	if err := in.get(ctx, "/library/recentlyAdded", q, &c); err != nil {
+		return nil, err
+	}
+	out := []map[string]any{}
+	for _, m := range c.MediaContainer.Metadata {
+		if len(out) == recentRows {
+			break
+		}
+		row := map[string]any{"kind": m.Type, "at": m.AddedAt}
+		switch m.Type {
+		case "movie":
+			row["title"] = m.Title
+			if m.Year > 0 {
+				row["detail"] = fmt.Sprint(m.Year)
+			}
+		case "show":
+			row["title"] = m.Title
+		case "season":
+			row["title"], row["detail"] = m.ParentTitle, m.Title
+		case "episode":
+			row["title"], row["detail"] = m.GrandparentTitle, m.Title
+			if m.ParentIndex != nil && m.Index != nil {
+				row["detail"] = fmt.Sprintf("S%d E%d · %s", *m.ParentIndex, *m.Index, m.Title)
+			}
+		case "album":
+			row["title"], row["detail"] = m.Title, m.ParentTitle
+		default:
+			continue
+		}
+		if row["title"] == "" || m.AddedAt <= 0 {
+			continue
+		}
+		if m.LibrarySection != "" {
+			row["library"] = m.LibrarySection
+		}
+		out = append(out, row)
+	}
+	return out, nil
 }
 
 // grant is what a Plex token can do: it's the account's, so everything the
@@ -224,7 +444,14 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 		}
 		in.libraries, in.readAt = lib, now
 	}
-	n, err := in.streams(ctx)
+	if in.recent == nil || (want.Watched && now.Sub(in.recentAt) >= recentEvery) {
+		recent, err := in.readRecent(ctx)
+		if err != nil {
+			return err
+		}
+		in.recent, in.recentAt = recent, now
+	}
+	p, err := in.streams(ctx)
 	if err != nil {
 		return err
 	}
@@ -235,7 +462,8 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	rid := ID + ":" + key + "/app"
 	attrs := map[string]any{
 		"type": ID, "url": in.base, "version": in.identity.Version, "machine_identifier": in.identity.MachineIdentifier,
-		"movies": in.libraries.movies, "shows": in.libraries.shows, "libraries": in.libraries.sections,
+		"movies": in.libraries.movies, "shows": in.libraries.shows, "episodes": in.libraries.episodes, "artists": in.libraries.artists,
+		"libraries": in.libraries.sections, "now_playing": p.list, "recently_added": in.recent, "streams_remote": p.remote,
 	}
 	res := integration.Resource{ID: rid, Kind: "app", Name: in.cfg.Name, State: "running",
 		Health: integration.Health{Status: integration.HealthOK}, Attrs: attrs,
@@ -243,6 +471,10 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	return in.d.Emit.Replace("", integration.Facts{
 		Resources: []integration.Resource{res},
 		Relations: []integration.Relation{{From: in.d.Emit.Self(), Type: "monitors", To: rid}},
-		Metrics:   []integration.Metric{{Resource: rid, Key: "streams", Unit: "count", Max: 10, Band: [2]float64{0, 3}, Value: float64(n)}},
+		Metrics: []integration.Metric{
+			{Resource: rid, Key: "streams", Unit: "count", Max: 10, Band: [2]float64{0, 3}, Value: float64(p.streams)},
+			{Resource: rid, Key: "streams.transcode", Unit: "count", Max: 10, Band: [2]float64{0, 2}, Value: float64(p.transcode)},
+			{Resource: rid, Key: "bandwidth.mbps", Unit: "Mb/s", Max: 1000, Band: [2]float64{0, 100}, Value: p.mbps},
+		},
 	})
 }

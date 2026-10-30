@@ -340,6 +340,7 @@ describe('Tautulli', () => {
 });
 
 describe('Now playing on Plex', () => {
+  // The healthy snapshot's clock is 2026-10-03 00:00 UTC.
   const at = (iso: string) => Date.parse(iso) / 1000;
   const withPlex = (playing = true) => {
     const d = docs(healthy);
@@ -360,9 +361,9 @@ describe('Now playing on Plex', () => {
           ]
         : [],
       recently_added: [
-        { kind: 'movie', title: 'Tears of Steel', detail: '2012', library: 'Movies', at: at('2026-10-03T13:05:00Z') },
-        { kind: 'season', title: 'Example Show', detail: 'Season 2', library: 'TV Shows', at: at('2026-10-03T09:00:00Z') },
-        { kind: 'album', title: 'Open Water', detail: 'The Synthetic Quartet', library: 'Music', at: at('2026-10-01T09:00:00Z') },
+        { kind: 'movie', title: 'Tears of Steel', detail: '2012', library: 'Movies', at: at('2026-10-02T23:00:00Z') },
+        { kind: 'season', title: 'Example Show', detail: 'Season 2', library: 'TV Shows', at: at('2026-10-02T19:00:00Z') },
+        { kind: 'album', title: 'Open Water', detail: 'The Synthetic Quartet', library: 'Music', at: at('2026-10-01T00:00:00Z') },
       ],
     };
     return d;

@@ -1,0 +1,75 @@
+{
+  "MediaContainer": {
+    "size": 6,
+    "allowSync": false,
+    "identifier": "com.plexapp.plugins.library",
+    "mixedParents": true,
+    "Metadata": [
+      {
+        "ratingKey": "51200",
+        "key": "/library/metadata/51200",
+        "type": "movie",
+        "title": "Tears of Steel",
+        "year": 2012,
+        "librarySectionID": 1,
+        "librarySectionTitle": "Movies",
+        "addedAt": 1759499000,
+        "updatedAt": 1759499100
+      },
+      {
+        "ratingKey": "40300",
+        "key": "/library/metadata/40300/children",
+        "type": "season",
+        "title": "Season 3",
+        "index": 3,
+        "parentTitle": "The Lighthouse Keepers",
+        "parentRatingKey": "40100",
+        "librarySectionID": 2,
+        "librarySectionTitle": "TV Shows",
+        "leafCount": 2,
+        "addedAt": 1759490000
+      },
+      {
+        "ratingKey": "40410",
+        "key": "/library/metadata/40410",
+        "type": "episode",
+        "title": "The Long Haul",
+        "index": 7,
+        "parentIndex": 2,
+        "grandparentTitle": "Harbour Lights",
+        "librarySectionID": 2,
+        "librarySectionTitle": "TV Shows",
+        "addedAt": 1759480000
+      },
+      {
+        "ratingKey": "70010",
+        "key": "/library/metadata/70010",
+        "type": "photo",
+        "title": "IMG_0001",
+        "librarySectionID": 6,
+        "librarySectionTitle": "Photos",
+        "addedAt": 1759470000
+      },
+      {
+        "ratingKey": "60020",
+        "key": "/library/metadata/60020/children",
+        "type": "album",
+        "title": "Open Water",
+        "parentTitle": "The Synthetic Quartet",
+        "librarySectionID": 3,
+        "librarySectionTitle": "Music",
+        "addedAt": 1759460000
+      },
+      {
+        "ratingKey": "51001",
+        "key": "/library/metadata/51001",
+        "type": "movie",
+        "title": "Sintel",
+        "year": 2010,
+        "librarySectionID": 1,
+        "librarySectionTitle": "Movies",
+        "addedAt": 1759000000
+      }
+    ]
+  }
+}

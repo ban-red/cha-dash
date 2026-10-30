@@ -1,6 +1,6 @@
 # Plex (`plex`)
 
-Reads a Plex Media Server: how many streams are playing, and how big the movie and show libraries are. The token can come from **Sign in with Plex** (plex.tv's PIN flow), so nobody has to dig an `X-Plex-Token` out of the web app.
+Reads a Plex Media Server: what's playing and how (direct play or transcode, local or remote, the bandwidth), what was added lately, and how big the libraries are. The token can come from **Sign in with Plex** (plex.tv's PIN flow), so nobody has to dig an `X-Plex-Token` out of the web app.
 
 **Tier:** silver. **Capabilities:** `media.sessions`, `media.library`. **Secret:** `token` (marked `"x-chadash-authorize": true`).
 
@@ -39,18 +39,25 @@ All `GET` on the server, with `Accept: application/json`:
 |---|---|---|
 | `/identity` | slow | version and machine identifier |
 | `/library/sections` | slow | the libraries |
-| `/library/sections/<key>/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0` | slow, per movie or show section | `totalSize` |
+| `/library/sections/<key>/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0` | slow, per movie, show or music section | `totalSize` |
+| `/library/sections/<key>/all?type=4&…` | slow, per show section | episodes |
+| `/library/recentlyAdded?X-Plex-Container-Start=0&X-Plex-Container-Size=16` | every 5 minutes | recently added |
 | `/status/sessions` | every sync | what's playing (it needs the owner's token) |
 
-**Poll plan:** every 30 s while watched, every 5 minutes otherwise, 30 s per sync. The slow reads run on the first sync, then every 30 minutes while watched.
+**Poll plan:** every 30 s while watched, every 5 minutes otherwise, 30 s per sync. The slow reads run on the first sync, then every 30 minutes while watched; recently added on the first sync, then every 5 minutes while watched.
 
 ## What it publishes
 
-- **`plex:<instance id>/app`**, kind `app`, named after the instance, state `running`, health `ok`, with `attrs.type = "plex"`, `attrs.url`, `attrs.version`, `attrs.machine_identifier` (the natural key for the correlator), `attrs.movies` and `attrs.shows` (summed over the movie and show sections, as in the Demo Home), `attrs.libraries` (how many sections), a link, and `caps: ["media.sessions", "media.library"]`. `integration:<instance id> monitors` it, which is how the Now playing tile finds its repair.
+- **`plex:<instance id>/app`**, kind `app`, named after the instance, state `running`, health `ok`, with `attrs.type = "plex"`, `attrs.url`, `attrs.version`, `attrs.machine_identifier` (the natural key for the correlator), `attrs.movies` and `attrs.shows` (summed over the movie and show sections, as in the Demo Home), `attrs.episodes` (over the show sections), `attrs.artists` (over the music sections), `attrs.libraries` (how many sections), a link, and `caps: ["media.sessions", "media.library"]`. `integration:<instance id> monitors` it, which is how the Now playing tile finds its repair.
+- `attrs.now_playing`: the first 8 sessions in Tautulli's shape, so the tile reads either: `title` ("Show - Episode" for an episode), `kind`, `episode` ("S3 E4"), `user` (the Plex account's name), `player` (the player's name), `state` (playing, paused, buffering), `progress` (0–100), `decision` (`direct play`, `direct stream` or `transcode`, the last when Plex re-encodes video or audio), `remote` and `resolution` ("1080p", "4K"). No addresses, player ids or session ids. Nothing playing is `[]`.
+- `attrs.recently_added`: up to 8 items, newest first, as `{kind, title, detail, library, at}` with `at` in Unix seconds. A movie's detail is its year; Plex groups a run of new episodes into their season, whose title is the show and detail "Season 3"; a lone episode's detail is "S2 E7 · Title"; an album's title is the album and detail the artist. Photos, clips and tracks are left out.
+- `attrs.streams_remote`: how many sessions play outside the server's network (`Session.location` is `wan`, else the player isn't local).
 
 | Metric | Unit | Scale | Band | Value |
 |---|---|---|---|---|
 | `streams` | count | 0–10 | 0–3 | `MediaContainer.size` of `/status/sessions`, playing or paused (nothing playing is 0) |
+| `streams.transcode` | count | 0–10 | 0–2 | sessions whose decision is `transcode` (Tautulli's and Jellyfin's key) |
+| `bandwidth.mbps` | Mb/s | 0–1000 | 0–100 | the sum of `Session.bandwidth` (kb/s), to 0.1 Mb/s (Tautulli's key) |
 
 ## Grants
 
@@ -69,8 +76,8 @@ During sign-in: plex.tv unreachable or refusing is a `502` from the start route;
 ## Limits
 
 - Health is `ok` whenever the server answers; Plex has no health endpoint worth reading. An unreachable server is the framework's (series go stale, the app keeps its last state).
-- No per-stream detail (who, what, transcode or not): the tile shows a count, and viewers' names are personal.
-- Music and photo libraries aren't counted.
+- `now_playing` names the Plex account watching and the player, as Tautulli's does. It's on the app's attrs, so anyone who can read the graph sees it.
+- Photo libraries aren't counted, and music only by artist.
 - Remote access, update availability and the server's own settings aren't read.
 
 ## Fixtures

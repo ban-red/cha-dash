@@ -1,0 +1,14 @@
+{
+  "MediaContainer": {
+    "size": 0,
+    "totalSize": 412,
+    "offset": 0,
+    "allowSync": true,
+    "identifier": "com.plexapp.plugins.library",
+    "librarySectionID": 3,
+    "librarySectionTitle": "Music",
+    "title1": "Music",
+    "title2": "All Artists",
+    "viewGroup": "artist"
+  }
+}
