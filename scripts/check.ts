@@ -6,10 +6,11 @@
  * go fix, golangci-lint, govulncheck, the Dockerfile's COPY lines, home paths in
  * tests, tagged changelog sections, the typecheck, lint, the design tokens, then
  * the tests: Go with the race
- * detector (and the devlogin packages), and every workspace's. The static checks
- * run side by side; the tests run one after another, so they don't time each
- * other out. What it leaves to CI: the build, the images, the end-to-end tests
- * (`bun run release:check` runs those), the performance budgets and zizmor.
+ * detector (and the devlogin packages), and every workspace's. Everything runs
+ * side by side, one step per core, the slow test suites first. What it leaves
+ * to CI: the build, the images, the end-to-end tests (`bun run release:check`
+ * runs those), the advisory TypeScript 7.1 typecheck (`bun run typecheck:next`),
+ * the performance budgets and zizmor.
  *
  *   bun run check              the working tree as it is, other sessions' edits included
  *   bun run check --ref HEAD   a clean copy of a commit, in a temporary git worktree
@@ -20,7 +21,7 @@
  * Exits 1 if anything fails, with each failure's output.
  */
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 const ROOT = dirname(import.meta.dir);
@@ -48,8 +49,6 @@ interface Step {
   env?: Record<string, string>;
   /** Fails the step when it prints anything (gofmt -l lists files and exits 0). */
   quietOk?: boolean;
-  /** Reported, never failing the check: a tool on trial (tools/typecheck). */
-  advisory?: boolean;
 }
 
 /** Runs cmd and returns its exit code and output. */
@@ -89,7 +88,8 @@ async function prepare(): Promise<{ dir: string; cleanup: () => Promise<void> }>
   return { dir, cleanup };
 }
 
-function steps(dir: string): { static: Step[]; tests: Step[] } {
+/** The steps, slowest first, so the pool starts the long test suites at once. */
+function steps(dir: string): Step[] {
   const s: Step[] = [];
   const t: Step[] = [];
   if (GO) {
@@ -119,8 +119,6 @@ function steps(dir: string): { static: Step[]; tests: Step[] } {
   if (JS) {
     s.push(
       { name: 'typecheck', cmd: ['bun', 'run', 'typecheck'] },
-      // TypeScript 7.1 with Vue's content mapper, beside vue-tsc until vuejs/language-tools#6306 is fixed.
-      { name: 'typecheck:next (TypeScript 7.1, advisory)', cmd: ['bun', 'run', 'typecheck:next'], advisory: true },
       { name: 'lint', cmd: ['bun', 'run', 'lint'] },
       { name: 'design tokens', cmd: ['bun', 'run', 'generate', '--check'], cwd: join(dir, 'design/tokens') },
     );
@@ -129,7 +127,7 @@ function steps(dir: string): { static: Step[]; tests: Step[] } {
       { name: 'release scripts', cmd: ['bun', 'test', 'scripts/'] },
     );
   }
-  return { static: s, tests: t };
+  return [...t, ...s];
 }
 
 interface Result {
@@ -144,7 +142,7 @@ async function exec(step: Step, dir: string): Promise<Result> {
   const { code, out } = await run(step.cmd, step.cwd ?? dir, step.env);
   const ok = code === 0 && !(step.quietOk && out !== '');
   const r = { step, ok, secs: (performance.now() - start) / 1000, out };
-  console.log(`${ok ? '✓' : step.advisory ? '!' : '✗'} ${step.name} (${r.secs.toFixed(1)}s)`);
+  console.log(`${ok ? '✓' : '✗'} ${step.name} (${r.secs.toFixed(1)}s)`);
   return r;
 }
 
@@ -164,25 +162,17 @@ const started = performance.now();
 const { dir, cleanup } = await prepare();
 let results: Result[] = [];
 try {
-  const plan = steps(dir);
-  results = await pool(plan.static, dir, 3);
-  for (const step of plan.tests) results.push(await exec(step, dir));
+  results = await pool(steps(dir), dir, availableParallelism());
 } finally {
   await cleanup();
 }
 
-const failed = results.filter((r) => !r.ok && !r.step.advisory);
-for (const r of results.filter((r) => !r.ok && r.step.advisory)) {
-  const errors = r.out.split('\n').filter((l) => /error TS\d+/.test(l));
-  const codes = Object.entries(Object.groupBy(errors, (l) => l.match(/error (TS\d+)/)![1]!)).map(([c, l]) => `${l!.length} ${c}`);
-  console.log(`\n! ${r.step.name} failed, not counted: ${codes.join(', ') || r.out.split('\n').at(-1)}`);
-}
+const failed = results.filter((r) => !r.ok);
 for (const r of failed) {
   const lines = r.out.split('\n');
   console.log(`\n── ${r.step.name} ${'─'.repeat(Math.max(0, 60 - r.step.name.length))}`);
   console.log((lines.length > 80 ? ['…', ...lines.slice(-80)] : lines).join('\n'));
 }
 const mins = ((performance.now() - started) / 60000).toFixed(1);
-const counted = results.filter((r) => !r.step.advisory).length;
-console.log(failed.length ? `\n${failed.length} of ${counted} checks failed (${mins} min).` : `\nAll ${counted} checks passed (${mins} min).`);
+console.log(failed.length ? `\n${failed.length} of ${results.length} checks failed (${mins} min).` : `\nAll ${results.length} checks passed (${mins} min).`);
 process.exit(failed.length ? 1 : 0);

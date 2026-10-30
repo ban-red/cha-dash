@@ -47,7 +47,7 @@ go fix ./...         # CI fails if the Go 1.27 modernizers would change anything
 
 After editing a theme in `design/tokens/themes/`, run `bun run generate` in `design/tokens`. CI fails when `dist/` is stale.
 
-**Before you push: `bun run check`.** It runs what CI's Go and JavaScript jobs run, without building anything: gofmt, go vet (also for linux/386 and linux/arm/v7), go fix, golangci-lint, govulncheck, the Dockerfile's COPY lines, real home paths in tests, tagged changelog sections, the typecheck, lint, the design tokens, and every test, Go's with the race detector. It takes a few minutes.
+**Before you push: `bun run check`.** It runs what CI's Go and JavaScript jobs run, without building anything: gofmt, go vet (also for linux/386 and linux/arm/v7), go fix, golangci-lint, govulncheck, the Dockerfile's COPY lines, real home paths in tests, tagged changelog sections, the typecheck, lint, the design tokens, and every test, Go's with the race detector. The steps run side by side, one per core, and it takes about a minute.
 
 ```sh
 bun run check              # the working tree
