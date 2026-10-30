@@ -24,6 +24,7 @@ import { glyphFor } from '../model/status';
 import { factLabel, factValue, impactName, relationWords } from '../model/words';
 import type { Action, Incident } from '../model/types';
 import { useLive } from '../stores/live';
+import { canMute, isMarked, mute, unmute } from '../stores/muted';
 import { useUi } from '../stores/ui';
 
 const { incident, expanded = false } = defineProps<{ incident: Incident; expanded?: boolean }>();
@@ -32,6 +33,19 @@ const live = useLive();
 const ui = useUi();
 /** The target's name when its kind has a sheet (10 · The resource sheet): the item links to it. */
 const sheetName = computed(() => (incident.target && ui.hasSheet(incident.target) ? label(live.graph.value?.resources[incident.target]) || incident.target : ''));
+
+/** A warning can be hidden from Needs attention until it turns critical (stores/muted.ts). */
+const hideable = computed(() => !isResolved.value && canMute(incident));
+const marked = computed(() => isMarked(incident));
+function toggleHidden() {
+  if (marked.value) {
+    unmute(incident);
+    ui.toast('Showing it in Needs attention again.');
+  } else {
+    mute(incident);
+    ui.toast(`Hidden until it turns critical: ${incident.title}.`, 'ok', 8000, { label: 'Undo', run: () => unmute(incident) });
+  }
+}
 
 const isResolved = computed(() => incident.status === 'resolved');
 const isRepair = computed(() => incident.class === 'repair');
@@ -158,8 +172,11 @@ const id = computed(() => `ib-${incident.id}`);
         <button v-if="recipe && ui.can.value.integrations" type="button" class="btn sm" @click="ui.openSettings('integrations', recipe, { section: 'control' })">Open its settings</button>
       </div>
 
-      <p v-if="sheetName" class="sheet-link">
-        <button type="button" class="btn sm" @click="ui.openSheet(incident.target)">Open {{ sheetName }}</button>
+      <p v-if="sheetName || hideable" class="sheet-link">
+        <button v-if="sheetName" type="button" class="btn sm" @click="ui.openSheet(incident.target)">Open {{ sheetName }}</button>
+        <button v-if="hideable" type="button" class="btn sm ghost" :aria-pressed="marked" @click="toggleHidden">
+          {{ marked ? 'Hidden until critical · Show again' : 'Hide until critical' }}
+        </button>
       </p>
 
       <div v-if="facts.length">

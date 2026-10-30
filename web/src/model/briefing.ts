@@ -22,9 +22,10 @@ export interface HomeSummary {
   worst: 'down' | 'attention' | 'ok';
 }
 
-export function summarize(g: GraphDoc | undefined, m: MetricsDoc | undefined, inbox: InboxDoc | undefined, nowMs: number): HomeSummary {
+/** `hidden` names the warnings the viewer chose not to see (stores/muted.ts). */
+export function summarize(g: GraphDoc | undefined, m: MetricsDoc | undefined, inbox: InboxDoc | undefined, nowMs: number, hidden: (i: Incident) => boolean = () => false): HomeSummary {
   const apps = byKind(g, 'app');
-  const problems = openProblems(inbox);
+  const problems = openProblems(inbox).filter((i) => !hidden(i));
   const array = byKind(g, 'array')[0];
   const ha = resolve(g, 'app:homeassistant');
   const peopleTotal = ha?.attrs?.['people_total'];

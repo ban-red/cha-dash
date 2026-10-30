@@ -14,11 +14,12 @@ import { series } from '../model/graph';
 import { incidentKicker } from '../model/inbox';
 import type { Incident } from '../model/types';
 import { useLive } from '../stores/live';
+import { canMute, isMuted, mute, unmute } from '../stores/muted';
 import { useUi } from '../stores/ui';
 
 const live = useLive();
 const ui = useUi();
-const all = computed(() => live.problems.value);
+const all = computed(() => live.problems.value.filter((i) => !isMuted(i)));
 /** Down first, so the first few are the worst; the rest wait behind "Show all". */
 const LIMIT = 3;
 const expanded = ref(false);
@@ -81,6 +82,11 @@ function onEnter(el: Element, done: () => void) {
 function onLeave(el: Element, done: () => void) {
   const node = el as HTMLElement;
   animateHeight(node, node.scrollHeight, 0, done, () => undefined);
+}
+/** Hide a warning until it turns critical; the toast can take it back. */
+function hide(i: Incident) {
+  mute(i);
+  ui.toast(`Hidden until it turns critical: ${i.title}.`, 'ok', 8000, { label: 'Undo', run: () => unmute(i) });
 }
 const fixState = (id: string) => live.fixes[id]?.state;
 /** What the task working on it is doing now, else the incident's phase. */
@@ -147,6 +153,7 @@ function workingWords(i: Incident): string {
               {{ i.suggested.label }} <span class="tier">{{ i.suggested.tier }}</span>
             </button>
             <span v-else-if="fixState(i.id) === 'accepted'" class="working"><Glyph kind="prog" label="in progress" />Working · {{ workingWords(i) }}</span>
+            <button v-if="canMute(i)" type="button" class="btn ghost" title="Hide this warning until it turns critical" @click="hide(i)">Hide</button>
           </div>
         </article>
       </TransitionGroup>

@@ -16,6 +16,7 @@ import { currentTheme, THEMES } from '../lib/theme';
 import { inSentence, joinAnd, peoplePhrase, summarize } from '../model/briefing';
 import { nbHyphen } from '../model/inbox';
 import { useLive } from '../stores/live';
+import { isMuted } from '../stores/muted';
 import { useUi } from '../stores/ui';
 
 interface Part {
@@ -29,7 +30,7 @@ const emit = defineEmits<{ signOut: [] }>();
 const live = useLive();
 const ui = useUi();
 
-const s = computed(() => summarize(live.graph.value, live.metrics.value, live.inbox.value, live.now.value));
+const s = computed(() => summarize(live.graph.value, live.metrics.value, live.inbox.value, live.now.value, isMuted));
 const headline = computed(() => THEMES.find((t) => t.id === currentTheme.value)?.briefing === 'headline');
 const clock = computed(() => hhmm(live.now.value));
 const eyebrow = computed(() => {

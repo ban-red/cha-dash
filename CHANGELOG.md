@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Hide a warning until it turns critical.** A warning on Needs attention has a Hide button (the Inbox has Hide until critical), with Undo. It leaves Needs attention and the briefing's count, and comes back as soon as it turns critical. It's remembered on this device only. Critical problems, repairs and approvals can't be hidden.
 - **The qBittorrent tile shows the torrents.** It lists what's downloading (progress, speed, time left) and what's uploading, with the global ratio, free space and peers underneath, instead of only the other apps' queues. qBittorrent now reports up to 8 active torrents, their names included. The tile falls back to the queue rows when there are none. A second view, Torrents, is a compact table of up to 30 torrents with their status, errors first.
 - **Two more tile sizes: Panel (4×3) and Column (3×4).** Panel gives a list 5–6 rows under a headline; Column is a taller list that's wider than Tall. Fleet, Guests, Containers, Unraid array, Unraid server, Up next, Incidents, Downloads and Bookmarks offer both; Host offers Panel. Column is 3 wide, so on a 4-column grid it leaves one column beside it.
 - **Tautulli shows what's playing and what was watched.** The tile lists the titles playing now, with who's watching, how far along and whether it's transcoding, and has a second view with the last few things watched. Cha Dash reads two more things from Tautulli: the sessions it already fetched, and `get_history` (optional, 8 rows).
