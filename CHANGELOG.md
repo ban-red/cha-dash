@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Move a widget to another section.** The widget menu has a Move to section item that lists the board's other sections and puts the widget at the end of the one you pick.
 - **Calendars in the Demo Home.** The demo's Home Assistant publishes two invented calendars, Family and School, so the Calendar widget has something to show there.
 
 ## [0.2.0-beta.2] - 2026-10-29

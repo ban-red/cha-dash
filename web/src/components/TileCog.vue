@@ -9,6 +9,8 @@
  * - **Resize:** the sizes the widget has that fit its section, saved at once;
  * - **Reorder:** earlier or later in its section, or to its start or end (the
  *   keyboard move's swap, so it never leaves the section), saved at once;
+ * - **Move to section:** to the end of another section, when the board has
+ *   more than one (the size shrinks to fit if it must), saved at once;
  * - **Remove widget:** asks first, then removes it and its config, with Undo.
  *
  * Widget settings, Resize and Remove need a role that may edit boards. The menu is absent
@@ -18,7 +20,7 @@
  * (older engines, test DOMs) it is a fixed-position box.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { findItem, nudge, resize, SIZES, sectionColumns, type SizeId } from '@chadash/layout';
+import { findItem, move as moveItem, nudge, resize, SIZES, sectionColumns, type SizeId } from '@chadash/layout';
 import { removeTile, sizeName } from '../model/edit';
 import { tileInstance } from '../model/integrations';
 import { useBoardIfAny } from '../stores/board';
@@ -59,10 +61,18 @@ const moves = computed(() => {
     { id: 'end', name: 'Move to end', steps: last - i, show: i < last, d: 'M13 3v10M3 8h7M7.5 5.5 10 8l-2.5 2.5' },
   ].filter((m) => m.show);
 });
+/** The other sections a tile can move to. */
+const otherSections = computed(() => {
+  const loc = located.value;
+  if (!loc || !canEdit.value) return [];
+  return (store?.board.value?.sections ?? [])
+    .filter((s) => s.id !== loc.section.id)
+    .map((s) => ({ id: s.id, name: s.title ?? s.id }));
+});
 const shown = computed(() => Boolean(integration.value || widget.value || canEdit.value));
 
 const open = ref(false);
-const view = ref<'menu' | 'resize' | 'reorder' | 'remove'>('menu');
+const view = ref<'menu' | 'resize' | 'reorder' | 'section' | 'remove'>('menu');
 const trigger = ref<HTMLButtonElement | null>(null);
 const pop = ref<HTMLElement | null>(null);
 
@@ -131,7 +141,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKey, true);
 });
 
-async function goto(v: 'menu' | 'resize' | 'reorder' | 'remove'): Promise<void> {
+async function goto(v: 'menu' | 'resize' | 'reorder' | 'section' | 'remove'): Promise<void> {
   view.value = v;
   await focusFirst();
 }
@@ -191,6 +201,19 @@ function move(steps: number, what: string): void {
   ui?.toast(`${name}: ${what.toLowerCase()}.`);
 }
 
+function moveToSection(id: string, title: string): void {
+  const board = store?.board.value;
+  close(true);
+  if (!store || !board) return;
+  try {
+    // Far below the last row: the tile lands at the end of the section.
+    saved(store.save(moveItem(board, tile.itemId, { sectionId: id, x: 0, y: 1e6 })));
+    ui?.toast(`${name} moved to ${title}.`);
+  } catch {
+    ui?.toast(`${name} doesn’t fit in ${title}.`, 'error');
+  }
+}
+
 function remove(): void {
   const board = store?.board.value;
   const tiles = store?.tiles.value;
@@ -239,6 +262,11 @@ function remove(): void {
             <span>Reorder</span>
             <span class="menu-val">{{ (located?.index ?? 0) + 1 }} of {{ located?.section.items.length ?? 0 }}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg></span>
           </button>
+          <button v-if="otherSections.length" type="button" role="menuitem" aria-haspopup="menu" class="menu-item" tabindex="-1" @click="goto('section')">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v3h-11zM2.5 9.5h6M11 9.5h2.5M11 12.5 13.5 9.5" /></svg>
+            <span>Move to section</span>
+            <span class="menu-val"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg></span>
+          </button>
           <div v-if="canEdit" class="menu-sep" role="separator"></div>
           <button v-if="canEdit" type="button" role="menuitem" class="menu-item danger" tabindex="-1" @click="goto('remove')">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8M7 7v3.5M9 7v3.5" /></svg>
@@ -249,6 +277,12 @@ function remove(): void {
           <button v-for="m in moves" :key="m.id" type="button" role="menuitem" class="menu-item" tabindex="-1" @click="move(m.steps, m.name)">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path :d="m.d" /></svg>
             <span>{{ m.name }}</span>
+          </button>
+        </div>
+        <div v-else-if="view === 'section'" role="menu" :aria-label="`Move ${name} to a section`" @keydown="onMenuKey">
+          <button v-for="s in otherSections" :key="s.id" type="button" role="menuitem" class="menu-item" tabindex="-1" @click="moveToSection(s.id, s.name)">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v9h-11zM2.5 6.5h11" /></svg>
+            <span>{{ s.name }}</span>
           </button>
         </div>
         <div v-else-if="view === 'resize'" role="menu" :aria-label="`Resize ${name}`" @keydown="onMenuKey">

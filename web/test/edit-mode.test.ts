@@ -592,11 +592,27 @@ describe('a tile’s menu', () => {
     expect(cog.attributes('aria-label')).toMatch(/ menu$/);
     await cog.trigger('click');
     await settle();
-    expect(items().map((e) => /^(Integration settings|Widget settings|Resize|Reorder|Remove)/.exec(e.textContent?.trim() ?? '')?.[1])).toEqual(['Integration settings', 'Widget settings', 'Resize', 'Reorder', 'Remove']);
+    expect(items().map((e) => /^(Integration settings|Widget settings|Resize|Reorder|Move to section|Remove)/.exec(e.textContent?.trim() ?? '')?.[1])).toEqual(['Integration settings', 'Widget settings', 'Resize', 'Reorder', 'Move to section', 'Remove']);
     item('Integration settings').click();
     await settle();
     expect(route.value.path).toBe('/settings/integrations/plex');
     expect(w.ui.state.editing).toBe(false);
+  });
+
+  it('moves the tile to the end of another section', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    await w.find('[data-item="plex"] .tile-cog').trigger('click');
+    await settle();
+    item('Move to section').click();
+    await settle();
+    expect(items().map((e) => e.textContent?.trim())).toEqual(['Home', 'Infrastructure', 'Activity']);
+    item('Activity').click();
+    await settle();
+    const board = store.board.value!;
+    expect(board.sections.find((s) => s.id === 'media')!.items.some((i) => i.id === 'plex')).toBe(false);
+    expect(board.sections.find((s) => s.id === 'activity')!.items.at(-1)!.id).toBe('plex');
   });
 
   it('opens the tile editor over the normal board, without edit mode', async () => {
