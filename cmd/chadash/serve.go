@@ -439,7 +439,10 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		}
 		authSvc.OnEvent(func(ev auth.Event) {
 			if ev.Kind == auth.EventUserChanged {
-				go syncer.OwnerChanged(context.WithoutCancel(ctx), ev.UserID)
+				// On the syncer's WaitGroup, so shutdown waits for it. Before
+				// the syncer runs, or after, each sync's own run checks its
+				// owner anyway.
+				syncer.OwnerChangedAsync(ev.UserID)
 			}
 		})
 	}

@@ -16,7 +16,7 @@ import { focusFirst } from '../lib/focus';
 import { StepUpCancelled } from '../stores/actions';
 import { useUi } from '../stores/ui';
 import { copyText } from './recipe';
-import { DEPLOY_ON_PUSH_WORDS, MODE_WORDS, SENDERS, STATE_WORDS, createHook, deleteHook, hookURL, listHooks, rotateHook, senderLabel, type HookSender, type HookView } from './sync';
+import { DEPLOY_ON_PUSH_WORDS, MODE_WORDS, SENDERS, STATE_WORDS, createHook, deleteHook, hookURL, listHooks, rotateHook, senderLabel, type HookCreated, type HookSender, type HookView } from './sync';
 import UiButton from '../ui/Button.vue';
 import UiField from '../ui/Field.vue';
 
@@ -41,7 +41,7 @@ async function load(): Promise<void> {
 
 // ── the secret, once ──
 
-const fresh = ref<{ hook: HookView; secret: string; rotated: boolean }>();
+const fresh = ref<{ hook: HookView; secret: string; rotated: boolean; notSwitched?: HookCreated['not_switched'] }>();
 const copied = ref('');
 
 async function copy(what: 'secret' | 'url', text: string): Promise<void> {
@@ -105,7 +105,7 @@ async function create(): Promise<void> {
     const req = { url: u, branch: branch.value.trim(), sender: sender.value, ...(deployOnPush.value ? { deploy_on_push: true } : {}) };
     const res = await ui.withStepUp(deployOnPush.value ? 'Make a webhook that deploys on push' : 'Make a webhook', () => createHook(req));
     adding.value = false;
-    fresh.value = { hook: res.hook, secret: res.secret, rotated: false };
+    fresh.value = { hook: res.hook, secret: res.secret, rotated: false, notSwitched: res.not_switched };
     copied.value = '';
     if (res.switched) ui.toast(`Switched ${plural(res.switched, 'sync')} to deploy on push.`);
     await load();
@@ -203,6 +203,10 @@ onMounted(load);
           <UiButton size="sm" @click="copy('secret', fresh.secret)">{{ copied === 'secret' ? 'Copied' : 'Copy secret' }}</UiButton>
         </div>
         <p v-if="freshSender" class="skh-where">{{ freshSender.where }}</p>
+        <p v-if="fresh.notSwitched?.length" class="skh-not-switched">
+          Not switched to deploy on push: {{ fresh.notSwitched.map((s) => `${s.stack} on ${s.node}`).join(', ') }}. They belong to other admins, who can switch
+          their own in Follow git.
+        </p>
         <p class="sr" aria-live="polite">{{ copied ? 'Copied to the clipboard.' : '' }}</p>
         <div class="st-acts"><UiButton variant="primary" size="sm" @click="done">I’ve saved it</UiButton></div>
       </div>
@@ -269,7 +273,7 @@ onMounted(load);
           </select>
         </UiField>
       </div>
-      <UiField check label="Switch the syncs that follow it to deploy on push" :help="`${DEPLOY_ON_PUSH_WORDS} Asks you to confirm it’s you.`" v-slot="{ control }">
+      <UiField check label="Switch your syncs that follow it to deploy on push" :help="`${DEPLOY_ON_PUSH_WORDS} Asks you to confirm it’s you.`" v-slot="{ control }">
         <input v-bind="control" v-model="deployOnPush" type="checkbox" />
       </UiField>
       <p v-if="formError" class="err" role="alert">{{ formError }}</p>

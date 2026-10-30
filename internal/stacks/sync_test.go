@@ -208,7 +208,7 @@ func TestSyncDeploysOnPushAndRejectsARollback(t *testing.T) {
 	e.remote.push(remoteURL, "main", sha1, "media/compose.yaml", good)
 	e.y.runOnce(ctx, y.ID)
 	got := e.waitSync(y.ID, "deploy c1", func(s *Sync) bool { return s.LastDeployed == sha1 })
-	if got.LastSeen != sha1 || got.Rejected != "" || got.LastError != "" {
+	if got.LastSeen != sha1 || len(got.Rejected) != 0 || got.LastError != "" {
 		t.Fatalf("after c1: %+v", got)
 	}
 	d := decode[StackDetail](t, e.do("GET", "/api/stacks/local/media", nil))
@@ -237,7 +237,7 @@ func TestSyncDeploysOnPushAndRejectsARollback(t *testing.T) {
 	// A tip whose deploy fails its gate: rejected, and the Inbox says so.
 	e.remote.push(remoteURL, "main", sha2, "media/compose.yaml", plainGood("nginx-unhealthy:1.28"))
 	e.y.runOnce(ctx, y.ID)
-	got = e.waitSync(y.ID, "reject c2", func(s *Sync) bool { return s.Rejected == sha2 })
+	got = e.waitSync(y.ID, "reject c2", func(s *Sync) bool { return s.isRejected(sha2) })
 	if got.LastDeployed != sha1 {
 		t.Fatalf("after c2: %+v", got)
 	}

@@ -372,7 +372,17 @@ describe('Deploy webhooks', () => {
     const f = fakeFetch({
       'GET /api/stacks/hooks': { status: 200, body: { hooks: [] } },
       'POST /api/stacks/hooks': () =>
-        ++posts === 1 ? refuse(403, 'step_up_required', 'Confirm it’s you first.') : { status: 201, body: { hook: HOOK, secret: 'FAKE-hook-secret-0123456789', switched: 1 } },
+        ++posts === 1
+          ? refuse(403, 'step_up_required', 'Confirm it’s you first.')
+          : {
+              status: 201,
+              body: {
+                hook: HOOK,
+                secret: 'FAKE-hook-secret-0123456789',
+                switched: 1,
+                not_switched: [{ node: 'pve-b', stack: 'books', mode: 'ask', state: 'active' }],
+              },
+            },
     });
     const h = open();
     const w = h.mountIn(StackHooks);
@@ -391,6 +401,7 @@ describe('Deploy webhooks', () => {
     expect((fresh.findAll('input').at(1)!.element as HTMLInputElement).value).toBe('FAKE-hook-secret-0123456789');
     expect(fresh.text()).toContain('This is the only time Cha Dash shows it.');
     expect(h.ui.state.toasts.at(-1)!.text).toBe('Switched 1 sync to deploy on push.');
+    expect(fresh.find('.skh-not-switched').text()).toContain('Not switched to deploy on push: books on pve-b. They belong to other admins');
     expect(await axeViolations()).toEqual([]);
     await fresh.findAll('button').find((b) => b.text() === 'I’ve saved it')!.trigger('click');
     await settle();

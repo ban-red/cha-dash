@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,8 +17,10 @@ import (
 )
 
 // The sync's routes (Settings → Stacks → Follow git). Admin+ by the authz
-// table; turning on deploy on push, changing the remote and taking over
-// someone else's sync also need a step-up (authz T3).
+// table. A step-up (authz T3) is also needed to turn on deploy on push, to
+// change the remote, to take over someone else's sync, and, while the sync
+// deploys on push (before or after), to change its branch, path or
+// credential, or add a name to secrets_allow.
 
 // SyncView is a sync as the API shows it: never its credential, and the
 // hook it's triggered by without the hook's secret.
@@ -38,7 +41,8 @@ type SyncView struct {
 	StateReason  string        `json:"state_reason"`
 	LastSeen     string        `json:"last_seen_sha"`
 	LastDeployed string        `json:"last_deployed_sha"`
-	Rejected     string        `json:"rejected_sha"`
+	Rejected     string        `json:"rejected_sha"`  // the newest rejected commit
+	RejectedSHAs []string      `json:"rejected_shas"` // every one remembered, newest first
 	LastError    string        `json:"last_error"`
 	Running      bool          `json:"running"`
 	Hook         *SyncHookView `json:"hook"`
@@ -71,8 +75,8 @@ type SyncHookView struct {
 func (s *Service) syncView(ctx context.Context, y *Sync) (*SyncView, error) {
 	v := &SyncView{ID: y.ID, Node: y.Node, Stack: y.Stack, URL: y.URL, Branch: y.Branch, Path: y.Path,
 		Auth: SyncAuthView{Kind: y.AuthKind}, Mode: y.Mode, PollSeconds: y.PollSeconds, SecretsAllow: y.SecretsAllow,
-		State: y.State, StateReason: y.StateReason, LastSeen: y.LastSeen, LastDeployed: y.LastDeployed, Rejected: y.Rejected,
-		LastError: y.LastError, Running: s.syncer.Running(y.ID), CreatedAt: y.CreatedAt, UpdatedAt: y.UpdatedAt}
+		State: y.State, StateReason: y.StateReason, LastSeen: y.LastSeen, LastDeployed: y.LastDeployed, Rejected: y.latestRejected(),
+		RejectedSHAs: append([]string{}, y.Rejected...), LastError: y.LastError, Running: s.syncer.Running(y.ID), CreatedAt: y.CreatedAt, UpdatedAt: y.UpdatedAt}
 	if y.HostKey != "" {
 		k := y.HostKey
 		v.HostKey = &k
@@ -174,7 +178,10 @@ func checkAuth(rawURL string, a syncAuthReq) error {
 	switch a.Kind {
 	case stackproto.AuthNone:
 	case stackproto.AuthHTTPS:
-		if scheme != "https" && scheme != "http" {
+		if scheme == "http" {
+			return problem("A token is sent only over https://, never in the clear; use the remote's https:// URL.")
+		}
+		if scheme != "https" {
 			return problem("A token signs in over HTTPS; this URL isn't an https:// one.")
 		}
 	case stackproto.AuthSSH:
@@ -275,10 +282,16 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 		s.internal(w, "stacks: read sync", err)
 		return
 	}
-	if req.Auth.Kind != stackproto.AuthNone && req.Auth.Secret == "" && (cur == nil || cur.AuthKind != req.Auth.Kind) {
-		if req.Auth.Kind == stackproto.AuthSSH {
+	// The saved credential stays with the remote it was given for: a new
+	// URL needs it given again.
+	sameRemote := cur != nil && normalizeURL(cur.URL) == normalizeURL(rawURL)
+	if req.Auth.Kind != stackproto.AuthNone && req.Auth.Secret == "" && (!sameRemote || cur.AuthKind != req.Auth.Kind) {
+		switch {
+		case cur != nil && !sameRemote && cur.AuthKind == req.Auth.Kind:
+			invalid(problem("The saved credential is only sent to " + remoteHost(cur.URL) + ". Give it again for the new remote."))
+		case req.Auth.Kind == stackproto.AuthSSH:
 			invalid(problem("Paste the SSH private key the node signs in with."))
-		} else {
+		default:
 			invalid(problem("Give the token the node signs in with."))
 		}
 		return
@@ -287,27 +300,31 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusServiceUnavailable, "unavailable", "The vault isn't available.")
 		return
 	}
-	// Cha Dash's own stack, and any the node protects, can't follow git.
-	var st stackproto.Stack
-	err = s.call(ctx, node, stackproto.VerbGet, stackproto.GetRequest{Stack: stack}, &st, s.timeout, nil)
-	if e := stackproto.ErrorFrom(err); err != nil && (e == nil || e.Code != stackproto.CodeNotFound) {
-		s.fail(w, err)
-		return
-	}
-	if st.Protected {
-		httpx.Error(w, http.StatusConflict, "protected", "Cha Dash's own stack, and any stack the node protects, can't follow git.")
-		return
-	}
 	actor, _ := s.actor(r)
 	target := Target(node, stack)
-	urlChanged := cur != nil && normalizeURL(cur.URL) != normalizeURL(rawURL)
+	urlChanged := cur != nil && !sameRemote
 	takeover := cur != nil && cur.OwnerID != actor.ID
 	toDeploy := req.Mode == ModeDeploy && (cur == nil || cur.Mode != ModeDeploy)
+	// While a sync deploys on push (before or after this change), pointing
+	// it at other content is as strong as turning deploy on push on.
+	var retarget []string
+	if cur != nil && (cur.Mode == ModeDeploy || req.Mode == ModeDeploy) {
+		changed, err := s.retargets(ctx, cur, req.Branch, req.Path, req.HostKey, req.Auth, req.SecretsAllow)
+		if err != nil {
+			s.internal(w, "stacks: read a sync's credential", err)
+			return
+		}
+		retarget = changed
+	}
+	stepUp := urlChanged || takeover || toDeploy || len(retarget) > 0
 	params := map[string]any{"host": remoteHost(rawURL), "branch": req.Branch, "path": req.Path, "auth_kind": req.Auth.Kind,
 		"mode": req.Mode, "poll_seconds": req.PollSeconds, "secrets_allow": req.SecretsAllow}
 	if cur != nil {
 		params["sync"] = cur.ID
 		params["url_changed"] = urlChanged
+	}
+	if len(retarget) > 0 {
+		params["changed"] = retarget
 	}
 	action := "settings.stacks.sync.create"
 	if cur != nil {
@@ -316,7 +333,19 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 	if takeover {
 		action = "settings.stacks.sync.takeover"
 	}
-	if (urlChanged || takeover || toDeploy) && !s.stepUp(w, r, action, target, params) {
+	if stepUp && !s.stepUp(w, r, action, target, params) {
+		return
+	}
+	// Cha Dash's own stack, and any the node protects, can't follow git.
+	// Asked after the step-up, so nothing reaches the node without it.
+	var st stackproto.Stack
+	err = s.call(ctx, node, stackproto.VerbGet, stackproto.GetRequest{Stack: stack}, &st, s.timeout, nil)
+	if e := stackproto.ErrorFrom(err); err != nil && (e == nil || e.Code != stackproto.CodeNotFound) {
+		s.fail(w, err)
+		return
+	}
+	if st.Protected {
+		httpx.Error(w, http.StatusConflict, "protected", "Cha Dash's own stack, and any stack the node protects, can't follow git.")
 		return
 	}
 	y := &Sync{ID: newID("syn_"), Node: node, Stack: stack, State: StateActive}
@@ -329,10 +358,11 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 	y.Mode, y.PollSeconds, y.SecretsAllow, y.OwnerID = req.Mode, req.PollSeconds, req.SecretsAllow, actor.ID
 	y.LastError = ""
 	if moved {
-		// Another source: what was seen or rejected there means nothing here.
-		y.LastSeen, y.Rejected = "", ""
+		// Another source: compare its tip afresh. Rejected commits stay
+		// rejected, so moving away and back doesn't re-arm one.
+		y.LastSeen = ""
 	}
-	if err := s.saveCredential(ctx, y.ID, cur, req.Auth); err != nil {
+	if err := s.saveCredential(ctx, y.ID, rawURL, cur, req.Auth); err != nil {
 		s.internal(w, "stacks: save a sync's credential", err)
 		return
 	}
@@ -349,7 +379,7 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 	}
 	params["sync"] = y.ID
 	tier := authz.T1
-	if urlChanged || takeover || toDeploy {
+	if stepUp {
 		tier = authz.T3
 	}
 	if takeover {
@@ -370,9 +400,41 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, status, map[string]any{"sync": v})
 }
 
+// retargets lists what a change to a sync points it at, other than the
+// remote: the branch, the path, the credential (a new secret, kind, user
+// or pinned host key) and names newly allowed in secrets_allow.
+func (s *Service) retargets(ctx context.Context, cur *Sync, branch, path, hostKey string, a syncAuthReq, allow []string) ([]string, error) {
+	var out []string
+	if cur.Branch != branch {
+		out = append(out, "branch")
+	}
+	if cur.Path != path {
+		out = append(out, "path")
+	}
+	cred := a.Secret != "" || a.Kind != cur.AuthKind || hostKey != cur.HostKey
+	if !cred && a.Kind != stackproto.AuthNone {
+		c, err := s.credentialOf(ctx, cur.ID)
+		if err != nil {
+			return nil, err
+		}
+		cred = c.Username != a.Username
+		c.Secret = ""
+	}
+	if cred {
+		out = append(out, "credential")
+	}
+	for _, n := range allow {
+		if !slices.Contains(cur.SecretsAllow, n) {
+			out = append(out, "secrets_allow")
+			break
+		}
+	}
+	return out, nil
+}
+
 // saveCredential writes a sync's credential to the vault: a new secret,
 // or the saved one under a new user name; none deletes it.
-func (s *Service) saveCredential(ctx context.Context, id string, cur *Sync, a syncAuthReq) error {
+func (s *Service) saveCredential(ctx context.Context, id, url string, cur *Sync, a syncAuthReq) error {
 	if a.Kind == stackproto.AuthNone {
 		if s.vault == nil {
 			return nil
@@ -383,7 +445,9 @@ func (s *Service) saveCredential(ctx context.Context, id string, cur *Sync, a sy
 		return nil
 	}
 	c := credential{Username: a.Username, Secret: a.Secret}
-	if c.Secret == "" && cur != nil {
+	// Only for the same remote: handlePutSync refuses an empty secret for
+	// another one, and this holds whatever the caller.
+	if c.Secret == "" && cur != nil && normalizeURL(cur.URL) == normalizeURL(url) {
 		old, err := s.credentialOf(ctx, id)
 		if err != nil {
 			return err
@@ -477,6 +541,12 @@ func (s *Service) handleCheckSync(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", err.Error())
+		return
+	}
+	// The saved credential goes only to the remote it was saved for: testing
+	// another URL takes its own.
+	if ra.Kind != stackproto.AuthNone && ra.Secret == "" && cur != nil && cur.AuthKind == ra.Kind && normalizeURL(rawURL) != normalizeURL(cur.URL) {
+		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "The saved credential is only sent to "+remoteHost(cur.URL)+". Give it again to test another remote.")
 		return
 	}
 	if ra.Kind != stackproto.AuthNone && ra.Secret == "" && cur != nil && cur.AuthKind == ra.Kind {

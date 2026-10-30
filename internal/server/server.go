@@ -396,12 +396,16 @@ func compressAPI(next http.Handler) http.Handler {
 // noCompress are the API routes whose responses can carry a secret, or take
 // one in: sign-in, passkey ceremonies and the session; first-run setup with
 // its token; an integration sign-in, whose poll hands the new token to the
-// form once; and creating an API token, whose response carries its secret. Compressing a secret next to anything an attacker might
-// influence is what BREACH needs, so these stay identity whatever their size
+// form once; creating an API token, whose response carries its secret; and
+// making or rotating a deploy webhook, whose response carries its secret.
+// Compressing a secret next to anything an attacker might influence is what
+// BREACH needs, so these stay identity whatever their size
 // (internal/httpx/gzip.go has the full reasoning).
 var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authorize", "/api/tokens",
 	// A node join token, shown once when it's made.
-	"/api/nodes/tokens"}
+	"/api/nodes/tokens",
+	// A deploy webhook's secret, shown once when it's made or rotated.
+	"/api/stacks/hooks"}
 
 // compressible reports whether GzipJSON may handle a request for path.
 func compressible(path string) bool {

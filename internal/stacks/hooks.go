@@ -358,6 +358,19 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 		unauthorized(w)
 		return
 	}
+	ctx := r.Context()
+	h, err := s.hookByID(ctx, id)
+	if err != nil {
+		s.log.Error("stacks: read hook", "err", err)
+		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		return
+	}
+	if h == nil || s.vault == nil {
+		unauthorized(w)
+		return
+	}
+	// Per hook only once it exists: made-up IDs would otherwise fill the
+	// limiter's table (the per-address limit above holds them back).
 	if ok, wait := s.hooks.perHok.Allow(id); !ok {
 		tooMany(w, wait)
 		return
@@ -369,17 +382,6 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		httpx.Error(w, http.StatusBadRequest, "bad_request", "The body couldn't be read.")
-		return
-	}
-	ctx := r.Context()
-	h, err := s.hookByID(ctx, id)
-	if err != nil {
-		s.log.Error("stacks: read hook", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
-		return
-	}
-	if h == nil || s.vault == nil {
-		unauthorized(w)
 		return
 	}
 	secret, err := s.vault.Get(ctx, hookSecretName(id))
@@ -423,7 +425,7 @@ func (s *Service) hookRefused(r *http.Request, h *Hook, ip, reason string) {
 	}
 	params, _ := json.Marshal(map[string]any{"hook": h.ID, "sender": h.Sender, "reason": reason, "failures": n})
 	if _, err := s.Audit.Log.Append(context.WithoutCancel(r.Context()), audit.Entry{
-		Actor:  audit.Actor{Kind: "system", Name: "webhook", Via: "hook", IP: ip},
+		Actor:  audit.Actor{Kind: authz.KindAnonymous, Name: "webhook", Via: "hook", IP: ip},
 		Action: "stack.hook.refused", Target: "hook:" + h.ID, Params: params, Result: audit.Refused,
 		Error: &audit.Error{Code: "unauthorized", Message: "The webhook's request didn't prove itself: " + reason + "."},
 	}); err != nil {
@@ -546,7 +548,7 @@ func (s *Service) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h := &Hook{ID: newID("whk_"), URL: url, Branch: req.Branch, Sender: req.Sender, CreatedAt: s.now().UTC().Truncate(time.Millisecond)}
-	if a, ok := authz.ActorFrom(r); ok {
+	if a, ok := s.actor(r); ok {
 		h.CreatedBy = a.ID
 	}
 	secret := newHookSecret()
@@ -565,14 +567,22 @@ func (s *Service) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switched := 0
+	notSwitched := []HookSync{}
 	if req.DeployOnPush {
 		following, err := s.syncsFollowing(r.Context(), url, req.Branch)
 		if err != nil {
 			s.internal(w, "stacks: list syncs", err)
 			return
 		}
+		caller, _ := s.actor(r)
 		for _, y := range following {
 			if y.Mode == ModeDeploy {
+				continue
+			}
+			// Only the caller's own syncs: another admin's runs on their
+			// say-so, and switching it would deploy as them without asking.
+			if y.OwnerID != caller.ID {
+				notSwitched = append(notSwitched, HookSync{Node: y.Node, Stack: y.Stack, Mode: y.Mode, State: y.State})
 				continue
 			}
 			y.Mode = ModeDeploy
@@ -584,14 +594,15 @@ func (s *Service) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 			s.Audit.Change(r, "settings.stacks.sync.update", Target(y.Node, y.Stack), map[string]any{"sync": y.ID, "mode": ModeDeploy, "via": "hook:" + h.ID}, authz.T3, nil)
 		}
 	}
-	params["hook"], params["switched"] = h.ID, switched
+	params["hook"], params["switched"], params["not_switched"] = h.ID, switched, len(notSwitched)
 	tier := authz.T1
 	if req.DeployOnPush {
 		tier = authz.T3
 	}
 	s.Audit.Change(r, "settings.stacks.hook.create", "hook:"+h.ID, params, tier, nil)
 	all, _ := s.syncs(r.Context())
-	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"hook": s.hookView(r.Context(), h, all), "secret": secret, "switched": switched})
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"hook": s.hookView(r.Context(), h, all), "secret": secret, "switched": switched,
+		"not_switched": notSwitched})
 }
 
 func (s *Service) pathHook(w http.ResponseWriter, r *http.Request) (*Hook, bool) {

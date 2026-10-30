@@ -3,13 +3,15 @@
  * words the Follow git form and the webhooks list use.
  *
  *   GET    /api/stacks/{node}/{stack}/sync          {sync: SyncView | null}
- *   PUT    /api/stacks/{node}/{stack}/sync          follow, or change (step-up when mode becomes deploy, the URL changes, or taking over)
+ *   PUT    /api/stacks/{node}/{stack}/sync          follow, or change (step-up when mode becomes deploy, the URL changes, taking over,
+ *                                                   or, while it deploys on push, a new branch, path, credential or allowed secret)
  *   DELETE /api/stacks/{node}/{stack}/sync          unfollow; files and history stay
  *   POST   /api/stacks/{node}/{stack}/sync/check    {url?, branch?, auth?} → {sha, host_key}: reach the remote, fetch nothing
  *   POST   /api/stacks/{node}/{stack}/sync/now      check now → 202
  *   POST   /api/stacks/{node}/{stack}/sync/resume   resume a held or paused sync
  *   GET    /api/stacks/hooks                        hooks, never their secret
- *   POST   /api/stacks/hooks                        {url, branch, sender, deploy_on_push?} → {hook, secret, switched}: the secret, once
+ *   POST   /api/stacks/hooks                        {url, branch, sender, deploy_on_push?} → {hook, secret, switched, not_switched}: the secret, once;
+ *                                                   deploy on push switches only the caller's own syncs
  *   POST   /api/stacks/hooks/{id}/rotate            → {hook, secret}: the old secret stops working at once
  *   DELETE /api/stacks/hooks/{id}
  *
@@ -42,6 +44,7 @@ export interface SyncView {
   last_seen_sha: string;
   last_deployed_sha: string;
   rejected_sha: string;
+  rejected_shas?: string[];
   last_error: string;
   running: boolean;
   hook: { id: string; path: string; sender: HookSender; last_used_at: string | null } | null;
@@ -88,6 +91,8 @@ export interface HookCreated {
   hook: HookView;
   secret: string;
   switched?: number;
+  /** Other admins' syncs on the remote, left as they were. */
+  not_switched?: { node: string; stack: string; mode: SyncMode; state: SyncState }[];
 }
 
 // ── routes ──

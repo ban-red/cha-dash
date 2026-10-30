@@ -71,6 +71,9 @@ func TestCompressiblePaths(t *testing.T) {
 		"/api":                                 false,
 		"/apiary":                              false,
 		"/api/integrations/authorized-but-public": true,
+		"/api/stacks/hooks":                       false, // a hook's secret, once
+		"/api/stacks/hooks/whk_1/rotate":          false,
+		"/api/stacks/local/media":                 true,
 	} {
 		if got := compressible(path); got != want {
 			t.Errorf("compressible(%q) = %v, want %v", path, got, want)

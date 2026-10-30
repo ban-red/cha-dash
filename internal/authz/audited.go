@@ -104,7 +104,7 @@ var AuditExempt = map[string]string{
 	"POST /api/integrations/instances/{id}/refresh":  "Asks a running instance to read its source now; it changes no config and no state of its own.",
 	"POST /api/integrations/authorize/{integration}": "Starts an integration sign-in in memory; the instance save that uses its token is audited.",
 	"POST /api/stacks/{node}/{stack}/validate":       "Validates a draft on the node and saves nothing.",
-	"POST /api/stacks/{node}/{stack}/sync/check":     "Tests a remote from the node and saves nothing; following it is audited.",
+	"POST /api/stacks/{node}/{stack}/sync/check":     "Tests a remote from the node and saves nothing. The saved credential goes only to the remote it was saved for; another URL brings its own. Following it is audited.",
 	"POST /api/stacks/{node}/{stack}/sync/now":       "Asks the sync to check now, as a poll would; a new commit it fetches is audited as stack.sync.fetch.",
 	"POST /api/hooks/{id}": "A webhook only pokes the syncs on its remote, as a poll would. A new commit is audited as stack.sync.fetch, " +
 		"and the first refused request of a hook in each 10 minutes as stack.hook.refused.",

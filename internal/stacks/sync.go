@@ -75,8 +75,35 @@ type Sync struct {
 	OwnerID                string // "" once the owner was deleted
 	State, StateReason     string
 	LastSeen, LastDeployed string
-	Rejected, LastError    string
-	CreatedAt, UpdatedAt   time.Time
+	// Rejected are the commits that failed their health gate, newest
+	// first, at most maxRejected. The rejected_sha column holds them
+	// space-separated, so its first word is still the latest one.
+	Rejected             []string
+	LastError            string
+	CreatedAt, UpdatedAt time.Time
+}
+
+// maxRejected is how many rejected commits a sync remembers.
+const maxRejected = 20
+
+// isRejected reports whether a commit failed its health gate here.
+func (y *Sync) isRejected(sha string) bool { return sha != "" && slices.Contains(y.Rejected, sha) }
+
+// reject remembers a commit that failed its health gate, newest first.
+func (y *Sync) reject(sha string) {
+	rest := slices.DeleteFunc(slices.Clone(y.Rejected), func(s string) bool { return s == sha })
+	y.Rejected = append([]string{sha}, rest...)
+	if len(y.Rejected) > maxRejected {
+		y.Rejected = y.Rejected[:maxRejected]
+	}
+}
+
+// latestRejected is the newest rejected commit, or "".
+func (y *Sync) latestRejected() string {
+	if len(y.Rejected) == 0 {
+		return ""
+	}
+	return y.Rejected[0]
 }
 
 // credential is what the vault holds for a sync's remote: the user and the
@@ -92,12 +119,13 @@ const syncColumns = `id, node, stack, url, branch, path, auth_kind, COALESCE(hos
 
 func scanSync(row interface{ Scan(...any) error }) (*Sync, error) {
 	var y Sync
-	var allow string
+	var allow, rejected string
 	var created, updated int64
 	if err := row.Scan(&y.ID, &y.Node, &y.Stack, &y.URL, &y.Branch, &y.Path, &y.AuthKind, &y.HostKey, &y.Mode, &y.PollSeconds, &allow,
-		&y.OwnerID, &y.State, &y.StateReason, &y.LastSeen, &y.LastDeployed, &y.Rejected, &y.LastError, &created, &updated); err != nil {
+		&y.OwnerID, &y.State, &y.StateReason, &y.LastSeen, &y.LastDeployed, &rejected, &y.LastError, &created, &updated); err != nil {
 		return nil, err
 	}
+	y.Rejected = strings.Fields(rejected)
 	if err := json.Unmarshal([]byte(allow), &y.SecretsAllow); err != nil || y.SecretsAllow == nil {
 		y.SecretsAllow = []string{}
 	}
@@ -171,7 +199,7 @@ func (s *Service) insertSync(ctx context.Context, y *Sync) error {
 		secrets_allow, owner_id, state, state_reason, last_seen_sha, last_deployed_sha, rejected_sha, last_error, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		y.ID, y.Node, y.Stack, y.URL, y.Branch, y.Path, y.AuthKind, nullable(y.HostKey), y.Mode, y.PollSeconds, string(allow),
-		nullable(y.OwnerID), y.State, y.StateReason, y.LastSeen, y.LastDeployed, y.Rejected, y.LastError, now.UnixMilli(), now.UnixMilli())
+		nullable(y.OwnerID), y.State, y.StateReason, y.LastSeen, y.LastDeployed, strings.Join(y.Rejected, " "), y.LastError, now.UnixMilli(), now.UnixMilli())
 	return err
 }
 
@@ -183,7 +211,7 @@ func (s *Service) updateSync(ctx context.Context, y *Sync) error {
 		poll_seconds = ?, secrets_allow = ?, owner_id = ?, state = ?, state_reason = ?, last_seen_sha = ?, last_deployed_sha = ?,
 		rejected_sha = ?, last_error = ?, updated_at = ? WHERE id = ?`,
 		y.URL, y.Branch, y.Path, y.AuthKind, nullable(y.HostKey), y.Mode, y.PollSeconds, string(allow), nullable(y.OwnerID),
-		y.State, y.StateReason, y.LastSeen, y.LastDeployed, y.Rejected, y.LastError, y.UpdatedAt.UnixMilli(), y.ID)
+		y.State, y.StateReason, y.LastSeen, y.LastDeployed, strings.Join(y.Rejected, " "), y.LastError, y.UpdatedAt.UnixMilli(), y.ID)
 	return err
 }
 
@@ -309,6 +337,7 @@ const (
 	itemPaused   = "paused"
 	itemFailing  = "failing"
 	itemWaiting  = "waiting" // a commit the gate refused (drift, an invalid file)
+	itemAsks     = "asks"    // deploy on push asked a person first, and why
 )
 
 // ── results of a sync's deploy ───────────────────────────────────────────
@@ -328,9 +357,10 @@ func (s *Service) syncDeployed(ctx context.Context, node, stack, sha string, res
 	switch res.Outcome {
 	case stackproto.OutcomeDeployed, stackproto.OutcomeUnchanged:
 		y.LastDeployed, y.LastError = sha, ""
-		s.clearSyncItem(y, itemRejected, itemBlocked, itemWaiting, itemFailing)
+		s.clearSyncItem(y, itemRejected, itemBlocked, itemWaiting, itemFailing, itemAsks)
 	case stackproto.OutcomeRolledBack:
-		y.Rejected, y.LastError = sha, "Commit "+short(sha)+" failed its health gate."
+		y.reject(sha)
+		y.LastError = "Commit " + short(sha) + " failed its health gate."
 		s.syncItem(y, itemRejected, "attention", "Commit "+short(sha)+" of "+stack+" was rolled back",
 			fmt.Sprintf("Commit %s failed its health gate; %s is still running. The sync waits for a newer commit on %s. %s", short(sha), still, y.Branch, res.Reason))
 	case stackproto.OutcomeBlocked:
@@ -594,6 +624,24 @@ func (y *Syncer) ownerProblem(ctx context.Context, s *Sync) (auth.UserInfo, stri
 	return u, ""
 }
 
+// OwnerChangedAsync runs OwnerChanged in the background, tracked by the
+// syncer's WaitGroup so Run waits for it at shutdown. It reports false
+// when the syncer isn't running.
+func (y *Syncer) OwnerChangedAsync(userID string) bool {
+	if y == nil {
+		return false
+	}
+	y.mu.Lock()
+	defer y.mu.Unlock()
+	if y.ctx == nil {
+		return false
+	}
+	// The pause must land even when shutdown begins meanwhile.
+	ctx := context.WithoutCancel(y.ctx)
+	y.wg.Go(func() { y.OwnerChanged(ctx, userID) })
+	return true
+}
+
 // OwnerChanged pauses the syncs a user owns when they can't act any more
 // (auth's user.changed event: demoted or disabled).
 func (y *Syncer) OwnerChanged(ctx context.Context, userID string) {
@@ -635,6 +683,12 @@ func syncActor(s *Sync, owner auth.UserInfo) action.Actor {
 // failingAfter in a row, a hint in the Inbox.
 func (y *Syncer) failed(ctx context.Context, s *Sync, err error) {
 	_, _, msg := statusOf(err)
+	y.failedMsg(ctx, s, msg)
+}
+
+// failedMsg is failed with the sentence already made. The tip isn't marked
+// seen, so the next poll tries it again.
+func (y *Syncer) failedMsg(ctx context.Context, s *Sync, msg string) {
 	y.mu.Lock()
 	y.failures[s.ID]++
 	n := y.failures[s.ID]
@@ -694,7 +748,7 @@ func (y *Syncer) runOnce(ctx context.Context, id string) {
 	if chk.SHA == "" || chk.SHA == s.LastSeen {
 		return
 	}
-	if chk.SHA == s.Rejected {
+	if s.isRejected(chk.SHA) {
 		_, _ = y.s.patchSync(ctx, id, func(s *Sync) { s.LastSeen = chk.SHA })
 		return
 	}
@@ -737,6 +791,22 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 	waiting := func(msg string) {
 		seen(msg)
 		y.s.syncItem(s, itemWaiting, "attention", "Commit "+short(sha)+" of "+s.Stack+" can't be deployed", msg)
+	}
+	// refused handles the engine's refusal. Something else running on the
+	// stack (locked) or a node out of reach (unavailable) passes: the tip
+	// isn't marked seen, so the next poll tries it again.
+	refused := func(ref *action.Refusal) {
+		if ref.Code == "locked" || ref.Code == "unavailable" {
+			y.failedMsg(ctx, s, ref.Message)
+			return
+		}
+		waiting(ref.Message)
+	}
+	// The commit that ran (a check can race a push): a rejected one stops
+	// here too.
+	if s.isRejected(sha) {
+		_, _ = y.s.patchSync(ctx, s.ID, func(s *Sync) { s.LastSeen = sha })
+		return
 	}
 	// The gate: the stack as the node has it.
 	var st stackproto.Stack
@@ -784,20 +854,36 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 	// A newer tip withdraws an older pending approval.
 	y.withdraw(ctx, s.ID, fmt.Sprintf("A newer commit, %s, replaced it.", short(sha)))
 	ask := s.Mode != ModeDeploy
+	// Deploy on push still asks a person first, and says why, when the file
+	// references a stack secret outside the allowlist, or does something
+	// that amounts to root on the node's host (the node's plan says which;
+	// stacks.deny may allow them). A plan that can't be read asks too.
+	var why []string
 	var outside []string
 	for _, n := range secretRefs(got.Content) {
 		if !slices.Contains(s.SecretsAllow, n) {
 			outside = append(outside, n)
 		}
 	}
+	if len(outside) > 0 {
+		why = append(why, "it references stack secrets outside the sync's allowlist: "+strings.Join(outside, ", ")+".")
+	}
+	if !ask {
+		switch p, _ := y.s.planDraft(ctx, s.Node, s.Stack, got.Content); {
+		case p != nil && len(p.RootEquivalent) > 0:
+			why = append(why, "it amounts to root on "+s.Node+": "+strings.Join(p.RootEquivalent, "; "))
+		case p == nil:
+			why = append(why, "its plan couldn't be read.")
+		}
+	}
 	actor := syncActor(s, owner)
-	plan, err := y.eng.Plan(ctx, actor, action.PlanRequest{Action: ActionDeploy, Target: Target(s.Node, s.Stack), RequireApproval: ask || len(outside) > 0})
+	plan, err := y.eng.Plan(ctx, actor, action.PlanRequest{Action: ActionDeploy, Target: Target(s.Node, s.Stack), RequireApproval: ask || len(why) > 0})
 	if ref, ok := errors.AsType[*action.Refusal](err); ok {
 		if ref.Code == "forbidden" {
 			y.pause(ctx, s, "The sync's owner can't deploy this stack any more: "+ref.Message)
 			return
 		}
-		waiting(ref.Message)
+		refused(ref)
 		return
 	}
 	if err != nil {
@@ -806,7 +892,7 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 	}
 	_, apv, err := y.eng.ApproveOrSubmit(ctx, actor, plan.ID, action.ApproveRequest{Hash: plan.Hash}, "")
 	if ref, ok := errors.AsType[*action.Refusal](err); ok {
-		waiting(ref.Message)
+		refused(ref)
 		return
 	}
 	if err != nil {
@@ -815,7 +901,8 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 	}
 	seen("")
 	y.s.clearSyncItem(s, itemWaiting)
-	if apv != nil && len(outside) > 0 && !ask {
-		y.s.log.Info("stacks: a synced commit asks first: it references secrets outside the allowlist", "sync", s.ID, "secrets", len(outside))
+	if apv != nil && !ask && len(why) > 0 {
+		y.s.syncItem(s, itemAsks, "attention", "Commit "+short(sha)+" of "+s.Stack+" waits for approval",
+			"Deploy on push asks first for commit "+short(sha)+": "+strings.Join(why, " ")+" Approve or deny it in the Inbox.")
 	}
 }
