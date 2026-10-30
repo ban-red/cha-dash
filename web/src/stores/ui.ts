@@ -13,6 +13,8 @@
  * - Everywhere, `link.open` (T0) opens the target's link. Outside the Demo
  *   Home, `integration.settings` (T0) opens the target instance's settings.
  *   `integration.refresh` (T0, Check now) asks the instance to sync now.
+ * - A node waiting for approval suggests `node.review`, which opens
+ *   Settings → Nodes, where Approve (with a step-up) and Reject are.
  * - A Repair's "Reconnect" opens the integration's settings with the field
  *   that failed focused.
  * - A tile's cog opens its settings: the integration that feeds it, else
@@ -32,6 +34,7 @@ import { ApiError, api } from '../lib/api';
 import { navigate, route, settingsPath, sheetOf, sheetPath, type SettingsPane } from '../lib/router';
 import { prefersReducedMotion } from '../lib/motion';
 import { repairTarget } from '../model/integrations';
+import { NODE_REVIEW } from '../model/inbox';
 import { label } from '../model/graph';
 import { permissions } from '../model/roles';
 import { hasSheet } from '../model/sheets';
@@ -240,6 +243,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     if (!can.value.act(action.tier, action.household)) return { ok: false, hidden: true, why: `Your role can’t run ${action.tier} actions.` };
     if (live.stale.value) return { ok: false, why: 'Actions come back when the hub does.' };
     if (action.id === 'link.open') return linkOf(action.target) ? { ok: true } : { ok: false, why: 'No link known for this yet.' };
+    if (action.id === NODE_REVIEW) return can.value.panes.includes('nodes') ? { ok: true } : { ok: false, hidden: true, why: 'Only admins and the owner approve nodes.' };
     if (opensSettings(action)) return can.value.integrations ? { ok: true } : { ok: false, hidden: true, why: 'Your role can’t open integration settings.' };
     // The route is viewer and up: household's boards don't ask sources to read.
     if (action.id === 'integration.refresh') return can.value.role === 'household' ? { ok: false, hidden: true } : { ok: true };
@@ -259,6 +263,10 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     }
     if (opensSettings(action)) {
       if (can.value.integrations) openSettings('integrations', action.target.replace(/^integration:/, ''));
+      return;
+    }
+    if (action.id === NODE_REVIEW) {
+      openSettings('nodes');
       return;
     }
     if (action.id === 'integration.refresh') {

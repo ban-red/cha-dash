@@ -121,8 +121,11 @@ export interface Cause {
   at?: string;
 }
 
-/** `suggestion`: the hub's correlator asking whether two things are one (Merge / Keep separate). */
-export type IncidentClass = 'problem' | 'repair' | 'suggestion' | 'approval';
+/**
+ * `suggestion`: the hub's correlator asking whether two things are one (Merge / Keep separate).
+ * `node`: a node that joined with a token and waits for an admin to approve it.
+ */
+export type IncidentClass = 'problem' | 'repair' | 'suggestion' | 'approval' | 'node';
 export type Severity = 'info' | 'attention' | 'down';
 
 export interface Incident {

@@ -112,6 +112,13 @@ export interface InboxGroups {
 
 const CLASS_RANK: Record<string, number> = { problem: 0, repair: 1 };
 
+/**
+ * A node waiting for approval (class `node`, `node.<id>.pending`) suggests
+ * this: it opens Settings → Nodes, where the admin compares the fingerprint
+ * and approves with a step-up, or rejects. The hub resolves the item.
+ */
+export const NODE_REVIEW = 'node.review';
+
 export const isSuggestion = (i: Incident) => i.class === 'suggestion';
 export const isApproval = (i: Incident) => i.class === 'approval';
 
