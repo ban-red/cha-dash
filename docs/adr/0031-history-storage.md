@@ -24,7 +24,7 @@ Sparklines live in memory, so a restart blanks them for a day. Each point is a s
 - Values are float32: about seven significant digits, which is plenty for a chart. Exact counters belong in the graph's attributes, not in history.
 - Deleting `history.db` loses history and nothing else. `chadash export` never included metrics, and still doesn't.
 - Days in the 1-day tier are UTC days. Local-day views for the last year come from the 1-hour tier.
-- Idle instances still poll every 5 minutes, so the 1-minute tier has gaps while nobody watches. Recording while unwatched (`Interest.Record`) is a later step, because it adds load on upstreams.
+- While history is kept, instances read what a board shows once a minute even when nobody watches (`Interest.Record`), instead of every 5 minutes. That's more load on upstreams, though half of an open tab's. Series only a sheet asks for still aren't recorded while nobody looks.
 
 ## Alternatives considered
 

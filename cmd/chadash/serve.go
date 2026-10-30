@@ -242,6 +242,11 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// Instances poll at full rate only while a tab subscribes to something;
 	// watch counts the realtime feeds.
 	watch := runtime.NewWatch()
+	if rec != nil {
+		// While history is kept, instances read what a board shows once a
+		// minute even when nobody's looking (Interest.Record).
+		rec.OnLevel(func(l history.Level) { watch.SetRecord(l != history.Off) })
+	}
 	itp := tp
 	if cfg.Demo {
 		itp = topics.New(graph.New(), time.Now())

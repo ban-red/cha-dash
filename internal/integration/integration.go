@@ -222,6 +222,12 @@ type Interest struct {
 	// Refresh is true on a sync someone asked for (Check now): read
 	// everything now, ignoring any schedule of the integration's own.
 	Refresh bool
+	// Record is true when nobody is watching but the hub keeps history
+	// (internal/history): Watched and Metrics are then true too, and every
+	// kind is wanted, so the integration reads what a board would show,
+	// at most once a minute. Resources stays empty: what only a sheet
+	// asks for is never recorded while nobody looks.
+	Record bool
 }
 
 // WantsKind reports whether resources of kind are on screen.

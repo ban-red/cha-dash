@@ -195,11 +195,22 @@ func (c *coordinator) interval(inst integration.Instance, want integration.Inter
 			iv = max(d, integration.MinInterval)
 		}
 	}
-	if !want.Watched && !c.man.Poll.Background {
+	if c.man.Poll.Background {
+		return iv
+	}
+	if want.Record {
+		return max(RecordEvery, iv)
+	}
+	if !want.Watched {
 		return max(c.man.Poll.Idle, iv)
 	}
 	return iv
 }
+
+// RecordEvery is how often an instance syncs for history while nobody
+// watches (Interest.Record): half the rate of a board on screen, and five
+// times the idle one, so the 1-minute tier has a point a minute.
+const RecordEvery = time.Minute
 
 // failureDelay is the wait after a failed attempt: exponential for
 // transient errors, slow and steady for ones that need the user.
@@ -217,7 +228,7 @@ func (c *coordinator) failureDelay(class integration.Class, inst integration.Ins
 }
 
 func (c *coordinator) schedule(inst integration.Instance, want integration.Interest, next time.Time) {
-	c.st.schedule(want.Watched, c.interval(inst, want), next)
+	c.st.schedule(want.Watched && !want.Record, c.interval(inst, want), next)
 }
 
 // panicError is an integration that panicked. It's a bug, reported as

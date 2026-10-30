@@ -68,6 +68,16 @@ type Recorder struct {
 	pendingStates []stateRow
 
 	lastCheckpoint, lastRetain time.Time
+
+	onLevel func(Level) // OnLevel's hook
+}
+
+// OnLevel calls f with the level now and after every SetLevel. The hub
+// uses it to poll for history while nobody watches only while it records.
+// Set it once, before serving.
+func (r *Recorder) OnLevel(f func(Level)) {
+	r.onLevel = f
+	f(r.Level())
 }
 
 type series struct {
@@ -229,6 +239,9 @@ func (r *Recorder) SetLevel(ctx context.Context, l Level) error {
 	}
 	r.level, r.top = l, l.top()
 	r.mu.Unlock()
+	if r.onLevel != nil {
+		r.onLevel(l)
+	}
 	if l.top() <= old {
 		return r.flush(ctx, false)
 	}

@@ -21,9 +21,13 @@ import (
 // A metrics:resource/<id> feed (a resource's sheet) lists that resource in
 // Interest.Resources. Per-widget interest needs lens topics (graph:lens/…),
 // which arrive with lenses.
+//
+// While the hub keeps history (SetRecord), nobody watching still counts as
+// a board on screen: Interest.Record, polled at RecordEvery.
 type Watch struct {
 	mu      sync.Mutex
 	open    map[string]int // topic → open feeds
+	record  bool
 	current integration.Interest
 	changed chan struct{} // closed when current changes, then replaced
 }
@@ -53,6 +57,15 @@ func (w *Watch) Changed() <-chan struct{} {
 	return w.changed
 }
 
+// SetRecord says whether the hub keeps history. While it does, instances
+// sync as if a board were on screen, at RecordEvery when nobody watches.
+func (w *Watch) SetRecord(on bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.record = on
+	w.update()
+}
+
 func (w *Watch) add(topic string, delta int) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -60,8 +73,20 @@ func (w *Watch) add(topic string, delta int) {
 	if w.open[topic] <= 0 {
 		delete(w.open, topic)
 	}
+	w.update()
+}
+
+// update recomputes the interest and wakes the coordinators when it
+// changed. The caller holds mu.
+func (w *Watch) update() {
 	next := interestOf(w.open)
-	if next.Watched == w.current.Watched && next.Metrics == w.current.Metrics &&
+	if w.record {
+		if !next.Watched {
+			next.Watched, next.Metrics, next.Record = true, true, true
+		}
+		next.Kinds = nil // history wants every kind, whatever the tabs show
+	}
+	if next.Watched == w.current.Watched && next.Metrics == w.current.Metrics && next.Record == w.current.Record &&
 		slices.Equal(next.Kinds, w.current.Kinds) && slices.Equal(next.Resources, w.current.Resources) {
 		return
 	}

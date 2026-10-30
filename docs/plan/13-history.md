@@ -1,6 +1,6 @@
 # 13 · History: metrics and state over time
 
-> **Status: steps 1–4 are built, and most of 5** (2026-10-29): the measurement, the store and recorder with sparklines that survive a restart, the query route with ranges on the resource sheet, health history with uptime, and Settings → History (level, sizes, clear). Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
+> **Status: steps 1–4 and 6 are built, and most of 5** (2026-10-29): the measurement, the store and recorder with sparklines that survive a restart, the query route with ranges on the resource sheet, health history with uptime, and Settings → History (level, sizes, clear). Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
 
 ## What exists
 
@@ -121,9 +121,9 @@ As built (`internal/store/history/00002_states.sql`, `internal/history/states.go
 
 ### Recording while nobody is watching
 
-Idle instances poll every 5 minutes, so the 1m tier would be mostly gaps overnight. With recording on, the runtime adds `Interest.Record`: integrations treat it like a watched board for their cheap series, at a **record interval** (default 1 minute, settable to 5). Costly series (per-container stats) stay sheet-only and record only while read. Their gaps are honest.
+Idle instances poll every 5 minutes, so the 1m tier would be mostly gaps overnight. As built: while the level isn't Off, nobody watching still reads like a board on screen. `runtime.Watch.SetRecord` makes the interest `Watched`, `Metrics` and `Record`, with every kind and no sheet, and the coordinator polls at `RecordEvery` (1 minute) instead of the idle interval. No integration had to change: what they read for a board they now read once a minute. Instances slower than a minute keep their pace, uptime checks (`Poll.Background`) keep theirs, and costly series (per-container stats) stay sheet-only, so their gaps are honest.
 
-This raises load on upstreams while nobody looks. The setting says so, and the per-integration rate budgets still apply.
+This is more load on upstreams while nobody looks: one read a minute instead of one every 5, half of what an open tab costs. Off goes back to idle polling at once. The interval isn't a setting yet.
 
 ### Settings → History
 
@@ -162,7 +162,7 @@ For 1,000 series, at Standard:
 3. **Done. Query route and the sheet's Metrics tab:** `GET /api/history`, and Now, 1 h, 24 h, 7 d and 30 d on the sheet. It uses the existing mini graph, not uPlot: averages at up to 720 points draw fine, and it adds nothing to the bundle. The raw ring was left out: the 1-minute tier is fine enough for the last hour.
 4. **Done. State history:** the `states` table, "down since" across restarts, `GET /api/history/states`, and uptime with a status bar on the sheet's History tab.
 5. **Partly done. Settings → History:** the level (applied at once, kept in `settings`), what `history.db` holds, the estimate per level, and Clear. Not built: per-tier retention, the size limit and exclusions.
-6. **`Interest.Record`** and the record interval in the integrations that have idle modes.
+6. **Done. `Interest.Record`:** a board's reads once a minute while recording, in the runtime, with no integration changed.
 7. Later: `/metrics` for Prometheus (03), CSV export from a chart, the Pulse strip and linked scrubbing on top of the query route.
 
 ## Alternatives considered
@@ -179,4 +179,4 @@ For 1,000 series, at Standard:
 2. **A separate `history.db`**, movable with `CHADASH_HISTORY_DIR`.
 3. **Long-term tiers** as in the Tiers table.
 
-Still open: **recording while nobody's watching** (step 6). Every minute is the proposed default, but it adds load on upstreams.
+4. **Recording while nobody's watching** reads what a board shows once a minute, whenever the level isn't Off (2026-10-29).

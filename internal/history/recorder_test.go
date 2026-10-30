@@ -328,3 +328,17 @@ func TestAChunkClosedButNotWrittenIsStillRead(t *testing.T) {
 		}
 	}
 }
+
+func TestOnLevelFollowsTheLevel(t *testing.T) {
+	r := openRecorder(t, openStore(t, filepath.Join(t.TempDir(), "history.db")), Standard, &clock{t0})
+	var seen []Level
+	r.OnLevel(func(l Level) { seen = append(seen, l) })
+	for _, l := range []Level{Off, LongTerm} {
+		if err := r.SetLevel(t.Context(), l); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(seen) != 3 || seen[0] != Standard || seen[1] != Off || seen[2] != LongTerm {
+		t.Fatalf("seen %v", seen)
+	}
+}
