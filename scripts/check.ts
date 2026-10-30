@@ -108,7 +108,9 @@ function steps(dir: string): Step[] {
     if (!QUICK) s.push({ name: 'govulncheck', cmd: ['go', 'tool', '-modfile=tools/go.mod', 'govulncheck', './...'] });
     const race = QUICK ? [] : ['-race'];
     t.push(
-      { name: `go test${QUICK ? '' : ' -race'}`, cmd: ['go', 'test', ...race, './...'] },
+      // The budget tests time the code: minutes under the race detector, seconds without it.
+      { name: `go test${QUICK ? '' : ' -race'}`, cmd: ['go', 'test', ...race, ...(QUICK ? [] : ['-skip', '^TestBudget']), './...'] },
+      ...(QUICK ? [] : [{ name: 'go test budgets', cmd: ['go', 'test', '-run', '^TestBudget', './...'] }]),
       { name: 'go test -tags devlogin', cmd: ['go', 'test', ...race, '-tags', 'devlogin', './internal/auth/', './internal/server/', './cmd/chadash/'] },
     );
     if (process.platform === 'linux' && process.arch === 'x64') {
