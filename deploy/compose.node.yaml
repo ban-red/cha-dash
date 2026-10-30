@@ -28,9 +28,12 @@ services:
     image: ${CHADASH_NODE_IMAGE:-ghcr.io/ban-red/chadash-node:latest}
     restart: unless-stopped
     # As in compose.yaml: uid 0, the socket's owner, with every capability
-    # dropped. To run it unprivileged instead: user "65532:65532" and
-    # group_add with the gid from `stat -c %g /var/run/docker.sock`.
+    # dropped. Group 65532 lets it read and write its identity: the image's
+    # /etc/chadash-node is 65532's, mode 0770, and without capabilities uid 0
+    # gets no exemption. To run it unprivileged instead: user "65532:65532"
+    # and group_add with the gid from `stat -c %g /var/run/docker.sock`.
     user: "0:0"
+    group_add: ["65532"]
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777     # the healthcheck's state file

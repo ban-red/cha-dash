@@ -34,6 +34,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **`compose.node.yaml` runs on another host.** The node it starts couldn't read its own `/etc/chadash-node` and restarted over and over with "permission denied". It now runs with the same user and groups as the node in `compose.yaml`.
 - **Strangers can't lock your nodes out.** Five failed node handshakes from one address used to refuse every node behind it for a while, so behind a shared NAT, or a reverse proxy not listed in `CHADASH_TRUSTED_PROXIES`, anyone could cut your nodes off. The limit now applies only to keys the hub doesn't know: approved and pending nodes always get through. An IPv6 /64 counts as one address, and refused join tokens reach the audit log once per address every 10 minutes, with a count of the rest.
 - **Hovering the Pulse strip no longer moves the whole board.** Passing the pointer over the Briefing's 24-hour health strip made every tile and graph jump to that moment. Hovering now only shows the strip's own readout. Click a moment to peek at it: the board stays there, a coloured frame and a banner at the top say you're looking at the past, and Back to now, Esc, a second click or a click anywhere else returns. Dragging moves the moment, and the arrow keys still work.
 - **Whole numbers on count graphs.** The graph on a Plex, Jellyfin or Tautulli tile showed a 24 h average like 1.5 for streams or transcodes. Counts now read as whole numbers.
