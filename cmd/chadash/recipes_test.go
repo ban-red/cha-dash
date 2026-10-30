@@ -35,7 +35,7 @@ func TestEveryIntegrationHasARecipe(t *testing.T) {
 			t.Errorf("%s: access %q, with secret fields %v", m.ID, r.Access, m.SecretFields())
 		}
 	}
-	for _, id := range []string{"tautulli", "seerr", "proxmox", "docker"} {
+	for _, id := range []string{"tautulli", "seerr", "proxmox", "docker", "ical"} {
 		if _, ok := integration.Default.Recipe(id); !ok {
 			t.Errorf("%s: no recipe", id)
 		}

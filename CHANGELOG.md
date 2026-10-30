@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Calendar feeds.** A new Calendar feed (iCal) connection reads any calendar's `.ics` address, such as Google Calendar's secret address in iCal format, iCloud, Outlook or Nextcloud. It publishes the events from today to two weeks ahead, recurring events included, with titles, times and places only. The address stays secret: it's stored like a password and never shown in errors or logs.
+
 ## [0.2.0-beta.2] - 2026-10-29
 
 The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and health now keep a history on disk, so sparklines survive a restart, a sheet looks back over what was kept, and the Pulse strip under the Briefing takes the whole board back to any moment of the last 24 hours. Tiles get views you swipe between, new sizes, a menu, and far more from Plex, Tautulli, qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant, Frigate and the weather. Settings → Bring in imports Homarr 2 backups and plain YAML boards. The v0.2 actions have now run against a real homelab, all but Pi-hole's, AdGuard Home's and Seerr's, and what those runs and a second security review found is fixed below.

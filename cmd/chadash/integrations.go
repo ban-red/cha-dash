@@ -9,6 +9,7 @@ import (
 	_ "dash.cha.sh/integrations/docker"         // Docker engines through a socket proxy
 	_ "dash.cha.sh/integrations/frigate"        // Frigate NVR: cameras, detections
 	_ "dash.cha.sh/integrations/homeassistant"  // Home Assistant: who's home, lights, power
+	_ "dash.cha.sh/integrations/ical"           // calendar feeds (.ics): Google, iCloud, Outlook
 	_ "dash.cha.sh/integrations/immich"         // Immich photo library statistics
 	_ "dash.cha.sh/integrations/jellyfin"       // Jellyfin: streams, libraries
 	_ "dash.cha.sh/integrations/lidarr"         // Lidarr: queue, wanted, calendar

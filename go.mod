@@ -8,6 +8,7 @@ require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/docker/cli v29.8.2+incompatible
 	github.com/docker/compose/v5 v5.6.0
+	github.com/emersion/go-ical v0.0.0-20250609112844-439c63cef608
 	github.com/expr-lang/expr v1.17.8
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-webauthn/webauthn v0.18.2
@@ -15,6 +16,7 @@ require (
 	github.com/moby/moby/client v0.6.1
 	github.com/ncruces/go-sqlite3 v0.35.6
 	github.com/pressly/goose/v3 v3.28.0
+	github.com/teambition/rrule-go v1.8.2
 	github.com/tidwall/gjson v1.19.0
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/crypto v0.58.0

@@ -389,10 +389,16 @@ checks); an **instance** is one configured connection to it. The framework
 owns the boilerplate, so an integration only connects, tests, and turns what it
 reads into facts.
 
-**Bundled:** 33 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, Docker through chadash-node, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential. Seerr, a spec, approves and declines requests (spec actions, below).
-- **Tier 0** (`integrations/<id>`, 25 with `checks` and `weather`): adguard, audiobookshelf, checks, docker, frigate, homeassistant, immich, jellyfin, lidarr, nextcloud, nzbget, opnsense, pbs, pihole, plex, prowlarr, proxmox, qbittorrent, radarr, sonarr, traefik, transmission, unraid, uptimekuma, weather.
+**Bundled:** 34 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, Docker through chadash-node, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential. Seerr, a spec, approves and declines requests (spec actions, below).
+- **Tier 0** (`integrations/<id>`, 26 with `checks` and `weather`): adguard, audiobookshelf, checks, docker, frigate, homeassistant, ical, immich, jellyfin, lidarr, nextcloud, nzbget, opnsense, pbs, pihole, plex, prowlarr, proxmox, qbittorrent, radarr, sonarr, traefik, transmission, unraid, uptimekuma, weather.
 - **Tier 1 specs** (`specs/<id>.yaml`, 9): bazarr, karakeep, linkding, mealie, paperlessngx, sabnzbd, seerr (also Overseerr and Jellyseerr, as `aliases`), speedtesttracker, tautulli.
 - v0.2's breadth set (wave 8) is lidarr, transmission, nzbget, nextcloud, audiobookshelf, paperlessngx and speedtesttracker, plus seerr covering Overseerr and Jellyseerr. `cmd/chadash`'s `TestIntegrationsLinkedIn` lists every ID; `TestEveryIntegrationHasARecipe` checks each has a recipe.
+
+**Calendars** share one shape, whatever the source (the iCal feed integration, Home Assistant's calendar entities), so the Calendar widget reads them all alike:
+- **One resource per calendar:** ID `<integration>:<instance id>/calendar/<slug>` (`ical:i_x/calendar/main`), kind `calendar`, named after the calendar, state `online`, health `ok`, caps `["calendar.events"]`. `integration:<id>` `monitors` it (Home Assistant's app also `exposes` it). No metrics; an unreachable source goes stale the usual way, keeping its last events.
+- **`attrs`:** `type: "calendar"`, `provider` (`"ical"`, `"homeassistant"`), `time_zone` (IANA, when known) and `events`.
+- **`events`:** soonest first, from local midnight today (in the calendar's zone) to 14 days ahead, at most 60, recurrences already expanded. Each is `{"start", "end", "all_day", "title", "location"?}`: timed events in RFC 3339 with the calendar's offset, all-day events as `"YYYY-MM-DD"` with `end` exclusive. An event that began before today and is still running is included.
+- **Never** descriptions, attendees, organisers or URLs. And never `attrs.calendar`: the web reads that on any resource as media releases (Up next).
 
 **Writing a Tier 0 integration.** A folder `integrations/<id>/` with a package
 that registers itself, a line in `cmd/chadash/integrations.go`, fixture tests

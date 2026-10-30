@@ -24,6 +24,8 @@ func TestIntegrationsLinkedIn(t *testing.T) {
 		"uptimekuma", "homeassistant", "plex", "sonarr", "radarr", "prowlarr", "qbittorrent", "immich",
 		"tautulli", "bazarr", "mealie", "linkding", "karakeep", "seerr",
 		"jellyfin", "pihole", "adguard", "sabnzbd", "weather",
+		// general calendars (v0.2)
+		"ical",
 		// wave 8 breadth (v0.2)
 		"lidarr", "transmission", "nzbget", "nextcloud", "audiobookshelf", "paperlessngx", "speedtesttracker",
 	} {
