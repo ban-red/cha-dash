@@ -159,7 +159,7 @@ docker:
   allow: [read, logs, lifecycle, update]   # also: remove, exec (exec needs exec: true too)
   protect: []                              # container or compose service names no write may touch
   redact_env: true                         # inspect leaves without environment values
-stacks: { root: /opt/stacks, allow: [read, deploy, adopt, sync] }   # also: selfupdate
+stacks: { root: /opt/stacks, allow: [read, deploy, adopt, sync] }   # also: selfupdate (compose.yaml adds it; see below)
 # stacks: { remotes: [git.lab.example, "git.lab.example:2222"] }   # git hosts sync may reach; none listed is any
 # stacks: { deny: [privileged, host_namespaces, devices, cap_add, host_binds], bind_roots: [/mnt/media] }
 exec: false
@@ -176,15 +176,15 @@ exec: false
 | `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
 | `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks) |
 | `stacks.sync` | check and fetch the git remote a stack follows, only from the hosts in `stacks.remotes` when it lists any (Settings → Stacks → Follow git) |
-| `stacks.selfupdate` | update the hub's own container (off by default; for the hub's host only; arrives in v0.3) |
+| `stacks.selfupdate` | update the hub's own container: Settings → Stacks → Update Cha Dash. Off by default. `compose.yaml` turns it on for the node beside the hub with `CHADASH_NODE_SELFUPDATE: "true"`, which adds it to the default policy; a mounted `policy.yaml` decides alone, so list `selfupdate` there instead. Only a node in the hub's compose project can use it, and it only ever recreates the hub's container |
 
-The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: Cha Dash never restarts or removes itself until self-update lands in v0.3. Protection holds for stacks too: a deploy that would recreate or remove a protected container is refused. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
+The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: no Docker or stack action restarts or removes them. The one exception is Update Cha Dash (`stacks.selfupdate`), which recreates the hub's container with a new image; the node never touches its own. Protection holds for stacks too: a deploy that would recreate or remove a protected container is refused. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
 
 `redact_env` hides environment values only. A container's command line and labels come back as they are, so keep secrets out of them.
 
 **`stacks.deploy` is root on this host.** A compose file can mount the host's disk, run privileged or share the host's namespaces, and Cha Dash deploys what an admin saves. That's by design: media stacks need bind mounts and VPN containers need `cap_add`. The node always refuses what would hand a stack its own keys: the Docker socket, `/`, its own directories and volumes, the `pairing` volume, `volumes_from` another container, env files outside the stack's directory, and `include` or `extends` from other files. Everything else root-equivalent (privileged, host namespaces, devices, `cap_add`, host paths outside the stack's directory) is allowed but called out in the editor and in the deploy confirmation. To lock it down, list those in `stacks.deny`; with `host_binds` denied, `bind_roots` names the host paths stacks may still bind. Or remove `deploy` from `stacks.allow`.
 
-**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`; `hooks` and `secrets` are taken), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a pairing token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `TOKEN` (a join token, `cdj_…`, for a node on another host), `TOKEN_FILE` (a file holding the join token, such as a Docker secret), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`. `TOKEN` and `TOKEN_FILE` are read only until the node has joined; after that the node ignores them and its log says they can be removed.
+**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`; `hooks` and `secrets` are taken), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a pairing token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `TOKEN` (a join token, `cdj_…`, for a node on another host), `TOKEN_FILE` (a file holding the join token, such as a Docker secret), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`, `SELFUPDATE` (`false`; `true` adds `stacks.selfupdate` to the default policy, and is ignored when there's a policy file). `TOKEN` and `TOKEN_FILE` are read only until the node has joined; after that the node ignores them and its log says they can be removed.
 
 **Running it unprivileged.** Set `user: "65532:65532"` and `group_add: ["<gid>"]`, with the gid from `stat -c %g /var/run/docker.sock`.
 
@@ -389,6 +389,7 @@ docker compose up -d
   | `beta` | The newest beta |
 
 - **A new `compose.yaml`** can replace the old one; your changes live in `compose.override.yaml`.
+- **From Cha Dash itself.** Settings → Stacks → Update Cha Dash takes a tag (`0.3.0`). The node beside the hub pulls it, pins its digest, recreates the hub's container alone and waits up to 2 minutes for its healthcheck. If the check fails, it puts the previous image back on its own. You confirm by typing "Cha Dash" and confirming it's you (T3, a step-up). The page loses the hub for a moment and shows the result when it's back. It changes the running container, not your `compose.yaml`: pin the same tag in `compose.override.yaml` too, or a later `docker compose up -d` goes back to the file's tag. The node itself is still upgraded with `docker compose pull` and `up -d`.
 
 ### Checking an image
 

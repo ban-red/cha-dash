@@ -64,6 +64,8 @@ Hawser can keep running. Nothing reads from both.
 
 > **Adopt, never "New stack", for a project that's already running.** If a brand-new stack's first deploy fails, Cha Dash takes it down again, and here that would take down your running containers. An adopted stack whose deploy fails rolls back to the adopted version instead.
 
+**When the node can read the file, Move does it for you.** A project whose labels name a file on the host (one you ran with `docker compose`, or one already adopted in place) shows Move in Settings → Stacks. It copies the file and its `.env` into the root, keeps the project name, and rewrites relative paths such as `./data` to the absolute paths they meant. The review shows each rewritten line and what the first deploy will recreate before anything is saved. Nothing restarts, and the old file stays where it is. Hawser's copies live inside its container, so for those, copy the file by hand as below.
+
 For each stack, starting with the ones you'd lose least by restarting:
 
 1. **Copy the file** from Dockhand's *Location*, or from its editor, to `<stacks root>/<stack>/compose.yaml` on the Docker host. **The folder name must be the stack's name in Dockhand**, which is also its compose project name.
