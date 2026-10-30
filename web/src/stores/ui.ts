@@ -21,6 +21,7 @@
  *   dialog (TaskLogDialog), not a toast.
  * - A note too long for its tile (an upstream's health message) opens whole
  *   in NoteDialog.
+ * - Home Assistant's tile opens its panel (HomeAssistantPanel) on a list.
  * - A resource's sheet follows the route (`?r=<id>`): opening one pushes a
  *   history entry, so Back closes it or returns to the sheet before.
  * - A suggestion's answer (Merge or Keep separate) goes to the hub's
@@ -99,6 +100,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     taskLog: undefined as TaskLog | undefined,
     /** A tile note shown whole (NoteDialog). */
     note: undefined as NoteView | undefined,
+    /** Home Assistant's panel (HomeAssistantPanel): the app it shows, and on which list. */
+    homePanel: undefined as { app: string; tab: string } | undefined,
   });
   let nextToast = 1;
   /** What the viewer's role may see and do. The hub enforces it; this only hides. */
@@ -377,6 +380,14 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     },
     closeNote: () => {
       state.note = undefined;
+    },
+    /** Open Home Assistant's panel on one of its lists (the tile's facets). */
+    openHomePanel: (app: string, tab: string) => {
+      state.paletteOpen = false;
+      state.homePanel = { app, tab };
+    },
+    closeHomePanel: () => {
+      state.homePanel = undefined;
     },
     stepUp: actions.stepUp,
     stepUpDone: actions.stepUpDone,

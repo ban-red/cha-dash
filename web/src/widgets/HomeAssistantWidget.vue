@@ -22,6 +22,14 @@
  * Needs a look, Climate and Playing as sections under the facets, and the
  * entity counts at the foot.
  *
+ * Click-through: on wide and large, each facet with a list behind it, the
+ * presence line and the needs-a-look line are buttons that open the panel
+ * (HomeAssistantPanel) on that list: every light and switch, each
+ * thermostat, each player, each person, everything that needs a look. When
+ * the instance's `control` allows it, the panel switches lights and
+ * switches, plays and pauses players and sets thermostats. Never while
+ * editing the board.
+ *
  * Glyph: people home (2/2). Strip: home · lights · indoors, with power or
  * the indoor temperature at the end (the long strip adds what needs a
  * look). Small: people home with their marks, else house power with its
@@ -37,12 +45,14 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import Glyph, { type GlyphKind } from '../components/marks/Glyph.vue';
+import Glyph from '../components/marks/Glyph.vue';
 import MiniGraph from '../components/marks/MiniGraph.vue';
-import { fmtInt, fmtNum, plural, since } from '../lib/format';
+import { fmtInt, fmtNum, plural } from '../lib/format';
 import { attr, placeOf, resolve, series } from '../model/graph';
 import { resourceLinks } from '../model/types';
 import { useLive } from '../stores/live';
+import { useUi } from '../stores/ui';
+import { ACTIVE, GLYPH_LABEL, SAFETY_WORDS, devicesOf, list as listOf, lookOf, personsOf, playingOf, roomLine, roomsOf, str, words, type PanelTab } from './homeassistant';
 import Frame from './parts/Frame.vue';
 import MediaMark from './parts/MediaMark.vue';
 import StateNote from './parts/StateNote.vue';
@@ -52,6 +62,7 @@ import { useViews } from './views';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
+const ui = useUi();
 const opts = useOptions('homeassistant');
 const showPower = computed(() => opts.value['power'] === true);
 
@@ -70,46 +81,16 @@ const total = (k: string) => attr<number>(app.value, k);
 const kw = (v: number) => `${v.toFixed(2)} kW`;
 const nothing = computed(() => Boolean(app.value) && !people.value && !lights.value && !power.value && !switches.value);
 
-const str = (v: unknown) => (typeof v === 'string' ? v : '');
-const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
-const list = (key: string): Record<string, unknown>[] => {
-  const v = attr<unknown>(app.value, key);
-  return Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => typeof x === 'object' && x !== null) : [];
-};
+const list = (key: string) => listOf(app.value, key);
 const count = (k: string) => m(k)?.value ?? 0;
-const words = (v: string) => (v ? v[0]!.toUpperCase() + v.slice(1).replace(/_/g, ' ') : '');
 
 /** The alarm panel's state as words: "armed_home" → "armed home", the header's word while healthy. */
 const alarm = computed(() => words(str(attr<unknown>(app.value, 'alarm'))).toLowerCase());
 const triggered = computed(() => attr<string>(app.value, 'alarm') === 'triggered');
 const tripped = computed(() => count('safety_tripped') > 0);
 
-const OPEN_WORDS: Record<string, string> = { garage: 'garage open', garage_door: 'garage open', window: 'window open', gate: 'gate open' };
-const SAFETY_WORDS: Record<string, string> = { smoke: 'smoke', carbon_monoxide: 'carbon monoxide', gas: 'gas', moisture: 'water leak' };
-interface Look {
-  key: string;
-  glyph: GlyphKind;
-  name: string;
-  detail: string;
-}
 /** What needs a look, most pressing first: tripped, open, unlocked, low batteries, updates. */
-const look = computed<Look[]>(() => {
-  const out: Look[] = [];
-  for (const o of list('safety_items')) out.push({ key: `s:${str(o['name'])}`, glyph: 'attn', name: str(o['name']), detail: SAFETY_WORDS[str(o['kind'])] ?? 'tripped' });
-  for (const o of list('open_items')) out.push({ key: `o:${str(o['name'])}`, glyph: 'attn', name: str(o['name']), detail: OPEN_WORDS[str(o['kind'])] ?? 'open' });
-  const unlocked = count('locks_unlocked');
-  if (unlocked) out.push({ key: 'locks', glyph: 'lock', name: plural(unlocked, 'lock'), detail: 'unlocked' });
-  for (const b of list('battery_items')) {
-    const lvl = b['level'];
-    out.push({ key: `b:${str(b['name'])}`, glyph: 'attn', name: str(b['name']), detail: typeof lvl === 'number' ? `battery ${Math.round(lvl)}%` : 'battery low' });
-  }
-  for (const u of list('update_items')) {
-    const from = str(u['installed']);
-    const to = str(u['latest']);
-    out.push({ key: `u:${str(u['name'])}`, glyph: 'maint', name: str(u['name']), detail: from && to ? `${from} → ${to}` : 'update available' });
-  }
-  return out.filter((x) => x.name);
-});
+const look = computed(() => lookOf(app.value, count('locks_unlocked')));
 /** The counts behind the list, as one line: "3 open · 1 unlocked · 2 low batteries · 2 updates". */
 const lookLine = computed(() =>
   [
@@ -141,31 +122,7 @@ const rows = computed(() => [
 ]);
 
 // Presence.
-interface Person {
-  name: string;
-  initial: string;
-  home: boolean;
-  /** "Home", "Away", or the zone's name. */
-  where: string;
-  since: string;
-}
-const persons = computed<Person[]>(() =>
-  list('people_items')
-    .map((p) => {
-      const name = str(p['name']);
-      const where = str(p['where']);
-      return {
-        name,
-        initial: (name.match(/\p{L}|\d/u)?.[0] ?? '?').toUpperCase(),
-        home: where === 'home',
-        where: where === 'unknown' || !where ? 'Unknown' : words(where),
-        since: since(str(p['since']) || undefined, live.now.value),
-      };
-    })
-    .filter((p) => p.name)
-    // Home first, then by name, so the marks read the same way every time.
-    .sort((a, b) => Number(b.home) - Number(a.home) || a.name.localeCompare(b.name)),
-);
+const persons = computed(() => personsOf(app.value, live.now.value));
 const FACES = 5;
 const homeNames = computed(() =>
   persons.value
@@ -192,43 +149,8 @@ const elsewhere = computed(() =>
 
 // Climate and media.
 const tempUnit = computed(() => str(attr<unknown>(app.value, 'temperature_unit')) || '°');
-const ACTIONS: Record<string, string> = { heating: 'heating', cooling: 'cooling', drying: 'drying', fan: 'fan on', idle: 'idle', off: 'off', heat: 'heat', cool: 'cool', heat_cool: 'auto', auto: 'auto', dry: 'dry', fan_only: 'fan' };
-/** Doing something worth saying on a facet (a mode alone isn't). */
-const ACTIVE = new Set(['heating', 'cooling', 'drying', 'fan on']);
-const deg = (v: number) => `${v.toFixed(1)}°`;
-interface Room {
-  name: string;
-  current: number;
-  target?: number | undefined;
-  humidity?: number | undefined;
-  action: string;
-}
-const rooms = computed<Room[]>(() =>
-  list('climate_items').flatMap((r) => {
-    const current = num(r['current']);
-    if (current === undefined) return [];
-    return [{ name: str(r['name']) || 'Thermostat', current, target: num(r['target']), humidity: num(r['humidity']), action: ACTIONS[str(r['action'])] ?? '' }];
-  }),
-);
-const roomLine = (r: Room) =>
-  [
-    r.action && r.target !== undefined && r.action !== 'idle' && r.action !== 'off' ? `${r.action} to ${deg(r.target)}` : r.action || (r.target !== undefined ? `set ${deg(r.target)}` : ''),
-    r.action === 'idle' && r.target !== undefined ? `set ${deg(r.target)}` : '',
-    r.humidity !== undefined ? `${Math.round(r.humidity)}% humidity` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
-interface Track {
-  key: string;
-  player: string;
-  title: string;
-  artist: string;
-}
-const playing = computed<Track[]>(() =>
-  list('media_items')
-    .map((p, i) => ({ key: `${i}:${str(p['name'])}`, player: str(p['name']), title: str(p['title']), artist: str(p['artist']) }))
-    .filter((p) => p.player || p.title),
-);
+const rooms = computed(() => roomsOf(app.value));
+const playing = computed(() => playingOf(app.value));
 const playingN = computed(() => m('media_playing')?.value ?? playing.value.length);
 
 // The facets.
@@ -333,7 +255,26 @@ const stripEnd = computed(() => {
 
 const LOOK_ROWS = 4;
 const ROWS = 4;
-const GLYPH_LABEL: Partial<Record<GlyphKind, string>> = { maint: 'update', lock: 'unlocked' };
+
+// The panel: which list each facet opens, when it has one.
+const hasLights = computed(() => devicesOf(app.value, 'light_items').length > 0);
+const hasSwitches = computed(() => devicesOf(app.value, 'switch_items').length > 0);
+const hasPlayers = computed(() => devicesOf(app.value, 'player_items').length > 0);
+const FACET_TAB: Record<string, PanelTab> = { climate: 'climate', lights: 'lights', switches: 'switches', safety: 'look', doors: 'look', media: 'media' };
+/** Safety and Doors open Needs a look only while they're flagged: "Shut" has nothing behind it. */
+function tabFor(key: string, flag?: boolean): PanelTab | undefined {
+  const t = FACET_TAB[key];
+  if (!t || !app.value) return undefined;
+  if (t === 'lights') return hasLights.value ? t : hasSwitches.value ? 'switches' : undefined;
+  if (t === 'switches') return hasSwitches.value ? t : undefined;
+  if (t === 'media') return hasPlayers.value ? t : undefined;
+  if (t === 'climate') return rooms.value.length ? t : undefined;
+  return flag && look.value.length ? t : undefined;
+}
+function openPanel(tab: PanelTab): void {
+  if (app.value && !ui.state.editing) ui.openHomePanel(app.value.id, tab);
+}
+const facetName = (f: { label: string; value: string; unit?: string | undefined; caption: string }) => `${f.label}: ${f.value}${f.unit ?? ''}, ${f.caption}. Show all`;
 const { views, view } = useViews(() => {
   if (size !== 'small' && size !== 'wide') return [];
   const v = [{ id: 'now', label: 'Now' }];
@@ -447,18 +388,33 @@ const { views, view } = useViews(() => {
           <span v-for="p in persons.slice(0, FACES)" :key="p.name" :class="['ha-face', { home: p.home }]" :title="`${p.name} · ${p.where}`">{{ p.initial }}</span>
           <span v-if="persons.length > FACES" class="ha-face more">+{{ persons.length - FACES }}</span>
         </div>
-        <div class="ha-who">
+        <component
+          :is="persons.length ? 'button' : 'div'"
+          class="ha-who"
+          v-bind="persons.length ? { type: 'button', 'aria-label': `${[presence, elsewhere].filter(Boolean).join('. ')}. Show people`, tabindex: ui.state.editing ? -1 : undefined } : {}"
+          @click="persons.length && openPanel('people')"
+        >
           <div :class="['v', 'sm', { unknown: people?.value == null }]">
             {{ fmtInt(people?.value) }}<span class="u">/{{ total('people_total') ?? '—' }}</span><span class="ha-names lab" :title="presence">{{ presence }}</span>
           </div>
           <div v-if="elsewhere" class="lab ha-else" :title="elsewhere">{{ elsewhere }}</div>
-        </div>
+        </component>
         <MiniGraph v-if="showPower && power && size === 'wide'" class="ha-graph" :values="power.history" :band="power.band" :stale="power.stale" :height="30" label="House power, 24 hours" :format="kw" />
       </div>
 
       <dl v-if="shown.length" :class="['ha-facets', `n${shown.length}`]" aria-label="House">
-        <div v-for="f in shown" :key="f.key" :class="['ha-facet', `ha-${f.key}`, { flag: f.flag }]">
-          <dt class="ha-k">{{ f.label }}</dt>
+        <div v-for="f in shown" :key="f.key" :class="['ha-facet', `ha-${f.key}`, { flag: f.flag, opens: tabFor(f.key, f.flag) }]">
+          <dt class="ha-k">
+            {{ f.label
+            }}<button
+              v-if="tabFor(f.key, f.flag)"
+              type="button"
+              class="ha-open"
+              :aria-label="facetName(f)"
+              :tabindex="ui.state.editing ? -1 : undefined"
+              @click="openPanel(tabFor(f.key, f.flag)!)"
+            />
+          </dt>
           <dd :class="['v', 'sm', { word: f.word, unknown: f.unknown }]">{{ f.value }}<span v-if="f.unit" class="u">{{ f.unit }}</span></dd>
           <dd class="lab ha-cap" :title="f.caption">{{ f.caption }}</dd>
         </div>
@@ -508,7 +464,8 @@ const { views, view } = useViews(() => {
         <div v-if="footLine" class="tf"><span>{{ footLine }}</span></div>
       </template>
       <div v-else-if="lookLine" class="tf">
-        <span>Needs a look: {{ lookLine }}</span>
+        <button v-if="look.length" type="button" class="ha-look lk" :tabindex="ui.state.editing ? -1 : undefined" @click="openPanel('look')">Needs a look: {{ lookLine }}</button>
+        <span v-else>Needs a look: {{ lookLine }}</span>
       </div>
     </template>
   </Frame>
@@ -612,6 +569,54 @@ const { views, view } = useViews(() => {
   min-width: 0;
   padding: 0 var(--space-3);
   border-left: var(--hairline) solid var(--line);
+}
+/* A facet that opens the panel: the whole cell is the button's target. */
+.ha-facet.opens {
+  position: relative;
+}
+.ha-open {
+  position: absolute;
+  inset: calc(var(--space-2) * -1) 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+}
+.ha-facet.opens:hover .ha-k,
+.ha-facet.opens:has(.ha-open:focus-visible) .ha-k {
+  color: var(--text);
+}
+.ha-facet.opens.flag:hover .ha-k {
+  color: var(--attention-text);
+}
+.ha-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+button.ha-who {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.ha-who:hover .ha-names {
+  color: var(--text);
+}
+.ha-look {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ha-look:hover {
+  color: var(--text);
 }
 .ha-facet:first-child,
 .s-large .ha-facet:nth-child(3n + 1) {

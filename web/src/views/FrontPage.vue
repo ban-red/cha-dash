@@ -46,6 +46,7 @@ const TypeConfirmDialog = defineAsyncComponent(() => import('../components/TypeC
 const StepUpDialog = defineAsyncComponent(() => import('../components/StepUpDialog.vue'));
 const TaskLogDialog = defineAsyncComponent(() => import('../components/TaskLogDialog.vue'));
 const NoteDialog = defineAsyncComponent(() => import('../components/NoteDialog.vue'));
+const HomeAssistantPanel = defineAsyncComponent(() => import('../widgets/HomeAssistantPanel.vue'));
 const CommandPalette = defineAsyncComponent(() => import('../components/CommandPalette.vue'));
 const SettingsSheet = defineAsyncComponent(() => import('../settings/SettingsSheet.vue'));
 const OnboardingWizard = defineAsyncComponent(() => import('../onboarding/OnboardingWizard.vue'));
@@ -252,6 +253,7 @@ onBeforeUnmount(() => {
   <StepUpDialog v-if="ui.state.stepUp" :key="stepUpKey" />
   <TaskLogDialog v-if="ui.state.taskLog" />
   <NoteDialog v-if="ui.state.note" />
+  <HomeAssistantPanel v-if="ui.state.homePanel" :key="ui.state.homePanel.app" />
   <TaskPresence />
   <Toasts />
   <PageDrop v-if="ui.can.value.settings" />

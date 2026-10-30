@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **Move a widget to another section.** The widget menu has a Move to section item that lists the board's other sections and puts the widget at the end of the one you pick.
+- **Home Assistant's panel.** Click a facet on the Home Assistant tile (Indoors, Lights, Playing, open Doors), who's home, or the needs-a-look line to see everything behind it: every light and switch, each thermostat, each media player, each person, and what needs a look. Optionally, it can control them too: list **Devices Cha Dash may control** in the connection's settings (lights, switches, media players, thermostats) and the panel gets a switch per light and switch, Play and Pause, and a thermostat's target, each with Undo where there is one. Nothing is controlled unless you allow it, and locks, doors and the alarm never are. Household users may switch lights (unless switches are allowed too, since a switch can be a server's plug), play and pause, and set thermostats.
 - **Calendars in the Demo Home.** The demo's Home Assistant publishes two invented calendars, Family and School, so the Calendar widget has something to show there.
 
 ### Changed

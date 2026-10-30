@@ -1,12 +1,16 @@
 /**
  * The Home Assistant tile (widgets/HomeAssistantWidget.vue): presence, the
  * facets, the People, Climate and Playing views, and the house power
- * setting (`options.power`), off by default.
+ * setting (`options.power`), off by default. Its panel
+ * (widgets/HomeAssistantPanel.vue): the lists behind the facets, and the
+ * controls the instance's `control` allows.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, h as el } from 'vue';
 import type { SizeId } from '@chadash/layout';
+import { flushPromises } from '@vue/test-utils';
 import HomeAssistantWidget from '../src/widgets/HomeAssistantWidget.vue';
+import HomeAssistantPanel from '../src/widgets/HomeAssistantPanel.vue';
 import { WIDGETS } from '../src/model/widgets';
 import { optionValue } from '../src/widgets/options';
 import { resetViews } from '../src/widgets/views';
@@ -62,6 +66,42 @@ function fullerHouse(tripped = false) {
   return d;
 }
 
+/** The fuller house with every light, switch and player, and the controls allowed. */
+function controlled(control: string[] = ['light', 'switch', 'media_player', 'climate']) {
+  const d = fullerHouse();
+  const app = d.graph.resources['app:homeassistant']!;
+  app.attrs = {
+    ...app.attrs,
+    control,
+    light_items: [
+      { entity: 'light.kitchen', name: 'Kitchen', state: 'on', brightness: 70 },
+      { entity: 'light.hallway', name: 'Hallway', state: 'off' },
+      { entity: 'light.porch', name: 'Porch', state: 'unavailable' },
+    ],
+    switch_items: [{ entity: 'switch.server_rack', name: 'Server rack', state: 'on' }],
+    player_items: [
+      { entity: 'media_player.living_room_speaker', name: 'Living room speaker', state: 'playing', title: 'Weightless', artist: 'Marconi Union' },
+      { entity: 'media_player.bedroom_tv', name: 'Bedroom TV', state: 'paused' },
+      { entity: 'media_player.kitchen_display', name: 'Kitchen display', state: 'off' },
+    ],
+    climate_items: [
+      { entity: 'climate.living_room', name: 'Living room', current: 21.5, target: 22, action: 'heating', mode: 'heat', min: 7, max: 22.5, step: 0.5 },
+      { entity: 'climate.bedroom', name: 'Bedroom', current: 18.9, target: 17, action: 'off', mode: 'off' },
+    ],
+  };
+  return d;
+}
+
+function mountPanel(data: ReturnType<typeof docs>, tab: string, role = 'owner') {
+  const hs = harness(data);
+  hs.session.state.user = { id: 'u1', username: role, role };
+  const run = vi.fn(async () => {});
+  hs.ui.runAction = run;
+  hs.ui.openHomePanel('app:homeassistant', tab);
+  const w = hs.mountIn(HomeAssistantPanel);
+  return { hs, w, run };
+}
+
 function mountHa(size: SizeId, config?: TileConfig, data = docs(healthy)) {
   const hs = harness(data);
   const Host = defineComponent({
@@ -70,7 +110,7 @@ function mountHa(size: SizeId, config?: TileConfig, data = docs(healthy)) {
       return () => el('main', [el(HomeAssistantWidget, { size, target: 'app:homeassistant' })]);
     },
   });
-  return hs.mountIn(Host);
+  return Object.assign(hs.mountIn(Host), { hs });
 }
 const labels = (w: ReturnType<typeof mountHa>) => w.findAll('.ha-facet dt').map((d) => d.text());
 
@@ -217,5 +257,152 @@ describe('Home Assistant house power', () => {
     expect(wide.find('.ha-pres .ha-graph').exists()).toBe(true);
     const small = mountHa('small', { options: { power: true } });
     expect(small.find('.v').text()).toMatch(/kW$/);
+  });
+});
+
+describe('Home Assistant click-through', () => {
+  it('opens the panel on the list behind a facet, the presence line and the needs-a-look line', async () => {
+    const d = controlled();
+    d.graph.resources['app:homeassistant']!.attrs!['battery_items'] = [{ name: 'Hallway motion', level: 12 }];
+    d.metrics.series['app:homeassistant#batteries_low'] = { ...d.metrics.series['app:homeassistant#people_home']!, value: 1 };
+    const w = mountHa('wide', undefined, d);
+    const open = w.findAll('.ha-facet .ha-open');
+    // Safety's OK and the doors are shut: nothing behind them to show.
+    expect(open.map((b) => b.attributes('aria-label'))).toEqual([
+      'Indoors: 20.2°C, Living room heating. Show all',
+      expect.stringMatching(/^Lights: \d+\/52, \d+ switches\. Show all$/),
+      'Playing: 1, Weightless · Marconi Union. Show all',
+    ]);
+    await open[1]!.trigger('click');
+    expect(w.hs.ui.state.homePanel).toEqual({ app: 'app:homeassistant', tab: 'lights' });
+    await w.find('button.ha-who').trigger('click');
+    expect(w.hs.ui.state.homePanel?.tab).toBe('people');
+    await w.find('.ha-look').trigger('click');
+    expect(w.hs.ui.state.homePanel?.tab).toBe('look');
+  });
+
+  it('opens Needs a look from a flagged Doors facet', async () => {
+    const d = controlled();
+    d.graph.resources['app:homeassistant']!.attrs!['open_items'] = [{ name: 'Back door', kind: 'door' }];
+    d.metrics.series['app:homeassistant#open'] = { ...d.metrics.series['app:homeassistant#people_home']!, value: 1 };
+    const w = mountHa('wide', undefined, d);
+    const doors = w.find('.ha-doors .ha-open');
+    expect(doors.attributes('aria-label')).toBe('Doors: 1, Back door open. Show all');
+    await doors.trigger('click');
+    expect(w.hs.ui.state.homePanel?.tab).toBe('look');
+  });
+
+  it('opens nothing while the board is being edited', async () => {
+    const w = mountHa('wide', undefined, controlled());
+    w.hs.ui.state.editing = true;
+    await flushPromises();
+    expect(w.find('.ha-open').attributes('tabindex')).toBe('-1');
+    await w.find('.ha-open').trigger('click');
+    expect(w.hs.ui.state.homePanel).toBeUndefined();
+  });
+
+  it('leaves a facet with nothing behind it as it was', () => {
+    const w = mountHa('wide', undefined, fullerHouse());
+    // The Demo Home sends no light, switch or player lists.
+    expect(w.findAll('.ha-facet.opens dt').map((x) => x.text())).toEqual(['Indoors']);
+  });
+});
+
+describe('Home Assistant panel', () => {
+  it('lists every light, on first, with a switch each, and turns one on with Undo', async () => {
+    const { w, run } = mountPanel(controlled(), 'lights');
+    await flushPromises();
+    expect(w.findAll('[role="tab"]').map((t) => [t.text(), t.attributes('aria-selected')])).toEqual([
+      ['People', 'false'],
+      ['Lights', 'true'],
+      ['Switches', 'false'],
+      ['Climate', 'false'],
+      ['Playing', 'false'],
+    ]);
+    expect(document.activeElement).toBe(w.find('[role="tab"][aria-selected="true"]').element);
+    expect(w.find('.ha-sum').text()).toBe('1 of 3 on');
+    expect(w.findAll('.ha-row .ha-main').map((r) => r.text())).toEqual(['Kitchen70%', 'Hallway', 'Porch']);
+    const sw = w.findAll('button[role="switch"]');
+    expect(sw.map((b) => [b.attributes('aria-label'), b.attributes('aria-checked')])).toEqual([
+      ['Kitchen', 'true'],
+      ['Hallway', 'false'],
+    ]);
+    expect(w.findAll('.ha-row')[2]!.find('.ha-side').text()).toBe('Unavailable');
+
+    await sw[1]!.trigger('click');
+    expect(run).toHaveBeenCalledWith({ action: 'homeassistant.entity.on', target: 'app:homeassistant', params: { entity: 'light.hallway' }, label: 'Turn on Hallway', tier: 'T1' });
+    // Shown as asked until the next read agrees.
+    expect(w.findAll('button[role="switch"]')[1]!.attributes('aria-checked')).toBe('true');
+    expect(await axeViolations(w.element)).toEqual([]);
+  });
+
+  it('moves between tabs with the arrow keys', async () => {
+    const { w } = mountPanel(controlled(), 'lights');
+    await flushPromises();
+    await w.find('[role="tab"][aria-selected="true"]').trigger('keydown', { key: 'ArrowRight' });
+    await flushPromises();
+    expect(w.find('[role="tab"][aria-selected="true"]').text()).toBe('Switches');
+    expect(w.find('.ha-main').text()).toBe('Server rack');
+    await w.find('[role="tab"][aria-selected="true"]').trigger('keydown', { key: 'Home' });
+    expect(w.find('[role="tab"][aria-selected="true"]').text()).toBe('People');
+  });
+
+  it('plays and pauses players, and sets a thermostat once the clicks settle', async () => {
+    vi.useFakeTimers();
+    const { w, run, hs } = mountPanel(controlled(), 'media');
+    await flushPromises();
+    const play = w.findAll('.ha-play');
+    expect(play.map((b) => b.attributes('aria-label'))).toEqual(['Pause Living room speaker', 'Play Bedroom TV']);
+    await play[1]!.trigger('click');
+    expect(run).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'homeassistant.media.play', params: { entity: 'media_player.bedroom_tv' } }));
+
+    hs.ui.openHomePanel('app:homeassistant', 'climate');
+    await flushPromises();
+    // The bedroom's is off: no stepper.
+    expect(w.findAll('.ha-step').length).toBe(1);
+    const [lower, raise] = w.findAll('.ha-step button');
+    await raise!.trigger('click');
+    expect(w.find('.ha-step output').text()).toBe('22.5°C');
+    // Its max: no higher.
+    expect(w.find('.ha-step button:last-child').attributes('disabled')).toBeDefined();
+    await lower!.trigger('click');
+    await lower!.trigger('click');
+    expect(run).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(800);
+    expect(run).toHaveBeenLastCalledWith({ action: 'homeassistant.climate.set', target: 'app:homeassistant', params: { entity: 'climate.living_room', temperature: 21.5 }, label: 'Set Living room to 21.5°', tier: 'T1' });
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers no controls the instance doesn’t allow, and says where to allow them', async () => {
+    const { w } = mountPanel(controlled(['media_player']), 'lights');
+    await flushPromises();
+    expect(w.find('button[role="switch"]').exists()).toBe(false);
+    expect(w.findAll('.ha-row .ha-side').map((x) => x.text())).toEqual(['On', 'Off', 'Unavailable']);
+    expect(w.find('.ha-hint').text()).toContain('To switch lights from here, allow them');
+  });
+
+  it('offers a viewer no controls, and household lights but not switches', async () => {
+    const viewer = mountPanel(controlled(), 'lights', 'viewer');
+    await flushPromises();
+    expect(viewer.w.find('button[role="switch"]').exists()).toBe(false);
+    expect(viewer.w.find('.ha-hint').exists()).toBe(false);
+    viewer.w.unmount();
+
+    const house = mountPanel(controlled(['light', 'media_player']), 'lights', 'household');
+    await flushPromises();
+    expect(house.w.findAll('button[role="switch"]').length).toBe(2);
+    house.w.unmount();
+    // With switches allowed, the hub doesn't let household switch lights either.
+    const both = mountPanel(controlled(['light', 'switch']), 'lights', 'household');
+    await flushPromises();
+    expect(both.w.find('button[role="switch"]').exists()).toBe(false);
+  });
+
+  it('closes with its button', async () => {
+    const { w, hs } = mountPanel(controlled(), 'people');
+    await flushPromises();
+    expect(w.findAll('.ha-row .ha-main').map((r) => r.text().replace(/since.*/, ''))).toEqual(['Jo', 'Sam', 'Robin']);
+    await w.find('.act-dlg-head .x').trigger('click');
+    expect(hs.ui.state.homePanel).toBeUndefined();
   });
 });
