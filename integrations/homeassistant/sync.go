@@ -1,6 +1,7 @@
 package homeassistant
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -72,7 +73,19 @@ type entity struct {
 		Members     json.RawMessage `json:"entity_id"`
 		IsHueGroup  bool            `json:"is_hue_group"`
 		LastReset   *string         `json:"last_reset"`
+		Name        string          `json:"friendly_name"`
+		Title       string          `json:"title"`             // an update's
+		Installed   string          `json:"installed_version"` // an update's
+		Latest      string          `json:"latest_version"`    // an update's
 	} `json:"attributes"`
+}
+
+// name is the entity's friendly name, else its ID.
+func (e entity) name() string {
+	if e.Attributes.Name != "" {
+		return e.Attributes.Name
+	}
+	return e.EntityID
 }
 
 func (e entity) domain() string {
@@ -119,7 +132,39 @@ type derived struct {
 	powerEntity   string
 	energyKWh     float64
 	energyEntity  string
+
+	// What needs a look, from the same states.
+	unavailable    int
+	updates        []map[string]any // update.* that are on
+	batteries      []battery        // low ones
+	batteriesTotal int
+	open           []map[string]any // doors, windows and garage doors that are open
+	openingsTotal  int
+	unlocked       int
+	locksTotal     int
+	alarm          string // the first alarm panel's state, "" without one
 }
+
+// battery is a low battery: its device's name and level (nil for a
+// binary_sensor that only says "low").
+type battery struct {
+	name  string
+	level *float64
+}
+
+// lowBattery is the level, in %, below which a battery is low: Home
+// Assistant's own battery card turns red under it.
+const lowBattery = 20
+
+// listRows is how many items each list attr keeps.
+const listRows = 8
+
+// openings are the binary_sensor device classes that are a door or window,
+// and the cover device classes that are one.
+var (
+	openingSensors = map[string]bool{"door": true, "window": true, "garage_door": true, "opening": true}
+	openingCovers  = map[string]bool{"door": true, "garage": true, "gate": true, "window": true}
+)
 
 // meter is an energy sensor that accumulates.
 type meter struct {
@@ -211,7 +256,47 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 	midnight := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, in.tz)
 	var meters []meter
 	for _, e := range states {
+		if e.State == "unavailable" {
+			d.unavailable++
+		}
 		switch e.domain() {
+		case "update":
+			if e.State == "on" {
+				name := e.Attributes.Title
+				if name == "" {
+					name = e.name()
+				}
+				d.updates = append(d.updates, map[string]any{"name": name, "installed": e.Attributes.Installed, "latest": e.Attributes.Latest})
+			}
+		case "lock":
+			d.locksTotal++
+			if e.State == "unlocked" || e.State == "open" {
+				d.unlocked++
+			}
+		case "alarm_control_panel":
+			if d.alarm == "" {
+				d.alarm = e.State
+			}
+		case "binary_sensor":
+			switch dc := e.Attributes.DeviceClass; {
+			case openingSensors[dc]:
+				d.openingsTotal++
+				if e.State == "on" {
+					d.open = append(d.open, map[string]any{"name": e.name(), "kind": dc})
+				}
+			case dc == "battery":
+				d.batteriesTotal++
+				if e.State == "on" {
+					d.batteries = append(d.batteries, battery{name: batteryName(e.name())})
+				}
+			}
+		case "cover":
+			if dc := e.Attributes.DeviceClass; openingCovers[dc] {
+				d.openingsTotal++
+				if e.State == "open" || e.State == "opening" {
+					d.open = append(d.open, map[string]any{"name": e.name(), "kind": dc})
+				}
+			}
 		case "person":
 			d.peopleTotal++
 			if e.State == "home" {
@@ -237,6 +322,14 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 				continue
 			}
 			switch e.Attributes.DeviceClass {
+			case "battery":
+				if e.Attributes.Unit != "%" {
+					continue
+				}
+				d.batteriesTotal++
+				if v < lowBattery {
+					d.batteries = append(d.batteries, battery{name: batteryName(e.name()), level: &v})
+				}
 			case "power":
 				f, ok := powerUnits[e.Attributes.Unit]
 				if !ok || (in.powerEntity != "" && e.EntityID != in.powerEntity) {
@@ -293,7 +386,30 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 	if !math.IsNaN(d.energyKWh) {
 		d.energyKWh = math.Round(d.energyKWh*100) / 100
 	}
+	// Lowest battery first; one that only says "low" goes after the levels.
+	slices.SortStableFunc(d.batteries, func(a, b battery) int {
+		switch {
+		case a.level == nil && b.level == nil:
+			return 0
+		case a.level == nil:
+			return 1
+		case b.level == nil:
+			return -1
+		}
+		return cmp.Compare(*a.level, *b.level)
+	})
 	in.derived = d
+}
+
+// batteryName drops "battery" and "battery low" from a sensor's name, so
+// the list says the device: "Hallway motion Battery" is "Hallway motion".
+func batteryName(name string) string {
+	for _, suffix := range []string{" battery low", " battery level", " battery"} {
+		if len(name) > len(suffix) && strings.EqualFold(name[len(name)-len(suffix):], suffix) {
+			return name[:len(name)-len(suffix)]
+		}
+	}
+	return name
 }
 
 // baselinesFor reads, once a day, what each accumulating meter showed at
@@ -379,6 +495,23 @@ func (in *instance) graphFacts() integration.Facts {
 		if d.energyEntity != "" {
 			attrs["energy_entity"] = d.energyEntity
 		}
+		attrs["locks_total"] = d.locksTotal
+		attrs["openings_total"] = d.openingsTotal
+		attrs["batteries_total"] = d.batteriesTotal
+		attrs["update_items"] = head(d.updates)
+		attrs["open_items"] = head(d.open)
+		low := make([]map[string]any, 0, len(d.batteries))
+		for _, b := range d.batteries {
+			row := map[string]any{"name": b.name}
+			if b.level != nil {
+				row["level"] = *b.level
+			}
+			low = append(low, row)
+		}
+		attrs["battery_items"] = head(low)
+		if d.alarm != "" {
+			attrs["alarm"] = d.alarm
+		}
 	}
 	return integration.Facts{
 		Resources: []integration.Resource{{
@@ -388,6 +521,14 @@ func (in *instance) graphFacts() integration.Facts {
 		}},
 		Relations: []integration.Relation{{From: in.d.Emit.Self(), Type: "monitors", To: in.appID}},
 	}
+}
+
+// head is the first listRows of a list, never nil.
+func head(l []map[string]any) []map[string]any {
+	if l == nil {
+		return []map[string]any{}
+	}
+	return l[:min(len(l), listRows)]
 }
 
 // statesFacts is the readings, on the simulator's scales.
@@ -403,5 +544,10 @@ func (in *instance) statesFacts() integration.Facts {
 		count("switches_on", d.switches, d.switchesTotal),
 		{Resource: in.appID, Key: "power.kw", Unit: "kW", Min: 0, Max: 12, Band: [2]float64{0.6, 2.2}, Value: d.powerKW},
 		{Resource: in.appID, Key: "energy.kwh", Unit: "kWh", Min: 0, Max: 200, Band: [2]float64{0, 40}, Value: d.energyKWh},
+		count("open", len(d.open), d.openingsTotal),
+		count("locks_unlocked", d.unlocked, d.locksTotal),
+		{Resource: in.appID, Key: "batteries_low", Unit: "count", Min: 0, Max: float64(max(d.batteriesTotal, 1)), Band: [2]float64{0, 0}, Value: float64(len(d.batteries))},
+		{Resource: in.appID, Key: "updates", Unit: "count", Min: 0, Max: 20, Band: [2]float64{0, 3}, Value: float64(len(d.updates))},
+		{Resource: in.appID, Key: "unavailable", Unit: "count", Min: 0, Max: float64(max(d.entities, 1)), Band: [2]float64{0, 5}, Value: float64(d.unavailable)},
 	}}
 }

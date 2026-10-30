@@ -620,5 +620,236 @@
       "parent_id": null,
       "user_id": null
     }
+  },
+  {
+    "entity_id": "update.music_assistant_update",
+    "state": "on",
+    "attributes": {
+      "installed_version": "2.5.0",
+      "latest_version": "2.6.1",
+      "title": "Music Assistant",
+      "friendly_name": "Music Assistant Update"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000101",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "update.hallway_sensor_firmware",
+    "state": "on",
+    "attributes": {
+      "installed_version": "1.2.0",
+      "latest_version": "1.3.0",
+      "friendly_name": "Hallway sensor firmware"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000102",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "update.garden_pump_firmware",
+    "state": "unavailable",
+    "attributes": {
+      "friendly_name": "Garden pump firmware"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000103",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.back_door",
+    "state": "on",
+    "attributes": {
+      "device_class": "door",
+      "friendly_name": "Back door"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000104",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.bedroom_window",
+    "state": "on",
+    "attributes": {
+      "device_class": "window",
+      "friendly_name": "Bedroom window"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000105",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.hallway_motion",
+    "state": "on",
+    "attributes": {
+      "device_class": "motion",
+      "friendly_name": "Hallway motion"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000106",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "cover.garage_door",
+    "state": "open",
+    "attributes": {
+      "device_class": "garage",
+      "friendly_name": "Garage door"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000107",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "cover.living_room_blinds",
+    "state": "open",
+    "attributes": {
+      "device_class": "blind",
+      "friendly_name": "Living room blinds"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000108",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "lock.front_door",
+    "state": "unlocked",
+    "attributes": {
+      "friendly_name": "Front door lock"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000109",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "lock.back_door",
+    "state": "locked",
+    "attributes": {
+      "friendly_name": "Back door lock"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000110",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.hallway_motion_battery",
+    "state": "12",
+    "attributes": {
+      "device_class": "battery",
+      "unit_of_measurement": "%",
+      "state_class": "measurement",
+      "friendly_name": "Hallway motion Battery"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000111",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.front_door_battery",
+    "state": "64",
+    "attributes": {
+      "device_class": "battery",
+      "unit_of_measurement": "%",
+      "state_class": "measurement",
+      "friendly_name": "Front door battery"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000112",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.smoke_alarm_battery_low",
+    "state": "on",
+    "attributes": {
+      "device_class": "battery",
+      "friendly_name": "Smoke alarm battery low"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000113",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "alarm_control_panel.house",
+    "state": "armed_home",
+    "attributes": {
+      "code_format": null,
+      "changed_by": null,
+      "code_arm_required": true,
+      "supported_features": 63,
+      "friendly_name": "House alarm"
+    },
+    "last_changed": "2026-10-03T13:58:41.120334+00:00",
+    "last_reported": "2026-10-03T13:58:41.120334+00:00",
+    "last_updated": "2026-10-03T13:58:41.120334+00:00",
+    "context": {
+      "id": "01JSYNTHETICCONTEXT0000114",
+      "parent_id": null,
+      "user_id": null
+    }
   }
 ]

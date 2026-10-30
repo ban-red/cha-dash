@@ -428,6 +428,84 @@ describe('Now playing on Plex', () => {
   });
 });
 
+describe('Home Assistant', () => {
+  const withHouse = (alarm = 'armed_home', looks = true) => {
+    const d = docs(healthy);
+    const base = d.metrics.series['app:homeassistant#people_home']!;
+    const put = (k: string, value: number) => (d.metrics.series[`app:homeassistant#${k}`] = { ...base, value });
+    put('open', looks ? 2 : 0);
+    put('locks_unlocked', looks ? 1 : 0);
+    put('batteries_low', looks ? 2 : 0);
+    put('updates', looks ? 2 : 0);
+    put('unavailable', 3);
+    d.graph.resources['app:homeassistant']!.attrs = {
+      ...d.graph.resources['app:homeassistant']!.attrs,
+      entities: 412,
+      alarm,
+      open_items: looks
+        ? [
+            { name: 'Back door', kind: 'door' },
+            { name: 'Garage door', kind: 'garage' },
+          ]
+        : [],
+      battery_items: looks ? [{ name: 'Hallway motion', level: 12 }, { name: 'Smoke alarm' }] : [],
+      update_items: looks
+        ? [
+            { name: 'Music Assistant', installed: '2.5.0', latest: '2.6.1' },
+            { name: 'Hallway sensor firmware', installed: '1.2.0', latest: '1.3.0' },
+          ]
+        : [],
+    };
+    return d;
+  };
+
+  it('says what needs a look under the stats, and pages to the list', async () => {
+    const { w, dots, pressed } = mountTile('homeassistant', 'wide', undefined, withHouse());
+    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Needs a look']);
+    expect(w.find('.tf').text()).toBe('2 open · 1 unlocked · 2 low batteries · 2 updates · alarm armed home');
+    await dots()[1]!.trigger('click');
+    expect(pressed()).toBe('Needs a look');
+    const rows = w.findAll('[role="listitem"]').map((r) => r.text());
+    expect(rows).toEqual(['Back dooropen', 'Garage doorgarage open', '1 lockunlocked', 'Hallway motionbattery 12%']);
+    expect(w.find('.ha-more').text()).toBe('+3 more');
+    expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('lists it all on a 4×4, with the entity counts at the foot', () => {
+    const { w, dots } = mountTile('homeassistant', 'large', undefined, withHouse());
+    expect(dots()).toHaveLength(0);
+    expect(w.findAll('[role="listitem"]')).toHaveLength(5);
+    expect(w.text()).toContain('Smoke alarmbattery low');
+    expect(w.find('.tf').text()).toBe('412 entities · 3 unavailable · alarm armed home');
+    expect(w.text()).not.toContain('Pick a few entities');
+  });
+
+  it('says all is well when nothing needs a look, with no second view', () => {
+    const { w, dots } = mountTile('homeassistant', 'large', undefined, withHouse('disarmed', false));
+    expect(dots()).toHaveLength(0);
+    expect(w.text()).toContain('All closed, locked and up to date.');
+    expect(mountTile('homeassistant', 'wide', undefined, withHouse('disarmed', false)).w.find('.tf').text()).toBe('alarm disarmed');
+  });
+
+  it('marks the tile when the alarm is triggered', () => {
+    const { tile } = mountTile('homeassistant', 'small', undefined, withHouse('triggered'));
+    expect(tile().text()).toContain('Alarm triggered');
+  });
+
+  it('passes axe on both views and the 4×4', async () => {
+    vi.useRealTimers();
+    for (const size of ['small', 'wide'] as const) {
+      const { w, dots } = mountTile('homeassistant', size, undefined, withHouse());
+      expect(await axeViolations(), `${size} now`).toEqual([]);
+      await dots()[1]!.trigger('click');
+      expect(await axeViolations(), `${size} look`).toEqual([]);
+      w.unmount();
+    }
+    mountTile('homeassistant', 'large', undefined, withHouse());
+    expect(await axeViolations(), 'large').toEqual([]);
+  });
+});
+
 describe('paging', () => {
   it('moves with the arrow keys on the dots, wrapping, and keeps focus on the pressed dot', async () => {
     const { dots, pressed } = mountTile('host', 'small', 'pve:stork');

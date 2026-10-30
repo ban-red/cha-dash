@@ -650,10 +650,14 @@ describe('Home Assistant summary', () => {
     expect(m.w.find('.sv').text()).toMatch(/kW$/);
   });
 
-  it('adds the counts as rows when large', () => {
+  it('adds the counts as rows when large and the lists are missing', () => {
+    // The Demo Home publishes neither the lists nor an entity count, so the
+    // tile can't say all is well.
     const { w } = mountWidget(docs(healthy), 'homeassistant', 'large');
     expect(w.find('.kv').text()).toContain('Lights on');
     expect(w.find('.kv').text()).toContain('of 52');
+    expect(w.text()).not.toContain('All closed');
+    expect(w.find('.tf').exists()).toBe(false);
   });
 });
 

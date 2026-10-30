@@ -12,7 +12,7 @@ Entity shapes (attributes, `state_class`, `device_class`, `last_reset` on a dail
 |---|---|---|
 | `api.json` | `GET /api/` | `{"message": "API running."}` |
 | `config.json` | `GET /api/config` | Version `2026.9.3`, `state: RUNNING`, time zone `Europe/Berlin` (UTC+2 on the test day, so local midnight is 22:00 UTC) |
-| `states.json` | `GET /api/states` | 32 entities, below |
+| `states.json` | `GET /api/states` | 46 entities, below |
 | `history_midnight.json` | `GET /api/history/period/2026-10-02T22:00:00Z?filter_entity_id=sensor.coffee_machine_energy,sensor.house_energy&end_time=…&minimal_response&no_attributes` | Each meter's state at local midnight: the first item of each list |
 | `ws_current_user.json` | WebSocket `auth/current_user` | The result: user "Dashboard", `is_admin: true`, `is_owner: false` |
 
@@ -25,4 +25,10 @@ Entity shapes (attributes, `state_class`, `device_class`, `last_reset` on a dail
 | `switch` | coffee machine, server rack on; garden pump, fan off; `switch.all_plugs` (a group) on | `switches_on` 2 of 4 |
 | `sensor`, `device_class: power` | house 1234 W, coffee machine 15.2 W, solar 0.8 kW, grid net −350 W, fridge unavailable | `power.kw` 1.234 from `sensor.house_power`, the largest non-negative reading |
 | `sensor`, `device_class: energy` | `house_energy` 18234.56 kWh (18226.36 at midnight), `coffee_machine_energy` 153200 Wh (152900 at midnight), `house_energy_daily` 8.25 kWh (a utility meter whose `last_reset` is local midnight), `fridge_energy` unknown | `energy.kwh` 8.25 from the daily meter, the largest rise since midnight (house 8.20, coffee machine 0.30) |
-| others | `sun.sun`, `zone.home`, a temperature, a door, an automation, an input boolean, an update | counted only in `entities` (32) |
+| `binary_sensor`, `cover` | front door closed; back door, bedroom window, garage door (a cover) open; hallway motion on and living-room blinds open, which don't count | `open` 3 of 4 |
+| `lock` | front door unlocked, back door locked | `locks_unlocked` 1 of 2 |
+| battery | hallway motion 12 %, front door 64 % (sensors); smoke alarm low (a binary sensor) | `batteries_low` 2 of 3: "Hallway motion" (12), then "Smoke alarm" |
+| `update` | Home Assistant Core up to date; Music Assistant 2.5.0 → 2.6.1 and hallway sensor firmware 1.2.0 → 1.3.0 pending; garden pump firmware unavailable | `updates` 2 |
+| `alarm_control_panel` | the house, `armed_home` | `alarm` |
+| any | porch light, fridge power, garden pump firmware unavailable | `unavailable` 3 |
+| others | `sun.sun`, `zone.home`, a temperature, an automation, an input boolean | counted only in `entities` (46) |

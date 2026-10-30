@@ -1,6 +1,6 @@
 # Home Assistant (`homeassistant`)
 
-Home Assistant's health and version, and five readings derived from its entity states: people home, lights on, switches on, house power and energy today. REST only; Test also asks the WebSocket API whose token it holds.
+Home Assistant's health and version, and readings derived from its entity states: people home, lights on, switches on, house power and energy today, and what needs a look (open doors and windows, unlocked locks, low batteries, pending updates, unavailable entities, the alarm). REST only; Test also asks the WebSocket API whose token it holds.
 
 **Tier:** silver (repairs, version detection, honest grants, fixture tests). **Capability:** `home.entities`. **Secrets:** `token`.
 
@@ -46,6 +46,16 @@ From `/api/states`, by entity domain and device class:
 | `power.kw` | `sensor.*` with `device_class: power` and a numeric state in mW, W, kW, MW or GW, converted to kW. **The largest non-negative reading**, on the assumption that the whole-house meter reads at least as much as any one device; negative readings (a net meter exporting) are skipped. `power_entity` overrides the pick. `attrs.power_entity` names the sensor used |
 | `energy.kwh` | Energy today. Candidates are `sensor.*` with `device_class: energy`, `state_class` `total_increasing` or `total`, and a numeric state in Wh, kWh, MWh, GWh or J, kJ, MJ, GJ, converted to kWh. A meter whose `last_reset` is at or after local midnight (a daily utility meter) counts its state; any other counts its rise since local midnight, from one history request a day (a drop means it was reset, and the state counts). **The largest rise wins**, on the same assumption. `energy_entity` overrides the pick. `attrs.energy_entity` names the meter used |
 
+What needs a look, from the same states:
+
+| Metric | Rule |
+|---|---|
+| `open` | `binary_sensor.*` with device class `door`, `window`, `garage_door` or `opening` that are `on`, and `cover.*` with device class `door`, `garage`, `gate` or `window` that are `open` or `opening`. Blinds, shades and motion sensors don't count. `attrs.openings_total` counts the same set |
+| `locks_unlocked` | `lock.*` that are `unlocked` or `open`. `attrs.locks_total` counts all locks |
+| `batteries_low` | `sensor.*` with device class `battery` in `%` below 20, and `binary_sensor.*` with device class `battery` that are `on` (low). `attrs.batteries_total` counts both kinds |
+| `updates` | `update.*` that are `on`. An unavailable update entity doesn't count |
+| `unavailable` | entities of any domain whose state is `unavailable` (`unknown` isn't) |
+
 "Local midnight" is midnight in Home Assistant's `time_zone`. The package embeds Go's `time/tzdata` (≈450 kB) because the hub's image is `scratch`, with no zoneinfo; an unknown zone falls back to UTC with a warning in the log.
 
 Values nobody can read are unknown (`null`), never 0: no power sensor, no meter with a midnight reading (the recorder is off, or the meter is new today), or a chosen sensor that doesn't exist.
@@ -62,6 +72,11 @@ Values nobody can read are unknown (`null`), never 0: no power sensor, no meter 
 | `entities` | how many entities `/api/states` listed |
 | `people_total`, `lights_total`, `switches_total` | as above (the Demo Home's keys) |
 | `power_entity`, `energy_entity` | the sensors the readings came from |
+| `openings_total`, `locks_total`, `batteries_total` | as above |
+| `open_items` | the open ones, `[{name, kind}]` (`kind` is the device class), at most 8 |
+| `battery_items` | the low ones, lowest first, `[{name, level}]` (no `level` for a binary sensor), at most 8. "Battery", "battery level" and "battery low" are dropped from the end of the name, so it names the device |
+| `update_items` | the pending updates, `[{name, installed, latest}]` (`name` is the update's `title`, else its friendly name), at most 8 |
+| `alarm` | the first `alarm_control_panel.*`'s state (`disarmed`, `armed_home`, `triggered`, …); missing without one |
 
 | State and health | When |
 |---|---|
@@ -78,6 +93,11 @@ Values nobody can read are unknown (`null`), never 0: no power sensor, no meter 
 | `switches_on` | count | 0 – switches total | 0 – total |
 | `power.kw` | kW | 0 – 12 | 0.6 – 2.2 |
 | `energy.kwh` | kWh | 0 – 200 | 0 – 40 |
+| `open` | count | 0 – openings total | 0 – total |
+| `locks_unlocked` | count | 0 – locks total | 0 – total |
+| `batteries_low` | count | 0 – batteries total | 0 – 0 |
+| `updates` | count | 0 – 20 | 0 – 3 |
+| `unavailable` | count | 0 – entities | 0 – 5 |
 
 Scopes: `graph` (the app, every sync) and `states` (the readings, when `/api/states` was read), so the readings' `as_of` is when the states were read.
 
@@ -113,5 +133,6 @@ All of them are write grants, so the runtime adds its write-grant warning: Cha D
 
 - **The power and energy picks are heuristics.** A home with a split-tariff meter (two energy sensors), solar production larger than consumption, or no whole-house meter at all needs `power_entity`/`energy_entity`. Home Assistant's own Energy dashboard settings are only readable over the WebSocket (`energy/get_prefs`), which v0.1 doesn't use for polling.
 - **Groups from other integrations** (zigbee2mqtt, deCONZ) that don't list `entity_id` or set `is_hue_group` count as single lights.
+- **Names, not rooms.** The lists use friendly names; areas are in the registry (WebSocket only). Lock names aren't listed, only the count.
 - **Hidden and disabled entities** count: `/api/states` doesn't say which are hidden (that's the entity registry, WebSocket only).
 - **No resources for rooms, devices or entities**, no incidents (Home Assistant's repairs and updates aren't read), and no live updates.

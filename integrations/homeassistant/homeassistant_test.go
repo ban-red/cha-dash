@@ -251,12 +251,26 @@ func TestSync(t *testing.T) {
 		t.Fatalf("app = %+v", app)
 	}
 	for k, want := range map[string]any{
-		"type": "homeassistant", "version": "2026.9.3", "url": f.URL, "entities": 32.0,
+		"type": "homeassistant", "version": "2026.9.3", "url": f.URL, "entities": 46.0,
 		"people_total": 3.0, "lights_total": 6.0, "switches_total": 4.0,
 		"power_entity": "sensor.house_power", "energy_entity": "sensor.house_energy_daily",
+		"locks_total": 2.0, "openings_total": 4.0, "batteries_total": 3.0, "alarm": "armed_home",
 	} {
 		if app.Attrs[k] != want {
 			t.Errorf("app.attrs.%s = %v, want %v", k, app.Attrs[k], want)
+		}
+	}
+	// What needs a look: pending updates (an unavailable one isn't), open
+	// doors, windows and garage doors (not blinds or motion), low batteries
+	// lowest first with "battery" dropped from the name.
+	lists := map[string]string{
+		"update_items":  `[{"installed":"2.5.0","latest":"2.6.1","name":"Music Assistant"},{"installed":"1.2.0","latest":"1.3.0","name":"Hallway sensor firmware"}]`,
+		"open_items":    `[{"kind":"door","name":"Back door"},{"kind":"window","name":"Bedroom window"},{"kind":"garage","name":"Garage door"}]`,
+		"battery_items": `[{"level":12,"name":"Hallway motion"},{"name":"Smoke alarm"}]`,
+	}
+	for k, want := range lists {
+		if got, _ := json.Marshal(app.Attrs[k]); string(got) != want {
+			t.Errorf("app.attrs.%s = %s, want %s", k, got, want)
 		}
 	}
 	if h.Graph().Relations["integration:i_test monitors homeassistant:i_test/app"] == nil {
@@ -264,7 +278,10 @@ func TestSync(t *testing.T) {
 	}
 	// Groups (light.downstairs, the Hue room, switch.all_plugs) don't count
 	// twice; the unavailable porch light counts as a light that's off.
-	for key, want := range map[string]any{"people_home": 2.0, "lights_on": 3.0, "switches_on": 2.0, "power.kw": 1.234, "energy.kwh": 8.25} {
+	// The porch light, the fridge's power and the garden pump's firmware are
+	// unavailable.
+	for key, want := range map[string]any{"people_home": 2.0, "lights_on": 3.0, "switches_on": 2.0, "power.kw": 1.234, "energy.kwh": 8.25,
+		"open": 3.0, "locks_unlocked": 1.0, "batteries_low": 2.0, "updates": 2.0, "unavailable": 3.0} {
 		if got := value(t, h, key); got != want {
 			t.Errorf("%s = %v, want %v", key, got, want)
 		}
