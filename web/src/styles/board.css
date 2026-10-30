@@ -322,18 +322,6 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
-:root[data-surface='ruled'] .sh {
-  border-top: var(--section-rule-width) solid var(--section-rule-color);
-  padding-top: 9px;
-  margin-bottom: var(--space-2);
-  font: var(--weight-medium) var(--type-title-2) / 1.1 var(--font-head);
-  letter-spacing: -0.012em;
-  text-transform: none;
-  color: var(--text);
-  font-variation-settings: 'opsz' 48;
-  align-items: baseline;
-}
-:root[data-surface='ruled'] .sh-rule {
 /* An editor's Add sits at the header's right end, centred on the rule, and shows on hover or focus. It is out
    of the flow so the header keeps its height; touch has no hover, so it stays visible there. */
 .sh-live {
@@ -365,6 +353,18 @@
     transition: none;
   }
 }
+:root[data-surface='ruled'] .sh {
+  border-top: var(--section-rule-width) solid var(--section-rule-color);
+  padding-top: 9px;
+  margin-bottom: var(--space-2);
+  font: var(--weight-medium) var(--type-title-2) / 1.1 var(--font-head);
+  letter-spacing: -0.012em;
+  text-transform: none;
+  color: var(--text);
+  font-variation-settings: 'opsz' 48;
+  align-items: baseline;
+}
+:root[data-surface='ruled'] .sh-rule {
   display: none;
 }
 :root[data-surface='ruled'] .sh-m {

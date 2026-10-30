@@ -126,12 +126,12 @@ Derivation is a pure function of the board, so it's deterministic. Results are n
 
 ### Flows
 
-The board's `flow` decides where sections and tiles sit on the board. It never changes a tile's size or its position inside its section, so switching flows resizes nothing.
+The board's `flow` decides where sections and tiles sit on the board. It never changes a tile's size, so switching flows resizes nothing. Positions inside a section change only in a bento block that narrowed to fit.
 
 | Flow | What it does |
 |---|---|
 | `sections` (default) | The sparse bands above. Each band is as tall as its tallest section, so a short section beside a tall one leaves a hole under it. |
-| `bento` | Each section is a block: one header track, then two tracks per row. Blocks are packed by the same dense first-fit as tiles, in Z order, so a later section moves up into a hole that fits it. |
+| `bento` | Each section is a block: one header track, then two tracks per row. Blocks are packed by the same dense first-fit as tiles, in Z order, so a later section moves up into a hole that fits it. A block is only as wide as its tiles, and it may narrow, from its span down to its widest tile, with its tiles repacked at that width: it takes the width that lands earliest (ties go to the wider). |
 | `mosaic` | No blocks. Every tile is packed onto the whole board by the same rule, section after section. A section's header is a label glued to the top of its first tile: the two pack as one block, as wide as the tile or `MOSAIC_LABEL_COLUMNS` (2), so a label never drifts into a gap of its own. |
 
 Bento and mosaic work on **tracks**, each half a unit row (`TRACKS_PER_ROW` is 2). Two tracks and the gap between them are exactly one unit, so a tile `h` rows tall covers `2h` tracks and lines up with every other tile, and a header takes one track instead of a whole row. `deriveLayout` reports each section's `area` (bento), `header` (bento and mosaic) and each item's `area`, plus the board's total `tracks`.
@@ -142,6 +142,7 @@ This is not masonry. Masonry places by measured heights and reshuffles when cont
 - `flow`: lay out with another flow than the board's. The editor shows a mosaic as bento, so tiles stay in their sections while you move them.
 - `headers`: `auto` (the default) gives a header track to titled sections only, `always` to every section, for a renderer that always draws a header.
 - `minRows`: the fewest rows a bento block keeps, so an empty section can still take a drop while editing.
+- `fit`: whether bento blocks may narrow and trim (default `true`). An editor passes `false`, so tiles sit at their stored positions and drops map onto them.
 
 ---
 

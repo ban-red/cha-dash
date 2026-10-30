@@ -80,7 +80,8 @@ const headers = computed<'auto' | 'always'>(() => (slots.section === undefined ?
 /** How the engine lays the board out here: the board's flow (a mosaic shows as bento while editing). */
 const deriveOptions = computed<DeriveOptions>(() => {
   const flow = props.editing && display.value.flow === 'mosaic' ? 'bento' : display.value.flow;
-  const base = { headers: headers.value, minRows: props.editing ? 1 : 0 };
+  // While editing, bento blocks keep their spans: tiles sit where the stored layout says, so drops map onto it.
+  const base = { headers: headers.value, minRows: props.editing ? 1 : 0, fit: !props.editing };
   return flow === undefined ? base : { ...base, flow };
 });
 const layout = computed(() => deriveLayout(display.value, breakpoint.value, deriveOptions.value));
@@ -904,11 +905,6 @@ function itemName(id: string, size: SizeId): string {
   gap: var(--space-3, 12px);
   align-self: end;
   min-width: 0;
-}
-
-/* Bento and mosaic: a header has one track, so it sits in the middle of it. */
-.layout-grid:not([data-flow='sections']) .layout-section-header {
-  align-self: center;
 }
 
 .layout-section-header::after {

@@ -31,15 +31,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Warning icons explain themselves.** Hover over a tile's warning icon, or tab to it, to see the warning; click it to read it in full.
 - **Long tile notes open in full.** A warning longer than two lines, such as Prowlarr's own health messages, is cut with "more" on the tile. Click it to read the whole message in a dialog.
-- **Bento and Mosaic boards.** Edit layout has a Layout choice: **Sections** (side by side in rows, as before), **Bento** (sections fit together, so a short section no longer leaves a hole beside a tall one) and **Mosaic** (every tile fits together, with each section's name on its first tile). It's saved with the board for everyone. Nothing reshuffles: the same board always looks the same, and tile sizes don't change. A Mosaic board is edited as Bento.
+- **Bento and Mosaic boards.** Edit layout has a Layout choice: **Sections** (side by side in rows, as before), **Bento** (sections fit together, so a short section no longer leaves a hole beside a tall one; a section is only as wide as its tiles, and narrows to fill a gap it fits) and **Mosaic** (every tile fits together, with each section's name on its first tile). It's saved with the board for everyone. Nothing reshuffles: the same board always looks the same, and tile sizes don't change. A Mosaic board is edited as Bento.
 - **Bazarr says what its health issues are.** The tile lists them as Bazarr does ("/tv: Directory does not exist") instead of only counting them. The note links to Bazarr's System → Status page, or System → Providers for throttled providers, and opens it in a new tab; a cut note's dialog has the same link.
 
 ### Changed
 
-- **Checks say Up or Down.** A check's tile leads with Up or Down instead of an HTTP status code; the code, latency and uptime sit below it.
 - **Homepage import recognises apps with no widget.** A service whose icon or name is Unraid, Linkding, Plex, Sonarr or any other app Cha Dash has an integration for now gets that integration, ready for its API key, instead of only a check in the shared "Homepage" checks instance. It keeps the check for its status. Import again from Settings → Bring in to pick this up; the old import can be reverted in History.
 - **A tile bound to an integration is named after it.** Rename the integration in Settings and its tile follows at once. In the tile editor the Name field is greyed out for these tiles.
 - **Edit layout is an icon in the top-right button row**, beside search and Settings. It toggles edit mode; the text button above the board is gone.
+- **Checks say Up or Down.** A check's tile leads with Up or Down instead of an HTTP status code; the code, latency and uptime sit below it.
 - **A tile's address opens the service.** The address at the bottom of a check or service tile is a link that opens in a new tab.
 - **Long units wrap on small tiles.** A unit too long to sit beside its number ("subtitles missing") moves to the line below instead of running off the tile.
 - **A tile's status mark sits bottom right** when it stands alone, clear of the settings cog. With words beside it ("WAN down since 14:02") it stays with them.
@@ -47,6 +47,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Optional groups are folded.** A group of optional settings, such as TLS, starts closed, with what it holds in its header ("verify", "pin · 3f2a1b9c…"). It opens by itself when a field inside needs fixing.
 - **Compact forms.** Inputs, selects and choice rows across the app are shorter and tighter, with number fields side by side. On touch screens they keep their full size.
 - **A check target shows only its own fields:** URL, expected status and TLS for http; host and port for tcp. Switching a target's kind drops the fields that no longer apply when you save.
+- **A settings button in the top right** replaces the theme button. Its menu has Theme, Settings and Sign out; Theme opens the theme previews in the same menu, and Escape steps back.
 
 ### Fixed
 

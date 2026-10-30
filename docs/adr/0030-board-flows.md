@@ -10,11 +10,11 @@ Sections flow across the board in sparse bands: each band is as tall as its tall
 
 **A board has a `flow`: `sections` (bands, the default), `bento` or `mosaic`. It's stored in the layout document and chosen in edit mode, for everyone who views the board.**
 
-- **Bento:** each section is a block (a header track, then two tracks a row), packed by the same dense first-fit tiles already use.
+- **Bento:** each section is a block (a header track, then two tracks a row), packed by the same dense first-fit tiles already use. A block is only as wide as its tiles, and it may narrow from its span down to its widest tile, its tiles repacked at that width, when that lands it earlier. Ties go to the wider block.
 - **Mosaic:** no blocks. Every tile is packed onto the board, section after section. A section's header is a label glued to its first tile, so the two pack as one block and the label can't drift.
 - **Half-row tracks.** Two tracks and a gap are exactly one unit, so tiles keep their square units and line up, and a header costs a track rather than a row.
-- **Nothing else moves.** Tile sizes and positions inside a section are the same in every flow, and overrides still apply.
-- **A mosaic is edited as bento**, so a drag stays inside the sections the editor already understands.
+- **Little else moves.** Tile sizes are the same in every flow, and overrides still apply. Positions inside a section change only when a bento block narrows to fit.
+- **A mosaic is edited as bento**, so a drag stays inside the sections the editor already understands. In edit mode, bento blocks keep their spans and stored tile positions, so drops map onto the stored layout. Done shows the fitted blocks again.
 
 ## Consequences
 

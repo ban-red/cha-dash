@@ -88,10 +88,10 @@ watch(
         <SectionHeader v-else :section="section" />
       </template>
       <template #item="{ item, size }">
-    <WidgetPicker v-if="picking !== null" :board="board" :tiles="store.tiles.value" :section-id="picking" @add="picked" @close="picking = null" />
         <WidgetHost :item="item" :size="size" />
       </template>
     </StaticBoard>
+    <WidgetPicker v-if="picking !== null" :board="board" :tiles="store.tiles.value" :section-id="picking" @add="picked" @close="picking = null" />
   </template>
 </template>
 

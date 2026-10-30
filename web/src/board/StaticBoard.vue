@@ -113,15 +113,22 @@ const flowStyle = computed(() => ({ '--cols': String(columns.value), gridTemplat
   row-gap: var(--gutter);
   align-items: stretch;
 }
+/*
+ * A header has one track. It sits at the bottom of its track and the gap
+ * below it, as close to its tiles as in bands, and the room above it sets the
+ * block apart from the one before. Long meta is cut.
+ */
 .board[data-flow='bento'] > .sec {
   display: grid;
-  grid-template-rows: var(--track) auto;
-  row-gap: var(--gutter);
+  grid-template-rows: calc(var(--track) + var(--gutter)) auto;
   align-content: start;
 }
-/* A header has one track: it sits in the middle of it, and long meta is cut. */
+.board[data-flow='bento'] > .sec > :first-child:not(.sec-grid) {
+  align-self: end;
+  margin-bottom: var(--space-3);
+  min-width: 0;
+}
 .board[data-flow] .sh {
-  align-self: center;
   margin: 0;
   min-width: 0;
   overflow: hidden;
@@ -131,11 +138,12 @@ const flowStyle = computed(() => ({ '--cols': String(columns.value), gridTemplat
 }
 .mosaic-label {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   min-width: 0;
 }
-.mosaic-label > .sh {
+.mosaic-label > * {
   flex: 1;
+  min-width: 0;
 }
 
 /* Tiles an import just added: a ring for a few seconds (import/fresh.ts). */

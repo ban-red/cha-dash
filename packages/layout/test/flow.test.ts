@@ -87,10 +87,49 @@ describe('flows', () => {
 
   test('untitled sections get a header track only when asked', () => {
     const board = createBoard({ flow: 'bento', sections: [section('a', [item('x', 'small')], 4), section('b', [], 4)] });
-    expect(deriveLayout(board, 'desktop').sections.map((s) => box(s.area))).toEqual(['0,0 4×4', '-']);
-    expect(deriveLayout(board, 'desktop', { headers: 'always' }).sections.map((s) => box(s.area))).toEqual(['0,0 4×5', '4,0 4×1']);
-    // An editor keeps a row for an empty section, so it can take a drop.
-    expect(deriveLayout(board, 'desktop', { headers: 'always', minRows: 1 }).sections.map((s) => box(s.area))).toEqual(['0,0 4×5', '4,0 4×3']);
+    // A block is only as wide as its tiles: one small is two columns.
+    expect(deriveLayout(board, 'desktop').sections.map((s) => box(s.area))).toEqual(['0,0 2×4', '-']);
+    expect(deriveLayout(board, 'desktop', { headers: 'always' }).sections.map((s) => box(s.area))).toEqual(['0,0 2×5', '2,0 4×1']);
+    // An editor keeps a row for an empty section, so it can take a drop, and keeps spans.
+    expect(deriveLayout(board, 'desktop', { headers: 'always', minRows: 1, fit: false }).sections.map((s) => box(s.area))).toEqual(['0,0 4×5', '4,0 4×3']);
+  });
+
+  test('a bento block trims empty columns and narrows into a hole that fits it', () => {
+    // The dogfood board's shape: Services and Media span 5 with four columns of tiles,
+    // Data spans 2, and Archive (two smalls, span 4) comes after it.
+    const board = createBoard({
+      flow: 'bento',
+      sections: [
+        section('activity', [item('inbox', 'large')], 4, { title: 'Activity' }),
+        section('home', [item('ha', 'wide'), item('cams', 'large')], 4, { title: 'Home' }),
+        section('servers', ['opn', 'a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id, i) => item(id, i ? 'small' : 'wide')), 4, { title: 'Servers' }),
+        section('services', [item('traefik', 'small'), item('kuma', 'small')], 5, { title: 'Services' }),
+        section('media', [item('plex', 'wide'), item('radarr', 'small'), item('sonarr', 'small'), item('bazarr', 'small')], 5, { title: 'Media' }),
+        section('data', [item('cal', 'tall'), item('tautulli', 'small')], 2, { title: 'Data' }),
+        section('archive', [item('links', 'small'), item('hoard', 'small')], 4, { title: 'Archive' }),
+        section('downloads', [item('qbit', 'wide'), item('prowlarr', 'small')], 4, { title: 'Downloads' }),
+      ],
+    });
+    const layout = deriveLayout(board, 'desktop');
+    expect(layout.sections.map((s) => `${s.id} ${box(s.area)}`)).toEqual([
+      'activity 0,0 4×9',
+      'home 4,0 4×13',
+      'servers 8,0 4×21',
+      'services 0,9 4×5', // trimmed from 5 columns, so it fits under Activity
+      'media 4,13 4×13',
+      'data 0,14 2×13',
+      'archive 2,14 2×9', // narrowed from 4: its smalls stack beside Data
+      'downloads 8,21 4×9',
+    ]);
+    expect(layout.tracks).toBe(30);
+    // Narrowing repacks the tiles inside the block, in order.
+    const archive = layout.sections[6]!;
+    expect(archive.span).toBe(2);
+    expect(archive.items.map((i) => `${i.id}@${i.x},${i.y}`)).toEqual(['links@0,0', 'hoard@0,2']);
+    // While editing, blocks keep their spans and tiles their stored positions.
+    const editing = deriveLayout(board, 'desktop', { fit: false });
+    expect(editing.sections.map((s) => s.span)).toEqual([4, 4, 4, 5, 5, 2, 4, 4]);
+    expect(editing.tracks).toBe(35);
   });
 
   test('the flow option overrides the board: an editor shows a mosaic as bento', () => {
