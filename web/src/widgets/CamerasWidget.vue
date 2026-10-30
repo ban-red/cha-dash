@@ -8,14 +8,18 @@
  * id>/app`, its cameras are what it `exposes`), one camera, or with none,
  * every camera. A frame opens its camera's sheet.
  *
- * Small: the latest detection with its caption. Wide: the cameras side by
- * side. Panel and Large: one big frame and two small. Hero: three frames and
- * the recent detections. Panel, Large and Hero have a control row for the
+ * The cameras are packed into a grid of cells that depends on the size (Wide
+ * 2 × 1, Large 2 × 2, Panel 3 × 2, Hero 4 × 2), in order, each taking its
+ * size from the tile's settings (1 × 1, 2 wide, 2 tall, 2 × 2) or, on Auto,
+ * the first a big frame and the rest one cell; one that doesn't fit is left
+ * out and counted ("+2 more"). Small: the latest detection with its caption.
+ * Large and Hero add the recent detections. Panel, Large and Hero have a control row for the
  * big camera (detection, recording, the camera, snapshots, alerts) when the
  * viewer may run Frigate's actions.
  *
- * Widget settings (WidgetSpec.options): which cameras, pictures on or off,
- * how often they refresh, the detections list, the controls.
+ * Widget settings (WidgetSpec.options): which cameras, in what order and how
+ * big, pictures on or off, how often they refresh, the detections list, the
+ * controls.
  *
  * A camera offline while others record is attention; Frigate down keeps the
  * last frames, hatched, "last frame 14:02". A camera turned off on purpose
@@ -66,8 +70,9 @@ const cams = computed(() => {
     return i < 0 ? 99 : i;
   };
   const pick = opts.value['cameras'] as string[];
-  const wanted = pick.length && p?.kind !== 'camera' ? list.filter((r) => pick.includes(r.id)) : list;
-  return [...wanted].sort((a, b) => rank(a) - rank(b) || label(a).localeCompare(label(b)));
+  // Picked: in the order picked. Otherwise the Demo Home's order, then by name.
+  if (pick.length && p?.kind !== 'camera') return list.filter((r) => pick.includes(r.id)).sort((a, b) => pick.indexOf(a.id) - pick.indexOf(b.id));
+  return [...list].sort((a, b) => rank(a) - rank(b) || label(a).localeCompare(label(b)));
 });
 const variant = (c: Resource, i: number) => {
   const k = ORDER.findIndex((o) => c.id.endsWith(o));
@@ -121,10 +126,57 @@ const events = computed(() =>
     .map((c) => ({ id: c.id, cam: c, text: caption(c), at: attr<string>(c, 'last_event.at')! }))
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at)),
 );
-/** Small shows the camera with the newest detection. */
-const shown = computed(() => (size === 'small' ? (events.value[0] ? [events.value[0].cam] : cams.value.slice(0, 1)) : size === 'wide' ? cams.value.slice(0, 2) : cams.value.slice(0, 3)));
+/** The grid of cells per size, and the Auto size of the first camera. */
+const GRID: Partial<Record<SizeId, { cols: number; rows: number; lead: [number, number] }>> = {
+  small: { cols: 1, rows: 1, lead: [1, 1] },
+  wide: { cols: 2, rows: 1, lead: [1, 1] },
+  panel: { cols: 3, rows: 2, lead: [2, 2] },
+  large: { cols: 2, rows: 2, lead: [2, 1] },
+  hero: { cols: 4, rows: 2, lead: [2, 2] },
+};
+const grid = computed(() => GRID[size] ?? GRID.large!);
+interface Placed {
+  cam: Resource;
+  col: number;
+  row: number;
+  w: number;
+  h: number;
+}
+/** Each camera's cells, from the tile's settings or Auto. */
+function span(c: Resource, i: number): [number, number] {
+  const v = (opts.value['camera_sizes'] as Record<string, string>)[c.id];
+  const m = /^(\d)x(\d)$/.exec(v ?? '');
+  const [w, h] = m ? [Number(m[1]), Number(m[2])] : i === 0 ? grid.value.lead : [1, 1];
+  return [Math.min(w, grid.value.cols), Math.min(h, grid.value.rows)];
+}
+/** Pack the cameras in order, row by row, each in the first free spot it fits; the rest are left out. */
+const placed = computed<Placed[]>(() => {
+  // Small shows the camera with the newest detection.
+  const list = size === 'small' ? (events.value[0] ? [events.value[0].cam] : cams.value.slice(0, 1)) : cams.value;
+  const { cols, rows } = grid.value;
+  const used = Array.from({ length: rows }, () => Array<boolean>(cols).fill(false));
+  const free = (c: number, r: number, w: number, h: number) => {
+    for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) if (y >= rows || x >= cols || used[y]![x]) return false;
+    return true;
+  };
+  const out: Placed[] = [];
+  list.forEach((cam, i) => {
+    const [w, h] = span(cam, i);
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        if (!free(c, r, w, h)) continue;
+        for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) used[y]![x] = true;
+        out.push({ cam, col: c + 1, row: r + 1, w, h });
+        return;
+      }
+  });
+  return out;
+});
+const shown = computed(() => placed.value.map((p) => p.cam));
+/** Cameras that didn't fit (not counted on Small, which shows one on purpose). */
+const hidden = computed(() => (size === 'small' ? 0 : cams.value.length - placed.value.length));
 const showEvents = computed(() => (size === 'hero' || size === 'large') && opts.value['detections'] === true && events.value.length > 0);
-const layout = computed(() => (size === 'small' ? 'one' : size === 'wide' ? 'two' : size === 'hero' ? 'hero' : ''));
+const gridStyle = computed(() => ({ gridTemplateColumns: `repeat(${grid.value.cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${grid.value.rows}, minmax(0, 1fr))` }));
 /** The instance a camera comes from (`integration:<id>`), when it shares pictures and the tile shows them. */
 function pictureFrom(c: Resource): string | undefined {
   if (!opts.value['pictures'] || attr(c, 'picture') !== true) return undefined;
@@ -132,8 +184,8 @@ function pictureFrom(c: Resource): string | undefined {
   return src.startsWith('integration:') ? src.slice('integration:'.length) : undefined;
 }
 const every = computed(() => Number(opts.value['refresh']) || 10);
-/** Pixels tall to ask for: the big frame of a large tile is bigger. */
-const heightFor = (i: number) => (i === 0 && (size === 'large' || size === 'hero' || size === 'panel') ? 540 : size === 'small' || size === 'wide' ? 360 : 240);
+/** Pixels tall to ask for: a frame bigger than a cell, or on a one-row tile, is bigger. */
+const heightFor = (p: Placed) => (p.w * p.h > 1 ? 540 : size === 'small' || size === 'wide' ? 360 : 270);
 const opens = (c: Resource) => !ui.state.editing && ui.hasSheet(c.id);
 function open(c: Resource): void {
   if (opens(c)) ui.openSheet(c.id);
@@ -208,18 +260,20 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
       <p class="lab">Connect Frigate to see your cameras here.</p>
     </template>
     <template v-else>
-      <div :class="['cams', layout]">
+      <div class="cams packed" :style="gridStyle">
         <component
-          :is="opens(c) ? 'button' : 'div'"
-          v-for="(c, i) in shown"
-          :key="c.id"
-          :type="opens(c) ? 'button' : undefined"
-          :class="['cam', { big: i === 0, off: camStatus(c) !== 'ok' && camStatus(c) !== 'attention', frozen, pic: Boolean(pictureFrom(c)) }]"
-          :role="opens(c) ? undefined : 'img'"
-          :aria-label="caption(c) + (frozen ? `, ${stamp}` : '')"
-          @click="open(c)"
+          :is="opens(p.cam) ? 'button' : 'div'"
+          v-for="(p, i) in placed"
+          :key="p.cam.id"
+          :type="opens(p.cam) ? 'button' : undefined"
+          :class="['cam', { big: p.w * p.h > 1, off: camStatus(p.cam) !== 'ok' && camStatus(p.cam) !== 'attention', frozen, pic: Boolean(pictureFrom(p.cam)) }]"
+          :style="{ gridColumn: `${p.col} / span ${p.w}`, gridRow: `${p.row} / span ${p.h}` }"
+          :role="opens(p.cam) ? undefined : 'img'"
+          :aria-label="caption(p.cam) + (frozen ? `, ${stamp}` : '')"
+          @click="open(p.cam)"
         >
-          <CameraPicture v-if="pictureFrom(c)" :instance="pictureFrom(c)!" :resource="c.id" :height="heightFor(i)" :every="every" :frozen="frozen">
+          <template v-for="c in [p.cam]" :key="c.id">
+          <CameraPicture v-if="pictureFrom(c)" :instance="pictureFrom(c)!" :resource="c.id" :height="heightFor(p)" :every="every" :frozen="frozen">
             <CameraScene :variant="variant(c, i)" :person="recent(c)" />
           </CameraPicture>
           <CameraScene v-else :variant="variant(c, i)" :person="recent(c)" />
@@ -228,6 +282,7 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
           <span class="cam-cap">
             <Glyph v-if="camStatus(c) !== 'ok'" :kind="glyphFor(camStatus(c))" />{{ caption(c) }}
           </span>
+          </template>
         </component>
       </div>
       <div v-if="controls.length" class="cam-ctl" role="group" :aria-label="`${label(main)} controls`">
@@ -255,7 +310,7 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
       <StateNote v-if="size !== 'small' && s.status !== 'ok'" :subject="s" />
       <div class="tf">
         <span v-if="detections === 0">No detections today</span>
-        <span v-else>{{ plural(cams.length, 'camera') }} · <span class="n">{{ s.needsRepair ? '—' : fmtInt(detections) }}</span> detections today</span>
+        <span v-else>{{ plural(cams.length, 'camera') }}<template v-if="hidden"> (+{{ hidden }} more)</template> · <span class="n">{{ s.needsRepair ? '—' : fmtInt(detections) }}</span> detections today</span>
         <span v-if="size !== 'small' && attr(frigate, 'version')" class="n">v{{ attr(frigate, 'version') }}</span>
       </div>
     </template>

@@ -97,6 +97,32 @@
   min-height: var(--target-min);
   color: var(--text);
 }
+.edit-dlg .pick-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+.edit-dlg .pick select.pick-size {
+  width: auto;
+  min-height: 32px;
+  padding: 2px 8px;
+}
+.edit-dlg .pick-mv {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-2);
+}
+.edit-dlg .pick-mv:disabled {
+  opacity: 0.4;
+}
 .edit-dlg .field .pick input {
   width: 18px;
   min-height: 18px;

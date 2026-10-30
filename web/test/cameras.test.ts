@@ -269,3 +269,56 @@ describe('a camera’s sheet', () => {
     w.unmount();
   });
 });
+
+describe('camera order and sizes', () => {
+  const cells = (w: ReturnType<typeof mountCams>['w']) =>
+    w.findAll('.cams .cam').map((c) => `${c.find('.cam-ts').text().split(' ')[0]} ${c.attributes('style')?.match(/grid-column: ([^;]+);/)?.[1]} | ${c.attributes('style')?.match(/grid-row: ([^;]+);/)?.[1]}`);
+
+  it('packs the cameras in the order picked, the first big on Auto', async () => {
+    fakeFetch({ 'GET /api/actions': { status: 200, body: [] } });
+    const { w } = mountCams('large', { options: { cameras: ['frigate:camera/garage', 'frigate:camera/garden', 'frigate:camera/driveway'] } });
+    await flushPromises();
+    expect(cells(w)).toEqual(['GARAGE 1 / span 2 | 1 / span 1', 'GARDEN 1 / span 1 | 2 / span 1', 'DRIVEWAY 2 / span 1 | 2 / span 1']);
+  });
+
+  it('gives each camera the room set for it, and counts those that don’t fit', async () => {
+    fakeFetch({ 'GET /api/actions': { status: 200, body: [] } });
+    const { w } = mountCams('hero', {
+      options: { camera_sizes: { 'frigate:camera/driveway': '1x1', 'frigate:camera/front_door': '2x2', 'frigate:camera/garden': '1x2', 'frigate:camera/garage': '2x2' } },
+    });
+    await flushPromises();
+    // 4 × 2: driveway one cell, the front door 2 × 2, the garden 2 tall; no room left for the garage.
+    expect(cells(w)).toEqual(['DRIVEWAY 1 / span 1 | 1 / span 1', 'FRONT 2 / span 2 | 1 / span 2', 'GARDEN 4 / span 1 | 1 / span 2']);
+    expect(w.find('.tf').text()).toContain('4 cameras (+1 more)');
+  });
+
+  it('clamps a size to the tile, and ignores a malformed one', async () => {
+    fakeFetch({ 'GET /api/actions': { status: 200, body: [] } });
+    const { w } = mountCams('wide', { options: { camera_sizes: { 'frigate:camera/driveway': '2x2', 'frigate:camera/front_door': 'huge' } } });
+    await flushPromises();
+    expect(cells(w)).toEqual(['DRIVEWAY 1 / span 2 | 1 / span 1']);
+    expect(w.find('.tf').text()).toContain('(+3 more)');
+  });
+
+  it('reorders and sizes cameras in Widget settings', async () => {
+    const { default: TileEditor } = await import('../src/board/TileEditor.vue');
+    const hs = harness(house());
+    const ed = hs.mountIn(TileEditor, { item: { id: 'cameras@app:frigate', type: 'cameras' }, config: { options: { cameras: ['frigate:camera/garden', 'frigate:camera/driveway'] } } }).findComponent(TileEditor);
+    await flushPromises();
+    const names = () => ed.findAll('fieldset.picks .pick-name').map((x) => x.text());
+    // Ticked first, in their order; then the rest by name.
+    expect(names()).toEqual(['Garden', 'Driveway', 'Front door', 'Garage']);
+    expect(ed.find('[aria-label="Move Garden earlier"]').attributes('disabled')).toBeDefined();
+    expect(ed.find('[aria-label="Move Garage later"]').exists()).toBe(false);
+    await ed.find('[aria-label="Move Driveway earlier"]').trigger('click');
+    expect(names()).toEqual(['Driveway', 'Garden', 'Front door', 'Garage']);
+    expect(await axeViolations()).toEqual([]);
+    await ed.find('[aria-label="Size of Garden"]').setValue('2x2');
+    await ed.find('[aria-label="Size of Front door"]').setValue('1x2');
+    await ed.find('[aria-label="Size of Front door"]').setValue('auto');
+    await ed.find('form').trigger('submit');
+    expect(ed.emitted('save')![0]![0]).toEqual({
+      options: { cameras: ['frigate:camera/driveway', 'frigate:camera/garden'], camera_sizes: { 'frigate:camera/garden': '2x2' } },
+    });
+  });
+});

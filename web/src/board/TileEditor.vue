@@ -19,7 +19,7 @@ import { WIDGETS, parseItemId } from '../model/widgets';
 import { bindKind, candidateLabel, decodeBinding, encodeBinding, feedFor, serviceBindingGroups } from '../model/feeds';
 import { byKind, label, outgoing } from '../model/graph';
 import type { WidgetOption } from '../model/widgets';
-import { optionValue, type OptionValue } from '../widgets/options';
+import { optionValue, sizesValue, type OptionValue } from '../widgets/options';
 import { useLive } from '../stores/live';
 import { instanceName } from '../stores/integrations';
 import { hrefOk, type TileConfig } from '../stores/tiles';
@@ -52,13 +52,37 @@ const unmonitored = ref(
 /** The widget's own settings, as edited. */
 const widgetOptions = computed(() => spec.value?.options ?? []);
 const values = ref<Record<string, OptionValue>>(Object.fromEntries((spec.value?.options ?? []).map((o) => [o.key, optionValue(o, config?.options?.[o.key])])));
+/** A `resources` option's sizes by resource id, as edited, by the sizes' key. */
+const sizes = ref<Record<string, Record<string, string>>>(
+  Object.fromEntries((spec.value?.options ?? []).flatMap((o) => (o.kind === 'resources' && o.sizes ? [[o.sizes.key, sizesValue(o, config?.options?.[o.sizes.key])]] : []))),
+);
 /** What a `resources` option can pick: the target's related resources of that kind, else all of them. */
 function pickable(o: WidgetOption & { kind: 'resources' }) {
   const g = live.graph.value;
   const t = target.value ? g?.resources[target.value] : undefined;
   if (t?.kind === o.resourceKind) return [];
   const list = t && o.via ? outgoing(g, t.id, o.via).filter((r) => r.kind === o.resourceKind) : byKind(g, o.resourceKind);
-  return [...list].sort((a, b) => label(a).localeCompare(label(b)));
+  const out = [...list].sort((a, b) => label(a).localeCompare(label(b)));
+  if (!o.ordered) return out;
+  // Ticked first, in their order; then the rest.
+  const picked = values.value[o.key] as string[];
+  const rank = (id: string) => (picked.includes(id) ? picked.indexOf(id) : picked.length);
+  return out.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r.id) - rank(b.r.id) || a.i - b.i).map((x) => x.r);
+}
+/** Move a ticked resource one place earlier (-1) or later (1) among the ticked. */
+function move(key: string, id: string, by: -1 | 1): void {
+  const cur = [...((values.value[key] as string[] | undefined) ?? [])];
+  const i = cur.indexOf(id);
+  const j = i + by;
+  if (i < 0 || j < 0 || j >= cur.length) return;
+  [cur[i], cur[j]] = [cur[j]!, cur[i]!];
+  values.value = { ...values.value, [key]: cur };
+}
+function setSize(key: string, id: string, value: string, def: string): void {
+  const cur = { ...sizes.value[key] };
+  if (value === def) delete cur[id];
+  else cur[id] = value;
+  sizes.value = { ...sizes.value, [key]: cur };
 }
 function togglePick(key: string, id: string, on: boolean): void {
   const cur = (values.value[key] as string[] | undefined) ?? [];
@@ -110,6 +134,11 @@ function submit(): void {
     const v = values.value[o.key] ?? optionValue(o, undefined);
     if (isDefault(o, v)) delete options[o.key];
     else options[o.key] = v;
+    if (o.kind === 'resources' && o.sizes) {
+      const sz = sizes.value[o.sizes.key] ?? {};
+      if (Object.keys(sz).length) options[o.sizes.key] = sz;
+      else delete options[o.sizes.key];
+    }
   }
   if (isCalendar) {
     if (unmonitored.value) options['unmonitored'] = true;
@@ -203,10 +232,25 @@ function submit(): void {
         </div>
         <fieldset v-else-if="o.kind === 'resources' && pickable(o).length" class="field picks">
           <legend>{{ o.label }}</legend>
-          <label v-for="r in pickable(o)" :key="r.id" class="pick">
-            <input type="checkbox" :checked="(values[o.key] as string[]).includes(r.id)" @change="togglePick(o.key, r.id, ($event.target as HTMLInputElement).checked)" />
-            {{ label(r) }}
-          </label>
+          <div v-for="r in pickable(o)" :key="r.id" class="pick">
+            <label class="pick-name">
+              <input type="checkbox" :checked="(values[o.key] as string[]).includes(r.id)" @change="togglePick(o.key, r.id, ($event.target as HTMLInputElement).checked)" />
+              {{ label(r) }}
+            </label>
+            <select
+              v-if="o.sizes"
+              class="pick-size"
+              :aria-label="`${o.sizes.label} of ${label(r)}`"
+              :value="sizes[o.sizes.key]?.[r.id] ?? o.sizes.default"
+              @change="setSize(o.sizes.key, r.id, ($event.target as HTMLSelectElement).value, o.sizes.default)"
+            >
+              <option v-for="c in o.sizes.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
+            </select>
+            <template v-if="o.ordered && (values[o.key] as string[]).includes(r.id)">
+              <button type="button" class="pick-mv" :aria-label="`Move ${label(r)} earlier`" :disabled="(values[o.key] as string[]).indexOf(r.id) === 0" @click="move(o.key, r.id, -1)">↑</button>
+              <button type="button" class="pick-mv" :aria-label="`Move ${label(r)} later`" :disabled="(values[o.key] as string[]).indexOf(r.id) === (values[o.key] as string[]).length - 1" @click="move(o.key, r.id, 1)">↓</button>
+            </template>
+          </div>
           <span v-if="o.help" class="help">{{ o.help }}</span>
         </fieldset>
       </template>

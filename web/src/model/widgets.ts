@@ -44,12 +44,20 @@ export interface WidgetSpec {
  * - `choice`: a select of string values.
  * - `resources`: which resources of a kind to show, in the graph's order;
  *   none picked means all. Limited to those the tile's target relates to
- *   with `via` when the target is one.
+ *   with `via` when the target is one. With `ordered`, the ticked ones show
+ *   in the order they're ticked and moved to. With `sizes`, each resource
+ *   gets a size, kept by id in `options[sizes.key]`.
  */
 export type WidgetOption = { key: string; label: string; help?: string } & (
   | { kind: 'boolean'; default: boolean }
   | { kind: 'choice'; default: string; choices: { value: string; label: string }[] }
-  | { kind: 'resources'; resourceKind: string; via?: string }
+  | {
+      kind: 'resources';
+      resourceKind: string;
+      via?: string;
+      ordered?: boolean;
+      sizes?: { key: string; label: string; default: string; choices: { value: string; label: string }[] };
+    }
 );
 
 /** The widget picker's groups, in the order it shows them. */
@@ -86,7 +94,14 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   cameras: spec('cameras', 'Cameras', 'large', ['small', 'wide', 'panel', 'large', 'hero'], {
     accepts: { kinds: ['app', 'camera'], types: ['frigate'] }, group: 'home', about: 'Frigate’s cameras: their pictures, last detections and controls.', icon: 'frigate',
     options: [
-      { key: 'cameras', kind: 'resources', resourceKind: 'camera', via: 'exposes', label: 'Cameras', help: 'Which cameras the tile shows. None picked shows them all.' },
+      {
+        key: 'cameras', kind: 'resources', resourceKind: 'camera', via: 'exposes', ordered: true, label: 'Cameras',
+        help: 'Which cameras the tile shows, in this order, and how much room each takes. None ticked shows them all. Those that don’t fit are counted under the pictures.',
+        sizes: {
+          key: 'camera_sizes', label: 'Size', default: 'auto',
+          choices: [{ value: 'auto', label: 'Auto' }, { value: '1x1', label: '1 × 1' }, { value: '2x1', label: '2 wide' }, { value: '1x2', label: '2 tall' }, { value: '2x2', label: '2 × 2' }],
+        },
+      },
       { key: 'pictures', kind: 'boolean', default: true, label: 'Show pictures', help: 'When the Frigate connection shares them. Off draws a placeholder instead.' },
       {
         key: 'refresh', kind: 'choice', default: '10', label: 'Refresh pictures every',
