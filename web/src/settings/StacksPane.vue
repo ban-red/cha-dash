@@ -19,6 +19,8 @@ import Glyph from '../ui/marks/Glyph.vue';
 import StackEditor from './StackEditor.vue';
 import StackSecrets from './StackSecrets.vue';
 import StackHooks from './StackHooks.vue';
+import StackMove from './StackMove.vue';
+import SelfUpdate from './SelfUpdate.vue';
 import { ago } from '../lib/format';
 import { hubWords, isDone } from '../lib/actions';
 import { navigate, stackPath, view } from '../lib/router';
@@ -166,6 +168,7 @@ onMounted(load);
                   <UiButton v-if="d.adoptable && canAdopt" size="sm" :aria-label="`Adopt ${d.name} where it is`" @click="adopt(n, d)">
                     Adopt<span class="tier">T1</span>
                   </UiButton>
+                  <StackMove v-if="d.moveable && canAdopt" :node="n.node" :name="d.name" :from-path="d.config_files?.[0] ?? d.path" />
                   <span v-else-if="!d.adoptable && !d.protected">can’t adopt</span>
                 </span>
               </div>
@@ -177,6 +180,7 @@ onMounted(load);
     </template>
 
     <StackHooks />
+    <SelfUpdate :nodes="nodes" />
     <StackSecrets />
   </template>
 </template>

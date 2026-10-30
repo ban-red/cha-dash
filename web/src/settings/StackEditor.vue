@@ -49,6 +49,7 @@ import UiButton from '../ui/Button.vue';
 import UiField from '../ui/Field.vue';
 import StackSync from './StackSync.vue';
 import { editWhere, sourceWords, type SyncView } from './sync';
+import StackManage from './StackManage.vue';
 
 const props = withDefaults(defineProps<{ node?: string; name?: string; fresh?: boolean; nodes?: StackNode[]; debounceMs?: number }>(), {
   node: '',
@@ -460,8 +461,9 @@ onBeforeUnmount(() => {
         <template v-if="detail.env.present"> · .env with {{ detail.env.keys.length ? detail.env.keys.join(', ') : 'no keys' }}</template>
         <template v-if="metaLine"> · x-chadash: {{ metaLine }}</template>
       </p>
-      <div v-if="isProtected" class="st-note sk-prot" role="note"><Glyph kind="lock" /><span>{{ protectedWords }}. You can read it and see what would change; deploying it from here comes with self-update.</span></div>
+      <div v-if="isProtected" class="st-note sk-prot" role="note"><Glyph kind="lock" /><span>{{ protectedWords }}. You can read it and see what would change; Update Cha Dash, in Stacks, changes its image.</span></div>
       <div v-if="synced" class="st-note sk-synced" role="note"><Glyph kind="link" /><span>This stack follows git. {{ editWhere(synced) }}</span></div>
+      <StackManage v-if="detail && !fresh" :detail="detail" :busy="running" />
       <div v-if="detail?.drift && !isProtected" class="st-note attn" role="note">
         <Glyph kind="attn" />
         <span>The file on disk was edited outside Cha Dash since its last commit. Accept those edits to make them the stack’s history, or deploying will refuse.</span>

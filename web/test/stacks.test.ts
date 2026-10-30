@@ -155,7 +155,7 @@ describe('Settings → Stacks: the list', () => {
     const rows = w.findAll('.sk-node').at(0)!.findAll('a.sk-row');
     expect(rows.map((r) => r.find('.t').text().replace(/\s+/g, ' ').trim())).toEqual([
       'media draft',
-      'chadash Cha Dash’s own stack · view only until self-update',
+      'chadash Cha Dash’s own stack · view only',
       'dns edited outside Cha Dash',
     ]);
     expect(rows[0]!.find('.m').text().replace(/\s+/g, ' ')).toContain('running · 2/2 · aaaaaaa Deploy media: recreate web');
@@ -167,7 +167,7 @@ describe('Settings → Stacks: the list', () => {
     expect(detected[1]!.find('button').exists()).toBe(false);
     expect(detected[1]!.text()).toContain('Its compose file is no longer on disk, so there’s nothing to adopt.');
     // Cha Dash's own project with an override: the protected chip, not "can't adopt".
-    expect(detected[2]!.text()).toContain('Cha Dash’s own stack · view only until self-update');
+    expect(detected[2]!.text()).toContain('Cha Dash’s own stack · view only');
     expect(detected[2]!.text()).not.toContain('can’t adopt');
     expect(detected[2]!.find('button').exists()).toBe(false);
   });
@@ -354,9 +354,9 @@ describe('Settings → Stacks: one stack', () => {
     await settle();
     await settle();
     expect(w.find('textarea').attributes('readonly')).toBeDefined();
-    expect(w.find('.sk-prot').text()).toContain('Cha Dash’s own stack · view only until self-update');
+    expect(w.find('.sk-prot').text()).toContain('Cha Dash’s own stack · view only');
     expect(w.find('.sk-deploy').attributes('aria-disabled')).toBe('true');
-    expect(w.find('.sk-why').text()).toBe('Cha Dash’s own stack · view only until self-update.');
+    expect(w.find('.sk-why').text()).toBe('Cha Dash’s own stack · view only.');
     expect(w.findAll('button').some((b) => b.text() === 'Save draft')).toBe(false);
     expect(w.findAll('.sk-h button')).toHaveLength(0);
   });

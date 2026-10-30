@@ -51,6 +51,9 @@ export interface Detected {
   /** Cha Dash's own project: listed, never adopted or drafted. */
   protected?: boolean;
   reason: string | null;
+  /** stack.move can bring it into the root (fleet.ts); move_refusal says why not. */
+  moveable?: boolean;
+  move_refusal?: string | null;
 }
 
 export interface StackNode {
@@ -64,7 +67,7 @@ export interface StackNode {
 }
 
 export type Health = 'healthy' | 'unhealthy' | 'starting' | 'none';
-export type HistoryKind = 'deploy' | 'rollback' | 'adopt' | 'unadopt' | 'accept' | 'other';
+export type HistoryKind = 'deploy' | 'rollback' | 'adopt' | 'unadopt' | 'accept' | 'self-update' | 'other';
 
 export interface StackService {
   name: string;
@@ -113,6 +116,8 @@ export interface StackDetail {
   secrets: SecretRef[];
   /** Set while the stack follows git: the editor is read-only (sync.ts). */
   sync?: SyncView | null;
+  /** Where stack.move copied the file from, while that copy is still there. */
+  moved_from?: string | null;
 }
 
 export type Severity = 'error' | 'warning' | 'info';
@@ -181,7 +186,7 @@ export const SECRET_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 export const targetOf = (node: string, name: string) => `stack:${node}/${name}`;
 
-export const PROTECTED_WORDS = 'Cha Dash’s own stack · view only until self-update';
+export const PROTECTED_WORDS = 'Cha Dash’s own stack · view only';
 
 export const STATUS_GLYPH: Record<StackStatus, GlyphKind> = { running: 'ok', partial: 'attn', stopped: 'off', down: 'down', unknown: 'repair' };
 
@@ -216,6 +221,7 @@ export const KIND_WORDS: Record<HistoryKind, { label: string; glyph: GlyphKind }
   adopt: { label: 'adopted', glyph: 'link' },
   unadopt: { label: 'released', glyph: 'cross' },
   accept: { label: 'accepted edits', glyph: 'ok' },
+  'self-update': { label: 'self-update', glyph: 'check' },
   other: { label: 'change', glyph: 'off' },
 };
 
