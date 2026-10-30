@@ -19,6 +19,8 @@ The node does the work ([`internal/node/stacks`](../node/stacks/README.md)). Thi
 | `POST /api/stacks/{node}/{stack}/validate` | admin | `{content}` → `{ok, messages, secrets, plan, diff}`. The node validates. The hub adds an error for each referenced secret the vault lacks, and plans only when both pass. Saves nothing |
 | `GET /api/stacks/secrets` | admin | Stack secret names. Values never leave |
 | `PUT`/`DELETE /api/stacks/secrets/{name}` | admin | Set or delete one, audited as `settings.stacks.secret.update`/`.delete` with the name only |
+| `POST /api/stacks/{node}/{stack}/move/preview` | admin | `{from_path}` or `{content}` → `{ok, rewrites, plan, path, refusal}`. A dry run of `stack.move` on the node: it stages the files, plans, and takes them away again. A refusal from the node (`exists`, `protected`, `invalid`, `unadoptable`, `not_found`) is `200` with `refusal`, so the review can show it |
+| `GET /api/nodes/{id}/self-update` | admin | `{node, allowed, available, reason, running, last}`. `allowed`: the node's policy grants `stacks.selfupdate`. `available`: it also runs in the hub's compose project. `last` is the node's last self-update result |
 
 Node errors map to HTTP:
 - `not_found` → 404;
@@ -37,6 +39,8 @@ Node errors map to HTTP:
 | `stack.rollback` | T2 | same, `{"commit"}` | `stack.rollback` back to the commit it replaced |
 | `stack.adopt` | T1 | same | `stack.unadopt` (none when it accepts edits) |
 | `stack.unadopt` | T1 | same | `stack.adopt` |
+| `stack.move` | T1 | same, `{"from_path"}` | `stack.unadopt`, which leaves the moved copy, the old file and the containers alone |
+| `chadash.update` | T3 | `node:<id>`, `{"image"}` (a tag of `ghcr.io/ban-red/chadash`) | none. It resumes after the hub restarts |
 
 How the actions work:
 - **Resolve** reads the stack from its node. For a deploy it also validates and plans the draft, so the plan's steps name the services ("Pull nginx:1.28", "Recreate web …", the gate, "roll back on its own"). The result travels in `Target.Ref`.
@@ -45,6 +49,12 @@ How the actions work:
 - **Steps** lead with what the node flags as root-equivalent on its host (`Plan.RootEquivalent`: privileged, host namespaces, devices, `cap_add`, host paths), when there is any, so the person holding the ring sees it.
 - **Execute** reads the draft, checks it's the one planned, and reads each referenced secret from the vault for that one call. It records the names as granted to that stack on that node, sends the deploy with `expect_head`, so a deploy in between is refused, and streams the node's progress into the task. A rollback sends only granted names (see Secrets).
 - **Outcomes.** `deployed` succeeds and clears the draft, if it's still the same revision. `blocked`, `rolled_back` and `stuck` fail the task with that code and the node's sentence. `stuck` also opens an Inbox item, `stack.<node>.<name>.stuck`, at severity `down`; the next deploy or rollback that passes the gate resolves it.
+
+## Fleet stacks (`fleet.go`, `fleet_http.go`)
+
+**Move.** `stack.move` takes the compose file the project runs from (`from_path`), which the node checks against Docker's labels or its in-place registration. The node copies it and its `.env` to `<root>/<name>/`, makes relative paths absolute, commits it as an adopt, and runs nothing. The web shows the preview first: each rewritten line and what the first deploy will recreate. Content an importer supplies doesn't go through the action: a plan and its audit record keep their params, and a compose file can hold credentials. The importers, when they come, will need their own path to the node. A moved stack's `GET` carries `moved_from` while the old file is still there.
+
+**Cha Dash updating itself.** `chadash.update` targets `node:<id>`, the node beside the hub; its typed confirmation is "Cha Dash". Preconditions ask the node's `stack.selfupdate.result`: a policy without `stacks.selfupdate` or a node outside the hub's compose project is `unavailable`, and an update already running is refused. Execute sends `stack.selfupdate` with the task ID as `ref`. When the node recreates the hub, the hub shuts down mid-call. The engine leaves a task whose Def resumes running (`action.Def.Resumes`), and at the next start `Resume` asks `stack.selfupdate.result` every 3 s. It finishes the task with the node's outcome once the result carries this task's ID and isn't `running`. A result for another task means the node never started this one: `interrupted`, nothing changed. Outcomes map as deploys do: `deployed` and `unchanged` succeed; `blocked`, `rolled_back` and `stuck` fail with that code.
 
 ## Drafts live in the hub
 

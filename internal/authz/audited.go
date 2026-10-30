@@ -112,4 +112,6 @@ var AuditExempt = map[string]string{
 	"DELETE /api/notify/push/subscriptions/{id}": "The caller's own device.",
 	"POST /api/notify/push/unsubscribe":          "The caller's own device.",
 	"POST /api/settings/sign-in/test":            "Reads the provider's discovery document and starts a test sign-in that signs nobody in; saving the settings is audited.",
+	// Fleet stacks (wave 14).
+	"POST /api/stacks/{node}/{stack}/move/preview": "A dry run of stack.move on the node: it saves nothing. The move itself is an audited action.",
 }

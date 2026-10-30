@@ -68,6 +68,9 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 	// The webhook answers to its signature, not a session: Guard passes it
 	// through (authz.Signature) and handleHook verifies it.
 	mux.Handle("POST /api/hooks/{id}", http.HandlerFunc(s.handleHook))
+
+	// Fleet stacks (wave 14): move preview, self-update status (fleet_http.go).
+	s.registerFleet(mux, session)
 }
 
 // pathStack reads and checks {node} and {stack}.
@@ -227,6 +230,9 @@ type StackDetail struct {
 	Secrets         []SecretState        `json:"secrets"`
 	// Sync is set when the stack follows git: its editor is read-only.
 	Sync *SyncView `json:"sync"`
+	// MovedFrom is where stack.move copied the file from, while that copy
+	// is still there; null otherwise.
+	MovedFrom *string `json:"moved_from"`
 }
 
 func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, error) {
@@ -251,6 +257,9 @@ func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, 
 	}
 	if st.ProtectedReason != "" {
 		d.ProtectedReason = &st.ProtectedReason
+	}
+	if st.MovedFrom != "" {
+		d.MovedFrom = &st.MovedFrom
 	}
 	if d.Meta == nil {
 		d.Meta = map[string]any{}

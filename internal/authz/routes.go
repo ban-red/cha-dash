@@ -316,6 +316,12 @@ var Routes = []Route{
 	{Pattern: "POST /api/stacks/hooks/{id}/rotate", Access: Admin},
 	{Pattern: "DELETE /api/stacks/hooks/{id}", Access: Admin},
 	{Pattern: "POST /api/hooks/{id}", Access: Signature},
+	// Fleet stacks (wave 14). Previewing a move reads a compose file
+	// (credentials in plain text, often) and saves nothing; the move itself
+	// is the stack.move action. A node's self-update status is admin+, like
+	// the nodes list; the update itself is chadash.update (T3, step-up).
+	{Pattern: "POST /api/stacks/{node}/{stack}/move/preview", Access: Admin},
+	{Pattern: "GET /api/nodes/{id}/self-update", Access: Admin},
 
 	// Settings → Notifications (track 10A): channels, rules and the
 	// delivery log are admin+ (notifications are Settings in the Roles

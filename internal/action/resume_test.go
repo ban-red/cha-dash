@@ -258,3 +258,46 @@ func TestRequireApprovalWaits(t *testing.T) {
 	other.ID = "sync_other"
 	refusal(t, func() error { _, err := e.approve(other, p, "", ""); return err }(), "forbidden")
 }
+
+// The hub shutting down under a task that resumes (Cha Dash updating
+// itself stops the hub that runs the task) leaves it running, not
+// interrupted, and the next start finishes it through Resume. A task that
+// doesn't resume is still interrupted by the same shutdown.
+func TestShutdownDuringExecuteResumes(t *testing.T) {
+	waitCtx := func(ctx context.Context, _ Request, _ *TaskRun) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	self := Def{ID: "x.selfupdate", Title: "Update itself", Tier: T1, Targets: []string{"vm"}, Execute: waitCtx, Resumes: true,
+		Resume: func(context.Context, Task, *TaskRun) error { return nil }}
+	plain := Def{ID: "x.slow", Tier: T1, Targets: []string{"host"}, Execute: waitCtx}
+	e := newEnv(t, OwnerOnly{}, self, plain)
+	start := func(action, target string) Task {
+		t.Helper()
+		task, err := e.approve(owner, e.mustPlan(owner, action, target), "", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.waitRunning(task.ID)
+		return task
+	}
+	up := start("x.selfupdate", "proxmox:i_x/qemu/201")
+	other := start("x.slow", "proxmox:i_x/node/io")
+	e.e.Close()
+
+	var state string
+	var finished *int64
+	if err := e.st.Reader().QueryRow(`SELECT state, finished_at FROM tasks WHERE id = ?`, up.ID).Scan(&state, &finished); err != nil || state != StateRunning || finished != nil {
+		t.Fatalf("after the shutdown: %s %v %v", state, finished, err)
+	}
+	if err := e.st.Reader().QueryRow(`SELECT state FROM tasks WHERE id = ?`, other.ID).Scan(&state); err != nil || state != StateFailed {
+		t.Fatalf("the plain task: %s %v", state, err)
+	}
+	e.start()
+	if done := e.wait(up.ID); done.State != StateSucceeded || done.Audit == nil {
+		t.Fatalf("resumed: %+v", done)
+	}
+	if rep, _ := e.audit.Verify(t.Context()); !rep.OK {
+		t.Fatalf("audit chain: %+v", rep)
+	}
+}

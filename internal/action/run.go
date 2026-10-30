@@ -144,6 +144,13 @@ func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tie
 	e.updateTask(id, true, func(t *Task) { t.State, t.StartedAt = StateRunning, &started })
 
 	err := e.call(ctx, d.timeout(), func(ctx context.Context) error { return d.Execute(ctx, r, run) })
+	if err != nil && d.Resumes && e.ctx.Err() != nil {
+		// The hub is stopping under the task (Cha Dash updating itself stops
+		// the hub that runs it): it stays running in the table, and the next
+		// start hands it to Resume instead of calling it interrupted.
+		e.log.Info("action: the hub stopped during a task that resumes; it resumes at the next start", "task", id, "action", d.ID)
+		return
+	}
 	if err == nil && d.Verify != nil {
 		e.updateTask(id, true, func(t *Task) { t.State = StateVerifying })
 		err = e.call(ctx, d.verifyTimeout(), func(ctx context.Context) error { return d.Verify(ctx, r, run) })

@@ -322,7 +322,8 @@ type Def struct {
 	// run left running is handed to Resume instead of being marked
 	// interrupted. Without Resumes it's interrupted; Register refuses
 	// Resumes without a Resume. A task that never started is interrupted
-	// either way.
+	// either way. An Execute that fails because the hub is shutting down
+	// leaves its task running too, for the next start to resume.
 	Resumes bool
 	// Resume finds out how a task the hub lost track of ended (asking the
 	// node for the last result) and reports it as Execute does: nil

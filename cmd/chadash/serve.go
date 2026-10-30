@@ -390,6 +390,10 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		if err := actions.Register(stacks.ActionSource, stk.Actions()...); err != nil {
 			return nil, err
 		}
+		// Fleet stacks (wave 14): stack.move and chadash.update.
+		if err := actions.Register(stacks.FleetSource, stk.FleetActions()...); err != nil {
+			return nil, err
+		}
 	}
 
 	// The action engine and its audit log. In demo mode the Demo Home's
