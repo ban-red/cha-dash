@@ -148,14 +148,17 @@ func TestEmitterSeriesHistory(t *testing.T) {
 	if s.Value != 40 || !s.AsOf.Equal(clk.t) || s.History[HistoryPoints-1] != 40 || s.History[0].Valid() || s.Unit != "ms" || s.Warn != 800 {
 		t.Fatalf("first sample = %+v", s)
 	}
-	// Within the same 30-minute slot only the value moves.
+	// Within the same 30-minute slot the newest point is the slot's average so far.
 	clk.t = clk.t.Add(5 * time.Minute)
 	s = publish(55)
-	if s.Value != 55 || s.History[HistoryPoints-1] != 40 {
+	if s.Value != 55 || s.History[HistoryPoints-1] != 47.5 || s.History[HistoryPoints-2].Valid() {
 		t.Fatalf("same slot = %+v", s.History[HistoryPoints-2:])
 	}
-	// The next slot scrolls the history by one, and the slot it scrolled
-	// past becomes the average of its samples. A gap of two slots scrolls by two.
+	if s.Peak != nil {
+		t.Fatalf("a latency keeps no peaks: %v", s.Peak)
+	}
+	// The next slot scrolls the history by one, keeping the slot it
+	// scrolled past at the average of its samples. A gap of two slots scrolls by two.
 	clk.t = time.Date(2026, 10, 3, 14, 31, 0, 0, time.UTC)
 	s = publish(60)
 	if s.History[HistoryPoints-1] != 60 || s.History[HistoryPoints-2] != 47.5 {
@@ -344,11 +347,53 @@ func (h *fakeHistory) Gone(resource string, at time.Time) {
 	h.recorded = append(h.recorded, fmt.Sprintf("%s gone at %s", resource, at.Format("15:04")))
 }
 
-func (h *fakeHistory) Sparkline(key string, newest time.Time, points int, step time.Duration) []float64 {
+func (h *fakeHistory) Sparkline(key string, newest time.Time, points int, step time.Duration) (avg, peak []float64) {
 	if newest.Format("15:04") != "14:00" || points != HistoryPoints || step != HistoryStep {
-		return nil
+		return nil, nil
 	}
-	return h.past
+	peak = make([]float64, len(h.past))
+	for i, v := range h.past {
+		peak[i] = v * 2
+	}
+	return h.past, peak
+}
+
+// A rate keeps each slot's highest sample beside its average: a burst
+// survives the half hour, and a restart gets its peaks back too.
+func TestEmitterRatePeaks(t *testing.T) {
+	e, set, clk := newTestEmitter()
+	h := &fakeHistory{past: make([]float64, HistoryPoints)}
+	for i := range h.past {
+		h.past[i] = math.NaN()
+	}
+	h.past[HistoryPoints-2] = 30
+	e.history = h
+	publish := func(v float64) seriesDoc {
+		t.Helper()
+		m := integration.Metric{Resource: "wan:a", Key: "rx.mbps", Unit: "Mb/s", Value: v}
+		if err := e.Replace("", integration.Facts{Resources: []integration.Resource{res("wan:a", "ok")}, Metrics: []integration.Metric{m}}); err != nil {
+			t.Fatal(err)
+		}
+		return series(t, set, "wan:a#rx.mbps")
+	}
+	s := publish(20)
+	if s.Peak[HistoryPoints-2] != 60 || s.Peak[0].Valid() || s.Peak[HistoryPoints-1] != 20 {
+		t.Fatalf("seeded peaks = %v", s.Peak)
+	}
+	clk.t = clk.t.Add(time.Minute)
+	publish(1000)
+	clk.t = clk.t.Add(time.Minute)
+	publish(math.NaN())
+	clk.t = clk.t.Add(time.Minute)
+	s = publish(30)
+	if s.History[HistoryPoints-1] != 350 || s.Peak[HistoryPoints-1] != 1000 {
+		t.Fatalf("slot = avg %v, peak %v", s.History[HistoryPoints-1], s.Peak[HistoryPoints-1])
+	}
+	clk.t = clk.t.Add(HistoryStep)
+	s = publish(10)
+	if s.Peak[HistoryPoints-2] != 1000 || s.Peak[HistoryPoints-1] != 10 || s.History[HistoryPoints-2] != 350 {
+		t.Fatalf("scrolled = avg %v, peak %v", s.History[HistoryPoints-3:], s.Peak[HistoryPoints-3:])
+	}
 }
 
 func TestEmitterRecordsHistoryAndSeedsSparklines(t *testing.T) {

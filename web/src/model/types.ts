@@ -70,6 +70,8 @@ export interface Series {
   stale?: boolean;
   /** Oldest first; null where unknown. */
   history?: (number | null)[];
+  /** Each history point's highest sample; rates only. */
+  peak?: (number | null)[];
 }
 
 export interface HistoryAxis {

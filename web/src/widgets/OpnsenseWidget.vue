@@ -85,7 +85,7 @@ const gb = (v: number | null | undefined) => (typeof v === 'number' && v >= 1000
     </template>
 
     <template v-else-if="size === 'strip' || size === 'strip-long'">
-      <MiniGraph :values="rx?.history" :band="rx?.band" :tone="status === 'down' ? 'down' : 'neutral'" :stale="rx?.stale" :height="22" label="WAN download, 24 hours" :format="fmtRate" />
+      <MiniGraph :values="rx?.history" :peaks="rx?.peak" :band="rx?.band" :tone="status === 'down' ? 'down' : 'neutral'" :stale="rx?.stale" :height="22" label="WAN download, 24 hours" :format="fmtRate" />
       <span :class="['sv', 'n', { unknown: rx?.value == null }]">{{ fmtNum(rx?.value) }}<small>Mb/s ↓</small></span>
     </template>
 
@@ -112,6 +112,7 @@ const gb = (v: number | null | undefined) => (typeof v === 'number' && v >= 1000
         </div>
         <MiniGraph
           :values="rx?.history"
+          :peaks="rx?.peak"
           :band="rx?.band"
           :tone="status === 'down' ? 'down' : 'neutral'"
           :stale="rx?.stale"

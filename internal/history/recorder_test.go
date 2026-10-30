@@ -133,8 +133,12 @@ func TestPicksUpAfterARestart(t *testing.T) {
 	}
 	// 09:30 is before the first sample; 10:00 is 56 samples, 10:20 and 10:21 missing.
 	want := (30*607.25 + 10*617.25 + 16*625.75) / 56
-	if got := r.Sparkline(key, t0.Add(30*time.Minute), 3, 30*time.Minute); !math.IsNaN(got[0]) || math.Abs(got[1]-want) > 1e-3 || got[2] != 644.75 {
+	got, peak := r.Sparkline(key, t0.Add(30*time.Minute), 3, 30*time.Minute)
+	if !math.IsNaN(got[0]) || math.Abs(got[1]-want) > 1e-3 || got[2] != 644.75 {
 		t.Fatalf("sparkline = %v", got)
+	}
+	if !math.IsNaN(peak[0]) || peak[1] < got[1] || peak[2] < got[2] {
+		t.Fatalf("peaks = %v, under the averages %v", peak, got)
 	}
 }
 

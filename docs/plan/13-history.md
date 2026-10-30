@@ -37,7 +37,7 @@ Samples flow down a cascade of tiers. Each tier is a fixed grid on UTC epoch mul
 - **Every rollup point is `avg`, `min`, `max` and `n`** (samples behind it). `n = 0` is a gap. Averages of averages are weighted by `n`, so a coarse point is exact, not an average of rounded averages.
 - **Rollups cascade in memory.** Each series keeps an accumulator for the open minute and an open chunk per tier. When a slot closes, its point goes into the tier's chunk, and the next tier's slot becomes pending. A pending slot folds the points of the tier below once time passes its end. A tier's chunk is a whole number of the next tier's steps, so that fold never reads from disk, and a restart can rebuild it from the open chunks.
 - **Raw samples aren't persisted.** Integrations poll every 15–60 s, so a 1-minute `max` already keeps every spike. A raw ring in memory for the sheet's "last hour" view is left for step 3.
-- **The sparkline's past comes from the 15m tier**, two points per 30-minute slot, when a series first appears. A slot the sparkline scrolls past becomes its average; the newest point is still the slot's first sample, so the wire changes no more often than before. A faint peak mark from the slot's max is left for later: it changes the series shape.
+- **The sparkline's past comes from the 15m tier**, two points per 30-minute slot, when a series first appears. Each point is its slot's average; the newest is the average so far. Rates also carry `peak`, each slot's max, drawn as a faint envelope above the line (added 2026-10-29: a minute at 1 Gb/s was invisible in a half hour's average).
 
 ### Storage: chunks in their own database file
 

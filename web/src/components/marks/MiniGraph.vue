@@ -14,6 +14,9 @@
  * `stale`, which hatches the gap after the last known sample instead of
  * leaving it blank. `spanMin` is the minutes the whole series covers (the
  * 24 h history by default), for the readout's "6 h ago"; `at` replaces it.
+ * `peaks`, each point's highest sample (rates keep them), draws a faint
+ * envelope above the line, so a burst the averages hide still shows; the
+ * readout and the summary name the peak.
  *
  * Linked scrubbing: a graph without `at` ends now, so it shares the page's
  * time cursor (stores/cursor.ts). Hovering reads this graph alone; pressing
@@ -34,6 +37,7 @@ const {
   stale = false,
   spanMin = 1440,
   at,
+  peaks,
 } = defineProps<{
   values: readonly (number | null)[] | undefined;
   band?: readonly [number, number] | undefined;
@@ -45,6 +49,7 @@ const {
   stale?: boolean | undefined;
   spanMin?: number;
   at?: ((index: number, count: number) => string) | undefined;
+  peaks?: readonly (number | null)[] | undefined;
 }>();
 
 const gid = useId();
@@ -52,6 +57,14 @@ const gid = useId();
 const me = {};
 const known = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
 const nums = computed(() => (values ?? []).filter(known));
+/** Peaks that line up with values, else none. */
+const peaksOf = computed(() => (peaks && values && peaks.length === values.length ? peaks : undefined));
+/** Point i's peak, when it's above its value. */
+function peakAt(i: number): number | undefined {
+  const p = peaksOf.value?.[i];
+  const v = values?.[i];
+  return known(p) && known(v) && p > v ? p : undefined;
+}
 
 type Pt = [number, number];
 
@@ -78,8 +91,9 @@ const geom = computed(() => {
   const n = vs.length;
   if (n < 2 || nums.value.length === 0) return undefined;
   const thr = known(threshold) ? threshold : undefined;
+  const tops = (peaksOf.value ?? []).filter(known);
   let lo = Math.min(...nums.value, band ? band[0] : Infinity, thr ?? Infinity);
-  let hi = Math.max(...nums.value, band ? band[1] : -Infinity, thr ?? -Infinity);
+  let hi = Math.max(...nums.value, ...tops, band ? band[1] : -Infinity, thr ?? -Infinity);
   // Room for the stroke and the dot; a flat series sits mid-height.
   const pad = (hi - lo) * 0.14 || 1;
   lo -= pad;
@@ -102,6 +116,28 @@ const geom = computed(() => {
     else flush();
   }
   flush();
+  // The peak envelope: up along the peaks, back along the line, in runs
+  // where both are known.
+  let peak = '';
+  if (peaksOf.value) {
+    let top: Pt[] = [];
+    let base: Pt[] = [];
+    const close = () => {
+      if (top.length > 1 && top.some((p, j) => p[1] < base[j]![1])) {
+        peak += `${curve(top)} L${base[base.length - 1]![0].toFixed(2)} ${base[base.length - 1]![1].toFixed(2)} ${curve(base.reverse()).replace(/^M/, 'L')} Z `;
+      }
+      top = [];
+      base = [];
+    };
+    vs.forEach((v, i) => {
+      const p = peaksOf.value![i];
+      if (known(v) && known(p)) {
+        top.push([x(i), y(Math.max(p, v))]);
+        base.push([x(i), y(v)]);
+      } else close();
+    });
+    close();
+  }
   let last: Pt | undefined;
   for (let i = n - 1; i >= 0; i--) {
     if (pts[i]) {
@@ -117,7 +153,7 @@ const geom = computed(() => {
   const thrY = thr !== undefined ? y(thr) : undefined;
   // Stale: the line stops at the last sample, and the gap after it is hatched.
   const gap = stale && last && last[0] < 99.5 ? last[0] : undefined;
-  return { line: line.trim(), area: area.trim(), pts, last, bandRect, thrY, gap, lead, n };
+  return { line: line.trim(), area: area.trim(), peak: peak.trim(), pts, last, bandRect, thrY, gap, lead, n };
 });
 
 const summary = computed(() => {
@@ -128,7 +164,10 @@ const summary = computed(() => {
   const trend = now > first * 1.08 ? 'rising' : now < first * 0.92 ? 'falling' : 'steady';
   const normal = band ? `, normal ${format(band[0])} to ${format(band[1])}` : '';
   const limit = typeof threshold === 'number' ? `, threshold ${format(threshold)}` : '';
-  return `${label}: ${stale ? 'last known' : 'now'} ${format(now)}${normal}${limit}, ${trend}`;
+  const tops = (peaksOf.value ?? []).filter(known);
+  const top = tops.length ? Math.max(...tops) : undefined;
+  const peak = top !== undefined && top > Math.max(...v) ? `, peak ${format(top)}` : '';
+  return `${label}: ${stale ? 'last known' : 'now'} ${format(now)}${normal}${limit}${peak}, ${trend}`;
 });
 
 // Scrub: the nearest known sample under the pointer.
@@ -192,7 +231,8 @@ const at_ = computed(() => {
   const i = scrub.value ?? linked.value;
   const p = g && i !== undefined ? g.pts[i] : undefined;
   if (!g || i === undefined || !p) return undefined;
-  return { x: p[0], y: p[1], text: format(values![i] as number), when: ago(i, g.n) };
+  const top = peakAt(i);
+  return { x: p[0], y: p[1], text: format(values![i] as number), when: ago(i, g.n), peak: top !== undefined ? format(top) : undefined };
 });
 </script>
 
@@ -229,6 +269,7 @@ const at_ = computed(() => {
         </template>
         <line v-if="geom.lead" class="mg-lead" x1="0" :x2="geom.lead.x" :y1="geom.lead.y" :y2="geom.lead.y" vector-effect="non-scaling-stroke" />
         <path v-if="geom.area" class="mg-area" :d="geom.area" :fill="`url(#${gid}-fill)`" />
+        <path v-if="geom.peak" class="mg-peak" :d="geom.peak" />
         <path class="mg-line" :d="geom.line" vector-effect="non-scaling-stroke" />
         <line v-if="geom.thrY !== undefined" class="mg-thr" x1="0" x2="100" :y1="geom.thrY" :y2="geom.thrY" vector-effect="non-scaling-stroke" />
       </svg>
@@ -239,7 +280,7 @@ const at_ = computed(() => {
       <span class="mg-guide" :style="{ left: at_.x + '%' }" aria-hidden="true"></span>
       <span class="mg-pin" :style="{ left: at_.x + '%', top: at_.y + '%' }" aria-hidden="true"></span>
       <span :class="['mg-read', at_.x > 55 ? 'to-left' : 'to-right', { below }]" :style="{ left: at_.x + '%' }" aria-hidden="true">
-        <b>{{ at_.text }}</b> {{ at_.when }}
+        <b>{{ at_.text }}</b> {{ at_.when }}<template v-if="at_.peak"> · peak {{ at_.peak }}</template>
       </span>
     </template>
   </div>
@@ -292,6 +333,11 @@ const at_ = computed(() => {
   stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
+}
+.mg-peak {
+  fill: currentColor;
+  fill-opacity: 0.16;
+  stroke: none;
 }
 .mg-edge {
   stroke: var(--line-2);

@@ -32,9 +32,9 @@ const (
 // first appears, when its status began, so a restart blanks neither.
 type History interface {
 	Record(key, instance, unit string, at time.Time, v float64)
-	// Sparkline is points averages step apart, the newest at newest; NaN
-	// where there's nothing.
-	Sparkline(key string, newest time.Time, points int, step time.Duration) []float64
+	// Sparkline is points averages step apart, the newest at newest, and
+	// the highest sample in each; NaN where there's nothing.
+	Sparkline(key string, newest time.Time, points int, step time.Duration) (avg, peak []float64)
 	// Since is when resource's status began, if history has it as the
 	// newest; otherwise now.
 	Since(resource, status string, now time.Time) time.Time
@@ -107,12 +107,27 @@ type seriesDoc struct {
 	AsOf     time.Time         `json:"as_of,omitzero"`
 	Stale    bool              `json:"stale,omitempty"`
 	History  []integration.Num `json:"history"`
+	// Peak is each history point's highest sample, for rates only
+	// (bursty): a minute at 1 Gb/s is lost in a half hour's average.
+	Peak []integration.Num `json:"peak,omitempty"`
 
 	axis time.Time // time of the newest history point
-	// The valid samples of the newest slot, whose average the point
-	// becomes when the history scrolls past it.
+	// The valid samples of the newest slot: the newest point is their
+	// average so far, and its peak their highest.
 	slotSum float64
 	slotN   int
+}
+
+// bursty reports whether a unit is a rate, whose series keep peaks.
+func bursty(unit string) bool { return strings.HasSuffix(unit, "/s") }
+
+// unknowns is n unknown points.
+func unknowns(n int) []integration.Num {
+	out := make([]integration.Num, n)
+	for i := range out {
+		out[i] = integration.Num(integration.Unknown())
+	}
+	return out
 }
 
 // SelfID is an instance's own resource ID.
@@ -345,24 +360,28 @@ func (e *Emitter) toGraph(r integration.Resource, source string, now time.Time) 
 }
 
 // sample folds one sample into its series. The history keeps the demo's
-// grid: when a sample lands in a new 30-minute slot the history scrolls and
-// the sample becomes the newest point, so sparklines move every 30 minutes
-// rather than under the reader on every poll. The slot scrolled past gets
-// the average of its samples. A new series takes its past from history.
+// grid: when a sample lands in a new 30-minute slot the history scrolls by
+// a point, so sparklines move every 30 minutes. The newest point is the
+// average of its slot's samples so far, so it settles on the slot's
+// average rather than keeping the slot's first sample. A rate's peak is
+// the slot's highest sample. A new series takes its past from history.
 func (e *Emitter) sample(key string, m integration.Metric, now time.Time) *seriesDoc {
 	v := integration.Num(m.Value)
 	slot := now.Truncate(HistoryStep)
 	s := e.series[key]
 	if s == nil {
-		s = &seriesDoc{History: make([]integration.Num, HistoryPoints)}
-		for i := range s.History {
-			s.History[i] = integration.Num(integration.Unknown())
+		s = &seriesDoc{History: unknowns(HistoryPoints)}
+		if bursty(m.Unit) {
+			s.Peak = unknowns(HistoryPoints)
 		}
 		if e.history != nil {
-			past := e.history.Sparkline(key, slot, HistoryPoints, HistoryStep)
+			past, peak := e.history.Sparkline(key, slot, HistoryPoints, HistoryStep)
 			for i := 0; i < len(past) && i < HistoryPoints-1; i++ {
 				if !math.IsNaN(past[i]) {
 					s.History[i] = integration.Num(past[i])
+				}
+				if s.Peak != nil && i < len(peak) && !math.IsNaN(peak[i]) {
+					s.Peak[i] = integration.Num(peak[i])
 				}
 			}
 		}
@@ -377,27 +396,38 @@ func (e *Emitter) sample(key string, m integration.Metric, now time.Time) *serie
 	switch {
 	case s.axis.IsZero():
 		s.axis = slot
-		s.History[HistoryPoints-1] = v
 	case slot.After(s.axis):
-		h := s.History
-		if s.slotN > 0 {
-			h[len(h)-1] = integration.Num(s.slotSum / float64(s.slotN))
-		}
 		s.slotSum, s.slotN = 0, 0
-		shift := int(slot.Sub(s.axis) / HistoryStep)
-		n := min(shift, len(h))
-		copy(h, h[n:])
-		for i := len(h) - n; i < len(h); i++ {
-			h[i] = integration.Num(integration.Unknown())
-		}
-		h[len(h)-1] = v
+		n := int(slot.Sub(s.axis) / HistoryStep)
+		scroll(s.History, n)
+		scroll(s.Peak, n)
 		s.axis = slot
 	}
-	if v.Valid() && slot.Equal(s.axis) {
+	if !slot.Equal(s.axis) {
+		return s // a clock that went back: the value moves, the history doesn't
+	}
+	last := HistoryPoints - 1
+	if s.slotN == 0 {
+		s.History[last] = v // unknown until a valid sample
+	}
+	if v.Valid() {
 		s.slotSum += float64(v)
 		s.slotN++
+		s.History[last] = integration.Num(s.slotSum / float64(s.slotN))
+		if s.Peak != nil && (!s.Peak[last].Valid() || v > s.Peak[last]) {
+			s.Peak[last] = v
+		}
 	}
 	return s
+}
+
+// scroll moves h's points n slots older, unknown after them.
+func scroll(h []integration.Num, n int) {
+	n = min(n, len(h))
+	copy(h, h[n:])
+	for i := len(h) - n; i < len(h); i++ {
+		h[i] = integration.Num(integration.Unknown())
+	}
 }
 
 // MarkStale flags every series of the instance as stale: the values are

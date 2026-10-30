@@ -683,30 +683,30 @@ func (r *Recorder) Query(ctx context.Context, key string, from, to time.Time, ma
 }
 
 // Sparkline is n points step apart, the newest at newest, each the average
-// of the 15-minute points in its slot; NaN where there are none. step is a
-// multiple of 15 minutes. It's how a series' sparkline gets its past back
-// after a restart.
-func (r *Recorder) Sparkline(key string, newest time.Time, n int, step time.Duration) []float64 {
+// of the 15-minute points in its slot, and peak the highest sample in each;
+// NaN where there are none. step is a multiple of 15 minutes. It's how a
+// series' sparkline gets its past back after a restart.
+func (r *Recorder) Sparkline(key string, newest time.Time, n int, step time.Duration) (avg, peak []float64) {
 	per := int(step / tiers[Quarter].step)
 	if per < 1 || step%tiers[Quarter].step != 0 {
-		return nil
+		return nil, nil
 	}
 	from := newest.UnixMilli() - int64(n-1)*step.Milliseconds()
 	pts, err := r.points(context.Background(), key, Quarter, from, newest.UnixMilli()+step.Milliseconds())
 	if err != nil {
 		r.log.Warn("history: sparkline", "series", key, "err", err)
-		return nil
+		return nil, nil
 	}
-	out := make([]float64, n)
-	for i := range out {
-		out[i] = math.NaN()
+	avg, peak = make([]float64, n), make([]float64, n)
+	for i := range avg {
+		avg[i], peak[i] = math.NaN(), math.NaN()
 		if lo := i * per; lo < len(pts) {
 			if p := fold(pts[lo:min(lo+per, len(pts))]); p.N > 0 {
-				out[i] = float64(p.Avg)
+				avg[i], peak[i] = float64(p.Avg), float64(p.Max)
 			}
 		}
 	}
-	return out
+	return avg, peak
 }
 
 // points reads tier t's points of a series in [from, to) (from aligned to

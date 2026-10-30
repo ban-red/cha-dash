@@ -299,7 +299,7 @@ const MONO: Record<string, string> = { qbittorrent: 'QB', transmission: 'TR', sa
           </li>
           <li v-if="torrents.length > torrentLimit" class="more">+{{ torrents.length - torrentLimit }} more</li>
         </ul>
-        <MiniGraph v-else :values="dl?.history" :band="dl?.band" :tone="tone" :stale="dl?.stale" :height="size === 'tall' || size === 'column' ? 36 : 48" label="Download speed, 24 hours" :format="rate" />
+        <MiniGraph v-else :values="dl?.history" :peaks="dl?.peak" :band="dl?.band" :tone="tone" :stale="dl?.stale" :height="size === 'tall' || size === 'column' ? 36 : 48" label="Download speed, 24 hours" :format="rate" />
       </div>
       <template v-if="torrents.length">
         <ul v-if="size !== 'wide'" class="list dl-torrents" aria-label="Torrents">
