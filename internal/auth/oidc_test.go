@@ -219,7 +219,17 @@ func newOIDCHarness(t *testing.T) (*harness, *fakeIdP, *settingsBox, *http.Clien
 // provider and back), and returns where it ended.
 func (h *harness) flow(c *http.Client, path string) *url.URL {
 	h.t.Helper()
-	resp, _ := h.doRaw(c, "GET", path, nil, nil)
+	return h.flowFrom(c, path, "same-origin")
+}
+
+// flowFrom is flow with the Sec-Fetch-Site a browser would send ("" for none).
+func (h *harness) flowFrom(c *http.Client, path, site string) *url.URL {
+	h.t.Helper()
+	var hdr map[string]string
+	if site != "" {
+		hdr = map[string]string{"Sec-Fetch-Site": site}
+	}
+	resp, _ := h.doRaw(c, "GET", path, nil, hdr)
 	return resp.Request.URL
 }
 
@@ -467,10 +477,40 @@ func TestOIDCGroupsAndProvisioning(t *testing.T) {
 	if err != nil || info.Role != RoleOperator || !info.RoleFromGroups {
 		t.Fatalf("provisioned user = %+v, %v", info, err)
 	}
-	// Its role can't be changed in Cha Dash any more.
+	// The sign-in record says the account was made, and with what role.
+	if s := events.ofKind(EventSignedIn); len(s) != 1 || s[0].ToRole != RoleOperator || !s[0].Provisioned {
+		t.Fatalf("provisioning sign-in events = %+v", s)
+	}
+	// Provisioning isn't a role change.
+	if rc := events.ofKind(EventRoleFromGroups); len(rc) != 0 {
+		t.Fatalf("role-change events on provisioning = %+v", rc)
+	}
+
+	// An admin can still change a role that comes from groups (say the
+	// provider hasn't caught up yet): it then stops counting as from groups.
 	viewer := RoleViewer
-	if _, err := h.svc.UpdateUser(t.Context(), info.ID, &viewer, nil); !errors.Is(err, ErrRoleFromGroups) {
-		t.Fatalf("UpdateUser on a role from groups = %v", err)
+	if info, err := h.svc.UpdateUser(t.Context(), info.ID, &viewer, nil); err != nil || info.Role != RoleViewer || info.RoleFromGroups {
+		t.Fatalf("UpdateUser on a role from groups = %+v, %v", info, err)
+	}
+	// The same groups at the next sign-in set it again, as a recorded change.
+	h.flow(h.client(), "/api/auth/oidc/start")
+	if info, _ := h.svc.GetUser(t.Context(), info.ID); info.Role != RoleOperator || !info.RoleFromGroups {
+		t.Fatalf("after the next sign-in = %+v", info)
+	}
+	rc := events.ofKind(EventRoleFromGroups)
+	if len(rc) != 1 || rc[0].FromRole != RoleViewer || rc[0].ToRole != RoleOperator || rc[0].Method != MethodOIDC || rc[0].UserID != info.ID {
+		t.Fatalf("role-change events = %+v", rc)
+	}
+	if id, ok := FromContext(rc[0].Request.Context()); !ok || id.User.ID != info.ID {
+		t.Fatal("the role-change event's request doesn't name the user")
+	}
+	if s := events.ofKind(EventSignedIn); s[len(s)-1].ToRole != RoleOperator || s[len(s)-1].Provisioned {
+		t.Fatalf("second sign-in event = %+v", s[len(s)-1])
+	}
+	// Same groups, same role: nothing to record.
+	h.flow(h.client(), "/api/auth/oidc/start")
+	if rc := events.ofKind(EventRoleFromGroups); len(rc) != 1 {
+		t.Fatalf("an unchanged role was recorded: %+v", rc)
 	}
 
 	// A group change lowers the role at the next sign-in.
@@ -482,6 +522,9 @@ func TestOIDCGroupsAndProvisioning(t *testing.T) {
 	}
 	if !slicesContainsKind(events.kinds(), string(EventUserChanged)) {
 		t.Fatal("a role change from groups didn't emit user.changed")
+	}
+	if rc := events.ofKind(EventRoleFromGroups); len(rc) != 2 || rc[1].FromRole != RoleOperator || rc[1].ToRole != RoleHousehold {
+		t.Fatalf("role-change events = %+v", rc)
 	}
 
 	// Losing every mapped group: refused, and the account's sessions end.
@@ -573,6 +616,76 @@ func TestOIDCStepUp(t *testing.T) {
 	h.flow(h.client(), "/api/auth/oidc/start")
 	if q := idp.lastAuthorize; q.Has("prompt") || q.Has("max_age") {
 		t.Fatalf("sign-in authorize query = %v", q)
+	}
+
+	// The step-up rule binds the provider too. A user with a passkey that
+	// works at this address steps up with it, not at the provider.
+	samID := mustUserID(t, h, "sam")
+	if _, err := h.st.Writer().Exec(`INSERT INTO passkeys (id, user_id, rp_id, credential_id, public_key, flags, backup_eligible, backup_state, name, created_at)
+		VALUES ('pk_test', ?, 'localhost', x'01', x'02', 0, 0, 0, 'key', 1)`, samID); err != nil {
+		t.Fatal(err)
+	}
+	// Passkeys work on localhost, not at 127.0.0.1: ask by that name.
+	h.host = "localhost" + strings.TrimPrefix(h.srv.URL, "http://127.0.0.1")
+	sam.Jar.SetCookies(mustURL("http://"+h.host), sam.Jar.Cookies(mustURL(h.srv.URL)))
+	stay := *sam
+	stay.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, _ = h.doRaw(&stay, "GET", "/api/auth/oidc/start?step_up=1&return=/settings/users", nil, map[string]string{"Sec-Fetch-Site": "same-origin"})
+	h.host = ""
+	if loc, _ := url.Parse(resp.Header.Get("Location")); loc == nil || loc.Query().Get("oidc_error") != OIDCErrNoStepUp {
+		t.Fatalf("a user with a passkey here went to %q", resp.Header.Get("Location"))
+	}
+	if _, err := h.st.Writer().Exec(`DELETE FROM passkeys WHERE id = 'pk_test'`); err != nil {
+		t.Fatal(err)
+	}
+
+	// A user with a password steps up with it.
+	pat, err := h.svc.CreateUser(t.Context(), "pat", "pat password!", RoleOperator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	linkIdentity(t, h, pat.ID, idp.srv.URL, "sub-pat")
+	idp.set(func(p *fakeIdP) { p.sub, p.username = "sub-pat", "pat" })
+	patC := h.client()
+	h.flow(patC, "/api/auth/oidc/start")
+	if m, u := h.sessionMethod(patC); m != MethodOIDC || u != "pat" {
+		t.Fatalf("pat's session = %q %q", m, u)
+	}
+	if _, code := oidcResult(h.flow(patC, "/api/auth/oidc/start?step_up=1")); code != OIDCErrNoStepUp {
+		t.Fatalf("a user with a password: %q", code)
+	}
+
+	// Passkey only: nobody steps up at the provider, at the start...
+	idp.set(func(p *fakeIdP) { p.sub, p.username, p.authTime = "sub-sam", "sam", time.Now() })
+	h.svc.SetStepUpMode(func() StepUpMode { return StepUpPasskeyOnly })
+	if _, code := oidcResult(h.flow(sam, "/api/auth/oidc/start?step_up=1")); code != OIDCErrNoStepUp {
+		t.Fatalf("passkey only, at the start: %q", code)
+	}
+	// ...or at the callback, when the rule changed on the way.
+	h.svc.SetStepUpMode(nil)
+	if _, err := h.st.Writer().Exec(`UPDATE sessions SET step_up_until = NULL WHERE user_id = ?`, samID); err != nil {
+		t.Fatal(err)
+	}
+	var events eventLog
+	h.svc.OnEvent(events.add)
+	noFollow := *sam
+	noFollow.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, _ = h.doRaw(&noFollow, "GET", "/api/auth/oidc/start?step_up=1", nil, map[string]string{"Sec-Fetch-Site": "same-origin"})
+	toIdP := resp.Header.Get("Location")
+	if !strings.HasPrefix(toIdP, idp.srv.URL) {
+		t.Fatalf("step-up start went to %q", toIdP)
+	}
+	h.svc.SetStepUpMode(func() StepUpMode { return StepUpPasskeyOnly })
+	r2, err := sam.Get(toIdP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2.Body.Close()
+	if _, code := oidcResult(r2.Request.URL); code != OIDCErrNoStepUp || grant() != nil {
+		t.Fatalf("passkey only, at the callback: %q, grant %v", code, grant())
+	}
+	if f := events.ofKind(EventStepUpFailed); len(f) != 1 || f[0].Method != MethodOIDC {
+		t.Fatalf("step-up failures = %+v", f)
 	}
 }
 
@@ -695,5 +808,126 @@ func TestSignInSettingsValidate(t *testing.T) {
 	}
 	if got := (SignInSettings{Mappings: []GroupMapping{{"a", RoleViewer}, {"b", RoleAdmin}, {"c", RoleOperator}}}).MappedRole([]string{"c", "a"}); got != RoleOperator {
 		t.Fatalf("MappedRole = %q", got)
+	}
+}
+
+// A callback with no state, an unknown one, or while OIDC is off writes no
+// record. Refusals that are recorded come once per client and reason every
+// ten minutes, with a count. A sign-in from a banned address is refused at
+// the callback too.
+func TestOIDCCallbackRecords(t *testing.T) {
+	h, idp, box, _ := newOIDCHarness(t)
+	var events eventLog
+	h.svc.OnEvent(events.add)
+	for _, q := range []string{"", "?state=", "?state=in.nosuchstate&code=x", "?state=" + strings.Repeat("x", 100)} {
+		if _, code := oidcResult(h.flow(h.client(), "/api/auth/oidc/callback"+q)); code != OIDCErrExpired {
+			t.Fatalf("callback%s: %q", q, code)
+		}
+	}
+	box.update(func(s *SignInSettings) { s.OIDC.Enabled = false })
+	if _, code := oidcResult(h.flow(h.client(), "/api/auth/oidc/callback?state=in.x")); code != OIDCErrOff {
+		t.Fatalf("callback with OIDC off: %q", code)
+	}
+	box.update(func(s *SignInSettings) { s.OIDC.Enabled = true })
+	if k := events.kinds(); len(k) != 0 {
+		t.Fatalf("events = %v", k)
+	}
+
+	// Unlinked, three times: one record. Ten minutes on, the next one
+	// counts the two held back.
+	for range 3 {
+		if _, code := oidcResult(h.flow(h.client(), "/api/auth/oidc/start")); code != OIDCErrUnlinked {
+			t.Fatalf("unlinked: %q", code)
+		}
+	}
+	if r := events.ofKind(EventSignInRefused); len(r) != 1 || r[0].Count != 1 {
+		t.Fatalf("refusals = %+v", r)
+	}
+	// Another reason has its own record.
+	idp.set(func(p *fakeIdP) { p.aud = "another-client" })
+	h.flow(h.client(), "/api/auth/oidc/start")
+	idp.set(func(p *fakeIdP) { p.aud = "" })
+	if r := events.ofKind(EventSignInRefused); len(r) != 2 || r[1].Reason != "bad token" {
+		t.Fatalf("refusals = %+v", r)
+	}
+	h.clock.advance(11 * time.Minute)
+	h.flow(h.client(), "/api/auth/oidc/start")
+	if r := events.ofKind(EventSignInRefused); len(r) != 3 || r[2].Count != 3 || r[2].Reason != "unlinked" {
+		t.Fatalf("refusals ten minutes on = %+v", r)
+	}
+
+	// A banned address can't finish a sign-in it started before the ban.
+	linkIdentity(t, h, mustUserID(t, h, "owner"), idp.srv.URL, "sub-alice")
+	c := h.client()
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, _ := h.doRaw(c, "GET", "/api/auth/oidc/start", nil, nil)
+	r2, err := c.Get(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2.Body.Close()
+	if _, err := h.st.Writer().Exec(`INSERT INTO ip_bans (ip, banned_at, failures) VALUES ('127.0.0.1', 1, 5)`); err != nil {
+		t.Fatal(err)
+	}
+	c.CheckRedirect = nil
+	r3, err := c.Get(r2.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r3.Body.Close()
+	if _, code := oidcResult(r3.Request.URL); code != OIDCErrBanned {
+		t.Fatalf("banned callback: %q", code)
+	}
+	if m, _ := h.sessionMethod(c); m != "" {
+		t.Fatal("a banned address signed in")
+	}
+}
+
+// Linking and stepping up start only from this origin's pages or a typed
+// address; and a link whose step-up lapsed on the way is refused at the
+// callback.
+func TestOIDCStartsSameOriginOnly(t *testing.T) {
+	h, idp, _, owner := newOIDCHarness(t)
+	h.stepUpWithPassword(owner)
+	for _, site := range []string{"cross-site", "same-site", ""} {
+		if _, code := oidcResult(h.flowFrom(owner, "/api/auth/oidc/start?link=1", site)); code != OIDCErrCrossSite {
+			t.Fatalf("link from %q: %q", site, code)
+		}
+		if _, code := oidcResult(h.flowFrom(owner, "/api/auth/oidc/start?step_up=1", site)); code != OIDCErrCrossSite {
+			t.Fatalf("step-up from %q: %q", site, code)
+		}
+	}
+	// No Sec-Fetch-Site, but a Referer on this host: an older browser.
+	resp, _ := h.doRaw(owner, "GET", "/api/auth/oidc/start?link=1&return=/settings/security", nil, map[string]string{"Referer": h.srv.URL + "/settings/security"})
+	if ok, code := oidcResult(resp.Request.URL); ok != "linked" || code != "" {
+		t.Fatalf("link with a same-origin Referer ended at %s", resp.Request.URL)
+	}
+	// A sign-in may start from anywhere (the provider's own portal, say).
+	if _, code := oidcResult(h.flowFrom(h.client(), "/api/auth/oidc/start", "cross-site")); code != "" {
+		t.Fatalf("cross-site sign-in: %q", code)
+	}
+
+	// The step-up lapses between the start and the callback.
+	idp.set(func(p *fakeIdP) { p.sub = "sub-other" })
+	noFollow := *owner
+	noFollow.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, _ = h.doRaw(&noFollow, "GET", "/api/auth/oidc/start?link=1", nil, map[string]string{"Sec-Fetch-Site": "same-origin"})
+	if !strings.HasPrefix(resp.Header.Get("Location"), idp.srv.URL) {
+		t.Fatalf("link start went to %q", resp.Header.Get("Location"))
+	}
+	h.clock.advance(StepUpTTL + time.Second)
+	r2, err := owner.Get(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2.Body.Close()
+	if _, code := oidcResult(r2.Request.URL); code != OIDCErrStepUp {
+		t.Fatalf("link after the step-up lapsed: %q", code)
+	}
+	ids, _ := h.svc.ListIdentities(t.Context(), mustUserID(t, h, "owner"))
+	for _, i := range ids {
+		if i.Subject == "sub-other" {
+			t.Fatal("linked after the step-up lapsed")
+		}
 	}
 }

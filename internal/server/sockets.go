@@ -54,8 +54,9 @@ func closeSocketsOnAuthEvents(a *auth.Service, h *realtime.Hub) {
 
 // auditAuthEvents records the signed-in user's own security changes:
 // passkeys added, renamed or removed, step-ups granted or failed, and
-// linked identities; and sign-ins through OIDC or forward-auth, refused
-// ones included, and forward-auth headers from an untrusted peer.
+// linked identities; sign-ins through OIDC or forward-auth, refused ones
+// included, and the role changes their groups made; and forward-auth
+// headers from an untrusted peer or sent twice.
 // Names and IDs only; never key material, tokens or what was typed.
 func auditAuthEvents(a *auth.Service, rec *authz.Recorder) {
 	a.OnEvent(func(e auth.Event) { auditAuthEvent(rec, e) })
@@ -83,15 +84,18 @@ func auditAuthEvent(rec *authz.Recorder, e auth.Event) {
 		// Password and passkey sign-ins aren't audited (AuditExempt); a
 		// sign-in through the provider or a proxy is, since it can create
 		// an account and change a role.
+		params := map[string]any{"role": e.ToRole, "provisioned": e.Provisioned}
 		switch e.Method {
 		case auth.MethodOIDC:
-			rec.Change(r, "auth.oidc.signin", "session:"+e.SessionID, nil, authz.T0, nil)
+			rec.Change(r, "auth.oidc.signin", "session:"+e.SessionID, params, authz.T0, nil)
 		case auth.MethodForwardAuth:
-			rec.Change(r, "auth.forward.signin", "session:"+e.SessionID, nil, authz.T0, nil)
+			rec.Change(r, "auth.forward.signin", "session:"+e.SessionID, params, authz.T0, nil)
 		}
+	case auth.EventRoleFromGroups:
+		rec.Change(r, "users.role.from_groups", "user:"+e.UserID, map[string]string{"from": e.FromRole, "to": e.ToRole, "method": e.Method}, authz.T0, nil)
 	case auth.EventSignInRefused:
 		action := "auth.oidc.refused"
-		params := map[string]string{"reason": e.Reason}
+		params := map[string]any{"reason": e.Reason, "count": max(e.Count, 1)}
 		if e.Method == auth.MethodForwardAuth {
 			action = "auth.forward.refused"
 			params["username"] = e.Subject
@@ -108,7 +112,10 @@ func auditAuthEvent(rec *authz.Recorder, e auth.Event) {
 		}
 		rec.Change(r, "auth.oidc.link", "user:"+e.UserID, map[string]string{"issuer": e.Issuer, "subject": e.Subject}, authz.T3, nil)
 	case auth.EventForwardAuthUntrusted:
-		rec.RefuseAnonymous(r, e.IP, "auth.forward.untrusted", "", map[string]string{"peer": e.IP}, authz.T0,
+		rec.RefuseAnonymous(r, e.IP, "auth.forward.untrusted", "", map[string]any{"peer": e.IP, "count": max(e.Count, 1)}, authz.T0,
 			"untrusted_proxy", "Forward-auth headers came from a peer that isn't in CHADASH_TRUSTED_PROXIES; they were ignored.")
+	case auth.EventForwardAuthDuplicate:
+		rec.RefuseAnonymous(r, e.IP, "auth.forward.duplicate", "", map[string]any{"header": e.Reason, "count": max(e.Count, 1)}, authz.T0,
+			"duplicate_header", "A forward-auth header came more than once, so none of them counted. The proxy must set the header, not add to it.")
 	}
 }

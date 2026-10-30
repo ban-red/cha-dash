@@ -138,8 +138,6 @@ func (u *Users) refused(w http.ResponseWriter, r *http.Request, err error, actio
 		status, code, msg = http.StatusConflict, "owner_protected", "The owner can't be demoted or disabled. Hand over ownership first."
 	case errors.Is(err, auth.ErrNotOwner):
 		status, code, msg = http.StatusConflict, "conflict", "You're no longer the owner."
-	case errors.Is(err, auth.ErrRoleFromGroups):
-		status, code, msg = http.StatusConflict, "role_from_groups", "This account's role comes from its groups at the sign-in provider. Change it there."
 	default:
 		u.internal(w, "users: request failed", err)
 		return true

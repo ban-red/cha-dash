@@ -93,12 +93,13 @@ func (s *Service) Require(next http.Handler) http.Handler {
 // method. Every sign-in method (password, passkey, OIDC, forward-auth and
 // dev) ends here.
 func (s *Service) StartSession(w http.ResponseWriter, r *http.Request, u User, method string) (Session, error) {
-	_, sess, err := s.startSession(w, r, u, method)
+	_, sess, err := s.startSession(w, r, u, method, false)
 	return sess, err
 }
 
-// startSession is StartSession, also returning the cookie token.
-func (s *Service) startSession(w http.ResponseWriter, r *http.Request, u User, method string) (string, Session, error) {
+// startSession is StartSession, also returning the cookie token;
+// provisioned says the sign-in created u's account.
+func (s *Service) startSession(w http.ResponseWriter, r *http.Request, u User, method string, provisioned bool) (string, Session, error) {
 	ip := s.proxies.ClientIP(r).String()
 	token, sess, err := s.createSession(r.Context(), u.ID, method, ip, r.UserAgent())
 	if err != nil {
@@ -108,7 +109,8 @@ func (s *Service) startSession(w http.ResponseWriter, r *http.Request, u User, m
 	// The event's request carries who just signed in, so the audit log can
 	// name them.
 	id := Identity{User: u, Session: sess, IP: ip}
-	s.emit(Event{Kind: EventSignedIn, UserID: u.ID, SessionID: sess.ID, Method: method, Request: r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)), IP: ip})
+	s.emit(Event{Kind: EventSignedIn, UserID: u.ID, SessionID: sess.ID, Method: method, Request: r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)), IP: ip,
+		ToRole: u.Role, Provisioned: provisioned})
 	return token, sess, nil
 }
 

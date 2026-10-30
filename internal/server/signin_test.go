@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -138,8 +139,9 @@ func TestSignInSettingsAPI(t *testing.T) {
 
 // Forward-auth through the hub's whole chain: a user links the name their
 // proxy sends (with a step-up), then that proxy signs them in; their role
-// then comes from groups. Unlinking an OIDC identity is audited, and an
-// admin can read anyone's identities.
+// then comes from groups, and an admin's change holds until the proxy's
+// next say. Unlinking an OIDC identity is audited, and an admin can read
+// anyone's identities.
 func TestLinkedIdentitiesAPI(t *testing.T) {
 	e, st, _ := signInEnv(t)
 	owner := signIn(t, e)
@@ -174,17 +176,31 @@ func TestLinkedIdentitiesAPI(t *testing.T) {
 	// A fresh browser through the proxy is signed in as fran, as an operator.
 	jar, _ := cookiejar.New(nil)
 	fresh := &http.Client{Jar: jar}
-	_, _, b = e.raw(t, fresh, "GET", "/api/auth/session", nil, proxied)
+	page := map[string]string{"Sec-Fetch-Mode": "navigate"}
+	maps.Copy(page, proxied)
+	_, _, b = e.raw(t, fresh, "GET", "/api/auth/session", nil, page)
 	sess := jsonOf(t, b)
 	if sess["session"].(map[string]any)["method"] != "forward_auth" || sess["user"].(map[string]any)["role"] != "operator" {
 		t.Fatalf("forward-auth session: %s", b)
 	}
-	if ev, ok := lastAudit(t, st, "auth.forward.signin"); !ok || ev.Actor.Name != "fran" {
+	if ev, ok := lastAudit(t, st, "auth.forward.signin"); !ok || ev.Actor.Name != "fran" || string(ev.Params) != `{"provisioned":false,"role":"operator"}` {
 		t.Fatalf("sign-in audit: %+v", ev)
 	}
-	// Her role now comes from groups: the users API won't change it.
-	if _, code, _ := e.call(t, owner, "PUT", "/api/users/"+franID, map[string]string{"role": "admin"}); code != "role_from_groups" {
-		t.Fatalf("role change: %s", code)
+	// The groups changed her role, and the log says so.
+	if ev, ok := lastAudit(t, st, "users.role.from_groups"); !ok || ev.Target != "user:"+franID || string(ev.Params) != `{"from":"viewer","method":"forward_auth","to":"operator"}` {
+		t.Fatalf("role-change audit: %+v", ev)
+	}
+	// Her role now comes from groups, but an admin can still change it;
+	// it then stops counting as from groups...
+	if status, _, b := e.call(t, owner, "PUT", "/api/users/"+franID, map[string]string{"role": "viewer"}); status != 200 || !strings.Contains(string(b), `"role_from_groups":false`) {
+		t.Fatalf("role change: %d %s", status, b)
+	}
+	// ...until the proxy next has its say.
+	if _, _, b := e.raw(t, fresh, "GET", "/api/auth/session", nil, proxied); jsonOf(t, b)["user"].(map[string]any)["role"] != "operator" {
+		t.Fatalf("after the proxy's next request: %s", b)
+	}
+	if ev, ok := lastAudit(t, st, "users.role.from_groups"); !ok || string(ev.Params) != `{"from":"viewer","method":"forward_auth","to":"operator"}` || countAudit(t, st, "users.role.from_groups") != 2 {
+		t.Fatalf("second role-change audit: %+v", ev)
 	}
 	_, _, b = e.call(t, owner, "GET", "/api/users", nil)
 	if !strings.Contains(string(b), `"username":"fran","role":"operator","disabled":false,"has_passkey":false,"last_seen_at"`) || !strings.Contains(string(b), `"role_from_groups":true`) {
@@ -217,4 +233,16 @@ func TestLinkedIdentitiesAPI(t *testing.T) {
 	if status, _, _ := e.raw(t, fresh, "GET", "/api/auth/session", nil, map[string]string{"Remote-User": "nobody@proxy"}); status != http.StatusUnauthorized {
 		t.Fatalf("changed header: %d", status)
 	}
+}
+
+// countAudit is how many records of action the log holds.
+func countAudit(t *testing.T, st *store.Store, action string) int {
+	t.Helper()
+	n := 0
+	for _, ev := range auditEvents(t, st) {
+		if ev.Action == action {
+			n++
+		}
+	}
+	return n
 }

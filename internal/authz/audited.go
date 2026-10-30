@@ -81,7 +81,8 @@ var Audited = map[string]string{
 	// Sign-in settings and linked sign-ins (wave 13). Sign-ins through the
 	// provider or a proxy are auth events, audited by the server
 	// (auth.oidc.signin, auth.oidc.refused, auth.oidc.link,
-	// auth.forward.signin, auth.forward.refused, auth.forward.untrusted).
+	// auth.forward.signin, auth.forward.refused, auth.forward.untrusted,
+	// auth.forward.duplicate, users.role.from_groups).
 	"PUT /api/settings/sign-in":                      "settings.sign_in.update",
 	"DELETE /api/auth/identities/{issuer}/{subject}": "auth.oidc.unlink", // auth.forward.unlink for a proxy username
 	"POST /api/auth/identities/forward-auth":         "auth.forward.link",

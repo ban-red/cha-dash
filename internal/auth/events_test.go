@@ -26,6 +26,19 @@ func (l *eventLog) kinds() []string {
 	return out
 }
 
+// ofKind returns the events of kind k, oldest first.
+func (l *eventLog) ofKind(k EventKind) []Event {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []Event
+	for _, e := range l.got {
+		if e.Kind == k {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 func (l *eventLog) last() Event {
 	l.mu.Lock()
 	defer l.mu.Unlock()

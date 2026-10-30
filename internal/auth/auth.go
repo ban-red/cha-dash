@@ -150,12 +150,14 @@ type Service struct {
 
 	// signIn is where the OIDC and forward-auth settings come from
 	// (signin.go); oidc caches the provider's discovery and keys (oidc.go);
-	// oidcTest holds the owner's last Test sign-in; forward holds
-	// forward-auth's per-peer audit throttle (forwardauth.go).
-	signIn   signInSource
-	oidc     oidcClient
-	oidcTest oidcTests
-	forward  forwardState
+	// oidcTest holds the owner's last Test sign-in; oidcRefusals throttles
+	// refused-sign-in records (oidc_http.go); forward holds forward-auth's
+	// audit throttles and what the proxy last sent (forwardauth.go).
+	signIn       signInSource
+	oidc         oidcClient
+	oidcTest     oidcTests
+	oidcRefusals noteThrottle
+	forward      forwardState
 }
 
 // Option adjusts New.

@@ -19,6 +19,16 @@ package auth
 // JSON: success goes to the return path, a failure to it (or to the sign-in
 // page) with ?oidc_error=<code>. The return path is always a path on this
 // origin; anything else becomes "/".
+//
+// Linking and stepping up start only from this origin's own pages (or a
+// typed address): another site can't send a signed-in browser through a
+// flow it chose. Step-up through the provider follows the step-up rule like
+// the other methods, at the start and again at the callback.
+//
+// The callback audits only what got as far as a flow this hub began: a
+// missing or unknown state, or any callback while OIDC is off, just
+// redirects. Refused sign-ins are recorded once per client and reason every
+// ten minutes, with a count of the ones in between.
 
 import (
 	"context"
@@ -70,7 +80,15 @@ const (
 	OIDCErrBanned      = "ip_banned"
 	OIDCErrRateLimited = "rate_limited"
 	OIDCErrInternal    = "internal"
+	// OIDCErrNoStepUp: the step-up rule doesn't offer the provider to this
+	// account (it has a passkey or a password, or passkeys are required).
+	OIDCErrNoStepUp = "step_up_unavailable"
+	// OIDCErrCrossSite: linking or stepping up was started from another site.
+	OIDCErrCrossSite = "cross_site"
 )
+
+// refusalEvery: one refused-sign-in record per client and reason this often.
+const refusalEvery = 10 * time.Minute
 
 // refusalReasons are the audit reasons for refused sign-ins.
 var refusalReasons = map[string]string{
@@ -81,6 +99,7 @@ var refusalReasons = map[string]string{
 	OIDCErrState:    "state mismatch",
 	OIDCErrProvider: "provider error",
 	OIDCErrExpired:  "expired",
+	OIDCErrBanned:   "address banned",
 }
 
 // OIDCTestResult is what the last Test sign-in found, for Settings → Sign-in.
@@ -195,16 +214,26 @@ func (s *Service) handleOIDCStart(w http.ResponseWriter, r *http.Request) {
 	}
 	var userID string
 	if purpose != purposeSignIn {
+		if !startedHere(r) {
+			fail(OIDCErrCrossSite)
+			return
+		}
 		id, ok := s.Identify(r)
 		if !ok {
 			fail(OIDCErrSignedOut)
 			return
 		}
 		userID = id.User.ID
-		if purpose == purposeLink {
+		switch purpose {
+		case purposeLink:
 			id.IP = s.proxies.ClientIP(r).String()
 			if err := s.linkAllowed(r.WithContext(context.WithValue(r.Context(), ctxKey{}, id))); err != nil {
 				fail(OIDCErrStepUp)
+				return
+			}
+		case purposeStepUp:
+			if code := s.oidcStepUpOffered(r, userID); code != "" {
+				fail(code)
 				return
 			}
 		}
@@ -238,6 +267,36 @@ func (s *Service) handleOIDCStart(w http.ResponseWriter, r *http.Request) {
 }
 
 var errOIDCOff = errors.New("auth: OIDC isn't configured")
+
+// startedHere: a navigation this origin's pages began, or one typed into
+// the address bar. Sec-Fetch-Site says so; a browser that doesn't send it
+// must send a Referer on this host instead. (The hub's own pages send no
+// Referer, under Referrer-Policy: no-referrer, so such a browser can't link
+// or step up through the provider; current browsers all send the header.)
+func startedHere(r *http.Request) bool {
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "same-origin", "none":
+		return true
+	case "":
+		ref, err := url.Parse(r.Header.Get("Referer"))
+		return err == nil && ref.Host != "" && strings.EqualFold(ref.Host, r.Host)
+	}
+	return false
+}
+
+// oidcStepUpOffered says why the step-up rule doesn't let userID step up
+// at the provider from r, or "" when it does.
+func (s *Service) oidcStepUpOffered(r *http.Request, userID string) string {
+	c, err := s.stepUpOptions(r, userID)
+	if err != nil {
+		s.log.Error("could not work out the step-up methods", "err", err)
+		return OIDCErrInternal
+	}
+	if !c.oidc {
+		return OIDCErrNoStepUp
+	}
+	return ""
+}
 
 // BeginOIDCTest starts the owner's Test sign-in from Settings → Sign-in:
 // the same flow, asking the provider for a fresh sign-in (prompt=login,
@@ -344,8 +403,14 @@ func (s *Service) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.clearOIDCCookie(w, r)
+	// None of these is audited: anyone can call this URL, and none of
+	// them is a flow this hub began.
+	if !s.SignIn().OIDCReady() {
+		oidcFail(w, r, "/", OIDCErrOff)
+		return
+	}
 	if state == "" || len(state) > 64 {
-		s.refuseSignIn(w, r, "", "/", OIDCErrExpired, nil)
+		oidcFail(w, r, "/", OIDCErrExpired)
 		return
 	}
 	l, ok, err := s.takeLogin(ctx, state)
@@ -355,7 +420,7 @@ func (s *Service) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok {
-		s.refuseSignIn(w, r, "", "/", OIDCErrExpired, nil)
+		oidcFail(w, r, "/", OIDCErrExpired)
 		return
 	}
 	// Where a failure goes: the sign-in page for a sign-in, else back.
@@ -369,6 +434,18 @@ func (s *Service) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	if cerr != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(state)) != 1 {
 		s.refuseFlow(w, r, l, failTo, OIDCErrState, nil)
 		return
+	}
+	if l.purpose == purposeSignIn {
+		ban, err := s.Banned(ctx, s.proxies.ClientIP(r))
+		if err != nil {
+			s.log.Error("could not check the ban list", "err", err)
+			oidcFail(w, r, failTo, OIDCErrInternal)
+			return
+		}
+		if ban {
+			oidcFail(w, r, failTo, OIDCErrBanned)
+			return
+		}
 	}
 	if e := q.Get("error"); e != "" {
 		s.log.Info("the provider refused the sign-in", "error", clip(e, 64))
@@ -453,15 +530,20 @@ func refusalReason(code string) string {
 	return code
 }
 
-// refuseSignIn answers a refused sign-in and emits EventSignInRefused.
-// userID is the account it would have been, when known.
+// refuseSignIn answers a refused sign-in and emits EventSignInRefused, at
+// most once per client and reason every refusalEvery. userID is the
+// account it would have been, when known.
 func (s *Service) refuseSignIn(w http.ResponseWriter, r *http.Request, userID, to, code string, u *User) {
-	e := Event{Kind: EventSignInRefused, UserID: userID, Method: MethodOIDC, Reason: refusalReason(code), Request: r, IP: s.proxies.ClientIP(r).String()}
-	if u != nil {
-		e.Request = r.WithContext(context.WithValue(r.Context(), ctxKey{}, Identity{User: *u, IP: e.IP}))
+	ip := s.proxies.ClientIP(r)
+	e := Event{Kind: EventSignInRefused, UserID: userID, Method: MethodOIDC, Reason: refusalReason(code), Request: r, IP: ip.String()}
+	if ok, n := s.oidcRefusals.allow(httpx.ClientKey(ip)+"|"+e.Reason, s.now(), refusalEvery); ok {
+		if u != nil {
+			e.Request = r.WithContext(context.WithValue(r.Context(), ctxKey{}, Identity{User: *u, IP: e.IP}))
+		}
+		e.Count = n
+		s.log.Info("OIDC sign-in refused", "reason", e.Reason, "client", e.IP, "count", n)
+		s.emit(e)
 	}
-	s.log.Info("OIDC sign-in refused", "reason", e.Reason, "client", e.IP)
-	s.emit(e)
 	oidcFail(w, r, to, code)
 }
 
@@ -483,6 +565,7 @@ func (s *Service) identityUser(ctx context.Context, q queryRower, iss, sub strin
 
 func (s *Service) oidcSignIn(w http.ResponseWriter, r *http.Request, set SignInSettings, c idClaims, l oidcLogin) {
 	ctx := r.Context()
+	provisioned := false
 	u, linked, disabled, err := s.identityUser(ctx, s.st.Reader(), c.Issuer, c.Subject)
 	if err != nil {
 		s.log.Error("could not look up the identity", "err", err)
@@ -494,7 +577,7 @@ func (s *Service) oidcSignIn(w http.ResponseWriter, r *http.Request, set SignInS
 		s.refuseSignIn(w, r, u.ID, "/", OIDCErrDisabled, &u)
 		return
 	case linked:
-		role, ok, err := s.applyGroups(ctx, u, set, c.Groups)
+		role, ok, err := s.applyGroups(r, u, set, c.Groups, MethodOIDC)
 		if err != nil {
 			s.log.Error("could not apply the group mapping", "err", err)
 			oidcFail(w, r, "/", OIDCErrInternal)
@@ -515,6 +598,7 @@ func (s *Service) oidcSignIn(w http.ResponseWriter, r *http.Request, set SignInS
 			s.refuseSignIn(w, r, "", "/", OIDCErrUnlinked, nil)
 			return
 		}
+		provisioned = true
 		nu, err := s.provision(ctx, []string{c.Username, emailLocal(c.Email)}, role, func(tx *sql.Tx, userID string, now int64) error {
 			_, err := tx.ExecContext(ctx, `INSERT INTO oidc_identities (issuer, subject, user_id, email, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?)`,
 				c.Issuer, c.Subject, userID, c.Email, now, now)
@@ -529,7 +613,7 @@ func (s *Service) oidcSignIn(w http.ResponseWriter, r *http.Request, set SignInS
 		s.log.Info("account created on first OIDC sign-in", "user", u.Username, "role", u.Role)
 	}
 	s.forgive(s.proxies.ClientIP(r), u.Username)
-	if _, err := s.StartSession(w, r, u, MethodOIDC); err != nil {
+	if _, _, err := s.startSession(w, r, u, MethodOIDC, provisioned); err != nil {
 		s.log.Error("could not start session", "err", err)
 		oidcFail(w, r, "/", OIDCErrInternal)
 		return
@@ -545,9 +629,20 @@ func emailLocal(e string) string {
 // applyGroups sets u's role from groups under set, the owner excepted, and
 // reports whether u may sign in: false when mappings exist and none
 // matches, in which case u's sessions end and EventUserChanged closes its
-// sockets. With no mappings, roles are Cha Dash's and nothing changes.
-func (s *Service) applyGroups(ctx context.Context, u User, set SignInSettings, groups []string) (string, bool, error) {
-	if len(set.Mappings) == 0 || u.Role == RoleOwner {
+// sockets. With no mappings, roles are Cha Dash's and nothing changes. It
+// clears an admin's override (role_override): a sign-in through the
+// provider or the proxy makes the role the groups' again. An actual change
+// emits EventRoleFromGroups (audited) with method, then EventUserChanged.
+func (s *Service) applyGroups(r *http.Request, u User, set SignInSettings, groups []string, method string) (string, bool, error) {
+	ctx := r.Context()
+	if len(set.Mappings) == 0 {
+		return u.Role, true, nil
+	}
+	var override bool
+	if err := s.st.Reader().QueryRowContext(ctx, `SELECT role, role_override FROM users WHERE id = ?`, u.ID).Scan(&u.Role, &override); err != nil {
+		return u.Role, false, err
+	}
+	if u.Role == RoleOwner {
 		return u.Role, true, nil
 	}
 	role := set.MappedRole(groups)
@@ -564,17 +659,25 @@ func (s *Service) applyGroups(ctx context.Context, u User, set SignInSettings, g
 		}
 		return u.Role, false, nil
 	}
-	if role == u.Role {
+	if role == u.Role && !override {
 		return role, true, nil
 	}
-	res, err := s.st.Writer().ExecContext(ctx, `UPDATE users SET role = ?, updated_at = ? WHERE id = ? AND role <> 'owner'`, role, s.now().UnixMilli(), u.ID)
+	res, err := s.st.Writer().ExecContext(ctx, `UPDATE users SET role = ?, role_override = 0, updated_at = ? WHERE id = ? AND role = ?`,
+		role, s.now().UnixMilli(), u.ID, u.Role)
 	if err != nil {
 		return u.Role, false, err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return u.Role, true, nil // became the owner in between
+		return u.Role, true, nil // changed in between (became the owner, say); the next sign-in applies it
 	}
-	s.log.Info("role set from groups", "user", u.Username, "from", u.Role, "to", role)
+	if role == u.Role {
+		return role, true, nil // only the override cleared
+	}
+	s.log.Info("role set from groups", "user", u.Username, "from", u.Role, "to", role, "method", method)
+	ip := s.proxies.ClientIP(r).String()
+	who := Identity{User: User{ID: u.ID, Username: u.Username, Role: role}, IP: ip}
+	s.emit(Event{Kind: EventRoleFromGroups, UserID: u.ID, Method: method, FromRole: u.Role, ToRole: role, IP: ip,
+		Request: r.WithContext(context.WithValue(ctx, ctxKey{}, who))})
 	s.emit(Event{Kind: EventUserChanged, UserID: u.ID})
 	return role, true, nil
 }
@@ -647,6 +750,11 @@ func (s *Service) oidcLink(w http.ResponseWriter, r *http.Request, c idClaims, l
 		oidcFail(w, r, l.returnTo, code)
 		return
 	}
+	// The step-up that let the link start may have lapsed on the way.
+	if err := s.linkAllowed(r.WithContext(context.WithValue(ctx, ctxKey{}, id))); err != nil {
+		oidcFail(w, r, l.returnTo, OIDCErrStepUp)
+		return
+	}
 	var other string
 	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
 		other = ""
@@ -704,6 +812,17 @@ func (s *Service) oidcStepUp(w http.ResponseWriter, r *http.Request, c idClaims,
 	}
 	if !linked || disabled || u.ID != id.User.ID {
 		fail(OIDCErrNotLinked, "an identity not linked to this account")
+		return
+	}
+	// The rule, or the account's passkeys and password, may have changed
+	// since the start.
+	switch code := s.oidcStepUpOffered(req, id.User.ID); code {
+	case "":
+	case OIDCErrInternal:
+		oidcFail(w, r, l.returnTo, code)
+		return
+	default:
+		fail(code, "the step-up rule doesn't offer the provider to this account")
 		return
 	}
 	if !authTimeFresh(c.AuthTime, s.now()) {

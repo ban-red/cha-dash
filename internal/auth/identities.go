@@ -23,9 +23,6 @@ var (
 	ErrIdentityNotFound = errors.New("auth: no such linked identity")
 	// ErrIdentityTaken: the identity is linked to another account.
 	ErrIdentityTaken = errors.New("auth: identity linked to another account")
-	// ErrRoleFromGroups: the account's role comes from the provider's
-	// groups, so it changes there, not in Cha Dash.
-	ErrRoleFromGroups = errors.New("auth: role comes from groups")
 )
 
 // LinkedIdentity is one way into an account through someone else.

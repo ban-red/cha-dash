@@ -361,6 +361,8 @@ func TestAuthEventsAudited(t *testing.T) {
 		{Kind: auth.EventStepUp, SessionID: "s_1", Method: auth.MethodPasskey, Request: r},
 		{Kind: auth.EventSessionEnded, SessionID: "s_1", Request: r}, // not audited
 		{Kind: auth.EventPasskeyDeleted, Passkey: "pk_2"},            // no request: nothing to attribute it to
+		{Kind: auth.EventForwardAuthDuplicate, IP: "192.0.2.7", Reason: "Remote-User", Count: 3, Request: r},
+		{Kind: auth.EventSignInRefused, Method: auth.MethodOIDC, IP: "192.0.2.7", Reason: "unlinked", Count: 4, Request: r},
 	} {
 		auditAuthEvent(rec, ev)
 	}
@@ -369,9 +371,16 @@ func TestAuthEventsAudited(t *testing.T) {
 		got = append(got, ev.Action+" "+ev.Target+" "+ev.Result)
 	}
 	want := []string{"auth.passkey.register passkey:pk_1 ok", "auth.passkey.rename passkey:pk_1 ok", "auth.passkey.delete passkey:pk_1 ok",
-		"auth.step-up session:s_1 refused", "auth.step-up session:s_1 ok"}
+		"auth.step-up session:s_1 refused", "auth.step-up session:s_1 ok", "auth.forward.duplicate  refused", "auth.oidc.refused  refused"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("audited %v, want %v", got, want)
+	}
+	// Throttled records say how many they stand for.
+	if ev, _ := lastAudit(t, st, "auth.forward.duplicate"); string(ev.Params) != `{"count":3,"header":"Remote-User"}` || ev.Actor.IP != "192.0.2.7" {
+		t.Fatalf("duplicate header record: %+v", ev)
+	}
+	if ev, _ := lastAudit(t, st, "auth.oidc.refused"); string(ev.Params) != `{"count":4,"reason":"unlinked"}` {
+		t.Fatalf("refusal record: %+v", ev)
 	}
 }
 

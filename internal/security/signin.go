@@ -7,7 +7,7 @@ package security
 // through SignIn and ClientSecret (server.New wires auth.SetSignIn).
 //
 //	GET  /api/settings/sign-in        the settings, client_secret_set, redirect_uri,
-//	                                  trusted_proxies, last_test (owner)
+//	                                  trusted_proxies, last_test, forward_groups (owner)
 //	PUT  /api/settings/sign-in        the settings, client_secret? ("" clears it) → the same;
 //	                                  needs a step-up (owner)
 //	POST /api/settings/sign-in/test   {} → {ok, error?, discovery facts, login_url?} (owner)
@@ -137,6 +137,9 @@ type SignInView struct {
 	// without which forward-auth headers never count.
 	TrustedProxies bool                 `json:"trusted_proxies"`
 	LastTest       *auth.OIDCTestResult `json:"last_test"`
+	// ForwardGroups is the groups header a trusted proxy last sent, since
+	// the hub started; null when none has.
+	ForwardGroups *auth.ForwardGroupsSeen `json:"forward_groups"`
 }
 
 // RegisterSignIn mounts the sign-in settings routes; a is the auth service
@@ -145,7 +148,7 @@ type SignInView struct {
 func (s *Service) RegisterSignIn(mux *http.ServeMux, wrap func(http.Handler) http.Handler, a *auth.Service, trusted bool) {
 	view := func(r *http.Request) SignInView {
 		return SignInView{SignInSettings: s.SignIn(), ClientSecretSet: s.hasClientSecret(r.Context()), RedirectURI: a.RedirectURI(r),
-			TrustedProxies: trusted, LastTest: a.LastOIDCTest()}
+			TrustedProxies: trusted, LastTest: a.LastOIDCTest(), ForwardGroups: a.LastForwardGroups()}
 	}
 	mux.Handle("GET /api/settings/sign-in", wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, view(r))

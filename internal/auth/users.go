@@ -34,24 +34,26 @@ type UserInfo struct {
 	HasPasskey bool       `json:"has_passkey"`
 	LastSeenAt *time.Time `json:"last_seen_at"`
 	// RoleFromGroups: the role comes from the provider's groups (a group
-	// mapping is set and the account has a linked identity), so it changes
-	// there; the users API refuses to change it.
+	// mapping is set and the account has a linked identity), so the next
+	// sign-in through the provider or the proxy sets it again. An admin
+	// can still change it; that clears this until that next sign-in.
 	RoleFromGroups bool `json:"role_from_groups"`
 
-	hasOIDC, hasForward bool
+	hasOIDC, hasForward, override bool
 }
 
 const userInfoQuery = `SELECT u.id, u.username, u.role, u.disabled_at IS NOT NULL,
 	EXISTS (SELECT 1 FROM passkeys p WHERE p.user_id = u.id),
 	(SELECT max(s.last_seen_at) FROM sessions s WHERE s.user_id = u.id),
 	EXISTS (SELECT 1 FROM oidc_identities i WHERE i.user_id = u.id),
-	EXISTS (SELECT 1 FROM forward_auth_links f WHERE f.user_id = u.id)
+	EXISTS (SELECT 1 FROM forward_auth_links f WHERE f.user_id = u.id),
+	u.role_override
 	FROM users u`
 
 func scanUserInfo(sc scanner) (UserInfo, error) {
 	var u UserInfo
 	var seen sql.NullInt64
-	if err := sc.Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.HasPasskey, &seen, &u.hasOIDC, &u.hasForward); err != nil {
+	if err := sc.Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.HasPasskey, &seen, &u.hasOIDC, &u.hasForward, &u.override); err != nil {
 		return UserInfo{}, err
 	}
 	if seen.Valid {
@@ -76,7 +78,7 @@ func (s *Service) ListUsers(ctx context.Context) ([]UserInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("auth: %w", err)
 		}
-		u.RoleFromGroups = roleFromGroups(set, u.Role, u.hasOIDC, u.hasForward)
+		u.RoleFromGroups = roleFromGroups(set, u.Role, u.hasOIDC, u.hasForward) && !u.override
 		out = append(out, u)
 	}
 	return out, rows.Err()
@@ -99,7 +101,7 @@ func (s *Service) getUser(ctx context.Context, q queryRower, id string) (UserInf
 	if err != nil {
 		return UserInfo{}, fmt.Errorf("auth: %w", err)
 	}
-	u.RoleFromGroups = roleFromGroups(s.SignIn(), u.Role, u.hasOIDC, u.hasForward)
+	u.RoleFromGroups = roleFromGroups(s.SignIn(), u.Role, u.hasOIDC, u.hasForward) && !u.override
 	return u, nil
 }
 
@@ -148,7 +150,10 @@ func (s *Service) CreateUser(ctx context.Context, username, password, role strin
 // UpdateUser changes an account's role and whether it's disabled; nil leaves
 // a field alone. The owner's role and status can't change here, and nobody
 // becomes the owner here (TransferOwnership). Disabling ends the user's
-// sessions in the same transaction.
+// sessions in the same transaction. A role that came from groups can be
+// changed too: the account's role then stops counting as from groups until
+// its next sign-in through the provider or the proxy (role_override).
+// Disabling is what takes someone out at once.
 func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disabled *bool) (UserInfo, error) {
 	if role != nil {
 		if *role == RoleOwner {
@@ -169,13 +174,11 @@ func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disab
 		if cur.Role == RoleOwner && ((role != nil && *role != RoleOwner) || (disabled != nil && *disabled)) {
 			return ErrOwnerProtected
 		}
-		if role != nil && *role != cur.Role && cur.RoleFromGroups {
-			return ErrRoleFromGroups
-		}
 		now := s.now().UnixMilli()
 		if role != nil && *role != cur.Role {
 			changed = true
-			if _, err := tx.ExecContext(ctx, `UPDATE users SET role = ?, updated_at = ? WHERE id = ?`, *role, now, id); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE users SET role = ?, role_override = ?, updated_at = ? WHERE id = ?`,
+				*role, cur.RoleFromGroups || cur.override, now, id); err != nil {
 				return err
 			}
 		}

@@ -23,7 +23,9 @@ const (
 	// EventSignedIn: a person signed in and a session started. Method is
 	// the one the session records (password, passkey, oidc, forward_auth,
 	// dev), and Request carries the new identity. Every sign-in
-	// method ends in StartSession, which emits it once.
+	// method ends in StartSession, which emits it once. ToRole is the
+	// role the session starts with, and Provisioned says the sign-in
+	// created the account (oidc and forward_auth).
 	EventSignedIn EventKind = "signed_in"
 	// EventStepUp: a step-up was granted (Method is password or passkey).
 	EventStepUp EventKind = "step_up"
@@ -39,8 +41,15 @@ const (
 	// EventSignInRefused: an OIDC or forward-auth sign-in got as far as
 	// the provider's answer and was refused (Method says which; Reason is
 	// unlinked, no mapped group, bad token, …). UserID is set when the
-	// account is known. Audited as auth.oidc.refused.
+	// account is known. Audited as auth.oidc.refused or
+	// auth.forward.refused. Throttled per client and reason; Count is how
+	// many refusals the event stands for.
 	EventSignInRefused EventKind = "signed_in.refused"
+	// EventRoleFromGroups: a provider or proxy sign-in changed an
+	// account's role through the group mappings (FromRole to ToRole;
+	// Method says which). Emitted only when the role actually changes, and
+	// followed by EventUserChanged. Audited as users.role.from_groups.
+	EventRoleFromGroups EventKind = "user.role.from_groups"
 	// EventIdentityLinked: the signed-in user linked an OIDC identity
 	// (Method oidc; Issuer and Subject name it) or a forward-auth username
 	// (Method forward_auth; Subject is the username).
@@ -49,6 +58,10 @@ const (
 	// that isn't a trusted proxy and were stripped. IP is the peer. Emitted
 	// once per peer per hour.
 	EventForwardAuthUntrusted EventKind = "forward_auth.untrusted"
+	// EventForwardAuthDuplicate: a trusted proxy sent a forward-auth header
+	// more than once, so none of them counted. IP is the client; Reason
+	// names the header. Emitted once per client per hour; Count as above.
+	EventForwardAuthDuplicate EventKind = "forward_auth.duplicate"
 )
 
 // Event is one auth event. Fields that don't apply are empty. It never
@@ -68,6 +81,13 @@ type Event struct {
 	Issuer, Subject string
 	// IP: the client's address (sign-in refusals, untrusted proxies).
 	IP string
+	// FromRole and ToRole: a role change from groups; ToRole is also the
+	// role a provider or proxy sign-in starts with.
+	FromRole, ToRole string
+	// Provisioned: the sign-in created the account.
+	Provisioned bool
+	// Count: how many occurrences a throttled event stands for (1 or more).
+	Count int
 	// Request is the HTTP request behind it, with the signed-in identity on
 	// its context when there was one; nil when there was none.
 	Request *http.Request

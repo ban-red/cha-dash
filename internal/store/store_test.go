@@ -54,7 +54,7 @@ func TestMigrateUp(t *testing.T) {
 		t.Fatalf("tables = %v, want %v", got, want)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 19 {
+	if err != nil || v != 20 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 
