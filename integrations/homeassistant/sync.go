@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -517,9 +518,7 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 // withState is a copy of row with state.
 func withState(row map[string]any, state string) map[string]any {
 	out := make(map[string]any, len(row)+1)
-	for k, v := range row {
-		out[k] = v
-	}
+	maps.Copy(out, row)
 	out["state"] = state
 	return out
 }
