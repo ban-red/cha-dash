@@ -108,6 +108,7 @@ func buildTopology(start time.Time, r rng) *topology {
 	b.routes()
 	b.checks()
 	b.weather()
+	b.calendars()
 	b.finish()
 	return b.tp
 }

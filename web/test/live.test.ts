@@ -26,7 +26,7 @@ describe('live store fed with the sim snapshots', () => {
   it('exposes the topics and derived views', () => {
     const { live } = liveWithFixtures();
     expect(live.conn.status).toBe('live');
-    expect(Object.keys(live.graph.value!.resources)).toHaveLength(163);
+    expect(Object.keys(live.graph.value!.resources)).toHaveLength(165);
     expect(Object.keys(live.metrics.value!.series)).toHaveLength(withIncidents.series.length);
     expect(live.problems.value).toHaveLength(9);
     expect(live.repairs.value.map((i) => i.id)).toEqual(['karakeep-api-changed', 'unraid-magpie.repair', 'plex-token-revoked']);

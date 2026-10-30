@@ -680,6 +680,16 @@ describe('media calendar', () => {
   });
 });
 
+describe('calendar', () => {
+  it('shows the Demo Home’s family and school calendars, a mark and a name each', () => {
+    const { w } = mountWidget(docs(healthy), 'agenda', 'column');
+    expect(w.findAll('.ev-agenda .ag-day')[0]!.text()).toBe('Today');
+    expect(w.text()).toContain('Football');
+    expect(w.text()).toContain('Riverside pitches');
+    expect(w.findAll('.ev-legend span').map((x) => x.text())).toEqual(['Family', 'School']);
+  });
+});
+
 describe('now playing', () => {
   it('keeps last-known counts and offers Reconnect when Plex rejects its token', () => {
     const { w, tile } = mountWidget(docs(withIncidents), 'plex', 'wide');

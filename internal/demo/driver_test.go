@@ -90,7 +90,7 @@ func TestStartsAtTheAllOpenMoment(t *testing.T) {
 		t.Fatalf("inbox now = %s", inboxNow(t, tp))
 	}
 	_, doc := tp.Graph.Snapshot(nil)
-	if len(doc.Resources) != 163 {
+	if len(doc.Resources) != 165 {
 		t.Fatalf("graph has %d resources", len(doc.Resources))
 	}
 	open := 0
@@ -403,7 +403,7 @@ func TestNewDay(t *testing.T) {
 	if in := incident(t, tp, "backup-failed"); in.Status != sim.StatusOpen || !in.OpenedAt.Equal(time.Date(2026, 10, 4, 2, 19, 0, 0, time.UTC)) {
 		t.Fatalf("day two: %+v", in)
 	}
-	if _, doc := tp.Graph.Snapshot(nil); len(doc.Resources) != 163 {
+	if _, doc := tp.Graph.Snapshot(nil); len(doc.Resources) != 165 {
 		t.Fatalf("graph has %d resources", len(doc.Resources))
 	}
 }

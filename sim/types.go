@@ -33,6 +33,7 @@ const (
 	KindRoute        Kind = "route"         // a Traefik router
 	KindCheck        Kind = "check"         // a built-in uptime check
 	KindWeather      Kind = "weather"       // the place a weather source reports on
+	KindCalendar     Kind = "calendar"      // a calendar Home Assistant publishes
 )
 
 // RelType is the type of a relation between two resources.
