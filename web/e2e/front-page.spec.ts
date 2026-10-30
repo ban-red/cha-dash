@@ -24,7 +24,7 @@ test('the Demo Home fills the front page', async ({ page }) => {
 // WCAG 2.2 AA is a release gate (01 · Vision, the Pact). The unit tests run
 // axe over every view in happy-dom; this runs it on the real page, laid out
 // and styled, in every built-in theme.
-for (const theme of ['instrument-dark', 'instrument-light', 'oled', 'night', 'high-contrast', 'paper']) {
+for (const theme of ['instrument-dark', 'instrument-light', 'oled', 'night', 'high-contrast', 'paper', 'neon']) {
   test(`no WCAG 2.2 AA violations in ${theme}`, async ({ page }) => {
     await page.addInitScript((id) => window.localStorage.setItem('chadash.theme', id), theme);
     await page.goto('/');

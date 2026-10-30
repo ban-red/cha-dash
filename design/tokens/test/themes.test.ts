@@ -14,9 +14,9 @@ const resolved = docs.map((d) => resolveTheme(d));
 const byId = Object.fromEntries(resolved.map((t) => [t.id, t]));
 
 describe('theme documents', () => {
-  test('all six built-in themes exist, in canonical order', () => {
+  test('all seven built-in themes exist, in canonical order', () => {
     expect(docs.map((d) => d.id)).toEqual([...THEME_ORDER]);
-    expect(docs.map((d) => d.name)).toEqual(['Instrument Dark', 'Instrument Light', 'OLED', 'Night', 'High Contrast', 'Paper']);
+    expect(docs.map((d) => d.name)).toEqual(['Instrument Dark', 'Instrument Light', 'OLED', 'Night', 'High Contrast', 'Paper', 'Neon']);
   });
 
   test('every document passes the JSON Schema', () => {

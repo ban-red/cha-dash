@@ -1,0 +1,25 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+# Night-city HUD: blue-black glass, signal-yellow accent, cyan maintenance,
+# hot red for down. Sharp corners and mono labels.
+$schema: ../schema/theme.schema.json
+format: 1
+id: neon
+name: Neon
+description: Blue-black glass, signal yellow, cyan and hot red. Sharp corners, mono figures.
+scheme: dark
+color:
+  base: oklch(0.16 0.03 230)
+  accent: oklch(0.92 0.19 105)   # signal yellow
+  contrast: 60
+  ink: { hue: 195, chroma: 0.04 }
+  status:
+    attention: { hue: 55, chroma: 0.17 }    # orange, kept clear of the yellow accent
+    down: { hue: 10, chroma: 0.22 }         # hot red
+    maintenance: { hue: 200, chroma: 0.12 } # cyan
+typography: { ui: IBM Plex Sans, numeral: JetBrains Mono, clock: Doto, headline: Geist Mono }
+surface: card
+shape: { radius: 0, hairline: 1 }
+density: comfortable
+briefing: sentence
+material: { frosted: 0.82 }
+backdrop: solid

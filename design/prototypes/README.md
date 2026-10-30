@@ -17,7 +17,7 @@ A single static file. Open it in a browser; there's no build step and no server.
 After changing tokens, run `bun run inject` in `design/tokens`. A test fails if the inline copies drift.
 
 **Deep links** set the starting state: `m0-v2.html#theme=paper&view=wall&moment=quiet&frame=phone&studio=1`. Keys:
-- `theme`: `instrument-dark`, `instrument-light`, `oled`, `night`, `high-contrast`, `paper`;
+- `theme`: `instrument-dark`, `instrument-light`, `oled`, `night`, `high-contrast`, `paper`, `neon`;
 - `view`: `board`, `wall`, `workbench`, `motion`;
 - `moment`: `incident`, `quiet`, `first`, `offline`;
 - also `frame`, `surface`, `density`, `briefing`, `motion`, `material`, `studio`.

@@ -9,6 +9,7 @@
     night: ['card', 'sentence'],
     'high-contrast': ['card', 'sentence'],
     paper: ['ruled', 'headline'],
+    neon: ['card', 'sentence'],
   };
   var id = 'instrument-dark';
   try {
