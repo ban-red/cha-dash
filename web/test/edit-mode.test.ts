@@ -7,7 +7,7 @@ import BoardSurface from '../src/board/BoardSurface.vue';
 import TileEditor from '../src/board/TileEditor.vue';
 import WidgetPicker from '../src/board/WidgetPicker.vue';
 import { defaultBoard } from '../src/model/defaultLayout';
-import { WIDGETS } from '../src/model/widgets';
+import { WIDGET_GROUPS, WIDGETS } from '../src/model/widgets';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { navigate, route } from '../src/lib/router';
 import { applyTheme } from '../src/lib/theme';
@@ -443,8 +443,13 @@ describe('adding a widget', () => {
     const pk = w.findComponent(WidgetPicker);
     await pk.find('.pk-to select').setValue('media');
     await pk.find('button.pk-item[data-type="arr"]').trigger('click');
-    const choices = pk.findAll('.pk-detail select option').map((o) => o.attributes('value'));
-    expect(choices).toEqual([arr.slice('arr@'.length)]); // the other one is still on the board
+    const choices = pk.findAll<HTMLInputElement>('.pk-target input');
+    const free = choices.filter((i) => !i.element.disabled).map((i) => i.element.value);
+    expect(free).toEqual([arr.slice('arr@'.length)]);
+    // the other one is still on the board: listed, but it can't be picked twice
+    expect(choices.filter((i) => i.element.disabled)).toHaveLength(1);
+    expect(pk.find('.pk-target.taken').text()).toContain('On the board');
+    expect(choices.find((i) => !i.element.disabled)!.element.checked).toBe(true);
     await pk.find('form').trigger('submit');
     await flushPromises();
     expect(ids(store.save.mock.lastCall![0])).toContain(arr);
@@ -471,6 +476,106 @@ describe('adding a widget', () => {
     expect(id).toBeDefined();
     expect(tiles).toEqual({ [id]: { name: 'Router admin', href: 'https://router.home.example', bind: { instance: 'opnsense' } } });
     expect(w.find(`[data-item-id="${id}"] .tn`).text()).toBe('Router admin');
+  });
+});
+
+describe('the widget picker', () => {
+  async function open(board = start()) {
+    const store = fakeStore(board);
+    const w = await editing(store);
+    await button(w, 'Add widget').trigger('click');
+    await settle();
+    return { w, store, pk: w.findComponent(WidgetPicker) };
+  }
+  const cardTypes = (pk: Awaited<ReturnType<typeof open>>['pk']) => pk.findAll('button.pk-item').map((b) => b.attributes('data-type'));
+
+  it('opens on the first ready widget, previewed live at its size', async () => {
+    const { pk } = await open(remove(start(), 'cameras'));
+    const first = pk.find('button.pk-item');
+    expect(first.attributes('aria-pressed')).toBe('true');
+    const type = first.attributes('data-type')!;
+    expect(pk.find('.pk-title').text()).toBe(WIDGETS[type]!.name);
+    const stage = pk.find('.pk-preview');
+    expect(stage.attributes('inert')).toBeDefined(); // a picture, not a second set of links
+    expect(stage.find('.tile, .clock').exists()).toBe(true);
+  });
+
+  it('searches the catalog, and Enter in the search picks the top match without adding', async () => {
+    const { pk, store } = await open(remove(start(), 'cameras'));
+    const saves = store.save.mock.calls.length;
+    await pk.find('input[type="search"]').setValue('frigate');
+    expect(cardTypes(pk)[0]).toBe('cameras'); // found first by what it reads, not only its name
+    await pk.find('input[type="search"]').trigger('keydown', { key: 'Enter' });
+    expect(pk.find('button.pk-item[data-type="cameras"]').attributes('aria-pressed')).toBe('true');
+    expect(store.save.mock.calls.length).toBe(saves);
+    await pk.find('input[type="search"]').setValue('stork');
+    expect(cardTypes(pk)).toEqual(expect.arrayContaining(['host', 'metric'])); // and by what it can show
+
+    await pk.find('input[type="search"]').setValue('zzzz');
+    expect(cardTypes(pk)).toEqual([]);
+    expect(pk.find('.pk-empty').text()).toContain('No widget that fits here matches “zzzz”');
+    await pk.findAll('.pk-empty button').find((b) => b.text() === 'Clear the search')!.trigger('click');
+    expect(cardTypes(pk).length).toBeGreaterThan(1);
+  });
+
+  it('files widgets in groups, with a count on each chip', async () => {
+    const { pk } = await open();
+    const chips = pk.findAll('.pk-groups .pk-chip');
+    expect(chips.map((c) => c.text().replace(/\d+$/, ''))).toEqual(['All', ...WIDGET_GROUPS.map((g) => g.name)]);
+    const media = chips.find((c) => c.text().startsWith('Media'))!;
+    await media.trigger('click');
+    expect(media.attributes('aria-pressed')).toBe('true');
+    const shown = cardTypes(pk);
+    expect(shown.length).toBe(Number(media.find('.n').text()));
+    expect(shown.every((t) => WIDGETS[t!]!.group === 'media')).toBe(true);
+  });
+
+  it('resizes the preview with the size picked', async () => {
+    const { pk } = await open(remove(start(), 'cameras'));
+    await pk.find('button.pk-item[data-type="cameras"]').trigger('click');
+    const style = () => pk.find('.pk-preview').attributes('style');
+    expect(style()).toContain('--w: 4; --h: 4'); // large, its default
+    await pk.find('.pk-size input[value="small"]').setValue(true);
+    expect(style()).toContain('--w: 2; --h: 2');
+    expect(pk.find('.pk-stage figcaption').text()).toContain('Small 2×2');
+  });
+
+  it('moves through the cards with the arrow keys, the preview following, and ⌘↵ adds', async () => {
+    const { pk, w, store } = await open(remove(start(), 'cameras'));
+    await pk.find('input[type="search"]').trigger('keydown', { key: 'ArrowDown' });
+    const types = cardTypes(pk);
+    expect(pk.find('button.pk-item[aria-pressed="true"]').attributes('data-type')).toBe(types[0]);
+    await pk.find(`button.pk-item[data-type="${types[0]}"]`).trigger('keydown', { key: 'ArrowDown' });
+    expect(pk.find('button.pk-item[aria-pressed="true"]').attributes('data-type')).toBe(types[1]);
+    expect(pk.find('.pk-title').text()).toBe(WIDGETS[types[1]!]!.name);
+
+    await pk.find('button.pk-item[data-type="cameras"]').trigger('click');
+    await pk.find('dialog').trigger('keydown', { key: 'Enter', metaKey: true });
+    await flushPromises();
+    expect(ids(store.save.mock.lastCall![0])).toContain('cameras');
+    expect(w.findComponent(WidgetPicker).exists()).toBe(false);
+  });
+
+  it('adds on a double-click', async () => {
+    const { pk, store } = await open(remove(start(), 'cameras'));
+    await pk.find('button.pk-item[data-type="cameras"]').trigger('dblclick');
+    await flushPromises();
+    await settle();
+    expect(ids(store.save.mock.lastCall![0])).toContain('cameras');
+  });
+
+  it('filters a long list of what a widget can show', async () => {
+    const { pk } = await open();
+    await pk.find('button.pk-item[data-type="metric"]').trigger('click');
+    const rows = () => pk.findAll('.pk-target:not(.taken) input').map((i) => (i.element as HTMLInputElement).value);
+    const all = rows();
+    expect(all.length).toBeGreaterThan(6);
+    const q = pk.find('.pk-target-q');
+    expect(q.exists()).toBe(true);
+    await q.setValue('cpu');
+    expect(rows().length).toBeGreaterThan(0);
+    expect(rows().length).toBeLessThan(all.length);
+    expect(rows().every((v) => v.includes('cpu'))).toBe(true);
   });
 });
 

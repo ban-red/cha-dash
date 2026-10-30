@@ -26,9 +26,26 @@ export interface WidgetSpec {
    * time zone and `bookmarks` a group name.
    */
   accepts?: { kinds: string[]; types?: string[] };
+  /** Where the widget picker files it. */
+  group: WidgetGroup;
+  /** What it shows, in one short sentence, for the picker. */
+  about: string;
+  /** A bundled service icon slug for the picker (lib/serviceIcons.ts); else a monogram. */
+  icon?: string;
 }
 
-const spec = (type: string, name: string, size: SizeId, sizes: SizeId[], more: Partial<WidgetSpec> = {}): WidgetSpec => ({ type, name, size, sizes, ...more });
+/** The widget picker's groups, in the order it shows them. */
+export const WIDGET_GROUPS = [
+  { id: 'servers', name: 'Servers' },
+  { id: 'network', name: 'Network' },
+  { id: 'media', name: 'Media' },
+  { id: 'home', name: 'Home' },
+  { id: 'basics', name: 'Basics' },
+] as const;
+export type WidgetGroup = (typeof WIDGET_GROUPS)[number]['id'];
+
+type More = Pick<WidgetSpec, 'group' | 'about'> & Partial<WidgetSpec>;
+const spec = (type: string, name: string, size: SizeId, sizes: SizeId[], more: More): WidgetSpec => ({ type, name, size, sizes, ...more });
 
 /** Usenet clients publish SABnzbd's keys, torrent clients qBittorrent's (integrations/<id>/README.md). */
 export const USENET_CLIENTS: readonly string[] = ['sabnzbd', 'nzbget'];
@@ -36,39 +53,41 @@ export const USENET_CLIENTS: readonly string[] = ['sabnzbd', 'nzbget'];
 export const DOWNLOAD_CLIENTS: readonly string[] = ['qbittorrent', 'transmission', 'sabnzbd', 'nzbget'];
 
 export const WIDGETS: Record<string, WidgetSpec> = {
-  fleet: spec('fleet', 'Fleet', 'large', ['wide', 'tall', 'large', 'hero']),
-  host: spec('host', 'Host', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { bound: true, accepts: { kinds: ['host'] } }),
-  guests: spec('guests', 'Guests', 'wide', ['wide', 'tall', 'large'], { accepts: { kinds: ['host', 'cluster'] } }),
-  containers: spec('containers', 'Containers', 'small', ['small', 'wide', 'tall', 'large'], { accepts: { kinds: ['engine', 'host'] } }),
-  unraid: spec('unraid', 'Unraid array', 'wide', ['glyph', 'strip', 'small', 'wide', 'tall', 'large', 'hero'], { accepts: { kinds: ['array', 'host'] } }),
+  fleet: spec('fleet', 'Fleet', 'large', ['wide', 'tall', 'large', 'hero'], { group: 'servers', about: 'Every host in one table: CPU, memory and guests.' }),
+  host: spec('host', 'Host', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { bound: true, accepts: { kinds: ['host'] }, group: 'servers', about: 'One host in detail, with memory against its warning line.' }),
+  guests: spec('guests', 'Guests', 'wide', ['wide', 'tall', 'large'], { accepts: { kinds: ['host', 'cluster'] }, group: 'servers', about: 'VMs and LXCs, problems first, the ones stopped on purpose dimmed.', icon: 'proxmox' }),
+  containers: spec('containers', 'Containers', 'small', ['small', 'wide', 'tall', 'large'], { accepts: { kinds: ['engine', 'host'] }, group: 'servers', about: 'Docker containers on an engine or host; problems rise to the top.', icon: 'docker' }),
+  unraid: spec('unraid', 'Unraid array', 'wide', ['glyph', 'strip', 'small', 'wide', 'tall', 'large', 'hero'], { accepts: { kinds: ['array', 'host'] }, group: 'servers', about: 'The Unraid array, from its fill to a map of every disk.', icon: 'unraid' }),
   storage: spec('storage', 'Storage', 'small', ['glyph', 'strip', 'small', 'wide'], {
+    group: 'servers', about: 'How full one pool, datastore or share is.',
     bound: true,
     accepts: { kinds: ['storage', 'pool', 'share', 'backup_target', 'array', 'disk'] },
   }),
-  backups: spec('backups', 'Backups', 'small', ['strip', 'small', 'wide', 'large'], { accepts: { kinds: ['backup_target'] } }),
-  cameras: spec('cameras', 'Cameras', 'large', ['small', 'wide', 'large', 'hero'], { accepts: { kinds: ['app', 'camera'], types: ['frigate'] } }),
+  backups: spec('backups', 'Backups', 'small', ['strip', 'small', 'wide', 'large'], { accepts: { kinds: ['backup_target'] }, group: 'servers', about: 'A backup datastore’s fill and how the nightly runs went.' }),
+  cameras: spec('cameras', 'Cameras', 'large', ['small', 'wide', 'large', 'hero'], { accepts: { kinds: ['app', 'camera'], types: ['frigate'] }, group: 'home', about: 'Frigate’s cameras, captioned with their last detection.', icon: 'frigate' }),
   homeassistant: spec('homeassistant', 'Home Assistant', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], {
+    group: 'home', about: 'Who’s home, lights and switches, and house power.', icon: 'homeassistant',
     accepts: { kinds: ['app'], types: ['homeassistant'] },
   }),
-  opnsense: spec('opnsense', 'OPNsense', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['router'] } }),
-  uptimekuma: spec('uptimekuma', 'Uptime Kuma', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['uptimekuma'] } }),
-  traefik: spec('traefik', 'Traefik', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['traefik'] } }),
-  plex: spec('plex', 'Now playing', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['app'], types: ['plex', 'jellyfin', 'tautulli'] } }),
-  arr: spec('arr', 'Queue', 'small', ['small', 'wide'], { bound: true, accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] } }),
-  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'tall'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] } }),
-  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'tall', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] } }),
-  incidents: spec('incidents', 'Incidents', 'large', ['wide', 'tall', 'large']),
+  opnsense: spec('opnsense', 'OPNsense', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['router'] }, group: 'network', about: 'The router and its WAN: states, throughput and what’s down.', icon: 'opnsense' }),
+  uptimekuma: spec('uptimekuma', 'Uptime Kuma', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['uptimekuma'] }, group: 'network', about: 'Monitors up out of total, and the last 24 h as cells.', icon: 'uptimekuma' }),
+  traefik: spec('traefik', 'Traefik', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['traefik'] }, group: 'network', about: 'Routers, services and middlewares, with the routes behind them.', icon: 'traefik' }),
+  plex: spec('plex', 'Now playing', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['app'], types: ['plex', 'jellyfin', 'tautulli'] }, group: 'media', about: 'What’s streaming on Plex, Jellyfin or Tautulli.', icon: 'plex' }),
+  arr: spec('arr', 'Queue', 'small', ['small', 'wide'], { bound: true, accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'A Sonarr, Radarr or Lidarr queue, and what’s wanted.' }),
+  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'tall'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] }, group: 'media', about: 'Download speed and queue from your torrent or Usenet client.' }),
+  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'tall', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'What Sonarr and Radarr expect next.' }),
+  incidents: spec('incidents', 'Incidents', 'large', ['wide', 'tall', 'large'], { group: 'basics', about: 'Everything open, problems first; the latest fix when it’s quiet.' }),
   /**
    * Any service: an imported Homepage entry (`service@homepage:<section>/<entry>`),
    * an app (`service@sonarr:<instance id>/app`, `service@app:sonarr`) or a check.
    */
-  service: spec('service', 'Service', 'small', ['glyph', 'small', 'wide'], { bound: true, accepts: { kinds: ['app', 'check'] } }),
+  service: spec('service', 'Service', 'small', ['glyph', 'small', 'wide'], { bound: true, accepts: { kinds: ['app', 'check'] }, group: 'network', about: 'Any service: a name, a link, and a status from what it’s bound to.' }),
   /** One series: `metric@<resource id>#<metric key>`. */
-  metric: spec('metric', 'Metric', 'small', ['glyph', 'strip', 'small', 'wide'], { bound: true }),
-  check: spec('check', 'Uptime checks', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['check', 'app', 'integration'], types: ['uptimekuma'] } }),
-  bookmarks: spec('bookmarks', 'Bookmarks', 'small', ['glyph', 'small', 'wide', 'tall']),
-  clock: spec('clock', 'Clock', 'small', ['glyph', 'strip', 'small', 'wide']),
-  weather: spec('weather', 'Weather', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['weather'] } }),
+  metric: spec('metric', 'Metric', 'small', ['glyph', 'strip', 'small', 'wide'], { bound: true, group: 'servers', about: 'One number with its unit, normal band and trend.' }),
+  check: spec('check', 'Uptime checks', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['check', 'app', 'integration'], types: ['uptimekuma'] }, group: 'network', about: 'The built-in checks and Uptime Kuma monitors, up or down.' }),
+  bookmarks: spec('bookmarks', 'Bookmarks', 'small', ['glyph', 'small', 'wide', 'tall'], { group: 'basics', about: 'Links to the services Cha Dash found, with their state.' }),
+  clock: spec('clock', 'Clock', 'small', ['glyph', 'strip', 'small', 'wide'], { group: 'basics', about: 'The time, on the dot-matrix face.' }),
+  weather: spec('weather', 'Weather', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['weather'] }, group: 'home', about: 'Temperature, today’s range, wind and rain.' }),
 };
 
 export function itemId(type: string, target?: string): string {

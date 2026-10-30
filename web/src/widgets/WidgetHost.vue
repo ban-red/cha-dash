@@ -21,15 +21,20 @@ import { boundTo, resolve } from '../model/graph';
 import { parseItemId, WIDGETS } from '../model/widgets';
 import { useBoard } from '../stores/board';
 import { useLive } from '../stores/live';
-import { provideTile } from '../stores/tiles';
+import { provideTile, type TileConfig } from '../stores/tiles';
 import { WIDGET_COMPONENTS } from './registry';
 
-const { item, size } = defineProps<{ item: Pick<Item, 'id' | 'type'>; size: SizeId }>();
+const { item, size, preview } = defineProps<{
+  item: Pick<Item, 'id' | 'type'>;
+  size: SizeId;
+  /** A tile config to show instead of the saved one: the widget picker's preview of a tile not added yet. */
+  preview?: TileConfig | undefined;
+}>();
 const board = useBoard();
 const live = useLive();
 
 const component = computed(() => WIDGET_COMPONENTS[item.type]);
-const config = computed(() => board.tiles.value[item.id]);
+const config = computed(() => preview ?? board.tiles.value[item.id]);
 const target = computed(() => {
   const bind = config.value?.bind;
   if (bind?.resource) return bind.resource;
