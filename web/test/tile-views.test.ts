@@ -122,10 +122,10 @@ describe('qBittorrent', () => {
         { name: 'Sintel (2010) [2160p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 5.1 },
       ],
       list: [
-        { name: 'old-backup-archive', state: 'error', progress: 100, dl_mbps: 0, ul_mbps: 0, ratio: 2.6 },
-        { name: 'debian-13.1.0-amd64-netinst.iso', state: 'downloading', progress: 62, dl_mbps: 15.2, ul_mbps: 0, ratio: 0 },
-        { name: 'Sintel (2010) [2160p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 5.1, ratio: 1.8 },
-        { name: 'Tears of Steel (2012) [1080p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 0, ratio: 1.9 },
+        { name: 'old-backup-archive', state: 'error', progress: 100, dl_mbps: 0, ul_mbps: 0, ratio: 2.6, added: 400 },
+        { name: 'debian-13.1.0-amd64-netinst.iso', state: 'downloading', progress: 62, dl_mbps: 15.2, ul_mbps: 0, ratio: 0, added: 300 },
+        { name: 'Sintel (2010) [2160p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 5.1, ratio: 1.8, added: 200 },
+        { name: 'Tears of Steel (2012) [1080p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 0, ratio: 1.9, added: 100 },
       ],
       torrents: 12,
       ratio: 1.84,
@@ -168,8 +168,34 @@ describe('qBittorrent', () => {
     expect(rows[1]!.text()).toContain('62%');
     expect(rows[1]!.text()).toContain('15.2 ↓');
     expect(rows[3]!.text()).toContain('1.9×');
-    expect(w.find('.dl-more').text()).toBe('+8 more');
+    expect(w.find('.dl-more').text()).toBe('+8 more not listed');
     expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('filters and sorts the table', async () => {
+    const { w, dots } = mountTile('downloads', 'wide', 'app:qbittorrent', withTorrents());
+    await dots()[1]!.trigger('click');
+    const [filter, sort] = w.findAll('select.dl-sel');
+    expect(filter!.findAll('option').map((o) => o.text())).toEqual(['All (4)', 'Downloading (1)', 'Seeding (2)', 'Errors (1)']);
+    expect((sort!.element as HTMLSelectElement).value).toBe('added'); // newest first by default
+    await filter!.setValue('seeding');
+    expect(w.findAll('.dl-tr').map((r) => r.find('.dl-name').text())).toEqual(['Sintel (2010) [2160p]', 'Tears of Steel (2012) [1080p]']);
+    expect(w.find('.dl-more').exists()).toBe(false);
+    await filter!.setValue('all');
+    await sort!.setValue('name');
+    expect(w.findAll('.dl-tr')[0]!.find('.dl-name').text()).toBe('debian-13.1.0-amd64-netinst.iso');
+    await sort!.setValue('ratio');
+    expect(w.findAll('.dl-tr')[0]!.find('.dl-name').text()).toBe('old-backup-archive');
+    expect(w.find('.dl-table').attributes('tabindex')).toBe('0');
+  });
+
+  it('fills a 4×4 with the torrents, and pages to the table', async () => {
+    const { w, dots } = mountTile('downloads', 'large', 'app:qbittorrent', withTorrents());
+    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Torrents']);
+    expect(w.findAll('.dl-torrents .ag-row')).toHaveLength(3);
+    expect(w.find('.dl-facts').exists()).toBe(true);
+    await dots()[1]!.trigger('click');
+    expect(w.findAll('.dl-tr')).toHaveLength(4);
   });
 
   it('has no Torrents view without a list', () => {
@@ -184,7 +210,7 @@ describe('qBittorrent', () => {
 
   it('passes axe', async () => {
     vi.useRealTimers();
-    for (const size of ['wide', 'panel', 'tall'] as const) {
+    for (const size of ['wide', 'panel', 'tall', 'large'] as const) {
       const { w, dots } = mountTile('downloads', size, 'app:qbittorrent', withTorrents());
       expect(await axeViolations(), size).toEqual([]);
       if (dots().length) {

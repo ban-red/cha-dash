@@ -47,6 +47,8 @@ func (Integration) Manifest() integration.Manifest {
 			integration.TLSProp(),
 			integration.Prop("username", user),
 			integration.Prop("password", pass),
+			integration.Prop("torrent_limit", integration.Integer("Torrents listed", 0, 1000).
+				Describe("How many torrents the tile's Torrents view lists, worst first (default 200). Each one is sent to everyone who can see the tile; 0 lists none.")),
 		).Require("url"),
 		Poll: integration.Poll{Interval: 30 * time.Second, Idle: 5 * time.Minute, Timeout: 30 * time.Second},
 	}
@@ -67,7 +69,13 @@ func (Integration) ValidateConfig(cfg integration.Config) []integration.FieldErr
 
 // Connect implements integration.Integration.
 func (Integration) Connect(_ context.Context, cfg integration.Config, d integration.Deps) (integration.Instance, error) {
-	in := &instance{cfg: cfg, d: d, base: strings.TrimRight(cfg.String("url"), "/"), http: d.HTTP}
+	in := &instance{cfg: cfg, d: d, base: strings.TrimRight(cfg.String("url"), "/"), http: d.HTTP, limit: listDefault}
+	switch n := cfg.Values["torrent_limit"].(type) {
+	case float64:
+		in.limit = max(0, int(n))
+	case int:
+		in.limit = max(0, n)
+	}
 	if user := cfg.String("username"); user != "" {
 		s := &session{base: in.base, user: user, pass: cfg.String("password")}
 		c, err := d.NewHTTPClient(integration.HTTPOptions{Session: s})
@@ -168,6 +176,7 @@ type instance struct {
 
 	// The sync/maindata feed: the last response id, each torrent by hash,
 	// and the merged server state. Only Sync touches them.
+	limit    int // how many torrents list() returns
 	rid      int64
 	torrents map[string]*torrent
 	server   map[string]json.RawMessage
@@ -270,6 +279,7 @@ type torrentDelta struct {
 	UPSpeed  *int64   `json:"upspeed"`
 	ETA      *int64   `json:"eta"`
 	Ratio    *float64 `json:"ratio"`
+	AddedOn  *int64   `json:"added_on"`
 }
 
 type torrent struct {
@@ -279,6 +289,7 @@ type torrent struct {
 	dlSpeed, upSpeed int64
 	eta              int64
 	ratio            float64
+	addedOn          int64
 }
 
 func (t *torrent) apply(d torrentDelta) {
@@ -305,6 +316,9 @@ func (t *torrent) apply(d torrentDelta) {
 	}
 	if d.Ratio != nil {
 		t.ratio = *d.Ratio
+	}
+	if d.AddedOn != nil {
+		t.addedOn = *d.AddedOn
 	}
 }
 
@@ -381,7 +395,9 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	}
 	if active := in.active(); len(active) > 0 {
 		attrs["active"] = active
-		attrs["list"] = in.list()
+		if in.limit > 0 {
+			attrs["list"] = in.list()
+		}
 	}
 	if r, err := strconv.ParseFloat(in.serverString("global_ratio"), 64); err == nil {
 		attrs["ratio"] = r
@@ -471,8 +487,9 @@ func stateWords(st string) string {
 	return st
 }
 
-// maxList is how many torrents the Torrents view gets.
-const maxList = 30
+// listDefault is how many torrents the Torrents view gets unless the
+// instance's torrent_limit says otherwise.
+const listDefault = 200
 
 // rank orders the list by what needs a look: errors, then downloads, then
 // the queue, then what uploads, then the rest.
@@ -502,8 +519,8 @@ func (in *instance) list() []map[string]any {
 	slices.SortFunc(all, func(a, b *torrent) int {
 		return cmp.Or(cmp.Compare(rank(a.state), rank(b.state)), cmp.Compare(b.dlSpeed+b.upSpeed, a.dlSpeed+a.upSpeed), strings.Compare(a.name, b.name))
 	})
-	out := make([]map[string]any, 0, min(len(all), maxList))
-	for _, t := range all[:min(len(all), maxList)] {
+	out := make([]map[string]any, 0, min(len(all), in.limit))
+	for _, t := range all[:min(len(all), in.limit)] {
 		out = append(out, map[string]any{
 			"name":     t.name,
 			"state":    stateWords(t.state),
@@ -511,6 +528,7 @@ func (in *instance) list() []map[string]any {
 			"dl_mbps":  math.Round(float64(t.dlSpeed)*8/1e5) / 10,
 			"ul_mbps":  math.Round(float64(t.upSpeed)*8/1e5) / 10,
 			"ratio":    math.Round(t.ratio*100) / 100,
+			"added":    t.addedOn,
 		})
 	}
 	return out

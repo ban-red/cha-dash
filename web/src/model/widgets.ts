@@ -75,7 +75,7 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   traefik: spec('traefik', 'Traefik', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['traefik'] }, group: 'network', about: 'Routers, services and middlewares, with the routes behind them.', icon: 'traefik' }),
   plex: spec('plex', 'Now playing', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['app'], types: ['plex', 'jellyfin', 'tautulli'] }, group: 'media', about: 'What’s streaming on Plex, Jellyfin or Tautulli.', icon: 'plex' }),
   arr: spec('arr', 'Queue', 'small', ['small', 'wide'], { bound: true, accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'A Sonarr, Radarr or Lidarr queue, and what’s wanted.' }),
-  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'panel', 'tall', 'column'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] }, group: 'media', about: 'Download speed and queue from your torrent or Usenet client.' }),
+  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] }, group: 'media', about: 'Download speed and queue from your torrent or Usenet client.' }),
   calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'What Sonarr and Radarr expect next.' }),
   incidents: spec('incidents', 'Incidents', 'large', ['wide', 'panel', 'tall', 'column', 'large'], { group: 'basics', about: 'Everything open, problems first; the latest fix when it’s quiet.' }),
   /**

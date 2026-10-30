@@ -218,6 +218,9 @@ func TestSync(t *testing.T) {
 	if l0, _ := list[0].(map[string]any); l0["state"] != "error" || l0["name"] != "old-backup-archive" {
 		t.Errorf("the list should lead with the torrent in error: %v", list[0])
 	}
+	if l0, _ := list[0].(map[string]any); l0["added"] != 1790043200.0 {
+		t.Errorf("added = %v", l0["added"])
+	}
 	if l1, _ := list[1].(map[string]any); l1["state"] != "downloading" {
 		t.Errorf("then the downloads: %v", list[1])
 	}
@@ -334,5 +337,35 @@ func TestTest(t *testing.T) {
 	res = h.Connect(Integration{}, map[string]any{"url": w.URL + "/elsewhere"}, nil).Test(t.Context())
 	if res.OK || res.ErrorCode != integration.CodeAPIChanged {
 		t.Fatalf("wrong url = %+v", res)
+	}
+}
+
+// torrent_limit says how many torrents the Torrents view lists; 0 lists none.
+func TestTorrentLimit(t *testing.T) {
+	for _, tc := range []struct {
+		limit any
+		want  int // -1: no list at all
+	}{{nil, 12}, {3, 3}, {float64(5), 5}, {0, -1}, {1000, 12}} {
+		w := newWebUI(t)
+		h := integrationtest.New(t)
+		cfg := map[string]any{"url": w.URL + "/", "tls": map[string]any{"mode": "verify"}, "username": user}
+		if tc.limit != nil {
+			cfg["torrent_limit"] = tc.limit
+		}
+		inst := h.Connect(Integration{}, cfg, map[string]string{"password": pass})
+		if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+			t.Fatal(err)
+		}
+		r, _ := h.Resource("qbittorrent:i_test/app")
+		list, ok := r.Attrs["list"].([]any)
+		if tc.want < 0 && ok || tc.want >= 0 && len(list) != tc.want {
+			t.Errorf("torrent_limit %v: list = %d torrents (present %v), want %d", tc.limit, len(list), ok, tc.want)
+		}
+		if _, ok := r.Attrs["active"]; !ok {
+			t.Errorf("torrent_limit %v: the active torrents should stay", tc.limit)
+		}
+	}
+	if errs := integrationtest.Validate(Integration{}, map[string]any{"url": "https://x.example", "torrent_limit": 5000}, nil); len(errs) != 1 {
+		t.Errorf("a limit over 1000: %v", errs)
 	}
 }

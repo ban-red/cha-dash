@@ -9,13 +9,15 @@
  * row.
  *
  * Glyph: active downloads. Small: leeching and seeding, the speed. Wide: the
- * speed over 24 hours and each queue as a row. Tall: up to eight rows.
+ * speed over 24 hours and each queue as a row. Tall: up to eight rows. Large
+ * (4×4): the speed and graph, eight torrents and the facts. Small, wide, panel
+ * and large page to a Torrents table (a qBittorrent with `attrs.list`).
  *
  * Down names what waits on the client, from the graph ("Sonarr, Radarr wait
  * on it"). qBittorrent doesn't publish per-torrent items yet, so the rows are
  * the queues, each a determinate count, never a spinner.
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
 import MiniGraph from '../components/marks/MiniGraph.vue';
@@ -133,12 +135,16 @@ const torrentWords = (t: Torrent) =>
       : t.state;
 const torrentLead = (t: Torrent) => (t.state === 'seeding' ? '100%' : `${t.progress}%`);
 interface Listed {
+  /** Its place in the hub's order; two torrents can share a name. */
+  id: number;
   name: string;
   state: string;
   progress: number;
   dl: number;
   ul: number;
   ratio: number | null;
+  /** When it was added, Unix seconds (0 when unknown). */
+  added: number;
 }
 /** Every torrent worth a line, worst first (`attrs.list`), for the Torrents view. */
 const listed = computed<Listed[]>(() => {
@@ -146,17 +152,55 @@ const listed = computed<Listed[]>(() => {
   if (!Array.isArray(v)) return [];
   return v
     .filter((x): x is Record<string, unknown> => typeof x === 'object' && x !== null && typeof (x as Record<string, unknown>)['name'] === 'string')
-    .map((x) => ({ name: String(x['name']), state: String(x['state'] ?? ''), progress: nz(x['progress']), dl: nz(x['dl_mbps']), ul: nz(x['ul_mbps']), ratio: typeof x['ratio'] === 'number' ? x['ratio'] : null }));
+    .map((x, id) => ({ id, name: String(x['name']), state: String(x['state'] ?? ''), progress: nz(x['progress']), dl: nz(x['dl_mbps']), ul: nz(x['ul_mbps']), ratio: typeof x['ratio'] === 'number' ? x['ratio'] : null, added: nz(x['added']) }));
 });
-const TABLE_ROWS: Partial<Record<SizeId, number>> = { small: 6, wide: 6, panel: 11 };
-const tableLimit = computed(() => TABLE_ROWS[size] ?? 6);
-const shownRows = computed(() => Math.min(listed.value.length, tableLimit.value));
 const torrentCount = computed(() => Math.max(listed.value.length, nz(attr(app.value, 'torrents'))));
+type Filter = 'all' | 'downloading' | 'seeding' | 'queued' | 'stopped' | 'error';
+type Sort = 'added' | 'status' | 'name' | 'progress' | 'speed' | 'ratio';
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'downloading', label: 'Downloading' },
+  { id: 'seeding', label: 'Seeding' },
+  { id: 'queued', label: 'Queued' },
+  { id: 'stopped', label: 'Stopped' },
+  { id: 'error', label: 'Errors' },
+];
+const SORTS: { id: Sort; label: string }[] = [
+  { id: 'added', label: 'Date added' },
+  { id: 'status', label: 'Status' },
+  { id: 'name', label: 'Name' },
+  { id: 'progress', label: 'Progress' },
+  { id: 'speed', label: 'Speed' },
+  { id: 'ratio', label: 'Ratio' },
+];
+const groupOf = (t: Listed): Filter =>
+  t.state === 'error' ? 'error' : t.state === 'seeding' ? 'seeding' : t.state === 'queued' ? 'queued' : t.state === 'stopped' ? 'stopped' : 'downloading';
+const filter = ref<Filter>('all');
+const sort = ref<Sort>('added');
+/** Only the filters that have something in them, with their counts. */
+const filters = computed(() => {
+  const n: Record<string, number> = { all: listed.value.length };
+  for (const t of listed.value) n[groupOf(t)] = (n[groupOf(t)] ?? 0) + 1;
+  return FILTERS.filter((f) => n[f.id]).map((f) => ({ ...f, n: n[f.id] ?? 0 }));
+});
+const activeFilter = computed(() => (filters.value.some((f) => f.id === filter.value) ? filter.value : 'all'));
+const shown = computed(() => {
+  const v = activeFilter.value === 'all' ? [...listed.value] : listed.value.filter((t) => groupOf(t) === activeFilter.value);
+  const by: Record<Sort, (a: Listed, b: Listed) => number> = {
+    added: (a, b) => b.added - a.added || a.id - b.id,
+    status: (a, b) => a.id - b.id,
+    name: (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }) || a.id - b.id,
+    progress: (a, b) => b.progress - a.progress || a.id - b.id,
+    speed: (a, b) => b.dl + b.ul - (a.dl + a.ul) || a.id - b.id,
+    ratio: (a, b) => (b.ratio ?? -1) - (a.ratio ?? -1) || a.id - b.id,
+  };
+  return v.sort(by[sort.value]);
+});
 /** The row's speed: what moves now, else the share ratio. */
 const rowSpeed = (t: Listed) => (t.dl > 0 ? `${fmtNum(t.dl)} ↓` : t.ul > 0 ? `${fmtNum(t.ul)} ↑` : t.ratio !== null && t.progress >= 100 ? `${fmtNum(t.ratio, 3)}×` : '');
 const rowGlyph = (t: Listed) => (t.state === 'error' ? 'attn' : t.state === 'downloading' || t.state === 'fetching metadata' ? 'prog' : undefined);
 const { views, view } = useViews(() =>
-  app.value && !usenet.value && listed.value.length && (size === 'small' || size === 'wide' || size === 'panel')
+  app.value && !usenet.value && listed.value.length && (size === 'small' || size === 'wide' || size === 'panel' || size === 'large')
     ? [{ id: 'now', label: 'Now' }, { id: 'torrents', label: 'Torrents' }]
     : [],
 );
@@ -200,15 +244,26 @@ const MONO: Record<string, string> = { qbittorrent: 'QB', transmission: 'TR', sa
       <p v-if="size !== 'glyph'" class="lab">Connect qBittorrent, Transmission, SABnzbd or NZBGet to see downloads.</p>
     </template>
 
-    <div v-else-if="view === 'torrents'" class="dl-table" role="table" :aria-label="`Torrents on ${client}`">
-      <div v-for="t in listed.slice(0, tableLimit)" :key="t.name" role="row" :class="['dl-tr', { bad: t.state === 'error' }]">
-        <span role="cell" class="dl-g"><Glyph v-if="rowGlyph(t)" :kind="rowGlyph(t)!" /></span>
-        <span role="cell" class="dl-name">{{ t.name }}</span>
-        <span role="cell" class="dl-st">{{ t.state }}</span>
-        <span role="cell" class="n dl-pct">{{ t.progress }}%</span>
-        <span role="cell" class="n dl-sp">{{ rowSpeed(t) }}</span>
+    <div v-else-if="view === 'torrents'" class="dl-view">
+      <div class="dl-bar">
+        <select v-model="filter" class="dl-sel" :aria-label="`Show torrents on ${client}`">
+          <option v-for="f in filters" :key="f.id" :value="f.id">{{ f.label }} ({{ f.n }})</option>
+        </select>
+        <select v-model="sort" class="dl-sel" aria-label="Sort torrents by">
+          <option v-for="o in SORTS" :key="o.id" :value="o.id">{{ o.label }}</option>
+        </select>
       </div>
-      <div v-if="torrentCount > shownRows" class="dl-more">+{{ torrentCount - shownRows }} more</div>
+      <div class="dl-table" role="table" tabindex="0" :aria-label="`Torrents on ${client}, ${rows.length} shown`">
+        <div v-for="t in shown" :key="t.id" role="row" :class="['dl-tr', { bad: t.state === 'error' }]">
+          <span role="cell" class="dl-g"><Glyph v-if="rowGlyph(t)" :kind="rowGlyph(t)!" /></span>
+          <span role="cell" class="dl-name" :title="t.name">{{ t.name }}</span>
+          <span role="cell" class="dl-st">{{ t.state }}</span>
+          <span role="cell" class="n dl-pct">{{ t.progress }}%</span>
+          <span role="cell" class="n dl-sp">{{ rowSpeed(t) }}</span>
+        </div>
+        <div v-if="!shown.length" class="dl-more">Nothing matches.</div>
+        <div v-else-if="torrentCount > listed.length && activeFilter === 'all'" class="dl-more">+{{ torrentCount - listed.length }} more not listed</div>
+      </div>
     </div>
 
     <template v-else-if="size === 'glyph'">
@@ -295,7 +350,34 @@ const MONO: Record<string, string> = { qbittorrent: 'QB', transmission: 'TR', sa
   white-space: nowrap;
 }
 
+.dl-view {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.dl-bar {
+  display: flex;
+  gap: var(--space-2);
+}
+.dl-sel {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 1px 4px;
+  font: inherit;
+  font-size: var(--type-caption);
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+}
 .dl-table {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   display: flex;
   flex-direction: column;
   font-size: var(--type-small);
