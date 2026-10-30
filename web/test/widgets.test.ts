@@ -647,7 +647,7 @@ describe('Home Assistant summary', () => {
     m.w.unmount();
     m = mountWidget(docs(healthy), 'homeassistant', 'strip');
     expect(m.w.find('.sx').text()).toMatch(/home · \d+ lights/);
-    expect(m.w.find('.sv').text()).toMatch(/kW$/);
+    expect(m.w.find('.sv').text()).toMatch(/switches$/);
   });
 
   it('adds the counts as rows when large and the lists are missing', () => {

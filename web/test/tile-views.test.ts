@@ -462,7 +462,8 @@ describe('Home Assistant', () => {
   it('says what needs a look under the stats, and pages to the list', async () => {
     const { w, dots, pressed } = mountTile('homeassistant', 'wide', undefined, withHouse());
     expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Needs a look']);
-    expect(w.find('.tf').text()).toBe('2 open · 1 unlocked · 2 low batteries · 2 updates · alarm armed home');
+    expect(w.find('.ha-cards').exists()).toBe(true);
+    expect(w.find('.tf').text()).toBe('alarm armed home');
     await dots()[1]!.trigger('click');
     expect(pressed()).toBe('Needs a look');
     const rows = w.findAll('[role="listitem"]').map((r) => r.text());

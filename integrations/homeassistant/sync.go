@@ -44,6 +44,7 @@ type instance struct {
 	state     string
 	health    integration.Health
 	tzName    string
+	tempUnit  string // the temperature unit Home Assistant is set to, "°C" or "°F"
 	tz        *time.Location
 	statesAt  time.Time
 	derived   derived
@@ -59,14 +60,18 @@ type haConfig struct {
 	SafeMode     bool   `json:"safe_mode"`
 	RecoveryMode bool   `json:"recovery_mode"`
 	TimeZone     string `json:"time_zone"`
+	UnitSystem   struct {
+		Temperature string `json:"temperature"`
+	} `json:"unit_system"`
 }
 
 // entity is one item of /api/states, with only the attributes the
 // derivation uses.
 type entity struct {
-	EntityID   string `json:"entity_id"`
-	State      string `json:"state"`
-	Attributes struct {
+	EntityID    string `json:"entity_id"`
+	State       string `json:"state"`
+	LastChanged string `json:"last_changed"`
+	Attributes  struct {
 		DeviceClass string          `json:"device_class"`
 		StateClass  string          `json:"state_class"`
 		Unit        string          `json:"unit_of_measurement"`
@@ -77,6 +82,13 @@ type entity struct {
 		Title       string          `json:"title"`             // an update's
 		Installed   string          `json:"installed_version"` // an update's
 		Latest      string          `json:"latest_version"`    // an update's
+
+		CurrentTemp     *float64 `json:"current_temperature"` // a climate's
+		TargetTemp      *float64 `json:"temperature"`         // a climate's setpoint
+		CurrentHumidity *float64 `json:"current_humidity"`    // a climate's
+		HVACAction      string   `json:"hvac_action"`         // a climate's: heating, cooling, idle, off…
+		MediaTitle      string   `json:"media_title"`         // a media player's
+		MediaArtist     string   `json:"media_artist"`        // a media player's
 	} `json:"attributes"`
 }
 
@@ -143,6 +155,15 @@ type derived struct {
 	unlocked       int
 	locksTotal     int
 	alarm          string // the first alarm panel's state, "" without one
+
+	// Who and what is where, from the same states.
+	peopleItems []map[string]any // every person: name, where (home, away or a zone), since
+	climate     []map[string]any // thermostats and heat pumps that report a temperature
+	safetyTotal int
+	safety      []map[string]any // smoke, CO, gas and leak sensors that are tripped
+	mediaTotal  int
+	media       []map[string]any // media players that are playing
+	tempUnit    string
 }
 
 // battery is a low battery: its device's name and level (nil for a
@@ -162,6 +183,7 @@ const listRows = 8
 // openings are the binary_sensor device classes that are a door or window,
 // and the cover device classes that are one.
 var (
+	safetySensors  = map[string]bool{"smoke": true, "carbon_monoxide": true, "gas": true, "moisture": true}
 	openingSensors = map[string]bool{"door": true, "window": true, "garage_door": true, "opening": true}
 	openingCovers  = map[string]bool{"door": true, "garage": true, "gate": true, "window": true}
 )
@@ -238,6 +260,7 @@ func (in *instance) applyConfig(cfg haConfig) {
 	case cfg.SafeMode:
 		attention("Home Assistant is running in safe mode, with custom integrations off")
 	}
+	in.tempUnit = cfg.UnitSystem.Temperature
 	if cfg.TimeZone != in.tzName {
 		in.tzName, in.tz = cfg.TimeZone, time.UTC
 		if loc, err := time.LoadLocation(cfg.TimeZone); err == nil {
@@ -251,7 +274,7 @@ func (in *instance) applyConfig(cfg haConfig) {
 // derive turns the entity states into the readings. See README.md for the
 // rules.
 func (in *instance) derive(ctx context.Context, states []entity, now time.Time) {
-	d := derived{read: true, entities: len(states), powerKW: integration.Unknown(), energyKWh: integration.Unknown()}
+	d := derived{read: true, entities: len(states), powerKW: integration.Unknown(), energyKWh: integration.Unknown(), tempUnit: in.tempUnit}
 	local := now.In(in.tz)
 	midnight := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, in.tz)
 	var meters []meter
@@ -289,6 +312,40 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 				if e.State == "on" {
 					d.batteries = append(d.batteries, battery{name: batteryName(e.name())})
 				}
+			case safetySensors[dc]:
+				d.safetyTotal++
+				if e.State == "on" {
+					d.safety = append(d.safety, map[string]any{"name": e.name(), "kind": dc})
+				}
+			}
+		case "climate":
+			if e.Attributes.CurrentTemp == nil || e.State == "unavailable" {
+				continue
+			}
+			row := map[string]any{"name": e.name(), "current": round1(*e.Attributes.CurrentTemp)}
+			if t := e.Attributes.TargetTemp; t != nil {
+				row["target"] = round1(*t)
+			}
+			if h := e.Attributes.CurrentHumidity; h != nil {
+				row["humidity"] = math.Round(*h)
+			}
+			if a := e.Attributes.HVACAction; a != "" {
+				row["action"] = a
+			} else {
+				row["action"] = e.State // the mode, for a device without an action
+			}
+			d.climate = append(d.climate, row)
+		case "media_player":
+			d.mediaTotal++
+			if e.State == "playing" {
+				row := map[string]any{"name": e.name()}
+				if e.Attributes.MediaTitle != "" {
+					row["title"] = e.Attributes.MediaTitle
+				}
+				if e.Attributes.MediaArtist != "" {
+					row["artist"] = e.Attributes.MediaArtist
+				}
+				d.media = append(d.media, row)
 			}
 		case "cover":
 			if dc := e.Attributes.DeviceClass; openingCovers[dc] {
@@ -302,6 +359,11 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 			if e.State == "home" {
 				d.people++
 			}
+			row := map[string]any{"name": e.name(), "where": personWhere(e.State)}
+			if t, err := time.Parse(time.RFC3339Nano, e.LastChanged); err == nil {
+				row["since"] = t.UTC().Format(time.RFC3339)
+			}
+			d.peopleItems = append(d.peopleItems, row)
 		case "light":
 			if !e.group() {
 				d.lightsTotal++
@@ -400,6 +462,20 @@ func (in *instance) derive(ctx context.Context, states []entity, now time.Time) 
 	})
 	in.derived = d
 }
+
+// personWhere is where a person is: "home", "away" for not_home, else the
+// zone's name as Home Assistant has it ("work", "school").
+func personWhere(state string) string {
+	switch state {
+	case "not_home":
+		return "away"
+	case "unavailable", "unknown", "":
+		return "unknown"
+	}
+	return state
+}
+
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
 
 // batteryName drops "battery" and "battery low" from a sensor's name, so
 // the list says the device: "Hallway motion Battery" is "Hallway motion".
@@ -512,6 +588,15 @@ func (in *instance) graphFacts() integration.Facts {
 		if d.alarm != "" {
 			attrs["alarm"] = d.alarm
 		}
+		attrs["people_items"] = head(d.peopleItems)
+		attrs["climate_items"] = head(d.climate)
+		attrs["safety_total"] = d.safetyTotal
+		attrs["safety_items"] = head(d.safety)
+		attrs["media_total"] = d.mediaTotal
+		attrs["media_items"] = head(d.media)
+		if d.tempUnit != "" {
+			attrs["temperature_unit"] = d.tempUnit
+		}
 	}
 	return integration.Facts{
 		Resources: []integration.Resource{{
@@ -545,6 +630,8 @@ func (in *instance) statesFacts() integration.Facts {
 		{Resource: in.appID, Key: "power.kw", Unit: "kW", Min: 0, Max: 12, Band: [2]float64{0.6, 2.2}, Value: d.powerKW},
 		{Resource: in.appID, Key: "energy.kwh", Unit: "kWh", Min: 0, Max: 200, Band: [2]float64{0, 40}, Value: d.energyKWh},
 		count("open", len(d.open), d.openingsTotal),
+		{Resource: in.appID, Key: "safety_tripped", Unit: "count", Min: 0, Max: float64(max(d.safetyTotal, 1)), Band: [2]float64{0, 0}, Value: float64(len(d.safety))},
+		count("media_playing", len(d.media), d.mediaTotal),
 		count("locks_unlocked", d.unlocked, d.locksTotal),
 		{Resource: in.appID, Key: "batteries_low", Unit: "count", Min: 0, Max: float64(max(d.batteriesTotal, 1)), Band: [2]float64{0, 0}, Value: float64(len(d.batteries))},
 		{Resource: in.appID, Key: "updates", Unit: "count", Min: 0, Max: 20, Band: [2]float64{0, 3}, Value: float64(len(d.updates))},

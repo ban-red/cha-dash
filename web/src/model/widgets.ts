@@ -100,6 +100,9 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   homeassistant: spec('homeassistant', 'Home Assistant', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], {
     group: 'home', about: 'Who’s home, lights and switches, and house power.', icon: 'homeassistant',
     accepts: { kinds: ['app'], types: ['homeassistant'] },
+    options: [
+      { key: 'power', kind: 'boolean', default: false, label: 'Show house power', help: 'House power with its 24-hour graph, and energy today, when Home Assistant reports them. Off shows what’s open, unlocked, low on battery and waiting for an update instead.' },
+    ],
   }),
   opnsense: spec('opnsense', 'OPNsense', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['router'] }, group: 'network', about: 'The router and its WAN: states, throughput and what’s down.', icon: 'opnsense' }),
   uptimekuma: spec('uptimekuma', 'Uptime Kuma', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['uptimekuma'] }, group: 'network', about: 'Monitors up out of total, and the last 24 h as cells.', icon: 'uptimekuma' }),

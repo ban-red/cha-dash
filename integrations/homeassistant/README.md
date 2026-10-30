@@ -56,6 +56,15 @@ What needs a look, from the same states:
 | `updates` | `update.*` that are `on`. An unavailable update entity doesn't count |
 | `unavailable` | entities of any domain whose state is `unavailable` (`unknown` isn't) |
 
+Who and what is where, for the tile's cards:
+
+| Reading | Rule |
+|---|---|
+| `safety_tripped` | `binary_sensor.*` with device class `smoke`, `carbon_monoxide`, `gas` or `moisture` (a leak) that are `on`. `attrs.safety_total` counts all of them |
+| `media_playing` | `media_player.*` that are `playing`. `attrs.media_total` counts all media players |
+| climate | `climate.*` with a `current_temperature` (an unavailable one is skipped): `attrs.climate_items` |
+| people | every `person.*`: `attrs.people_items`, with where they are |
+
 "Local midnight" is midnight in Home Assistant's `time_zone`. The package embeds Go's `time/tzdata` (≈450 kB) because the hub's image is `scratch`, with no zoneinfo; an unknown zone falls back to UTC with a warning in the log.
 
 Values nobody can read are unknown (`null`), never 0: no power sensor, no meter with a midnight reading (the recorder is off, or the meter is new today), or a chosen sensor that doesn't exist.
@@ -76,6 +85,11 @@ Values nobody can read are unknown (`null`), never 0: no power sensor, no meter 
 | `open_items` | the open ones, `[{name, kind}]` (`kind` is the device class), at most 8 |
 | `battery_items` | the low ones, lowest first, `[{name, level}]` (no `level` for a binary sensor), at most 8. "Battery", "battery level" and "battery low" are dropped from the end of the name, so it names the device |
 | `update_items` | the pending updates, `[{name, installed, latest}]` (`name` is the update's `title`, else its friendly name), at most 8 |
+| `people_items` | every person, `[{name, where, since}]`: `where` is `home`, `away` (for `not_home`), a zone's name, or `unknown`; `since` is when the state last changed (UTC) |
+| `climate_items` | thermostats that report a temperature, `[{name, current, target, humidity, action}]` (`target` and `humidity` only when reported; `action` is `hvac_action`, else the mode), at most 8. Temperatures are in `temperature_unit` |
+| `temperature_unit` | the unit Home Assistant is set to, from `/api/config`'s `unit_system` (`°C` or `°F`) |
+| `safety_total`, `safety_items` | the safety sensors, and the tripped ones, `[{name, kind}]` (`kind` is the device class) |
+| `media_total`, `media_items` | the media players, and the playing ones, `[{name, title, artist}]` (`title` and `artist` only when reported) |
 | `alarm` | the first `alarm_control_panel.*`'s state (`disarmed`, `armed_home`, `triggered`, …); missing without one |
 
 | State and health | When |
@@ -98,6 +112,8 @@ Values nobody can read are unknown (`null`), never 0: no power sensor, no meter 
 | `batteries_low` | count | 0 – batteries total | 0 – 0 |
 | `updates` | count | 0 – 20 | 0 – 3 |
 | `unavailable` | count | 0 – entities | 0 – 5 |
+| `safety_tripped` | count | 0 – safety sensors | 0 – 0 |
+| `media_playing` | count | 0 – media players | 0 – total |
 
 Scopes: `graph` (the app, every sync) and `states` (the readings, when `/api/states` was read), so the readings' `as_of` is when the states were read.
 

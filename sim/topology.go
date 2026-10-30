@@ -471,7 +471,16 @@ func (b *builder) heron() {
 	b.cpuMem(ct, src, wave{base: 44, amp: 16, peak: 14, slow: 5, fast: 2}, wave{base: 50, amp: 3, peak: 14, slow: 1.5, fast: 0.4}, [2]float64{35, 70})
 
 	b.app("app:homeassistant", "Home Assistant", "Home", "https://ha.home.example",
-		map[string]any{"people_total": 4, "lights_total": 52, "switches_total": 360}, "home.entities")
+		map[string]any{
+			"people_total": 4, "lights_total": 52, "switches_total": 360,
+			"temperature_unit": "°C",
+			"climate_items": []map[string]any{
+				{"name": "Living room", "current": 21.4, "target": 21.5, "action": "idle", "humidity": 47.0},
+				{"name": "Bedroom", "current": 19.2, "target": 18.0, "action": "idle"},
+			},
+			"safety_total": 6, "safety_items": []map[string]any{},
+			"media_total": 4,
+		}, "home.entities")
 	b.rel("app:homeassistant", RelRunsOn, vm)
 	b.rel("app:homeassistant", RelDependsOn, "app:frigate")
 	// Cha Dash reads Frigate on 55000, the internal port published as is: it
@@ -509,6 +518,13 @@ func (b *builder) heron() {
 			base = 4
 		}
 		return base + 1.5*e.s.rng.smooth(m.hk, t, 30*time.Minute)
+	})
+	b.count("app:homeassistant", "safety_tripped", hs, 0, 6, [2]float64{0, 0}, constant(0))
+	b.count("app:homeassistant", "media_playing", hs, 0, 4, [2]float64{0, 4}, func(e *eval, m *metricSpec, t time.Time) float64 {
+		if h := hourOf(t); h >= 18.5 && h < 23 {
+			return 1
+		}
+		return 0
 	})
 	b.count("app:homeassistant", "switches_on", hs, 0, 360, [2]float64{140, 190}, wave{base: 166, amp: 5, peak: 20, slow: 1.8}.fn())
 

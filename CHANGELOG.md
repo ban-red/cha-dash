@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **House power is off by default on the Home Assistant tile.** Turn on **Show house power** in Widget settings to bring back the power graph and energy today. Without it, wide and large tiles show cards for what your house reports: Indoors (thermostat temperature and what it's doing), Safety (smoke, CO, gas and leak sensors: OK, or what tripped) and Playing (media players, with the track). The home stat names who is home. A tripped safety sensor marks the tile and heads Needs a look. The small tile shows who's home with lights and switches, and indoors temperature at the foot.
+
 ## [0.2.0-beta.2] - 2026-10-29
 
 The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and health now keep a history on disk, so sparklines survive a restart, a sheet looks back over what was kept, and the Pulse strip under the Briefing takes the whole board back to any moment of the last 24 hours. Tiles get views you swipe between, new sizes, a menu, and far more from Plex, Tautulli, qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant, Frigate and the weather. Settings → Bring in imports Homarr 2 backups and plain YAML boards. The v0.2 actions have now run against a real homelab, all but Pi-hole's, AdGuard Home's and Seerr's, and what those runs and a second security review found is fixed below.

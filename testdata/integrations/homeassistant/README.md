@@ -12,7 +12,7 @@ Entity shapes (attributes, `state_class`, `device_class`, `last_reset` on a dail
 |---|---|---|
 | `api.json` | `GET /api/` | `{"message": "API running."}` |
 | `config.json` | `GET /api/config` | Version `2026.9.3`, `state: RUNNING`, time zone `Europe/Berlin` (UTC+2 on the test day, so local midnight is 22:00 UTC) |
-| `states.json` | `GET /api/states` | 46 entities, below |
+| `states.json` | `GET /api/states` | 55 entities, below |
 | `history_midnight.json` | `GET /api/history/period/2026-10-02T22:00:00Z?filter_entity_id=sensor.coffee_machine_energy,sensor.house_energy&end_time=…&minimal_response&no_attributes` | Each meter's state at local midnight: the first item of each list |
 | `ws_current_user.json` | WebSocket `auth/current_user` | The result: user "Dashboard", `is_admin: true`, `is_owner: false` |
 
@@ -28,7 +28,10 @@ Entity shapes (attributes, `state_class`, `device_class`, `last_reset` on a dail
 | `binary_sensor`, `cover` | front door closed; back door, bedroom window, garage door (a cover) open; hallway motion on and living-room blinds open, which don't count | `open` 3 of 4 |
 | `lock` | front door unlocked, back door locked | `locks_unlocked` 1 of 2 |
 | battery | hallway motion 12 %, front door 64 % (sensors); smoke alarm low (a binary sensor) | `batteries_low` 2 of 3: "Hallway motion" (12), then "Smoke alarm" |
+| `climate` | living room heating (21.46 °, set to 22, 46 % humidity), bedroom idle (18.9 °, set to 17), garage unavailable | `climate_items`: the first two; the unavailable one is skipped |
+| `binary_sensor`, safety | kitchen smoke, utility room leak (`moisture`) and hallway CO, all off | `safety_tripped` 0 of 3 |
+| `media_player` | living room speaker playing "Weightless" by Marconi Union, bedroom TV idle, kitchen display off | `media_playing` 1 of 3 |
 | `update` | Home Assistant Core up to date; Music Assistant 2.5.0 → 2.6.1 and hallway sensor firmware 1.2.0 → 1.3.0 pending; garden pump firmware unavailable | `updates` 2 |
 | `alarm_control_panel` | the house, `armed_home` | `alarm` |
-| any | porch light, fridge power, garden pump firmware unavailable | `unavailable` 3 |
-| others | `sun.sun`, `zone.home`, a temperature, an automation, an input boolean | counted only in `entities` (46) |
+| any | porch light, fridge power, garden pump firmware, garage thermostat unavailable | `unavailable` 4 |
+| others | `sun.sun`, `zone.home`, a temperature, an automation, an input boolean | counted only in `entities` (55) |
