@@ -199,6 +199,7 @@ func TestHistorySettings(t *testing.T) {
 	type body struct {
 		Level     string `json:"level"`
 		Locked    bool   `json:"locked"`
+		MaxBytes  int64  `json:"max_bytes"`
 		Series    int    `json:"series"`
 		Estimates map[string]int64
 		Tiers     []struct {
@@ -232,10 +233,24 @@ func TestHistorySettings(t *testing.T) {
 	if l, ok, _ := history.LoadLevel(t.Context(), st); !ok || l != history.LongTerm {
 		t.Fatalf("saved level %q, %v", l, ok)
 	}
-	if ev, ok := lastAudit(t, st, "settings.history.update"); !ok || string(ev.Params) != `{"from":"standard","to":"long-term"}` {
+	if ev, ok := lastAudit(t, st, "settings.history.update"); !ok || string(ev.Params) != `{"level_from":"standard","level_to":"long-term"}` {
 		t.Fatalf("audit = %+v", ev)
 	}
 	call(owner, "PUT", "/api/settings/history", map[string]string{"level": "forever"}, http.StatusUnprocessableEntity)
+	call(owner, "PUT", "/api/settings/history", map[string]any{}, http.StatusUnprocessableEntity)
+	call(owner, "PUT", "/api/settings/history", map[string]any{"max_bytes": 1 << 20}, http.StatusUnprocessableEntity)
+	if got = call(owner, "PUT", "/api/settings/history", map[string]any{"max_bytes": 512 << 20}, http.StatusOK); got.MaxBytes != 512<<20 || rec.Limit() != 512<<20 || got.Level != "long-term" {
+		t.Fatalf("after setting the limit = %+v", got)
+	}
+	if l, ok, _ := history.LoadLimit(t.Context(), st); !ok || l != 512<<20 {
+		t.Fatalf("saved limit %d, %v", l, ok)
+	}
+	if ev, _ := lastAudit(t, st, "settings.history.update"); string(ev.Params) != `{"max_bytes_from":0,"max_bytes_to":536870912}` {
+		t.Fatalf("audit = %s", ev.Params)
+	}
+	if got = call(owner, "PUT", "/api/settings/history", map[string]any{"max_bytes": 0}, http.StatusOK); got.MaxBytes != 0 {
+		t.Fatalf("no limit = %+v", got)
+	}
 
 	if err := rec.Close(t.Context()); err != nil { // writes the series row
 		t.Fatal(err)

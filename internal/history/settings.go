@@ -13,7 +13,36 @@ import (
 
 // LevelKey is the hub database's settings row for the level an admin chose
 // in Settings → History, a JSON string. Without it, CHADASH_HISTORY decides.
-const LevelKey = "history.level"
+// LimitKey holds the size limit, a JSON number of bytes (0: none); without
+// it, DefaultMaxBytes.
+const (
+	LevelKey = "history.level"
+	LimitKey = "history.max_bytes"
+)
+
+// LoadLimit reads the size limit an admin set; ok is false when nobody did.
+func LoadLimit(ctx context.Context, st *store.Store) (limit int64, ok bool, err error) {
+	var raw string
+	err = st.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, LimitKey).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("history: %w", err)
+	}
+	if json.Unmarshal([]byte(raw), &limit) != nil || limit < 0 {
+		return 0, false, nil
+	}
+	return limit, true, nil
+}
+
+// SaveLimit stores the size limit in the hub's database.
+func SaveLimit(ctx context.Context, st *store.Store, limit int64, now time.Time) error {
+	b, _ := json.Marshal(limit)
+	_, err := st.Writer().ExecContext(ctx, `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, LimitKey, string(b), now.UnixMilli())
+	return err
+}
 
 // LoadLevel reads the chosen level from the hub's database (not history.db,
 // so deleting that file keeps the choice). ok is false when nobody chose.
@@ -57,9 +86,11 @@ type TierStats struct {
 // Stats is what history.db holds.
 type Stats struct {
 	Level     Level
-	Series    int   // series with a row
-	Resources int   // resources with health rows
-	FileBytes int64 // the database file, WAL not included
+	MaxBytes  int64     // the size limit; 0: none
+	TrimmedAt time.Time // when points were last dropped to stay under it; zero: never
+	Series    int       // series with a row
+	Resources int       // resources with health rows
+	FileBytes int64     // the database file, WAL not included
 	Tiers     []TierStats
 }
 
@@ -68,8 +99,10 @@ var TierNames = [...]string{Minute: "1m", Quarter: "15m", Hour: "1h", Day: "1d"}
 
 // Stats reads what history.db holds.
 func (r *Recorder) Stats(ctx context.Context) (Stats, error) {
-	level := r.Level()
-	out := Stats{Level: level}
+	r.mu.Lock()
+	level := r.level
+	out := Stats{Level: level, MaxBytes: r.maxBytes, TrimmedAt: r.trimmedAt}
+	r.mu.Unlock()
 	q := r.st.Reader()
 	if err := q.QueryRowContext(ctx, `SELECT count(*) FROM series`).Scan(&out.Series); err != nil {
 		return out, fmt.Errorf("history: %w", err)

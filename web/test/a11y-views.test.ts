@@ -71,6 +71,8 @@ const HISTORY_VIEW = {
   series: 812,
   resources: 240,
   file_bytes: 21_400_000,
+  max_bytes: 1e9,
+  trimmed_at: null,
   tiers: [
     { tier: '1m', step_ms: 60_000, keep_ms: 172_800_000, chunks: 38_976, bytes: 9_800_000, oldest: Date.parse('2026-10-01T14:00:00Z') },
     { tier: '15m', step_ms: 900_000, keep_ms: 1_209_600_000, chunks: 9_744, bytes: 5_100_000, oldest: Date.parse('2026-09-28T12:00:00Z') },

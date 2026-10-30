@@ -4,12 +4,14 @@
  * history.db (ADR-0031), what it holds now, and clearing it.
  *
  *   GET  /api/settings/history         {level, locked, demo, series, resources, file_bytes, tiers, estimates}
- *   PUT  /api/settings/history         {level} → the same
+ *   PUT  /api/settings/history         {level?, max_bytes?} → the same
  *   POST /api/settings/history/clear   → the same
  *
  * The levels are a native radio group with Save, like the security level,
  * so arrowing through them never saves. Each says about how big history.db
- * grows at it, for the series recorded so far. Clearing asks first, inline.
+ * grows at it, for the series recorded so far. The size limit is a select
+ * with its own Save; past it, the hub drops the oldest points within the
+ * hour, and the pane says when it last did. Clearing asks first, inline.
  * With CHADASH_HISTORY=off, or in demo mode, the pane says why there's
  * nothing to choose.
  *
@@ -38,6 +40,8 @@ interface HistoryView {
   series: number;
   resources: number;
   file_bytes: number;
+  max_bytes: number;
+  trimmed_at: number | null;
   tiers: TierView[];
   estimates: Partial<Record<HistoryLevel, number>>;
 }
@@ -50,6 +54,9 @@ const loadError = ref('');
 const choice = ref<HistoryLevel>('standard');
 const saving = ref(false);
 const saveError = ref('');
+const limit = ref(0);
+const limiting = ref(false);
+const limitError = ref('');
 const confirming = ref(false);
 const clearing = ref(false);
 const clearError = ref('');
@@ -60,11 +67,19 @@ const LEVELS: { id: HistoryLevel; label: string; description: string }[] = [
   { id: 'off', label: 'Off', description: 'Nothing new is kept. What’s on disk stays until it ages out, and sparklines start empty after a restart.' },
 ];
 
+const LIMITS = [256e6, 512e6, 1e9, 2e9, 5e9, 10e9, 0];
+const limitWords = (b: number) => (b === 0 ? 'No limit' : size(b));
+/** The saved limit among the choices, even when it's one the hub was given another way. */
+const limitChoices = computed(() => {
+  const saved = view.value?.max_bytes;
+  return saved === undefined || LIMITS.includes(saved) ? LIMITS : [...LIMITS, saved].sort((a, b) => (a || Infinity) - (b || Infinity));
+});
+
 /** "840 kB", "31 MB", "1.2 GB". */
 function size(bytes: number): string {
   if (bytes < 1e6) return `${Math.max(1, Math.round(bytes / 1e3))} kB`;
   if (bytes < 1e9) return `${Math.round(bytes / 1e6)} MB`;
-  return `${(bytes / 1e9).toFixed(1)} GB`;
+  return `${Number((bytes / 1e9).toFixed(1))} GB`;
 }
 
 function estimate(l: HistoryLevel): string {
@@ -92,6 +107,7 @@ async function load(): Promise<void> {
   try {
     view.value = await api<HistoryView>('/api/settings/history');
     choice.value = view.value.level;
+    limit.value = view.value.max_bytes;
     status.value = 'ready';
   } catch (err) {
     status.value = 'error';
@@ -114,6 +130,23 @@ async function save(): Promise<void> {
     saveError.value = errorWords(err, 'The history level wasn’t changed.');
   } finally {
     saving.value = false;
+  }
+}
+
+async function saveLimit(): Promise<void> {
+  const v = view.value;
+  if (!v || v.max_bytes === limit.value || limiting.value) return;
+  limiting.value = true;
+  limitError.value = '';
+  try {
+    view.value = await api<HistoryView>('/api/settings/history', { method: 'PUT', body: { max_bytes: limit.value } });
+    limit.value = view.value.max_bytes;
+    ui.toast(limit.value === 0 ? 'History has no size limit.' : `History is limited to ${limitWords(limit.value)}.`);
+  } catch (err) {
+    limit.value = v.max_bytes;
+    limitError.value = errorWords(err, 'The size limit wasn’t changed.');
+  } finally {
+    limiting.value = false;
   }
 }
 
@@ -204,6 +237,28 @@ onMounted(load);
             </tr>
           </tbody>
         </table>
+        <div class="hp-limit">
+          <label for="hp-limit">Size limit</label>
+          <select id="hp-limit" v-model.number="limit" :disabled="limiting" aria-describedby="hp-limit-d">
+            <option v-for="b in limitChoices" :key="b" :value="b">{{ limitWords(b) }}</option>
+          </select>
+          <button
+            type="button"
+            class="btn sm"
+            aria-label="Save size limit"
+            :aria-disabled="limit === view.max_bytes || limiting ? 'true' : undefined"
+            :aria-busy="limiting || undefined"
+            @click="saveLimit"
+          >
+            Save
+          </button>
+          <p id="hp-limit-d" class="hp-limit-d">
+            Past it, Cha Dash drops the oldest points of the level of detail that takes the most room, within the hour. Health changes are kept.{{
+              view.trimmed_at ? ` It last did on ${shortDate(view.trimmed_at)}.` : ''
+            }}
+          </p>
+        </div>
+        <p v-if="limitError" class="err" role="alert">{{ limitError }}</p>
         <div v-if="!confirming" class="st-acts">
           <button type="button" class="btn sm ghost" :disabled="view.series === 0 && view.resources === 0" @click="confirming = true">Clear history…</button>
         </div>
@@ -219,6 +274,19 @@ onMounted(load);
 </template>
 
 <style>
+.hp-limit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0 0 var(--space-3);
+  font-size: var(--type-small);
+}
+.hp-limit-d {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-3);
+}
 .hp-tiers {
   width: 100%;
   margin: 0 0 var(--space-3);

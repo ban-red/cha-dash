@@ -132,7 +132,7 @@ This is more load on upstreams while nobody looks: one read a minute instead of 
 | Recording | **Standard** | **Off**: today's behaviour, nothing on disk. **Standard**: the 1m and 15m tiers and 90 days of states. **Long-term**: adds 1h and 1d |
 | Keep each tier | as in the Tiers table | Per-tier days or years, within bounds |
 | Record while nobody's watching | every minute | Every minute, every 5 minutes (idle rate) |
-| Size limit | 1 GB | Past it, the coarsest tiers' oldest chunks go first, and the Inbox gets an attention note |
+| Size limit | 1 GB | Past it, the oldest points of the tier holding the most data go first (usually the 1-minute one); health rows stay. Built as a log line and a note in the pane, not an Inbox item |
 | Excluded | none | Per integration, or per metric key (`docker:*#net_rx`) |
 
 - The page shows the series count, the file's size, and **an estimate before a change applies** ("Long-term for 2 years: about 180 MB at today's 812 series"), from measured bytes per point.
@@ -161,7 +161,7 @@ For 1,000 series, at Standard:
 2. **Done. Store and recorder:** `internal/history` with every tier, retention, checkpoints, and seeding sparklines on boot. Sparkline points become slot averages. The level is `CHADASH_HISTORY`.
 3. **Done. Query route and the sheet's Metrics tab:** `GET /api/history`, and Now, 1 h, 24 h, 7 d and 30 d on the sheet. It uses the existing mini graph, not uPlot: averages at up to 720 points draw fine, and it adds nothing to the bundle. The raw ring was left out: the 1-minute tier is fine enough for the last hour.
 4. **Done. State history:** the `states` table, "down since" across restarts, `GET /api/history/states`, and uptime with a status bar on the sheet's History tab.
-5. **Partly done. Settings → History:** the level (applied at once, kept in `settings`), what `history.db` holds, the estimate per level, and Clear. Not built: per-tier retention, the size limit and exclusions.
+5. **Mostly done. Settings → History:** the level (applied at once, kept in `settings`), what `history.db` holds, the estimate per level, the size limit, and Clear. Past the limit, hourly retention drops the oldest tenth of the tier holding the most data until the pages in use fit; health rows are never dropped. Instead of an Inbox note, the hub logs it and the pane says when it last happened. Not built: per-tier retention and exclusions.
 6. **Done. `Interest.Record`:** a board's reads once a minute while recording, in the runtime, with no integration changed.
 7. Later: `/metrics` for Prometheus (03), CSV export from a chart, the Pulse strip and linked scrubbing on top of the query route.
 

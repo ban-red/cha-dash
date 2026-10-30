@@ -185,8 +185,16 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		if rec, err = history.Open(ctx, history.Options{Store: hst, Level: level, Log: log.With("component", "history")}); err != nil {
 			return nil, err
 		}
+		limit, ok, err := history.LoadLimit(ctx, st)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			limit = history.DefaultMaxBytes
+		}
+		rec.SetLimit(limit)
 		hist = rec
-		log.Info("recording metrics history", "level", level, "path", cfg.HistoryPath())
+		log.Info("recording metrics history", "level", level, "path", cfg.HistoryPath(), "limit_bytes", limit)
 	}
 
 	keyPath, explicit := cfg.KeyFile()

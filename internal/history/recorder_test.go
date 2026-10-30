@@ -342,3 +342,54 @@ func TestOnLevelFollowsTheLevel(t *testing.T) {
 		t.Fatalf("seen %v", seen)
 	}
 }
+
+func TestTrimKeepsTheFileUnderItsLimit(t *testing.T) {
+	c := &clock{t0}
+	st := openStore(t, filepath.Join(t.TempDir(), "history.db"))
+	r := openRecorder(t, st, Standard, c)
+	keys := make([]string, 200)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("vm:%d#cpu", i)
+	}
+	var n uint64 = 1
+	feed(t, r, c, 24*time.Hour, keys, func(string, time.Time) float64 {
+		n = n*6364136223846793005 + 1442695040888963407
+		return float64(n>>40) / 1e3 // noisy, so it takes room
+	})
+	r.State("vm:0", "ok", t0)
+	if err := r.Close(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	used := func() int64 {
+		var pages, free, size int64
+		_ = st.Writer().QueryRow(`SELECT (SELECT page_count FROM pragma_page_count), (SELECT freelist_count FROM pragma_freelist_count), (SELECT page_size FROM pragma_page_size)`).Scan(&pages, &free, &size)
+		return (pages - free) * size
+	}
+	before := used()
+	if before < 2<<20 {
+		t.Fatalf("only %d bytes recorded", before)
+	}
+	// No limit: retention leaves a day of points alone.
+	if err := r.retain(t.Context(), c.t); err != nil || used() < before*9/10 {
+		t.Fatalf("retention without a limit dropped points: %d → %d (%v)", before, used(), err)
+	}
+	limit := before / 2
+	r.SetLimit(limit)
+	if err := r.retain(t.Context(), c.t); err != nil {
+		t.Fatal(err)
+	}
+	if got := used(); got > limit {
+		t.Fatalf("%d bytes in use, over the %d limit", got, limit)
+	}
+	// The oldest minutes went; the newest and the health rows stayed.
+	m := query(t, r, keys[0], Minute, t0, c.t)
+	if m[0].N != 0 || m[len(m)-2].N == 0 {
+		t.Fatalf("oldest %+v, newest %+v", m[0], m[len(m)-2])
+	}
+	if got, _ := r.States(t.Context(), "vm:0", t0, c.t); len(got) == 0 {
+		t.Fatal("trimming dropped health rows")
+	}
+	if s, _ := r.Stats(t.Context()); s.TrimmedAt.IsZero() || s.MaxBytes != limit {
+		t.Fatalf("stats = %+v", s)
+	}
+}

@@ -2,8 +2,9 @@
  * Settings → History: the recording level, what history.db holds, and
  * clearing it (GET/PUT /api/settings/history, POST …/clear).
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
+import { setDisplayTimeZone } from '../src/lib/format';
 import HistoryPane from '../src/settings/HistoryPane.vue';
 import { axeViolations } from './axe';
 import { fakeFetch } from './fake-fetch';
@@ -22,11 +23,14 @@ const view = (over: Record<string, unknown> = {}) => ({
   series: 812,
   resources: 240,
   file_bytes: 21_400_000,
+  max_bytes: 1e9,
+  trimmed_at: null,
   tiers,
   estimates: { standard: 28_000_000, 'long-term': 101_000_000 },
   ...over,
 });
 
+beforeEach(() => setDisplayTimeZone('UTC'));
 afterEach(() => {
   vi.unstubAllGlobals();
   document.body.innerHTML = '';
@@ -109,5 +113,28 @@ describe('Settings → History', () => {
     const d = harness().mountIn(HistoryPane);
     await flushPromises();
     expect(d.find('[role="note"]').text()).toContain('The Demo Home makes its own history');
+  });
+
+  it('sets a size limit on its own Save, and says when it last trimmed', async () => {
+    let sent: unknown;
+    fakeFetch({
+      'GET /api/settings/history': { status: 200, body: view({ trimmed_at: Date.parse('2026-10-20T03:00:00Z') }) },
+      'PUT /api/settings/history': (body) => {
+        sent = body;
+        return { status: 200, body: view({ max_bytes: 512e6 }) };
+      },
+    });
+    const w = harness().mountIn(HistoryPane);
+    await flushPromises();
+    const select = w.find<HTMLSelectElement>('#hp-limit');
+    expect(select.findAll('option').map((o) => o.text())).toEqual(['256 MB', '512 MB', '1 GB', '2 GB', '5 GB', '10 GB', 'No limit']);
+    expect(select.element.value).toBe(String(1e9));
+    expect(w.find('#hp-limit-d').text()).toMatch(/are kept\. It last did on Tue 20 Oct\.$/);
+    await select.setValue(String(512e6));
+    expect(sent).toBeUndefined();
+    await w.find('button[aria-label="Save size limit"]').trigger('click');
+    await flushPromises();
+    expect(sent).toEqual({ max_bytes: 512e6 });
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
   });
 });

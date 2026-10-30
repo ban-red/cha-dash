@@ -195,6 +195,8 @@ type historySettings struct {
 	// demo mode, where Demo is true).
 	Locked    bool                    `json:"locked"`
 	Demo      bool                    `json:"demo"`
+	MaxBytes  int64                   `json:"max_bytes"`  // 0: no limit
+	TrimmedAt *int64                  `json:"trimmed_at"` // when points were last dropped to stay under it
 	Series    int                     `json:"series"`
 	Resources int                     `json:"resources"`
 	FileBytes int64                   `json:"file_bytes"`
@@ -211,6 +213,10 @@ type historyTierJSON struct {
 	Oldest *int64 `json:"oldest"` // Unix ms of the oldest chunk's start
 }
 
+// historyMinLimit is the smallest size limit: below it, a busy hub would
+// trim away most of its 48 hours.
+const historyMinLimit = 64 << 20
+
 // historyEstimateFloor is the series count estimates assume at least, so a
 // new hub sees what a typical one grows to.
 const historyEstimateFloor = 300
@@ -218,11 +224,12 @@ const historyEstimateFloor = 300
 // registerHistorySettings mounts Settings → History (admin).
 //
 //	GET  /api/settings/history         → historySettings
-//	PUT  /api/settings/history         {level} → historySettings; 409 history_locked
+//	PUT  /api/settings/history         {level?, max_bytes?} → historySettings; 409 history_locked
 //	POST /api/settings/history/clear   deletes every point and health row → historySettings
 //
-// The level is kept in the hub's settings (history.LevelKey) and applies at
-// once. Estimates are how big history.db grows at each level with the
+// The level and the size limit (max_bytes, 0 for none, else at least
+// 64 MB) are kept in the hub's settings (history.LevelKey, LimitKey) and
+// apply at once; retention enforces the limit within the hour. Estimates are how big history.db grows at each level with the
 // series recorded so far (at least 300).
 func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http.Handler, rec *history.Recorder, st *store.Store, demo bool, audit *authz.Recorder) {
 	view := func(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +240,11 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 				httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't read the history")
 				return
 			}
-			out.Level, out.Series, out.Resources, out.FileBytes = s.Level, s.Series, s.Resources, s.FileBytes
+			out.Level, out.Series, out.Resources, out.FileBytes, out.MaxBytes = s.Level, s.Series, s.Resources, s.FileBytes, s.MaxBytes
+			if !s.TrimmedAt.IsZero() {
+				ms := s.TrimmedAt.UnixMilli()
+				out.TrimmedAt = &ms
+			}
 			for _, t := range s.Tiers {
 				tj := historyTierJSON{Tier: t.Tier, StepMs: t.Step.Milliseconds(), KeepMs: t.Keep.Milliseconds(), Chunks: t.Chunks, Bytes: t.Bytes}
 				if !t.Oldest.IsZero() {
@@ -258,26 +269,50 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 	mux.Handle("GET /api/settings/history", session(http.HandlerFunc(view)))
 	mux.Handle("PUT /api/settings/history", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Level string `json:"level"`
+			Level    *string `json:"level"`
+			MaxBytes *int64  `json:"max_bytes"`
 		}
 		if !httpx.DecodeJSON(w, r, &body) || locked(w) {
 			return
 		}
-		l, err := history.ParseLevel(body.Level)
-		if err != nil {
-			httpx.Error(w, http.StatusUnprocessableEntity, "bad_level", "level is off, standard or long-term")
+		if body.Level == nil && body.MaxBytes == nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, "nothing_to_change", "send level, max_bytes or both")
 			return
 		}
-		from := rec.Level()
-		if err := rec.SetLevel(r.Context(), l); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't change the history level")
+		var l history.Level
+		if body.Level != nil {
+			var err error
+			if l, err = history.ParseLevel(*body.Level); err != nil {
+				httpx.Error(w, http.StatusUnprocessableEntity, "bad_level", "level is off, standard or long-term")
+				return
+			}
+		}
+		if m := body.MaxBytes; m != nil && *m != 0 && *m < historyMinLimit {
+			httpx.Error(w, http.StatusUnprocessableEntity, "bad_limit", "max_bytes is 0 (no limit) or at least 64 MB")
 			return
 		}
-		if err := history.SaveLevel(r.Context(), st, l, time.Now()); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, "history_failed", "the level applies now but couldn't be saved for the next start")
-			return
+		params := map[string]any{}
+		now := time.Now()
+		if body.Level != nil {
+			params["level_from"], params["level_to"] = rec.Level(), l
+			if err := rec.SetLevel(r.Context(), l); err != nil {
+				httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't change the history level")
+				return
+			}
+			if err := history.SaveLevel(r.Context(), st, l, now); err != nil {
+				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the level applies now but couldn't be saved for the next start")
+				return
+			}
 		}
-		audit.Change(r, authz.Audited["PUT /api/settings/history"], "settings:history", map[string]string{"from": string(from), "to": string(l)}, authz.T1, nil)
+		if m := body.MaxBytes; m != nil {
+			params["max_bytes_from"], params["max_bytes_to"] = rec.Limit(), *m
+			rec.SetLimit(*m)
+			if err := history.SaveLimit(r.Context(), st, *m, now); err != nil {
+				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the limit applies now but couldn't be saved for the next start")
+				return
+			}
+		}
+		audit.Change(r, authz.Audited["PUT /api/settings/history"], "settings:history", params, authz.T1, nil)
 		view(w, r)
 	})))
 	mux.Handle("POST /api/settings/history/clear", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

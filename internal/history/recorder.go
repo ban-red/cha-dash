@@ -70,6 +70,11 @@ type Recorder struct {
 	lastCheckpoint, lastRetain time.Time
 
 	onLevel func(Level) // OnLevel's hook
+
+	// maxBytes caps history.db (0: no cap), and trimmedAt is when retention
+	// last dropped points to keep under it. Both under mu.
+	maxBytes  int64
+	trimmedAt time.Time
 }
 
 // OnLevel calls f with the level now and after every SetLevel. The hub
@@ -589,7 +594,15 @@ func (r *Recorder) retain(ctx context.Context, now time.Time) error {
 		}
 	}
 	r.mu.Unlock()
-	_, err = r.st.Writer().ExecContext(ctx, `PRAGMA incremental_vacuum(256)`)
+	trimmed, err := r.trim(ctx, now)
+	if err != nil {
+		return err
+	}
+	vacuum := `PRAGMA incremental_vacuum(256)`
+	if trimmed {
+		vacuum = `PRAGMA incremental_vacuum` // give it all back: the file is over its limit
+	}
+	_, err = r.st.Writer().ExecContext(ctx, vacuum)
 	return err
 }
 
@@ -741,4 +754,69 @@ func (r *Recorder) points(ctx context.Context, key string, t Tier, from, to int6
 		place(open.start, open.pts)
 	}
 	return out, nil
+}
+
+// DefaultMaxBytes is history.db's size limit until an admin sets one: 1 GB,
+// in the decimal units Settings → History shows.
+const DefaultMaxBytes = 1_000_000_000
+
+// SetLimit caps history.db at limit bytes of pages in use; 0 is no cap.
+// Retention enforces it, hourly.
+func (r *Recorder) SetLimit(limit int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.maxBytes = limit
+}
+
+// Limit is the cap SetLimit set.
+func (r *Recorder) Limit() int64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.maxBytes
+}
+
+// trimRounds bounds one trim; each drops a tenth of a tier.
+const trimRounds = 50
+
+// trim keeps history.db under its limit: while the pages in use are over
+// it, the tier holding the most data loses its oldest tenth. That's
+// usually the finest tier, whose points are the least needed once they're
+// a few days old; health rows are never trimmed. It reports whether it
+// dropped anything.
+func (r *Recorder) trim(ctx context.Context, now time.Time) (bool, error) {
+	limit := r.Limit()
+	if limit <= 0 {
+		return false, nil
+	}
+	w := r.st.Writer()
+	trimmed := false
+	for range trimRounds {
+		var pages, free, size int64
+		if err := w.QueryRowContext(ctx, `SELECT (SELECT page_count FROM pragma_page_count), (SELECT freelist_count FROM pragma_freelist_count), (SELECT page_size FROM pragma_page_size)`).
+			Scan(&pages, &free, &size); err != nil {
+			return trimmed, fmt.Errorf("history: %w", err)
+		}
+		if (pages-free)*size <= limit {
+			break
+		}
+		var tier, n int64
+		err := w.QueryRowContext(ctx, `SELECT tier, count(*) FROM chunks GROUP BY tier ORDER BY sum(length(data)) DESC LIMIT 1`).Scan(&tier, &n)
+		if errors.Is(err, sql.ErrNoRows) {
+			break // only health rows left
+		}
+		if err != nil {
+			return trimmed, fmt.Errorf("history: %w", err)
+		}
+		if _, err := w.ExecContext(ctx, `DELETE FROM chunks WHERE id IN (SELECT id FROM chunks WHERE tier = ? ORDER BY start LIMIT ?)`, tier, max(1, n/10)); err != nil {
+			return trimmed, fmt.Errorf("history: %w", err)
+		}
+		trimmed = true
+	}
+	if trimmed {
+		r.mu.Lock()
+		r.trimmedAt = now
+		r.mu.Unlock()
+		r.log.Warn("history: over its size limit; dropped the oldest points", "limit_bytes", limit)
+	}
+	return trimmed, nil
 }
