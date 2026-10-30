@@ -14,7 +14,7 @@ import IntegrationEditor from './IntegrationEditor.vue';
 import { ago, monogram } from '../lib/format';
 import { navigate, route, settingsPath, view } from '../lib/router';
 import { rank } from '../lib/fuzzy';
-import { STATUS_WORDS, statusGlyph } from '../model/integrations';
+import { groupCatalog, STATUS_WORDS, statusGlyph } from '../model/integrations';
 import { catalogEntry, integrations, loadCatalog, loadInstances } from '../stores/integrations';
 import { accessOf } from './recipe';
 import { openWizard } from '../onboarding/state';
@@ -25,8 +25,10 @@ const vFocus = { mounted: (el: HTMLElement) => el.focus({ preventScroll: true })
 const v = computed(() => (view.value.name === 'settings' ? view.value : undefined));
 const query = ref('');
 
-const catalogShown = computed(() => rank(query.value, integrations.catalog.map((c) => ({ ...c, label: c.name, keywords: `${c.id} ${(c.capabilities ?? []).join(' ')}` }))));
+const catalogShown = computed(() => rank(query.value, integrations.catalog.map((c) => ({ ...c, label: c.name, keywords: `${c.id} ${(c.aliases ?? []).join(' ')} ${(c.capabilities ?? []).join(' ')}` }))));
 const now = computed(() => Date.now());
+/** No filter typed: the catalog in groups. With one: a flat list, best match first. */
+const groups = computed(() => (query.value.trim() ? [] : groupCatalog(catalogShown.value)));
 
 /** Trouble first: what needs a hand sits at the top, the rest by name. */
 const URGENCY: Record<string, number> = { repair: 0, error: 1, degraded: 2, ok: 4, disabled: 5 };
@@ -101,19 +103,36 @@ onMounted(() => {
       <Glyph kind="down" /><span>{{ integrations.error }}</span>
       <button type="button" class="btn sm" @click="loadCatalog(true)">Try again</button>
     </div>
-    <ul v-else class="catalog">
-      <li v-for="c in catalogShown" :key="c.id">
-        <a class="cat-card" :href="addPath(c.id)" @click.prevent="navigate(addPath(c.id))">
-          <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
-          <span class="t">{{ c.name }}</span>
-          <span class="m">
-            <span v-if="connected.get(c.id)" class="cat-on"><Glyph kind="ok" />{{ connected.get(c.id) }} connected</span>
-            <template v-else>{{ accessOf(c.recipe)?.label ?? 'Add' }}</template>
-          </span>
-        </a>
-      </li>
-      <li v-if="!catalogShown.length" class="cat-none">Nothing matches “{{ query }}”. Not every service has an integration yet; <a href="/settings/import" @click.prevent="navigate('/settings/import')">import a Homepage config</a> or check the checks integration for a plain HTTP or TCP probe.</li>
-    </ul>
+    <template v-else>
+      <section v-for="g in groups" :key="g.id" class="cat-group" :aria-labelledby="`cat-${g.id}`">
+        <h4 :id="`cat-${g.id}`" class="cat-h">{{ g.label }}<small v-if="g.note">{{ g.note }}</small></h4>
+        <ul class="catalog">
+          <li v-for="c in g.items" :key="c.id">
+            <a class="cat-card" :href="addPath(c.id)" @click.prevent="navigate(addPath(c.id))">
+              <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
+              <span class="t">{{ c.name }}</span>
+              <span class="m">
+                <span v-if="connected.get(c.id)" class="cat-on"><Glyph kind="ok" />{{ connected.get(c.id) }} connected</span>
+                <template v-else>{{ accessOf(c.recipe)?.label ?? 'Add' }}</template>
+              </span>
+            </a>
+          </li>
+        </ul>
+      </section>
+      <ul v-if="query.trim()" class="catalog">
+        <li v-for="c in catalogShown" :key="c.id">
+          <a class="cat-card" :href="addPath(c.id)" @click.prevent="navigate(addPath(c.id))">
+            <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
+            <span class="t">{{ c.name }}</span>
+            <span class="m">
+              <span v-if="connected.get(c.id)" class="cat-on"><Glyph kind="ok" />{{ connected.get(c.id) }} connected</span>
+              <template v-else>{{ accessOf(c.recipe)?.label ?? 'Add' }}</template>
+            </span>
+          </a>
+        </li>
+        <li v-if="!catalogShown.length" class="cat-none">Nothing matches “{{ query }}”. Not every service has an integration yet; <a href="/settings/import" @click.prevent="navigate('/settings/import')">import a Homepage config</a> or check the checks integration for a plain HTTP or TCP probe.</li>
+      </ul>
+    </template>
   </section>
 
   <!-- The list -->
@@ -213,6 +232,21 @@ onMounted(() => {
 }
 .cat-card .m {
   font: var(--weight-regular) var(--type-caption) / 1.3 var(--font-num);
+  color: var(--text-3);
+}
+.cat-group + .cat-group {
+  margin-top: var(--space-5);
+}
+.cat-h {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-2);
+  font: var(--weight-medium) var(--type-small) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+.cat-h small {
+  font: var(--weight-regular) var(--type-caption) / 1.2 var(--font-num);
   color: var(--text-3);
 }
 .cat-on {

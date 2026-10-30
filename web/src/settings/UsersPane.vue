@@ -22,6 +22,7 @@
  *
  * Its own chunk, loaded with the pane.
  */
+import SettingsHelp from './SettingsHelp.vue';
 import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import BannedAddresses from './BannedAddresses.vue';
@@ -220,12 +221,13 @@ onMounted(load);
   <section class="st-section" aria-labelledby="us-h">
     <header>
       <h3 id="us-h" tabindex="-1">People</h3>
+      <span v-if="status === 'ready'" class="st-meta">{{ sorted.length }}</span>
       <button v-if="assignable.length && !adding" :id="`${uid}-add`" type="button" class="btn sm" @click="startAdd">Add a user</button>
     </header>
-    <p class="st-lede">
+    <SettingsHelp summary="Everyone who signs in, and what their role lets them do.">
       Everyone who signs in to this hub, and what their role lets them do. There’s one owner; users are disabled rather than deleted, so the audit log keeps
       pointing at someone.
-    </p>
+    </SettingsHelp>
 
     <form v-if="adding" class="st-form us-add" novalidate aria-labelledby="us-add-h" @submit.prevent="add">
       <h4 id="us-add-h" class="sr">Add a user</h4>

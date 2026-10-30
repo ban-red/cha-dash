@@ -14,6 +14,7 @@
  * Details names its event for screen readers.
  * Its own chunk, loaded with the pane.
  */
+import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, reactive, ref, useId } from 'vue';
 import { route } from '../lib/router';
 import Glyph from '../components/marks/Glyph.vue';
@@ -199,29 +200,6 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="st-section" aria-labelledby="au-chain-h">
-    <header>
-      <h3 id="au-chain-h">The chain</h3>
-      <a class="btn sm" href="/api/audit/export" download>Export · NDJSON</a>
-    </header>
-    <p class="st-lede">Every change Cha Dash makes, or refuses to make, is recorded here. Each event carries the hash of the one before it, so a gap or an edit shows.</p>
-    <div v-if="verifying && !verify" class="st-skel" aria-busy="true"><span class="skel"></span></div>
-    <div v-else-if="verifyError" class="st-note bad" role="alert"><Glyph kind="down" /><span>{{ verifyError }}</span></div>
-    <div v-else-if="verify?.ok" class="st-note" role="status">
-      <Glyph kind="check" /><span>The audit log is intact · {{ fmtInt(verify.checked) }} events checked</span>
-    </div>
-    <div v-else-if="verify" class="st-note bad" role="alert">
-      <Glyph kind="down" />
-      <span>
-        The audit log’s chain breaks at {{ breakWords }} · {{ fmtInt(verify.checked) }} events checked. Events from there on may have been changed outside Cha Dash;
-        the export keeps them as they are.
-      </span>
-    </div>
-    <div class="st-acts">
-      <button type="button" class="btn sm ghost" :disabled="verifying" :aria-busy="verifying || undefined" @click="check">{{ verifying ? 'Checking…' : 'Check again' }}</button>
-    </div>
-  </section>
-
   <section class="st-section" aria-labelledby="au-ev-h">
     <header>
       <h3 id="au-ev-h" tabindex="-1">Events</h3>
@@ -311,6 +289,29 @@ onMounted(() => {
         {{ more ? 'Loading…' : olderError ? 'Try again' : 'Show older' }}
       </button>
       <p v-if="olderError" :id="`${uid}-older-e`" class="err" role="alert">{{ olderError }}</p>
+    </div>
+  </section>
+
+  <section class="st-section" aria-labelledby="au-chain-h">
+    <header>
+      <h3 id="au-chain-h">The chain</h3>
+      <a class="btn sm" href="/api/audit/export" download>Export · NDJSON</a>
+    </header>
+    <SettingsHelp summary="Each event carries the hash of the one before it, so a gap or an edit shows." label="More">Every change Cha Dash makes, or refuses to make, is recorded here. Each event carries the hash of the one before it, so a gap or an edit shows.</SettingsHelp>
+    <div v-if="verifying && !verify" class="st-skel" aria-busy="true"><span class="skel"></span></div>
+    <div v-else-if="verifyError" class="st-note bad" role="alert"><Glyph kind="down" /><span>{{ verifyError }}</span></div>
+    <div v-else-if="verify?.ok" class="st-note" role="status">
+      <Glyph kind="check" /><span>The audit log is intact · {{ fmtInt(verify.checked) }} events checked</span>
+    </div>
+    <div v-else-if="verify" class="st-note bad" role="alert">
+      <Glyph kind="down" />
+      <span>
+        The audit log’s chain breaks at {{ breakWords }} · {{ fmtInt(verify.checked) }} events checked. Events from there on may have been changed outside Cha Dash;
+        the export keeps them as they are.
+      </span>
+    </div>
+    <div class="st-acts">
+      <button type="button" class="btn sm ghost" :disabled="verifying" :aria-busy="verifying || undefined" @click="check">{{ verifying ? 'Checking…' : 'Check again' }}</button>
     </div>
   </section>
 </template>

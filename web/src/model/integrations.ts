@@ -32,12 +32,38 @@ export interface CatalogEntry {
   icon?: string;
   version?: string;
   tier?: string | number;
+  /** Where it sits on the Add list (CATEGORIES); missing means "Other". */
+  category?: string;
+  /** Other names the same upstream goes by (Seerr: Overseerr, Jellyseerr). */
+  aliases?: string[];
   capabilities?: string[];
   config_schema: JsonSchema;
   /** How to make a credential with exactly the access it needs (settings/recipe.ts). */
   recipe?: Recipe;
   /** Where its actions get their credential: a control group or a mode (model/control.ts). */
   control?: ControlSpec;
+}
+
+/** The Add list's groups, in order. The hub sends the id; the words live here. */
+export const CATEGORIES: { id: string; label: string; note: string }[] = [
+  { id: 'media', label: 'Media', note: 'servers and requests' },
+  { id: 'automation', label: 'Media automation', note: 'libraries and indexers' },
+  { id: 'downloads', label: 'Downloads', note: 'torrent and usenet clients' },
+  { id: 'hosts', label: 'Hosts & backups', note: 'servers, containers, backups' },
+  { id: 'network', label: 'Network', note: 'DNS, routers, proxies' },
+  { id: 'monitoring', label: 'Monitoring', note: 'uptime and checks' },
+  { id: 'home', label: 'Home', note: 'automation, cameras, weather' },
+  { id: 'files', label: 'Files & notes', note: 'photos, documents, bookmarks' },
+];
+
+/** Entries in CATEGORIES order; whatever has no known category goes last, as "Other". */
+export function groupCatalog<T extends { category?: string | undefined }>(entries: readonly T[]): { id: string; label: string; note: string; items: T[] }[] {
+  const known = new Set(CATEGORIES.map((c) => c.id));
+  const groups = [...CATEGORIES, { id: 'other', label: 'Other', note: '' }].map((c) => ({
+    ...c,
+    items: entries.filter((e) => (c.id === 'other' ? !e.category || !known.has(e.category) : e.category === c.id)),
+  }));
+  return groups.filter((g) => g.items.length);
 }
 
 export interface Instance {

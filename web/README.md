@@ -49,7 +49,7 @@ src/
                       PageDrop.vue (the page-wide drop target) ride with the front page
   discover/           DiscoverPane: leads, this host, places you name (lazy)
   settings/           SettingsSheet (lazy) and its panes: IntegrationsPane, IntegrationEditor,
-                      SchemaField (forms from JSON Schema), TestResultView, SplitChecks (a checks
+                      SchemaField (forms from JSON Schema), SettingsHelp (a pane's explainer, folded), TestResultView, SplitChecks (a checks
                       connection's targets that name an app, with "Set up" for its integration),
                       BackupPane, HistoryPane, UsersPane, AuditPane, TokensPane and NodesPane (each its own chunk), StacksPane (one
                       chunk with StackEditor, StackSecrets and stacks.ts), NotificationsPane (one

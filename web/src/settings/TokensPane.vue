@@ -15,6 +15,7 @@
  *
  * Its own chunk, loaded with the pane.
  */
+import SettingsHelp from './SettingsHelp.vue';
 import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import { ago, absolute } from '../lib/format';
@@ -225,13 +226,14 @@ onMounted(load);
   <section class="st-section" aria-labelledby="tk-h">
     <header>
       <h3 id="tk-h" tabindex="-1">{{ seesAll ? 'Everyone’s tokens' : 'Your tokens' }}</h3>
+      <span v-if="status === 'ready' && tokens.length" class="st-meta">{{ tokens.filter((t) => !t.revoked_at).length }} active</span>
       <button v-if="!creating && !fresh" :id="`${uid}-new`" type="button" class="btn sm" @click="startCreate">New token</button>
     </header>
-    <p class="st-lede">
+    <SettingsHelp summary="For scripts and automations. A token never has more access than you.">
       For scripts and automations. A token acts as you, never with more than your role allows, and only for what you pick here. Send it as
       <code>Authorization: Bearer cdt_…</code> on <code>/api/</code> requests. Actions up to T1 run when the token asks; T2 actions wait in the Inbox until an
       admin or the owner approves them; T3 and T4 never run from a token.
-    </p>
+    </SettingsHelp>
 
     <div v-if="fresh" class="tk-fresh st-note attn" role="region" :aria-labelledby="`${uid}-fresh-h`">
       <div class="tk-fresh-body">
@@ -298,11 +300,14 @@ onMounted(load);
           </template>
         </fieldset>
 
+        <details class="tk-more">
+          <summary>Scopes by hand</summary>
         <div class="field">
           <label :for="`${uid}-extra`">More scopes <span class="opt-word">optional</span></label>
           <input :id="`${uid}-extra`" v-model="draft.extra" class="st-mono" type="text" autocomplete="off" spellcheck="false" :aria-describedby="`${uid}-extra-h`" />
           <span :id="`${uid}-extra-h`" class="help">Scopes by hand, separated by spaces: an action limited to one target, such as <code>proxmox.guest.start:target=proxmox:i_x/qemu/201</code>.</span>
         </div>
+        </details>
         <p v-if="catalog.approval" class="st-note"><Glyph kind="attn" /><span>{{ catalog.approval }}</span></p>
       </template>
 
@@ -354,6 +359,14 @@ onMounted(load);
 </template>
 
 <style>
+.tk-more > summary {
+  cursor: pointer;
+  font-size: var(--type-small);
+  color: var(--text-3);
+}
+.tk-more[open] > summary {
+  margin-bottom: var(--space-2);
+}
 .tk-row.off .t,
 .tk-row.off .m {
   color: var(--text-3);

@@ -16,6 +16,7 @@
  *
  * Its own chunk, loaded with the pane.
  */
+import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import HoldToConfirm from '../components/HoldToConfirm.vue';
@@ -166,9 +167,9 @@ const active = computed(() => nodes.value.filter((n) => n.state !== 'revoked'));
       <h3 id="nd-h">Nodes</h3>
       <span v-if="status === 'ready'" class="st-meta">{{ active.length }} {{ active.length === 1 ? 'node' : 'nodes' }}</span>
     </header>
-    <p class="st-lede">
+    <SettingsHelp summary="chadash-node is Cha Dash’s hands on a Docker host, limited by its own policy file.">
       chadash-node is Cha Dash’s hands on a Docker host. Each one dials the hub and does only what its own policy file allows. The hub can’t widen that policy.
-    </p>
+    </SettingsHelp>
 
     <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span></div>
     <div v-else-if="status === 'error'" class="st-note bad" role="alert">

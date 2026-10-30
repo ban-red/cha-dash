@@ -13,6 +13,7 @@
  *
  * Its own chunk, with the editor and the secrets, loaded with the pane.
  */
+import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import StackEditor from './StackEditor.vue';
@@ -88,10 +89,10 @@ onMounted(load);
         <h3 id="sk-h">Stacks</h3>
         <a v-if="anyOnline" class="btn sm" href="/settings/stacks/new" @click.prevent="navigate('/settings/stacks/new')">New stack</a>
       </header>
-      <p class="st-lede">
+      <SettingsHelp summary="Compose stacks Cha Dash owns, kept in git on their node, with rollback on a failed health check.">
         Compose stacks Cha Dash owns. Each lives in git on its node; deploying checks the file, pulls, starts it, holds it to a health check, and rolls back on
         its own if the check fails.
-      </p>
+      </SettingsHelp>
 
       <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
       <div v-else-if="status === 'error'" class="st-note bad" role="alert">

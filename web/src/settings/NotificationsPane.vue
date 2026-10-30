@@ -19,6 +19,7 @@
  * are aria-disabled rather than disabled while they work, and focus moves on
  * purpose when a confirm group or the form opens and closes.
  */
+import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, reactive, ref, useId } from 'vue';
 import Glyph from '../components/marks/Glyph.vue';
 import NotifyDevice from './NotifyDevice.vue';
@@ -358,11 +359,11 @@ onMounted(() => {
   <template v-if="admin">
     <section class="st-section" aria-labelledby="nr-h">
       <header><h3 id="nr-h">What notifies</h3></header>
-      <p class="st-lede">
+      <SettingsHelp summary="Only real problems notify, once each. A flap that clears itself never pages anyone.">
         Cha Dash tells people about symptoms, not causes, and only once per problem. Something down is sent at once; something that needs attention waits a few
         minutes, so a flap that clears by itself never pages anyone. Hints, security advice at the Relaxed level, and problems already being fixed stay quiet.
         When several arrive together, as on a backup night, they come as one message.
-      </p>
+      </SettingsHelp>
       <div v-if="status === 'loading'" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span><span class="skel"></span></div>
       <div v-else-if="status === 'error'" class="st-note bad" role="alert">
         <Glyph kind="down" /><span>{{ loadError }}</span>

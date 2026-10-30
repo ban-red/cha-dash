@@ -6,7 +6,7 @@ import IntegrationsPane from '../src/settings/IntegrationsPane.vue';
 import TestResultView from '../src/settings/TestResultView.vue';
 import { route, syncRoute } from '../src/lib/router';
 import { choices, clean, fieldLabel, initialValue, kindOf, secretPaths, validate, type JsonSchema } from '../src/lib/schema';
-import { isWrite, normalizeGrant } from '../src/model/integrations';
+import { groupCatalog, isWrite, normalizeGrant } from '../src/model/integrations';
 import { resetIntegrations } from '../src/stores/integrations';
 import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
@@ -60,8 +60,8 @@ function hub(over: Record<string, unknown> = {}) {
     'GET /api/integrations/catalog': {
       status: 200,
       body: [
-        { id: 'plex', name: 'Plex', version: '1.0.0', tier: 0, capabilities: ['media'], config_schema: PLEX_SCHEMA },
-        { id: 'checks', name: 'Checks', version: '1.0.0', tier: 0, config_schema: CHECKS_SCHEMA },
+        { id: 'plex', name: 'Plex', version: '1.0.0', tier: 0, category: 'media', capabilities: ['media'], config_schema: PLEX_SCHEMA },
+        { id: 'checks', name: 'Checks', version: '1.0.0', tier: 0, category: 'monitoring', config_schema: CHECKS_SCHEMA },
       ],
     },
     'GET /api/integrations/instances': {
@@ -196,6 +196,17 @@ describe('the schema subset', () => {
   });
 });
 
+describe('groupCatalog', () => {
+  it('orders groups as the Add list does, and puts the uncategorised last', () => {
+    const g = groupCatalog([{ id: 'a', category: 'files' }, { id: 'b' }, { id: 'c', category: 'media' }, { id: 'd', category: 'unheard-of' }]);
+    expect(g.map((x) => [x.label, x.items.map((i) => i.id)])).toEqual([
+      ['Media', ['c']],
+      ['Files & notes', ['a']],
+      ['Other', ['b', 'd']],
+    ]);
+  });
+});
+
 describe('Settings → Integrations', () => {
   it('lists instances with status and warnings', async () => {
     hub();
@@ -218,9 +229,23 @@ describe('Settings → Integrations', () => {
     const h = harness();
     h.mountIn(IntegrationsPane);
     await flushPromises();
-    expect([...document.body.querySelectorAll('.cat-card .t')].map((t) => t.textContent)).toEqual(['Checks', 'Plex']);
-    (document.body.querySelector('.cat-card') as HTMLAnchorElement).click();
+    // Grouped by category, in the Add list's order: Media before Monitoring.
+    expect([...document.body.querySelectorAll('.cat-h')].map((t) => t.firstChild?.textContent)).toEqual(['Media', 'Monitoring']);
+    expect([...document.body.querySelectorAll('.cat-card .t')].map((t) => t.textContent)).toEqual(['Plex', 'Checks']);
+    (document.body.querySelectorAll('.cat-card')[1] as HTMLAnchorElement).click();
     expect(route.value.path).toBe('/settings/integrations/new/checks');
+  });
+
+  it('filters the catalog to a flat list without headings', async () => {
+    hub();
+    history.replaceState(null, '', '/settings/integrations/new');
+    syncRoute();
+    const h = harness();
+    const w = h.mountIn(IntegrationsPane);
+    await flushPromises();
+    await w.find('#catalog-q').setValue('plex');
+    expect(document.body.querySelector('.cat-h')).toBeNull();
+    expect([...document.body.querySelectorAll('.cat-card .t')].map((t) => t.textContent)).toEqual(['Plex']);
   });
 
   it('never prefills or shows a secret, says it is set, and focuses it for a repair', async () => {
