@@ -10,6 +10,7 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { findItem, type Board, type Breakpoint } from '@chadash/layout';
 import StaticBoard from './StaticBoard.vue';
 import SectionHeader from './SectionHeader.vue';
+import SectionMenu from './SectionMenu.vue';
 import WidgetHost from '../widgets/WidgetHost.vue';
 import { useUi } from '../stores/ui';
 import { useBoard } from '../stores/board';
@@ -111,6 +112,7 @@ watch(
         <div v-if="ui.can.value.editBoards" class="sh-live">
           <SectionHeader :section="section" />
           <button type="button" class="btn ghost sm sh-add" :aria-label="`Add a widget to ${section.title ?? section.id}`" @click="addTo(section.id)">Add</button>
+          <SectionMenu :section="section" />
         </div>
         <SectionHeader v-else :section="section" />
       </template>

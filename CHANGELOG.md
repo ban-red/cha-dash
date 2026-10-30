@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A menu on section headers.** Hover a section's title for a three-dot menu with Resize, to set the section's width from a quarter of the board to the full row, and Reorder, to move it up or down.
 - **Swipe a tile for more.** Some tiles now have more than one view. Swipe sideways on a phone or tablet, or click the dots at the bottom of the tile. A small weather tile has the next hours; a host tile has its guests or containers and its storage; a Sonarr, Radarr or Lidarr tile has what's coming next, and a small service tile its last 24 hours. Each tile remembers its view on that device. Tiles with nothing more to show look as before.
 - **A menu on every tile.** The settings cog on a tile is now three dots that open a compact menu with icons: Integration settings, Widget settings, Resize (the sizes that fit its section) and Remove widget, which asks first and offers Undo.
 - **An Unraid server widget.** One tile for the whole box: CPU, memory and array fill as bars, then parity, the hottest disk, uptime, containers, VMs and shares, in six sizes. A stopped array or a disabled disk marks it down; invalid or overdue parity, a hot or full disk, or containers that need a look mark it for attention. Add it from the picker under Servers once Unraid is connected.

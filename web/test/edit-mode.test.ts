@@ -661,6 +661,56 @@ describe('a tile’s menu', () => {
   });
 });
 
+describe('a section header’s menu', () => {
+  it('resizes the section from its Resize item and saves the layout', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    const btn = w.find('.sh-live .sh-menu');
+    expect(btn.attributes('aria-label')).toMatch(/section menu$/);
+    await btn.trigger('click');
+    await settle();
+    const resize = document.querySelector<HTMLElement>('.tile-pop [role="menuitem"]')!;
+    expect(resize.textContent).toContain('Resize');
+    resize.click();
+    await settle();
+    const radios = [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitemradio"]')];
+    expect(radios.length).toBeGreaterThan(1);
+    expect(radios.filter((r) => r.getAttribute('aria-checked') === 'true')).toHaveLength(1);
+    radios.find((r) => r.getAttribute('aria-checked') === 'false')!.click();
+    await settle();
+    expect(store.save).toHaveBeenCalled();
+    expect(document.querySelector('.tile-pop')).toBeNull();
+  });
+
+  it('moves the section from its Reorder item and saves the layout', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    const before = store.board.value!.sections.map((s) => s.id);
+    const header = w.findAll('.sh-live')[1]!; // a middle section can move both ways
+    await header.find('.sh-menu').trigger('click');
+    await settle();
+    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Reorder'))!.click();
+    await settle();
+    const moves = [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')];
+    expect(moves.map((e) => e.textContent?.trim())).toEqual(['Move to top', 'Move up', 'Move down', 'Move to bottom']);
+    moves.find((e) => e.textContent?.trim() === 'Move up')!.click();
+    await settle();
+    const after = store.board.value!.sections.map((s) => s.id);
+    expect(after).not.toEqual(before);
+    expect([...after].sort()).toEqual([...before].sort());
+  });
+
+  it('isn’t there for a role that can’t edit boards', async () => {
+    const w = mountSurface(fakeStore(start()));
+    await settle();
+    w.session.state.user!.role = 'viewer';
+    await flushPromises();
+    expect(w.find('.sh-menu').exists()).toBe(false);
+  });
+});
+
 describe('tileInstance', () => {
   const g = docs(withIncidents).graph;
   it('takes the bound instance, a single source, the target’s source or the only app of the type', () => {

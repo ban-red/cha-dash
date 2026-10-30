@@ -342,18 +342,58 @@ html:has(.brief-tools.stuck) {
   background: var(--bg);
   transition: opacity var(--motion-press-duration) var(--motion-press-easing);
 }
+/* The section menu (three dots) takes the end; Add sits just before it. */
+.sh-live > .sh-add {
+  right: 30px;
+}
+.sh-live > .sh-menu {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-2);
+  opacity: 0;
+  transition: opacity var(--motion-press-duration) var(--motion-press-easing);
+}
+.sh-live > .sh-menu svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.sh-live > .sh-menu:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.sh-live > .sh-menu:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 .sh-live:hover > .sh-add,
 .sh-live:focus-within > .sh-add,
-.sh-live > .sh-add:focus-visible {
+.sh-live > .sh-add:focus-visible,
+.sh-live:hover > .sh-menu,
+.sh-live:focus-within > .sh-menu,
+.sh-live > .sh-menu[aria-expanded='true'],
+.sh-live > .sh-menu:focus-visible {
   opacity: 1;
 }
 @media (hover: none) {
-  .sh-live > .sh-add {
+  .sh-live > .sh-add,
+  .sh-live > .sh-menu {
     opacity: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sh-live > .sh-add {
+  .sh-live > .sh-add,
+  .sh-live > .sh-menu {
     transition: none;
   }
 }
