@@ -151,6 +151,18 @@ func (g *registry) byName(ctx context.Context, name string) (Record, error) {
 	return r, err
 }
 
+// state is the state of the node with an ID or name: a live one if there is
+// one, else the newest revoked one.
+func (g *registry) state(ctx context.Context, node string) (string, error) {
+	var s string
+	err := g.st.Reader().QueryRowContext(ctx, `SELECT state FROM nodes WHERE id = ? OR name = ?
+		ORDER BY state = 'revoked', created_at DESC LIMIT 1`, node, node).Scan(&s)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return s, err
+}
+
 func (g *registry) list(ctx context.Context) ([]Record, error) {
 	rows, err := g.st.Reader().QueryContext(ctx, `SELECT `+recordCols+` FROM nodes ORDER BY state = 'revoked', name, created_at`)
 	if err != nil {

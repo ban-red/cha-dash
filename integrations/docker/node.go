@@ -129,8 +129,9 @@ func (t *nodeTransport) events(req *http.Request) (*http.Response, error) {
 // failure answers a node or hub refusal as the status Docker or a proxy
 // would have used, so the integration's existing handling applies:
 // forbidden is a proxy's 403 (a capability not granted), not_found is
-// Docker's 404, and a node that isn't connected is a 503 the runtime backs
-// off from.
+// Docker's 404, and a busy or unavailable node is a 503 the runtime backs
+// off from. A node that isn't connected is unreachable, with the hub's
+// reason (revoked, waiting for approval), which a 503 would lose.
 func (t *nodeTransport) failure(req *http.Request, err error) (*http.Response, error) {
 	if req.Context().Err() != nil {
 		return nil, req.Context().Err()
@@ -143,7 +144,9 @@ func (t *nodeTransport) failure(req *http.Request, err error) (*http.Response, e
 		return respond(req, http.StatusNotFound, "application/json", msg), nil
 	case "invalid":
 		return respond(req, http.StatusBadRequest, "application/json", msg), nil
-	case "not_connected", "unavailable", "busy":
+	case "not_connected":
+		return nil, &integration.UnreachableError{Message: err.Error()}
+	case "unavailable", "busy":
 		return respond(req, http.StatusServiceUnavailable, "application/json", msg), nil
 	case "":
 		return nil, fmt.Errorf("node %s: %w", t.node, err)

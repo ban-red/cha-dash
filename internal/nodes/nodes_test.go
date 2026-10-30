@@ -219,7 +219,8 @@ func TestPairingWithTheRightSecret(t *testing.T) {
 	if nodeproto.CodeOf(err) != nodeproto.CodeForbidden {
 		t.Fatalf("remove = %v, want the node's refusal", err)
 	}
-	if _, err := e.hub.Call(t.Context(), "elsewhere", "container.list", nil, nil); !errors.Is(err, ErrNotConnected) {
+	if _, err := e.hub.Call(t.Context(), "elsewhere", "container.list", nil, nil); !errors.Is(err, ErrNotConnected) ||
+		nodeproto.CodeOf(err) != nodeproto.CodeNotConnected || !strings.Contains(err.Error(), "node elsewhere isn't known") {
 		t.Fatalf("unknown node = %v", err)
 	}
 	if evs := e.events("nodes.enroll"); len(evs) != 1 || evs[0].Result != audit.OK || strings.Contains(string(evs[0].Params), e.token()[4:20]) {
@@ -314,7 +315,9 @@ func TestRevoke(t *testing.T) {
 	}
 	resp.Body.Close()
 	eventually(t, "the session to end", func() bool { return !n.client.Connected() && !e.hub.Connected(rec.ID) })
-	if _, err := e.hub.Call(t.Context(), "local", "container.list", nil, nil); !errors.Is(err, ErrNotConnected) {
+	// The error says why, for the integrations that read through the node.
+	if _, err := e.hub.Call(t.Context(), "local", "container.list", nil, nil); !errors.Is(err, ErrNotConnected) ||
+		!strings.Contains(err.Error(), "node local was revoked") {
 		t.Fatalf("call after revoke = %v", err)
 	}
 	if _, ok := e.g.Get(ResourceID(rec.ID)); ok {

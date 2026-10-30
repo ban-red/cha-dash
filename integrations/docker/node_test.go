@@ -87,7 +87,7 @@ func (n *fakeNode) Call(ctx context.Context, node, verb string, req any, progres
 		n.t.Errorf("called node %q", node)
 	}
 	if offline {
-		return nil, &nodeErr{"not_connected", "the node isn't connected to the hub (local)"}
+		return nil, &nodeErr{"not_connected", "node local was revoked in Settings → Nodes"}
 	}
 	var p struct {
 		ID         string              `json:"id"`
@@ -540,4 +540,18 @@ func TestDockerActionsThroughTheNode(t *testing.T) {
 func isRefusal(err error, code string) bool {
 	r, ok := err.(*action.Refusal)
 	return ok && r.Code == code
+}
+
+// A node that isn't connected leaves the instance unreachable with the hub's
+// reason, not a bare 503.
+func TestNodeTransportNotConnected(t *testing.T) {
+	h := integrationtest.New(t)
+	fn := newFakeNode(t, newFake(t, raw))
+	fn.offline = true
+	h.Nodes = fn
+	err := h.Connect(Integration{}, map[string]any{"endpoint": "node://local"}, nil).Sync(t.Context(), integrationtest.Watched)
+	code, class, msg := integration.Classify(err)
+	if code != integration.CodeUnreachable || class != integration.Transient || msg != "node local was revoked in Settings → Nodes" {
+		t.Fatalf("offline node classified %s %v %q: %v", code, class, msg, err)
+	}
 }

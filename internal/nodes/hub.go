@@ -575,10 +575,32 @@ func (h *Hub) OnConnect(f func(name string)) {
 func (h *Hub) Call(ctx context.Context, node, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error) {
 	c := h.session(node)
 	if c == nil {
-		return nil, fmt.Errorf("%w (%s)", ErrNotConnected, node)
+		return nil, h.notConnected(ctx, node)
 	}
 	return c.sess.Call(ctx, verb, req, progress)
 }
+
+// notConnected is ErrNotConnected saying why, for whoever shows it: an
+// integration reading through a revoked node should say so, not that the
+// node is offline.
+func (h *Hub) notConnected(ctx context.Context, node string) error {
+	why := "isn't connected to the hub"
+	switch state, err := h.reg.state(ctx, node); {
+	case errors.Is(err, ErrNotFound):
+		why = "isn't known to the hub; add it in Settings → Nodes"
+	case err != nil:
+	case state == StateRevoked:
+		why = "was revoked in Settings → Nodes; to use this host again, add it as a new node"
+	case state == StatePending:
+		why = "is waiting for approval in Settings → Nodes"
+	}
+	return &notConnectedError{msg: fmt.Sprintf("node %s %s", node, why)}
+}
+
+type notConnectedError struct{ msg string }
+
+func (e *notConnectedError) Error() string { return e.msg }
+func (e *notConnectedError) Unwrap() error { return ErrNotConnected }
 
 var _ Caller = (*Hub)(nil)
 
