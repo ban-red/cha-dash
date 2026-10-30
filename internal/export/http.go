@@ -172,7 +172,7 @@ func (h handler) auditSecurity(r *http.Request, p *Plan, refusal error) {
 		tier := authz.T1
 		for _, f := range c.Fields {
 			params[strings.TrimPrefix(f.Path, "/")] = f.To
-			if f.Path == "/step_up" {
+			if f.Path == "/step_up" || strings.HasPrefix(f.Path, "/sign_in") {
 				tier = authz.T3
 			}
 		}

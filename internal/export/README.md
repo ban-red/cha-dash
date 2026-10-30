@@ -106,7 +106,7 @@ secrets_bundle:            # only in a full backup (--with-secrets)
 | `.tls` | no | `{mode: verify\|pin\|tofu\|insecure, pin: <sha256>}`. `tls` inside `config` (the stored shape) is accepted on import too, but not both |
 | `.secrets` | no | `<field>: !secret <vault name>` for every secret field that's set. `${secret:<vault name>}` is accepted on import. **Anything else is refused** |
 | `settings` | no | Carried settings rows, by key: the import records (`import/<source>`), which keep what an import made beyond the board (explicit links, discovery hints, board settings, the instance ids for stale reports). Other keys are this hub's own state and stay |
-| `security` | no | `posture` (`relaxed`, `standard`, `strict`) and `step_up` (`passkey_or_password`, `passkey_only`), both required when the key is there. Written in every export, with the defaults when never changed. No key on import leaves the hub's settings alone. See below |
+| `security` | no | `posture` (`relaxed`, `standard`, `strict`) and `step_up` (`passkey_or_password`, `passkey_only`), both required when the key is there. Written in every export, with the defaults when never changed. No key on import leaves the hub's settings alone. Optional `sign_in`: Settings → Security → Sign-in (`oidc`, `forward_auth`, `mappings`, `provision`, `hide_password_form`), written once the owner has saved it, never with the client secret, checked as the settings API checks it; without it the hub's sign-in settings stay. See below |
 | `correlation` | no | The owner's correlation decisions, one per pair: `from`, `rel` (`same_as`, `runs_on`, `routes_to`, `stores_on`, `depends_on`, `monitors`), `to`, `verdict` (`confirm` or `reject`) and the `rule` that suggested it. Written in every export (`[]` when there are none), sorted, same_as pairs smaller ID first. No key on import leaves the hub's decisions alone. See below |
 | `secrets_bundle` | no | The encrypted values of a full backup (below) |
 
@@ -300,11 +300,11 @@ done.
 `extras.go` is the only place that knows about them.
 
 - **Security** is one change, kind `security`, ID `security`, with field
-  changes `/posture` and `/step_up` between what's in force (a missing or
-  unknown row reads as its default) and the file. Changing them through an
-  import follows Settings → Security's rule, decided by
+  changes `/posture`, `/step_up` and `/sign_in/…` between what's in force (a
+  missing or unknown row reads as its default) and the file. Changing them
+  through an import follows Settings → Security's rule, decided by
   `authz.ChangeSecuritySettings`: **the owner only**, and a different
-  step-up rule needs a step-up grant (T3). The API passes that rule in with
+  step-up rule or different sign-in settings need a step-up grant (T3). The API passes that rule in with
   `WithSecurityGate`. Refused, the change stays in the plan with its fields,
   action `unchanged` and `skipped` (the sentence), a `security_skipped`
   warning says why, and the rest of the file imports. An applied change, or

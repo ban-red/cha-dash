@@ -53,8 +53,10 @@ func closeSocketsOnAuthEvents(a *auth.Service, h *realtime.Hub) {
 }
 
 // auditAuthEvents records the signed-in user's own security changes:
-// passkeys added, renamed or removed, and step-ups granted or failed.
-// Names and IDs only; never key material or what was typed.
+// passkeys added, renamed or removed, step-ups granted or failed, and
+// linked identities; and sign-ins through OIDC or forward-auth, refused
+// ones included, and forward-auth headers from an untrusted peer.
+// Names and IDs only; never key material, tokens or what was typed.
 func auditAuthEvents(a *auth.Service, rec *authz.Recorder) {
 	a.OnEvent(func(e auth.Event) { auditAuthEvent(rec, e) })
 }
@@ -77,5 +79,36 @@ func auditAuthEvent(rec *authz.Recorder, e auth.Event) {
 	case auth.EventStepUpFailed:
 		rec.Refuse(r, "auth.step-up", "session:"+e.SessionID, map[string]string{"reason": e.Reason}, authz.T0,
 			"step_up_failed", "That didn't confirm it's you.")
+	case auth.EventSignedIn:
+		// Password and passkey sign-ins aren't audited (AuditExempt); a
+		// sign-in through the provider or a proxy is, since it can create
+		// an account and change a role.
+		switch e.Method {
+		case auth.MethodOIDC:
+			rec.Change(r, "auth.oidc.signin", "session:"+e.SessionID, nil, authz.T0, nil)
+		case auth.MethodForwardAuth:
+			rec.Change(r, "auth.forward.signin", "session:"+e.SessionID, nil, authz.T0, nil)
+		}
+	case auth.EventSignInRefused:
+		action := "auth.oidc.refused"
+		params := map[string]string{"reason": e.Reason}
+		if e.Method == auth.MethodForwardAuth {
+			action = "auth.forward.refused"
+			params["username"] = e.Subject
+		}
+		target := ""
+		if e.UserID != "" {
+			target = "user:" + e.UserID
+		}
+		rec.RefuseAnonymous(r, e.IP, action, target, params, authz.T0, "sign_in_refused", "The sign-in was refused: "+e.Reason+".")
+	case auth.EventIdentityLinked:
+		if e.Method == auth.MethodForwardAuth {
+			rec.Change(r, "auth.forward.link", "user:"+e.UserID, map[string]string{"username": e.Subject}, authz.T3, nil)
+			return
+		}
+		rec.Change(r, "auth.oidc.link", "user:"+e.UserID, map[string]string{"issuer": e.Issuer, "subject": e.Subject}, authz.T3, nil)
+	case auth.EventForwardAuthUntrusted:
+		rec.RefuseAnonymous(r, e.IP, "auth.forward.untrusted", "", map[string]string{"peer": e.IP}, authz.T0,
+			"untrusted_proxy", "Forward-auth headers came from a peer that isn't in CHADASH_TRUSTED_PROXIES; they were ignored.")
 	}
 }

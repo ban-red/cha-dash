@@ -27,6 +27,8 @@ import (
 //	security:
 //	  posture: standard              # relaxed, standard or strict (internal/security)
 //	  step_up: passkey_or_password   # or passkey_only
+//	  sign_in:                       # optional: OIDC, forward-auth, group mappings; never the client secret
+//	    oidc: {enabled: true, name: Pocket ID, issuer: "https://id.lab.example", client_id: dash, …}
 //	correlation:                     # the owner's answers to "these look like the same thing"
 //	  - {from: docker:i_d/container/sonarr, rel: same_as, to: unraid:i_u/container/sonarr, verdict: confirm, rule: name}
 //
@@ -34,8 +36,9 @@ import (
 // without a correlation key leaves its decisions alone. On import:
 //
 //   - security is one "security" change with field-level changes (/posture,
-//     /step_up). Only the owner may import it, and a different step-up rule
-//     needs a step-up grant, as in Settings → Security
+//     /step_up, /sign_in/…). Only the owner may import it, and a different
+//     step-up rule or different sign-in settings need a step-up grant, as in
+//     Settings → Security. A file without sign_in leaves the hub's alone
 //     (authz.ChangeSecuritySettings, through WithSecurityGate). Refused, it's
 //     reported with skipped and a security_skipped warning, and the rest of
 //     the file still imports.
@@ -50,6 +53,9 @@ import (
 type Security struct {
 	Posture string
 	StepUp  string
+	// SignIn is the sign-in settings as canonical JSON
+	// (security.CanonicalSignIn); "" in a file that doesn't carry them.
+	SignIn string
 }
 
 // Decision is one correlation decision: a pair, the relation and the
@@ -78,7 +84,8 @@ func validRel(rel string) bool {
 }
 
 // readSecurity reads the settings in force: a missing or unknown row reads
-// as its default, as internal/security does.
+// as its default, as internal/security does, except the sign-in settings,
+// which stay "" until the owner has saved some (an export then leaves them out).
 func readSecurity(ctx context.Context, q querier) (Security, error) {
 	sec := Security{Posture: string(security.Default), StepUp: string(auth.DefaultStepUpMode)}
 	for _, f := range []struct {
@@ -101,6 +108,16 @@ func readSecurity(ctx context.Context, q querier) (Security, error) {
 		if json.Unmarshal([]byte(raw), &v) == nil && f.valid(v) {
 			*f.dst = v
 		}
+	}
+	var raw string
+	err := q.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, security.SignInKey).Scan(&raw)
+	switch {
+	case err == nil:
+		if set, perr := security.ParseSignIn([]byte(raw)); perr == nil {
+			sec.SignIn = security.CanonicalSignIn(set)
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return sec, err
 	}
 	return sec, nil
 }
@@ -141,7 +158,14 @@ func securityGate(ctx context.Context) func(bool) error {
 }
 
 func (s Security) view() map[string]any {
-	return map[string]any{"posture": s.Posture, "step_up": s.StepUp}
+	v := map[string]any{"posture": s.Posture, "step_up": s.StepUp}
+	if s.SignIn != "" {
+		var m any
+		if json.Unmarshal([]byte(s.SignIn), &m) == nil {
+			v["sign_in"] = m
+		}
+	}
+	return v
 }
 
 // compareSecurity plans the security change.
@@ -154,7 +178,13 @@ func (s *Service) compareSecurity(ctx context.Context, q querier, d *Document, w
 	if err != nil {
 		return fmt.Errorf("export: security settings: %w", err)
 	}
+	if cur.SignIn == "" {
+		cur.SignIn = security.CanonicalSignIn(auth.DefaultSignIn())
+	}
 	want := *d.Security
+	if want.SignIn == "" {
+		want.SignIn = cur.SignIn // the file leaves them alone
+	}
 	c := Change{}
 	c.Kind, c.ID, c.Name = "security", "security", "Security"
 	if cur == want {
@@ -165,7 +195,7 @@ func (s *Service) compareSecurity(ctx context.Context, q querier, d *Document, w
 	c.Action = actionUpdate
 	c.diff("", cur.view(), want.view())
 	if gate := securityGate(ctx); gate != nil {
-		if err := gate(cur.StepUp != want.StepUp); err != nil {
+		if err := gate(cur.StepUp != want.StepUp || cur.SignIn != want.SignIn); err != nil {
 			c.Action, c.Skipped = actionUnchanged, err.Error()
 			p.Warnings = append(p.Warnings, Warning{Code: "security_skipped", Kind: "security", ID: "security", Message: err.Error()})
 			p.Changes = append(p.Changes, c)
@@ -240,10 +270,17 @@ func instanceOfRID(id string) string {
 // import's transaction.
 func writeExtras(ctx context.Context, tx *sql.Tx, w *work, userID string, now int64) error {
 	if w.security != nil {
+		rows := map[string]string{}
 		for key, v := range map[string]string{security.SettingsKey: w.security.Posture, security.StepUpKey: w.security.StepUp} {
 			b, _ := json.Marshal(v)
+			rows[key] = string(b)
+		}
+		if w.security.SignIn != "" {
+			rows[security.SignInKey] = w.security.SignIn
+		}
+		for key, v := range rows {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-				ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, key, string(b), now); err != nil {
+				ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, key, v, now); err != nil {
 				return fmt.Errorf("export: setting %s: %w", key, err)
 			}
 		}
@@ -271,8 +308,12 @@ func newDecisionID() string { return "cd_" + strings.ToLower(rand.Text()) }
 func (p *parser) security(n *yaml.Node) *Security {
 	s := &Security{}
 	var sawPosture, sawStepUp bool
-	p.fields(n, "security", []string{"posture", "step_up"}, func(key string, v *yaml.Node) {
+	p.fields(n, "security", []string{"posture", "step_up", "sign_in"}, func(key string, v *yaml.Node) {
 		kp := "security." + key
+		if key == "sign_in" {
+			s.SignIn = p.signIn(v, kp)
+			return
+		}
 		val, ok := p.scalar(v, kp)
 		if !ok {
 			return
@@ -298,6 +339,31 @@ func (p *parser) security(n *yaml.Node) *Security {
 		p.fail(n, "security", "needs posture and step_up")
 	}
 	return s
+}
+
+// signIn reads security.sign_in: the settings as Settings → Sign-in saves
+// them, checked the same way. A client secret has no place in it.
+func (p *parser) signIn(n *yaml.Node, path string) string {
+	if n.Kind != yaml.MappingNode {
+		p.fail(n, path, "must be a mapping")
+		return ""
+	}
+	var v any
+	if err := n.Decode(&v); err != nil {
+		p.fail(n, path, "can't be read: %v", err)
+		return ""
+	}
+	raw, err := json.Marshal(v)
+	if err != nil {
+		p.fail(n, path, "can't be read: %v", err)
+		return ""
+	}
+	set, err := security.ParseSignIn(raw)
+	if err != nil {
+		p.fail(n, path, "%s", err.Error())
+		return ""
+	}
+	return security.CanonicalSignIn(set)
 }
 
 // correlation reads the correlation key: a list of decisions, each pair at

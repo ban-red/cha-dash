@@ -22,9 +22,10 @@ Homelabs that run Authelia, Authentik, Pocket ID, Keycloak or Kanidm expect ever
 
 - Two new tables (linked identities and short-lived login states) and a new sign-in event for the audit log and the socket rules.
 - New public routes for starting and finishing a sign-in, owner-only settings routes, and link/unlink routes for the signed-in user.
-- go-oidc and go-jose add to the hub binary. The size budget check in CI has to stay green.
+- go-oidc and go-jose add to the hub binary. The size budget check in CI has to stay green. (See the implementation note: neither was needed.)
 - Providers that don't send `auth_time` can't do step-up for users without a passkey. The settings page tests for it and says so.
 - Multiple providers, back-channel logout and SCIM are left for later.
+- **Implementation note (wave 13, 2026-10-30).** The client uses the standard library plus `golang-jwt/jwt/v5`, not go-oidc and x/oauth2. golang-jwt was already in the module graph through go-webauthn, so OIDC adds no module and the binary barely grows. The rest of this decision stands.
 
 ## Alternatives considered
 

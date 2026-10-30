@@ -160,3 +160,44 @@ func TestViewNotes(t *testing.T) {
 		t.Fatalf("notes = %v", v.Notes)
 	}
 }
+
+// The sign-in settings survive a restart and a Reload, an invalid row reads
+// as the defaults (OIDC and forward-auth off), and unknown fields are refused.
+func TestSignInSettings(t *testing.T) {
+	st := openStore(t)
+	s, err := New(t.Context(), st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set := s.SignIn(); set.OIDC.Enabled || set.ForwardAuth.UserHeader != auth.DefaultUserHeader {
+		t.Fatalf("defaults = %+v", set)
+	}
+	want := auth.DefaultSignIn()
+	want.ForwardAuth.Enabled = true
+	want.Mappings = []auth.GroupMapping{{Group: "lab-ops", Role: auth.RoleOperator}}
+	if err := s.SetSignIn(t.Context(), want); err != nil {
+		t.Fatal(err)
+	}
+	again, err := New(t.Context(), st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set := again.SignIn(); !set.ForwardAuth.Enabled || len(set.Mappings) != 1 {
+		t.Fatalf("after a restart = %+v", set)
+	}
+	if _, err := st.Writer().Exec(`UPDATE settings SET value = '{"mappings":[{"group":"x","role":"owner"}]}' WHERE key = ?`, SignInKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := again.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if set := again.SignIn(); set.ForwardAuth.Enabled || len(set.Mappings) != 0 {
+		t.Fatalf("an invalid row = %+v", set)
+	}
+	if _, err := ParseSignIn([]byte(`{"client_secret":"FAKE"}`)); err == nil {
+		t.Fatal("a client secret was accepted in the settings")
+	}
+	if s.hasClientSecret(t.Context()) {
+		t.Fatal("no vault, but a secret")
+	}
+}

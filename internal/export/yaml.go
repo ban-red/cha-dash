@@ -132,6 +132,14 @@ func Encode(d *Document) ([]byte, error) {
 		n := mapping()
 		add(n, "posture", str(s.Posture))
 		add(n, "step_up", str(s.StepUp))
+		if s.SignIn != "" {
+			si, err := jsonToNode(json.RawMessage(s.SignIn))
+			if err != nil {
+				return nil, fmt.Errorf("export: sign-in settings: %w", err)
+			}
+			si.Style = 0
+			add(n, "sign_in", si)
+		}
 		add(root, "security", n)
 	}
 	if d.Correlation != nil {

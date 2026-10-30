@@ -28,6 +28,9 @@
 //	GET|PUT /api/onboarding, POST /api/onboarding/discover   first-run wizard (admin; see onboarding)
 //	GET  /api/settings/security    security posture, step-up rule and their options (viewer)
 //	PUT  /api/settings/security    {posture?, step_up?}; step_up needs a step-up (owner)
+//	GET|PUT /api/settings/sign-in, POST …/test   OIDC, forward-auth, group mappings (owner;
+//	                               PUT needs a step-up; security.Service.RegisterSignIn)
+//	GET|DELETE /api/auth/identities…, POST …/forward-auth   your linked sign-ins (authz.Identities)
 //	GET  /api/demo             demo clock and seed; demo mode only (session)
 //	POST /api/actions/plan, POST /api/plans/{id}/approve, GET /api/tasks/{id},
 //	POST /api/tasks/{id}/cancel, GET /api/actions?target=
@@ -206,6 +209,11 @@ func New(d Deps) (http.Handler, error) {
 	users := authz.NewUsers(d.Auth, d.Log)
 	users.Audit = rec
 	users.Register(mux, session)
+	// Linked sign-ins (OIDC, forward-auth): linking needs a step-up.
+	d.Auth.SetLinkCheck(authz.LinkCheck(time.Now))
+	idents := authz.NewIdentities(d.Auth, d.Log)
+	idents.Audit = rec
+	idents.Register(mux, session)
 	bans := authz.NewBans(d.Auth, d.Log)
 	bans.Audit = rec
 	bans.Register(mux, session)
@@ -278,6 +286,10 @@ func New(d Deps) (http.Handler, error) {
 		d.Security.Audit = rec
 		d.Security.Register(mux, session, session)
 		d.Auth.SetStepUpMode(d.Security.StepUp)
+		// Settings → Security → Sign-in: OIDC and forward-auth.
+		d.Security.Vault = d.Vault
+		d.Security.RegisterSignIn(mux, session, d.Auth, d.Proxies.Configured())
+		d.Auth.SetSignIn(d.Security.SignIn, d.Security.ClientSecret)
 	}
 	if d.Actions != nil {
 		d.Actions.Register(mux, d.Auth.Require, d.Log)
@@ -334,6 +346,9 @@ func New(d Deps) (http.Handler, error) {
 
 	var h http.Handler = authz.Guard(mux, d.Auth, d.Log)
 	h = compressAPI(h)
+	// Forward-auth headers: honoured from trusted proxies, stripped from
+	// everyone else, before any handler.
+	h = d.Auth.ForwardAuth(h)
 	h = cop.Handler(h)
 	h = httpx.Recover(d.Log)(h)
 	if d.ProxyCheck != nil {

@@ -74,6 +74,14 @@ var Audited = map[string]string{
 	"DELETE /api/tokens/{id}":                      "tokens.revoke",
 	"POST /api/approvals/{id}/approve":             "approval.approve",
 	"POST /api/approvals/{id}/deny":                "approval.deny",
+
+	// Sign-in settings and linked sign-ins (wave 13). Sign-ins through the
+	// provider or a proxy are auth events, audited by the server
+	// (auth.oidc.signin, auth.oidc.refused, auth.oidc.link,
+	// auth.forward.signin, auth.forward.refused, auth.forward.untrusted).
+	"PUT /api/settings/sign-in":                      "settings.sign_in.update",
+	"DELETE /api/auth/identities/{issuer}/{subject}": "auth.oidc.unlink", // auth.forward.unlink for a proxy username
+	"POST /api/auth/identities/forward-auth":         "auth.forward.link",
 }
 
 // AuditExempt maps each unsafe route that records nothing to why.
@@ -100,4 +108,5 @@ var AuditExempt = map[string]string{
 	"POST /api/notify/push/subscriptions":        "The caller's own device subscribing to its own notifications.",
 	"DELETE /api/notify/push/subscriptions/{id}": "The caller's own device.",
 	"POST /api/notify/push/unsubscribe":          "The caller's own device.",
+	"POST /api/settings/sign-in/test":            "Reads the provider's discovery document and starts a test sign-in that signs nobody in; saving the settings is audited.",
 }

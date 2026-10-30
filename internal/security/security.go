@@ -21,6 +21,10 @@
 // confirm destructive actions, a passkey or the password fallback
 // (auth.StepUpMode). auth reads it through StepUp; changing it is a T3
 // change, so it needs a step-up under the rule in force.
+//
+// And the sign-in settings (SignInKey, signin.go): the OIDC provider,
+// forward-auth and their group mappings, with the client secret in the
+// vault. auth reads them through SignIn and ClientSecret.
 package security
 
 import (
@@ -39,6 +43,7 @@ import (
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/store"
+	"dash.cha.sh/internal/vault"
 )
 
 // Posture is a security level's ID.
@@ -110,11 +115,15 @@ type Service struct {
 	// ProxyNotes reports reverse-proxy problems the hub has noticed
 	// (httpx.ProxyCheck). Nil reports none.
 	ProxyNotes func() []httpx.ProxyNote
+	// Vault keeps the OIDC client secret (signin.go). Nil: no secret can
+	// be stored, and public clients still work.
+	Vault *vault.Vault
 
 	set    sync.Mutex // serialises Set: the row and the subscribers change in order
 	mu     sync.Mutex
 	cur    Posture
 	stepUp auth.StepUpMode
+	signIn auth.SignInSettings
 	subs   []func(Posture)
 }
 
@@ -124,7 +133,10 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger) (*Service, erro
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	s := &Service{st: st, log: log, now: time.Now, cur: Default, stepUp: auth.DefaultStepUpMode}
+	s := &Service{st: st, log: log, now: time.Now, cur: Default, stepUp: auth.DefaultStepUpMode, signIn: auth.DefaultSignIn()}
+	if err := s.loadSignIn(ctx); err != nil {
+		return nil, fmt.Errorf("security: reading the sign-in settings: %w", err)
+	}
 	if v, ok, err := s.load(ctx, SettingsKey); err != nil {
 		return nil, fmt.Errorf("security: reading the posture: %w", err)
 	} else if ok {
@@ -145,6 +157,8 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger) (*Service, erro
 	}
 	return s, nil
 }
+
+func isNoRows(err error) bool { return errors.Is(err, sql.ErrNoRows) }
 
 // load reads a settings row holding a JSON string. A row that isn't one
 // reads as the string "?", which no setting accepts.
@@ -257,11 +271,14 @@ func (s *Service) Set(ctx context.Context, p Posture) error {
 	return nil
 }
 
-// Reload re-reads both settings from the settings table, for when something
+// Reload re-reads the settings from the settings table, for when something
 // else wrote them (a Home file import, internal/export). A changed posture
 // is applied as Set applies it; an unknown or missing row keeps what's in
-// force.
+// force, except the sign-in settings, which read as their defaults.
 func (s *Service) Reload(ctx context.Context) error {
+	if err := s.loadSignIn(ctx); err != nil {
+		return fmt.Errorf("security: reading the sign-in settings: %w", err)
+	}
 	if v, ok, err := s.load(ctx, StepUpKey); err != nil {
 		return fmt.Errorf("security: reading the step-up rule: %w", err)
 	} else if m, known := auth.ParseStepUpMode(v); ok && known {

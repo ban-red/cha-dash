@@ -49,9 +49,26 @@ func (c *Recorder) Refuse(r *http.Request, action, target string, params any, ti
 	c.record(r, action, target, params, tier, &audit.Error{Code: code, Message: message})
 }
 
+// RefuseAnonymous records a refusal nobody signed in asked for: a sign-in
+// through the provider or a proxy that was turned away, or a proxy that
+// isn't trusted. The actor is kind anonymous, at ip.
+func (c *Recorder) RefuseAnonymous(r *http.Request, ip, action, target string, params any, tier Tier, code, message string) {
+	if c == nil || c.Log == nil {
+		return
+	}
+	c.recordAs(r, audit.Actor{Kind: KindAnonymous, Via: "web", IP: ip}, action, target, params, tier, &audit.Error{Code: code, Message: message})
+}
+
+// KindAnonymous is the audit actor of a request with no identity.
+const KindAnonymous = "anonymous"
+
 func (c *Recorder) record(r *http.Request, action, target string, params any, tier Tier, refusal *audit.Error) {
 	a, _ := ActorFrom(r)
-	e := audit.Entry{Actor: AuditActor(a), Action: action, Target: target, Tier: string(tier), Result: audit.OK}
+	c.recordAs(r, AuditActor(a), action, target, params, tier, refusal)
+}
+
+func (c *Recorder) recordAs(r *http.Request, actor audit.Actor, action, target string, params any, tier Tier, refusal *audit.Error) {
+	e := audit.Entry{Actor: actor, Action: action, Target: target, Tier: string(tier), Result: audit.OK}
 	if params != nil {
 		if raw, err := json.Marshal(params); err == nil {
 			e.Params = raw

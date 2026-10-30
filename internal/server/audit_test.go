@@ -129,6 +129,11 @@ var provenElsewhere = map[string]string{
 	"POST /api/stacks/hooks":                       "stacks.TestHookRoutes",
 	"POST /api/stacks/hooks/{id}/rotate":           "stacks.TestHookRoutes",
 	"DELETE /api/stacks/hooks/{id}":                "stacks.TestHookRoutes",
+
+	// Sign-in (wave 13): signin_test.go.
+	"PUT /api/settings/sign-in":                      "TestSignInSettingsAPI",
+	"DELETE /api/auth/identities/{issuer}/{subject}": "TestLinkedIdentitiesAPI",
+	"POST /api/auth/identities/forward-auth":         "TestLinkedIdentitiesAPI",
 }
 
 // Every route authz.Audited lists records its action: here, by calling it

@@ -158,6 +158,50 @@ func TestHTTPImportSecurityNeedsTheOwner(t *testing.T) {
 	}
 }
 
+// The sign-in settings travel with the security settings, never the client
+// secret; importing them asks the gate for a step-up; a file without them
+// leaves the hub's alone; a bad one fails to parse.
+func TestSignInSettingsRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	h := newHub(t)
+	h.exec(t, `INSERT INTO settings (key, value, updated_at) VALUES ('security.sign_in', '{"oidc":{"enabled":true,"name":"Pocket ID","issuer":"https://id.lab.example","client_id":"dash"},"mappings":[{"group":"lab-ops","role":"operator"}]}', 1)`)
+	out, err := h.svc.Export(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(out.Data)
+	if !strings.Contains(text, "sign_in:\n") || !strings.Contains(text, "https://id.lab.example") || strings.Contains(text, "client_secret") {
+		t.Fatalf("export:\n%s", text)
+	}
+
+	other := newHub(t)
+	var asked []bool
+	gated := WithSecurityGate(ctx, func(stepUp bool) error { asked = append(asked, stepUp); return nil })
+	if _, err := other.svc.Apply(gated, parse(t, out.Data), "", "u_owner"); err != nil {
+		t.Fatal(err)
+	}
+	if len(asked) != 1 || !asked[0] {
+		t.Fatalf("gate asked %v; changing sign-in needs a step-up", asked)
+	}
+	var raw string
+	if err := other.st.Reader().QueryRow(`SELECT value FROM settings WHERE key = 'security.sign_in'`).Scan(&raw); err != nil || !strings.Contains(raw, `"issuer":"https://id.lab.example"`) {
+		t.Fatalf("imported = %s, %v", raw, err)
+	}
+
+	// A file without sign_in: no change to them.
+	plan, err := other.svc.Plan(ctx, parse(t, []byte(extrasFile)), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := change(t, plan, "security", "security"); strings.Contains(jsonOf(t, c.Fields), "sign_in") {
+		t.Fatalf("security = %s", jsonOf(t, c.Fields))
+	}
+	bad := strings.Replace(extrasFile, "  step_up: passkey_only\n", "  step_up: passkey_only\n  sign_in:\n    mappings: [{group: x, role: owner}]\n", 1)
+	if _, err := Parse([]byte(bad)); err == nil || !strings.Contains(err.Error(), "owner role never comes from a group") {
+		t.Fatalf("parse = %v", err)
+	}
+}
+
 func TestParseSecurityAndDecisions(t *testing.T) {
 	head := "apiVersion: chadash/v1alpha1\nkind: Home\n"
 	for _, c := range []struct{ yaml, want string }{

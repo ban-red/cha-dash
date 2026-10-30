@@ -30,6 +30,9 @@ func (p Proxies) isTrusted(a netip.Addr) bool {
 	return false
 }
 
+// Configured reports whether any proxy is trusted.
+func (p Proxies) Configured() bool { return len(p.trusted) > 0 }
+
 // ViaTrusted reports whether the request's TCP peer is a trusted proxy.
 func (p Proxies) ViaTrusted(r *http.Request) bool {
 	peer := PeerAddr(r)

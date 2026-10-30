@@ -145,6 +145,10 @@ var Routes = []Route{
 	{Pattern: "POST /api/auth/dev-login", Access: Public, Optional: true}, // -tags devlogin, loopback only
 	{Pattern: "/api/", Access: Public},                                    // the API's 404
 	{Pattern: "/", Access: Public},                                        // the web app; first paint checks the session itself
+	// OIDC sign-in (wave 13): browser redirects to and from the provider.
+	// Linking and step-up through them check the session themselves.
+	{Pattern: "GET /api/auth/oidc/start", Access: Public},
+	{Pattern: "GET /api/auth/oidc/callback", Access: Public},
 
 	// chadash-node's channel: authenticated by the node's pinned key inside
 	// mutual TLS, never by a session (internal/nodes).
@@ -160,6 +164,11 @@ var Routes = []Route{
 	{Pattern: "DELETE /api/auth/passkeys/{id}", Access: SignedIn},
 	{Pattern: "POST /api/auth/step-up/begin", Access: SignedIn},
 	{Pattern: "POST /api/auth/step-up", Access: SignedIn},
+	// Your own linked sign-ins (wave 13): every role lists and unlinks its
+	// own, with a step-up (identities.go).
+	{Pattern: "GET /api/auth/identities", Access: SignedIn},
+	{Pattern: "DELETE /api/auth/identities/{issuer}/{subject}", Access: SignedIn},
+	{Pattern: "POST /api/auth/identities/forward-auth", Access: SignedIn},
 
 	// Boards and live data.
 	{Pattern: "GET /api/boards", Access: SignedIn, Token: ScopeGraphRead},
@@ -245,6 +254,11 @@ var Routes = []Route{
 	{Pattern: "PUT /api/settings/history", Access: Admin},
 	{Pattern: "POST /api/settings/history/clear", Access: Admin},
 	{Pattern: "PUT /api/settings/security", Access: Owner},
+	// Settings → Security → Sign-in (wave 13): OIDC, forward-auth and the
+	// group mappings are the owner's; changing them needs a step-up.
+	{Pattern: "GET /api/settings/sign-in", Access: Owner},
+	{Pattern: "PUT /api/settings/sign-in", Access: Owner},
+	{Pattern: "POST /api/settings/sign-in/test", Access: Owner},
 
 	// Settings → Users. An admin manages everyone but the owner (users.go);
 	// handing over ownership is the owner's, and T3.
@@ -252,6 +266,8 @@ var Routes = []Route{
 	{Pattern: "POST /api/users", Access: Admin},
 	{Pattern: "PUT /api/users/{id}", Access: Admin},
 	{Pattern: "POST /api/users/{id}/transfer-ownership", Access: Owner},
+	// Someone's linked sign-ins, read only, for support (wave 13).
+	{Pattern: "GET /api/users/{id}/identities", Access: Admin},
 	// Addresses banned after too many wrong passwords (Settings → Users).
 	{Pattern: "GET /api/bans", Access: Admin},
 	{Pattern: "DELETE /api/bans/{ip}", Access: Admin},
