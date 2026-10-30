@@ -203,11 +203,12 @@ describe('Settings → Integrations', () => {
     h.mountIn(IntegrationsPane);
     await flushPromises();
     const rows = [...document.body.querySelectorAll('.st-row')].map((r) => r.textContent?.replace(/\s+/g, ' ').trim());
-    expect(rows[0]).toContain('Checks');
-    expect(rows[0]).toContain('1 warning');
-    expect(rows[0]).toContain('Reading');
-    expect(rows[1]).toContain('Plex rejected its token since 13:27.');
-    expect(rows[1]).toContain('Needs repair');
+    // Trouble first: the repair sits above the healthy instance.
+    expect(rows[0]).toContain('Plex rejected its token since 13:27.');
+    expect(rows[0]).toContain('Needs repair');
+    expect(rows[1]).toContain('Checks');
+    expect(rows[1]).toContain('1 warning');
+    expect(rows[1]).toContain('Reading');
   });
 
   it('shows the catalog to add from', async () => {

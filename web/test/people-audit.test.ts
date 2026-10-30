@@ -373,12 +373,12 @@ describe('Settings by role', () => {
     const $ = (sel: string) => [...document.querySelectorAll(sel)].map((e) => e.textContent?.trim());
     const o = sheetFor('owner');
     await settle();
-    expect($('.st-nav a span')).toEqual(['Integrations', 'Stacks', 'Nodes', 'Bring in', 'Backup', 'History', 'Users', 'Audit', 'Notifications', 'API tokens', 'Security']);
+    expect($('.st-nav a span')).toEqual(['Integrations', 'Stacks', 'Nodes', 'Bring in', 'Backup', 'History', 'Users', 'API tokens', 'Security', 'Notifications', 'Audit']);
     o.w.unmount();
     document.body.innerHTML = '';
     sheetFor('admin', '/settings/security');
     await settle();
-    expect($('.st-nav a small').at(-1)).toBe('passkeys');
+    expect($('.st-nav a[href$="/security"] small')).toEqual(['passkeys']);
     const pane = document.querySelector('.st-pane')!.textContent!;
     expect(pane).not.toContain('Security level');
     expect(pane).not.toContain('Confirming destructive actions');

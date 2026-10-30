@@ -351,6 +351,15 @@ async function remove(): Promise<void> {
 }
 
 const nowMs = Date.now();
+
+const testPassed = computed(() => test.value.state === 'done' && test.value.result.ok);
+/** The add flow as three steps: where you are is the first one not done. */
+const steps = computed(() => {
+  const credential = !recipe.value || Object.keys(config.value).length > 0 || Object.values(secrets).some((v) => v !== '');
+  const filled = Object.keys(errors.value).length === 0;
+  const at = !credential ? 0 : !filled ? 1 : !testPassed.value ? 2 : 3;
+  return [recipe.value ? 'Make a credential' : 'Find the address', 'Fill in the details', 'Test, then save'].map((label, i) => ({ label, state: i < at ? 'done' : i === at ? 'now' : 'next' }));
+});
 const nameError = computed(() => (showAll.value || touched.has('name') ? errors.value['name'] : undefined));
 </script>
 
@@ -408,6 +417,12 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
         </li>
       </ul>
 
+      <ol v-if="isNew" class="ed-steps" aria-label="Steps">
+        <li v-for="(st, i) in steps" :key="st.label" :class="st.state" :aria-current="st.state === 'now' ? 'step' : undefined">
+          <span class="n" aria-hidden="true">{{ st.state === 'done' ? '✓' : i + 1 }}</span>{{ st.label }}<span v-if="st.state === 'done'" class="sr"> (done)</span>
+        </li>
+      </ol>
+
       <div :class="['ed-grid', { 'has-recipe': recipe }]">
         <div class="ed-main">
           <form class="st-form" novalidate :aria-label="isNew ? `Add ${kindName}` : `Edit ${detail?.name}`" @submit.prevent="save">
@@ -453,14 +468,20 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
             <p v-if="saveError" class="err" role="alert">{{ saveError }}</p>
 
             <div class="st-acts ed-acts">
-              <button type="button" class="btn" :disabled="test.state === 'running' || saving" :aria-busy="test.state === 'running'" @click="runTest">
+              <button type="button" :class="['btn', { primary: isNew && !testPassed }]" :disabled="test.state === 'running' || saving" :aria-busy="test.state === 'running'" @click="runTest">
                 {{ test.state === 'running' ? 'Testing…' : 'Test connection' }}
               </button>
-              <button type="submit" class="btn primary" :disabled="saving || (!isNew && !dirty)" :aria-busy="saving">
+              <button type="submit" :class="['btn', { primary: !isNew || testPassed }]" :disabled="saving || (!isNew && !dirty)" :aria-busy="saving">
                 {{ saving ? 'Saving…' : isNew ? 'Save' : 'Save changes' }}
               </button>
               <button v-if="!isNew && !confirmDelete" type="button" class="btn ghost ed-del" :disabled="saving" @click="confirmDelete = true">Delete…</button>
             </div>
+
+            <p v-if="isNew" class="help ed-hint">
+              <template v-if="testPassed">Connected. Save to start reading it.</template>
+              <template v-else-if="test.state === 'done'">The test failed, but you can still save and fix it later.</template>
+              <template v-else>Testing saves nothing. Try it first.</template>
+            </p>
 
             <div v-if="confirmDelete" class="st-confirm" role="alertdialog" aria-labelledby="del-q">
               <span id="del-q">Delete <b>{{ detail?.name }}</b>? Its tiles stop updating, and its stored secrets are erased from the vault.</span>
@@ -479,6 +500,7 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
           </div>
         </div>
         <div v-if="recipe" class="ed-aside">
+          <a class="ed-skip" href="#f-name" @click.prevent="focusField_('name')">Skip to the form ↓</a>
           <RecipePanel
             :recipe="recipe"
             :form="config"
@@ -520,7 +542,52 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
   color: var(--text);
 }
 .ed-acts {
-  padding-top: var(--space-2);
+  /* Save and Test stay in reach on a long form. */
+  position: sticky;
+  bottom: calc(-1 * var(--space-6));
+  z-index: 1;
+  margin-top: var(--space-2);
+  padding: var(--space-3) 0;
+  background: var(--bg);
+  border-top: var(--hairline) solid var(--line);
+}
+.ed-hint {
+  margin: 0;
+}
+.ed-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font: var(--weight-medium) var(--type-small) / 1 var(--font-ui);
+  color: var(--text-3);
+}
+.ed-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ed-steps .n {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-full);
+  font: 600 11px/1 var(--font-num);
+}
+.ed-steps .now {
+  color: var(--text);
+}
+.ed-steps .now .n {
+  background: var(--text);
+  border-color: transparent;
+  color: var(--bg);
+}
+.ed-steps .done {
+  color: var(--text-2);
 }
 .ed-del {
   margin-left: auto;
@@ -545,6 +612,20 @@ const nameError = computed(() => (showAll.value || touched.has('name') ? errors.
 }
 .ed-main .st-form {
   max-width: none;
+}
+.ed-skip {
+  display: none;
+  margin-bottom: var(--space-2);
+  font-size: var(--type-small);
+  color: var(--text-3);
+}
+@media (max-width: 1179px) {
+  .ed-grid.has-recipe .ed-aside {
+    order: -1;
+  }
+  .ed-skip {
+    display: inline-block;
+  }
 }
 /* Wide enough for the recipe beside the form: the sheet widens to make room. */
 @media (min-width: 1180px) {

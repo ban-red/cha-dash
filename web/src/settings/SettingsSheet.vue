@@ -54,6 +54,16 @@ const PANES = computed(() =>
     p.id === 'security' && !ui.can.value.securitySettings ? { ...p, note: 'passkeys' } : p.id === 'notifications' && !ui.can.value.users ? { ...p, note: 'this device' } : p,
   ),
 );
+/** The nav in three groups, so eleven panes read as three decisions. A group with no pane for this role is left out. */
+const GROUPS: { label: string; ids: SettingsPane[] }[] = [
+  { label: 'Connect', ids: ['integrations', 'stacks', 'nodes', 'import'] },
+  { label: 'Keep', ids: ['backup', 'history'] },
+  { label: 'People & access', ids: ['users', 'tokens', 'security', 'notifications', 'audit'] },
+];
+const NAV = computed(() =>
+  GROUPS.map((g) => ({ label: g.label, panes: g.ids.flatMap((id) => PANES.value.filter((p) => p.id === id)) })).filter((g) => g.panes.length),
+);
+const note = computed(() => PANES.value.find((p) => p.id === pane.value)?.note ?? '');
 /** The route's pane, or the first one this role has. */
 const pane = computed<SettingsPane>(() => {
   const want = view.value.name === 'settings' ? view.value.pane : 'integrations';
@@ -114,6 +124,7 @@ onBeforeUnmount(() => {
           <div class="st-title">
             <span class="caps">Settings</span>
             <h2 id="settings-h">{{ title }}</h2>
+            <p v-if="note" class="st-sub">{{ note }}</p>
           </div>
           <button type="button" class="x" aria-label="Close settings" @click="close">
             <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
@@ -121,15 +132,18 @@ onBeforeUnmount(() => {
         </header>
         <div class="st-body">
           <nav class="st-nav" aria-label="Settings sections">
-            <a
-              v-for="p in PANES"
-              :key="p.id"
-              :href="settingsPath(p.id)"
-              :aria-current="pane === p.id ? 'page' : undefined"
-              @click.prevent="navigate(settingsPath(p.id), { replace: true })"
-            >
-              <span>{{ p.label }}</span><small>{{ p.note }}</small>
-            </a>
+            <div v-for="g in NAV" :key="g.label" class="st-group" role="group" :aria-label="g.label">
+              <span class="st-group-h" aria-hidden="true">{{ g.label }}</span>
+              <a
+                v-for="p in g.panes"
+                :key="p.id"
+                :href="settingsPath(p.id)"
+                :aria-current="pane === p.id ? 'page' : undefined"
+                @click.prevent="navigate(settingsPath(p.id), { replace: true })"
+              >
+                <span>{{ p.label }}</span><small>{{ p.note }}</small>
+              </a>
+            </div>
           </nav>
           <div class="st-pane">
             <IntegrationsPane v-if="pane === 'integrations'" />
@@ -206,6 +220,10 @@ onBeforeUnmount(() => {
   font: var(--weight-medium) var(--type-title-2) / 1.1 var(--font-ui);
   letter-spacing: -0.012em;
 }
+.st-sub {
+  font-size: var(--type-small);
+  color: var(--text-3);
+}
 :root[data-briefing='headline'] .st-head h2 {
   font: var(--weight-regular) 30px/1.05 var(--font-head);
 }
@@ -218,9 +236,22 @@ onBeforeUnmount(() => {
 .st-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-4);
   padding: var(--space-4) var(--space-3);
   border-right: var(--hairline) solid var(--line);
+  overflow-y: auto;
+}
+.st-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.st-group-h {
+  padding: 0 10px 4px;
+  font: var(--weight-medium) var(--type-micro) / 1 var(--font-num);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 .st-nav a {
   display: flex;
@@ -264,10 +295,20 @@ onBeforeUnmount(() => {
   }
   .st-nav {
     flex-direction: row;
+    gap: var(--space-2);
     overflow-x: auto;
+    overflow-y: hidden;
     padding: var(--space-2) 12px;
     border-right: 0;
     border-bottom: var(--hairline) solid var(--line);
+  }
+  .st-group {
+    flex-direction: row;
+    gap: 2px;
+  }
+  .st-group-h,
+  .st-sub {
+    display: none;
   }
   .st-nav a {
     flex: none;
