@@ -651,3 +651,79 @@ func TestChangesAreAudited(t *testing.T) {
 		t.Fatalf("verify: %s", body)
 	}
 }
+
+// TestStepUpRoutes sends a valid body to every route whose handler asks
+// for a step-up, from an admin's or the owner's session with no step-up
+// grant: each answers 403 step_up_required. Only the status and the code
+// are asserted, so how a step-up is made can change underneath.
+func TestStepUpRoutes(t *testing.T) {
+	e, st := fullEnv(t)
+	owner := signIn(t, e)
+	adminID, admin := addUser(t, e, owner, "a-admin", auth.RoleAdmin)
+	ownerID := usersList(t, e, owner)["owner"].ID
+
+	// A sync owned by the owner, for the admin to take over by resuming it.
+	if _, err := st.Writer().Exec(`INSERT INTO stack_syncs (id, node, stack, url, branch, path, auth_kind, mode, poll_seconds,
+		secrets_allow, owner_id, state, state_reason, last_seen_sha, last_deployed_sha, rejected_sha, last_error, created_at, updated_at)
+		VALUES ('syn_matrix', 'local', 'other', 'https://git.lab.example/ops/stacks.git', 'main', 'other/compose.yaml', 'none', 'ask', 300,
+		'[]', ?, 'paused', '', '', '', '', '', 0, 0)`, ownerID); err != nil {
+		t.Fatal(err)
+	}
+	// No session holds a step-up grant (signing in may give one).
+	if _, err := st.Writer().Exec(`UPDATE sessions SET step_up_until = NULL`); err != nil {
+		t.Fatal(err)
+	}
+
+	remote := "https://git.lab.example/ops/stacks.git"
+	for _, c := range []struct {
+		who          *http.Client
+		method, path string
+		body         any
+	}{
+		{admin, "PUT", "/api/stacks/local/media/sync", map[string]any{"url": remote, "branch": "main", "mode": "deploy"}},
+		{admin, "POST", "/api/stacks/local/other/sync/resume", nil},
+		{admin, "POST", "/api/stacks/hooks", map[string]any{"url": remote, "branch": "main", "sender": "github", "deploy_on_push": true}},
+		{admin, "POST", "/api/nodes/node_matrix/approve", map[string]any{}},
+		{admin, "DELETE", "/api/auth/identities/https%3A%2F%2Fidp.example/sub-1", nil},
+		{admin, "POST", "/api/auth/identities/forward-auth", nil},
+		{owner, "PUT", "/api/settings/sign-in", map[string]any{}},
+		{owner, "PUT", "/api/settings/security", map[string]string{"step_up": "passkey_only"}},
+		{owner, "POST", "/api/users/" + adminID + "/transfer-ownership", nil},
+	} {
+		status, code, b := e.call(t, c.who, c.method, c.path, c.body)
+		if status != http.StatusForbidden || code != "step_up_required" {
+			t.Errorf("%s %s without a step-up: %d %s", c.method, c.path, status, b)
+		}
+	}
+}
+
+// TestHookSignatureRoute probes the Signature row with a real hook: a bad
+// or missing signature answers 401, as an unknown hook does, and a session
+// gains nothing.
+func TestHookSignatureRoute(t *testing.T) {
+	e, _ := fullEnv(t)
+	owner := signIn(t, e)
+	status, _, b := e.call(t, owner, "POST", "/api/stacks/hooks", map[string]any{"url": "https://git.lab.example/ops/stacks.git", "branch": "main", "sender": "github"})
+	var made struct {
+		Hook struct {
+			ID string `json:"id"`
+		} `json:"hook"`
+	}
+	if status != http.StatusCreated || json.Unmarshal(b, &made) != nil || made.Hook.ID == "" {
+		t.Fatalf("make a hook: %d %s", status, b)
+	}
+	body := []byte(`{"ref":"refs/heads/main"}`)
+	bad := map[string]string{"X-Hub-Signature-256": "sha256=" + strings.Repeat("0", 64), "X-GitHub-Delivery": "d-matrix"}
+	for name, probe := range map[string]struct {
+		c   *http.Client
+		hdr map[string]string
+	}{
+		"bad signature":            {&http.Client{}, bad},
+		"no signature":             {&http.Client{}, nil},
+		"the owner's session, bad": {owner, bad},
+	} {
+		if status, code, b := e.raw(t, probe.c, "POST", "/api/hooks/"+made.Hook.ID, body, probe.hdr); status != http.StatusUnauthorized || code != "unauthorized" {
+			t.Errorf("%s: %d %s", name, status, b)
+		}
+	}
+}
