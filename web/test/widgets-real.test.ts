@@ -564,6 +564,66 @@ describe('home and media widgets on real instances', () => {
     expect(otherSource.some((r) => r.includes('Quiet Valley'))).toBe(false);
   });
 
+  /** Sonarr with an episode out half an hour ago and a finale tonight, beside Radarr's film. */
+  function tonight(): Data {
+    const d = home();
+    d.graph.resources['sonarr:i_s/app']!.attrs!['calendar'] = [
+      { at: '2026-10-03T13:35:00Z', title: 'Harbour Lights', detail: 'S01E03 · The Pier' },
+      { at: '2026-10-03T21:00:00Z', title: 'Severance', detail: 'S02E10 · Cold Harbor · season finale' },
+      { at: '2026-10-04T04:00:00Z', title: 'Starling Point', detail: 'S05E01 · season premiere' },
+    ];
+    return d;
+  }
+
+  it('marks the next release, what just aired and now in the agenda', () => {
+    const { w } = mountReal('calendar', 'tall', undefined, tonight());
+    const rows = w.findAll('.ag-row');
+    expect(rows.map((r) => r.find('.cal-t').text())).toEqual(['Harbour Lights', 'Severance', 'Starling Point', 'Dune: Part Two']);
+    expect(rows[0]!.classes()).toContain('aired');
+    expect(rows[0]!.find('.cal-at small').text()).toBe('aired');
+    // The finale is next: its label is lifted out of the detail, with how long until it.
+    expect(rows[1]!.classes()).toContain('next');
+    expect(rows[1]!.find('.cal-tag').text()).toBe('Season finale');
+    expect(rows[1]!.find('.cal-body small').text()).toBe('Sonarr · S02E10 · Cold Harbor');
+    expect(rows[1]!.find('.cal-at small').text()).toBe('in 6h 54m');
+    expect(rows[2]!.find('.cal-tag').text()).toBe('Season premiere');
+    // Now falls between what aired and what's next, in today's list only.
+    const today = w.findAll('ul')[0]!;
+    expect(today.findAll('li').map((li) => li.classes().includes('cal-now'))).toEqual([false, true, false]);
+    expect(w.findAll('.cal-now')).toHaveLength(1);
+    // Each row has its kind's mark: Radarr's are films.
+    expect(rows.map((r) => r.find('.md-ic').classes().find((c) => c.startsWith('md-') && c !== 'md-ic'))).toEqual(['md-tv', 'md-tv', 'md-tv', 'md-film']);
+  });
+
+  it('puts the next release first at wide, and the week as a ribbon at panel', () => {
+    const wide = mountReal('calendar', 'wide', undefined, tonight()).w;
+    expect(wide.find('.cal-hero .ag-day').text()).toBe('Next · Today');
+    expect(wide.find('.cal-time').text()).toBe('21:00');
+    expect(wide.find('.cal-until').text()).toBe('in 6h 54m');
+    expect(wide.find('.cal-title').text()).toBe('Severance');
+    expect(wide.find('.cal-detail').text()).toBe('Season finale S02E10 · Cold Harbor · Sonarr');
+    // Beside it, what follows within today and tomorrow, under the day it falls on.
+    expect(wide.findAll('.cal-after li').map((li) => li.text())).toEqual(['Tomorrow', '04:00Starling PointSeason premiere']);
+    const panel = mountReal('calendar', 'panel', undefined, tonight()).w;
+    const days = panel.findAll('.cal-ribbon li');
+    expect(days).toHaveLength(7);
+    expect(days.map((d) => d.findAll('.cal-dots i').length)).toEqual([2, 1, 0, 1, 0, 0, 0]);
+    expect(days[0]!.find('.cal-sr').text()).toBe('Today, Sat 3 Oct: 2 releases');
+    expect(days[2]!.find('.cal-sr').text()).toBe('Mon 5 Oct: nothing');
+  });
+
+  it('shows the week under its dates at large, and the countdown on the strip', () => {
+    const large = mountReal('calendar', 'large', undefined, tonight()).w;
+    const days = large.findAll('.wk-day');
+    expect(days.map((d) => d.find('.cal-date').text())).toEqual(['Today3', 'Sun4', 'Mon5', 'Tue6', 'Wed7', 'Thu8', 'Fri9']);
+    expect(days[0]!.findAll('.ag-row')).toHaveLength(2);
+    expect(days[0]!.find('ul').attributes('aria-label')).toBe('Today, Sat 3 Oct');
+    expect(days[2]!.classes()).toContain('empty');
+    expect(days[2]!.text()).toContain('Nothing');
+    const strip = mountReal('calendar', 'strip', undefined, tonight()).w;
+    expect(strip.find('.sx').text()).toBe('Next: Severance 21:00 · in 6h 54m');
+  });
+
   it('reads the weather source’s shape: now, high and low, the next hours, the credit', () => {
     const { w } = mountReal('weather', 'wide');
     expect(w.find('.tn').text()).toBe('Greenwich');
