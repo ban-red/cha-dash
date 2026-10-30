@@ -26,13 +26,24 @@ const (
 	VerbDetect   = "stack.detect"
 	VerbAdopt    = "stack.adopt"
 	VerbUnadopt  = "stack.unadopt"
+
+	// Served from v0.3 (waves 12 and 14). Until then the node answers them
+	// as it answers any verb it doesn't know.
+	VerbRemoteCheck      = "stack.remote.check"
+	VerbFetch            = "stack.fetch"
+	VerbMove             = "stack.move"
+	VerbSelfUpdate       = "stack.selfupdate"
+	VerbSelfUpdateResult = "stack.selfupdate.result"
 )
 
-// Local policy permissions (policy.yaml's stacks.allow: read, deploy, adopt).
+// Local policy permissions (policy.yaml's stacks.allow: read, deploy,
+// adopt, sync, selfupdate). stack.move needs PermAdopt.
 const (
-	PermRead   = "stacks.read"
-	PermDeploy = "stacks.deploy"
-	PermAdopt  = "stacks.adopt"
+	PermRead       = "stacks.read"
+	PermDeploy     = "stacks.deploy"
+	PermAdopt      = "stacks.adopt"
+	PermSync       = "stacks.sync"       // stack.remote.check and stack.fetch, to the hosts in stacks.remotes
+	PermSelfUpdate = "stacks.selfupdate" // stack.selfupdate and its result; off unless the host's policy turns it on
 )
 
 // Stack statuses, from the containers Docker reports for the project.
@@ -52,12 +63,13 @@ const (
 
 // Commit kinds, from each commit's Chadash-Kind trailer.
 const (
-	KindDeploy   = "deploy"
-	KindRollback = "rollback"
-	KindAdopt    = "adopt"
-	KindUnadopt  = "unadopt"
-	KindAccept   = "accept" // accepting edits made outside Cha Dash
-	KindOther    = "other"
+	KindDeploy     = "deploy"
+	KindRollback   = "rollback"
+	KindAdopt      = "adopt"
+	KindUnadopt    = "unadopt"
+	KindAccept     = "accept" // accepting edits made outside Cha Dash
+	KindSelfUpdate = "self-update"
+	KindOther      = "other"
 )
 
 // Deploy outcomes.
@@ -80,6 +92,7 @@ const (
 	CodeNotManaged  = "not_managed" // the stack exists but isn't adopted yet
 	CodeExists      = "exists"      // adopting a name that's taken
 	CodeUnadoptable = "unadoptable"
+	CodeForbidden   = "forbidden" // the node's policy refuses it, such as a remote outside stacks.remotes
 	CodeInternal    = "internal"
 )
 
@@ -100,7 +113,8 @@ func Errorf(code, format string, args ...any) *Error {
 
 var knownCodes = map[string]bool{
 	CodeNotFound: true, CodeInvalid: true, CodeProtected: true, CodeDrift: true, CodeConflict: true,
-	CodeBusy: true, CodeNotManaged: true, CodeExists: true, CodeUnadoptable: true, CodeInternal: true,
+	CodeBusy: true, CodeNotManaged: true, CodeExists: true, CodeUnadoptable: true, CodeForbidden: true,
+	CodeInternal: true,
 }
 
 // ErrorFrom recovers an *Error from what a Caller returned: the error
@@ -194,6 +208,10 @@ type Detected struct {
 	Adoptable   bool     `json:"adoptable"`
 	Protected   bool     `json:"protected,omitempty"` // Cha Dash's own project: Reason says so
 	Reason      string   `json:"reason,omitempty"`    // why not, when it isn't
+	// Moveable says stack.move can bring it into the root; MoveRefusal
+	// says why not, when it can't.
+	Moveable    bool   `json:"moveable"`
+	MoveRefusal string `json:"move_refusal,omitempty"`
 }
 
 // ── stack.get ────────────────────────────────────────────────────────────
@@ -325,6 +343,9 @@ type DeployRequest struct {
 	By         string  `json:"by,omitempty"`  // who asked: "sam"
 	Via        string  `json:"via,omitempty"` // web, api
 	Ref        string  `json:"ref,omitempty"` // the hub's task ID
+	// Source is the git commit the content came from, "<url>@<sha>", for a
+	// deploy a sync started. It becomes a Chadash-Source trailer.
+	Source string `json:"source,omitempty"`
 }
 
 // RollbackRequest restores the file of an earlier commit as a new commit,
@@ -379,6 +400,131 @@ type UnadoptRequest struct {
 // UnadoptResult is the commit that recorded it.
 type UnadoptResult struct {
 	Commit string `json:"commit"`
+}
+
+// ── stack.remote.check and stack.fetch ───────────────────────────────────
+
+// Remote auth kinds.
+const (
+	AuthNone  = "none"
+	AuthHTTPS = "https"
+	AuthSSH   = "ssh"
+)
+
+// RemoteAuth is how the node signs in to a git remote: nothing, an HTTPS
+// user and token, or an SSH key (Secret holds the private key). The hub
+// fills it in from its vault for each call, and the node never writes it
+// down. Printing or logging it shows the kind and the user, never the
+// secret.
+type RemoteAuth struct {
+	Kind     string `json:"kind"`
+	Username string `json:"username,omitempty"`
+	Secret   string `json:"secret,omitempty"`
+}
+
+func (a RemoteAuth) String() string {
+	s := "{kind: " + a.Kind
+	if a.Username != "" {
+		s += ", username: " + a.Username
+	}
+	if a.Secret != "" {
+		s += ", secret: [redacted]"
+	}
+	return s + "}"
+}
+func (a RemoteAuth) GoString() string              { return a.String() }
+func (a RemoteAuth) LogValue() slog.Value          { return slog.StringValue(a.String()) }
+func (a RemoteAuth) Format(f fmt.State, verb rune) { _, _ = f.Write([]byte(a.String())) }
+
+var _ interface{ LogValue() slog.Value } = RemoteAuth{}
+
+// RemoteCheckRequest asks for a branch's tip without fetching. A URL with
+// a user in it fails invalid, and a host outside the node's stacks.remotes
+// fails forbidden.
+type RemoteCheckRequest struct {
+	URL    string     `json:"url"`
+	Branch string     `json:"branch"`
+	Auth   RemoteAuth `json:"auth"`
+}
+
+// RemoteCheckResponse is the branch's tip. HostKey is the SSH host key the
+// remote presented, for the hub to pin on first use.
+type RemoteCheckResponse struct {
+	SHA     string `json:"sha"`
+	HostKey string `json:"host_key,omitempty"`
+}
+
+// FetchRequest fetches a branch's tip (shallow, into the node's cache) and
+// reads one file from it. HostKey, when set, is the pinned SSH host key
+// the remote must present. It fails like stack.remote.check.
+type FetchRequest struct {
+	URL     string     `json:"url"`
+	Branch  string     `json:"branch"`
+	Path    string     `json:"path"`
+	Auth    RemoteAuth `json:"auth"`
+	HostKey string     `json:"host_key,omitempty"`
+}
+
+// FetchResponse is the file at the tip and the commit it came from.
+type FetchResponse struct {
+	SHA     string `json:"sha"`
+	Content string `json:"content"`
+	Subject string `json:"subject"`
+	Author  string `json:"author"`
+}
+
+// ── stack.move ───────────────────────────────────────────────────────────
+
+// MoveRequest brings a project into the root, keeping its name. Exactly
+// one of FromPath (the node reads the file there) and Content (the hub
+// supplies it, from an importer) is set; Env is the .env to write beside
+// supplied content. Nothing restarts.
+type MoveRequest struct {
+	Stack    string `json:"stack"`
+	FromPath string `json:"from_path,omitempty"`
+	Content  string `json:"content,omitempty"`
+	Env      string `json:"env,omitempty"`
+	By       string `json:"by,omitempty"`
+	Via      string `json:"via,omitempty"`
+}
+
+// MoveResult is the commit that recorded the move, each relative path it
+// made absolute, and what the first deploy will do.
+type MoveResult struct {
+	Commit   string    `json:"commit"`
+	Rewrites []Rewrite `json:"rewrites"`
+	Plan     Plan      `json:"plan"`
+}
+
+// Rewrite is one line a move changed: a relative path made absolute.
+type Rewrite struct {
+	Line int    `json:"line"`
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// ── stack.selfupdate and stack.selfupdate.result ─────────────────────────
+
+// SelfUpdateRequest updates the hub's own container to Image (a tag; the
+// node pins its digest). It streams Progress like stack.deploy, then
+// answers a SelfUpdateResult.
+type SelfUpdateRequest struct {
+	Image string `json:"image"`
+	By    string `json:"by,omitempty"`
+	Via   string `json:"via,omitempty"`
+	Ref   string `json:"ref,omitempty"`
+}
+
+// SelfUpdateResultRequest asks for the last self-update's result.
+type SelfUpdateResultRequest struct{}
+
+// SelfUpdateResult says how a self-update ended (OutcomeDeployed,
+// OutcomeRolledBack or OutcomeStuck), with the image digests before and
+// after.
+type SelfUpdateResult struct {
+	Outcome  string `json:"outcome"`
+	Previous string `json:"previous"`
+	Current  string `json:"current"`
 }
 
 // ── progress ─────────────────────────────────────────────────────────────

@@ -201,6 +201,8 @@ func statusOf(err error) (int, string, string) {
 		return http.StatusNotFound, "not_found", e.Message
 	case stackproto.CodeInvalid:
 		return http.StatusUnprocessableEntity, "invalid", e.Message
+	case stackproto.CodeForbidden:
+		return http.StatusForbidden, "forbidden", e.Message
 	case stackproto.CodeInternal:
 		return http.StatusBadGateway, "node_error", e.Message
 	}

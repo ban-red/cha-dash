@@ -1,6 +1,7 @@
 package node
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -15,7 +16,7 @@ func TestStacksDenyPolicy(t *testing.T) {
 	if !p.Stacks.Denies("privileged") || p.Stacks.Denies("cap_add") || len(p.Stacks.BindRoots) != 1 {
 		t.Fatalf("stacks %+v", p.Stacks)
 	}
-	if len(p.Stacks.Allow) != 3 {
+	if !slices.Equal(p.Stacks.Allow, DefaultPolicy().Stacks.Allow) {
 		t.Fatalf("deny changed the allow list: %v", p.Stacks.Allow)
 	}
 	if d := DefaultPolicy(); len(d.Stacks.Deny) != 0 {

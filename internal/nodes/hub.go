@@ -20,6 +20,7 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -195,6 +196,16 @@ func (h *Hub) Close() {
 // nameRE is what a node may call itself.
 var nameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$`)
 
+// reservedNames are names a node can't have, compared without case: the
+// stacks API's literal segments (/api/stacks/hooks, /api/stacks/secrets)
+// win over {node}, so a node called one of them would be unreachable.
+var reservedNames = []string{"hooks", "secrets"}
+
+// reservedName reports whether name is in reservedNames.
+func reservedName(name string) bool {
+	return slices.ContainsFunc(reservedNames, func(r string) bool { return strings.EqualFold(r, name) })
+}
+
 // ServeHTTP serves /node: the upgrade, the TLS handshake, the hello, then
 // the node's session until it ends.
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -272,7 +283,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeRevoked, "this node was revoked"))
 		return
 	case rec.State == StatePending:
-		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeUnknownNode, "this node is waiting for approval"))
+		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodePending, "this node is waiting for approval"))
 		return
 	}
 	h.limit.succeeded(addr)
@@ -322,6 +333,8 @@ func (h *Hub) enroll(ch *nodeproto.Channel, hello nodeproto.Hello, addr string) 
 		return fail(nodeproto.Errorf(nodeproto.CodeUnknownNode, "this hub doesn't accept pairing from the node's address (CHADASH_NODE_PAIRING_FROM)"))
 	case !nameRE.MatchString(name):
 		return fail(nodeproto.Errorf(nodeproto.CodeProtocol, "a node name is 1–63 letters, digits, dots, dashes or underscores"))
+	case reservedName(name):
+		return fail(nodeproto.Errorf(nodeproto.CodeProtocol, "a node can't be called %q: the hub uses that name; pick another CHADASH_NODE_NAME", name))
 	}
 	// The secret is spent by the enrollment it admits, and only then: a
 	// refusal (a name in use) leaves it for the node that should have it.

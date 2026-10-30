@@ -5,9 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -32,7 +36,9 @@ const DefaultPolicyPath = "/etc/chadash-node/policy.yaml"
 //	docker.exec       exec into a container (not by default; also needs exec: true)
 //	stacks.read       list stacks, read compose files, diff, history
 //	stacks.deploy     deploy and roll back a stack (root on this host: see StacksPolicy)
-//	stacks.adopt      adopt a running compose project in place
+//	stacks.adopt      adopt a running compose project in place, or move it into the root
+//	stacks.sync       check and fetch a git remote a stack follows (limited by stacks.remotes)
+//	stacks.selfupdate update the hub's own container (not by default; the hub's host only)
 //	host.metrics      host CPU, memory, disk (later)
 //	host.smart        SMART detail (later; needs CAP_SYS_RAWIO)
 //
@@ -100,6 +106,10 @@ type StacksPolicy struct {
 	// BindRoots are the host paths binds may use when host_binds is
 	// denied: every host path a stack names must be inside one of them.
 	BindRoots []string `yaml:"bind_roots"`
+	// Remotes are the git hosts stacks.sync may reach, as host names or
+	// host:port ("git.lab.example", "git.lab.example:2222"): no scheme, no
+	// path, no user. Empty means any.
+	Remotes []string `yaml:"remotes"`
 }
 
 // StackDenials are the valid entries of stacks.deny.
@@ -123,7 +133,7 @@ type RelayPolicy struct {
 // grants are the valid entries of each section's allow list.
 var grants = map[string][]string{
 	"docker": {"read", "logs", "lifecycle", "update", "exec", "remove"},
-	"stacks": {"read", "deploy", "adopt"},
+	"stacks": {"read", "deploy", "adopt", "sync", "selfupdate"},
 	"host":   {"metrics", "smart"},
 }
 
@@ -131,8 +141,9 @@ var grants = map[string][]string{
 var readOnly = []string{"docker.read", "docker.logs", "stacks.read", "host.metrics", "host.smart"}
 
 // DefaultPolicy is what a node without a policy file runs: Docker reads,
-// logs, lifecycle and updates; stacks read, deploy and adopt; the hub and
-// the node itself protected; exec and remove off; env redacted.
+// logs, lifecycle and updates; stacks read, deploy, adopt and sync, from
+// any remote; the hub and the node itself protected; exec, remove and
+// selfupdate off; env redacted.
 func DefaultPolicy() Policy {
 	t := true
 	return Policy{
@@ -142,7 +153,7 @@ func DefaultPolicy() Policy {
 			Protect:   []string{},
 			RedactEnv: &t,
 		},
-		Stacks: StacksPolicy{Root: "/opt/stacks", Allow: []string{"read", "deploy", "adopt"}},
+		Stacks: StacksPolicy{Root: "/opt/stacks", Allow: []string{"read", "deploy", "adopt", "sync"}},
 	}
 }
 
@@ -219,6 +230,11 @@ func (p Policy) Validate() error {
 	if len(p.Stacks.BindRoots) > 0 && !p.Stacks.Denies("host_binds") {
 		errs = append(errs, errors.New("policy: stacks.bind_roots only means something with host_binds in stacks.deny"))
 	}
+	for _, r := range p.Stacks.Remotes {
+		if err := validRemote(r); err != nil {
+			errs = append(errs, fmt.Errorf("policy: stacks.remotes: %q %w", r, err))
+		}
+	}
 	if p.Hub.Pin != "" && !nodeproto.ValidPin(p.Hub.Pin) {
 		errs = append(errs, errors.New("policy: hub.pin must be ed25519:<base64url key>"))
 	}
@@ -231,6 +247,59 @@ func (p Policy) Validate() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// hostLabelRE is one label of a DNS name.
+var hostLabelRE = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
+
+// validRemote checks one stacks.remotes entry: a host name or IP address,
+// optionally with a port ("[::1]:22" for IPv6), and nothing else.
+func validRemote(r string) error {
+	switch {
+	case r == "":
+		return errors.New("is empty")
+	case strings.Contains(r, "://"):
+		return errors.New("has a scheme; give the host only")
+	case strings.Contains(r, "@"):
+		return errors.New("has a user; give the host only")
+	case strings.ContainsAny(r, "/?#"):
+		return errors.New("has a path; give the host only")
+	case strings.ContainsAny(r, " \t\r\n"):
+		return errors.New("has a space")
+	}
+	host := r
+	if strings.HasPrefix(r, "[") || strings.Count(r, ":") == 1 {
+		if strings.HasPrefix(r, "[") && strings.HasSuffix(r, "]") {
+			host = r[1 : len(r)-1]
+		} else {
+			h, port, err := net.SplitHostPort(r)
+			if err != nil {
+				return errors.New("isn't host or host:port")
+			}
+			if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+				return errors.New("has a bad port")
+			}
+			host = h
+		}
+		if strings.HasPrefix(r, "[") && !strings.Contains(host, ":") {
+			return errors.New("isn't host or host:port")
+		}
+	}
+	if _, err := netip.ParseAddr(host); err == nil {
+		return nil
+	}
+	if strings.Contains(host, ":") {
+		return errors.New("isn't host or host:port (bracket an IPv6 address)")
+	}
+	if len(host) > 253 {
+		return errors.New("is too long")
+	}
+	for label := range strings.SplitSeq(strings.TrimSuffix(host, "."), ".") {
+		if !hostLabelRE.MatchString(label) {
+			return errors.New("isn't a host name")
+		}
+	}
+	return nil
 }
 
 // ValidPermission reports whether perm is a permission key ("docker.logs").

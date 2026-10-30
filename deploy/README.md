@@ -159,7 +159,8 @@ docker:
   allow: [read, logs, lifecycle, update]   # also: remove, exec (exec needs exec: true too)
   protect: []                              # container or compose service names no write may touch
   redact_env: true                         # inspect leaves without environment values
-stacks: { root: /opt/stacks, allow: [read, deploy, adopt] }
+stacks: { root: /opt/stacks, allow: [read, deploy, adopt, sync] }   # also: selfupdate
+# stacks: { remotes: [git.lab.example, "git.lab.example:2222"] }   # git hosts sync may reach; none listed is any
 # stacks: { deny: [privileged, host_namespaces, devices, cap_add, host_binds], bind_roots: [/mnt/media] }
 exec: false
 # hub: { pin: "ed25519:…", pin_rotation: false }   # fix the hub's key
@@ -174,6 +175,8 @@ exec: false
 | `docker.remove` | remove containers (off by default) |
 | `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
 | `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks) |
+| `stacks.sync` | check and fetch the git remote a stack follows, only from the hosts in `stacks.remotes` when it lists any (git sync arrives in v0.3) |
+| `stacks.selfupdate` | update the hub's own container (off by default; for the hub's host only; arrives in v0.3) |
 
 The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: Cha Dash never restarts or removes itself until self-update lands in v0.3. Protection holds for stacks too: a deploy that would recreate or remove a protected container is refused. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
 
@@ -181,7 +184,7 @@ The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever
 
 **`stacks.deploy` is root on this host.** A compose file can mount the host's disk, run privileged or share the host's namespaces, and Cha Dash deploys what an admin saves. That's by design: media stacks need bind mounts and VPN containers need `cap_add`. The node always refuses what would hand a stack its own keys: the Docker socket, `/`, its own directories and volumes, the `pairing` volume, `volumes_from` another container, env files outside the stack's directory, and `include` or `extends` from other files. Everything else root-equivalent (privileged, host namespaces, devices, `cap_add`, host paths outside the stack's directory) is allowed but called out in the editor and in the deploy confirmation. To lock it down, list those in `stacks.deny`; with `host_binds` denied, `bind_roots` names the host paths stacks may still bind. Or remove `deploy` from `stacks.allow`.
 
-**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`.
+**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`; `hooks` and `secrets` are taken), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`.
 
 **Running it unprivileged.** Set `user: "65532:65532"` and `group_add: ["<gid>"]`, with the gid from `stat -c %g /var/run/docker.sock`.
 

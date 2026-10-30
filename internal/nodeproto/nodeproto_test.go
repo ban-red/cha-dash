@@ -488,3 +488,32 @@ func TestKeys(t *testing.T) {
 		t.Fatal("decoded garbage")
 	}
 }
+
+func TestPairingAndJoinTokens(t *testing.T) {
+	k, _ := GenerateKey()
+	pin := PinOf(k)
+	secret := "0123456789abcdef0123456789abcdef"
+
+	pair := FormatPairing(secret, pin)
+	join := FormatJoin(secret, pin)
+	if !strings.HasPrefix(pair, "cdp_") || !strings.HasPrefix(join, "cdj_") {
+		t.Fatalf("prefixes: %q %q", pair, join)
+	}
+	if s, p, err := ParsePairing(pair); err != nil || s != secret || p != pin {
+		t.Fatalf("pairing round trip: %q %q %v", s, p, err)
+	}
+	if s, p, err := ParseJoin(join); err != nil || s != secret || p != pin {
+		t.Fatalf("join round trip: %q %q %v", s, p, err)
+	}
+	if _, _, err := ParseJoin(pair); err == nil {
+		t.Error("ParseJoin took a pairing token")
+	}
+	if _, _, err := ParsePairing(join); err == nil {
+		t.Error("ParsePairing took a join token")
+	}
+	for _, bad := range []string{"", "cdj_", "cdj_short." + pin, "cdj_" + secret, "cdj_" + secret + ".ed25519:abc"} {
+		if _, _, err := ParseJoin(bad); err == nil {
+			t.Errorf("ParseJoin(%q) parsed", bad)
+		}
+	}
+}

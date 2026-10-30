@@ -21,8 +21,8 @@ func TestDefaultPolicy(t *testing.T) {
 	for perm, want := range map[string]bool{
 		"docker.read": true, "docker.logs": true, "docker.lifecycle": true, "docker.update": true,
 		"docker.remove": false, "docker.exec": false,
-		"stacks.read": true, "stacks.deploy": true, "stacks.adopt": true,
-		"host.metrics": false, "host.smart": false, "docker.root": false, "nonsense": false, "": false,
+		"stacks.read": true, "stacks.deploy": true, "stacks.adopt": true, "stacks.sync": true,
+		"stacks.selfupdate": false, "host.metrics": false, "host.smart": false, "docker.root": false, "nonsense": false, "": false,
 	} {
 		if p.Allows(perm) != want {
 			t.Errorf("default Allows(%q) = %v", perm, !want)
@@ -38,6 +38,36 @@ func TestDefaultPolicy(t *testing.T) {
 	}
 	if !p.Protected("chadash-chadash-1", "chadash") || p.Protected("sonarr", "sonarr") {
 		t.Fatal("protect by service")
+	}
+	if len(p.Stacks.Remotes) != 0 {
+		t.Fatalf("default remotes %v", p.Stacks.Remotes)
+	}
+}
+
+func TestStacksSyncPolicy(t *testing.T) {
+	p, err := ParsePolicy([]byte("stacks: { allow: [read, deploy, selfupdate] }\n"))
+	if err != nil {
+		t.Fatalf("selfupdate without remotes: %v", err)
+	}
+	if !p.Allows("stacks.selfupdate") || p.Allows("stacks.sync") || len(p.Stacks.Remotes) != 0 {
+		t.Fatalf("parsed %+v", p.Stacks)
+	}
+	p, err = ParsePolicy([]byte("stacks:\n  allow: [sync]\n  remotes: [git.lab.example, 'git.lab.example:2222', 10.20.0.5, '[fd00::5]:22', '[fd00::5]', 'fd00::5', github.com.]\n"))
+	if err != nil || !p.Allows("stacks.sync") || len(p.Stacks.Remotes) != 7 {
+		t.Fatalf("remotes: %v %+v", err, p.Stacks)
+	}
+	if _, err := ParsePolicy([]byte("stacks: { allow: [foo] }\n")); err == nil {
+		t.Error("an unknown stacks grant parsed")
+	}
+	for _, bad := range []string{
+		"''", "https://git.lab.example", "ssh://git@git.lab.example", "git@git.lab.example",
+		"user:pw@git.lab.example", "git.lab.example/org/repo", "git.lab.example:0", "git.lab.example:99999",
+		"git.lab.example:ssh", "git.lab.example:", "'[fd00::5]:x'", "'[git.lab.example]'", "-bad.example",
+		"'git lab.example'", "git.lab.example?x=1", "under_score.example",
+	} {
+		if _, err := ParsePolicy([]byte("stacks: { remotes: [" + bad + "] }\n")); err == nil {
+			t.Errorf("remote %s parsed", bad)
+		}
 	}
 }
 
@@ -150,7 +180,7 @@ func TestEveryWriteVerbRefused(t *testing.T) {
 	if len(info) != len(perms) {
 		t.Fatalf("info lists %d verbs", len(info))
 	}
-	all, _ := ParsePolicy([]byte("docker: { allow: [read, logs, lifecycle, update, exec, remove] }\nexec: true\nhost: { metrics: true, smart: true }\n"))
+	all, _ := ParsePolicy([]byte("docker: { allow: [read, logs, lifecycle, update, exec, remove] }\nexec: true\nstacks: { allow: [read, deploy, adopt, sync, selfupdate] }\nhost: { metrics: true, smart: true }\n"))
 	d, _ = NewDispatcher(all, fakeModule{verbs})
 	for _, perm := range perms {
 		var items []string

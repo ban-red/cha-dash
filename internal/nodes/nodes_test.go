@@ -898,3 +898,60 @@ func TestEnrollmentRateLimit(t *testing.T) {
 		t.Fatal("never recovers")
 	}
 }
+
+// TestReservedNodeNames: hooks and secrets, in any case, are refused at
+// enrollment, since /api/stacks/hooks and /api/stacks/secrets would
+// shadow them; the pairing secret stays unspent.
+func TestReservedNodeNames(t *testing.T) {
+	for _, name := range []string{"hooks", "Secrets"} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t, true)
+			e.startNode(t.TempDir(), name, e.token(), node.DefaultPolicy())
+			eventually(t, "the refusal", func() bool { return len(e.events("nodes.enroll")) > 0 })
+			ev := e.events("nodes.enroll")[0]
+			if ev.Result != audit.Refused || ev.Error == nil || ev.Error.Code != nodeproto.CodeProtocol || !strings.Contains(ev.Error.Message, "can't be called") {
+				t.Fatalf("audit %+v", ev)
+			}
+			if list, _ := e.hub.List(t.Context()); len(list) != 0 {
+				t.Fatalf("enrolled: %v", list)
+			}
+			if !e.hub.pairing.Check(mustSecret(t, e.token())) {
+				t.Fatal("a refused name spent the secret")
+			}
+		})
+	}
+	for _, ok := range []string{"hooks2", "my-secrets", "local"} {
+		if reservedName(ok) {
+			t.Errorf("%s is reserved", ok)
+		}
+	}
+}
+
+// TestPendingNodeIsAnsweredPending: a node waiting for approval is told
+// so, with the pending code rather than unknown_node, and the refusal
+// doesn't count against its address.
+func TestPendingNodeIsAnsweredPending(t *testing.T) {
+	e := newEnv(t, false)
+	key, _ := nodeproto.GenerateKey()
+	ident, _ := nodeproto.NewIdentity(key)
+	now := time.Now().UnixMilli()
+	if _, err := e.st.Writer().ExecContext(t.Context(), `INSERT INTO nodes (id, name, public_key, state, enrolled_via, created_at, updated_at)
+		VALUES ('n_pending', 'far', ?, 'pending', 'token', ?, ?)`, nodeproto.PinOf(key), now, now); err != nil {
+		t.Fatal(err)
+	}
+	ch, err := nodeproto.Dial(t.Context(), e.url(), nodeproto.DialOptions{Identity: ident, Pins: []string{e.hub.Pin()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ch.Close()
+	if err := nodeproto.SendFrame(t.Context(), ch, nodeproto.OpHello, nodeproto.Hello{Versions: []int{1}, Name: "far", Node: "n_pending"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	f, err := nodeproto.RecvFrame(t.Context(), ch, 5*time.Second)
+	if err != nil || f.Op != nodeproto.OpRefused || f.Error == nil || f.Error.Code != nodeproto.CodePending || f.Error.Message != "this node is waiting for approval" {
+		t.Fatalf("a pending node got %+v %v", f, err)
+	}
+	if e.hub.Connected("n_pending") || e.failures("127.0.0.1") != 0 {
+		t.Fatalf("connected %v, failures %d", e.hub.Connected("n_pending"), e.failures("127.0.0.1"))
+	}
+}

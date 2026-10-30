@@ -87,6 +87,7 @@ const (
 
 	// Refusal codes for the control phase.
 	CodeUnknownNode = "unknown_node" // a key the hub doesn't know, and nothing to enrol with
+	CodePending     = "pending"      // enrolled, waiting for an admin to approve it: retry later
 	CodeRevoked     = "revoked"
 	CodeBadPairing  = "bad_pairing" // the pairing secret didn't match
 	CodeRateLimited = "rate_limited"
@@ -119,8 +120,11 @@ type Hello struct {
 	// Pairing is the local pairing secret, sent only by a node that isn't
 	// enrolled yet, and only after the hub proved the pinned key.
 	Pairing string `json:"pairing,omitempty"`
-	// Token is reserved for v0.3's remote enrollment (cdj_…). The hub
-	// refuses it until then.
+	// Token is the secret of a join token (cdj_<secret>.<hub pin>), sent
+	// only by a node that isn't enrolled yet, and only after the hub proved
+	// the token's pin. It carries the secret alone; the pin stays on the
+	// node, as with Pairing. The hub refuses it until token enrollment
+	// lands.
 	Token string `json:"token,omitempty"`
 	// HubPins are the hub keys the node trusts (also on the upgrade, as
 	// PinsHeader): the hub records them, so it knows who has its next key.
@@ -185,6 +189,25 @@ func ParsePairing(tok string) (secret, hubPin string, err error) {
 	secret, hubPin, ok2 := strings.Cut(rest, ".")
 	if !ok || !ok2 || len(secret) < 16 || !ValidPin(hubPin) {
 		return "", "", errors.New("nodeproto: malformed pairing token (want cdp_<secret>.<hub pin>)")
+	}
+	return secret, hubPin, nil
+}
+
+// Join tokens (v0.3): an admin makes one in Settings → Nodes for a node on
+// another host. Like a pairing token it carries the hub's pin; unlike one,
+// it's single-use, and the node it enrols waits for approval.
+const joinPrefix = "cdj_"
+
+// FormatJoin builds a join token: cdj_<secret>.<hub pin>.
+func FormatJoin(secret, hubPin string) string { return joinPrefix + secret + "." + hubPin }
+
+// ParseJoin splits a join token into its secret and the hub's pin. A
+// pairing token is not a join token.
+func ParseJoin(tok string) (secret, hubPin string, err error) {
+	rest, ok := strings.CutPrefix(strings.TrimSpace(tok), joinPrefix)
+	secret, hubPin, ok2 := strings.Cut(rest, ".")
+	if !ok || !ok2 || len(secret) < 16 || !ValidPin(hubPin) {
+		return "", "", errors.New("nodeproto: malformed join token (want cdj_<secret>.<hub pin>)")
 	}
 	return secret, hubPin, nil
 }
