@@ -99,6 +99,8 @@ func validTokenName(name string) error {
 		return errors.New("a node name is 1–63 letters, digits, dots, dashes or underscores, starting with a letter or digit")
 	case reservedName(name):
 		return fmt.Errorf("a node can't be called %q: the hub uses that name", name)
+	case localName(name):
+		return fmt.Errorf("a node can't join as %q: that's the hub's own node, which pairs locally", name)
 	}
 	return nil
 }

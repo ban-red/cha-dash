@@ -177,56 +177,158 @@ func addrIn(addr string, prefixes []netip.Prefix) bool {
 	return false
 }
 
-// limiter bounds failed handshakes per client address (bad secrets, unknown
-// keys, malformed hellos): a few, then one a minute, like sign-in's attempt
-// limiting.
+// limiter bounds failed handshakes per client (httpx.ClientKey: an IPv4
+// address or an IPv6 /64): bad secrets and tokens, unknown keys, malformed
+// hellos. A few, then one a minute, like sign-in's attempt limiting. It
+// applies only to keys the registry doesn't hold: a known node always gets
+// through, so strangers behind the same NAT or proxy can't lock it out.
 type limiter struct {
-	mu    sync.Mutex
-	seen  map[string]*attempts
-	burst int
-	every time.Duration
-	now   func() time.Time
+	mu     sync.Mutex
+	seen   map[string]*attempts
+	burst  int
+	every  time.Duration
+	forget time.Duration // an entry with no failure for this long is dropped
+	max    int           // entries kept; the stalest go first
+	now    func() time.Time
 }
 
 type attempts struct {
 	n    int
 	next time.Time
+	last time.Time
 }
 
 func newLimiter(now func() time.Time) *limiter {
-	return &limiter{seen: map[string]*attempts{}, burst: 5, every: time.Minute, now: now}
+	return &limiter{seen: map[string]*attempts{}, burst: 5, every: time.Minute, forget: 10 * time.Minute, max: 4096, now: now}
 }
 
-// allowed reports whether addr may try now.
-func (l *limiter) allowed(addr string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	a := l.seen[addr]
-	return a == nil || a.n < l.burst || !l.now().Before(a.next)
-}
-
-// failed counts a failure from addr.
-func (l *limiter) failed(addr string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if len(l.seen) > 4096 {
-		clear(l.seen) // bounded memory; an attacker gains a few tries at most
+// entryLocked returns key's attempts, or nil once they're forgotten.
+func (l *limiter) entryLocked(key string, now time.Time) *attempts {
+	a := l.seen[key]
+	if a != nil && now.Sub(a.last) >= l.forget {
+		delete(l.seen, key)
+		return nil
 	}
-	a := l.seen[addr]
+	return a
+}
+
+// allowed reports whether key may try now.
+func (l *limiter) allowed(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	a := l.entryLocked(key, now)
+	return a == nil || a.n < l.burst || !now.Before(a.next)
+}
+
+// failed counts a failure from key.
+func (l *limiter) failed(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	a := l.entryLocked(key, now)
 	if a == nil {
+		if len(l.seen) >= l.max {
+			l.evictLocked(now)
+		}
 		a = &attempts{}
-		l.seen[addr] = a
+		l.seen[key] = a
 	}
 	a.n++
-	a.next = l.now().Add(l.every)
+	a.next, a.last = now.Add(l.every), now
 }
 
-// succeeded forgets addr's failures: an admitted node proved a key the
-// registry trusts.
-func (l *limiter) succeeded(addr string) {
+// evictLocked makes room: it drops every forgotten entry and, if that
+// frees nothing, the one whose last failure is oldest. Memory stays
+// bounded, and a client that keeps failing keeps its entry.
+func (l *limiter) evictLocked(now time.Time) {
+	var oldest string
+	var at time.Time
+	for k, a := range l.seen {
+		switch {
+		case now.Sub(a.last) >= l.forget:
+			delete(l.seen, k)
+		case oldest == "" || a.last.Before(at):
+			oldest, at = k, a.last
+		}
+	}
+	if len(l.seen) >= l.max {
+		delete(l.seen, oldest)
+	}
+}
+
+// succeeded forgets key's failures: a node paired from there, proving the
+// secret.
+func (l *limiter) succeeded(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	delete(l.seen, addr)
+	delete(l.seen, key)
+}
+
+// refusalAudit decides which refused enrollments reach the audit log: the
+// first per client (ClientKey) in each window, and at most perWindow from
+// everyone together, so a flood of bad tokens, even from rotating IPv6
+// addresses, writes a bounded number of rows. held counts the refusals
+// left out since the last one recorded.
+type refusalAudit struct {
+	mu        sync.Mutex
+	every     time.Duration
+	perWindow int
+	max       int
+	seen      map[string]time.Time // client → when its window started
+	start     time.Time            // the overall window
+	recorded  int                  // in the overall window
+	held      int
+	now       func() time.Time
+}
+
+// Refusal audit limits.
+const (
+	refusalWindow   = 10 * time.Minute
+	refusalsAudited = 100 // per window, from everyone
+	refusalsTracked = 4096
+)
+
+func newRefusalAudit(now func() time.Time) *refusalAudit {
+	return &refusalAudit{every: refusalWindow, perWindow: refusalsAudited, max: refusalsTracked, seen: map[string]time.Time{}, now: now}
+}
+
+// take reports whether to record a refusal from key, and, when it does,
+// how many refusals went unrecorded since the last one.
+func (r *refusalAudit) take(key string) (bool, int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := r.now()
+	if now.Sub(r.start) >= r.every {
+		r.start, r.recorded = now, 0
+	}
+	if at, ok := r.seen[key]; (ok && now.Sub(at) < r.every) || r.recorded >= r.perWindow {
+		r.held++
+		return false, 0
+	}
+	if _, ok := r.seen[key]; !ok && len(r.seen) >= r.max {
+		for k, at := range r.seen {
+			if now.Sub(at) >= r.every {
+				delete(r.seen, k)
+			}
+		}
+		if len(r.seen) >= r.max {
+			r.held++ // every slot is a live window: don't make room by forgetting one
+			return false, 0
+		}
+	}
+	r.seen[key] = now
+	r.recorded++
+	n := r.held
+	r.held = 0
+	return true, n
+}
+
+// forget ends key's window, so its next refusal is recorded.
+func (r *refusalAudit) forget(key string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.seen, key)
 }
 
 // gate bounds handshakes in progress: before a node is admitted, holding a

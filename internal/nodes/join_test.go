@@ -234,6 +234,8 @@ func TestJoinTokenRefusals(t *testing.T) {
 	j := newJoinEnv(t)
 	refused := func(what, token, name, code string) {
 		t.Helper()
+		// Each case is its own refusal to audit, not one of a flood.
+		j.hub.refusals.forget("127.0.0.1")
 		before := j.refusedWith(code)
 		nodes, _ := j.hub.List(t.Context())
 		j.startJoining(t.TempDir(), name, token)

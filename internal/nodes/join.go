@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/audit"
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/nodeproto"
 )
@@ -87,19 +88,34 @@ func HubURL(publicURL, requestHost string) string {
 // enrollToken handles an unknown key that presents a join token: it
 // enrolls the node as pending, spending the token, and tells it to wait.
 // Every outcome is a refusal; the session opens on a retry after approval.
-func (h *Hub) enrollToken(ch *nodeproto.Channel, hello nodeproto.Hello, addr string) {
-	actor := audit.Actor{Kind: "system", Name: "join-token", IP: addr}
+//
+// Anyone can present a token, so refusals are audited sparingly: the first
+// per client (ClientKey) in each 10 minutes, at most refusalsAudited from
+// everyone, each with a count of those left out. The actor is anonymous:
+// nobody has proved who they are.
+func (h *Hub) enrollToken(ch *nodeproto.Channel, hello nodeproto.Hello, addr, key string) {
+	actor := audit.Actor{Kind: authz.KindAnonymous, Name: "join-token", IP: addr}
 	fp := nodeproto.Fingerprint(ch.PeerPin)
 	name := hello.Name
 	fail := func(e *nodeproto.Error, tokenID string) {
-		h.limit.failed(addr)
-		p := map[string]string{"name": name, "via": ViaToken, "fingerprint": fp, "address": addr}
+		h.limit.failed(key)
+		defer h.refuse(ch, "", e)
+		ok, held := h.refusals.take(key)
+		if !ok {
+			return
+		}
+		p := map[string]any{"via": ViaToken, "fingerprint": fp, "address": addr}
+		if nameRE.MatchString(name) {
+			p["name"] = name
+		}
 		if tokenID != "" {
 			p["token"] = tokenID
 		}
-		h.record(audit.Entry{Actor: actor, Action: "nodes.enroll", Target: "node:" + name, Params: params(p),
+		if held > 0 {
+			p["refusals_not_recorded"] = held
+		}
+		h.record(audit.Entry{Actor: actor, Action: "nodes.enroll", Target: enrollTarget(name), Params: params(p),
 			Result: audit.Refused, Error: &audit.Error{Code: e.Code, Message: e.Message}})
-		h.refuse(ch, "", e)
 	}
 	tok, err := h.tokens.check(h.ctx, hello.Token, name)
 	if name == "" && tok.Name != "" {
@@ -122,6 +138,9 @@ func (h *Hub) enrollToken(ch *nodeproto.Channel, hello nodeproto.Hello, addr str
 		return
 	case reservedName(name):
 		fail(nodeproto.Errorf(nodeproto.CodeProtocol, "a node can't be called %q: the hub uses that name; pick another CHADASH_NODE_NAME", name), tok.ID)
+		return
+	case localName(name):
+		fail(nodeproto.Errorf(nodeproto.CodeProtocol, "a node that joins with a token can't be called %q: that's the hub's own node, which pairs locally; pick another CHADASH_NODE_NAME", name), tok.ID)
 		return
 	}
 	rec, err := h.reg.enrollPending(h.ctx, name, ch.PeerPin, func(tx *sql.Tx, id string) error {

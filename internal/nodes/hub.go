@@ -121,6 +121,8 @@ type Hub struct {
 	limit   *limiter
 	gate    *gate
 	quiet   *sampler // refusals of unknown keys: one Info line a minute
+	// refusals picks the join-token refusals that reach the audit log.
+	refusals *refusalAudit
 
 	ctx    context.Context // ends with Close; sessions run under it
 	cancel context.CancelFunc
@@ -156,7 +158,7 @@ func New(ctx context.Context, o Options) (*Hub, error) {
 		o: o, log: o.Log, reg: &registry{st: o.Store, now: o.Now}, tokens: &JoinTokens{st: o.Store, now: o.Now},
 		keys:  &hubKeys{st: o.Store, vault: o.Vault, now: o.Now},
 		limit: newLimiter(o.Now), gate: newGate(maxHandshakesPerAddr, maxHandshakes),
-		quiet: &sampler{every: time.Minute, now: o.Now}, live: map[string]*conn{},
+		quiet: &sampler{every: time.Minute, now: o.Now}, refusals: newRefusalAudit(o.Now), live: map[string]*conn{},
 	}
 	if h.o.PairingFrom == nil {
 		h.o.PairingFrom = DefaultPairingFrom
@@ -226,14 +228,35 @@ func reservedName(name string) bool {
 	return slices.ContainsFunc(reservedNames, func(r string) bool { return strings.EqualFold(r, name) })
 }
 
+// LocalName is the hub's own node, which only local pairing can enroll:
+// node://local and the stacks UI's "this host" mean it, so a join token
+// can't name a node that.
+const LocalName = "local"
+
+// localName reports whether name is LocalName, in any case.
+func localName(name string) bool { return strings.EqualFold(name, LocalName) }
+
+// enrollTarget is a refused enrollment's audit target: the name the node
+// asked for when it's a valid one, else the hub (a stranger's name never
+// reaches the log unchecked).
+func enrollTarget(name string) string {
+	if nameRE.MatchString(name) {
+		return "node:" + name
+	}
+	return "hub"
+}
+
 // ServeHTTP serves /node: the upgrade, the TLS handshake, the hello, then
 // the node's session until it ends.
+//
+// The failure limiter (per ClientKey) applies only after the TLS handshake
+// has shown the node's key and the registry doesn't hold it: an approved or
+// pending node always gets through, however many strangers fail from the
+// same address (a shared NAT, or a proxy CHADASH_TRUSTED_PROXIES doesn't
+// name). The handshake gate bounds the work done before that.
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	addr := h.o.Proxies.ClientIP(r).String()
-	if !h.limit.allowed(addr) {
-		httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many failed node handshakes from this address; wait a minute.")
-		return
-	}
+	ip := h.o.Proxies.ClientIP(r)
+	addr, key := ip.String(), httpx.ClientKey(ip)
 	// Until the node is admitted it holds a handshake slot: a few per
 	// address, a few dozen in all, each for at most HandshakeTimeout twice.
 	if !h.gate.enter(addr) {
@@ -261,46 +284,61 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// hub buffer a session-sized frame before it knows the key.
 	ch, accepted, err := nodeproto.Accept(w, r, nodeproto.AcceptOptions{Identity: h.keys.pick, MaxFrame: nodeproto.HandshakeMaxFrame})
 	if err != nil {
+		// Counted, but it can't stop a known key: the limiter is only
+		// consulted for keys the registry doesn't hold.
 		h.log.Debug("node handshake failed", "client", addr, "err", err)
-		h.limit.failed(addr)
+		h.limit.failed(key)
 		return
 	}
 	defer ch.Close()
-	f, err := nodeproto.RecvFrame(h.ctx, ch, nodeproto.HandshakeTimeout)
-	if err != nil || f.Op != nodeproto.OpHello {
-		h.limit.failed(addr)
-		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeProtocol, "the node must say hello first"))
-		return
-	}
-	var hello nodeproto.Hello
-	if err := json.Unmarshal(f.Data, &hello); err != nil {
-		h.limit.failed(addr)
-		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeProtocol, "a malformed hello"))
-		return
-	}
 	rec, known, err := h.reg.lookup(h.ctx, ch.PeerPin)
 	if err != nil {
 		h.log.Error("node registry lookup failed", "err", err)
 		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeFailed, "the hub couldn't read its registry"))
 		return
 	}
+	// A stranger's key: the failure limit applies, and every refusal from
+	// here on counts against it.
+	charge := func() {
+		if !known {
+			h.limit.failed(key)
+		}
+	}
+	if !known && !h.limit.allowed(key) {
+		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeRateLimited, "too many failed node handshakes from this address; wait a minute"))
+		return
+	}
+	f, err := nodeproto.RecvFrame(h.ctx, ch, nodeproto.HandshakeTimeout)
+	if err != nil || f.Op != nodeproto.OpHello {
+		charge()
+		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeProtocol, "the node must say hello first"))
+		return
+	}
+	var hello nodeproto.Hello
+	if err := json.Unmarshal(f.Data, &hello); err != nil {
+		charge()
+		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeProtocol, "a malformed hello"))
+		return
+	}
 	switch {
 	case !known && hello.Pairing != "":
-		rec, err = h.enroll(ch, hello, addr)
+		rec, err = h.enroll(ch, hello, addr, key)
 		if err != nil {
 			return // enroll refused it
 		}
+		h.limit.succeeded(key)
 	case !known && hello.Token != "":
 		// Join tokens are accepted from any address (decisions 5): a token
 		// only makes a pending node, which an admin approves.
-		h.enrollToken(ch, hello, addr)
+		h.enrollToken(ch, hello, addr, key)
 		return
 	case !known:
-		h.limit.failed(addr)
+		charge()
 		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeUnknownNode, "this hub doesn't know the node's key"))
 		return
 	case rec.State == StateRevoked:
-		h.limit.failed(addr)
+		// A key the registry holds: refused for good, and not a guess
+		// that should cost the address anything.
 		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeRevoked, "this node was revoked"))
 		return
 	case rec.State == StatePending:
@@ -308,7 +346,6 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.pendingSeen(ch, rec, hello, addr)
 		return
 	}
-	h.limit.succeeded(addr)
 	release()
 	ch.SetMaxFrame(nodeproto.DefaultMaxFrame)
 	h.serve(ch, rec, hello, accepted, addr)
@@ -334,13 +371,16 @@ func (h *Hub) refuse(ch *nodeproto.Channel, id string, e *nodeproto.Error) {
 }
 
 // enroll handles an unknown key that presents the pairing secret.
-func (h *Hub) enroll(ch *nodeproto.Channel, hello nodeproto.Hello, addr string) (Record, error) {
+func (h *Hub) enroll(ch *nodeproto.Channel, hello nodeproto.Hello, addr, key string) (Record, error) {
 	actor := audit.Actor{Kind: "system", Name: ApprovedByPairing, IP: addr}
 	fail := func(e *nodeproto.Error) (Record, error) {
-		h.limit.failed(addr)
-		h.record(audit.Entry{Actor: actor, Action: "nodes.enroll", Target: "node:" + hello.Name,
-			Params: params(map[string]string{"name": hello.Name, "fingerprint": nodeproto.Fingerprint(ch.PeerPin)}),
-			Result: audit.Refused, Error: &audit.Error{Code: e.Code, Message: e.Message}})
+		h.limit.failed(key)
+		p := map[string]string{"fingerprint": nodeproto.Fingerprint(ch.PeerPin)}
+		if nameRE.MatchString(hello.Name) {
+			p["name"] = hello.Name
+		}
+		h.record(audit.Entry{Actor: actor, Action: "nodes.enroll", Target: enrollTarget(hello.Name),
+			Params: params(p), Result: audit.Refused, Error: &audit.Error{Code: e.Code, Message: e.Message}})
 		h.refuse(ch, "", e)
 		return Record{}, e
 	}
