@@ -16,10 +16,10 @@ const live = useLive();
 const ui = useUi();
 const discovery = useDiscoveryIfAny();
 
-/** What the Inbox lists as open: needs you, not already being fixed, plus a discovery and suggestions waiting for an answer. */
+/** What the Inbox lists as open: needs you, not already being fixed, plus a discovery, approvals and suggestions waiting for an answer. */
 const inboxCount = computed(() => {
   const g = groupInbox(live.inbox.value, live.fixes);
-  return g.open.length + g.suggestions.length + (discovery?.suggestions.value.length ? 1 : 0);
+  return g.open.length + g.approvals.length + g.suggestions.length + (discovery?.suggestions.value.length ? 1 : 0);
 });
 const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 

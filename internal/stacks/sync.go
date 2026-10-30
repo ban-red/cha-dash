@@ -877,7 +877,8 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 		}
 	}
 	actor := syncActor(s, owner)
-	plan, err := y.eng.Plan(ctx, actor, action.PlanRequest{Action: ActionDeploy, Target: Target(s.Node, s.Stack), RequireApproval: ask || len(why) > 0})
+	plan, err := y.eng.Plan(ctx, actor, action.PlanRequest{Action: ActionDeploy, Target: Target(s.Node, s.Stack), RequireApproval: ask || len(why) > 0,
+		Note: commitNote(sha, got.Subject)})
 	if ref, ok := errors.AsType[*action.Refusal](err); ok {
 		if ref.Code == "forbidden" {
 			y.pause(ctx, s, "The sync's owner can't deploy this stack any more: "+ref.Message)
@@ -905,4 +906,20 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 		y.s.syncItem(s, itemAsks, "attention", "Commit "+short(sha)+" of "+s.Stack+" waits for approval",
 			"Deploy on push asks first for commit "+short(sha)+": "+strings.Join(why, " ")+" Approve or deny it in the Inbox.")
 	}
+}
+
+// maxSubject caps a commit's subject in an approval's note, in runes.
+const maxSubject = 120
+
+// commitNote is the line an approval shows for a commit: its short SHA and
+// subject, which whoever can push writes, so it's cut short.
+func commitNote(sha, subject string) string {
+	subject = strings.Join(strings.Fields(subject), " ")
+	if r := []rune(subject); len(r) > maxSubject {
+		subject = string(r[:maxSubject-1]) + "…"
+	}
+	if subject == "" {
+		return "Commit " + short(sha)
+	}
+	return "Commit " + short(sha) + ": " + subject
 }

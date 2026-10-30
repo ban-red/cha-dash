@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /**
  * A plan waiting for a person, in the Inbox: an API token planned an action
- * above T1, and it runs only if an admin or the owner approves it here
- * (`class: "approval"`; the hub sends these to approvers only).
+ * above T1, or a git sync in "draft and ask" found a commit, and it runs only
+ * if an admin or the owner approves it here (`class: "approval"`; the hub
+ * sends these to approvers only).
  *
- * Built from the hub's plan, never from the token's words: who asked (the
- * token and its user), what it will do (the plan's steps), what it touches
- * (the plan's impact), and when the request expires.
+ * Built from the hub's plan, never from the requester's words: who asked
+ * (the token or sync and its user), the hub's note (a sync's commit), what
+ * it will do (the plan's steps), what it touches (the plan's impact), and
+ * when the request expires.
  *
  *   POST /api/approvals/{id}/approve  {hash}  → 202 {task}; needs a step-up made after the request
  *   POST /api/approvals/{id}/deny     {reason?} → 200 {approval}
@@ -40,6 +42,19 @@ const plan = computed(() => apv.value?.plan);
 const steps = computed(() => plan.value?.steps ?? []);
 const impact = computed(() => (plan.value?.impact ?? incident.blast_radius ?? []).slice(0, 10));
 const who = computed(() => apv.value?.originator);
+/** How the request came, after "Asked by <name>". */
+const via = computed(() => {
+  const o = who.value;
+  switch (o?.kind) {
+    case 'sync':
+      return o.user_name ? `, a git sync acting for ${o.user_name}` : ', a git sync';
+    case 'agent':
+      return o.user_name ? `, an agent of ${o.user_name}’s, through the API` : ', an agent, through the API';
+    case 'user':
+      return '';
+  }
+  return o?.user_name ? `, a token of ${o.user_name}’s, through the API` : ', through the API';
+});
 const tier = computed(() => plan.value?.tier ?? 'T2');
 /** T2 holds; anything higher would be typed (tokens never get there). */
 const holds = computed(() => tier.value === 'T2');
@@ -115,9 +130,10 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
     <div>
       <div :id="`${uid}-t`" class="ib-title">{{ incident.title }}</div>
       <div class="m">
-        Asked by <b>{{ who?.name ?? 'an API token' }}</b><template v-if="who?.user_name">, a token of {{ who.user_name }}’s</template>, through the API.
+        Asked by <b>{{ who?.name ?? 'an API token' }}</b>{{ via }}.
         It runs only if you approve it.
       </div>
+      <div v-if="plan?.note" class="m apv-note">{{ plan.note }}</div>
       <dl class="apv-meta">
         <div><dt>Action</dt><dd>{{ plan?.label }} <span class="chip">{{ tier }}</span></dd></div>
         <div><dt>Asked</dt><dd>{{ hhmm(apv?.requested_at ?? incident.opened_at) }}</dd></div>

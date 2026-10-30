@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import ApprovalItem from '../src/components/ApprovalItem.vue';
+import BriefTools from '../src/components/BriefTools.vue';
 import HoldToConfirm from '../src/components/HoldToConfirm.vue';
 import InboxSheet from '../src/components/InboxSheet.vue';
 import StepUpDialog from '../src/components/StepUpDialog.vue';
@@ -92,6 +93,38 @@ function withApproval() {
 }
 
 const PASSWORD_BEGIN = { 'POST /api/auth/step-up/begin': { status: 200, body: { method: 'password' } } };
+
+describe('approvals in the Inbox', () => {
+  it('count on the Inbox badge', async () => {
+    const h = harness(withApproval());
+    h.mountIn(BriefTools);
+    await until(() => !!document.querySelector('button[aria-label^="Inbox:"]'), 'the Inbox button');
+    const before = Number(/Inbox: (\d+)/.exec(document.querySelector('button[aria-label^="Inbox:"]')!.getAttribute('aria-label')!)![1]);
+    const without = harness(docs(withIncidents));
+    without.mountIn(BriefTools);
+    await settle();
+    const labels = [...document.querySelectorAll('button[aria-label^="Inbox:"]')].map((b) => b.getAttribute('aria-label'));
+    expect(labels).toEqual([`Inbox: ${before} need you`, `Inbox: ${before - 1} need you`]);
+  });
+
+  it('say a git sync asked, and which commit', async () => {
+    const d = docs(withIncidents);
+    const apv = structuredClone(APPROVAL);
+    apv.title = 'git sync for owner asks to run: Deploy media';
+    apv.approval!.originator = { kind: 'sync', id: 'syn_1', name: 'git sync for owner', user: 'u1', user_name: 'owner' };
+    apv.approval!.plan.note = 'Commit 1761175: Quiet the nginx logs';
+    d.inbox.incidents[apv.id] = apv;
+    const h = harness(d);
+    h.mountIn(InboxSheet);
+    h.ui.openInbox();
+    await until(() => !!document.querySelector('.apv'), 'the approval');
+    const text = document.querySelector('.apv')!.textContent!.replace(/\s+/g, ' ');
+    expect(text).toContain('Asked by git sync for owner, a git sync acting for owner.');
+    expect(text).not.toContain('token');
+    expect(document.querySelector('.apv-note')?.textContent).toBe('Commit 1761175: Quiet the nginx logs');
+    expect(await axeViolations()).toEqual([]);
+  });
+});
 
 describe('Esc on the step-up closes only the step-up', () => {
   it('leaves Settings open, whether the dialog stops it or the sheet checks', async () => {

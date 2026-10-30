@@ -29,6 +29,9 @@ type PlanRequest struct {
 	// approves it, whatever the policy says (the git syncer's "draft and
 	// ask"). Set by callers in the hub, not by the HTTP body.
 	RequireApproval bool `json:"-"`
+	// Note is a line for whoever approves the plan, such as the commit a
+	// git sync found. Set by callers in the hub, not by the HTTP body.
+	Note string `json:"-"`
 }
 
 // Plan is what the engine will do, as POST /api/actions/plan returns it.
@@ -51,6 +54,9 @@ type Plan struct {
 	// (PlanRequest.RequireApproval), as ApprovalPolicy would. Stored with
 	// the plan's document; not part of its hash.
 	RequireApproval bool `json:"require_approval,omitempty"`
+	// Note is PlanRequest.Note, shown with an approval. Not part of the
+	// hash.
+	Note string `json:"note,omitempty"`
 }
 
 // confirmFor is the confirmation UX a tier gets.
@@ -116,6 +122,7 @@ func (e *Engine) Plan(ctx context.Context, a Actor, req PlanRequest) (*Plan, err
 		ExpiresAt: now.Add(PlanTTL),
 
 		RequireApproval: req.RequireApproval,
+		Note:            req.Note,
 	}
 	if p.Confirm == "type" {
 		p.ConfirmText = t.Name

@@ -289,6 +289,12 @@ func TestSyncAsks(t *testing.T) {
 	if got := e.approvals(); len(got) != 1 || !strings.HasPrefix(got[0], action.ApprovalAwaiting) {
 		t.Fatalf("approvals %q", got)
 	}
+	// The approval says which commit it is, by its subject.
+	var note string
+	if err := e.st.Reader().QueryRowContext(ctx, `SELECT json_extract(p.document, '$.note') FROM approvals a JOIN plans p ON p.id = a.plan_id`).Scan(&note); err != nil ||
+		note != "Commit "+short(sha1)+": Update media/compose.yaml" {
+		t.Fatalf("note %q %v", note, err)
+	}
 	d, _ := e.svc.draft(ctx, "local", "media")
 	if d == nil || d.Source != "git:"+sha1 || d.UpdatedBy != "git sync" {
 		t.Fatalf("draft %+v", d)
@@ -443,5 +449,19 @@ func TestSyncFetchFailing(t *testing.T) {
 	e.y.runOnce(ctx, y.ID)
 	if got := e.sync(y.ID); got.LastError != "" {
 		t.Fatalf("%+v", got)
+	}
+}
+
+func TestCommitNote(t *testing.T) {
+	long := strings.Repeat("é", maxSubject+5)
+	for _, c := range []struct{ subject, want string }{
+		{"Raise the retries", "Commit 1234567: Raise the retries"},
+		{"  spaced\tout\r\n  ", "Commit 1234567: spaced out"},
+		{"", "Commit 1234567"},
+		{long, "Commit 1234567: " + strings.Repeat("é", maxSubject-1) + "…"},
+	} {
+		if got := commitNote("1234567890abcdef", c.subject); got != c.want {
+			t.Errorf("commitNote(%q) = %q, want %q", c.subject, got, c.want)
+		}
 	}
 }

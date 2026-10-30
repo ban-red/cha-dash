@@ -155,11 +155,11 @@ export interface Incident {
   approval?: Approval;
 }
 
-/** Who made a plan that waits for a person: an API token (or, later, an agent) and its user. */
+/** Who made a plan that waits for a person: an API token, a git sync or an agent, and the user it acts for. */
 export interface Originator {
-  kind: 'token' | 'agent' | string;
+  kind: 'token' | 'sync' | 'agent' | 'user' | string;
   id: string;
-  /** "backup script (sam)": the token and its user. */
+  /** "backup script (sam)" for a token, "git sync for sam" for a sync. */
   name: string;
   user?: string;
   user_name?: string;
@@ -186,6 +186,8 @@ export interface Approval {
     impact?: Impact[];
     undo?: UndoSpec | null;
     expires_at?: string;
+    /** A line for whoever approves it: "Commit 1761175: Quiet the logs" from a git sync. */
+    note?: string;
   };
   originator: Originator;
   requested_at: string;
