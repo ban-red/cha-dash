@@ -182,6 +182,12 @@ func tile(k *importer.Kit, sec *importer.KitSection, n *yaml.Node, cat importer.
 				if err := v.Decode(&val); err != nil {
 					return at(v, "%s has the wrong shape", key)
 				}
+				if key == "tls" {
+					// A shared file mustn't turn certificate checks off for the
+					// key typed next: TLS is chosen from the URL, and changed in Cha Dash.
+					k.Unmapped(importer.Unmapped{Kind: "field", Origin: origin, Type: integ, Fields: []string{key}, Reason: "TLS isn't taken from a file; Cha Dash chose it from the URL, and you can change it on the connection"})
+					continue
+				}
 				if s, ok := val.(string); ok && strings.HasPrefix(s, "${") {
 					k.Unmapped(importer.Unmapped{Kind: "placeholder", Origin: origin, Type: integ, Fields: []string{key}, Reason: "${…} isn't resolved; set it on the connection in Cha Dash"})
 					continue
