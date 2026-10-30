@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Move a widget to another section.** The widget menu has a Move to section item that lists the board's other sections and puts the widget at the end of the one you pick.
 - **Calendars in the Demo Home.** The demo's Home Assistant publishes two invented calendars, Family and School, so the Calendar widget has something to show there.
 
+### Changed
+
+- **Camera controls are off by default.** The Cameras tile shows its switches for detection, recording and more only once you turn on **Show camera controls** in its Widget settings, which also says how to add the Frigate admin account they need.
+
 ## [0.2.0-beta.2] - 2026-10-29
 
 The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and health now keep a history on disk, so sparklines survive a restart, a sheet looks back over what was kept, and the Pulse strip under the Briefing takes the whole board back to any moment of the last 24 hours. Tiles get views you swipe between, new sizes, a menu, and far more from Plex, Tautulli, qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant, Frigate and the weather. Settings → Bring in imports Homarr 2 backups and plain YAML boards. The v0.2 actions have now run against a real homelab, all but Pi-hole's, AdGuard Home's and Seerr's, and what those runs and a second security review found is fixed below.

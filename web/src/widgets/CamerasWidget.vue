@@ -225,8 +225,6 @@ const controls = computed(() => {
     return o ? [{ ...f, on, offer: o }] : [];
   });
 });
-/** Why the switches can't be used (no control account), said once. */
-const controlsWhy = computed(() => (controls.value.length && controls.value.every((x) => !x.offer.available) ? controls.value[0]!.offer.unavailable ?? '' : ''));
 function toggle(x: { offer: Offer; label: string; on: boolean }): void {
   const c = main.value;
   if (!c || !x.offer.available || busy.value || live.stale.value || ui.state.editing) return;
@@ -300,7 +298,6 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
         >
           <span class="cam-dot" aria-hidden="true"></span>{{ x.label }}
         </button>
-        <span v-if="controlsWhy" class="cam-why">{{ controlsWhy }}</span>
       </div>
       <ul v-if="showEvents" class="list cam-events" aria-label="Recent detections">
         <li v-for="e in events.slice(0, size === 'hero' ? 4 : 2)" :key="e.id" class="li">
@@ -381,9 +378,5 @@ button.cam:focus-visible {
 .cam-sw:disabled {
   opacity: 0.6;
   cursor: default;
-}
-.cam-why {
-  color: var(--text-3);
-  font-size: var(--type-caption);
 }
 </style>

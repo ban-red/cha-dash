@@ -172,7 +172,7 @@ describe('Cameras', () => {
       'POST /api/actions/plan': { status: 200, body: { id: 'p1', hash: 'h', action: 'frigate.camera.detect.off', label: 'Turn detect off', target: 'frigate:camera/driveway', tier: 'T1', confirm: 'none', step_up: 'none' } },
       'POST /api/plans/p1/approve': { status: 202, body: { task: { id: 't1', action: 'frigate.camera.detect.off', target: 'frigate:camera/driveway', state: 'running' } } },
     });
-    const { w } = mountCams('large');
+    const { w } = mountCams('large', { options: { controls: true } });
     await flushPromises();
     expect(hub.calls.some((c) => c.path === `/api/actions?target=${encodeURIComponent('frigate:camera/driveway')}`)).toBe(true);
     const sw = w.findAll('.cam-sw');
@@ -188,22 +188,22 @@ describe('Cameras', () => {
     expect(hub.last('POST', '/api/actions/plan')?.body).toMatchObject({ action: 'frigate.camera.detect.off', target: 'frigate:camera/driveway' });
   });
 
-  it('says why the switches can’t be used without a control account', async () => {
+  it('disables the switches without a control account, and leaves the why to the widget settings', async () => {
     fakeFetch({ 'GET /api/actions': { status: 200, body: offers(false) } });
-    const { w } = mountCams('large');
+    const { w } = mountCams('large', { options: { controls: true } });
     await flushPromises();
     expect(w.findAll('.cam-sw').every((b) => b.attributes('disabled') !== undefined)).toBe(true);
-    expect(w.find('.cam-why').text()).toBe('Add an admin account under Control in the Frigate settings.');
+    expect(w.find('.cam-why').exists()).toBe(false);
   });
 
-  it('has no switches when turned off in its settings, on a wide tile, or without offers', async () => {
+  it('has no switches unless turned on in its settings, on a wide tile, or without offers', async () => {
     fakeFetch({ 'GET /api/actions': { status: 200, body: offers() } });
-    expect((await (async () => { const m = mountCams('large', { options: { controls: false } }); await flushPromises(); return m.w; })()).find('.cam-ctl').exists()).toBe(false);
-    const wide = mountCams('wide').w;
+    expect((await (async () => { const m = mountCams('large'); await flushPromises(); return m.w; })()).find('.cam-ctl').exists()).toBe(false);
+    const wide = mountCams('wide', { options: { controls: true } }).w;
     await flushPromises();
     expect(wide.find('.cam-ctl').exists()).toBe(false);
     fakeFetch({ 'GET /api/actions': { status: 200, body: [] } });
-    const none = mountCams('large').w;
+    const none = mountCams('large', { options: { controls: true } }).w;
     await flushPromises();
     expect(none.find('.cam-ctl').exists()).toBe(false);
   });

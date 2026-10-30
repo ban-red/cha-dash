@@ -111,7 +111,7 @@ export const WIDGETS: Record<string, WidgetSpec> = {
         help: 'Only while the tile is on screen.',
       },
       { key: 'detections', kind: 'boolean', default: true, label: 'List recent detections', help: 'On the larger sizes.' },
-      { key: 'controls', kind: 'boolean', default: true, label: 'Show camera controls', help: 'Detection, recording and more for the main camera, for roles that may use them.' },
+      { key: 'controls', kind: 'boolean', default: false, label: 'Show camera controls', help: 'Detection, recording and more for the main camera, for roles that may use them. Turning them on and off needs a control account: add a Frigate user with the admin role to the Frigate connection under Control (Frigate only takes these changes from an admin). The recipe’s control variant shows how.' },
     ],
   }),
   homeassistant: spec('homeassistant', 'Home Assistant', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], {
