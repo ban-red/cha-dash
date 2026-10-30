@@ -14,13 +14,13 @@ const Source = "nodes"
 func ResourceID(id string) graph.RID { return graph.RID("node:" + id) }
 
 // publish puts an approved node in the graph, connected or not; a revoked
-// one comes out.
+// one comes out, and a pending one stays out until it's approved.
 func (h *Hub) publish(r Record, connected bool) {
 	g := h.o.Graph
 	if g == nil {
 		return
 	}
-	if r.State == StateRevoked {
+	if r.State != StateApproved {
 		h.graphRemove(r.ID)
 		return
 	}

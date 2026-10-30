@@ -201,6 +201,77 @@ func (g *registry) enrollApproved(ctx context.Context, name, pin, via, by string
 	return g.get(ctx, id)
 }
 
+// enrollPending adds a node that presented a join token, as pending: in
+// one transaction it checks the name is free among live nodes, inserts the
+// node and calls redeem, which spends the token on it. Any error rolls the
+// whole thing back, so a refusal leaves the token for the node that should
+// have it.
+func (g *registry) enrollPending(ctx context.Context, name, pin string, redeem func(tx *sql.Tx, id string) error) (Record, error) {
+	now := g.now().UnixMilli()
+	id := newNodeID()
+	err := g.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		var live string
+		err := tx.QueryRowContext(ctx, `SELECT id FROM nodes WHERE name = ? AND state <> 'revoked'`, name).Scan(&live)
+		switch {
+		case err == nil:
+			return errNameTaken
+		case !errors.Is(err, sql.ErrNoRows):
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO nodes (id, name, public_key, state, enrolled_via, created_at, updated_at)
+			VALUES (?, ?, ?, 'pending', 'token', ?, ?)`, id, name, pin, now, now); err != nil {
+			return err
+		}
+		return redeem(tx, id)
+	})
+	switch {
+	case errors.Is(err, errNameTaken), errors.Is(err, errBadToken):
+		return Record{}, err
+	case err != nil:
+		return Record{}, fmt.Errorf("nodes: enrolling: %w", err)
+	}
+	return g.get(ctx, id)
+}
+
+// errNotPending is approving a node that isn't waiting for approval.
+var errNotPending = errors.New("nodes: the node isn't pending")
+
+// approve moves a node from pending to approved, and nothing else: an
+// approved or revoked node is errNotPending.
+func (g *registry) approve(ctx context.Context, id, by string) (Record, error) {
+	now := g.now().UnixMilli()
+	res, err := g.st.Writer().ExecContext(ctx, `UPDATE nodes SET state = 'approved', approved_by = ?, approved_at = ?, updated_at = ?
+		WHERE id = ? AND state = 'pending'`, by, now, now, id)
+	if err != nil {
+		return Record{}, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		if _, err := g.get(ctx, id); err != nil {
+			return Record{}, err
+		}
+		return Record{}, errNotPending
+	}
+	return g.get(ctx, id)
+}
+
+// pendingBefore lists the pending nodes enrolled before t.
+func (g *registry) pendingBefore(ctx context.Context, t time.Time) ([]Record, error) {
+	rows, err := g.st.Reader().QueryContext(ctx, `SELECT `+recordCols+` FROM nodes WHERE state = 'pending' AND created_at < ?`, t.UnixMilli())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Record
+	for rows.Next() {
+		r, err := scanRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // seen records a connection: when, from where, which build, which hub keys
 // it trusts and which verbs it serves. A node that connected with its next
 // key has finished rotating: the next key becomes its key.

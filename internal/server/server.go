@@ -295,7 +295,7 @@ func New(d Deps) (http.Handler, error) {
 		d.Actions.Register(mux, d.Auth.Require, d.Log)
 	}
 	if d.Nodes != nil {
-		d.Nodes.Register(mux, session, func(r *http.Request) audit.Actor {
+		d.Nodes.Register(mux, session, nodeApproveStepUp(rec), func(r *http.Request) audit.Actor {
 			a, _ := authz.ActorFrom(r)
 			return authz.AuditActor(a)
 		})
@@ -359,6 +359,26 @@ func New(d Deps) (http.Handler, error) {
 	return h, nil
 }
 
+// nodeApproveStepUp holds approving a node to T3: a step-up on the session
+// (decisions 6), since an approved node gets stack secrets. A refusal is
+// audited as nodes.approve.
+func nodeApproveStepUp(rec *authz.Recorder) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			a, _ := authz.ActorFrom(r)
+			target := "node:" + r.PathValue("id")
+			err := authz.Decide(a, authz.Request{Scope: "nodes.approve", Target: target, Tier: authz.T3}, authz.Env{Now: time.Now()})
+			if err != nil {
+				rec.Change(r, "nodes.approve", target, nil, authz.T3, err)
+			}
+			if authz.WriteRefusal(w, err) {
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // compressAPI gzips the API's JSON responses (httpx.GzipJSON) on the routes
 // compressible allows. The web app compresses its own files (webui), and
 // /ws and /healthz are never touched.
@@ -379,7 +399,9 @@ func compressAPI(next http.Handler) http.Handler {
 // form once; and creating an API token, whose response carries its secret. Compressing a secret next to anything an attacker might
 // influence is what BREACH needs, so these stay identity whatever their size
 // (internal/httpx/gzip.go has the full reasoning).
-var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authorize", "/api/tokens"}
+var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authorize", "/api/tokens",
+	// A node join token, shown once when it's made.
+	"/api/nodes/tokens"}
 
 // compressible reports whether GzipJSON may handle a request for path.
 func compressible(path string) bool {

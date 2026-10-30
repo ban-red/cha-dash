@@ -31,8 +31,8 @@ import (
 //
 // The file is 0640 in a 0750 directory, both owned by the hub's user, so the
 // node reads it through the group (compose gives it group_add: [65532]).
-// Remote enrollment (join tokens, approval in the Inbox) is v0.3; it will
-// be another way in beside this one (see Enroller).
+// Nodes on other hosts join with a join token instead (join.go), and wait
+// for an admin's approval.
 type Pairing struct {
 	path string
 

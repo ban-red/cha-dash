@@ -1,7 +1,8 @@
 // Package nodes is the hub's side of chadash-node: the /node endpoint, the
-// registry of node identities with their pinned keys, local pairing, the
-// hub's own keys, node status in the Home Graph, and the Caller other
-// packages use to run node verbs.
+// registry of node identities with their pinned keys, local pairing, join
+// tokens and approval for nodes on other hosts, the hub's own keys, node
+// status in the Home Graph, and the Caller other packages use to run node
+// verbs.
 //
 // The transport is internal/nodeproto (ADR-0014). A node is known by its
 // Ed25519 key; every connection looks it up in the registry, so revoking a
@@ -27,6 +28,7 @@ import (
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/nodeproto"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
@@ -94,8 +96,18 @@ type Options struct {
 	Proxies httpx.Proxies
 	// Session tunes keepalive and limits (nodeproto's defaults when zero).
 	Session nodeproto.SessionOptions
-	Log     *slog.Logger
-	Now     func() time.Time
+	// Inbox gets an item per pending node (node.<id>.pending), resolved on
+	// approve, revoke or expiry. Nil: none.
+	Inbox *livedoc.Doc
+	// PublicURL (CHADASH_PUBLIC_URL) is where a join token's .env block
+	// points CHADASH_HUB: wss://<its host>/node.
+	PublicURL string
+	// OnApproved runs after an admin approves a node, as that admin (by),
+	// with whether its join token asked for a Docker integration. It must
+	// not block for long: the approve request waits for it.
+	OnApproved func(ctx context.Context, rec Record, addDocker bool, by audit.Actor)
+	Log        *slog.Logger
+	Now        func() time.Time
 }
 
 // Hub serves nodes.
@@ -103,6 +115,7 @@ type Hub struct {
 	o       Options
 	log     *slog.Logger
 	reg     *registry
+	tokens  *JoinTokens
 	keys    *hubKeys
 	pairing *Pairing
 	limit   *limiter
@@ -112,6 +125,8 @@ type Hub struct {
 	ctx    context.Context // ends with Close; sessions run under it
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	inboxMu sync.Mutex // orders raising and resolving pending items
 
 	mu        sync.Mutex
 	live      map[string]*conn // by node ID
@@ -138,7 +153,7 @@ func New(ctx context.Context, o Options) (*Hub, error) {
 		o.Now = time.Now
 	}
 	h := &Hub{
-		o: o, log: o.Log, reg: &registry{st: o.Store, now: o.Now},
+		o: o, log: o.Log, reg: &registry{st: o.Store, now: o.Now}, tokens: &JoinTokens{st: o.Store, now: o.Now},
 		keys:  &hubKeys{st: o.Store, vault: o.Vault, now: o.Now},
 		limit: newLimiter(o.Now), gate: newGate(maxHandshakesPerAddr, maxHandshakes),
 		quiet: &sampler{every: time.Minute, now: o.Now}, live: map[string]*conn{},
@@ -173,6 +188,11 @@ func New(ctx context.Context, o Options) (*Hub, error) {
 	for _, r := range recs {
 		h.publish(r, false)
 	}
+	// Pending nodes: expire the stale, put the rest in the Inbox, then
+	// sweep again hourly.
+	h.sweep(ctx)
+	h.wg.Add(1)
+	go h.sweepLoop()
 	return h, nil
 }
 
@@ -271,8 +291,9 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return // enroll refused it
 		}
 	case !known && hello.Token != "":
-		h.limit.failed(addr)
-		h.refuse(ch, "", nodeproto.Errorf(nodeproto.CodeUnknownNode, "remote enrollment with join tokens arrives in v0.3; pair this node on the hub's compose network"))
+		// Join tokens are accepted from any address (decisions 5): a token
+		// only makes a pending node, which an admin approves.
+		h.enrollToken(ch, hello, addr)
 		return
 	case !known:
 		h.limit.failed(addr)
@@ -283,7 +304,8 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodeRevoked, "this node was revoked"))
 		return
 	case rec.State == StatePending:
-		h.refuse(ch, rec.ID, nodeproto.Errorf(nodeproto.CodePending, "this node is waiting for approval"))
+		// Not a failed handshake: the key is one the registry holds.
+		h.pendingSeen(ch, rec, hello, addr)
 		return
 	}
 	h.limit.succeeded(addr)
@@ -544,6 +566,8 @@ func (h *Hub) Revoke(ctx context.Context, id string, by audit.Actor) (Record, er
 	h.record(audit.Entry{Actor: by, Action: "nodes.revoke", Target: "node:" + id,
 		Params: params(map[string]string{"name": rec.Name, "fingerprint": rec.Fingerprint}), Result: audit.OK})
 	h.log.Info("revoked a node", "node", id, "name", rec.Name, "by", by.Name)
+	// On a pending node, revoking is Reject.
+	h.resolvePending(id, "action", "Rejected by "+by.Name+".")
 	// Whatever the revoked node (or whoever had its volume) read of the
 	// pairing file is dead now too.
 	if h.pairing != nil {
@@ -642,6 +666,10 @@ type Status struct {
 	Connected bool `json:"connected"`
 	// HubKeyCurrent says the node has acknowledged the hub's newest key.
 	HubKeyCurrent bool `json:"hub_key_current"`
+	// JoinToken is the token a node enrolled with: who made it and when,
+	// and whether approving it adds a Docker integration. Nil for paired
+	// nodes.
+	JoinToken *JoinToken `json:"join_token,omitempty"`
 }
 
 // List returns every node, live ones first.
@@ -654,6 +682,13 @@ func (h *Hub) List(ctx context.Context) ([]Status, error) {
 	out := make([]Status, len(recs))
 	for i, r := range recs {
 		out[i] = Status{Record: r, Connected: h.Connected(r.ID), HubKeyCurrent: slices.Contains(r.HubPins, newest)}
+		if r.EnrolledVia == ViaToken {
+			if t, ok, err := h.tokens.forNode(ctx, r.ID); err != nil {
+				return nil, err
+			} else if ok {
+				out[i].JoinToken = &t
+			}
+		}
 	}
 	return out, nil
 }

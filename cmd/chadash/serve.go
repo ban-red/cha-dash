@@ -300,8 +300,17 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// chadash-node: the registry and the /node channel. Its status goes
 	// where the integrations publish (a private graph in demo mode).
 	auditLog := audit.New(st)
+	// Approving a node adds its Docker integration once the manager exists
+	// (set below; approvals only come in over HTTP, after newApp).
+	var onApproved func(context.Context, nodes.Record, bool, audit.Actor)
 	nodeHub, err := nodes.New(ctx, nodes.Options{Store: st, Vault: v, Graph: itp.Graph, Audit: auditLog,
-		PairingFile: cfg.NodePairingFile, PairingFrom: cfg.NodePairingFrom, Proxies: proxies, Log: log.With("component", "nodes")})
+		PairingFile: cfg.NodePairingFile, PairingFrom: cfg.NodePairingFrom, Proxies: proxies, Log: log.With("component", "nodes"),
+		Inbox: itp.Inbox, PublicURL: cfg.PublicURL,
+		OnApproved: func(ctx context.Context, rec nodes.Record, addDocker bool, by audit.Actor) {
+			if onApproved != nil {
+				onApproved(ctx, rec, addDocker, by)
+			}
+		}})
 	if err != nil {
 		return nil, err
 	}
@@ -329,6 +338,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 	sec.OnChange(mgr.SetPosture)
+	onApproved = dockerOnApprove(mgr, auditLog, log.With("component", "nodes"))
 	// A node that connects is read at once by the instances that reach it,
 	// not at their next poll: a hub that started before its node shows the
 	// node's Docker within seconds, watched or not.
@@ -368,7 +378,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 				}
 				out := make([]stacks.Node, 0, len(list))
 				for _, n := range list {
-					if n.RevokedAt == nil {
+					if n.State == nodes.StateApproved { // not revoked, nor waiting for approval
 						out = append(out, stacks.Node{ID: n.ID, Name: n.Name, Online: n.Connected})
 					}
 				}

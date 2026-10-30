@@ -35,6 +35,12 @@ type env struct {
 
 func newEnv(t *testing.T, pairing bool) *env {
 	t.Helper()
+	return newEnvWith(t, pairing, nil)
+}
+
+// newEnvWith is newEnv with a hook to adjust the hub's options.
+func newEnvWith(t *testing.T, pairing bool, adjust func(*Options)) *env {
+	t.Helper()
 	dir := t.TempDir()
 	st, err := store.Open(t.Context(), filepath.Join(dir, "chadash.db"))
 	if err != nil {
@@ -42,6 +48,10 @@ func newEnv(t *testing.T, pairing bool) *env {
 	}
 	t.Cleanup(func() { st.Close() })
 	if _, err := st.Migrate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	// The admin the routes act as (join tokens name their maker).
+	if _, err := st.Writer().ExecContext(t.Context(), `INSERT INTO users (id, username, role, created_at, updated_at) VALUES ('u_owner', 'owner', 'owner', 1, 1)`); err != nil {
 		t.Fatal(err)
 	}
 	v, err := vault.New(st, make([]byte, 32))
@@ -55,12 +65,16 @@ func newEnv(t *testing.T, pairing bool) *env {
 		os.MkdirAll(filepath.Dir(e.pairing), 0o750)
 		o.PairingFile = e.pairing
 	}
+	if adjust != nil {
+		adjust(&o)
+	}
 	e.hub, err = New(t.Context(), o)
 	if err != nil {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	e.hub.Register(mux, func(h http.Handler) http.Handler { return h }, func(*http.Request) audit.Actor {
+	pass := func(h http.Handler) http.Handler { return h }
+	e.hub.Register(mux, pass, pass, func(*http.Request) audit.Actor {
 		return audit.Actor{Kind: "user", ID: "u_owner", Name: "owner"}
 	})
 	e.srv = httptest.NewServer(mux)

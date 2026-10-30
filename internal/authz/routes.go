@@ -278,6 +278,15 @@ var Routes = []Route{
 	{Pattern: "GET /api/nodes", Access: Admin},
 	{Pattern: "POST /api/nodes/{id}/revoke", Access: Admin},
 	{Pattern: "POST /api/nodes/pairing/regenerate", Access: Admin},
+	// Remote nodes (wave 14a): join tokens are admin+ (audited as
+	// nodes.token.create and nodes.token.revoke; the secret is shown once
+	// and never stored). Approving a pending node is admin+ with a step-up
+	// (T3, nodes.approve): the hub sends an approved node stack secrets.
+	// Rejecting one is the revoke above.
+	{Pattern: "GET /api/nodes/tokens", Access: Admin},
+	{Pattern: "POST /api/nodes/tokens", Access: Admin},
+	{Pattern: "DELETE /api/nodes/tokens/{id}", Access: Admin},
+	{Pattern: "POST /api/nodes/{id}/approve", Access: Admin},
 	// Settings → Stacks (track 9B). The list (names and status) is a read,
 	// for viewers; a stack's files, history and drafts are admin+, because
 	// compose files (adopted ones especially) often hold credentials in
