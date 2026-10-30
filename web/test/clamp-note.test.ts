@@ -38,8 +38,11 @@ describe('a long tile note', () => {
     await nextTick();
     const b = w.find('button.clamp');
     expect(b.exists()).toBe(true);
-    expect(b.find('.clamp-more').text()).toBe('more');
-    expect(b.attributes('aria-label')).toBe(`${LONG} Show all`);
+    // Named by what it shows (WCAG 2.5.3), the hint for screen readers after it.
+    expect(b.find('.clamp-more').text()).toBe('more, show all');
+    expect(b.find('.clamp-more .sr').text()).toBe(', show all');
+    expect(b.attributes('aria-label')).toBeUndefined();
+    expect(b.text()).toBe(`${LONG}more, show all`);
     await b.trigger('click');
     expect(h.ui.state.note).toEqual({ title: 'Prowlarr', text: LONG, glyph: 'attn' });
 

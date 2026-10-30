@@ -428,8 +428,10 @@ func TestAdoptFromAnotherTool(t *testing.T) {
 // it's still listed and read as protected, so the hub takes no draft for it.
 func TestOwnProjectWithAnOverrideIsProtected(t *testing.T) {
 	n := newTestNode(t, func(o *Options) { o.Protected = []string{"chadash"} })
-	startOutside(t, n.docker, "chadash", "/root/chadash/compose.yaml", "services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:0.2\n")
-	n.docker.SetFiles("chadash", []string{"/root/chadash/compose.yaml", "/root/chadash/compose.override.yaml"})
+	// A directory of its own: on a CI runner /root exists but can't be read.
+	dir := filepath.Join(t.TempDir(), "chadash")
+	startOutside(t, n.docker, "chadash", filepath.Join(dir, "compose.yaml"), "services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:0.2\n")
+	n.docker.SetFiles("chadash", []string{filepath.Join(dir, "compose.yaml"), filepath.Join(dir, "compose.override.yaml")})
 	var det stackproto.DetectResponse
 	n.must("stack.detect", nil, &det)
 	i := slices.IndexFunc(det.Projects, func(d stackproto.Detected) bool { return d.Name == "chadash" })

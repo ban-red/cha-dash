@@ -55,9 +55,10 @@ function open(): void {
 </script>
 
 <template>
-  <button v-if="cut" type="button" class="clamp is-cut" :style="{ '--clamp-lines': lines }" :aria-label="`${text} Show all`" @click.stop="open">
+  <button v-if="cut" type="button" class="clamp is-cut" :style="{ '--clamp-lines': lines }" @click.stop="open">
     <span ref="el" class="clamp-text">{{ text }}</span>
-    <span class="clamp-more" aria-hidden="true">more</span>
+    <!-- Named by what it shows (WCAG 2.5.3): "more" is read, and says what it does. -->
+    <span class="clamp-more">more<span class="sr">, show all</span></span>
   </button>
   <a v-else-if="href" class="clamp clamp-link" :href="href" target="_blank" rel="noopener noreferrer" :style="{ '--clamp-lines': lines }" @click.stop>
     <span ref="el" class="clamp-text">{{ text }}<span aria-hidden="true"> ↗</span></span>

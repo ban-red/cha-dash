@@ -789,4 +789,10 @@ const openSettings = () => ui.openSettings('integrations', 'new');
 .wx-credit a:hover {
   text-decoration: underline;
 }
+/* A 24px target (WCAG 2.5.8) for small print, without moving the footer. */
+.wx-credit a {
+  display: inline-block;
+  padding-block: 7px;
+  margin-block: -7px;
+}
 </style>

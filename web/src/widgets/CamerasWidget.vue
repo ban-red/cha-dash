@@ -269,9 +269,11 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
           :class="['cam', { big: p.w * p.h > 1, off: camStatus(p.cam) !== 'ok' && camStatus(p.cam) !== 'attention', frozen, pic: Boolean(pictureFrom(p.cam)) }]"
           :style="{ gridColumn: `${p.col} / span ${p.w}`, gridRow: `${p.row} / span ${p.h}` }"
           :role="opens(p.cam) ? undefined : 'img'"
-          :aria-label="caption(p.cam) + (frozen ? `, ${stamp}` : '')"
+          :aria-label="opens(p.cam) ? undefined : caption(p.cam) + (frozen ? `, ${stamp}` : '')"
           @click="open(p.cam)"
         >
+          <!-- A button is named by what it shows (WCAG 2.5.3), so the stamp it can't show rides along hidden. -->
+          <span v-if="opens(p.cam) && frozen" class="sr">{{ stamp }}</span>
           <template v-for="c in [p.cam]" :key="c.id">
           <CameraPicture v-if="pictureFrom(c)" :instance="pictureFrom(c)!" :resource="c.id" :height="heightFor(p)" :every="every" :frozen="frozen">
             <CameraScene :variant="variant(c, i)" :person="recent(c)" />
