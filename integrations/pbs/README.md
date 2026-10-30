@@ -85,8 +85,9 @@ PBS before 3.x is an `unsupported_version` Repair; above 4.x it's read the same 
 - The ID and label are the Demo Home's, so the `filling.<store>` incident suggests it (with the link to PBS as the alternative) when the datastore's prune job is disabled, and the hub fills its `plan_ready`.
 - **Preconditions:** a datastore in maintenance (`mars is in maintenance (read-only), so it can't be pruned now.`), no prune job (`mini-g5 has no prune job, so there's no retention policy to prune by. …`), a named job that isn't there, a policy that keeps everything.
 - Pruning only marks snapshots gone; the space comes back at the next garbage collection, as the plan's steps say.
+- **The control token's own rights** are checked when planning (`Def.Permitted`, on the control instance): `GET /access/permissions?path=/datastore/<store>` must show `Datastore.Audit` (to read the prune job back when it runs) and `Datastore.Modify` (to prune every group). Without them the prune is unavailable, naming what's missing and DatastoreAdmin. Found in the live run: a DatastorePowerUser token can't list the datastore's prune jobs, so it used to plan and then fail at run time with "no prune job".
 - **Without a control token** the action answers `409 unavailable` ("Add a control token to … to let Cha Dash prune its datastores. …") with `recipe` naming the instance. A 403 from PBS fails the task with the role it needs.
-- **Fixtures:** synthetic, [`testdata/integrations/pbs/actions/`](../../testdata/integrations/pbs/actions/README.md). Not verified without a live run: that `Datastore.Prune` alone prunes only the token's own groups, and PBS's exact 403 text.
+- **Fixtures:** synthetic, [`testdata/integrations/pbs/actions/`](../../testdata/integrations/pbs/actions/README.md). The prune itself, its task log and the refusals ran against a real PBS on 2026-10-29 ([08b · live runs](../../docs/plan/08-v0.2-live-runs.md#pbs--prune-per-policy)). Still not verified: that `Datastore.Prune` alone prunes only the token's own groups, and PBS's exact 403 text; the planning check now stops such a token before it gets there.
 
 ## Grants and warnings
 

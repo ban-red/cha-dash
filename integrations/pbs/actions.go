@@ -50,12 +50,13 @@ func (in *instance) Actions() []action.Def {
 			}
 		},
 		Preconditions: func(ctx context.Context, r action.Request) error {
-			_, err := in.pruneJobFor(ctx, r)
+			_, err := in.pruneJobFor(ctx, r, false)
 			return err
 		},
-		Timeout: action.AsyncTimeout,
-		Execute: in.runPrune,
-		Verify:  in.pruneOK,
+		Permitted: in.mayPrune,
+		Timeout:   action.AsyncTimeout,
+		Execute:   in.runPrune,
+		Verify:    in.pruneOK,
 	}}
 }
 
@@ -86,6 +87,42 @@ func (in *instance) resolveStore(ctx context.Context, target string) (action.Tar
 	return action.Target{}, action.ErrNotFound
 }
 
+// prunePrivs are what the control token needs on the datastore: Audit to
+// read its prune job back when it runs, and Modify to prune every group,
+// not only the token's own (Datastore.Prune). Only DatastoreAdmin holds
+// Modify, which is what the control recipe grants.
+var prunePrivs = []string{"Datastore.Audit", "Datastore.Modify"}
+
+// mayPrune refuses a prune the control token couldn't carry out, so it
+// shows as unavailable when planned instead of failing once approved. It
+// runs on the control instance (Def.Permitted) and reads the token's own
+// privileges on the datastore.
+func (in *instance) mayPrune(ctx context.Context, r action.Request) error {
+	path := "/datastore/" + r.Target.Ref
+	perms, err := action.Memo(ctx, ID+"/"+in.key+"/control/permissions"+path, func(ctx context.Context) (privileges, error) {
+		var p privileges
+		err := in.get(ctx, "/access/permissions", url.Values{"path": {path}}, &p)
+		return p, err
+	})
+	if statusOf(err) == http.StatusUnauthorized {
+		return action.Unavailable("Proxmox Backup Server rejected the control token. Enter it again in the instance's settings.", in.key)
+	}
+	if err != nil {
+		return readRefusal(err)
+	}
+	var lack []string
+	for _, priv := range prunePrivs {
+		if !perms.has(path, priv) {
+			lack = append(lack, priv)
+		}
+	}
+	if len(lack) > 0 {
+		return action.Unavailable(fmt.Sprintf("The control token can't prune %s: it lacks %s on %s. Give it the DatastoreAdmin role there, as the control recipe does.",
+			r.Target.Name, strings.Join(lack, " and "), path), in.key)
+	}
+	return nil
+}
+
 func readRefusal(err error) error {
 	_, _, msg := integration.Classify(err)
 	return action.Unavailable("Cha Dash couldn't read Proxmox Backup Server just now: "+msg+".", "")
@@ -94,7 +131,12 @@ func readRefusal(err error) error {
 // pruneJobFor is the prune job whose policy applies: the one named, else
 // the datastore's (enabled first, then by ID). It refuses a datastore in
 // maintenance, one without a job, and a policy that keeps everything.
-func (in *instance) pruneJobFor(ctx context.Context, r action.Request) (pruneJob, error) {
+//
+// running is true when the control token reads it to prune. The plan saw
+// the job with the read token, so finding none then means the job went
+// away since, or the control token can't see it; it never means the
+// datastore has none.
+func (in *instance) pruneJobFor(ctx context.Context, r action.Request, running bool) (pruneJob, error) {
 	store := r.Target.Ref
 	var items []datastoreItem
 	if err := in.get(ctx, "/admin/datastore", nil, &items); err != nil {
@@ -129,6 +171,8 @@ func (in *instance) pruneJobFor(ctx context.Context, r action.Request) (pruneJob
 	switch {
 	case len(mine) == 0 && p.Job != "":
 		return pruneJob{}, action.Precondition(fmt.Sprintf("%s has no prune job called %s.", store, p.Job))
+	case len(mine) == 0 && running:
+		return pruneJob{}, action.Precondition(fmt.Sprintf("The control token sees no prune job on %s. It was removed since this was planned, or the token can't read it: it needs Datastore.Audit on /datastore/%s.", store, store))
 	case len(mine) == 0:
 		return pruneJob{}, action.Precondition(fmt.Sprintf("%s has no prune job, so there's no retention policy to prune by. Add one in Proxmox Backup Server first.", store))
 	case keeps(mine[0].keepOptions).Encode() == "":
@@ -156,7 +200,7 @@ func keeps(k keepOptions) url.Values {
 var upids sync.Map
 
 func (in *instance) runPrune(ctx context.Context, r action.Request, run *action.TaskRun) error {
-	j, err := in.pruneJobFor(ctx, r)
+	j, err := in.pruneJobFor(ctx, r, true)
 	if err != nil {
 		if ref, ok := errors.AsType[*action.Refusal](err); ok {
 			return action.Fail(ref.Code, ref.Message)

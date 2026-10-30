@@ -39,11 +39,17 @@ type fakePBS struct {
 	exit        string
 	deny        bool
 	n           int
+	// lacks takes privileges from the control token on a datastore path,
+	// as /access/permissions reports them; without Datastore.Audit there,
+	// the token's /admin/prune leaves that datastore's jobs out, as PBS does.
+	lacks map[string][]string
+	// jobsHidden hides every prune job from the control token alone.
+	jobsHidden bool
 }
 
 func newFakePBS(t *testing.T) *fakePBS {
 	t.Helper()
-	f := &fakePBS{maintenance: map[string]string{}, tasks: map[string]int{}, exit: "OK"}
+	f := &fakePBS{maintenance: map[string]string{}, tasks: map[string]int{}, exit: "OK", lacks: map[string][]string{}}
 	var jobs struct {
 		Data []map[string]any `json:"data"`
 	}
@@ -92,7 +98,32 @@ func (f *fakePBS) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		f.reply(w, 200, out, "")
 	case r.Method == http.MethodGet && path == "/admin/prune":
-		f.reply(w, 200, f.jobs, "")
+		if !control {
+			f.reply(w, 200, f.jobs, "")
+			return
+		}
+		seen := []map[string]any{}
+		for _, j := range f.jobs {
+			store, _ := j["store"].(string)
+			if !f.jobsHidden && !slices.Contains(f.lacks["/datastore/"+store], "Datastore.Audit") {
+				seen = append(seen, j)
+			}
+		}
+		f.reply(w, 200, seen, "")
+	case r.Method == http.MethodGet && path == "/access/permissions":
+		at := r.URL.Query().Get("path")
+		privs := map[string]bool{"Datastore.Audit": true}
+		if control {
+			for _, p := range []string{"Datastore.Audit", "Datastore.Modify", "Datastore.Prune"} {
+				privs[p] = !slices.Contains(f.lacks[at], p)
+			}
+			for p, ok := range privs {
+				if !ok {
+					delete(privs, p)
+				}
+			}
+		}
+		f.reply(w, 200, map[string]any{at: privs}, "")
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/prune-datastore"):
 		if !control || f.deny {
 			f.reply(w, 403, nil, "permission check failed")
@@ -222,6 +253,56 @@ func TestPruneRefusals(t *testing.T) {
 		t.Fatalf("event = %+v", ev)
 	}
 	if len(f.writes.All()) != 1 {
+		t.Fatalf("writes = %+v", f.writes.All())
+	}
+}
+
+// A control token without DatastoreAdmin on the datastore can't prune it:
+// unavailable when planned, naming what it lacks, and nothing sent to PBS.
+// (Live run P4: a DatastorePowerUser token planned, then failed at run time
+// with "no prune job".)
+func TestPruneOutsideTheControlTokensRights(t *testing.T) {
+	f := newFakePBS(t)
+	h, acts := pruneActions(t, f, true)
+	f.mu.Lock()
+	f.lacks["/datastore/mars"] = []string{"Datastore.Audit", "Datastore.Modify"}
+	f.mu.Unlock()
+	ref := acts.Refused(actPrune, storeTarget("mars"), nil)
+	want := "The control token can't prune mars: it lacks Datastore.Audit and Datastore.Modify on /datastore/mars. Give it the DatastoreAdmin role there, as the control recipe does."
+	if ref.Code != "unavailable" || ref.Message != want || ref.Recipe != h.ID {
+		t.Fatalf("refusal = %+v", ref)
+	}
+	if len(f.writes.All()) != 0 {
+		t.Fatalf("writes = %+v", f.writes.All())
+	}
+	// Another datastore the token does hold is still fine.
+	if _, err := acts.Plan(actPrune, storeTarget("store-2"), nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The run reads the job again with the control token. Finding none then
+// isn't "the datastore has no prune job": the plan saw one.
+func TestPruneJobGoneWhenRunning(t *testing.T) {
+	f := newFakePBS(t)
+	_, acts := pruneActions(t, f, true)
+	p, err := acts.Plan(actPrune, storeTarget("mars"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	f.jobsHidden = true
+	f.mu.Unlock()
+	task, err := acts.Approve(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := acts.Wait(task.ID)
+	want := "The control token sees no prune job on mars. It was removed since this was planned, or the token can't read it: it needs Datastore.Audit on /datastore/mars."
+	if done.State != action.StateFailed || done.Error == nil || done.Error.Message != want {
+		t.Fatalf("task = %+v", done)
+	}
+	if len(f.writes.All()) != 0 {
 		t.Fatalf("writes = %+v", f.writes.All())
 	}
 }
