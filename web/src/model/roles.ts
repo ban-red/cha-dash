@@ -85,7 +85,7 @@ export interface Permissions {
 export function permissions(role: string | undefined): Permissions {
   const r = asRole(role);
   const admin = r === 'owner' || r === 'admin';
-  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'nodes', 'import', 'backup', 'users', 'audit', 'notifications', 'tokens', 'security'] : ['security', 'notifications', 'tokens'];
+  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'nodes', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security'] : ['security', 'notifications', 'tokens'];
   return {
     role: r,
     inbox: r !== 'household',

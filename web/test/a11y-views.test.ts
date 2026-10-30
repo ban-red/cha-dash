@@ -63,6 +63,23 @@ const PLEX_SCHEMA = {
 };
 
 /** The hub's side of every view here. */
+/** What GET /api/settings/history answers on a hub a few days in. */
+const HISTORY_VIEW = {
+  level: 'standard',
+  locked: false,
+  demo: false,
+  series: 812,
+  resources: 240,
+  file_bytes: 21_400_000,
+  tiers: [
+    { tier: '1m', step_ms: 60_000, keep_ms: 172_800_000, chunks: 38_976, bytes: 9_800_000, oldest: Date.parse('2026-10-01T14:00:00Z') },
+    { tier: '15m', step_ms: 900_000, keep_ms: 1_209_600_000, chunks: 9_744, bytes: 5_100_000, oldest: Date.parse('2026-09-28T12:00:00Z') },
+    { tier: '1h', step_ms: 3_600_000, keep_ms: 31_536_000_000, chunks: 0, bytes: 0, oldest: null },
+    { tier: '1d', step_ms: 86_400_000, keep_ms: 0, chunks: 0, bytes: 0, oldest: null },
+  ],
+  estimates: { standard: 28_000_000, 'long-term': 101_000_000 },
+};
+
 function hubApi(over: Record<string, unknown> = {}) {
   return fakeFetch({
     'GET /api/demo': { status: 200, body: { enabled: true, now: withIncidents.now, seed: 1 } },
@@ -115,6 +132,7 @@ function hubApi(over: Record<string, unknown> = {}) {
       },
     },
     'GET /api/settings/security': { status: 200, body: { posture: 'relaxed', step_up: 'passkey_or_password', levels: [{ id: 'relaxed', label: 'Relaxed · LAN-only home network', description: 'Every finding a hint.', default: true }] } },
+    'GET /api/settings/history': { status: 200, body: HISTORY_VIEW },
     ...engine().routes,
     'POST /api/import/homepage?dry_run=1': { status: 200, body: golden },
     'GET /api/import/homepage': { status: 200, body: { record: { board_id: 'b1', tiles: golden.plan['tiles'] } } },
@@ -359,6 +377,7 @@ describe('Settings', () => {
     '/settings/import',
     '/settings/security',
     '/settings/backup',
+    '/settings/history',
     '/settings/users',
     '/settings/audit',
   ]) {

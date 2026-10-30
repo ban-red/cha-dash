@@ -12,6 +12,7 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/history"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
 )
 
@@ -185,4 +186,109 @@ func toHistoryJSON(rg history.Range) historySeriesJSON {
 		}
 	}
 	return out
+}
+
+// historySettings is the body of GET and PUT /api/settings/history.
+type historySettings struct {
+	Level history.Level `json:"level"`
+	// Locked: history can't be turned on from here (CHADASH_HISTORY=off, or
+	// demo mode, where Demo is true).
+	Locked    bool                    `json:"locked"`
+	Demo      bool                    `json:"demo"`
+	Series    int                     `json:"series"`
+	Resources int                     `json:"resources"`
+	FileBytes int64                   `json:"file_bytes"`
+	Tiers     []historyTierJSON       `json:"tiers"`
+	Estimates map[history.Level]int64 `json:"estimates"`
+}
+
+type historyTierJSON struct {
+	Tier   string `json:"tier"`
+	StepMs int64  `json:"step_ms"`
+	KeepMs int64  `json:"keep_ms"` // 0: forever
+	Chunks int    `json:"chunks"`
+	Bytes  int64  `json:"bytes"`
+	Oldest *int64 `json:"oldest"` // Unix ms of the oldest chunk's start
+}
+
+// historyEstimateFloor is the series count estimates assume at least, so a
+// new hub sees what a typical one grows to.
+const historyEstimateFloor = 300
+
+// registerHistorySettings mounts Settings → History (admin).
+//
+//	GET  /api/settings/history         → historySettings
+//	PUT  /api/settings/history         {level} → historySettings; 409 history_locked
+//	POST /api/settings/history/clear   deletes every point and health row → historySettings
+//
+// The level is kept in the hub's settings (history.LevelKey) and applies at
+// once. Estimates are how big history.db grows at each level with the
+// series recorded so far (at least 300).
+func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http.Handler, rec *history.Recorder, st *store.Store, demo bool, audit *authz.Recorder) {
+	view := func(w http.ResponseWriter, r *http.Request) {
+		out := historySettings{Level: history.Off, Locked: rec == nil, Demo: demo, Tiers: []historyTierJSON{}, Estimates: map[history.Level]int64{}}
+		if rec != nil {
+			s, err := rec.Stats(r.Context())
+			if err != nil {
+				httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't read the history")
+				return
+			}
+			out.Level, out.Series, out.Resources, out.FileBytes = s.Level, s.Series, s.Resources, s.FileBytes
+			for _, t := range s.Tiers {
+				tj := historyTierJSON{Tier: t.Tier, StepMs: t.Step.Milliseconds(), KeepMs: t.Keep.Milliseconds(), Chunks: t.Chunks, Bytes: t.Bytes}
+				if !t.Oldest.IsZero() {
+					ms := t.Oldest.UnixMilli()
+					tj.Oldest = &ms
+				}
+				out.Tiers = append(out.Tiers, tj)
+			}
+			for _, l := range []history.Level{history.Standard, history.LongTerm} {
+				out.Estimates[l] = history.Estimate(l, max(s.Series, historyEstimateFloor))
+			}
+		}
+		httpx.WriteJSON(w, http.StatusOK, out)
+	}
+	locked := func(w http.ResponseWriter) bool {
+		if rec == nil {
+			httpx.Error(w, http.StatusConflict, "history_locked", "History is off for this hub (CHADASH_HISTORY=off, or demo mode).")
+			return true
+		}
+		return false
+	}
+	mux.Handle("GET /api/settings/history", session(http.HandlerFunc(view)))
+	mux.Handle("PUT /api/settings/history", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Level string `json:"level"`
+		}
+		if !httpx.DecodeJSON(w, r, &body) || locked(w) {
+			return
+		}
+		l, err := history.ParseLevel(body.Level)
+		if err != nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, "bad_level", "level is off, standard or long-term")
+			return
+		}
+		from := rec.Level()
+		if err := rec.SetLevel(r.Context(), l); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't change the history level")
+			return
+		}
+		if err := history.SaveLevel(r.Context(), st, l, time.Now()); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "history_failed", "the level applies now but couldn't be saved for the next start")
+			return
+		}
+		audit.Change(r, authz.Audited["PUT /api/settings/history"], "settings:history", map[string]string{"from": string(from), "to": string(l)}, authz.T1, nil)
+		view(w, r)
+	})))
+	mux.Handle("POST /api/settings/history/clear", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if locked(w) {
+			return
+		}
+		if err := rec.Clear(r.Context()); err != nil {
+			httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't clear the history")
+			return
+		}
+		audit.Change(r, authz.Audited["POST /api/settings/history/clear"], "settings:history", nil, authz.T3, nil)
+		view(w, r)
+	})))
 }

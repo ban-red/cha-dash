@@ -106,3 +106,50 @@ func TestStateRetentionKeepsTheRowInEffect(t *testing.T) {
 		t.Fatal("the gone resource should be forgotten, the steady one kept")
 	}
 }
+
+func TestStatsEstimateAndClear(t *testing.T) {
+	c := &clock{t0}
+	path := filepath.Join(t.TempDir(), "history.db")
+	r := openRecorder(t, openStore(t, path), Standard, c)
+	feed(t, r, c, 2*time.Hour, []string{"vm:a#cpu", "vm:b#cpu"}, minutes)
+	r.State("vm:a", "ok", t0)
+	r.State("vm:a", "down", t0.Add(time.Hour))
+	r.tick(t.Context(), c.t.Add(10*time.Minute))
+	if err := r.flush(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	st, err := r.Stats(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Level != Standard || st.Series != 2 || st.Resources != 1 || st.FileBytes == 0 || st.Tiers[0].Chunks != 4 || st.Tiers[1].Chunks != 2 || !st.Tiers[0].Oldest.Equal(t0) {
+		t.Fatalf("stats = %+v", st)
+	}
+	// About 30 MB at 1,000 series for Standard, as 13 · History measured; long-term several times more.
+	if mb := Estimate(Standard, 1000) / 1e6; mb < 25 || mb > 35 {
+		t.Fatalf("Standard at 1,000 series ≈ %d MB", mb)
+	}
+	if Estimate(LongTerm, 1000) < 3*Estimate(Standard, 1000) || Estimate(Off, 1000) != 0 {
+		t.Fatal("long-term should be several times Standard, and Off nothing")
+	}
+
+	if err := r.Clear(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	st, _ = r.Stats(t.Context())
+	if st.Series != 0 || st.Tiers[0].Chunks != 0 {
+		t.Fatalf("after Clear: %+v", st)
+	}
+	// What vm:a is now is written again, so its uptime starts over.
+	_ = r.flush(t.Context(), false)
+	got, _ := r.States(t.Context(), "vm:a", t0, c.t.Add(time.Hour))
+	if len(got) != 1 || got[0].Status != "down" {
+		t.Fatalf("states after Clear = %v", changes(got))
+	}
+	// Recording carries on.
+	feed(t, r, c, 10*time.Minute, []string{"vm:a#cpu"}, minutes)
+	r.tick(t.Context(), c.t)
+	if m := query(t, r, "vm:a#cpu", Minute, c.t.Add(-10*time.Minute), c.t); m[0].N == 0 {
+		t.Fatal("nothing recorded after Clear")
+	}
+}

@@ -47,6 +47,8 @@ var Audited = map[string]string{
 	"POST /api/discover/dismiss":                   "discover.dismiss",
 	"POST /api/discover/restore":                   "discover.restore",
 	"PUT /api/settings/security":                   "settings.security.update",
+	"PUT /api/settings/history":                    "settings.history.update",
+	"POST /api/settings/history/clear":             "settings.history.clear",
 	"POST /api/users":                              "users.create",
 	"PUT /api/users/{id}":                          "users.update",
 	"POST /api/users/{id}/transfer-ownership":      "users.transfer-ownership",

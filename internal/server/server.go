@@ -42,6 +42,7 @@
 //	GET  /api/nodes, POST /api/nodes/{id}/revoke, POST /api/nodes/pairing/regenerate   nodes, revoking one, a fresh pairing secret (admin)
 //	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)
 //	/api/notify/…              notifications: channels, rules, delivery log (admin); the VAPID key and your own push subscriptions (session; see notify.Service.Register)
+//	GET|PUT /api/settings/history, POST /api/settings/history/clear   Settings → History: level, sizes, clear (admin)
 //	GET  /api/history   metrics history: points of up to 20 series over a range (session, or graph.read; see history.go)
 //	GET  /api/icons, GET /api/icons/{id}   icons the hub cached for tiles (session; see icons)
 //	GET  /ws                   realtime WebSocket                  (session)
@@ -229,6 +230,7 @@ func New(d Deps) (http.Handler, error) {
 		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
 		registerHistory(mux, session, d.History, d.Topics.Graph)
 	}
+	registerHistorySettings(mux, session, d.History, d.Store, d.Demo != nil, rec)
 	if d.Integrations != nil {
 		d.Integrations.Audit = rec
 		d.Integrations.Register(mux, session)

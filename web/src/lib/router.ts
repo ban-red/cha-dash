@@ -36,9 +36,9 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'stacks' | 'nodes' | 'import' | 'backup' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security';
+export type SettingsPane = 'integrations' | 'stacks' | 'nodes' | 'import' | 'backup' | 'history' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security';
 
-const PANES: readonly string[] = ['stacks', 'nodes', 'import', 'backup', 'users', 'audit', 'notifications', 'tokens', 'security'];
+const PANES: readonly string[] = ['stacks', 'nodes', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security'];
 
 export type View =
   | { name: 'front'; board?: string }

@@ -10,7 +10,7 @@ Sparklines live in memory, so a restart blanks them for a day. Each point is a s
 
 **Every series is rolled up in memory into fixed-grid tiers (1 minute, 15 minutes, and with long-term on, 1 hour and 1 day). Each point is `avg`, `min`, `max` and a sample count. Points are stored as compressed chunks in a second SQLite file, `history.db`. Standard recording is on by default.**
 
-- **Levels:** `off` (nothing on disk; the sparklines work as before), `standard` (the default: 1-minute points for 48 hours, 15-minute points for 14 days) and `long-term` (also 15-minute points for 30 days, 1-hour points for a year, 1-day points forever). `CHADASH_HISTORY` picks one until Settings → History exists.
+- **Levels:** `off` (nothing on disk; the sparklines work as before), `standard` (the default: 1-minute points for 48 hours, 15-minute points for 14 days) and `long-term` (also 15-minute points for 30 days, 1-hour points for a year, 1-day points forever). Admins pick one in Settings → History, and it applies at once. `CHADASH_HISTORY` is the default until they do; `CHADASH_HISTORY=off` leaves history out altogether.
 - **Times are implicit.** Each tier is a grid on UTC epoch multiples of its step. A chunk stores its start in Unix milliseconds, and a point's time is its index.
 - **Chunks:** a presence bitmap, sample counts as varints, then Gorilla-style XOR streams of float32 values. `min` and `max` are XORed against the same point's `avg`, so a point from one sample costs two bits more than its average.
 - **Higher tiers fold from the tier below** when their slot closes. A tier's chunk length is a multiple of the next tier's step, so a slot is always inside one lower chunk, and a restart rebuilds it from disk.

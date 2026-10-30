@@ -154,11 +154,18 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 
 	// Metrics history (ADR-0031), in its own database. Not in demo mode:
 	// the Demo Home makes its own history, and instances there write to a
-	// private graph. A hand-built Config (History "") records nothing.
+	// private graph. CHADASH_HISTORY=off (or a hand-built Config, History "")
+	// leaves it out altogether; otherwise the level an admin chose in
+	// Settings → History wins over CHADASH_HISTORY, off included.
 	var rec *history.Recorder
 	var hst *store.Store
 	var hist runtime.History // a nil interface, not a nil *Recorder, when off
 	if level, perr := history.ParseLevel(cfg.History); perr == nil && level != history.Off && !cfg.Demo {
+		if chosen, ok, err := history.LoadLevel(ctx, st); err != nil {
+			return nil, err
+		} else if ok {
+			level = chosen
+		}
 		if cfg.HistoryDir != "" {
 			if err := os.MkdirAll(cfg.HistoryDir, 0o700); err != nil {
 				return nil, fmt.Errorf("history dir: %w", err)

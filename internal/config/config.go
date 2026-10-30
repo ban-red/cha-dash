@@ -163,7 +163,7 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 	fs.BoolVar(&l.demo, "demo", demo, "run the Demo Home simulator instead of a real home (env CHADASH_DEMO)")
 	fs.StringVar(&l.demoAt, "demo-at", env("CHADASH_DEMO_AT", "local"), "demo clock: local (start at 14:05, shown as the local time), a time of day (HH:MM[:SS], UTC) on the demo's day, or now to follow the real clock in UTC (env CHADASH_DEMO_AT)")
 	fs.StringVar(&l.demoSeed, "demo-seed", env("CHADASH_DEMO_SEED", "1"), "demo simulator seed (env CHADASH_DEMO_SEED)")
-	fs.StringVar(&l.history, "history", env("CHADASH_HISTORY", "standard"), "metrics history to keep: off, standard (48 hours by the minute, 14 days by the quarter hour) or long-term (also hourly for a year, daily forever) (env CHADASH_HISTORY)")
+	fs.StringVar(&l.history, "history", env("CHADASH_HISTORY", "standard"), "metrics history to keep: off, standard (48 hours by the minute, 14 days by the quarter hour) or long-term (also hourly for a year, daily forever); Settings → History wins, except over off (env CHADASH_HISTORY)")
 	fs.StringVar(&l.historyDir, "history-dir", env("CHADASH_HISTORY_DIR", ""), "directory for history.db; default the data dir (env CHADASH_HISTORY_DIR)")
 	return l
 }

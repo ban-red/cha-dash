@@ -115,6 +115,8 @@ var provenElsewhere = map[string]string{
 	"POST /api/correlate/decisions":                "correlate.TestAPI",
 	"DELETE /api/correlate/decisions/{id}":         "correlate.TestAPI",
 	"PUT /api/settings/security":                   "TestChangesAreAudited",
+	"PUT /api/settings/history":                    "TestHistorySettings",
+	"POST /api/settings/history/clear":             "TestHistorySettings",
 	"POST /api/import/homarr":                      "this test's Homepage and plain-YAML imports: every source shares importhttp's handler, which records import.<source>",
 	"POST /api/import/discovery":                   "the same as POST /api/import/homarr",
 	"POST /api/nodes/{id}/revoke":                  "nodes.TestRevoke",

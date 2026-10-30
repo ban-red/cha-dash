@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/history"
 	"dash.cha.sh/internal/store"
@@ -167,4 +169,98 @@ func TestHistoryStatesRoute(t *testing.T) {
 	}
 	get(owner, "", http.StatusBadRequest)
 	get(owner, "resource=host:pve&from=9&to=3", http.StatusBadRequest)
+}
+
+func TestHistorySettings(t *testing.T) {
+	hst, err := store.OpenHistory(t.Context(), filepath.Join(t.TempDir(), "history.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { hst.Close() })
+	if _, err := hst.Migrate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := history.Open(t.Context(), history.Options{Store: hst, Level: history.Standard})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Truncate(time.Minute)
+	for i := 10; i >= 0; i-- {
+		rec.Record("host:pve#cpu", "i1", "%", now.Add(-time.Duration(i)*time.Minute), 1)
+	}
+	var st *store.Store
+	e := newEnvWith(t, func(d *Deps) {
+		d.Topics, d.History, d.Audit = topics.New(graph.New(), time.Now()), rec, audit.New(d.Store)
+		st = d.Store
+	})
+	owner := signIn(t, e)
+	_, viewer := addUser(t, e, owner, "gran", "viewer")
+
+	type body struct {
+		Level     string `json:"level"`
+		Locked    bool   `json:"locked"`
+		Series    int    `json:"series"`
+		Estimates map[string]int64
+		Tiers     []struct {
+			Tier   string `json:"tier"`
+			KeepMs int64  `json:"keep_ms"`
+		} `json:"tiers"`
+	}
+	call := func(c *http.Client, method, path string, in any, want int) body {
+		t.Helper()
+		status, _, b := e.call(t, c, method, path, in)
+		if status != want {
+			t.Fatalf("%s %s: %d %s", method, path, status, b)
+		}
+		var out body
+		_ = json.Unmarshal(b, &out)
+		return out
+	}
+	got := call(owner, "GET", "/api/settings/history", nil, http.StatusOK)
+	if got.Level != "standard" || got.Locked || got.Series != 0 || len(got.Tiers) != 4 || got.Tiers[1].KeepMs != 14*86_400_000 {
+		t.Fatalf("GET = %+v", got)
+	}
+	if got.Estimates["long-term"] <= got.Estimates["standard"] || got.Estimates["standard"] == 0 {
+		t.Fatalf("estimates = %v", got.Estimates)
+	}
+	call(viewer, "GET", "/api/settings/history", nil, http.StatusForbidden)
+
+	got = call(owner, "PUT", "/api/settings/history", map[string]string{"level": "long-term"}, http.StatusOK)
+	if got.Level != "long-term" || rec.Level() != history.LongTerm || got.Tiers[1].KeepMs != 30*86_400_000 {
+		t.Fatalf("after PUT = %+v", got)
+	}
+	if l, ok, _ := history.LoadLevel(t.Context(), st); !ok || l != history.LongTerm {
+		t.Fatalf("saved level %q, %v", l, ok)
+	}
+	if ev, ok := lastAudit(t, st, "settings.history.update"); !ok || string(ev.Params) != `{"from":"standard","to":"long-term"}` {
+		t.Fatalf("audit = %+v", ev)
+	}
+	call(owner, "PUT", "/api/settings/history", map[string]string{"level": "forever"}, http.StatusUnprocessableEntity)
+
+	if err := rec.Close(t.Context()); err != nil { // writes the series row
+		t.Fatal(err)
+	}
+	if got = call(owner, "GET", "/api/settings/history", nil, http.StatusOK); got.Series != 1 {
+		t.Fatalf("series before clear = %d", got.Series)
+	}
+	if got = call(owner, "POST", "/api/settings/history/clear", nil, http.StatusOK); got.Series != 0 {
+		t.Fatalf("series after clear = %d", got.Series)
+	}
+	if _, ok := lastAudit(t, st, "settings.history.clear"); !ok {
+		t.Fatal("clear wasn't audited")
+	}
+}
+
+func TestHistorySettingsWhenLocked(t *testing.T) {
+	e := newEnvWith(t, func(d *Deps) { d.Topics = topics.New(graph.New(), time.Now()) })
+	owner := signIn(t, e)
+	status, _, b := e.call(t, owner, "GET", "/api/settings/history", nil)
+	if status != http.StatusOK || !json.Valid(b) || !strings.Contains(string(b), `"locked":true`) || !strings.Contains(string(b), `"level":"off"`) {
+		t.Fatalf("GET: %d %s", status, b)
+	}
+	for _, c := range []struct{ method, path string }{{"PUT", "/api/settings/history"}, {"POST", "/api/settings/history/clear"}} {
+		if status, _, b := e.call(t, owner, c.method, c.path, map[string]string{"level": "standard"}); status != http.StatusConflict {
+			t.Fatalf("%s %s: %d %s", c.method, c.path, status, b)
+		}
+	}
 }

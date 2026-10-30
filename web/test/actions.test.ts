@@ -541,7 +541,7 @@ describe('roles', () => {
       expect(p(r).decide).toBe(false);
     }
     expect(p('admin').integrations && p('admin').decide).toBe(true);
-    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'import', 'backup', 'users', 'audit', 'notifications', 'tokens', 'security']);
+    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security']);
     expect(p('admin').securitySettings).toBe(false);
     expect(p('owner').securitySettings).toBe(true);
     expect(p('someone-new').role).toBe('viewer');

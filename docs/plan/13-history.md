@@ -1,6 +1,6 @@
 # 13 · History: metrics and state over time
 
-> **Status: steps 1–4 are built** (2026-10-29): the measurement, the store and recorder with sparklines that survive a restart, the query route with ranges on the resource sheet, and health history with uptime. Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
+> **Status: steps 1–4 are built, and most of 5** (2026-10-29): the measurement, the store and recorder with sparklines that survive a restart, the query route with ranges on the resource sheet, health history with uptime, and Settings → History (level, sizes, clear). Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
 
 ## What exists
 
@@ -161,7 +161,7 @@ For 1,000 series, at Standard:
 2. **Done. Store and recorder:** `internal/history` with every tier, retention, checkpoints, and seeding sparklines on boot. Sparkline points become slot averages. The level is `CHADASH_HISTORY`.
 3. **Done. Query route and the sheet's Metrics tab:** `GET /api/history`, and Now, 1 h, 24 h, 7 d and 30 d on the sheet. It uses the existing mini graph, not uPlot: averages at up to 720 points draw fine, and it adds nothing to the bundle. The raw ring was left out: the 1-minute tier is fine enough for the last hour.
 4. **Done. State history:** the `states` table, "down since" across restarts, `GET /api/history/states`, and uptime with a status bar on the sheet's History tab.
-5. **Settings → History:** levels (replacing `CHADASH_HISTORY`), retention, the estimate, the size limit, exclusions, clear.
+5. **Partly done. Settings → History:** the level (applied at once, kept in `settings`), what `history.db` holds, the estimate per level, and Clear. Not built: per-tier retention, the size limit and exclusions.
 6. **`Interest.Record`** and the record interval in the integrations that have idle modes.
 7. Later: `/metrics` for Prometheus (03), CSV export from a chart, the Pulse strip and linked scrubbing on top of the query route.
 
@@ -175,7 +175,7 @@ For 1,000 series, at Standard:
 
 ## Decisions
 
-1. **Standard is on by default** (2026-10-29). `CHADASH_HISTORY` picks the level until Settings → History exists.
+1. **Standard is on by default** (2026-10-29). Settings → History changes the level at once; `CHADASH_HISTORY` is the default until someone does, and `off` there leaves history out altogether.
 2. **A separate `history.db`**, movable with `CHADASH_HISTORY_DIR`.
 3. **Long-term tiers** as in the Tiers table.
 

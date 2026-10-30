@@ -52,6 +52,10 @@ type Recorder struct {
 	now   func() time.Time
 	log   *slog.Logger
 
+	// flushMu keeps a write (flush, retention) and Clear apart, so a flush
+	// can't write rows for series Clear just removed.
+	flushMu sync.Mutex
+
 	mu     sync.Mutex
 	series map[string]*series
 	byID   map[int64]*series
@@ -93,8 +97,8 @@ type chunkRow struct {
 
 // Open loads the series and the open chunks from history.db.
 func Open(ctx context.Context, o Options) (*Recorder, error) {
-	if o.Level.top() == 0 {
-		return nil, fmt.Errorf("history: level %q records nothing", o.Level)
+	if _, err := ParseLevel(string(o.Level)); err != nil {
+		return nil, err
 	}
 	if o.Now == nil {
 		o.Now = time.Now
@@ -124,40 +128,54 @@ func Open(ctx context.Context, o Options) (*Recorder, error) {
 		return nil, fmt.Errorf("history: %w", err)
 	}
 
-	ms := now.UnixMilli()
 	for t := Minute; t <= r.top; t++ {
-		start := floor(ms, t.chunk())
-		rows, err := r.st.Reader().QueryContext(ctx, `SELECT series, data FROM chunks WHERE tier = ? AND start = ?`, int64(t), start)
-		if err != nil {
-			return nil, fmt.Errorf("history: %w", err)
-		}
-		for rows.Next() {
-			var id int64
-			var data []byte
-			if err := rows.Scan(&id, &data); err != nil {
-				rows.Close()
-				return nil, fmt.Errorf("history: %w", err)
-			}
-			pts, err := decode(data, t.size())
-			s := r.byID[id]
-			if err != nil || s == nil {
-				r.log.Warn("history: skipping an unreadable chunk", "series", id, "tier", t, "start", start, "err", err)
-				continue
-			}
-			s.open[t] = &chunk{start: start, pts: pts}
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("history: %w", err)
+		if err := r.loadOpen(ctx, t, now.UnixMilli()); err != nil {
+			return nil, err
 		}
 	}
 	if err := r.loadStates(ctx); err != nil {
 		return nil, err
 	}
-	// A higher slot whose lower points were written but not yet folded is
-	// pending again.
+	r.repend(Quarter)
+	return r, nil
+}
+
+// loadOpen reads tier t's chunks that are open at ms into memory, so new
+// points add to them rather than replace them.
+func (r *Recorder) loadOpen(ctx context.Context, t Tier, ms int64) error {
+	start := floor(ms, t.chunk())
+	rows, err := r.st.Reader().QueryContext(ctx, `SELECT series, data FROM chunks WHERE tier = ? AND start = ?`, int64(t), start)
+	if err != nil {
+		return fmt.Errorf("history: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		var data []byte
+		if err := rows.Scan(&id, &data); err != nil {
+			return fmt.Errorf("history: %w", err)
+		}
+		pts, err := decode(data, t.size())
+		s := r.byID[id]
+		if err != nil || s == nil {
+			r.log.Warn("history: skipping an unreadable chunk", "series", id, "tier", t, "start", start, "err", err)
+			continue
+		}
+		if s.open[t] == nil {
+			s.open[t] = &chunk{start: start, pts: pts}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("history: %w", err)
+	}
+	return nil
+}
+
+// repend makes a higher slot pending again when its lower points were
+// written but not yet folded, from tier from up.
+func (r *Recorder) repend(from Tier) {
 	for _, s := range r.series {
-		for t := Quarter; t <= r.top; t++ {
+		for t := max(from, Quarter); t <= r.top; t++ {
 			lower := s.open[t-1]
 			if lower == nil {
 				continue
@@ -177,7 +195,53 @@ func Open(ctx context.Context, o Options) (*Recorder, error) {
 			}
 		}
 	}
-	return r, nil
+}
+
+// SetLevel changes what the recorder keeps from now on. Tiers the new
+// level drops are closed and written as they are; tiers it adds pick up
+// their open chunks from disk. Off records nothing until another level.
+func (r *Recorder) SetLevel(ctx context.Context, l Level) error {
+	if _, err := ParseLevel(string(l)); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	old := r.top
+	if l.top() < old {
+		// Write what the dropped tiers have so far, then close their
+		// chunks. That folds the open slots below them early too; a slot
+		// that gets more points is folded again, whole, when it closes. The
+		// open minute is written only for Off: later samples would replace it.
+		from := Quarter
+		if l == Off {
+			from = Minute
+		}
+		for _, s := range r.series {
+			for t := from; t <= old; t++ {
+				r.close(s, t, math.MaxInt64)
+			}
+			for t := l.top() + 1; t <= old; t++ {
+				if s.open[t] != nil {
+					r.seal(s, t)
+				}
+				s.pend[t] = noSlot
+			}
+		}
+	}
+	r.level, r.top = l, l.top()
+	r.mu.Unlock()
+	if l.top() <= old {
+		return r.flush(ctx, false)
+	}
+	now := r.now().UnixMilli()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for t := max(old+1, Minute); t <= r.top; t++ {
+		if err := r.loadOpen(ctx, t, now); err != nil {
+			return err
+		}
+	}
+	r.repend(old + 1)
+	return nil
 }
 
 func newSeries() *series {
@@ -197,6 +261,9 @@ func (r *Recorder) Record(key, instance, unit string, at time.Time, v float64) {
 	ms := at.UnixMilli()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.top == 0 {
+		return
+	}
 	s := r.series[key]
 	if s == nil {
 		s = newSeries()
@@ -350,6 +417,8 @@ func (r *Recorder) Close(ctx context.Context) error {
 // the lock and writing after it, so Record never waits on the disk. A
 // failed write is queued again.
 func (r *Recorder) flush(ctx context.Context, checkpoint bool) error {
+	r.flushMu.Lock()
+	defer r.flushMu.Unlock()
 	type seriesRow struct {
 		id                  int64
 		key, instance, unit string
@@ -445,16 +514,21 @@ func (r *Recorder) flush(ctx context.Context, checkpoint bool) error {
 // no chunks left and haven't been sampled for a day, and reclaims a little
 // space.
 func (r *Recorder) retain(ctx context.Context, now time.Time) error {
+	r.flushMu.Lock()
+	defer r.flushMu.Unlock()
 	ms := now.UnixMilli()
 	var gone []int64
 	var goneStates []string
+	r.mu.Lock()
+	level := r.level
+	r.mu.Unlock()
 	err := r.st.WriteTx(ctx, func(tx *sql.Tx) error {
 		var err error
-		if goneStates, err = r.retainStates(ctx, tx, ms); err != nil {
+		if goneStates, err = retainStates(ctx, tx, level, ms); err != nil {
 			return err
 		}
 		for t := Minute; t <= Day; t++ {
-			keep := r.level.keep(t)
+			keep := level.keep(t)
 			if keep == 0 {
 				continue
 			}
@@ -481,7 +555,7 @@ func (r *Recorder) retain(ctx context.Context, now time.Time) error {
 		return err
 	}
 	r.mu.Lock()
-	cutoff := ms - r.level.keepStates().Milliseconds()
+	cutoff := ms - level.keepStates().Milliseconds()
 	for _, id := range goneStates {
 		if t := r.states[id]; t != nil && t.last.at < cutoff {
 			delete(r.states, id)
@@ -524,7 +598,11 @@ type Range struct {
 }
 
 // Level is what the recorder keeps.
-func (r *Recorder) Level() Level { return r.level }
+func (r *Recorder) Level() Level {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.level
+}
 
 // Known says whether the recorder has seen a series.
 func (r *Recorder) Known(key string) bool {
@@ -537,8 +615,11 @@ func (r *Recorder) Known(key string) bool {
 // gives at most max points (the coarsest written tier when none does). An
 // unknown series is an empty range.
 func (r *Recorder) Query(ctx context.Context, key string, from, to time.Time, maxPoints int) (Range, error) {
-	t := r.top
-	for c := Minute; c <= r.top; c++ {
+	r.mu.Lock()
+	top := max(r.top, Quarter) // with recording off, what was kept is still there
+	r.mu.Unlock()
+	t := top
+	for c := Minute; c <= top; c++ {
 		if to.Sub(from)/tiers[c].step <= time.Duration(maxPoints) {
 			t = c
 			break
@@ -594,10 +675,16 @@ func (r *Recorder) points(ctx context.Context, key string, t Tier, from, to int6
 	s := r.series[key]
 	var open *chunk
 	var id int64
+	var sealed []chunkRow // closed, but not written yet
 	if s != nil {
 		id = s.id
 		if c := s.open[t]; c != nil {
 			open = &chunk{start: c.start, pts: append([]Point(nil), c.pts...)}
+		}
+		for _, c := range r.sealed {
+			if c.series == id && c.tier == t {
+				sealed = append(sealed, c)
+			}
 		}
 	}
 	r.mu.Unlock()
@@ -631,6 +718,11 @@ func (r *Recorder) points(ctx context.Context, key string, t Tier, from, to int6
 	}
 	if err := rows.Err(); err != nil && !errors.Is(err, context.Canceled) {
 		return nil, fmt.Errorf("history: %w", err)
+	}
+	for _, c := range sealed {
+		if pts, err := decode(c.data, t.size()); err == nil {
+			place(c.start, pts)
+		}
 	}
 	if open != nil {
 		place(open.start, open.pts)

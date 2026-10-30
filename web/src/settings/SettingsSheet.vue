@@ -2,7 +2,7 @@
 /**
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
- * /settings/integrations, /settings/stacks, /settings/nodes, /settings/import, /settings/backup,
+ * /settings/integrations, /settings/stacks, /settings/nodes, /settings/import, /settings/backup, /settings/history,
  * /settings/users, /settings/audit, /settings/notifications, /settings/tokens,
  * /settings/security. The board, the
  * socket and the Inbox stay live underneath; Esc or the scrim goes back.
@@ -24,6 +24,7 @@ import { useUi } from '../stores/ui';
 const StacksPane = defineAsyncComponent(() => import('./StacksPane.vue'));
 const NodesPane = defineAsyncComponent(() => import('./NodesPane.vue'));
 const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
+const HistoryPane = defineAsyncComponent(() => import('./HistoryPane.vue'));
 const BringInPane = defineAsyncComponent(() => import('../import/BringInPane.vue'));
 const UsersPane = defineAsyncComponent(() => import('./UsersPane.vue'));
 const AuditPane = defineAsyncComponent(() => import('./AuditPane.vue'));
@@ -41,6 +42,7 @@ const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'nodes', label: 'Nodes', note: 'hosts Cha Dash acts on' },
   { id: 'import', label: 'Bring in', note: 'import and discover' },
   { id: 'backup', label: 'Backup', note: 'export and restore' },
+  { id: 'history', label: 'History', note: 'what Cha Dash keeps' },
   { id: 'users', label: 'Users', note: 'people and roles' },
   { id: 'audit', label: 'Audit', note: 'who did what' },
   { id: 'notifications', label: 'Notifications', note: 'push, ntfy, webhooks' },
@@ -63,6 +65,7 @@ const TITLES: Record<SettingsPane, string> = {
   nodes: 'Nodes',
   import: 'Bring in',
   backup: 'Backup',
+  history: 'History',
   users: 'Users',
   audit: 'Audit',
   notifications: 'Notifications',
@@ -134,6 +137,7 @@ onBeforeUnmount(() => {
             <NodesPane v-else-if="pane === 'nodes'" />
             <BringInPane v-else-if="pane === 'import'" />
             <BackupPane v-else-if="pane === 'backup'" />
+            <HistoryPane v-else-if="pane === 'history'" />
             <UsersPane v-else-if="pane === 'users'" />
             <AuditPane v-else-if="pane === 'audit'" />
             <NotificationsPane v-else-if="pane === 'notifications'" />

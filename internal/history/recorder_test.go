@@ -1,7 +1,6 @@
 package history
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -225,12 +224,52 @@ func TestRetentionDropsOldChunksAndForgetsSeries(t *testing.T) {
 	}
 }
 
-func TestOffRecordsNothing(t *testing.T) {
-	if _, err := Open(context.Background(), Options{Level: Off}); err == nil {
-		t.Fatal("Open at Off should fail")
-	}
+func TestSwitchingLevelsKeepsWhatWasRecorded(t *testing.T) {
 	if _, err := ParseLevel("forever"); err == nil {
 		t.Fatal("ParseLevel accepted forever")
+	}
+	c := &clock{t0}
+	r := openRecorder(t, openStore(t, filepath.Join(t.TempDir(), "history.db")), LongTerm, c)
+	key := "vm:a#cpu"
+	feed(t, r, c, 10*time.Minute, []string{key}, minutes)
+	r.Record(key, "i1", "%", c.t, 1) // 10:10, the open minute
+
+	// Down to Standard: the hour so far is written, and stays.
+	if err := r.SetLevel(t.Context(), Standard); err != nil {
+		t.Fatal(err)
+	}
+	if h := query(t, r, key, Hour, t0, t0.Add(time.Hour)); h[0].N != 20 {
+		t.Fatalf("the hour so far = %+v", h[0])
+	}
+	// Off: the open minute and the quarter so far are written; nothing more is recorded.
+	if err := r.SetLevel(t.Context(), Off); err != nil {
+		t.Fatal(err)
+	}
+	if q := query(t, r, key, Quarter, t0, t0.Add(15*time.Minute)); q[0].N != 21 {
+		t.Fatalf("the quarter so far = %+v", q[0])
+	}
+	c.t = t0.Add(20 * time.Minute)
+	feed(t, r, c, 5*time.Minute, []string{key}, minutes)
+	r.State("vm:a", "down", c.t)
+	if m := query(t, r, key, Minute, t0, t0.Add(time.Hour)); m[20].N != 0 || m[10].N != 1 {
+		t.Fatalf("recorded while off: %+v", m[10:22])
+	}
+	if got, _ := r.States(t.Context(), "vm:a", t0, c.t); len(got) != 0 {
+		t.Fatalf("a state while off: %v", changes(got))
+	}
+	// Back on: the hour's minutes from before come back from disk and new ones add to them.
+	if err := r.SetLevel(t.Context(), Standard); err != nil {
+		t.Fatal(err)
+	}
+	c.t = t0.Add(40 * time.Minute)
+	feed(t, r, c, 5*time.Minute, []string{key}, minutes)
+	r.tick(t.Context(), c.t.Add(time.Hour))
+	m := query(t, r, key, Minute, t0, t0.Add(time.Hour))
+	if m[0].N != 2 || m[9].N != 2 || m[40].N != 2 || m[25].N != 0 {
+		t.Fatalf("minutes after switching back: %+v", m)
+	}
+	if r.Level() != Standard {
+		t.Fatalf("level %q", r.Level())
 	}
 }
 
@@ -272,5 +311,20 @@ func TestBudgetAtStandard(t *testing.T) {
 		mb, float64(data)/1e6, float64(took.Nanoseconds())/float64(48*120*len(keys)))
 	if mb > 45 {
 		t.Errorf("%.1f MB is over the 45 MB budget", mb)
+	}
+}
+
+func TestAChunkClosedButNotWrittenIsStillRead(t *testing.T) {
+	c := &clock{t0.Add(50 * time.Minute)}
+	r := openRecorder(t, openStore(t, filepath.Join(t.TempDir(), "history.db")), Standard, c)
+	// 10:50 to 11:10: the 10:00 chunk closes at 11:00, and nothing has written it yet.
+	for ; c.t.Before(t0.Add(70 * time.Minute)); c.t = c.t.Add(time.Minute) {
+		r.Record("vm:a#cpu", "i1", "%", c.t, 1)
+	}
+	m := query(t, r, "vm:a#cpu", Minute, t0.Add(50*time.Minute), t0.Add(69*time.Minute))
+	for i, p := range m {
+		if p.N != 1 {
+			t.Fatalf("minute %d = %+v", i, p)
+		}
 	}
 }

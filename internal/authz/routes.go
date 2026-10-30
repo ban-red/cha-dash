@@ -225,6 +225,10 @@ var Routes = []Route{
 	// Settings → Security: the posture is shown to viewers; changing it, and
 	// the step-up rule, is the owner's.
 	{Pattern: "GET /api/settings/security", Access: Viewer},
+	// Settings → History: the recording level, what history.db holds, clearing it.
+	{Pattern: "GET /api/settings/history", Access: Admin},
+	{Pattern: "PUT /api/settings/history", Access: Admin},
+	{Pattern: "POST /api/settings/history/clear", Access: Admin},
 	{Pattern: "PUT /api/settings/security", Access: Owner},
 
 	// Settings → Users. An admin manages everyone but the owner (users.go);

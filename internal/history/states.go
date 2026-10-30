@@ -93,14 +93,16 @@ func (r *Recorder) Since(resource, status string, now time.Time) time.Time {
 func (r *Recorder) State(resource, status string, since time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.state(resource, status, since.UnixMilli())
+	if r.top > 0 {
+		r.state(resource, status, since.UnixMilli())
+	}
 }
 
 // Gone records that resource left the graph.
 func (r *Recorder) Gone(resource string, at time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if t := r.states[resource]; t != nil && t.last.status != StatusGone {
+	if t := r.states[resource]; r.top > 0 && t != nil && t.last.status != StatusGone {
 		r.state(resource, StatusGone, at.UnixMilli())
 	}
 }
@@ -223,8 +225,8 @@ func Summarize(changes []StateChange, from, to time.Time) Summary {
 // retainStates deletes rows older than retention, keeping the one in
 // effect at the cutoff, and forgets resources whose newest row is a
 // shutdown or a removal from before it.
-func (r *Recorder) retainStates(ctx context.Context, tx *sql.Tx, ms int64) ([]string, error) {
-	cutoff := ms - r.level.keepStates().Milliseconds()
+func retainStates(ctx context.Context, tx *sql.Tx, level Level, ms int64) ([]string, error) {
+	cutoff := ms - level.keepStates().Milliseconds()
 	if _, err := tx.ExecContext(ctx, `DELETE FROM states WHERE at < ? AND EXISTS (
 		SELECT 1 FROM states n WHERE n.resource = states.resource AND n.at > states.at AND n.at <= ?)`, cutoff, cutoff); err != nil {
 		return nil, err

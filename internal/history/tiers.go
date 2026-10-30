@@ -69,9 +69,9 @@ func (l Level) top() Tier {
 
 // keep is how long a tier's chunks stay. A tier the level doesn't write
 // keeps its long-term retention, so turning long-term off and on again loses
-// nothing that is still in date.
+// nothing that is still in date. Off keeps what Standard keeps.
 func (l Level) keep(t Tier) time.Duration {
-	if l == Standard && t <= Standard.top() {
+	if l != LongTerm && t <= Standard.top() {
 		return tiers[t].keep
 	}
 	return tiers[t].keepLong
