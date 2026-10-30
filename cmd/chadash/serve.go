@@ -403,7 +403,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Store: st, Audit: auditLog, Registry: actions, Graph: g,
 		// API tokens act as their user, narrowed to their scopes; their T2
 		// plans wait in the Inbox for a person (tp.Inbox).
-		Policy:   authz.NewPolicy(st, log, authz.WithTokens(authSvc.TokenAccess)).ForEngine(),
+		Policy:   authz.NewPolicy(st, log, authz.WithTokens(authSvc.TokenAccess), authz.WithUsers(authSvc.GetUser)).ForEngine(),
 		Inbox:    tp.Inbox,
 		Sessions: action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
 		// A T4 spends the grant that allowed it, and tells the admins.
