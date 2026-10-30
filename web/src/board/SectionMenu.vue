@@ -3,18 +3,24 @@
  * A section header's menu: three dots at the header's right end, shown on
  * hover or focus (always on touch), with
  *
+ * - **Section settings:** rename the section (an empty name clears the title);
  * - **Resize:** the section's width as a share of the 12-column board, from a
  *   quarter to the full row. Only widths the section's widest tile fits are
  *   offered;
  * - **Reorder:** move it up or down one place, or to the top or bottom (only
  *   the moves that change something).
  *
+ * - **Add section before / after:** an empty, full-width section next to this one;
+ * - **Remove section:** asks first, then removes the section and every widget
+ *   in it, with Undo.
+ *
  * Each choice saves at once.
  * Same dropdown as a tile's (components/TileCog.vue, whose `.tile-pop` styles
  * it shares): the top layer, arrow keys, Escape to step back.
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { moveSection, setSectionSpan, SIZES, CANONICAL_COLUMNS } from '@chadash/layout';
+import { addSection, moveSection, setSectionSpan, setSectionTitle, SIZES, CANONICAL_COLUMNS } from '@chadash/layout';
+import { removeSectionAndTiles } from '../model/edit';
 import { useBoardIfAny } from '../stores/board';
 import { useUiIfAny } from '../stores/ui';
 
@@ -57,11 +63,13 @@ const moves = computed(() => {
 const shown = computed(() => Boolean(ui?.can.value.editBoards && !ui.state.editing && located.value));
 
 const open = ref(false);
-const view = ref<'menu' | 'resize' | 'reorder'>('menu');
+const view = ref<'menu' | 'resize' | 'reorder' | 'remove' | 'settings'>('menu');
 const trigger = ref<HTMLButtonElement | null>(null);
 const pop = ref<HTMLElement | null>(null);
 
-const items = (): HTMLElement[] => [...(pop.value?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
+const items = (): HTMLElement[] => [...(pop.value?.querySelectorAll<HTMLElement>('[role^="menuitem"], [data-confirm]') ?? [])];
+const name = ref('');
+const widgetCount = computed(() => located.value?.items.length ?? 0);
 
 function place(): void {
   const b = trigger.value?.getBoundingClientRect();
@@ -77,6 +85,12 @@ async function focusFirst(): Promise<void> {
   await nextTick();
   place();
   const all = items();
+  const field = pop.value?.querySelector<HTMLInputElement>('[data-focus]');
+  if (field) {
+    field.focus();
+    field.select();
+    return;
+  }
   (all.find((el) => el.getAttribute('aria-checked') === 'true') ?? all[0])?.focus();
 }
 
@@ -97,7 +111,8 @@ function close(refocus = false): void {
   if (refocus) trigger.value?.focus();
 }
 
-async function goto(v: 'menu' | 'resize' | 'reorder'): Promise<void> {
+async function goto(v: 'menu' | 'resize' | 'reorder' | 'remove' | 'settings'): Promise<void> {
+  if (v === 'settings') name.value = section.title ?? '';
   view.value = v;
   await focusFirst();
 }
@@ -153,6 +168,54 @@ function move(to: number, name: string): void {
   ui?.toast(`${title.value}: ${name.toLowerCase()}.`);
 }
 
+function rename(): void {
+  const board = store?.board.value;
+  const next = name.value.trim();
+  close(true);
+  if (!store || !board || next === (section.title ?? '')) return;
+  store.save(setSectionTitle(board, section.id, next)).then(
+    (ok) => {
+      if (!ok) ui?.toast('This board changed somewhere else. Showing the latest layout.', 'error');
+    },
+    () => ui?.toast('Couldn’t save the layout.', 'error'),
+  );
+  ui?.toast(next ? `Renamed the section to ${next}.` : `Cleared the name of ${title.value}.`);
+}
+
+function addNear(offset: 0 | 1): void {
+  const board = store?.board.value;
+  close(true);
+  if (!store || !board || index.value < 0) return;
+  const taken = new Set(board.sections.map((x) => x.id));
+  let n = board.sections.length + 1;
+  while (taken.has(`section-${n}`)) n++;
+  store.save(addSection(board, { id: `section-${n}`, title: 'New section', span: CANONICAL_COLUMNS, items: [] }, index.value + offset)).then(
+    (ok) => {
+      if (!ok) ui?.toast('This board changed somewhere else. Showing the latest layout.', 'error');
+    },
+    () => ui?.toast('Couldn’t save the layout.', 'error'),
+  );
+  ui?.toast(`Added a new section ${offset ? 'after' : 'before'} ${title.value}.`);
+}
+
+function remove(): void {
+  const board = store?.board.value;
+  const tiles = store?.tiles.value;
+  close();
+  if (!store || !board || !tiles) return;
+  const next = removeSectionAndTiles({ board, tiles }, section.id);
+  const report = (p: Promise<boolean>): void => {
+    p.then(
+      (ok) => {
+        if (!ok) ui?.toast('This board changed somewhere else. Showing the latest layout.', 'error');
+      },
+      () => ui?.toast('Couldn’t save the layout.', 'error'),
+    );
+  };
+  report(store.save(next.board, next.tiles));
+  ui?.toast(`Removed ${title.value}.`, 'ok', 8000, { label: 'Undo', run: () => report(store.save(board, tiles)) });
+}
+
 function pick(span: number): void {
   const board = store?.board.value;
   close(true);
@@ -188,6 +251,10 @@ function pick(span: number): void {
     <Teleport to="body">
       <div v-if="open" ref="pop" class="tile-pop glass" role="presentation" @click.stop>
         <div v-if="view === 'menu'" role="menu" :aria-label="`${title} section menu`" @keydown="onMenuKey">
+          <button type="button" role="menuitem" aria-haspopup="dialog" class="menu-item" tabindex="-1" @click="goto('settings')">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6M10 3v3M5.5 10v3" /></svg>
+            <span>Section settings</span>
+          </button>
           <button type="button" role="menuitem" aria-haspopup="menu" class="menu-item" tabindex="-1" @click="goto('resize')">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h11M5 5.5 2.5 8 5 10.5M11 5.5 13.5 8 11 10.5" /></svg>
             <span>Resize</span>
@@ -198,6 +265,37 @@ function pick(span: number): void {
             <span>Reorder</span>
             <span class="menu-val">{{ index + 1 }} of {{ count }}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg></span>
           </button>
+          <div class="menu-sep" role="separator"></div>
+          <button type="button" role="menuitem" class="menu-item" tabindex="-1" @click="addNear(0)">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3h10M8 13V6.5M5 9.5h6" /></svg>
+            <span>Add new section before</span>
+          </button>
+          <button type="button" role="menuitem" class="menu-item" tabindex="-1" @click="addNear(1)">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13h10M8 3v6.5M5 6.5h6" /></svg>
+            <span>Add new section after</span>
+          </button>
+          <div class="menu-sep" role="separator"></div>
+          <button type="button" role="menuitem" class="menu-item danger" tabindex="-1" @click="goto('remove')">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8M7 7v3.5M9 7v3.5" /></svg>
+            <span>Remove section</span>
+          </button>
+        </div>
+        <form v-else-if="view === 'settings'" class="tile-confirm sec-settings" :aria-label="`${title} settings`" @submit.prevent="rename">
+          <label for="sec-name">Name</label>
+          <input id="sec-name" v-model="name" data-focus type="text" maxlength="80" autocomplete="off" placeholder="No name" />
+          <div class="tile-confirm-acts">
+            <button type="button" class="btn sm" @click="goto('menu')">Cancel</button>
+            <button type="submit" class="btn sm">Save</button>
+          </div>
+        </form>
+        <div v-else-if="view === 'remove'" role="alertdialog" :aria-label="`Remove ${title}?`" class="tile-confirm" @keydown="onMenuKey">
+          <p>
+            Remove <b>{{ title }}</b>{{ widgetCount ? ` and its ${widgetCount} ${widgetCount === 1 ? 'widget' : 'widgets'}` : '' }} from the board? Their settings go too.
+          </p>
+          <div class="tile-confirm-acts">
+            <button type="button" class="btn sm" data-confirm @click="goto('menu')">Cancel</button>
+            <button type="button" class="btn sm danger" data-confirm @click="remove">Remove</button>
+          </div>
         </div>
         <div v-else-if="view === 'reorder'" role="menu" :aria-label="`Reorder ${title}`" @keydown="onMenuKey">
           <button v-for="m in moves" :key="m.id" type="button" role="menuitem" class="menu-item" tabindex="-1" @click="move(m.to, m.name)">
@@ -215,3 +313,17 @@ function pick(span: number): void {
     </Teleport>
   </template>
 </template>
+
+<style>
+.sec-settings label {
+  display: block;
+  padding: 4px 6px 2px;
+  font-size: var(--type-small);
+  color: var(--text-2);
+}
+.sec-settings input {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  box-sizing: border-box;
+}
+</style>

@@ -4,7 +4,7 @@
  * a new BoardState (the board and its tiles together), so undo and redo can
  * step over both and the board store can save them on one revision.
  */
-import { SIZES, remove, smartInsert, type Board, type SizeId } from '@chadash/layout';
+import { SIZES, remove, removeSection, smartInsert, type Board, type SizeId } from '@chadash/layout';
 import { itemId, parseItemId, type WidgetSpec } from './widgets';
 import { pruneTiles, withTile, type TileConfig, type TilesDoc } from '../stores/tiles';
 
@@ -87,6 +87,12 @@ export function editTile(state: BoardState, id: string, config: TileConfig | und
 /** Remove a tile and its config. Undo brings both back. */
 export function removeTile(state: BoardState, id: string): BoardState {
   const board = remove(state.board, id);
+  return { board, tiles: pruneTiles(state.tiles, itemIds(board)) };
+}
+
+/** Remove a section, every tile in it and their config. Undo brings all back. */
+export function removeSectionAndTiles(state: BoardState, sectionId: string): BoardState {
+  const board = removeSection(state.board, sectionId);
   return { board, tiles: pruneTiles(state.tiles, itemIds(board)) };
 }
 

@@ -708,8 +708,7 @@ describe('a section header’s menu', () => {
     expect(btn.attributes('aria-label')).toMatch(/section menu$/);
     await btn.trigger('click');
     await settle();
-    const resize = document.querySelector<HTMLElement>('.tile-pop [role="menuitem"]')!;
-    expect(resize.textContent).toContain('Resize');
+    const resize = [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Resize'))!;
     resize.click();
     await settle();
     const radios = [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitemradio"]')];
@@ -738,6 +737,66 @@ describe('a section header’s menu', () => {
     const after = store.board.value!.sections.map((s) => s.id);
     expect(after).not.toEqual(before);
     expect([...after].sort()).toEqual([...before].sort());
+  });
+
+  it('renames the section from its Section settings item', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    await w.findAll('.sh-live')[1]!.find('.sh-menu').trigger('click');
+    await settle();
+    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Section settings'))!.click();
+    await settle();
+    const input = document.querySelector<HTMLInputElement>('.tile-pop input[data-focus]')!;
+    input.value = '  Media  ';
+    input.dispatchEvent(new Event('input'));
+    document.querySelector<HTMLFormElement>('.tile-pop form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(store.board.value!.sections[1]!.title).toBe('Media');
+    expect(document.querySelector('.tile-pop')).toBeNull();
+  });
+
+  it('adds an empty section before or after from its menu', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    const before = store.board.value!.sections.map((s) => s.id);
+    for (const [label, at] of [['before', 1], ['after', 2]] as const) {
+      await w.findAll('.sh-live')[1]!.find('.sh-menu').trigger('click');
+      await settle();
+      [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes(`Add new section ${label}`))!.click();
+      await settle();
+      const secs = store.board.value!.sections;
+      expect(secs[at]!.items).toHaveLength(0);
+      expect(secs[at]!.title).toBe('New section');
+      expect(secs).toHaveLength(before.length + (label === 'before' ? 1 : 2));
+    }
+    expect(new Set(store.board.value!.sections.map((s) => s.id)).size).toBe(before.length + 2);
+  });
+
+  it('removes the section and its widgets from its Remove section item, after asking', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    const before = store.board.value!.sections.map((s) => s.id);
+    const header = w.findAll('.sh-live')[1]!;
+    await header.find('.sh-menu').trigger('click');
+    await settle();
+    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Remove section'))!.click();
+    await settle();
+    expect(document.querySelector('.tile-pop [role="alertdialog"]')).not.toBeNull();
+    expect(store.board.value!.sections).toHaveLength(before.length);
+    [...document.querySelectorAll<HTMLElement>('.tile-pop [data-confirm]')].find((e) => e.textContent?.trim() === 'Cancel')!.click();
+    await settle();
+    expect(document.querySelector('.tile-pop [role="alertdialog"]')).toBeNull();
+    expect(store.board.value!.sections).toHaveLength(before.length);
+    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Remove section'))!.click();
+    await settle();
+    [...document.querySelectorAll<HTMLElement>('.tile-pop [data-confirm]')].find((e) => e.textContent?.trim() === 'Remove')!.click();
+    await settle();
+    const after = store.board.value!.sections.map((s) => s.id);
+    expect(after).toHaveLength(before.length - 1);
+    expect(after).not.toContain(before[1]);
   });
 
   it('isn’t there for a role that can’t edit boards', async () => {

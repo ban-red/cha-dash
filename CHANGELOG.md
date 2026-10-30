@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Section settings.** The section header's menu has a Section settings item to rename the section. An empty name clears the title.
+- **Add a section next to another.** The section header's menu has Add new section before and after, which insert an empty, full-width "New section" beside it.
+- **Remove a section from its menu.** The section header's menu has a new Remove section item. It asks first, then removes the section and every widget in it, with Undo.
+
 ## [0.2.0-beta.2] - 2026-10-29
 
 The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and health now keep a history on disk, so sparklines survive a restart, a sheet looks back over what was kept, and the Pulse strip under the Briefing takes the whole board back to any moment of the last 24 hours. Tiles get views you swipe between, new sizes, a menu, and far more from Plex, Tautulli, qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant, Frigate and the weather. Settings → Bring in imports Homarr 2 backups and plain YAML boards. The v0.2 actions have now run against a real homelab, all but Pi-hole's, AdGuard Home's and Seerr's, and what those runs and a second security review found is fixed below.
