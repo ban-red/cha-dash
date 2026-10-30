@@ -4,5 +4,9 @@
 # caught and pulled within hours. Renovate holds its pull requests for the
 # same time (renovate.json5).
 minimumReleaseAge = 259200 # seconds
+# Exempt by the maintainer's choice on 2026-10-30: Vue's TypeScript 7 content
+# mapper (4.0.0-alpha.2) and the three alphas it pins, a day old then. Drop them
+# once they're three days old (2026-11-02), or when moving off the alpha.
+minimumReleaseAgeExcludes = ["@vue/content-mapper", "@vue/language-core", "@volar/language-core", "@volar/source-map"]
 # Exact versions, as every package.json here already pins them.
 exact = true

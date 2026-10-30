@@ -48,6 +48,8 @@ interface Step {
   env?: Record<string, string>;
   /** Fails the step when it prints anything (gofmt -l lists files and exits 0). */
   quietOk?: boolean;
+  /** Reported, never failing the check: a tool on trial (tools/typecheck). */
+  advisory?: boolean;
 }
 
 /** Runs cmd and returns its exit code and output. */
@@ -117,6 +119,8 @@ function steps(dir: string): { static: Step[]; tests: Step[] } {
   if (JS) {
     s.push(
       { name: 'typecheck', cmd: ['bun', 'run', 'typecheck'] },
+      // TypeScript 7.1 with Vue's content mapper, beside vue-tsc until vuejs/language-tools#6306 is fixed.
+      { name: 'typecheck:next (TypeScript 7.1, advisory)', cmd: ['bun', 'run', 'typecheck:next'], advisory: true },
       { name: 'lint', cmd: ['bun', 'run', 'lint'] },
       { name: 'design tokens', cmd: ['bun', 'run', 'generate', '--check'], cwd: join(dir, 'design/tokens') },
     );
@@ -140,7 +144,7 @@ async function exec(step: Step, dir: string): Promise<Result> {
   const { code, out } = await run(step.cmd, step.cwd ?? dir, step.env);
   const ok = code === 0 && !(step.quietOk && out !== '');
   const r = { step, ok, secs: (performance.now() - start) / 1000, out };
-  console.log(`${ok ? '✓' : '✗'} ${step.name} (${r.secs.toFixed(1)}s)`);
+  console.log(`${ok ? '✓' : step.advisory ? '!' : '✗'} ${step.name} (${r.secs.toFixed(1)}s)`);
   return r;
 }
 
@@ -167,12 +171,18 @@ try {
   await cleanup();
 }
 
-const failed = results.filter((r) => !r.ok);
+const failed = results.filter((r) => !r.ok && !r.step.advisory);
+for (const r of results.filter((r) => !r.ok && r.step.advisory)) {
+  const errors = r.out.split('\n').filter((l) => /error TS\d+/.test(l));
+  const codes = Object.entries(Object.groupBy(errors, (l) => l.match(/error (TS\d+)/)![1]!)).map(([c, l]) => `${l!.length} ${c}`);
+  console.log(`\n! ${r.step.name} failed, not counted: ${codes.join(', ') || r.out.split('\n').at(-1)}`);
+}
 for (const r of failed) {
   const lines = r.out.split('\n');
   console.log(`\n── ${r.step.name} ${'─'.repeat(Math.max(0, 60 - r.step.name.length))}`);
   console.log((lines.length > 80 ? ['…', ...lines.slice(-80)] : lines).join('\n'));
 }
 const mins = ((performance.now() - started) / 60000).toFixed(1);
-console.log(failed.length ? `\n${failed.length} of ${results.length} checks failed (${mins} min).` : `\nAll ${results.length} checks passed (${mins} min).`);
+const counted = results.filter((r) => !r.step.advisory).length;
+console.log(failed.length ? `\n${failed.length} of ${counted} checks failed (${mins} min).` : `\nAll ${counted} checks passed (${mins} min).`);
 process.exit(failed.length ? 1 : 0);

@@ -1,0 +1,12 @@
+{
+  "name": "@chadash/typecheck",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck:next": "sh -c 'tsc --runExternalCode -p web.json; w=$?; tsc --runExternalCode -p layout-vue.json || exit 1; exit $w'"
+  },
+  "devDependencies": {
+    "@vue/content-mapper": "4.0.0-alpha.2",
+    "typescript": "7.1.0-beta"
+  }
+}

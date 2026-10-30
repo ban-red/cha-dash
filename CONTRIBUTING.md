@@ -37,6 +37,7 @@ The hub is one Go binary with the Vue SPA embedded. The node (`cmd/chadash-node`
 ```sh
 bun install          # every JavaScript workspace: web/, packages/*, design/tokens
 bun run typecheck
+bun run typecheck:next   # TypeScript 7.1 with Vue's content mapper, on trial: tools/typecheck/README.md (needs Node)
 bun run test
 bun run lint         # oxlint, then ESLint for Vue templates
 go test ./...        # needs no SPA build

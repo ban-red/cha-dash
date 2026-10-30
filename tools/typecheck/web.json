@@ -1,0 +1,13 @@
+{
+  "extends": "../../web/tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "contentMappers": [
+    {
+      "package": "@vue/content-mapper",
+      "extensions": [".vue"],
+      "options": { "dataAttributes": ["data-*"] }
+    }
+  ]
+}

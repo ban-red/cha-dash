@@ -5,6 +5,7 @@
   "workspaces": [
     "packages/*",
     "design/tokens",
+    "tools/typecheck",
     "web"
   ],
   "scripts": {
@@ -15,6 +16,7 @@
     "test": "bun run --filter '*' test",
     "e2e": "bun run --filter @chadash/web e2e",
     "typecheck": "bun run --filter '*' typecheck",
+    "typecheck:next": "bun run --filter @chadash/typecheck typecheck:next",
     "lint": "oxlint && bun --bun eslint . --cache",
     "lint:fix": "oxlint --fix && bun --bun eslint . --cache --fix",
     "check": "bun scripts/check.ts",

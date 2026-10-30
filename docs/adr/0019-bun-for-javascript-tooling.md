@@ -20,6 +20,7 @@ Two JavaScript workspaces are on the way: `web/` (the Vue SPA, [ADR-0003](0003-f
 - Contributors install Bun instead of Node plus pnpm. The contributor guide should say so once code lands.
 - Bun never ships, so the release image and the footprint promises are unaffected.
 - If one tool misbehaves under Bun, the fallback is to run that tool under Node, not to switch everything back.
+- **2026-10-30:** TypeScript 7.1 runs Vue's content mapper as a Node process, so the trial typecheck in [`tools/typecheck`](../../tools/typecheck/README.md) (`bun run typecheck:next`) needs Node 20.19 or 22.12 and later, as Playwright's runner already does. Bun still installs and runs everything; `vue-tsc` stays the gate until the mapper can replace it.
 
 ## Alternatives considered
 
