@@ -15,6 +15,7 @@ Sparklines live in memory, so a restart blanks them for a day. Each point is a s
 - **Chunks:** a presence bitmap, sample counts as varints, then Gorilla-style XOR streams of float32 values. `min` and `max` are XORed against the same point's `avg`, so a point from one sample costs two bits more than its average.
 - **Higher tiers fold from the tier below** when their slot closes. A tier's chunk length is a multiple of the next tier's step, so a slot is always inside one lower chunk, and a restart rebuilds it from disk.
 - **Writes:** closed chunks are written once. Open chunks are written every 10 minutes and at shutdown, so a crash loses at most 10 minutes. Retention is one `DELETE` per tier, hourly.
+- **Health changes** are rows in `history.db` too, one per change, with `stopped` at a clean shutdown and `gone` when a resource leaves. They keep "since" across restarts and give uptime. Kept 90 days, or 2 years with long-term.
 - **Sparklines** load their past from the 15-minute tier when a series first appears, and a finished 30-minute slot shows its average instead of its first sample.
 
 ## Consequences

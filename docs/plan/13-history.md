@@ -1,6 +1,6 @@
 # 13 · History: metrics and state over time
 
-> **Status: steps 1–3 are built** (2026-10-29): the measurement, the store and recorder with sparklines that survive a restart, and the query route with ranges on the resource sheet. Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
+> **Status: steps 1–4 are built** (2026-10-29): the measurement, the store and recorder with sparklines that survive a restart, the query route with ranges on the resource sheet, and health history with uptime. Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
 
 ## What exists
 
@@ -112,18 +112,12 @@ Short chunks keep the rewrite of an open chunk small, and each is a whole number
 
 Health changes are tiny and the thing people ask about most ("how long has it been down?", "uptime this month").
 
-```sql
-CREATE TABLE states (
-    resource TEXT NOT NULL,
-    at       INTEGER NOT NULL,   -- Unix ms the status began
-    status   INTEGER NOT NULL,   -- ok, attention, down, repair, unknown
-    PRIMARY KEY (resource, at)
-) STRICT, WITHOUT ROWID;
-```
+As built (`internal/store/history/00002_states.sql`, `internal/history/states.go`):
 
-- A row only on change, from the same place the emitter keeps `marks` today. A flapping check is bounded by its poll interval.
-- It gives uptime percentages and an Uptime Kuma-style status bar for any range, and "down since" survives restarts.
-- Kept 90 days by default (03's events row), 2 years with long-term on.
+- **A row only on change**, `(resource, at, status)`, written by the emitter where it keeps `marks`. Status is text: the integration statuses plus two of the hub's own. **`stopped`** is written for every resource at a clean shutdown, so the time the hub was off isn't counted as up. **`gone`** is written when a resource leaves the graph.
+- **"Since" survives a restart.** When the emitter first sees a resource, it asks history when its status began; history looks past a `stopped` row. A resource down since 09:00 is still "down since 09:00" after a restart at 10:00, and the row it writes goes after the stop, so the gap stays visible.
+- **Uptime** is the share of watched time a resource was ok or attention. Time before its first row, `stopped`, `gone`, `unknown` and `maintenance` don't count either way. `GET /api/history/states` returns the changes, totals and that share; the sheet's History tab draws a week as a bar, with the newest changes.
+- **Kept 90 days by default, 2 years with long-term on.** The row in effect at the cutoff always stays, so a resource that never changes keeps its start. A crash writes no `stopped`, so its downtime counts as the last status.
 
 ### Recording while nobody is watching
 
@@ -166,7 +160,7 @@ For 1,000 series, at Standard:
 1. **Done. Spike:** encode 48 hours of the Demo Home and of the dogfood home's series in the chunk format. Measure bytes a point by metric, encode and decode time, and the query time for a year of 1h points. Compare with plain float32 arrays.
 2. **Done. Store and recorder:** `internal/history` with every tier, retention, checkpoints, and seeding sparklines on boot. Sparkline points become slot averages. The level is `CHADASH_HISTORY`.
 3. **Done. Query route and the sheet's Metrics tab:** `GET /api/history`, and Now, 1 h, 24 h, 7 d and 30 d on the sheet. It uses the existing mini graph, not uPlot: averages at up to 720 points draw fine, and it adds nothing to the bundle. The raw ring was left out: the 1-minute tier is fine enough for the last hour.
-4. **State history:** the `states` table, "down since", uptime and the status bar.
+4. **Done. State history:** the `states` table, "down since" across restarts, `GET /api/history/states`, and uptime with a status bar on the sheet's History tab.
 5. **Settings → History:** levels (replacing `CHADASH_HISTORY`), retention, the estimate, the size limit, exclusions, clear.
 6. **`Interest.Record`** and the record interval in the integrations that have idle modes.
 7. Later: `/metrics` for Prometheus (03), CSV export from a chart, the Pulse strip and linked scrubbing on top of the query route.

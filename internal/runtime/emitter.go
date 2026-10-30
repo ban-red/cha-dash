@@ -26,14 +26,21 @@ const (
 	HistoryStep   = 30 * time.Minute
 )
 
-// History keeps series on disk (internal/history). The emitter records
-// every valid sample there and, when a series first appears, takes its
-// sparkline's past from it, so a restart doesn't blank the sparklines.
+// History keeps series and health on disk (internal/history). The emitter
+// records every valid sample and every status change there. When a series
+// first appears it takes its sparkline's past from it, and when a resource
+// first appears, when its status began, so a restart blanks neither.
 type History interface {
 	Record(key, instance, unit string, at time.Time, v float64)
 	// Sparkline is points averages step apart, the newest at newest; NaN
 	// where there's nothing.
 	Sparkline(key string, newest time.Time, points int, step time.Duration) []float64
+	// Since is when resource's status began, if history has it as the
+	// newest; otherwise now.
+	Since(resource, status string, now time.Time) time.Time
+	// State records resource's status, begun at since; Gone that it left.
+	State(resource, status string, since time.Time)
+	Gone(resource string, at time.Time)
 }
 
 // ResolvedRetention is how long a resolved incident stays in the inbox.
@@ -227,10 +234,16 @@ func (e *Emitter) Replace(scope string, f integration.Facts) error {
 	}); err != nil {
 		return err
 	}
+	for _, id := range slices.Sorted(maps.Keys(marks)) {
+		e.recordState(id, marks[id])
+	}
 	maps.Copy(e.marks, marks)
 	for id := range prev.res {
 		if !next.res[id] && !e.ownedElsewhere(scope, id) {
 			delete(e.marks, id)
+			if e.history != nil {
+				e.history.Gone(id, now)
+			}
 		}
 	}
 
@@ -300,6 +313,8 @@ func (e *Emitter) toGraph(r integration.Resource, source string, now time.Time) 
 		mark.since = now
 		if prev, ok := e.marks[r.ID]; ok && prev.status == status {
 			mark.since = prev.since
+		} else if !ok && e.history != nil {
+			mark.since = e.history.Since(r.ID, status, now)
 		}
 	}
 	if r.Desired != "" {
@@ -422,8 +437,20 @@ func (e *Emitter) PublishSelf(r integration.Resource) error {
 	if _, err := e.t.Graph.Update(func(tx *graph.Tx) error { return tx.Upsert(gr) }); err != nil {
 		return err
 	}
+	e.recordState(e.self, mark)
 	e.marks[e.self] = mark
 	return nil
+}
+
+// recordState writes a resource's status to history when it's new or
+// changed. Call it before the mark replaces the old one.
+func (e *Emitter) recordState(id string, m healthMark) {
+	if e.history == nil {
+		return
+	}
+	if old, ok := e.marks[id]; !ok || old.status != m.status {
+		e.history.State(id, m.status, m.since)
+	}
 }
 
 // Clear removes everything the instance published: its resources (its own
@@ -455,6 +482,12 @@ func (e *Emitter) Clear() {
 		}
 		return nil
 	})
+	if e.history != nil {
+		now := e.clock()
+		for id := range e.marks {
+			e.history.Gone(id, now)
+		}
+	}
 	e.scopes = map[string]*owned{}
 	e.marks = map[string]healthMark{}
 	e.series = map[string]*seriesDoc{}

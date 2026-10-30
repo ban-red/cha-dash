@@ -99,3 +99,72 @@ func TestHistoryRouteWhenOff(t *testing.T) {
 		t.Fatalf("%d %s", status, b)
 	}
 }
+
+func TestHistoryStatesRoute(t *testing.T) {
+	hst, err := store.OpenHistory(t.Context(), filepath.Join(t.TempDir(), "history.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { hst.Close() })
+	if _, err := hst.Migrate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := history.Open(t.Context(), history.Options{Store: hst, Level: history.Standard})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Truncate(time.Minute)
+	rec.State("host:pve", "ok", now.Add(-4*time.Hour))
+	rec.State("host:pve", "down", now.Add(-3*time.Hour))
+	rec.State("host:pve", "ok", now.Add(-2*time.Hour))
+	rec.State("node:n1", "ok", now.Add(-4*time.Hour))
+	tp := topics.New(graph.New(), time.Now())
+	if _, err := tp.Graph.Update(func(tx *graph.Tx) error {
+		if err := tx.Upsert(graph.Resource{ID: "node:n1", Kind: "node", Name: "local"}); err != nil {
+			return err
+		}
+		return tx.Upsert(graph.Resource{ID: "host:pve", Kind: "host", Name: "pve"})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e := newEnvWith(t, func(d *Deps) { d.Topics, d.History = tp, rec })
+	owner := signIn(t, e)
+	_, household := addUser(t, e, owner, "kid", "household")
+
+	type body struct {
+		Level  string `json:"level"`
+		States []struct {
+			At     int64  `json:"at"`
+			Status string `json:"status"`
+		} `json:"states"`
+		Totals map[string]int64 `json:"totals"`
+		Up     *float64         `json:"up"`
+	}
+	get := func(c *http.Client, query string, want int) body {
+		t.Helper()
+		status, _, b := e.call(t, c, "GET", "/api/history/states?"+query, nil)
+		if status != want {
+			t.Fatalf("GET /api/history/states?%s: %d %s", query, status, b)
+		}
+		var out body
+		_ = json.Unmarshal(b, &out)
+		return out
+	}
+	from := now.Add(-5 * time.Hour).UnixMilli()
+	got := get(owner, fmt.Sprintf("resource=host:pve&from=%d&to=%d", from, now.UnixMilli()), http.StatusOK)
+	if got.Level != "standard" || len(got.States) != 3 || got.States[1].Status != "down" || got.States[0].At != now.Add(-4*time.Hour).UnixMilli() {
+		t.Fatalf("owner got %+v", got)
+	}
+	// Up three of the four watched hours; the hour before the first row isn't counted.
+	if got.Up == nil || *got.Up != 0.75 || got.Totals["down"] != 3_600_000 {
+		t.Fatalf("up %v, totals %v", got.Up, got.Totals)
+	}
+	if hh := get(household, "resource=node:n1", http.StatusOK); len(hh.States) != 0 || hh.Up != nil {
+		t.Fatalf("household sees the node's states: %+v", hh)
+	}
+	if hh := get(household, "resource=host:pve", http.StatusOK); len(hh.States) != 3 {
+		t.Fatalf("household got %+v", hh)
+	}
+	get(owner, "", http.StatusBadRequest)
+	get(owner, "resource=host:pve&from=9&to=3", http.StatusBadRequest)
+}

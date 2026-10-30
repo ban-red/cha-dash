@@ -329,6 +329,21 @@ func (h *fakeHistory) Record(key, instance, unit string, at time.Time, v float64
 	h.recorded = append(h.recorded, fmt.Sprintf("%s %s %s %s %g", key, instance, unit, at.Format("15:04"), v))
 }
 
+func (h *fakeHistory) Since(resource, status string, now time.Time) time.Time {
+	if resource == "app:a" && status == "down" {
+		return time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC)
+	}
+	return now
+}
+
+func (h *fakeHistory) State(resource, status string, since time.Time) {
+	h.recorded = append(h.recorded, fmt.Sprintf("%s is %s since %s", resource, status, since.Format("15:04")))
+}
+
+func (h *fakeHistory) Gone(resource string, at time.Time) {
+	h.recorded = append(h.recorded, fmt.Sprintf("%s gone at %s", resource, at.Format("15:04")))
+}
+
 func (h *fakeHistory) Sparkline(key string, newest time.Time, points int, step time.Duration) []float64 {
 	if newest.Format("15:04") != "14:00" || points != HistoryPoints || step != HistoryStep {
 		return nil
@@ -359,7 +374,39 @@ func TestEmitterRecordsHistoryAndSeedsSparklines(t *testing.T) {
 	}
 	clk.t = clk.t.Add(time.Minute)
 	publish(math.NaN())
-	if want := []string{"app:a#cpu in_a % 14:05 40"}; !slices.Equal(h.recorded, want) {
-		t.Fatalf("recorded %q, want %q (unknowns aren't recorded)", h.recorded, want)
+	if want := []string{"app:a is ok since 14:05", "app:a#cpu in_a % 14:05 40"}; !slices.Equal(h.recorded, want) {
+		t.Fatalf("recorded %q, want %q (unknowns aren't recorded, nor an unchanged status)", h.recorded, want)
+	}
+}
+
+func TestEmitterRecordsHealthAndKeepsItsSinceAcrossARestart(t *testing.T) {
+	e, set, clk := newTestEmitter()
+	h := &fakeHistory{}
+	e.history = h
+	publish := func(rs ...integration.Resource) {
+		t.Helper()
+		if err := e.Replace("", integration.Facts{Resources: rs}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// History says app:a has been down since 09:00, from before the restart.
+	publish(res("app:a", "down"), res("app:b", "ok"))
+	got, _ := set.Graph.Get("app:a")
+	if got.Attrs[integration.AttrHealthSince] != "2026-10-03T09:00:00Z" {
+		t.Fatalf("down since %v", got.Attrs[integration.AttrHealthSince])
+	}
+	clk.t = clk.t.Add(time.Minute)
+	publish(res("app:a", "down"), res("app:b", "down"))
+	clk.t = clk.t.Add(time.Minute)
+	publish(res("app:a", "down"))
+	e.Clear()
+	want := []string{
+		"app:a is down since 09:00", "app:b is ok since 14:05",
+		"app:b is down since 14:06",
+		"app:b gone at 14:07",
+		"app:a gone at 14:07",
+	}
+	if !slices.Equal(h.recorded, want) {
+		t.Fatalf("recorded\n%q\nwant\n%q", h.recorded, want)
 	}
 }

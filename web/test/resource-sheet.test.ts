@@ -336,7 +336,7 @@ const OFFERS = [
   { id: 'docker.container.logs', label: 'Show the logs of', tier: 'T0', available: true },
 ] as const;
 
-async function wave2(opts: { role?: string; audit?: unknown } = {}) {
+async function wave2(opts: { role?: string; audit?: unknown; states?: (url: URL) => unknown } = {}) {
   const e = engine({ offers: { [SONARR]: OFFERS.map((o) => ({ ...o })) }, plan: (action) => (action.endsWith('.remove') ? { tier: 'T3' } : undefined) });
   const audit: unknown[] = [];
   const net = fakeFetch({
@@ -345,6 +345,7 @@ async function wave2(opts: { role?: string; audit?: unknown } = {}) {
       audit.push(url.search);
       return { status: 200, body: opts.audit ?? { events: [] } };
     },
+    ...(opts.states && { 'GET /api/history/states': (_b: unknown, url: URL) => ({ status: 200, body: opts.states!(url) }) }),
   });
   const h = harness(home());
   if (opts.role) h.session.state.user = { id: 'u2', username: 'sam', role: opts.role };
@@ -468,6 +469,46 @@ describe('wave 2: history', () => {
     [...hist.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.startsWith('Open in Settings'))!.click();
     expect(route.value.path).toBe('/settings/audit');
     expect(route.value.query['target']).toBe(SONARR);
+  });
+
+  it('shows a week of health from the hub: uptime, a bar, and the changes', async () => {
+    let asked: URL | undefined;
+    const { show, panel } = await wave2({
+      states: (url) => {
+        asked = url;
+        const from = Number(url.searchParams.get('from'));
+        const h = 3_600_000;
+        return {
+          level: 'standard',
+          states: [
+            { at: from + 24 * h, status: 'ok' },
+            { at: from + 100 * h, status: 'down' },
+            { at: from + 102 * h, status: 'ok' },
+            { at: from + 160 * h, status: 'down' },
+          ],
+          totals: {},
+          up: 0.9876,
+        };
+      },
+    });
+    const hist = await show('History');
+    expect(asked!.searchParams.get('resource')).toBe(SONARR);
+    expect(Number(asked!.searchParams.get('to')) - Number(asked!.searchParams.get('from'))).toBe(7 * 86_400_000);
+    expect(hist.querySelector('.rs-up')!.textContent).toMatch(/^Up 98\.7% of the time Cha Dash was watching\. Down since .+\.$/);
+    // The day before the first row stays unwatched: four segments from the first row on.
+    const segs = [...hist.querySelectorAll<HTMLElement>('.rs-health .seg')];
+    expect(segs.map((x) => x.className)).toEqual(['seg st-ok', 'seg st-down', 'seg st-ok', 'seg st-down']);
+    expect(parseFloat(segs[0]!.style.left)).toBeCloseTo((24 / 168) * 100, 3);
+    expect([...hist.querySelectorAll('[aria-label="Health changes, newest first"] li .t')].map((x) => x.textContent)).toEqual(['Down', 'Healthy', 'Down', 'Healthy']);
+    expect(hist.querySelector('[aria-label="Health changes, newest first"] li small')!.textContent).toMatch(/ · 8h$/);
+    expect(await axeViolations(panel())).toEqual([]);
+  });
+
+  it('leaves health out when the hub keeps no history', async () => {
+    const { show } = await wave2({ states: () => ({ level: 'off', states: [], totals: {}, up: null }) });
+    const hist = await show('History');
+    expect(hist.querySelector('.rs-health')).toBeNull();
+    expect(hist.textContent).not.toContain('Health');
   });
 
   it('an operator sees their tasks, and where the rest is', async () => {

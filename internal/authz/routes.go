@@ -282,6 +282,7 @@ var Routes = []Route{
 	// Metrics history, as the metrics topic: household reads the series of
 	// what its graph shows (server/history.go).
 	{Pattern: "GET /api/history", Access: SignedIn, Token: ScopeGraphRead},
+	{Pattern: "GET /api/history/states", Access: SignedIn, Token: ScopeGraphRead},
 
 	// Settings → API tokens: every role manages its own; admins and the
 	// owner see and revoke everyone's (tokens.go). Session only: a token

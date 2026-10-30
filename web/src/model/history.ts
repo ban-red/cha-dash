@@ -60,3 +60,71 @@ export function keepWords(level: HistoryLevel): string {
   if (level === 'standard') return 'Cha Dash keeps them by the minute for 48 hours and by the quarter hour for 14 days.';
   return 'Cha Dash doesn’t keep them: history is off on this hub.';
 }
+
+export interface StateChange {
+  /** Unix ms the status began (the first is moved to the range's start). */
+  at: number;
+  status: string;
+}
+
+export interface StatesReply {
+  level: HistoryLevel;
+  states: StateChange[];
+  /** Milliseconds in each status over the range, up to now. */
+  totals: Record<string, number>;
+  /** The share of the watched time it was ok or attention; null when none was watched. */
+  up: number | null;
+}
+
+/** A resource's health over the last ms milliseconds. */
+export function fetchStates(resource: string, ms: number, now: number): Promise<StatesReply> {
+  const q = new URLSearchParams({ resource, from: String(now - ms), to: String(now) });
+  return api<StatesReply>(`/api/history/states?${q.toString()}`);
+}
+
+/** "Down", "Needs attention", "Cha Dash stopped": a status as a phrase. */
+export function stateWords(status: string): string {
+  switch (status) {
+    case 'ok':
+      return 'Healthy';
+    case 'attention':
+      return 'Needs attention';
+    case 'down':
+      return 'Down';
+    case 'repair':
+      return 'Needs repair';
+    case 'maintenance':
+      return 'In maintenance';
+    case 'stopped':
+      return 'Cha Dash stopped';
+    case 'gone':
+      return 'Gone from the graph';
+  }
+  return 'Unknown';
+}
+
+/** "99.2%": rounded down, so 100% means it never went down. */
+export function upWords(up: number): string {
+  return `${Math.floor(up * 1000) / 10}%`;
+}
+
+export interface StateSegment {
+  status: string;
+  /** Left edge and width, as percentages of the range. */
+  left: number;
+  width: number;
+  from: number;
+  to: number;
+}
+
+/** The changes as bar segments over [from, to]. */
+export function segments(states: readonly StateChange[], from: number, to: number): StateSegment[] {
+  const span = to - from;
+  if (span <= 0) return [];
+  return states.flatMap((s, i) => {
+    const a = Math.max(s.at, from);
+    const b = Math.min(states[i + 1]?.at ?? to, to);
+    if (b <= a) return [];
+    return [{ status: s.status, left: ((a - from) / span) * 100, width: ((b - a) / span) * 100, from: a, to: b }];
+  });
+}

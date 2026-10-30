@@ -25,7 +25,7 @@ import MiniGraph from './marks/MiniGraph.vue';
 import { copyText } from '../settings/recipe';
 import { api } from '../lib/api';
 import { isDone, listActions, type Offer } from '../lib/actions';
-import { hhmm } from '../lib/format';
+import { absolute, duration, hhmm, shortDate } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
 import { layerAbove } from '../lib/trap';
 import { attr, incoming, label, mergedHealth, outgoing, series, sourcesOf } from '../model/graph';
@@ -38,7 +38,20 @@ import { navigate, settingsPath, stackPath } from '../lib/router';
 import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '../widgets/containers';
 import { statusOf } from '../widgets/subject';
 import { fmtValue, metricWords, upFor } from '../widgets/read';
-import { fetchHistory, keepWords, peak, pointTime, SPANS, type HistoryReply, type SpanId } from '../model/history';
+import {
+  fetchHistory,
+  fetchStates,
+  keepWords,
+  peak,
+  pointTime,
+  segments,
+  SPANS,
+  stateWords,
+  upWords,
+  type HistoryReply,
+  type SpanId,
+  type StatesReply,
+} from '../model/history';
 
 const live = useLive();
 const ui = useUi();
@@ -328,6 +341,42 @@ const METRICS = ['cpu.pct', 'mem.mib'] as const;
 const SEEN_MAX = 60;
 const seen = ref<Record<string, (number | null)[]>>({});
 watch(id, () => (seen.value = {}));
+// Health over the last week (GET /api/history/states), for the History tab.
+const HEALTH_SPAN = 7 * 86_400_000;
+const health = ref<{ target?: string; reply?: StatesReply; from: number; to: number; state: 'idle' | 'loading' | 'error' }>({ from: 0, to: 0, state: 'idle' });
+async function loadHealth(): Promise<void> {
+  const target = id.value;
+  if (!target) return;
+  const to = Date.now();
+  health.value = { target, from: to - HEALTH_SPAN, to, state: 'loading' };
+  try {
+    const reply = await fetchStates(target, HEALTH_SPAN, to);
+    if (id.value === target) health.value = { ...health.value, reply, state: 'idle' };
+  } catch {
+    if (id.value === target) health.value = { ...health.value, state: 'error' };
+  }
+}
+const healthShown = computed(() => {
+  const h = health.value;
+  return h.target === id.value && h.reply && h.reply.level !== 'off' ? h.reply : undefined;
+});
+const healthBar = computed(() => (healthShown.value ? segments(healthShown.value.states, health.value.from, health.value.to) : []));
+const healthSummary = computed(() => {
+  const h = healthShown.value;
+  if (!h) return '';
+  if (h.up === null) return 'Cha Dash hasn’t watched it in the last 7 days.';
+  const last = h.states.at(-1);
+  const now = last && last.status !== 'ok' && last.status !== 'stopped' && last.status !== 'gone' ? ` ${stateWords(last.status)} since ${shortDate(last.at)} ${hhmm(last.at)}.` : '';
+  return `Up ${upWords(h.up)} of the time Cha Dash was watching.${now}`;
+});
+/** The newest changes first, each with how long it lasted. */
+const healthChanges = computed(() =>
+  healthBar.value
+    .map((s) => ({ ...s, length: duration(s.to - s.from) }))
+    .reverse()
+    .slice(0, 8),
+);
+
 // What the hub kept (GET /api/history): 'now' is what this sheet read while open.
 const span = ref<'now' | SpanId>('now');
 const past = ref<{ target?: string; span?: SpanId; reply?: HistoryReply; state: 'idle' | 'loading' | 'error' }>({ state: 'idle' });
@@ -410,6 +459,7 @@ watch(tabs, (t) => {
 });
 // The audit log is read when History is first shown for a resource.
 watch([tab, id], ([t, now]) => t === 'history' && now && audit.value.target !== now && void loadAudit());
+watch([tab, id], ([t, now]) => t === 'history' && now && health.value.target !== now && void loadHealth());
 // Opening the tab asks for a day, which also says whether the hub keeps history.
 watch([tab, id, span], ([t, now, sp]) => {
   if (t !== 'metrics' || !now) return;
@@ -713,6 +763,31 @@ onBeforeUnmount(() => {
               role="tabpanel"
               :aria-labelledby="`${uid}-tab-history`"
             >
+              <template v-if="healthShown">
+                <h3 class="rs-h3">Health · the last 7 days</h3>
+                <p class="rs-up">{{ healthSummary }}</p>
+                <template v-if="healthBar.length">
+                  <div class="rs-health" role="img" :aria-label="`Health over the last 7 days. ${healthSummary}`">
+                    <span
+                      v-for="s in healthBar"
+                      :key="s.from"
+                      :class="['seg', `st-${s.status}`]"
+                      :style="{ left: `${s.left}%`, width: `${s.width}%` }"
+                      :title="`${stateWords(s.status)} · ${absolute(s.from)}`"
+                    ></span>
+                  </div>
+                  <div class="rs-health-axis" aria-hidden="true"><span>7 days ago</span><span>Now</span></div>
+                  <ul class="rs-hist" aria-label="Health changes, newest first">
+                    <li v-for="c in healthChanges" :key="c.from">
+                      <span class="t">{{ stateWords(c.status) }}</span>
+                      <small>{{ shortDate(c.from) }} {{ hhmm(c.from) }} · {{ c.length }}</small>
+                    </li>
+                  </ul>
+                </template>
+              </template>
+              <p v-else-if="health.state === 'error' && health.target === id" class="rs-why">
+                Its health history couldn’t be read. <button type="button" class="lk under" @click="loadHealth()">Try again</button>
+              </p>
               <h3 class="rs-h3">Tasks · the last 24 hours</h3>
               <ul v-if="tasksHere.length" class="rs-hist">
                 <li v-for="t in tasksHere" :key="t.id">
@@ -900,6 +975,46 @@ onBeforeUnmount(() => {
 .rs-tabs [role='tab'].on {
   border-bottom-color: var(--text);
   color: var(--text);
+}
+.rs-up {
+  margin: 0 0 var(--space-2);
+  font-size: var(--type-small);
+  color: var(--text-2);
+}
+.rs-health {
+  position: relative;
+  height: 14px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in oklch, var(--text) 9%, transparent) 3px 4px);
+  box-shadow: inset 0 0 0 var(--hairline) var(--line-2);
+}
+.rs-health .seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 1px;
+}
+/* Healthy is quiet; only trouble takes a colour. Unwatched time stays hatched. */
+.rs-health .st-ok {
+  background: color-mix(in oklch, var(--text) 22%, transparent);
+}
+.rs-health .st-attention {
+  background: var(--attention);
+}
+.rs-health .st-down,
+.rs-health .st-repair {
+  background: var(--down);
+}
+.rs-health .st-maintenance {
+  background: var(--maint);
+}
+.rs-health-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0 var(--space-3);
+  font-size: var(--type-micro);
+  color: var(--text-3);
 }
 .rs-span {
   display: inline-flex;

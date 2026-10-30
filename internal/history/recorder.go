@@ -58,6 +58,10 @@ type Recorder struct {
 	nextID int64
 	sealed []chunkRow // closed chunks not yet written
 	fresh  []*series  // series rows not yet written
+	// states is each resource's newest health rows (states.go), and
+	// pendingStates the rows not yet written.
+	states        map[string]*stateTrack
+	pendingStates []stateRow
 
 	lastCheckpoint, lastRetain time.Time
 }
@@ -100,7 +104,7 @@ func Open(ctx context.Context, o Options) (*Recorder, error) {
 	}
 	now := o.Now()
 	r := &Recorder{st: o.Store, level: o.Level, top: o.Level.top(), now: o.Now, log: o.Log,
-		series: map[string]*series{}, byID: map[int64]*series{}, nextID: 1,
+		series: map[string]*series{}, byID: map[int64]*series{}, nextID: 1, states: map[string]*stateTrack{},
 		lastCheckpoint: now, lastRetain: now.Add(-retainEvery)}
 
 	rows, err := r.st.Reader().QueryContext(ctx, `SELECT id, key, instance, unit, first_at, last_at FROM series`)
@@ -146,6 +150,9 @@ func Open(ctx context.Context, o Options) (*Recorder, error) {
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("history: %w", err)
 		}
+	}
+	if err := r.loadStates(ctx); err != nil {
+		return nil, err
 	}
 	// A higher slot whose lower points were written but not yet folded is
 	// pending again.
@@ -322,9 +329,10 @@ func (r *Recorder) tick(ctx context.Context, now time.Time) {
 	}
 }
 
-// Close writes the open minutes and every open chunk. The open minutes are
-// written as they are, without folding them upward, so a restart within the
-// minute only loses that minute's samples from before it.
+// Close writes the open minutes and every open chunk, and marks every
+// resource stopped. The open minutes are written as they are, without
+// folding them upward, so a restart within the minute only loses that
+// minute's samples from before it.
 func (r *Recorder) Close(ctx context.Context) error {
 	r.mu.Lock()
 	for _, s := range r.series {
@@ -332,6 +340,7 @@ func (r *Recorder) Close(ctx context.Context) error {
 			r.put(s, Minute, s.pend[Minute], s.acc)
 		}
 	}
+	r.stopAll(r.now().UnixMilli())
 	r.mu.Unlock()
 	return r.flush(ctx, true)
 }
@@ -352,8 +361,8 @@ func (r *Recorder) flush(ctx context.Context, checkpoint bool) error {
 		c *chunk
 	}
 	r.mu.Lock()
-	sealed, fresh := r.sealed, r.fresh
-	r.sealed, r.fresh = nil, nil
+	sealed, fresh, states := r.sealed, r.fresh, r.pendingStates
+	r.sealed, r.fresh, r.pendingStates = nil, nil, nil
 	var rows []seriesRow
 	var chunks []chunkRow
 	var written []openRef
@@ -381,7 +390,7 @@ func (r *Recorder) flush(ctx context.Context, checkpoint bool) error {
 		}
 	}
 	r.mu.Unlock()
-	if len(rows) == 0 && len(sealed) == 0 && len(chunks) == 0 {
+	if len(rows) == 0 && len(sealed) == 0 && len(chunks) == 0 && len(states) == 0 {
 		return nil
 	}
 
@@ -400,11 +409,18 @@ func (r *Recorder) flush(ctx context.Context, checkpoint bool) error {
 				return err
 			}
 		}
+		for _, st := range states {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO states (resource, at, status) VALUES (?, ?, ?)
+				ON CONFLICT (resource, at) DO UPDATE SET status = excluded.status`, st.resource, st.at, st.status); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
 		r.mu.Lock()
 		r.sealed = append(sealed, r.sealed...)
+		r.pendingStates = append(states, r.pendingStates...)
 		for _, s := range fresh {
 			s.fresh = true
 		}
@@ -431,7 +447,12 @@ func (r *Recorder) flush(ctx context.Context, checkpoint bool) error {
 func (r *Recorder) retain(ctx context.Context, now time.Time) error {
 	ms := now.UnixMilli()
 	var gone []int64
+	var goneStates []string
 	err := r.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		if goneStates, err = r.retainStates(ctx, tx, ms); err != nil {
+			return err
+		}
 		for t := Minute; t <= Day; t++ {
 			keep := r.level.keep(t)
 			if keep == 0 {
@@ -460,6 +481,12 @@ func (r *Recorder) retain(ctx context.Context, now time.Time) error {
 		return err
 	}
 	r.mu.Lock()
+	cutoff := ms - r.level.keepStates().Milliseconds()
+	for _, id := range goneStates {
+		if t := r.states[id]; t != nil && t.last.at < cutoff {
+			delete(r.states, id)
+		}
+	}
 	for _, id := range gone {
 		s := r.byID[id]
 		if s == nil {
