@@ -16,8 +16,9 @@
  * 24 h history by default), for the readout's "6 h ago"; `at` replaces it.
  *
  * Linked scrubbing: a graph without `at` ends now, so it shares the page's
- * time cursor (stores/cursor.ts). Scrubbing it moves the cursor, and every
- * other such graph and the Pulse strip mark the same moment.
+ * time cursor (stores/cursor.ts). Hovering reads this graph alone; pressing
+ * and dragging moves the cursor, and every other such graph marks the same
+ * moment. It follows the Pulse strip's cursor too.
  */
 import { computed, ref, useId } from 'vue';
 import { clearCursor, cursor, setCursor } from '../../stores/cursor';
@@ -134,6 +135,8 @@ const summary = computed(() => {
 const scrub = ref<number | undefined>();
 /** Tiles clip what overflows them: with no room above the graph, the readout goes below. */
 const below = ref(false);
+/** Pressed: the scrub drives the page's cursor, not just this graph. */
+let pressed = false;
 function ago(i: number, n: number): string {
   if (at) return at(i, n);
   const m = Math.round((n - 1 - i) * (spanMin / n));
@@ -153,11 +156,21 @@ function move(e: PointerEvent): void {
     else if (g.pts[want + d]) best = want + d;
   }
   scrub.value = best;
-  if (!at && best !== undefined) setCursor(Date.now() - minutesAgo(best, g.n) * 60_000, me);
+  if (pressed && !at && best !== undefined) setCursor(Date.now() - minutesAgo(best, g.n) * 60_000, me);
+}
+function press(e: PointerEvent): void {
+  pressed = true;
+  // Keep the drag ours when it strays off the graph.
+  (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  move(e);
+}
+function release(): void {
+  pressed = false;
+  clearCursor(me);
 }
 function leave(): void {
   scrub.value = undefined;
-  clearCursor(me);
+  release();
 }
 /** How long ago point i of n is, in minutes. */
 const minutesAgo = (i: number, n: number) => (n - 1 - i) * (spanMin / n);
@@ -190,7 +203,8 @@ const at_ = computed(() => {
     role="img"
     :aria-label="summary"
     @pointermove="move"
-    @pointerdown="move"
+    @pointerdown="press"
+    @pointerup="release"
     @pointerleave="leave"
     @pointercancel="leave"
   >

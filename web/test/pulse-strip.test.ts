@@ -97,19 +97,34 @@ describe('the Pulse strip', () => {
 
 describe('linked scrubbing', () => {
   const values = Array.from({ length: 48 }, (_, i) => i);
-  it('a sparkline scrubbed moves the cursor, and the others mark the same moment', async () => {
+  it('hovering a sparkline reads it alone', async () => {
+    const a = mount(MiniGraph, { props: { values, label: 'A' }, attachTo: document.body });
+    const b = mount(MiniGraph, { props: { values, label: 'B' }, attachTo: document.body });
+    const box = { left: 0, top: 0, width: 470, height: 30, right: 470, bottom: 30, x: 0, y: 0, toJSON: () => ({}) };
+    a.element.getBoundingClientRect = () => box as DOMRect;
+    await a.trigger('pointermove', { clientX: 240 });
+    expect(a.find('.mg-read').text()).toBe('24 12 h ago');
+    expect(cursor.value).toBeUndefined();
+    expect(b.find('.mg-read').exists()).toBe(false);
+    await a.trigger('pointerleave');
+  });
+
+  it('a sparkline pressed and dragged moves the cursor, and the others mark the same moment', async () => {
     const a = mount(MiniGraph, { props: { values, label: 'A' }, attachTo: document.body });
     const b = mount(MiniGraph, { props: { values: values.map((v) => v * 2), label: 'B' }, attachTo: document.body });
     const box = { left: 0, top: 0, width: 470, height: 30, right: 470, bottom: 30, x: 0, y: 0, toJSON: () => ({}) };
     a.element.getBoundingClientRect = () => box as DOMRect;
     // Point 24 of 48 over 24 hours: 23 half hours ago.
+    await a.trigger('pointerdown', { clientX: 0 });
     await a.trigger('pointermove', { clientX: 240 });
     expect(cursor.value!.at).toBe(NOW - 23 * 30 * 60_000);
     expect(b.find('.mg-read').text()).toBe('48 12 h ago');
     expect(a.find('.mg-read').text()).toBe('24 12 h ago');
-    await a.trigger('pointerleave');
+    await a.trigger('pointerup');
     expect(cursor.value).toBeUndefined();
     expect(b.find('.mg-read').exists()).toBe(false);
+    expect(a.find('.mg-read').exists()).toBe(true); // still hovered
+    await a.trigger('pointerleave');
     // The Pulse strip's moment, too; a graph with its own times (a sheet's range) isn't linked.
     const own = mount(MiniGraph, { props: { values, label: 'C', at: () => 'then' }, attachTo: document.body });
     setCursor(NOW - 60 * 60_000, 'pulse');
