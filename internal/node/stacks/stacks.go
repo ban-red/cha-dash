@@ -91,12 +91,14 @@ type Options struct {
 	// holds one shallow cache per remote and branch, in the node's state
 	// directory, never under Root; empty refuses stack.fetch. Remotes is
 	// the policy's stacks.remotes (empty: any host). FetchTimeout bounds
-	// each call (default 60 s) and MaxFile the file read (default 1 MiB).
+	// each call (default 60 s), MaxFile the file read (default 1 MiB) and
+	// MaxFetch the bytes one fetch may write to a cache (default 64 MiB).
 	// AllowFileRemotes admits file:// URLs, for tests only.
 	CacheDir         string
 	Remotes          []string
 	FetchTimeout     time.Duration
 	MaxFile          int64
+	MaxFetch         int64
 	AllowFileRemotes bool
 
 	// Now and Sleep are for tests.

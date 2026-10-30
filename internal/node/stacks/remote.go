@@ -12,9 +12,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -29,18 +31,27 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/client"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"golang.org/x/crypto/ssh"
 
 	"dash.cha.sh/internal/stackproto"
 )
 
-// Limits on a remote call.
+// Limits on a remote call, and on the caches.
 const (
 	DefaultFetchTimeout = 60 * time.Second
 	DefaultMaxFile      = 1 << 20
+	// DefaultMaxFetch is how many bytes one fetch may write to a cache.
+	// A remote that sends more is cut off, and its cache thrown away.
+	DefaultMaxFetch = 64 << 20
+	// cacheMaxIdle is how long a cache no fetch used is kept.
+	cacheMaxIdle = 14 * 24 * time.Hour
+	// pruneEvery is how often fetches look for idle caches.
+	pruneEvery = time.Hour
 )
 
 // gitClient is the network side of go-git: listing a remote's refs and
@@ -62,29 +73,50 @@ func (goGit) Fetch(ctx context.Context, r *git.Repository, o *git.FetchOptions) 
 }
 
 // remotes is the module's state for git remotes: settings and one lock
-// per cache.
+// per cache in use.
 type remotes struct {
 	cacheDir  string
 	allow     []string
 	timeout   time.Duration
 	maxFile   int64
+	maxFetch  int64
 	allowFile bool
 	client    gitClient
 	log       *slog.Logger
+	now       func() time.Time
 
-	mu     sync.Mutex
-	caches map[string]*sync.Mutex
+	mu        sync.Mutex
+	caches    map[string]*cacheLock // only while a fetch or the pruner holds one
+	lastPrune time.Time
+}
+
+// cacheLock is one cache's lock, counted so the map keeps only the caches
+// in use.
+type cacheLock struct {
+	mu   sync.Mutex
+	refs int
 }
 
 func newRemotes(o Options, log *slog.Logger) *remotes {
-	g := &remotes{cacheDir: o.CacheDir, allow: o.Remotes, timeout: o.FetchTimeout, maxFile: o.MaxFile,
-		allowFile: o.AllowFileRemotes, client: goGit{}, log: log, caches: map[string]*sync.Mutex{}}
+	if log == nil {
+		log = slog.New(slog.DiscardHandler)
+	}
+	g := &remotes{cacheDir: o.CacheDir, allow: o.Remotes, timeout: o.FetchTimeout, maxFile: o.MaxFile, maxFetch: o.MaxFetch,
+		allowFile: o.AllowFileRemotes, client: goGit{}, log: log, now: o.Now, caches: map[string]*cacheLock{}}
 	if g.timeout <= 0 {
 		g.timeout = DefaultFetchTimeout
 	}
 	if g.maxFile <= 0 {
 		g.maxFile = DefaultMaxFile
 	}
+	if g.maxFetch <= 0 {
+		g.maxFetch = DefaultMaxFetch
+	}
+	if g.now == nil {
+		g.now = time.Now
+	}
+	// On start: caches no fetch used for cacheMaxIdle go.
+	g.prune()
 	return g
 }
 
@@ -101,7 +133,7 @@ func (m *Module) remoteCheck(ctx context.Context, req stackproto.RemoteCheckRequ
 	if err != nil {
 		return stackproto.RemoteCheckResponse{}, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, g.timeout)
+	ctx, cancel := context.WithTimeout(g.redirects(ctx), g.timeout)
 	defer cancel()
 	refs, lerr := g.client.List(ctx, u.raw, auth)
 	if lerr != nil {
@@ -136,14 +168,15 @@ func (m *Module) fetch(ctx context.Context, req stackproto.FetchRequest, _ emitt
 	if g.cacheDir == "" {
 		return stackproto.FetchResponse{}, stackproto.Errorf(stackproto.CodeInternal, "This node has no cache directory for git remotes.")
 	}
-	ctx, cancel := context.WithTimeout(ctx, g.timeout)
+	ctx, cancel := context.WithTimeout(g.redirects(ctx), g.timeout)
 	defer cancel()
+	defer g.pruneSometimes()
 
 	key := cacheKey(u, req.Branch)
 	unlock := g.lockCache(key)
 	defer unlock()
 	dir := filepath.Join(g.cacheDir, key)
-	r, existed, err := openCache(dir)
+	r, existed, err := g.openCache(dir)
 	if err != nil {
 		return stackproto.FetchResponse{}, stackproto.Errorf(stackproto.CodeInternal, "The node couldn't open its cache for this remote.")
 	}
@@ -153,14 +186,21 @@ func (m *Module) fetch(ctx context.Context, req stackproto.FetchRequest, _ emitt
 		// on the remote) is thrown away and fetched again once.
 		g.log.Warn("stacks: starting a git cache again", "host", u.host)
 		if err := os.RemoveAll(dir); err == nil {
-			if r, _, err = openCache(dir); err == nil {
+			if r, _, err = g.openCache(dir); err == nil {
 				ferr = g.fetchInto(ctx, r, u, req.Branch, auth)
 			}
 		}
 	}
 	if ferr != nil {
+		// Whatever a failed or cut-off fetch left behind goes.
+		if err := os.RemoveAll(dir); err != nil {
+			g.log.Warn("stacks: remove a git cache after a failed fetch", "host", u.host, "err", err)
+		}
 		return stackproto.FetchResponse{}, g.remoteError(ctx, u, req.Auth, ferr)
 	}
+	// The directory's time says when a fetch last used it (prune).
+	now := g.now()
+	_ = os.Chtimes(dir, now, now)
 	return g.readTip(r, req.Branch, req.Path)
 }
 
@@ -223,37 +263,137 @@ func (g *remotes) readTip(r *git.Repository, branch, p string) (stackproto.Fetch
 
 // ── the cache ────────────────────────────────────────────────────────────
 
+// lockCache locks one cache. The map holds a lock only while someone holds
+// or waits for it, so it never grows past the caches in use.
 func (g *remotes) lockCache(key string) func() {
 	g.mu.Lock()
 	l := g.caches[key]
 	if l == nil {
-		l = &sync.Mutex{}
+		l = &cacheLock{}
 		g.caches[key] = l
 	}
+	l.refs++
 	g.mu.Unlock()
-	l.Lock()
-	return l.Unlock
+	l.mu.Lock()
+	return func() {
+		l.mu.Unlock()
+		g.mu.Lock()
+		if l.refs--; l.refs == 0 {
+			delete(g.caches, key)
+		}
+		g.mu.Unlock()
+	}
 }
 
-// openCache opens the bare cache repository at dir, or makes it.
-func openCache(dir string) (*git.Repository, bool, error) {
-	if r, err := git.PlainOpen(dir); err == nil {
-		return r, true, nil
+// cacheKeyRE is a cache directory's name (cacheKey).
+var cacheKeyRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
+
+// prune removes the caches no fetch used for cacheMaxIdle, skipping any a
+// fetch holds now.
+func (g *remotes) prune() {
+	if g.cacheDir == "" {
+		return
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, false, err
-	}
-	r, err := git.PlainInit(dir, true)
+	g.mu.Lock()
+	g.lastPrune = g.now()
+	g.mu.Unlock()
+	entries, err := os.ReadDir(g.cacheDir)
 	if err != nil {
-		return nil, false, err
+		return
 	}
-	// The URL is passed on each fetch (FetchOptions.RemoteURL); the remote
-	// only has to exist.
-	if _, err := r.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{"file:///nowhere"}}); err != nil {
-		return nil, false, err
+	cutoff := g.now().Add(-cacheMaxIdle)
+	for _, e := range entries {
+		if !e.IsDir() || !cacheKeyRE.MatchString(e.Name()) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		g.mu.Lock()
+		_, busy := g.caches[e.Name()]
+		g.mu.Unlock()
+		if busy {
+			continue
+		}
+		unlock := g.lockCache(e.Name())
+		if err := os.RemoveAll(filepath.Join(g.cacheDir, e.Name())); err != nil {
+			g.log.Warn("stacks: prune a git cache", "err", err)
+		}
+		unlock()
 	}
-	return r, false, nil
 }
+
+// pruneSometimes prunes after a fetch, at most once per pruneEvery.
+func (g *remotes) pruneSometimes() {
+	g.mu.Lock()
+	due := g.now().Sub(g.lastPrune) >= pruneEvery
+	g.mu.Unlock()
+	if due {
+		g.prune()
+	}
+}
+
+// openCache opens the bare cache repository at dir, or makes it. Its
+// storage counts what a fetch writes (limitedStorage).
+func (g *remotes) openCache(dir string) (*git.Repository, bool, error) {
+	r, err := git.PlainOpen(dir)
+	existed := err == nil
+	if !existed {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return nil, false, err
+		}
+		if r, err = git.PlainInit(dir, true); err != nil {
+			return nil, false, err
+		}
+		// The URL is passed on each fetch (FetchOptions.RemoteURL); the
+		// remote only has to exist.
+		if _, err := r.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{"file:///nowhere"}}); err != nil {
+			return nil, false, err
+		}
+	}
+	fs, ok := r.Storer.(*filesystem.Storage)
+	if !ok {
+		return nil, false, errors.New("stacks: a git cache isn't on disk")
+	}
+	r.Storer = &limitedStorage{Storage: fs, max: g.maxFetch}
+	return r, existed, nil
+}
+
+// errFetchTooLarge cuts off a fetch that writes more than maxFetch.
+var errFetchTooLarge = errors.New("stacks: the fetch passed its size limit")
+
+// limitedStorage is a cache's storage with a cap on the pack a fetch
+// writes: go-git writes a fetched pack through PackfileWriter, whatever the
+// transport, so the cap holds for https, ssh and file alike.
+type limitedStorage struct {
+	*filesystem.Storage
+	max int64
+}
+
+// PackfileWriter implements storer.PackfileWriter.
+func (s *limitedStorage) PackfileWriter() (io.WriteCloser, error) {
+	w, err := s.Storage.PackfileWriter()
+	if err != nil {
+		return nil, err
+	}
+	return &limitWriter{w: w, left: s.max}, nil
+}
+
+type limitWriter struct {
+	w    io.WriteCloser
+	left int64
+}
+
+func (l *limitWriter) Write(p []byte) (int, error) {
+	if int64(len(p)) > l.left {
+		return 0, errFetchTooLarge
+	}
+	l.left -= int64(len(p))
+	return l.w.Write(p)
+}
+
+func (l *limitWriter) Close() error { return l.w.Close() }
 
 // cacheKey names a remote and branch's cache: a hash of the normalized URL
 // (lowercase scheme and host, no default port, no trailing / or .git) and
@@ -406,6 +546,62 @@ func validFilePath(p string) error {
 	return nil
 }
 
+// ── redirects ────────────────────────────────────────────────────────────
+
+// go-git's HTTP transport is process-wide (client.Protocols), so the
+// node installs one whose redirects it checks: a redirect must stay within
+// stacks.remotes when the policy lists hosts, may not leave https, and
+// never carries the credential to another host or port. The module's
+// policy travels in the request's context (redirects).
+func init() {
+	c := githttp.NewClientWithOptions(&http.Client{Transport: http.DefaultTransport, CheckRedirect: checkRedirect}, nil)
+	client.InstallProtocol("http", c)
+	client.InstallProtocol("https", c)
+}
+
+type redirectPolicyKey struct{}
+
+// errRedirect is a redirect the policy refuses.
+var errRedirect = errors.New("stacks: redirect refused")
+
+// redirects puts the module's allowlist in ctx for checkRedirect.
+func (g *remotes) redirects(ctx context.Context) context.Context {
+	return context.WithValue(ctx, redirectPolicyKey{}, g)
+}
+
+// checkRedirect is the HTTP client's CheckRedirect. go-git's own policy
+// (only the first request may redirect, at most 10) runs before it.
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) == 0 {
+		return nil
+	}
+	from := via[0].URL
+	if strings.EqualFold(from.Scheme, "https") && !strings.EqualFold(req.URL.Scheme, "https") {
+		return fmt.Errorf("%w: it leaves https", errRedirect)
+	}
+	if g, _ := req.Context().Value(redirectPolicyKey{}).(*remotes); g != nil && len(g.allow) > 0 {
+		u, err := parseRemote(req.URL.Scheme+"://"+req.URL.Host+"/", false)
+		if err != nil || !g.allowed(u) {
+			return fmt.Errorf("%w: %s isn't in stacks.remotes", errRedirect, req.URL.Hostname())
+		}
+	}
+	if hostPort(from) != hostPort(req.URL) {
+		// net/http keeps Authorization for the same host on another port,
+		// and for a subdomain; the credential is for one host and port.
+		req.Header.Del("Authorization")
+	}
+	return nil
+}
+
+// hostPort is a URL's lowercase host and effective port.
+func hostPort(u *url.URL) string {
+	port := u.Port()
+	if port == "" {
+		port = defaultPorts[strings.ToLower(u.Scheme)]
+	}
+	return net.JoinHostPort(strings.ToLower(u.Hostname()), port)
+}
+
 // ── credentials ──────────────────────────────────────────────────────────
 
 // authFor builds the transport's auth from the hub's credential. Over SSH,
@@ -482,6 +678,7 @@ func classified(err error) bool {
 	return errors.Is(err, transport.ErrAuthenticationRequired) || errors.Is(err, transport.ErrAuthorizationFailed) ||
 		errors.Is(err, transport.ErrRepositoryNotFound) || errors.Is(err, transport.ErrEmptyRemoteRepository) ||
 		errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) ||
+		errors.Is(err, errFetchTooLarge) || errors.Is(err, errRedirect) ||
 		strings.Contains(err.Error(), "host key mismatch") || strings.Contains(err.Error(), "unable to authenticate")
 }
 
@@ -503,6 +700,14 @@ func (g *remotes) remoteError(ctx context.Context, u remoteURL, a stackproto.Rem
 		return stackproto.Errorf(stackproto.CodeNotFound, "There's no repository at that address, or the credentials can't see it.")
 	case errors.Is(err, transport.ErrEmptyRemoteRepository):
 		return stackproto.Errorf(stackproto.CodeNotFound, "The remote repository is empty.")
+	case errors.Is(err, errFetchTooLarge) || strings.Contains(msg, errFetchTooLarge.Error()):
+		limit := fmt.Sprintf("%d MiB", g.maxFetch>>20)
+		if g.maxFetch < 1<<20 {
+			limit = fmt.Sprintf("%d KiB", g.maxFetch>>10)
+		}
+		return stackproto.Errorf(stackproto.CodeInvalid, "The fetch passed the %s limit, so the node stopped it. Follow a smaller repository, or a branch with less in it.", limit)
+	case errors.Is(err, errRedirect) || strings.Contains(msg, errRedirect.Error()):
+		return stackproto.Errorf(stackproto.CodeForbidden, "The remote redirected somewhere this node won't follow: a host outside stacks.remotes, or away from https.")
 	}
 	where := u.host
 	if where == "" {
