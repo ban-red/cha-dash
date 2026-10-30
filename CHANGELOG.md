@@ -6,12 +6,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-### Added
-
-- **Section settings.** The section header's menu has a Section settings item to rename the section. An empty name clears the title.
-- **Add a section next to another.** The section header's menu has Add new section before and after, which insert an empty, full-width "New section" beside it.
-- **Remove a section from its menu.** The section header's menu has a new Remove section item. It asks first, then removes the section and every widget in it, with Undo.
-
 ## [0.2.0-beta.2] - 2026-10-29
 
 The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and health now keep a history on disk, so sparklines survive a restart, a sheet looks back over what was kept, and the Pulse strip under the Briefing takes the whole board back to any moment of the last 24 hours. Tiles get views you swipe between, new sizes, a menu, and far more from Plex, Tautulli, qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant, Frigate and the weather. Settings → Bring in imports Homarr 2 backups and plain YAML boards. The v0.2 actions have now run against a real homelab, all but Pi-hole's, AdGuard Home's and Seerr's, and what those runs and a second security review found is fixed below.
@@ -20,6 +14,9 @@ The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and
 
 ### Added
 
+- **Section settings.** The section header's menu has a Section settings item to rename the section. An empty name clears the title.
+- **Add a section next to another.** The section header's menu has Add new section before and after, which insert an empty, full-width "New section" beside it.
+- **Remove a section from its menu.** The section header's menu has a new Remove section item. It asks first, then removes the section and every widget in it, with Undo.
 - **Camera pictures and controls for Frigate.** Turn on **Show camera pictures** in a Frigate connection and the Cameras tile shows each camera's current picture instead of a drawing. Cha Dash fetches it from Frigate (`latest.jpg`, nothing else) and passes it on, refreshing only while the tile is on screen; everyone signed in to Cha Dash can then see the pictures. There's no live video. Add an admin **control account** to the connection and Cha Dash can turn a camera's detection, recording, snapshots and alerts on and off, or the whole camera (Frigate 0.16 or later), each with Undo. Cameras now have a sheet: click a frame for a larger picture, the camera's switches and its last detections, with the controls under Actions. The Panel, Large and Hero tiles have a control row for the main camera.
 - **Widget settings of their own.** A widget can now offer its own settings under Widget settings. The Cameras tile is the first: which cameras it shows, pictures on or off, how often they refresh, the detections list and the controls.
 - **A clearer Up next tile.** Each release has a mark for its kind (episode, film or album), and premieres and finales get a label. Wide shows the next release large, with how long until it, beside the rest of today and tomorrow. Panel adds the week as a ribbon, a dot per release. Tall and Column mark the next release and draw a line at now in today's list; what aired in the last hour is dimmed. Large lists the week a row per day, under each date.
