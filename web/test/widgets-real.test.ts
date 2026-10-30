@@ -624,6 +624,98 @@ describe('home and media widgets on real instances', () => {
     expect(strip.find('.sx').text()).toBe('Next: Severance 21:00 · in 6h 54m');
   });
 
+  /** A Home Assistant calendar and a calendar feed, in the shape both publish (internal/README.md). */
+  function withCalendars(): Data {
+    const d = home();
+    const put = (r: Resource, inst: string) => {
+      d.graph.resources[r.id] = r;
+      d.graph.relations[`integration:${inst} monitors ${r.id}`] = { from: `integration:${inst}`, type: 'monitors', to: r.id };
+    };
+    put(
+      {
+        id: 'homeassistant:i_ha/calendar/family', kind: 'calendar', name: 'Family', state: 'online', health: 'ok', caps: ['calendar.events'],
+        attrs: {
+          type: 'calendar', provider: 'homeassistant', time_zone: 'UTC',
+          events: [
+            { start: '2026-10-03', end: '2026-10-04', all_day: true, title: 'Bin day' },
+            { start: '2026-10-03T10:00:00Z', end: '2026-10-03T10:45:00Z', all_day: false, title: 'Dentist' },
+            { start: '2026-10-03T14:00:00Z', end: '2026-10-03T14:30:00Z', all_day: false, title: 'Standup' },
+            { start: '2026-10-03T19:00:00Z', end: '2026-10-03T21:00:00Z', all_day: false, title: 'Dinner', location: 'Harbour Kitchen' },
+            { start: '2026-10-05', end: '2026-10-08', all_day: true, title: 'Lake trip' },
+          ],
+        },
+      },
+      'i_ha',
+    );
+    put(
+      {
+        id: 'ical:i_ic/calendar/main', kind: 'calendar', name: 'Work', state: 'online', health: 'ok', caps: ['calendar.events'],
+        attrs: { type: 'calendar', provider: 'ical', events: [{ start: '2026-10-04T09:00:00Z', end: '2026-10-04T10:00:00Z', all_day: false, title: 'Planning' }] },
+      },
+      'i_ic',
+    );
+    return d;
+  }
+
+  it('lists the agenda by day: all-day first, what’s over dimmed, a line at now, what’s on with time left', () => {
+    const { w } = mountReal('agenda', 'tall', undefined, withCalendars());
+    expect(w.findAll('.ev-agenda .ag-day').map((x) => x.text())).toEqual(['Today', 'Tomorrow', 'Mon 5 Oct', 'Tue 6 Oct', 'Wed 7 Oct']);
+    const today = w.findAll('.ev-agenda ul')[0]!.findAll('li');
+    expect(today.map((li) => (li.classes().includes('ev-now') ? 'now-line' : li.find('.ev-t').text()))).toEqual(['Bin day', 'Dentist', 'now-line', 'Standup', 'Dinner']);
+    expect(today[0]!.find('.ev-at').text()).toBe('All day');
+    expect(today[1]!.classes()).toContain('over');
+    expect(today[3]!.classes()).toContain('now');
+    expect(today[3]!.find('.ev-at small').text()).toBe('ends in 24m');
+    expect(today[4]!.find('.ev-at').text()).toBe('19:00–21:00');
+    expect(today[4]!.find('.ev-body small').text()).toBe('Harbour Kitchen');
+    // A three-day event says which day it's on.
+    const trip = w.findAll('.ev-agenda ul')[3]!.find('.ev-body small');
+    expect(trip.text()).toBe('day 2 of 3');
+    // Two calendars: a mark each, named in the legend.
+    expect(w.findAll('.ev-legend span').map((x) => x.text())).toEqual(['Family', 'Work']);
+    expect(today[3]!.find('.cal-mk').classes()).toContain('cal-mk-dot');
+    expect(w.findAll('.ev-agenda ul')[1]!.find('.cal-mk').classes()).toContain('cal-mk-ring');
+  });
+
+  it('shows what’s on now large at wide, with the rest of today and tomorrow beside it', () => {
+    const { w } = mountReal('agenda', 'wide', undefined, withCalendars());
+    expect(w.find('.ev-hero .ag-day').text()).toBe('Now · Today');
+    expect(w.find('.ev-time').text()).toBe('14:00–14:30');
+    expect(w.find('.ev-until').text()).toBe('ends in 24m');
+    expect(w.find('.ev-title').text()).toBe('Standup');
+    expect(w.findAll('.ev-after li').map((li) => li.text())).toEqual(['All dayBin day', '19:00Dinner', 'Tomorrow', '09:00Planning']);
+    const strip = mountReal('agenda', 'strip', undefined, withCalendars()).w;
+    expect(strip.find('.sx').text()).toBe('Now: Standup · ends in 24m');
+  });
+
+  it('shows the month and the next three days at large', () => {
+    const { w } = mountReal('agenda', 'large', undefined, withCalendars());
+    expect(w.find('.ev-month caption').text()).toBe('October 2026');
+    const todayCell = w.find('.ev-month td.today');
+    expect(todayCell.find('.n').text()).toBe('3');
+    expect(todayCell.findAll('.ev-dots i')).toHaveLength(3); // four things on, three dots at most
+    expect(todayCell.find('.ev-sr').text()).toBe('today, 4 events');
+    expect(w.findAll('.ev-month tbody tr')).toHaveLength(5); // 1 Oct 2026 is a Thursday
+    expect(w.findAll('.ev-soon .ag-day').map((x) => x.text())).toEqual(['Today', 'Tomorrow', 'Mon 5 Oct']);
+    expect(w.findAll('.ev-soon ul')[2]!.text()).toContain('day 1 of 3');
+  });
+
+  it('shows only the calendars ticked, and media releases when asked', () => {
+    const work = mountReal('agenda', 'tall', undefined, withCalendars(), { agenda: { options: { calendars: ['ical:i_ic/calendar/main'] } } }).w;
+    expect(work.findAll('.ev-t').map((x) => x.text())).toEqual(['Planning']);
+    expect(work.find('.ev-legend').exists()).toBe(false);
+    const media = mountReal('agenda', 'tall', undefined, withCalendars(), { agenda: { options: { media: true } } }).w;
+    expect(media.findAll('.ev-t').map((x) => x.text())).toContain('Starling Point');
+    expect(media.find('.ev-row .md-ic').exists()).toBe(true);
+    const none = mountReal('agenda', 'small', undefined, home()).w;
+    expect(none.text()).toContain('Add a calendar feed or connect Home Assistant');
+  });
+
+  it('lists only the apps ticked on Up next', () => {
+    const { w } = mountReal('calendar', 'tall', undefined, home(), { calendar: { options: { sources: ['radarr:i_r/app'] } } });
+    expect(w.findAll('.ag-row').map((r) => r.find('.cal-t').text())).toEqual(['Dune: Part Two']);
+  });
+
   it('reads the weather source’s shape: now, high and low, the next hours, the credit', () => {
     const { w } = mountReal('weather', 'wide');
     expect(w.find('.tn').text()).toBe('Greenwich');

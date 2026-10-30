@@ -51,6 +51,7 @@ export const WIDGET_COMPONENTS: Record<string, Component> = {
   traefik: TraefikWidget,
   uptimekuma: UptimeKumaWidget,
   weather: WeatherWidget,
+  agenda: lazy(() => import('./AgendaWidget.vue')),
   bookmarks: lazy(() => import('./BookmarksWidget.vue')),
   check: lazy(() => import('./CheckWidget.vue')),
   guests: lazy(() => import('./GuestsWidget.vue')),

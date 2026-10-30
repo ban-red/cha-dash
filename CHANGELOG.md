@@ -19,6 +19,8 @@ The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and
 
 ### Added
 
+- **A Calendar widget.** Your own calendars on the board: what's on now and how long is left, what's next, the rest of today, the week as a ribbon, two weeks by day, or this month with the next three days. All-day and multi-day events, a line at now, and a mark per calendar with a legend. It reads calendar feeds and Home Assistant's calendars, and can include Up next's releases. In Widget settings, pick which calendars a tile shows.
+- **Pick Up next's sources.** Up next's Widget settings list your Sonarr, Radarr and Lidarr apps; tick the ones the tile shows. None ticked shows them all, as before.
 - **Section settings.** The section header's menu has a Section settings item to rename the section. An empty name clears the title.
 - **Add a section next to another.** The section header's menu has Add new section before and after, which insert an empty, full-width "New section" beside it.
 - **Remove a section from its menu.** The section header's menu has a new Remove section item. It asks first, then removes the section and every widget in it, with Undo.

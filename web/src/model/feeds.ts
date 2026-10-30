@@ -97,6 +97,7 @@ const RULES: Record<string, Rule> = {
   clock: { available: () => true },
   weather: { available: kind('weather') },
   calendar: { available: (g, now) => calendar(g, now - 7 * 86_400_000).length > 0 || ['sonarr', 'radarr', 'lidarr'].some((t) => appsOfType(g, t).length > 0) },
+  agenda: { available: kind('calendar') },
   incidents: { available: () => true },
   arr: { candidates: (g) => [...appsOfType(g, 'sonarr'), ...appsOfType(g, 'radarr'), ...appsOfType(g, 'lidarr')] },
   service: { available: () => true },

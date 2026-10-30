@@ -56,13 +56,13 @@ const values = ref<Record<string, OptionValue>>(Object.fromEntries((spec.value?.
 const sizes = ref<Record<string, Record<string, string>>>(
   Object.fromEntries((spec.value?.options ?? []).flatMap((o) => (o.kind === 'resources' && o.sizes ? [[o.sizes.key, sizesValue(o, config?.options?.[o.sizes.key])]] : []))),
 );
-/** What a `resources` option can pick: the target's related resources of that kind, else all of them. */
+/** What a `resources` option can pick: the target's related resources of that kind, else all of them; with `cap`, only those with it. */
 function pickable(o: WidgetOption & { kind: 'resources' }) {
   const g = live.graph.value;
   const t = target.value ? g?.resources[target.value] : undefined;
   if (t?.kind === o.resourceKind) return [];
   const list = t && o.via ? outgoing(g, t.id, o.via).filter((r) => r.kind === o.resourceKind) : byKind(g, o.resourceKind);
-  const out = [...list].sort((a, b) => label(a).localeCompare(label(b)));
+  const out = list.filter((r) => !o.cap || r.caps?.includes(o.cap)).sort((a, b) => label(a).localeCompare(label(b)));
   if (!o.ordered) return out;
   // Ticked first, in their order; then the rest.
   const picked = values.value[o.key] as string[];

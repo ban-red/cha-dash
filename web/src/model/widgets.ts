@@ -44,9 +44,10 @@ export interface WidgetSpec {
  * - `choice`: a select of string values.
  * - `resources`: which resources of a kind to show, in the graph's order;
  *   none picked means all. Limited to those the tile's target relates to
- *   with `via` when the target is one. With `ordered`, the ticked ones show
- *   in the order they're ticked and moved to. With `sizes`, each resource
- *   gets a size, kept by id in `options[sizes.key]`.
+ *   with `via` when the target is one, and to those with capability `cap`
+ *   when it's given (apps with `media.calendar`, say). With `ordered`, the
+ *   ticked ones show in the order they're ticked and moved to. With `sizes`,
+ *   each resource gets a size, kept by id in `options[sizes.key]`.
  */
 export type WidgetOption = { key: string; label: string; help?: string } & (
   | { kind: 'boolean'; default: boolean }
@@ -55,6 +56,7 @@ export type WidgetOption = { key: string; label: string; help?: string } & (
       kind: 'resources';
       resourceKind: string;
       via?: string;
+      cap?: string;
       ordered?: boolean;
       sizes?: { key: string; label: string; default: string; choices: { value: string; label: string }[] };
     }
@@ -125,7 +127,17 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   plex: spec('plex', 'Now playing', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['app'], types: ['plex', 'jellyfin', 'tautulli'] }, group: 'media', about: 'What’s streaming on Plex, Jellyfin or Tautulli.', icon: 'plex' }),
   arr: spec('arr', 'Queue', 'small', ['small', 'wide'], { bound: true, accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'A Sonarr, Radarr or Lidarr queue, and what’s wanted.' }),
   downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] }, group: 'media', about: 'Download speed and queue from your torrent or Usenet client.' }),
-  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'What Sonarr and Radarr expect next.' }),
+  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'panel', 'tall', 'column', 'large'], {
+    accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'What Sonarr and Radarr expect next.',
+    options: [{ key: 'sources', kind: 'resources', resourceKind: 'app', cap: 'media.calendar', label: 'Sources', help: 'Whose releases the tile lists. None ticked: all of them, new ones too.' }],
+  }),
+  agenda: spec('agenda', 'Calendar', 'wide', ['strip', 'small', 'wide', 'panel', 'tall', 'column', 'large'], {
+    accepts: { kinds: ['calendar'] }, group: 'home', about: 'Your calendars: today, the week and the month, from calendar feeds and Home Assistant.',
+    options: [
+      { key: 'calendars', kind: 'resources', resourceKind: 'calendar', label: 'Calendars', help: 'Which calendars the tile shows. None ticked: all of them, new ones too.' },
+      { key: 'media', kind: 'boolean', default: false, label: 'Include media releases', help: 'What Sonarr, Radarr and Lidarr expect, as on Up next.' },
+    ],
+  }),
   incidents: spec('incidents', 'Incidents', 'large', ['wide', 'panel', 'tall', 'column', 'large'], { group: 'basics', about: 'Everything open, problems first; the latest fix when it’s quiet.' }),
   /**
    * Any service: an imported Homepage entry (`service@homepage:<section>/<entry>`),

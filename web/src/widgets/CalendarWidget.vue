@@ -3,7 +3,8 @@
  * Media calendar ("Up next"): the `media.calendar` capability of every Sonarr,
  * Radarr and Lidarr instance, read from their `attrs.calendar`
  * (`[{at, title, detail}]`), so renames don't break it. Target: one instance;
- * else the instances the tile config lists (`bind.sources` with capability
+ * else the apps ticked in Widget settings (`options.sources`); else the
+ * instances the tile config lists (`bind.sources` with capability
  * `media.calendar`, as the importer writes them); else all of them.
  * Unmonitored releases (the *arrs publish them marked) are listed only when
  * the tile's `options.unmonitored` is true, or the source's own options say
@@ -32,6 +33,7 @@ import { attr, calendar, distinct, label, outgoing, resolve, type CalendarEntry 
 import type { GraphDoc, Resource } from '../model/types';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
+import { useOptions } from './options';
 import Frame from './parts/Frame.vue';
 import MediaMark, { type MediaKind } from './parts/MediaMark.vue';
 import { typeOf } from './read';
@@ -59,8 +61,12 @@ function withUnmonitored(r: Resource): boolean {
       outgoing(live.graph.value, `integration:${src.instance}`, 'monitors').some((x) => x.id === r.id),
   );
 }
+const opts = useOptions('calendar');
+/** The apps ticked in Widget settings, those still in the graph. */
+const ticked = computed(() => (opts.value['sources'] as string[]).map((id) => live.graph.value?.resources[id]).filter((r): r is Resource => Boolean(r)));
 const sources = computed<Resource[]>(() => {
   if (picked.value) return [picked.value];
+  if (ticked.value.length) return ticked.value;
   if (configured.value.length) return configured.value;
   return distinct(live.graph.value).filter((r) => r.caps?.includes('media.calendar') || Array.isArray(attr(r, 'calendar')));
 });
