@@ -2,25 +2,24 @@
 # that runs elsewhere on your network. Nothing listens here: the node dials
 # the hub.
 #
-# Before remote enrollment lands (v0.3), a remote node pairs with a token the
-# hub writes on first start, passed to the node once. On the hub's host:
+# It joins with a join token: in Cha Dash, Settings → Nodes → Add node makes
+# one and shows a .env block for this host (CHADASH_HUB, CHADASH_NODE_NAME,
+# CHADASH_NODE_TOKEN). Put it in .env next to this file, then:
 #
-#   docker run --rm -v chadash_pairing:/p:ro busybox cat /p/token
-#
-# Then on this host, next to this file:
-#
-#   printf 'CHADASH_HUB=ws://<hub host>:3696/node\nCHADASH_NODE_NAME=<this host>\nCHADASH_PAIRING=<token>\n' > .env
 #   docker compose -f compose.node.yaml up -d
 #
 # During the beta there's no `latest` image: add
 # CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:beta (or a pinned tag) to
 # .env first. An override file isn't read when -f names this file.
 #
-# Once Settings → Nodes lists the node, delete the CHADASH_PAIRING line from
-# .env. The token is single-use: the hub writes a fresh one as soon as it's
-# spent, so the line is worth nothing afterwards. The node keeps its identity
-# in the `node` volume and reconnects without it. README, "Nodes on other
-# hosts", has the details.
+# The node logs "waiting for approval in Cha Dash; fingerprint …" and waits.
+# Compare the fingerprint in Settings → Nodes, then approve it there. Once it
+# has joined, delete the CHADASH_NODE_TOKEN line: the token is single-use, and
+# the node reconnects on its identity in the `node` volume. README, "Nodes on
+# other hosts", has the details.
+#
+# Nodes that paired with CHADASH_PAIRING before v0.3 keep working; new ones
+# should use a join token, which an admin approves.
 
 name: chadash-node
 
@@ -47,7 +46,10 @@ services:
     environment:
       CHADASH_NODE_HUB: ${CHADASH_HUB:?set CHADASH_HUB to the hub's ws://<host>:3696/node}
       CHADASH_NODE_NAME: ${CHADASH_NODE_NAME:?set CHADASH_NODE_NAME to what the hub should call this host}
-      CHADASH_NODE_PAIRING: ${CHADASH_PAIRING:-}   # only until the node has paired
+      CHADASH_NODE_TOKEN: ${CHADASH_NODE_TOKEN:-}   # the join token; ignored once the node has joined
+      CHADASH_NODE_PAIRING: ${CHADASH_PAIRING:-}    # nodes that paired before v0.3 only
+    # To keep the token out of the environment, use a file instead:
+    #   CHADASH_NODE_TOKEN_FILE: /run/secrets/chadash_node_token
     # The healthcheck comes from the image: `/chadash-node healthcheck`.
 
 volumes:

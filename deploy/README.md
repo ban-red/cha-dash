@@ -137,7 +137,7 @@ A key file that others can read (Docker Swarm mounts secrets `0444`) is accepted
 
 ## The node
 
-`chadash-node` is Cha Dash's hands on a Docker host ([ADR-0006](../docs/adr/0006-owned-stacks-and-thin-node.md)). In v0.2 one node runs beside the hub, on the hub's own host, and others can join it by hand ([Nodes on other hosts](#nodes-on-other-hosts)); enrollment from the hub, with approval in the Inbox, comes in v0.3. The hub never mounts the Docker socket: everything Docker goes through the node, and the node only does what its policy allows.
+`chadash-node` is Cha Dash's hands on a Docker host ([ADR-0006](../docs/adr/0006-owned-stacks-and-thin-node.md)). One node runs beside the hub, on the hub's own host, and pairs by itself. Nodes on other hosts join with a join token from Settings → Nodes → Add node, and wait until an admin approves them ([Nodes on other hosts](#nodes-on-other-hosts)). The hub never mounts the Docker socket: everything Docker goes through the node, and the node only does what its policy allows.
 
 **Pairing is automatic.** On first start the hub writes a pairing token, `cdp_<secret>.<hub key>`, to `/pairing/token` in the `pairing` volume, which only the hub and the node mount. The node reads it, checks the hub's key before it says anything, and presents the secret; the hub enrolls and approves it as `local`. Nothing else on the network can pair: a container without the volume has no secret, and the hub refuses keys it doesn't know. The secret is single-use: pairing spends it and the hub writes a fresh one into the file, so a copy of the volume is worth nothing once the node has paired. Pairing is accepted only from private and loopback addresses (`CHADASH_NODE_PAIRING_FROM` on the hub widens or narrows that), and never under the name of a node that's already enrolled. The channel is mutual TLS 1.3 inside the WebSocket on port 3696, with each side's Ed25519 key pinned ([ADR-0014](../docs/adr/0014-node-transport.md)).
 
@@ -184,11 +184,11 @@ The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever
 
 **`stacks.deploy` is root on this host.** A compose file can mount the host's disk, run privileged or share the host's namespaces, and Cha Dash deploys what an admin saves. That's by design: media stacks need bind mounts and VPN containers need `cap_add`. The node always refuses what would hand a stack its own keys: the Docker socket, `/`, its own directories and volumes, the `pairing` volume, `volumes_from` another container, env files outside the stack's directory, and `include` or `extends` from other files. Everything else root-equivalent (privileged, host namespaces, devices, `cap_add`, host paths outside the stack's directory) is allowed but called out in the editor and in the deploy confirmation. To lock it down, list those in `stacks.deny`; with `host_binds` denied, `bind_roots` names the host paths stacks may still bind. Or remove `deploy` from `stacks.allow`.
 
-**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`; `hooks` and `secrets` are taken), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`.
+**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`; `hooks` and `secrets` are taken), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a pairing token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `TOKEN` (a join token, `cdj_…`, for a node on another host), `TOKEN_FILE` (a file holding the join token, such as a Docker secret), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`. `TOKEN` and `TOKEN_FILE` are read only until the node has joined; after that the node ignores them and its log says they can be removed.
 
 **Running it unprivileged.** Set `user: "65532:65532"` and `group_add: ["<gid>"]`, with the gid from `stat -c %g /var/run/docker.sock`.
 
-**Revoking it.** `POST /api/nodes/<id>/revoke` (admin) cuts it off at once; its key never works again, and the hub writes a fresh pairing secret. To replace a node (say its `node` volume was lost), revoke the old one first: a node with a new key then pairs under the same name with the secret in the file. Pairing never replaces an enrolled node by itself. `POST /api/nodes/pairing/regenerate` (admin) writes a fresh secret at any time.
+**Revoking it.** Settings → Nodes → Revoke (admin; `POST /api/nodes/<id>/revoke`) cuts it off at once; its key never works again, and the hub writes a fresh pairing secret. To replace a node (say its `node` volume was lost), revoke the old one first: a node with a new key then pairs under the same name with the secret in the file. Pairing never replaces an enrolled node by itself. `POST /api/nodes/pairing/regenerate` (admin) writes a fresh secret at any time.
 
 **Don't want the node?** Start with the socket-proxy override instead. Cha Dash then reads Docker here but can't change anything:
 
@@ -202,27 +202,26 @@ and add Docker with the endpoint `tcp://socket-proxy:2375`. That proxy allows `G
 
 ### Nodes on other hosts
 
-[`compose.node.yaml`](compose.node.yaml) runs chadash-node alone, for a Docker host the hub doesn't run on. Until v0.3 brings enrollment from the hub, it pairs with the hub's pairing token, passed once:
+[`compose.node.yaml`](compose.node.yaml) runs chadash-node alone, for a Docker host the hub doesn't run on. It joins with a **join token** and waits for an admin to approve it:
 
-1. **Read the token** on the hub's host. It's the one the hub writes for its own node; once that node has paired, the file holds a fresh one:
-   ```sh
-   docker run --rm -v chadash_pairing:/p:ro busybox cat /p/token
-   ```
-2. **On the other host**, fetch the file into a folder of its own and give it three settings in `.env`:
+1. **Make a token.** In Settings → Nodes → Add node, give the host's name (optional), how long the token works (15 minutes by default, at most 24 hours) and whether approving the node adds its Docker integration (on by default). Cha Dash shows the token once, in a `.env` block with the command to run, each with a Copy button. The hub address in the block is `wss://<host>/node` from `CHADASH_PUBLIC_URL`, else `ws://<the address you opened Cha Dash at>:3696/node`; edit it there if the node reaches the hub another way.
+2. **On the other host**, fetch the file into a folder of its own, put the `.env` block next to it and start it:
    ```sh
    curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.node.yaml
-   printf 'CHADASH_HUB=ws://<hub host>:3696/node\nCHADASH_NODE_NAME=<this host>\nCHADASH_PAIRING=<token>\n' > .env
+   # paste the .env block from Settings → Nodes into .env
    docker compose -f compose.node.yaml up -d
    ```
-   **During the beta** there's no `latest` image. Add `CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:beta` to `.env` before starting it, or a pinned tag such as `0.2.0-beta.1`.
-3. **Check Settings** lists the node, then **delete the `CHADASH_PAIRING` line**. The token was spent when the node paired, so the line is worth nothing; the node reconnects on its identity in the `node` volume.
-4. **Add Docker** with the endpoint `node://<this host>`.
+   **During the beta** there's no `latest` image. Add `CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:beta` to `.env` before starting it, or a pinned tag.
+3. **Approve it.** The node logs `waiting for approval in Cha Dash; fingerprint …` once, then asks again every 30 seconds for as long as it takes. Settings → Nodes and the Inbox show it waiting, with the address it dialled from, its fingerprint, its version and what its policy allows. Compare the fingerprint with the node's log (`docker compose -f compose.node.yaml logs chadash-node`), then **Approve** it: that asks you to confirm it's you, because an approved node gets stack secrets when Cha Dash deploys there. **Reject** revokes it.
+4. **Done.** The node connects on its next try. When the token asked for it, its Docker integration (endpoint `node://<name>`, named after the node) is already there. You can delete the `CHADASH_NODE_TOKEN` line: the token was spent when the node joined, and the node reconnects on its identity in the `node` volume.
 
 What to know:
-- **The node dials the hub**, on port 3696; nothing listens on the node's host. The hub must be reachable from it, and it accepts pairing only from private and loopback addresses (`CHADASH_NODE_PAIRING_FROM`).
-- **A token pairs one node, under the name it asks for.** It's refused for a name already enrolled; revoke the old node first.
-- **Treat the token like a password until it's spent:** whoever presents it first becomes a node, approved at once. v0.3's join tokens add an approval in the Inbox.
-- The same [local policy](#the-node) applies. Mount it with the commented line in the file. Its stacks root defaults to `/opt/stacks`, mounted at the same path. To keep stacks elsewhere, set `stacks.root` in the policy and mount that path instead.
+- **The node dials the hub**, on port 3696 or through your reverse proxy; nothing listens on the node's host. Join tokens are accepted from any address, since a token only makes a node that waits for approval. That's what lets a VPS reach the hub over the internet.
+- **A token is single-use and short-lived.** The node that presents it first is enrolled, approved or not; a second node with it is refused, and so is one whose name isn't the token's (when the token names one). An unused token can be revoked in Settings → Nodes; used and expired ones stay listed for 7 days.
+- **The node checks the hub's key before it sends the token**, as with pairing: the token carries the hub key to expect, so a hub that can't prove it never sees the secret.
+- **A node nobody approves within 7 days** is revoked by the hub, and its Inbox item resolves.
+- **Approval doesn't widen anything.** The node's own [local policy](#the-node) still decides what it does. Mount it with the commented line in the file. Its stacks root defaults to `/opt/stacks`, mounted at the same path. To keep stacks elsewhere, set `stacks.root` in the policy and mount that path instead.
+- **The pairing secret is for the hub's own host.** Don't copy it to other hosts: it approves a node at once. Nodes that paired that way keep working, and so does `CHADASH_NODE_PAIRING_FROM`.
 
 ### Docker on another host
 

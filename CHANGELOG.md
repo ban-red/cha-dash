@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Forward-auth.** If a proxy such as Authelia or authentik already signs people in, Cha Dash can trust the user and group headers it sends (`Remote-User`, `Remote-Groups` and `Remote-Email` by default). Turn it on in Settings → Security → Sign-in and list the proxy in `CHADASH_TRUSTED_PROXIES`; the headers from any other address are removed and the first such request each hour goes in the audit log. Link the name your proxy sends from your own settings. A changed name ends the session.
 - **Confirming it's you at the provider.** An account that signs in only through the provider confirms destructive actions there, with a fresh sign-in. Someone with a passkey still uses it.
 - **Calendars in the Demo Home.** The demo's Home Assistant publishes two invented calendars, Family and School, so the Calendar widget has something to show there.
+- **Add a node on another host with a join token.** Settings → Nodes → Add node makes a single-use token (15 minutes by default, up to 24 hours) and shows, once, the `.env` block and command for `compose.node.yaml`, with Copy buttons and a hub address you can edit. The node sets `CHADASH_NODE_TOKEN` (or `CHADASH_NODE_TOKEN_FILE`), checks the hub's key before it sends the token, logs its fingerprint and waits. It shows in the Inbox and in Settings → Nodes with the address it dialled from, its fingerprint, its version, what its policy allows and who made the token. Compare the fingerprint with the node's log, then **Approve** it, which asks you to confirm it's you, or **Reject** it. Approving adds its Docker integration (`node://<name>`) unless you turned that off on the token. A node nobody approves within 7 days is revoked. Unused tokens can be revoked in Settings → Nodes.
 
 ### Changed
 
@@ -26,6 +27,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Camera controls are off by default.** The Cameras tile shows its switches for detection, recording and more only once you turn on **Show camera controls** in its Widget settings, which also says how to add the Frigate admin account they need.
 - **Two node names are taken.** A node can't be called `hooks` or `secrets`, in any case, since Cha Dash's stacks API uses those names. A node that asks for one is refused with a message saying so; pick another `CHADASH_NODE_NAME`.
 - **A node waiting for approval says so.** The hub now answers a node that is enrolled but not yet approved with "this node is waiting for approval" (code `pending`) instead of "unknown node", and the node retries every 30 seconds.
+- **Nodes on other hosts use join tokens, not the pairing secret.** The deploy guide and `compose.node.yaml` no longer tell you to copy the hub's pairing secret to another host, since it approves a node at once. Nodes that paired that way keep working, and `CHADASH_NODE_PAIRING_FROM` still applies.
 
 ### Fixed
 
