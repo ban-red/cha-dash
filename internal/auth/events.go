@@ -21,7 +21,8 @@ const (
 	// sessions were allowed before may no longer hold.
 	EventUserChanged EventKind = "user.changed"
 	// EventSignedIn: a person signed in and a session started. Method is
-	// the one the session records (password, passkey, dev). Every sign-in
+	// the one the session records (password, passkey, oidc, forward_auth,
+	// dev), and Request carries the new identity. Every sign-in
 	// method ends in StartSession, which emits it once.
 	EventSignedIn EventKind = "signed_in"
 	// EventStepUp: a step-up was granted (Method is password or passkey).
@@ -35,6 +36,19 @@ const (
 	EventPasskeyRegistered EventKind = "passkey.registered"
 	EventPasskeyRenamed    EventKind = "passkey.renamed"
 	EventPasskeyDeleted    EventKind = "passkey.deleted"
+	// EventSignInRefused: an OIDC or forward-auth sign-in got as far as
+	// the provider's answer and was refused (Method says which; Reason is
+	// unlinked, no mapped group, bad token, …). UserID is set when the
+	// account is known. Audited as auth.oidc.refused.
+	EventSignInRefused EventKind = "signed_in.refused"
+	// EventIdentityLinked: the signed-in user linked an OIDC identity
+	// (Method oidc; Issuer and Subject name it) or a forward-auth username
+	// (Method forward_auth; Subject is the username).
+	EventIdentityLinked EventKind = "identity.linked"
+	// EventForwardAuthUntrusted: forward-auth headers arrived from a peer
+	// that isn't a trusted proxy and were stripped. IP is the peer. Emitted
+	// once per peer per hour.
+	EventForwardAuthUntrusted EventKind = "forward_auth.untrusted"
 )
 
 // Event is one auth event. Fields that don't apply are empty. It never
@@ -48,8 +62,12 @@ type Event struct {
 	// Method: how a sign-in or a step-up confirmed the person (password,
 	// passkey; dev for a sign-in).
 	Method string
-	// Reason: why a step-up failed, in a few words.
+	// Reason: why a step-up or a sign-in failed, in a few words.
 	Reason string
+	// Issuer and Subject: the identity an identity event names.
+	Issuer, Subject string
+	// IP: the client's address (sign-in refusals, untrusted proxies).
+	IP string
 	// Request is the HTTP request behind it, with the signed-in identity on
 	// its context when there was one; nil when there was none.
 	Request *http.Request

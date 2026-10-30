@@ -6,7 +6,8 @@ package auth
 // so it ends with the session and never travels in a cookie.
 //
 // Methods. A passkey whenever the user has one that works at this address;
-// otherwise, under the default rule, their password. Under "passkey only" a
+// otherwise, under the default rule, their password, or for an account with
+// neither, a fresh sign-in at the OIDC provider (oidc_http.go). Under "passkey only" a
 // user without a usable passkey can't step up at all, and the answer says so.
 // Whether a grant is enough for a given action is internal/authz's call.
 
@@ -57,6 +58,10 @@ func ParseStepUpMode(s string) (StepUpMode, bool) {
 const (
 	StepUpMethodPasskey  = "passkey"
 	StepUpMethodPassword = "password"
+	// StepUpMethodOIDC: a fresh sign-in at the provider (prompt=login,
+	// max_age=0) for an account with a linked identity and neither a
+	// passkey nor a password that works; auth_time must be under a minute old.
+	StepUpMethodOIDC = "oidc"
 )
 
 // stepUpModeFunc is the rule's source; internal/security owns the setting.
@@ -94,6 +99,7 @@ type stepUpChoice struct {
 	creds    []webauthn.Credential // the user's passkeys for rp
 	anyPK    bool                  // the user has a passkey under any relying party
 	password bool                  // the password fallback applies
+	oidc     bool                  // a fresh sign-in at the provider applies
 }
 
 func (c stepUpChoice) methods() []string {
@@ -102,6 +108,8 @@ func (c stepUpChoice) methods() []string {
 		return []string{StepUpMethodPasskey}
 	case c.password:
 		return []string{StepUpMethodPassword}
+	case c.oidc:
+		return []string{StepUpMethodOIDC}
 	}
 	return []string{}
 }
@@ -128,6 +136,13 @@ func (s *Service) stepUpOptions(r *http.Request, userID string) (stepUpChoice, e
 	// "Password if no passkey": a passkey that can't be used at this address
 	// (plain http, another host name) doesn't lock its owner out.
 	c.password = c.mode == StepUpPasskeyOrPassword && hasPassword && len(c.creds) == 0
+	// No passkey and no password: an account that signs in through the
+	// provider steps up there. Under "passkey only" it can't.
+	if c.mode == StepUpPasskeyOrPassword && !hasPassword && len(c.creds) == 0 && s.SignIn().OIDCReady() {
+		if err := s.st.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM oidc_identities WHERE user_id = ?)`, userID).Scan(&c.oidc); err != nil {
+			return c, err
+		}
+	}
 	return c, nil
 }
 
@@ -187,6 +202,9 @@ func (s *Service) handleStepUpBegin(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"method": StepUpMethodPasskey, "publicKey": assertion.Response})
 	case c.password:
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"method": StepUpMethodPassword})
+	case c.oidc:
+		// The browser goes to the provider and comes back with the grant.
+		httpx.WriteJSON(w, http.StatusOK, map[string]string{"method": StepUpMethodOIDC, "url": oidcStart + "?step_up=1", "provider": s.SignIn().ProviderName()})
 	default:
 		s.refuseStepUp(w, c)
 	}
@@ -311,6 +329,16 @@ func (s *Service) checkPassword(ctx context.Context, userID, password string) (b
 }
 
 func (s *Service) grantStepUp(w http.ResponseWriter, r *http.Request, id Identity, method string) {
+	until, err := s.storeStepUp(r, id, method)
+	if err != nil {
+		s.internalError(w, "could not record the step-up", err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]time.Time{"until": time.UnixMilli(until.UnixMilli()).UTC()})
+}
+
+// storeStepUp records a grant on id's session and emits EventStepUp.
+func (s *Service) storeStepUp(r *http.Request, id Identity, method string) (time.Time, error) {
 	until := s.now().Add(StepUpTTL)
 	res, err := s.st.Writer().ExecContext(r.Context(), `UPDATE sessions SET step_up_until = ? WHERE id = ?`, until.UnixMilli(), id.Session.ID)
 	if err == nil {
@@ -319,12 +347,24 @@ func (s *Service) grantStepUp(w http.ResponseWriter, r *http.Request, id Identit
 		}
 	}
 	if err != nil {
-		s.internalError(w, "could not record the step-up", err)
-		return
+		return time.Time{}, err
 	}
 	s.log.Info("step-up granted", "user", id.User.Username, "session", id.Session.ID, "method", method)
 	s.emit(Event{Kind: EventStepUp, UserID: id.User.ID, SessionID: id.Session.ID, Method: method, Request: r})
-	httpx.WriteJSON(w, http.StatusOK, map[string]time.Time{"until": time.UnixMilli(until.UnixMilli()).UTC()})
+	return until, nil
+}
+
+// recordStepUp is storeStepUp for a redirecting flow: "" on success, else
+// the ?oidc_error= code.
+func (s *Service) recordStepUp(r *http.Request, id Identity, method string) string {
+	if _, err := s.storeStepUp(r, id, method); err != nil {
+		if errors.Is(err, ErrNoSession) {
+			return OIDCErrSignedOut
+		}
+		s.log.Error("could not record the step-up", "err", err)
+		return OIDCErrInternal
+	}
+	return ""
 }
 
 // SpendStepUp ends a session's step-up grant inside tx, but only if it is

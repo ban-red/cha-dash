@@ -33,17 +33,25 @@ type UserInfo struct {
 	Disabled   bool       `json:"disabled"`
 	HasPasskey bool       `json:"has_passkey"`
 	LastSeenAt *time.Time `json:"last_seen_at"`
+	// RoleFromGroups: the role comes from the provider's groups (a group
+	// mapping is set and the account has a linked identity), so it changes
+	// there; the users API refuses to change it.
+	RoleFromGroups bool `json:"role_from_groups"`
+
+	hasOIDC, hasForward bool
 }
 
 const userInfoQuery = `SELECT u.id, u.username, u.role, u.disabled_at IS NOT NULL,
 	EXISTS (SELECT 1 FROM passkeys p WHERE p.user_id = u.id),
-	(SELECT max(s.last_seen_at) FROM sessions s WHERE s.user_id = u.id)
+	(SELECT max(s.last_seen_at) FROM sessions s WHERE s.user_id = u.id),
+	EXISTS (SELECT 1 FROM oidc_identities i WHERE i.user_id = u.id),
+	EXISTS (SELECT 1 FROM forward_auth_links f WHERE f.user_id = u.id)
 	FROM users u`
 
 func scanUserInfo(sc scanner) (UserInfo, error) {
 	var u UserInfo
 	var seen sql.NullInt64
-	if err := sc.Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.HasPasskey, &seen); err != nil {
+	if err := sc.Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.HasPasskey, &seen, &u.hasOIDC, &u.hasForward); err != nil {
 		return UserInfo{}, err
 	}
 	if seen.Valid {
@@ -62,11 +70,13 @@ func (s *Service) ListUsers(ctx context.Context) ([]UserInfo, error) {
 	}
 	defer rows.Close()
 	out := []UserInfo{}
+	set := s.SignIn()
 	for rows.Next() {
 		u, err := scanUserInfo(rows)
 		if err != nil {
 			return nil, fmt.Errorf("auth: %w", err)
 		}
+		u.RoleFromGroups = roleFromGroups(set, u.Role, u.hasOIDC, u.hasForward)
 		out = append(out, u)
 	}
 	return out, rows.Err()
@@ -89,6 +99,7 @@ func (s *Service) getUser(ctx context.Context, q queryRower, id string) (UserInf
 	if err != nil {
 		return UserInfo{}, fmt.Errorf("auth: %w", err)
 	}
+	u.RoleFromGroups = roleFromGroups(s.SignIn(), u.Role, u.hasOIDC, u.hasForward)
 	return u, nil
 }
 
@@ -157,6 +168,9 @@ func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disab
 		}
 		if cur.Role == RoleOwner && ((role != nil && *role != RoleOwner) || (disabled != nil && *disabled)) {
 			return ErrOwnerProtected
+		}
+		if role != nil && *role != cur.Role && cur.RoleFromGroups {
+			return ErrRoleFromGroups
 		}
 		now := s.now().UnixMilli()
 		if role != nil && *role != cur.Role {

@@ -10,6 +10,9 @@ import (
 // the session: it's for responses that differ only when someone is signed
 // in, such as index.html with the first-paint snapshot.
 func (s *Service) Identify(r *http.Request) (Identity, bool) {
+	if id, ok := FromContext(r.Context()); ok && id.Token == nil {
+		return id, true // forward-auth signed this request in (forwardauth.go)
+	}
 	c, err := r.Cookie(CookieName)
 	if err != nil {
 		return Identity{}, false

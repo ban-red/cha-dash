@@ -39,8 +39,10 @@ func FromContext(ctx context.Context) (Identity, bool) {
 //	POST /api/auth/logout    → 204, cookie cleared
 //	GET  /api/auth/session   → 200 {"user","session","step_up_until","step_up_methods"} or 401
 //
-// plus the passkey endpoints under /api/auth/passkeys (registerPasskeys) and
-// step-up under /api/auth/step-up (registerStepUp).
+// plus the passkey endpoints under /api/auth/passkeys (registerPasskeys),
+// step-up under /api/auth/step-up (registerStepUp) and OIDC under
+// /api/auth/oidc (registerOIDC; oidc_http.go). GET /api/setup also says how
+// the sign-in page may sign in: {"sign_in": {"oidc"?: {"name"}, "password_form"}}.
 // Binaries built with -tags devlogin also mount POST /api/auth/dev-login.
 func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/setup", s.handleSetupStatus)
@@ -50,6 +52,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.Handle("GET /api/auth/session", s.Require(http.HandlerFunc(s.handleSession)))
 	s.registerPasskeys(mux)
 	s.registerStepUp(mux)
+	s.registerOIDC(mux)
 	s.registerDevLogin(mux)
 }
 
@@ -87,16 +90,26 @@ func (s *Service) Require(next http.Handler) http.Handler {
 }
 
 // StartSession signs u in on this response and emits EventSignedIn with
-// method. Every sign-in method (password, passkey and dev today, OIDC
-// later) ends here.
+// method. Every sign-in method (password, passkey, OIDC, forward-auth and
+// dev) ends here.
 func (s *Service) StartSession(w http.ResponseWriter, r *http.Request, u User, method string) (Session, error) {
-	token, sess, err := s.createSession(r.Context(), u.ID, method, s.proxies.ClientIP(r).String(), r.UserAgent())
+	_, sess, err := s.startSession(w, r, u, method)
+	return sess, err
+}
+
+// startSession is StartSession, also returning the cookie token.
+func (s *Service) startSession(w http.ResponseWriter, r *http.Request, u User, method string) (string, Session, error) {
+	ip := s.proxies.ClientIP(r).String()
+	token, sess, err := s.createSession(r.Context(), u.ID, method, ip, r.UserAgent())
 	if err != nil {
-		return Session{}, err
+		return "", Session{}, err
 	}
 	s.setCookie(w, r, token, sess.ExpiresAt)
-	s.emit(Event{Kind: EventSignedIn, UserID: u.ID, SessionID: sess.ID, Method: method, Request: r})
-	return sess, nil
+	// The event's request carries who just signed in, so the audit log can
+	// name them.
+	id := Identity{User: u, Session: sess, IP: ip}
+	s.emit(Event{Kind: EventSignedIn, UserID: u.ID, SessionID: sess.ID, Method: method, Request: r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)), IP: ip})
+	return token, sess, nil
 }
 
 // setCookie writes the session cookie; its lifetime tracks the session's expiry.
@@ -160,7 +173,7 @@ func tooManyAttempts(w http.ResponseWriter, wait time.Duration) {
 }
 
 func (s *Service) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
-	status := map[string]bool{"required": s.SetupRequired()}
+	status := map[string]any{"required": s.SetupRequired(), "sign_in": s.PublicSignInInfo()}
 	if devLoginBuilt {
 		status["dev_login"] = true
 	}

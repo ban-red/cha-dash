@@ -49,6 +49,7 @@ const (
 const (
 	MethodPassword = "password"
 	MethodPasskey  = "passkey"
+	// MethodOIDC and MethodForwardAuth are in signin.go.
 )
 
 // Roles, most powerful first. What each may do is decided in internal/authz,
@@ -146,6 +147,15 @@ type Service struct {
 	// strikes counts wrong passwords per client address, then per username (bans.go).
 	banMu   sync.Mutex
 	strikes map[string]map[string]int
+
+	// signIn is where the OIDC and forward-auth settings come from
+	// (signin.go); oidc caches the provider's discovery and keys (oidc.go);
+	// oidcTest holds the owner's last Test sign-in; forward holds
+	// forward-auth's per-peer audit throttle (forwardauth.go).
+	signIn   signInSource
+	oidc     oidcClient
+	oidcTest oidcTests
+	forward  forwardState
 }
 
 // Option adjusts New.
