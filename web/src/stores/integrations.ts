@@ -93,7 +93,8 @@ export interface InstanceInput {
   integration?: string;
   name?: string;
   config?: unknown;
-  secrets?: Record<string, string>;
+  /** A string sets a secret; null removes a held one. */
+  secrets?: Record<string, string | null>;
 }
 
 export async function createInstance(body: Required<Pick<InstanceInput, 'integration' | 'name' | 'config'>> & { secrets: Record<string, string> }): Promise<string> {
@@ -122,7 +123,7 @@ export async function deleteInstance(id: string): Promise<void> {
  * with its stored secrets filled in by the hub ({instance_id}), or a new one.
  */
 export function testConnection(
-  target: { id: string } | { instance_id: string; config: unknown; secrets: Record<string, string> } | { integration: string; config: unknown; secrets: Record<string, string> },
+  target: { id: string } | { instance_id: string; config: unknown; secrets: Record<string, string | null> } | { integration: string; config: unknown; secrets: Record<string, string> },
 ): Promise<TestResult> {
   if ('id' in target) return api<TestResult>(`/api/integrations/instances/${encodeURIComponent(target.id)}/test`, { method: 'POST' });
   return api<TestResult>('/api/integrations/test', { method: 'POST', body: target });

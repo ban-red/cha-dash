@@ -618,6 +618,11 @@ a.st-row:hover {
   font: var(--weight-medium) 10.5px/1.2 var(--font-num);
   color: var(--text-2);
 }
+/* A held secret marked for removal: still there until Save. */
+.set-chip.off {
+  border-style: dashed;
+  color: var(--text);
+}
 .st-fieldset {
   /* Two columns: number fields sit side by side, the rest span both. */
   display: grid;

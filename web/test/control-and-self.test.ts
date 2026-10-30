@@ -79,7 +79,7 @@ const UNRAID_SCHEMA: JsonSchema = {
 };
 const UNRAID_CONTROL: ControlSpec = { mode: 'mode', mode_on: 'control', grants: ['docker', 'vms'] };
 
-function hub() {
+function hub(extra: Parameters<typeof fakeFetch>[0] = {}) {
   return fakeFetch({
     'GET /api/integrations/catalog': {
       status: 200,
@@ -111,6 +111,7 @@ function hub() {
       status: 200,
       body: { id: 'i_un', integration: 'unraid', name: 'magpie', status: 'ok', config: { url: 'https://magpie.home.example', mode: 'read_only' }, secrets: { api_key: { set: true } }, warnings: [] },
     },
+    ...extra,
   });
 }
 
@@ -214,6 +215,60 @@ describe('Let Cha Dash act', () => {
     expect(section.querySelector('details')!.open).toBe(true);
     expect(document.activeElement).toBe(document.getElementById('f-control_token_secret'));
     expect(f.calls.some((c) => c.method === 'POST' && c.path.includes('/test'))).toBe(false);
+  });
+
+  it('removes a saved control secret: Remove marks it, Keep it undoes, and Save sends null', async () => {
+    const acting = {
+      id: 'i_pve',
+      integration: 'proxmox',
+      name: 'egret',
+      status: 'ok',
+      config: { url: 'https://egret.home.example:8006', token_id: 'chadash@pve!read', control_token_id: 'chadash-control@pve!control' },
+      secrets: { token_secret: { set: true }, control_token_secret: { set: true } },
+      warnings: [],
+    };
+    const f = hub({
+      'GET /api/integrations/instances/i_pve': { status: 200, body: acting },
+      'PUT /api/integrations/instances/i_pve': { status: 200, body: acting },
+    });
+    await editor({ instanceRef: 'i_pve', section: 'control' });
+    const field = () => document.getElementById('f-control_token_secret')!.closest('.field')!;
+    const toggle = () => [...field().querySelectorAll('button')].find((b) => /^(Remove|Keep it)$/.test(b.textContent!.trim()))!;
+    // A required secret has no Remove; an optional, held one does.
+    expect(document.getElementById('f-token_secret')!.closest('.field')!.textContent).not.toContain('Remove');
+    expect(toggle().getAttribute('aria-label')).toBe('Remove the saved Control token secret');
+
+    toggle().click();
+    await nextTick();
+    expect(field().querySelector('.set-chip')!.textContent).toContain('removed when you save');
+    expect((document.getElementById('f-control_token_secret') as HTMLInputElement).disabled).toBe(true);
+    expect(toggle().textContent!.trim()).toBe('Keep it');
+    expect(toggle().getAttribute('aria-pressed')).toBe('true');
+    toggle().click();
+    await nextTick();
+    expect(field().querySelector('.set-chip')!.textContent).toContain('set');
+    expect((document.getElementById('f-control_token_secret') as HTMLInputElement).disabled).toBe(false);
+
+    // Removing the secret alone leaves the group half set: Save points at the ID to clear, and sends nothing.
+    toggle().click();
+    await nextTick();
+    const save = () => [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Save changes')!;
+    save().click();
+    await flushPromises();
+    await nextTick();
+    expect(document.activeElement).toBe(document.getElementById('f-control_token_id'));
+    expect(f.calls.some((c) => c.method === 'PUT')).toBe(false);
+
+    const id = document.getElementById('f-control_token_id') as HTMLInputElement;
+    id.value = '';
+    id.dispatchEvent(new Event('input'));
+    await nextTick();
+    save().click();
+    await flushPromises();
+    const put = f.last('PUT', '/api/integrations/instances/i_pve')!;
+    expect((put.body as { secrets: unknown }).secrets).toEqual({ control_token_secret: null });
+    expect(JSON.stringify((put.body as { config: unknown }).config)).not.toContain('control_token_id');
+    expect(await axeViolations()).toEqual([]);
   });
 
   it('presents Unraid’s mode with what each choice means', async () => {

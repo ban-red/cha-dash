@@ -96,6 +96,10 @@ const name = ref('');
 const values = reactive<Record<string, unknown>>({});
 const secrets = reactive<Record<string, string>>({});
 const held = ref<ReadonlySet<string>>(new Set());
+// Held secrets marked for removal, and what's held once they go.
+const cleared = reactive(new Set<string>());
+const kept = computed<ReadonlySet<string>>(() => new Set([...held.value].filter((p) => !cleared.has(p))));
+const removals = () => Object.fromEntries([...cleared].map((p) => [p, null]));
 const showAll = ref(false);
 const touched = reactive(new Set<string>());
 const focusPath = ref<string | undefined>(undefined);
@@ -107,18 +111,19 @@ let initial = '';
 
 const config = computed(() => clean(schema.value, values) as Record<string, unknown>);
 const errors = computed<Errors>(() => {
-  const e = validate(schema.value, values, { secretsSet: held.value, secrets });
+  const e = validate(schema.value, values, { secretsSet: kept.value, secrets });
   if (!name.value.trim()) e['name'] = 'Give it a name.';
   return e;
 });
-const dirty = computed(() => JSON.stringify({ n: name.value.trim(), c: config.value }) !== initial || Object.values(secrets).some((v) => v !== ''));
+const dirty = computed(() => JSON.stringify({ n: name.value.trim(), c: config.value }) !== initial || Object.values(secrets).some((v) => v !== '') || cleared.size > 0);
 const savedAct = computed(() => (control.value && detail.value ? actStatus(control.value, schema.value, detail.value.config ?? {}, held.value) : undefined));
-const currentAct = computed(() => (control.value ? actStatus(control.value, schema.value, config.value, held.value, secrets) : undefined));
+const currentAct = computed(() => (control.value ? actStatus(control.value, schema.value, config.value, kept.value, secrets) : undefined));
 const readOnly = computed(() => isReadOnly(config.value));
 
 provide(FORM, {
   secrets,
   secretsSet: held,
+  cleared,
   errors,
   showAll,
   touched,
@@ -160,6 +165,7 @@ function reset(d: InstanceDetail | undefined): void {
   const keyAt = draft?.key ? secretPaths(schema.value)[0] : undefined;
   if (draft?.key && keyAt) secrets[keyAt] = draft.key;
   held.value = setOf(d);
+  cleared.clear();
   touched.clear();
   showAll.value = false;
   initial = JSON.stringify({ n: name.value.trim(), c: config.value });
@@ -263,7 +269,9 @@ async function partialControl(): Promise<boolean> {
   const a = currentAct.value;
   if (a?.state !== 'partial') return false;
   showAll.value = true;
-  await focusField_(a.missing[0]);
+  // A secret marked for removal is disabled: point at what's left to clear instead.
+  const left = controlKeys(control.value, schema.value).find((k) => !a.missing.includes(k) && !cleared.has(k));
+  await focusField_(a.missing.find((k) => !cleared.has(k)) ?? left ?? a.missing[0]);
   return true;
 }
 
@@ -283,7 +291,7 @@ async function runTest(): Promise<void> {
   } else if (d) {
     // Unsaved edits to a saved instance: the hub fills in the stored secrets
     // that weren't retyped, and saves nothing.
-    target = { instance_id: d.id, config: config.value, secrets: typed };
+    target = { instance_id: d.id, config: config.value, secrets: { ...typed, ...removals() } };
   } else {
     target = { integration: entry.value?.id ?? integrationId ?? '', config: config.value, secrets: typed };
   }
@@ -315,13 +323,18 @@ async function save(): Promise<void> {
       return;
     }
     const was = JSON.parse(initial) as { n: string; c: unknown };
-    const body: { name?: string; config?: unknown; secrets?: Record<string, string> } = {};
+    const body: { name?: string; config?: unknown; secrets?: Record<string, string | null> } = {};
     if (was.n !== name.value.trim()) body.name = name.value.trim();
     if (JSON.stringify(was.c) !== JSON.stringify(config.value)) body.config = config.value;
-    if (Object.keys(typed).length) body.secrets = typed;
+    if (Object.keys(typed).length || cleared.size) body.secrets = { ...typed, ...removals() };
     await updateInstance(d.id, body);
     for (const k of Object.keys(secrets)) delete secrets[k];
-    let fresh: InstanceDetail = { ...d, name: body.name ?? d.name, config: config.value, secrets: { ...d.secrets, ...Object.fromEntries(Object.keys(typed).map((k) => [k, { set: true }])) } };
+    let fresh: InstanceDetail = {
+      ...d,
+      name: body.name ?? d.name,
+      config: config.value,
+      secrets: { ...d.secrets, ...Object.fromEntries(Object.keys(typed).map((k) => [k, { set: true }])), ...Object.fromEntries([...cleared].map((k) => [k, undefined])) },
+    };
     try {
       fresh = await loadInstance(d.id);
     } catch {

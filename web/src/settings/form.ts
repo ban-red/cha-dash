@@ -13,6 +13,8 @@ export interface FormContext {
   secrets: Record<string, string>;
   /** Paths of secrets the hub holds ("set"). */
   secretsSet: Ref<ReadonlySet<string>>;
+  /** Paths of held, optional secrets to remove on save (sent as null). */
+  cleared: Set<string>;
   errors: ComputedRef<Errors>;
   /** Show every error (after a submit), not just touched fields'. */
   showAll: Ref<boolean>;

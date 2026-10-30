@@ -6,7 +6,9 @@
  *
  * Secrets (`writeOnly`) are write-only: the input starts empty whatever the
  * hub holds, a "set" chip says one is stored, blank keeps it, and what you
- * type lives in the form's secrets map, never in the config values.
+ * type lives in the form's secrets map, never in the config values. An
+ * optional one that's stored can be removed: Remove marks it, Save sends
+ * null, and the same button keeps it again until then.
  *
  * Writes go straight into the parent object (`container[k]`), which is the
  * editor's reactive config, so nested fields need no event plumbing.
@@ -48,6 +50,8 @@ const describedBy = computed(() => (error.value ? `${id.value}-err` : schema.des
 const options = computed(() => choices(schema) ?? []);
 const placeholder = computed(() => (schema.examples?.length ? String(schema.examples[0]) : ''));
 const isSet = computed(() => form.secretsSet.value.has(path));
+const removing = computed(() => form.cleared.has(path));
+const canRemove = computed(() => kind.value === 'secret' && isSet.value && !required);
 const reveal = ref(false);
 const focused = computed(() => form.focus.value === path);
 
@@ -101,6 +105,16 @@ function onNumber(e: Event): void {
 
 function onSecret(e: Event): void {
   form.secrets[path] = (e.target as HTMLInputElement).value;
+}
+
+function toggleRemove(): void {
+  if (form.cleared.has(path)) {
+    form.cleared.delete(path);
+  } else {
+    form.cleared.add(path);
+    delete form.secrets[path];
+    reveal.value = false;
+  }
 }
 
 function onChoice(e: Event): void {
@@ -254,7 +268,8 @@ async function testItem(i: number): Promise<void> {
     <div class="label-row">
       <label v-if="kind !== 'enum' || options.length > 4" :for="id">{{ label }}</label>
       <span v-else :id="`${id}-label`" class="lbl">{{ label }}</span>
-      <span v-if="kind === 'secret' && isSet" class="set-chip"><Glyph kind="lock" />set</span>
+      <span v-if="kind === 'secret' && isSet && removing" class="set-chip off"><Glyph kind="cross" />removed when you save</span>
+      <span v-else-if="kind === 'secret' && isSet" class="set-chip"><Glyph kind="lock" />set</span>
       <span v-if="!required" class="opt-word">optional</span>
     </div>
 
@@ -263,11 +278,11 @@ async function testItem(i: number): Promise<void> {
         :id="id"
         :type="reveal ? 'text' : 'password'"
         :value="form.secrets[path] ?? ''"
-        :placeholder="isSet ? 'Stored in the vault · type to replace' : placeholder"
+        :placeholder="removing ? 'Removed from the vault when you save' : isSet ? 'Stored in the vault · type to replace' : placeholder"
         :aria-invalid="error ? 'true' : undefined"
         :aria-describedby="describedBy"
         :aria-required="required && !isSet ? 'true' : undefined"
-        :disabled="form.disabled.value"
+        :disabled="form.disabled.value || removing"
         class="mono-input"
         autocomplete="new-password"
         autocapitalize="off"
@@ -285,6 +300,18 @@ async function testItem(i: number): Promise<void> {
         @click="reveal = !reveal"
       >
         {{ reveal ? 'Hide' : 'Show' }}
+      </button>
+      <!-- One button for both, so focus stays put when it flips. -->
+      <button
+        v-if="canRemove"
+        type="button"
+        class="btn sm ghost"
+        :aria-pressed="removing"
+        :aria-label="removing ? `Keep the saved ${label}` : `Remove the saved ${label}`"
+        :disabled="form.disabled.value"
+        @click="toggleRemove"
+      >
+        {{ removing ? 'Keep it' : 'Remove' }}
       </button>
     </div>
 
