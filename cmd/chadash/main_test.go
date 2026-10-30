@@ -91,7 +91,7 @@ func TestHealthURL(t *testing.T) {
 
 func testConfig(t *testing.T, dataDir string) config.Config {
 	t.Helper()
-	return config.Config{Listen: "127.0.0.1:0", DataDir: dataDir, LogFormat: "text"}
+	return config.Config{Listen: "127.0.0.1:0", DataDir: dataDir, LogFormat: "text", History: "standard"}
 }
 
 func TestNewAppFirstBoot(t *testing.T) {
@@ -186,5 +186,35 @@ func TestNewAppExplicitKeyMissing(t *testing.T) {
 	cfg.SecretKeyFile = filepath.Join(t.TempDir(), "missing.key")
 	if _, err := newApp(t.Context(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil))); err == nil {
 		t.Fatal("a missing CHADASH_SECRET_KEY_FILE must stop the hub")
+	}
+}
+
+func TestHistoryIsRecordedOutsideDemoMode(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	for _, tc := range []struct {
+		name string
+		edit func(*config.Config)
+		want bool
+	}{
+		{"standard", func(*config.Config) {}, true},
+		{"off", func(c *config.Config) { c.History = "off" }, false},
+		{"demo", func(c *config.Config) { c.Demo = true }, false},
+		{"own dir", func(c *config.Config) { c.HistoryDir = filepath.Join(c.DataDir, "ssd") }, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := testConfig(t, t.TempDir())
+			tc.edit(&cfg)
+			a, err := newApp(t.Context(), cfg, log)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, statErr := os.Stat(cfg.HistoryPath())
+			if (a.history != nil) != tc.want || (statErr == nil) != tc.want {
+				t.Errorf("recorder %v, history.db stat %v; want recording %v", a.history != nil, statErr, tc.want)
+			}
+			if err := a.close(); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

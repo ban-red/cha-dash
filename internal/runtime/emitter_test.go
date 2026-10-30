@@ -2,7 +2,9 @@ package runtime
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -152,10 +154,11 @@ func TestEmitterSeriesHistory(t *testing.T) {
 	if s.Value != 55 || s.History[HistoryPoints-1] != 40 {
 		t.Fatalf("same slot = %+v", s.History[HistoryPoints-2:])
 	}
-	// The next slot scrolls the history by one; a gap of two slots by two.
+	// The next slot scrolls the history by one, and the slot it scrolled
+	// past becomes the average of its samples. A gap of two slots scrolls by two.
 	clk.t = time.Date(2026, 10, 3, 14, 31, 0, 0, time.UTC)
 	s = publish(60)
-	if s.History[HistoryPoints-1] != 60 || s.History[HistoryPoints-2] != 40 {
+	if s.History[HistoryPoints-1] != 60 || s.History[HistoryPoints-2] != 47.5 {
 		t.Fatalf("next slot = %v", s.History[HistoryPoints-3:])
 	}
 	clk.t = clk.t.Add(time.Hour)
@@ -313,5 +316,50 @@ func TestWatch(t *testing.T) {
 	w2.add("metrics", 1)
 	if i := w2.Interest(); !i.Watched || !i.Metrics {
 		t.Fatalf("metrics = %+v", i)
+	}
+}
+
+// fakeHistory is a History that remembers what it's given.
+type fakeHistory struct {
+	recorded []string
+	past     []float64
+}
+
+func (h *fakeHistory) Record(key, instance, unit string, at time.Time, v float64) {
+	h.recorded = append(h.recorded, fmt.Sprintf("%s %s %s %s %g", key, instance, unit, at.Format("15:04"), v))
+}
+
+func (h *fakeHistory) Sparkline(key string, newest time.Time, points int, step time.Duration) []float64 {
+	if newest.Format("15:04") != "14:00" || points != HistoryPoints || step != HistoryStep {
+		return nil
+	}
+	return h.past
+}
+
+func TestEmitterRecordsHistoryAndSeedsSparklines(t *testing.T) {
+	e, set, clk := newTestEmitter()
+	h := &fakeHistory{past: make([]float64, HistoryPoints)}
+	for i := range h.past {
+		h.past[i] = math.NaN()
+	}
+	h.past[0], h.past[HistoryPoints-2], h.past[HistoryPoints-1] = 7, 9, 11
+	e.history = h
+	publish := func(v float64) seriesDoc {
+		t.Helper()
+		m := integration.Metric{Resource: "app:a", Key: "cpu", Unit: "%", Value: v}
+		if err := e.Replace("", integration.Facts{Resources: []integration.Resource{res("app:a", "ok")}, Metrics: []integration.Metric{m}}); err != nil {
+			t.Fatal(err)
+		}
+		return series(t, set, "app:a#cpu")
+	}
+	// The past comes from history; the newest point is this sample.
+	s := publish(40)
+	if s.History[0] != 7 || s.History[1].Valid() || s.History[HistoryPoints-2] != 9 || s.History[HistoryPoints-1] != 40 {
+		t.Fatalf("seeded history = %v", s.History)
+	}
+	clk.t = clk.t.Add(time.Minute)
+	publish(math.NaN())
+	if want := []string{"app:a#cpu in_a % 14:05 40"}; !slices.Equal(h.recorded, want) {
+		t.Fatalf("recorded %q, want %q (unknowns aren't recorded)", h.recorded, want)
 	}
 }

@@ -56,6 +56,9 @@ type Options struct {
 	Actions *action.Registry
 	// Nodes reaches chadash-node verbs (Deps.Nodes). Nil: no nodes.
 	Nodes integration.NodeCaller
+	// History records every instance's samples (internal/history). Nil:
+	// nothing is recorded, and sparklines start empty after a restart.
+	History History
 }
 
 // Manager owns every instance: it loads them at boot, runs a coordinator
@@ -328,6 +331,7 @@ func (m *Manager) add(r row) *managed {
 	mi.emit = NewEmitter(m.o.Topics, r.ID, m.o.Now)
 	mi.emit.report = mi.st.report
 	mi.emit.posture = m.Posture
+	mi.emit.history = m.o.History
 	if m.actions != nil {
 		mi.emit.annotate = m.actions.annotate
 	}

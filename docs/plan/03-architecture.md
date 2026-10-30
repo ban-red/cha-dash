@@ -498,7 +498,7 @@ relay:  { allow: [] }                          # LAN-only APIs the hub may reach
 | Graph cache | Last-known resources and relations, so the page renders instantly after a restart | Current |
 | Events | State changes, alerts, incidents | 90 days (configurable) |
 | Audit | Action records, append-only | 1 year (configurable) |
-| Metrics | Tiered rollups: raw 2h → 1m for 48h → 15m for 14d → 1h for 90d → 1d for 2y. Writes are batched | Per tier |
+| Metrics | Tiered rollups in `history.db` ([ADR-0031](../adr/0031-history-storage.md)): 1m for 48h → 15m for 14d; long-term adds 15m for 30d → 1h for 1y → 1d forever. Compressed chunks, batched writes | Per tier |
 
 - **No embedded TSDB.** Cha Dash exposes `/metrics` and can read Prometheus or VictoriaMetrics as a source.
 - **Self-backup:** `chadash export` writes the hub as YAML (boards with layouts and tiles, integration instances, import records), with secrets as placeholders; `--with-secrets` adds a passphrase-sealed bundle (scrypt + XChaCha20-Poly1305), so a backup restores without the vault key. Accounts, passkeys, sessions and audit never leave. `chadash import` shows a field-level diff first and never deletes. Scheduled exports come later. Format: [`internal/export`](../../internal/export/README.md).

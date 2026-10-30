@@ -32,7 +32,8 @@ func TestDatabaseFilesArePrivate(t *testing.T) {
 
 	// -wal and -shm exist only while the database is open.
 	db := filepath.Join(dataDir, "chadash.db")
-	for _, path := range []string{db, db + "-wal", db + "-shm"} {
+	hist := filepath.Join(dataDir, "history.db")
+	for _, path := range []string{db, db + "-wal", db + "-shm", hist, hist + "-wal", hist + "-shm"} {
 		fi, err := os.Stat(path)
 		if err != nil {
 			t.Fatal(err)

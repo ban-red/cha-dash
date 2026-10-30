@@ -26,6 +26,11 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
+// historyMigrations are history.db's schema (internal/history, ADR-0031).
+//
+//go:embed history/*.sql
+var historyMigrations embed.FS
+
 const readPoolSize = 4
 
 // readerIdle closes a reader that has sat idle this long. An ncruces
@@ -35,12 +40,35 @@ const readerIdle = time.Minute
 
 // Store is an open hub database.
 type Store struct {
-	w *sql.DB // exactly one connection
-	r *sql.DB // query_only connections
+	w   *sql.DB // exactly one connection
+	r   *sql.DB // query_only connections
+	mig fs.FS   // its migrations
 }
 
 // Open opens (creating if needed) the database at path. Call Migrate before use.
 func Open(ctx context.Context, path string) (*Store, error) {
+	mig, err := fs.Sub(migrations, "migrations")
+	if err != nil {
+		return nil, err
+	}
+	return open(ctx, path, mig, nil)
+}
+
+// OpenHistory opens (creating if needed) history.db, the metrics history
+// (internal/history). It's a database of its own, so history writes never
+// queue behind the hub's, and deleting it loses nothing else. A new file
+// gets incremental auto-vacuum, so retention gives space back without a full
+// VACUUM. Call Migrate before use.
+func OpenHistory(ctx context.Context, path string) (*Store, error) {
+	mig, err := fs.Sub(historyMigrations, "history")
+	if err != nil {
+		return nil, err
+	}
+	// This only takes effect before the first table exists.
+	return open(ctx, path, mig, []string{"PRAGMA auto_vacuum = INCREMENTAL"})
+}
+
+func open(ctx context.Context, path string, mig fs.FS, fresh []string) (*Store, error) {
 	if strings.ContainsRune(path, '?') {
 		return nil, fmt.Errorf("store: database path %q must not contain '?'", path)
 	}
@@ -62,6 +90,12 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	w.SetConnMaxLifetime(0)
 	w.SetConnMaxIdleTime(0)
 
+	for _, q := range fresh {
+		if _, err := w.ExecContext(ctx, q); err != nil {
+			w.Close()
+			return nil, fmt.Errorf("store: %w", err)
+		}
+	}
 	var mode string
 	if err := w.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&mode); err != nil {
 		w.Close()
@@ -85,7 +119,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		r.Close()
 		return nil, fmt.Errorf("store: %w", err)
 	}
-	return &Store{w: w, r: r}, nil
+	return &Store{w: w, r: r, mig: mig}, nil
 }
 
 // Writer returns the single-connection write pool. Never issue a query on it
@@ -126,13 +160,9 @@ type Migration struct {
 }
 
 func (s *Store) provider() (*goose.Provider, error) {
-	sub, err := fs.Sub(migrations, "migrations")
-	if err != nil {
-		return nil, err
-	}
 	// Provider (not the global goose API) keeps migrations free of package state.
 	// Don't call Provider.Close: it would close our writer pool.
-	return goose.NewProvider(goose.DialectSQLite3, s.w, sub, goose.WithDisableGlobalRegistry(true))
+	return goose.NewProvider(goose.DialectSQLite3, s.w, s.mig, goose.WithDisableGlobalRegistry(true))
 }
 
 // Migrate applies all pending migrations and reports what it applied.

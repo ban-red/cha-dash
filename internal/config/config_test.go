@@ -214,3 +214,19 @@ func TestNodePairingFrom(t *testing.T) {
 		t.Fatal("a bad range was accepted")
 	}
 }
+
+func TestHistory(t *testing.T) {
+	c, err := load(t, nil)
+	if err != nil || c.History != "standard" || c.HistoryPath() != filepath.Join("/data", "history.db") {
+		t.Fatalf("defaults: %q at %q (%v)", c.History, c.HistoryPath(), err)
+	}
+	c, err = load(t, map[string]string{"CHADASH_HISTORY": "Long-Term", "CHADASH_HISTORY_DIR": "/ssd/chadash/"})
+	if err != nil || c.History != "long-term" || c.HistoryPath() != filepath.Join("/ssd/chadash", "history.db") {
+		t.Fatalf("set: %q at %q (%v)", c.History, c.HistoryPath(), err)
+	}
+	for _, env := range []map[string]string{{"CHADASH_HISTORY": "forever"}, {"CHADASH_HISTORY_DIR": "relative/dir"}} {
+		if _, err := load(t, env); err == nil {
+			t.Errorf("%v: no error", env)
+		}
+	}
+}

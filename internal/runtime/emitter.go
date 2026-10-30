@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"reflect"
 	"slices"
 	"strings"
@@ -24,6 +25,16 @@ const (
 	HistoryPoints = 48
 	HistoryStep   = 30 * time.Minute
 )
+
+// History keeps series on disk (internal/history). The emitter records
+// every valid sample there and, when a series first appears, takes its
+// sparkline's past from it, so a restart doesn't blank the sparklines.
+type History interface {
+	Record(key, instance, unit string, at time.Time, v float64)
+	// Sparkline is points averages step apart, the newest at newest; NaN
+	// where there's nothing.
+	Sparkline(key string, newest time.Time, points int, step time.Duration) []float64
+}
 
 // ResolvedRetention is how long a resolved incident stays in the inbox.
 const ResolvedRetention = 24 * time.Hour
@@ -47,6 +58,8 @@ type Emitter struct {
 	// annotate fills an incident action's availability (plan_ready,
 	// unavailable, recipe) as it's published. Nil leaves them out.
 	annotate func(*integration.Action)
+	// history records samples; nil records nothing.
+	history History
 
 	mu     sync.Mutex
 	scopes map[string]*owned
@@ -89,6 +102,10 @@ type seriesDoc struct {
 	History  []integration.Num `json:"history"`
 
 	axis time.Time // time of the newest history point
+	// The valid samples of the newest slot, whose average the point
+	// becomes when the history scrolls past it.
+	slotSum float64
+	slotN   int
 }
 
 // SelfID is an instance's own resource ID.
@@ -315,28 +332,44 @@ func (e *Emitter) toGraph(r integration.Resource, source string, now time.Time) 
 // sample folds one sample into its series. The history keeps the demo's
 // grid: when a sample lands in a new 30-minute slot the history scrolls and
 // the sample becomes the newest point, so sparklines move every 30 minutes
-// rather than under the reader on every poll.
+// rather than under the reader on every poll. The slot scrolled past gets
+// the average of its samples. A new series takes its past from history.
 func (e *Emitter) sample(key string, m integration.Metric, now time.Time) *seriesDoc {
+	v := integration.Num(m.Value)
+	slot := now.Truncate(HistoryStep)
 	s := e.series[key]
 	if s == nil {
 		s = &seriesDoc{History: make([]integration.Num, HistoryPoints)}
 		for i := range s.History {
 			s.History[i] = integration.Num(integration.Unknown())
 		}
+		if e.history != nil {
+			past := e.history.Sparkline(key, slot, HistoryPoints, HistoryStep)
+			for i := 0; i < len(past) && i < HistoryPoints-1; i++ {
+				if !math.IsNaN(past[i]) {
+					s.History[i] = integration.Num(past[i])
+				}
+			}
+		}
 		e.series[key] = s
+	}
+	if e.history != nil && v.Valid() {
+		e.history.Record(key, e.id, m.Unit, now, m.Value)
 	}
 	s.Resource, s.Metric, s.Unit = m.Resource, m.Key, m.Unit
 	s.Min, s.Max, s.Band, s.Warn, s.Crit = m.Min, m.Max, m.Band, m.Warn, m.Crit
-	v := integration.Num(m.Value)
 	s.Value, s.AsOf, s.Stale = v, now, false
-	slot := now.Truncate(HistoryStep)
 	switch {
 	case s.axis.IsZero():
 		s.axis = slot
 		s.History[HistoryPoints-1] = v
 	case slot.After(s.axis):
-		shift := int(slot.Sub(s.axis) / HistoryStep)
 		h := s.History
+		if s.slotN > 0 {
+			h[len(h)-1] = integration.Num(s.slotSum / float64(s.slotN))
+		}
+		s.slotSum, s.slotN = 0, 0
+		shift := int(slot.Sub(s.axis) / HistoryStep)
 		n := min(shift, len(h))
 		copy(h, h[n:])
 		for i := len(h) - n; i < len(h); i++ {
@@ -344,6 +377,10 @@ func (e *Emitter) sample(key string, m integration.Metric, now time.Time) *serie
 		}
 		h[len(h)-1] = v
 		s.axis = slot
+	}
+	if v.Valid() && slot.Equal(s.axis) {
+		s.slotSum += float64(v)
+		s.slotN++
 	}
 	return s
 }

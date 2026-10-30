@@ -81,6 +81,8 @@ services:
 | `CHADASH_DATA_DIR` | `/data` | The data directory. Leave it alone in Docker; mount a volume at `/data` instead |
 | `CHADASH_LISTEN` | `:3696` | The address inside the container. Leave it alone in Docker; change the published port instead |
 | `CHADASH_NODE_PAIRING_FILE` | none (`/pairing/token` in `compose.yaml`) | Turns on pairing for the local node: the hub writes a pairing token there on first run, in the volume it shares with `chadash-node`, and a fresh one each time a node pairs or is revoked. Empty: no node can pair |
+| `CHADASH_HISTORY` | `standard` | Metrics history to keep in `history.db`: `standard` (48 hours by the minute, 14 days by the quarter hour, tens of MB), `long-term` (also hourly for a year and daily forever) or `off` (nothing on disk; sparklines start empty after a restart) |
+| `CHADASH_HISTORY_DIR` | the data directory | Where `history.db` lives, for example on an SSD when `/data` is on an SD card. Deleting it loses history and nothing else |
 | `CHADASH_NODE_PAIRING_FROM` | private and loopback ranges | Comma-separated addresses or CIDRs a node may pair from, or `any`. The compose network is private, so the default fits; an already-paired node connects from anywhere |
 
 **Another port.** Change the published side only, so the container keeps 3696 ([ADR-0009](../docs/adr/0009-default-port-3696.md)). `!override` replaces the list instead of adding to it:

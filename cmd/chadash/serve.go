@@ -26,6 +26,7 @@ import (
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/history"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/icons"
 	"dash.cha.sh/internal/integration"
@@ -107,6 +108,10 @@ type app struct {
 	actions *action.Engine
 	// nodes serves chadash-node at /node: the registry, pairing, the caller.
 	nodes *nodes.Hub
+	// history records the instances' metrics in history.db; nil when
+	// CHADASH_HISTORY is off, and in demo mode.
+	history      *history.Recorder
+	historyStore *store.Store
 
 	stop context.CancelFunc // ends the background work below
 	bg   sync.WaitGroup     // the demo driver or the inbox clock, and the correlator
@@ -145,6 +150,36 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	for _, m := range applied {
 		log.Info("applied migration", "version", m.Version, "name", m.Name, "took", m.Duration)
+	}
+
+	// Metrics history (ADR-0031), in its own database. Not in demo mode:
+	// the Demo Home makes its own history, and instances there write to a
+	// private graph. A hand-built Config (History "") records nothing.
+	var rec *history.Recorder
+	var hst *store.Store
+	var hist runtime.History // a nil interface, not a nil *Recorder, when off
+	if level, perr := history.ParseLevel(cfg.History); perr == nil && level != history.Off && !cfg.Demo {
+		if cfg.HistoryDir != "" {
+			if err := os.MkdirAll(cfg.HistoryDir, 0o700); err != nil {
+				return nil, fmt.Errorf("history dir: %w", err)
+			}
+		}
+		if hst, err = store.OpenHistory(ctx, cfg.HistoryPath()); err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err != nil {
+				hst.Close()
+			}
+		}()
+		if _, err = hst.Migrate(ctx); err != nil {
+			return nil, err
+		}
+		if rec, err = history.Open(ctx, history.Options{Store: hst, Level: level, Log: log.With("component", "history")}); err != nil {
+			return nil, err
+		}
+		hist = rec
+		log.Info("recording metrics history", "level", level, "path", cfg.HistoryPath())
 	}
 
 	keyPath, explicit := cfg.KeyFile()
@@ -230,7 +265,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Actions: instanceActions,
 		// Integrations reach only the node verbs they use, by name (the Docker
 		// integration's node:// endpoint and its actions).
-		Nodes: nodes.Allow(nodeHub, nodes.IntegrationVerbs...)})
+		Nodes:   nodes.Allow(nodeHub, nodes.IntegrationVerbs...),
+		History: hist})
 	if err != nil {
 		return nil, err
 	}
@@ -376,7 +412,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
-	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr, actions: eng, nodes: nodeHub}
+	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr, actions: eng, nodes: nodeHub,
+		history: rec, historyStore: hst}
 	bg, stop := context.WithCancel(ctx)
 	a.stop = stop
 	if err := mgr.Start(bg); err != nil {
@@ -396,6 +433,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	a.bg.Go(func() { eng.Run(bg) })
 	a.bg.Go(func() { nt.Run(bg) })
 	a.bg.Go(func() { icn.Run(bg) })
+	if rec != nil {
+		a.bg.Go(func() { rec.Run(bg) })
+	}
 	return a, nil
 }
 
@@ -406,5 +446,10 @@ func (a *app) close() error {
 	a.actions.Close() // running tasks record how they ended before the store closes
 	a.nodes.Close()
 	a.hub.Close()
-	return a.store.Close()
+	var errs []error
+	if a.history != nil {
+		// The instances have stopped, so this is the last of their samples.
+		errs = append(errs, a.history.Close(context.Background()), a.historyStore.Close())
+	}
+	return errors.Join(append(errs, a.store.Close())...)
 }

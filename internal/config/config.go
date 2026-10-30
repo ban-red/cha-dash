@@ -26,8 +26,9 @@ const (
 	DefaultDataDir = "/data"
 
 	// keyFileName is where the vault key lives when CHADASH_SECRET_KEY_FILE is unset.
-	keyFileName = "secret.key"
-	dbFileName  = "chadash.db"
+	keyFileName     = "secret.key"
+	dbFileName      = "chadash.db"
+	historyFileName = "history.db"
 )
 
 // Config is the validated hub configuration.
@@ -78,6 +79,13 @@ type Config struct {
 	// loopback, link-local and CGNAT ranges (nodes.DefaultPairingFrom);
 	// "any" allows every address.
 	NodePairingFrom []netip.Prefix
+
+	// History is how much metrics history the hub keeps (ADR-0031):
+	// "off", "standard" (the default) or "long-term".
+	History string
+	// HistoryDir holds history.db (CHADASH_HISTORY_DIR). Empty: DataDir.
+	// It can move to an SSD when DataDir is on an SD card or a slow share.
+	HistoryDir string
 }
 
 // DefaultDemoAt is when the demo day starts: 14:05, the moment every
@@ -96,6 +104,14 @@ func (c Config) KeyFile() (path string, explicit bool) {
 // DBPath is the SQLite database file inside the data directory.
 func (c Config) DBPath() string { return filepath.Join(c.DataDir, dbFileName) }
 
+// HistoryPath is history.db, in HistoryDir or else the data directory.
+func (c Config) HistoryPath() string {
+	if c.HistoryDir != "" {
+		return filepath.Join(c.HistoryDir, historyFileName)
+	}
+	return filepath.Join(c.DataDir, historyFileName)
+}
+
 // Logger builds the process logger described by the config.
 func (c Config) Logger(w io.Writer) *slog.Logger {
 	opts := &slog.HandlerOptions{Level: c.LogLevel}
@@ -110,6 +126,7 @@ type Loader struct {
 	listen, dataDir, keyFile, level, format, proxies, origins string
 	publicURL                                                 string
 	nodePairing, nodePairingFrom                              string
+	history, historyDir                                       string
 	demo                                                      bool
 	demoAt, demoSeed                                          string
 	envErrs                                                   []error // env values a flag default can't hold
@@ -146,6 +163,8 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 	fs.BoolVar(&l.demo, "demo", demo, "run the Demo Home simulator instead of a real home (env CHADASH_DEMO)")
 	fs.StringVar(&l.demoAt, "demo-at", env("CHADASH_DEMO_AT", "local"), "demo clock: local (start at 14:05, shown as the local time), a time of day (HH:MM[:SS], UTC) on the demo's day, or now to follow the real clock in UTC (env CHADASH_DEMO_AT)")
 	fs.StringVar(&l.demoSeed, "demo-seed", env("CHADASH_DEMO_SEED", "1"), "demo simulator seed (env CHADASH_DEMO_SEED)")
+	fs.StringVar(&l.history, "history", env("CHADASH_HISTORY", "standard"), "metrics history to keep: off, standard (48 hours by the minute, 14 days by the quarter hour) or long-term (also hourly for a year, daily forever) (env CHADASH_HISTORY)")
+	fs.StringVar(&l.historyDir, "history-dir", env("CHADASH_HISTORY_DIR", ""), "directory for history.db; default the data dir (env CHADASH_HISTORY_DIR)")
 	return l
 }
 
@@ -158,6 +177,18 @@ func (l *Loader) Config() (Config, error) {
 		SecretKeyFile: l.keyFile,
 		LogFormat:     strings.ToLower(l.format),
 		Demo:          l.demo,
+	}
+	switch c.History = strings.ToLower(strings.TrimSpace(l.history)); c.History {
+	case "off", "standard", "long-term":
+	default:
+		errs = append(errs, fmt.Errorf("history %q: want off, standard or long-term", l.history))
+	}
+	if d := strings.TrimSpace(l.historyDir); d != "" {
+		if !filepath.IsAbs(d) {
+			errs = append(errs, fmt.Errorf("history dir %q: want an absolute path", d))
+		} else {
+			c.HistoryDir = filepath.Clean(d)
+		}
 	}
 	if p := strings.TrimSpace(l.nodePairing); p != "" {
 		if !filepath.IsAbs(p) {
