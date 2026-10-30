@@ -30,7 +30,7 @@
  * another origin, and the hub doesn't cache icons yet.
  */
 import { computed } from 'vue';
-import { hhmm, shortDate } from '../lib/format';
+import { fmtInt, hhmm, shortDate } from '../lib/format';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../ui/marks/Glyph.vue';
 import MiniGraph from '../ui/marks/MiniGraph.vue';
@@ -74,6 +74,8 @@ const r = computed(() => s.value.resource);
 const hasStat = computed(() => ['app', 'check', 'host', 'cluster'].includes(r.value?.kind ?? ''));
 /** A cluster is as well as its worst node. */
 const clusterStatus = computed(() => (r.value?.kind === 'cluster' ? worst([s.value.status, ...clusterNodes(live.graph.value, r.value.id).map(statusOf)]) : undefined));
+/** Counts (streams, queued items) read as whole numbers; a 24 h slot's average of 1.5 shows as 2. */
+const graphFormat = computed(() => (reading.value?.series?.unit === 'count' ? (v: number) => fmtInt(Math.round(v)) : (v: number) => String(Math.round(v * 10) / 10)));
 const reading = computed(() => (r.value && hasStat.value ? readService(live.graph.value, live.metrics.value, r.value, live.now.value) : undefined));
 const isCheck = computed(() => r.value?.kind === 'check');
 const check = computed(() => checkFor(live.graph.value, live.metrics.value, r.value));
@@ -224,6 +226,7 @@ const { views, view } = useViews(() => {
         :height="40"
         :stale="stale || s.needsRepair"
         :label="`${name}, ${reading?.unit ?? 'value'}, 24 hours`"
+        :format="graphFormat"
       />
     </template>
 
@@ -280,6 +283,7 @@ const { views, view } = useViews(() => {
           :height="48"
           :stale="stale || s.needsRepair"
           :label="`${name}, ${reading?.unit ?? 'value'}, 24 hours`"
+          :format="graphFormat"
         />
       </div>
       <div v-if="playing.length && !beside" class="list svc-playing" role="list" :aria-label="`Playing on ${name}`">

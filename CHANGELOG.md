@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Whole numbers on count graphs.** The graph on a Plex, Jellyfin or Tautulli tile showed a 24 h average like 1.5 for streams or transcodes. Counts now read as whole numbers.
 - **Danger buttons always look like danger buttons.** The board's Remove section button only turned red once Settings had been opened, and the tile menu's Remove used a fainter red. Buttons, fields and dialogs now share one set of styles, so they look the same wherever they appear.
 - **Screen readers read a field's help.** Some form fields showed help under the input without tying it to the input, so a screen reader didn't read it. Every field now does.
 
