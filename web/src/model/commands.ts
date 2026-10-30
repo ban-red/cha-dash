@@ -101,6 +101,8 @@ export interface ActionOffer {
   /** A page to open in its place: listed as that link. */
   instead?: { title: string; url: string };
   household?: boolean;
+  /** The params it plans with (one offer per choice). */
+  params?: Record<string, unknown>;
 }
 
 export interface ActionContext {
@@ -160,7 +162,7 @@ export function actionCommands(ctx: ActionContext): Command[] {
   const subject = ctx.subject;
   if (subject) {
     for (const o of ctx.offers ?? []) {
-      const key = `${o.id}@${subject}`;
+      const key = `${o.id}@${subject}${o.params ? ` ${JSON.stringify(o.params)}` : ''}`;
       if (seen.has(key) || !allowed(o.tier, o.household)) continue;
       seen.add(key);
       const instead = o.available ? undefined : safeUrl(o.instead?.url);

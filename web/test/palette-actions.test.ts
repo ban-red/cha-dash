@@ -68,6 +68,17 @@ describe('actionCommands', () => {
     expect(act.mock.calls[0]![0].id).toBe('host-memory-pressure');
   });
 
+  it('lists one command per choice, each running with its own params', () => {
+    const run = vi.fn();
+    const offer = (script: string) => ({ id: 'homeassistant.script.run', label: `Run ${script} in Home`, tier: 'T1' as const, available: true, params: { script } });
+    const list = base({ subject: NAS, offers: [offer('script.movie_night'), offer('script.bedtime')], onlySubject: true, run });
+    const runs = list.filter((c) => c.label.startsWith('Run script.'));
+    expect(runs.map((c) => c.label)).toEqual(['Run script.movie_night in Home', 'Run script.bedtime in Home']);
+    expect(new Set(runs.map((c) => c.id)).size).toBe(2);
+    runs[1]!.run();
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ params: { script: 'script.bedtime' } }), NAS);
+  });
+
   it('lists an offer the hub sends elsewhere as that link, and opens it instead of planning', () => {
     const open = vi.fn();
     const run = vi.fn();

@@ -255,7 +255,7 @@ const working = computed(() => tasksHere.value.find((t) => !isDone(t)));
 const deleteVolumes = ref(false);
 function run(o: Offer): void {
   if (!id.value || !o.available || live.stale.value) return;
-  const params = o.id === REMOVE && deleteVolumes.value ? { params: { volumes: true } } : {};
+  const params = o.id === REMOVE && deleteVolumes.value ? { params: { volumes: true } } : o.params ? { params: o.params } : {};
   void ui.runAction({ action: o.id, target: id.value, label: o.label, tier: o.tier, ...params });
 }
 const pct = (t: Task) => (typeof t.progress === 'number' ? ` · ${Math.round(Math.min(1, Math.max(0, t.progress)) * 100)}%` : '');
@@ -681,7 +681,7 @@ onBeforeUnmount(() => {
               <div v-for="g in byTier" :key="g.tier" class="rs-tier">
                 <h3>{{ g.tier }}</h3>
                 <ul>
-                  <li v-for="o in g.list" :key="o.id">
+                  <li v-for="o in g.list" :key="o.params ? `${o.id} ${JSON.stringify(o.params)}` : o.id">
                     <button
                       type="button"
                       class="btn"

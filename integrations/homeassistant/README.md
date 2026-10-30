@@ -125,7 +125,7 @@ All of them are write grants, so the runtime adds its write-grant warning: Cha D
 | `homeassistant.script.run` | T1 | — (a script does what it does) | `{"script": "script.…"}`, one of the instance's `scripts` | `POST /api/services/script/turn_on` with `{"entity_id": …}`, which starts the script without waiting for it | `GET /api/states/<script>`: its `last_triggered` moved, or it's running |
 
 - **Only allow-listed scripts.** The params schema is an enum of the instance's `scripts`, so anything else (another script, another service, an extra field) is `422 invalid` before anything is sent. No other service can be called. With no scripts listed, the instance has no actions.
-- **Preconditions** (`409 precondition`): Home Assistant has no such script (deleted or renamed since it was listed), it's already running, or it's unavailable.
+- **Preconditions** (`409 precondition`): Home Assistant has no such script (deleted or renamed since it was listed), it's already running, or it's unavailable. The listing checks each allowed script and offers one "Run script.… in …" per script that can run now, with its params, so the sheet and ⌘K run it as is.
 - **Credential:** the instance's token. Home Assistant's tokens carry their user's rights and have no scopes, so the allow-list is the limit; there's no separate control credential. A non-administrator user can still run scripts.
 - **Audit:** the target and the script's entity ID; the token never appears in a plan, task log or audit record.
 

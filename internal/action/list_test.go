@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -81,7 +82,7 @@ func TestHTTPCancelAndActions(t *testing.T) {
 		t.Fatalf("actions = %+v", offers)
 	}
 	for i := range want {
-		if offers[i] != want[i] {
+		if !reflect.DeepEqual(offers[i], want[i]) {
 			t.Errorf("actions[%d] = %+v, want %+v", i, offers[i], want[i])
 		}
 	}

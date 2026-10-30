@@ -114,7 +114,7 @@ const actions = computed(() =>
     onlySubject: !query.value.trim(),
     can: ui.can.value,
     act: (incident, action) => ui.act(incident, action),
-    run: (o, target) => void ui.runAction({ action: o.id, target, label: o.label, tier: o.tier }),
+    run: (o, target) => void ui.runAction({ action: o.id, target, label: o.label, tier: o.tier, ...(o.params ? { params: o.params } : {}) }),
     refuse: (why) => ui.toast(why, 'error'),
   }),
 );

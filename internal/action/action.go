@@ -243,6 +243,12 @@ type Def struct {
 	// Targets are the resource kinds it applies to; empty means any.
 	Targets []string
 	Params  Schema
+	// Choices are params the listing offers one by one on the resolved
+	// target, each checked with Preconditions and listed with its params,
+	// so a page can run it as is (a Home Assistant script per allowed one).
+	// Never secrets: offers carry them. Nil, or none: one offer, with no
+	// params.
+	Choices func(t Target) []json.RawMessage
 	Tier    Tier
 	// Scope is the authorization scope; empty means ID. The policy may
 	// qualify it by target (proxmox.guest.reboot:host=io).

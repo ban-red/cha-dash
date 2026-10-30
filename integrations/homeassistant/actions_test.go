@@ -37,6 +37,13 @@ func TestRunScript(t *testing.T) {
 	env := acttest.New(t, h.Set.Graph, defs...)
 	app := "homeassistant:i_test/app"
 
+	// Listed once per script Home Assistant has, with its params; the gone
+	// one is left out.
+	offers, err := env.Engine.ActionsFor(t.Context(), acttest.Owner, app)
+	if err != nil || len(offers) != 1 || offers[0].Label != "Run script.movie_night in Test" || !offers[0].Available || string(offers[0].Params) != `{"script":"script.movie_night"}` {
+		t.Fatalf("offers = %+v, %v", offers, err)
+	}
+
 	_, plan := env.Succeeded(ActRunScript, app, map[string]any{"script": "script.movie_night"})
 	if plan.Label != "Run script.movie_night in Test" || plan.Undo != nil || len(plan.Steps) != 2 {
 		t.Fatalf("plan = %+v", plan)

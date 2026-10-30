@@ -26,6 +26,8 @@ type Offer struct {
 	Instead *Link `json:"instead,omitempty"`
 	// Household marks an action the household role may run.
 	Household bool `json:"household,omitempty"`
+	// Params are the choice this offer plans with (see Def.Choices).
+	Params json.RawMessage `json:"params,omitempty"`
 }
 
 // Listing limits. They're variables so tests can shorten them.
@@ -119,8 +121,8 @@ start:
 	}
 
 	for i, d := range defs {
-		if o, ok := e.settle(ctx, a, d, target, slots[i]); ok {
-			out = append(out, o)
+		if os, ok := e.settle(ctx, a, d, target, slots[i]); ok {
+			out = append(out, os...)
 		}
 	}
 	slices.SortStableFunc(out, func(x, y Offer) int { return cmp.Compare(x.Label, y.Label) })
@@ -139,14 +141,13 @@ func (e *Engine) allowed(ctx context.Context, a Actor, d *Def, target string, ti
 // may still be running, hence the lock.
 type listSlot struct {
 	mu       sync.Mutex
-	resolved bool   // Resolve answered with a target
-	target   Target // when resolved
-	tier     Tier   // when resolved
-	failed   error  // Resolve's error, other than not found
-	late     bool   // failed after the deadline (likely because of it)
-	finished bool   // the offer is decided
-	keep     bool   // when finished: list it
-	offer    Offer  // when keep
+	resolved bool    // Resolve answered with a target
+	target   Target  // when resolved
+	tier     Tier    // when resolved
+	failed   error   // Resolve's error, other than not found
+	late     bool    // failed after the deadline (likely because of it)
+	finished bool    // the offers are decided
+	offers   []Offer // when finished: those to list
 }
 
 // offer runs Resolve, the policy and Preconditions for d, recording each
@@ -171,47 +172,60 @@ func (e *Engine) offer(ctx context.Context, a Actor, d *Def, target string, s *l
 	s.resolved, s.target, s.tier = true, t, tier
 	s.mu.Unlock()
 
-	keep := e.allowed(ctx, a, d, t.ID, tier)
-	r := Request{Action: d.ID, Target: t, Params: emptyParams, Actor: a}
-	o := Offer{ID: d.ID, Label: labelOf(d, r), Tier: tier, Available: true, Household: d.Household}
-	if keep && d.Preconditions != nil {
-		if err := d.Preconditions(ctx, r); err != nil {
-			ref := refusalOf(err, "")
-			switch {
-			case ref.Code == "precondition":
-				keep = false
-			case ctx.Err() != nil:
-				return // settle says it timed out
-			case ref.Code != "unavailable":
-				keep = false
-			default:
-				o.Available, o.Unavailable, o.Recipe, o.Instead = false, ref.Message, ref.Recipe, ref.Instead
+	var offers []Offer
+	if e.allowed(ctx, a, d, t.ID, tier) {
+		var choices []json.RawMessage
+		if d.Choices != nil {
+			choices = d.Choices(t)
+		}
+		if len(choices) == 0 {
+			choices = []json.RawMessage{nil}
+		}
+		for _, params := range choices {
+			r := Request{Action: d.ID, Target: t, Params: params, Actor: a}
+			if params == nil {
+				r.Params = emptyParams
 			}
+			o := Offer{ID: d.ID, Label: labelOf(d, r), Tier: tier, Available: true, Household: d.Household, Params: params}
+			if d.Preconditions != nil {
+				if err := d.Preconditions(ctx, r); err != nil {
+					ref := refusalOf(err, "")
+					switch {
+					case ctx.Err() != nil:
+						return // settle says it timed out
+					case ref.Code != "unavailable":
+						continue // a precondition, or any other refusal: nothing to offer
+					default:
+						o.Available, o.Unavailable, o.Recipe, o.Instead = false, ref.Message, ref.Recipe, ref.Instead
+					}
+				}
+			}
+			offers = append(offers, o)
 		}
 	}
 	s.mu.Lock()
-	s.finished, s.keep, s.offer = true, keep, o
+	s.finished, s.offers = true, offers
 	s.mu.Unlock()
 }
 
 // settle turns a slot into the offer to list, if any, once the listing's
 // work has finished or its deadline has passed.
-func (e *Engine) settle(ctx context.Context, a Actor, d *Def, target string, s *listSlot) (Offer, bool) {
+func (e *Engine) settle(ctx context.Context, a Actor, d *Def, target string, s *listSlot) ([]Offer, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.finished {
-		return s.offer, s.keep
+		return s.offers, len(s.offers) > 0
 	}
-	unavailable := func(t Target, tier Tier, msg, recipe string) Offer {
+	unavailable := func(t Target, tier Tier, msg, recipe string) []Offer {
 		r := Request{Action: d.ID, Target: t, Params: emptyParams}
-		return Offer{ID: d.ID, Label: labelOf(d, r), Tier: tier, Unavailable: msg, Recipe: recipe, Household: d.Household}
+		return []Offer{{ID: d.ID, Label: labelOf(d, r), Tier: tier, Unavailable: msg, Recipe: recipe, Household: d.Household}}
 	}
 	if s.resolved {
 		// Resolved, but Preconditions didn't answer in time. The policy
 		// check on the resolved target may not have run either: ask now
 		// (it doesn't read the upstream).
 		if !e.allowed(ctx, a, d, s.target.ID, s.tier) {
-			return Offer{}, false
+			return nil, false
 		}
 		return unavailable(s.target, s.tier, listTimedOut, ""), true
 	}
@@ -220,7 +234,7 @@ func (e *Engine) settle(ctx context.Context, a Actor, d *Def, target string, s *
 	// list with actions for other kinds of resource.
 	t, err := graphTarget(e.graph, d, target)
 	if err != nil {
-		return Offer{}, false
+		return nil, false
 	}
 	msg, recipe := listTimedOut, ""
 	if s.failed != nil && !s.late && !errors.Is(s.failed, context.DeadlineExceeded) {

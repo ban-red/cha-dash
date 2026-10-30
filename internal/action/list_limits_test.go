@@ -2,7 +2,9 @@ package action
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -85,7 +87,7 @@ func TestActionsForDeadline(t *testing.T) {
 		t.Fatalf("offers = %+v", offers)
 	}
 	for i := range want {
-		if offers[i] != want[i] {
+		if !reflect.DeepEqual(offers[i], want[i]) {
 			t.Errorf("offers[%d] = %+v, want %+v", i, offers[i], want[i])
 		}
 	}
@@ -107,6 +109,41 @@ func TestActionsForListsInstead(t *testing.T) {
 	}
 }
 
+// Choices list one offer each, with their params, and each is checked on
+// its own: one a precondition refuses is left out.
+func TestActionsForListsChoices(t *testing.T) {
+	name := func(r Request) string {
+		var p struct{ Script string }
+		_ = r.Decode(&p)
+		return p.Script
+	}
+	d := Def{
+		ID: "x.run", Targets: []string{"vm"}, Tier: T1, Execute: noop,
+		Choices: func(Target) []json.RawMessage {
+			return []json.RawMessage{json.RawMessage(`{"script":"a"}`), json.RawMessage(`{"script":"busy"}`), json.RawMessage(`{"script":"b"}`)}
+		},
+		Label: func(r Request) string { return "Run " + name(r) },
+		Preconditions: func(_ context.Context, r Request) error {
+			if name(r) == "busy" {
+				return Precondition("busy is already running.")
+			}
+			return nil
+		},
+	}
+	e := newEnv(t, rolePolicy{}, d)
+	offers, err := e.e.ActionsFor(t.Context(), owner, vm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Offer{
+		{ID: "x.run", Label: "Run a", Tier: T1, Available: true, Params: json.RawMessage(`{"script":"a"}`)},
+		{ID: "x.run", Label: "Run b", Tier: T1, Available: true, Params: json.RawMessage(`{"script":"b"}`)},
+	}
+	if !reflect.DeepEqual(offers, want) {
+		t.Fatalf("offers = %+v", offers)
+	}
+}
+
 func TestActionsForFailedReadIsUnavailable(t *testing.T) {
 	down := func(context.Context, string) (Target, error) {
 		return Target{}, Unavailable("Cha Dash couldn't read Proxmox VE just now: connection refused.", "i_x")
@@ -117,7 +154,7 @@ func TestActionsForFailedReadIsUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Offer{ID: "x.down", Label: "Snapshot win-gaming", Tier: T1, Unavailable: "Cha Dash couldn't read Proxmox VE just now: connection refused.", Recipe: "i_x"}
-	if len(offers) != 1 || offers[0] != want {
+	if len(offers) != 1 || !reflect.DeepEqual(offers[0], want) {
 		t.Fatalf("offers = %+v, want %+v", offers, want)
 	}
 	// A target the graph doesn't know: nothing says the action applies.

@@ -170,6 +170,8 @@ export interface Offer {
   /** A page to open in its place (unavailable only). */
   instead?: Instead;
   household?: boolean;
+  /** The params it plans with, when the action lists one offer per choice (a Home Assistant script each). */
+  params?: Record<string, unknown>;
 }
 
 /** What the hub would plan on a resource for this viewer, filtered by their role. Empty on any failure. */

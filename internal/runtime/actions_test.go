@@ -101,6 +101,10 @@ func (i *leverInst) Actions() []action.Def {
 	return []action.Def{
 		{ID: "lever.thing.flip", Title: "Flip", Targets: []string{"thing"}, Tier: action.T1,
 			TierFor: func(action.Target) action.Tier { i.rec.add(&i.rec.hook, "tier:"+i.id); return action.T0 },
+			// The listing's choices are the instance's own.
+			Choices: func(action.Target) []json.RawMessage {
+				return []json.RawMessage{json.RawMessage(`{"on":"` + i.id + `"}`)}
+			},
 			Undo: func(action.Request) *action.Undo {
 				return &action.Undo{Action: "lever.thing.flip", Params: json.RawMessage("{}"), Label: "Unflip on " + i.id}
 			},
@@ -378,6 +382,14 @@ func TestActionsRouteToTheOwningInstance(t *testing.T) {
 	}
 	if got := e.rec.get(&e.rec.exec); !slices.Equal(got, []string{b + ":control-b:lever.thing.flip", a + ":control-a:lever.thing.flip"}) {
 		t.Fatalf("exec = %v", got)
+	}
+	// So do the listing's choices.
+	offers, err := e.eng.ActionsFor(t.Context(), owner, "lever:"+b+"/thing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i := slices.IndexFunc(offers, func(o action.Offer) bool { return o.ID == "lever.thing.flip" }); i < 0 || string(offers[i].Params) != `{"on":"`+b+`"}` {
+		t.Fatalf("offers on b = %+v", offers)
 	}
 	// One instance going leaves the other's actions.
 	if err := e.m.Delete(t.Context(), a); err != nil {

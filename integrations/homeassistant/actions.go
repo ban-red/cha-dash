@@ -74,14 +74,29 @@ func (in *instance) Actions() []action.Def {
 	return []action.Def{{
 		ID: ActRunScript, Title: "Run", Targets: []string{"app"}, Tier: action.T1,
 		Params:        integration.Params(integration.Object(integration.Prop("script", script)).Require("script")),
+		Choices:       func(action.Target) []json.RawMessage { return scriptChoices(in.scripts) },
 		Resolve:       act.App(in.appID, in.name),
 		Preconditions: in.scriptPreconditions,
-		Label:         func(r action.Request) string { return "Run " + scriptOf(r) + " in " + r.Target.Name },
+		Label: func(r action.Request) string {
+			if s := scriptOf(r); s != "" {
+				return "Run " + s + " in " + r.Target.Name
+			}
+			return "Run a script in " + r.Target.Name // the listing, before one is picked
+		},
 		Steps: func(r action.Request) []action.Step {
 			return act.Steps("Ask "+r.Target.Name+" to run "+scriptOf(r), "Check that it ran")
 		},
 		Verify: in.scriptVerify,
 	}}
+}
+
+// choices are the listing's offers: one per allowed script.
+func scriptChoices(scripts []string) []json.RawMessage {
+	out := make([]json.RawMessage, len(scripts))
+	for i, s := range scripts {
+		out[i], _ = json.Marshal(map[string]string{"script": s})
+	}
+	return out
 }
 
 // scriptOf is the request's script (validated against the allow-list).

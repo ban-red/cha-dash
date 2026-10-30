@@ -3,6 +3,7 @@ package runtime
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -375,6 +376,12 @@ func (a *Actions) mux(integ string, proto action.Def) action.Def {
 			return def.Resolve(ctx, target)
 		}
 		return action.ResolveInGraph(a.graph, &def, target)
+	}
+	d.Choices = func(t action.Target) []json.RawMessage {
+		if _, def, ok := a.route(integ, id, t.ID); ok && def.Choices != nil {
+			return def.Choices(t)
+		}
+		return nil
 	}
 	d.TierFor = func(t action.Target) action.Tier {
 		_, def, ok := a.route(integ, id, t.ID)
