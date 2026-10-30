@@ -641,13 +641,13 @@ describe('Camera Hero', () => {
 });
 
 describe('Home Assistant summary', () => {
-  it('is people home as a glyph, home · lights · power as a strip', () => {
+  it('is people home as a glyph, home · lights · indoors as a strip', () => {
     let m = mountWidget(docs(healthy), 'homeassistant', 'glyph');
     expect(m.w.find('.gv').text()).toMatch(/^\d\/4$/);
     m.w.unmount();
     m = mountWidget(docs(healthy), 'homeassistant', 'strip');
     expect(m.w.find('.sx').text()).toMatch(/home · \d+ lights/);
-    expect(m.w.find('.sv').text()).toMatch(/switches$/);
+    expect(m.w.find('.sv').text()).toMatch(/^\d+\.\d°C$/);
   });
 
   it('adds the counts as rows when large and the lists are missing', () => {
@@ -657,7 +657,7 @@ describe('Home Assistant summary', () => {
     expect(w.find('.kv').text()).toContain('Lights on');
     expect(w.find('.kv').text()).toContain('of 52');
     expect(w.text()).not.toContain('All closed');
-    expect(w.find('.tf').exists()).toBe(false);
+    expect(w.find('.tf').text()).toMatch(/^\d+ switches on$/);
   });
 });
 

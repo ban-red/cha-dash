@@ -461,9 +461,11 @@ describe('Home Assistant', () => {
 
   it('says what needs a look under the stats, and pages to the list', async () => {
     const { w, dots, pressed } = mountTile('homeassistant', 'wide', undefined, withHouse());
-    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Needs a look']);
-    expect(w.find('.ha-cards').exists()).toBe(true);
-    expect(w.find('.tf').text()).toBe('alarm armed home');
+    // The Demo Home's thermostats give it a Climate view too.
+    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Needs a look', 'Climate']);
+    expect(w.find('.ha-facets').exists()).toBe(true);
+    expect(w.find('.tf').text()).toBe('Needs a look: 2 open · 1 unlocked · 2 low batteries · 2 updates');
+    expect(w.find('.tg').text()).toContain('alarm armed home');
     await dots()[1]!.trigger('click');
     expect(pressed()).toBe('Needs a look');
     const rows = w.findAll('[role="listitem"]').map((r) => r.text());
@@ -475,17 +477,20 @@ describe('Home Assistant', () => {
   it('lists it all on a 4×4, with the entity counts at the foot', () => {
     const { w, dots } = mountTile('homeassistant', 'large', undefined, withHouse());
     expect(dots()).toHaveLength(0);
-    expect(w.findAll('[role="listitem"]')).toHaveLength(5);
+    expect(w.findAll('[aria-label="Needs a look in Home Assistant"] [role="listitem"]')).toHaveLength(5);
     expect(w.text()).toContain('Smoke alarmbattery low');
-    expect(w.find('.tf').text()).toBe('412 entities · 3 unavailable · alarm armed home');
+    expect(w.find('.tf').text()).toMatch(/^412 entities · 3 unavailable · \d+ switches on$/);
     expect(w.text()).not.toContain('Pick a few entities');
   });
 
-  it('says all is well when nothing needs a look, with no second view', () => {
+  it('says all is well when nothing needs a look, with no Needs a look view', () => {
     const { w, dots } = mountTile('homeassistant', 'large', undefined, withHouse('disarmed', false));
     expect(dots()).toHaveLength(0);
     expect(w.text()).toContain('All closed, locked and up to date.');
-    expect(mountTile('homeassistant', 'wide', undefined, withHouse('disarmed', false)).w.find('.tf').text()).toBe('alarm disarmed');
+    const wide = mountTile('homeassistant', 'wide', undefined, withHouse('disarmed', false));
+    expect(wide.dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Climate']);
+    expect(wide.w.find('.tf').exists()).toBe(false);
+    expect(wide.w.find('.tg').text()).toContain('alarm disarmed');
   });
 
   it('marks the tile when the alarm is triggered', () => {

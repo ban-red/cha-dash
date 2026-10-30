@@ -113,10 +113,10 @@ export const WIDGETS: Record<string, WidgetSpec> = {
     ],
   }),
   homeassistant: spec('homeassistant', 'Home Assistant', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], {
-    group: 'home', about: 'Who’s home, lights and switches, and house power.', icon: 'homeassistant',
+    group: 'home', about: 'Who’s home, and the house at a glance: climate, lights, safety, doors and what’s playing.', icon: 'homeassistant',
     accepts: { kinds: ['app'], types: ['homeassistant'] },
     options: [
-      { key: 'power', kind: 'boolean', default: false, label: 'Show house power', help: 'House power with its 24-hour graph, and energy today, when Home Assistant reports them. Off shows what’s open, unlocked, low on battery and waiting for an update instead.' },
+      { key: 'power', kind: 'boolean', default: false, label: 'Show house power', help: 'House power with its 24-hour graph, and energy today, when Home Assistant reports them. It leads the row of facets, with the graph beside who’s home.' },
     ],
   }),
   opnsense: spec('opnsense', 'OPNsense', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['router'] }, group: 'network', about: 'The router and its WAN: states, throughput and what’s down.', icon: 'opnsense' }),
