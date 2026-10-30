@@ -75,11 +75,12 @@ const HISTORY_VIEW = {
   trimmed_at: null,
   instances: [{ id: 'i1', series: 412, bytes: 9_100_000 }],
   excluded: [],
+  exclude_keys: [],
   tiers: [
-    { tier: '1m', step_ms: 60_000, keep_ms: 172_800_000, chunks: 38_976, bytes: 9_800_000, oldest: Date.parse('2026-10-01T14:00:00Z') },
-    { tier: '15m', step_ms: 900_000, keep_ms: 1_209_600_000, chunks: 9_744, bytes: 5_100_000, oldest: Date.parse('2026-09-28T12:00:00Z') },
-    { tier: '1h', step_ms: 3_600_000, keep_ms: 31_536_000_000, chunks: 0, bytes: 0, oldest: null },
-    { tier: '1d', step_ms: 86_400_000, keep_ms: 0, chunks: 0, bytes: 0, oldest: null },
+    { tier: '1m', default_keep_ms: 172_800_000, custom: false, choices_ms: [21_600_000, 172_800_000], step_ms: 60_000, keep_ms: 172_800_000, chunks: 38_976, bytes: 9_800_000, oldest: Date.parse('2026-10-01T14:00:00Z') },
+    { tier: '15m', default_keep_ms: 1_209_600_000, custom: false, choices_ms: [1_209_600_000], step_ms: 900_000, keep_ms: 1_209_600_000, chunks: 9_744, bytes: 5_100_000, oldest: Date.parse('2026-09-28T12:00:00Z') },
+    { tier: '1h', default_keep_ms: 31_536_000_000, custom: false, choices_ms: [31_536_000_000], step_ms: 3_600_000, keep_ms: 31_536_000_000, chunks: 0, bytes: 0, oldest: null },
+    { tier: '1d', default_keep_ms: 0, custom: false, choices_ms: [0], step_ms: 86_400_000, keep_ms: 0, chunks: 0, bytes: 0, oldest: null },
   ],
   estimates: { standard: 28_000_000, 'long-term': 101_000_000 },
 };

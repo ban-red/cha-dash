@@ -221,6 +221,16 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 			return nil, err
 		}
 		rec.SetExcluded(excluded)
+		patterns, err := history.LoadExcludedKeys(ctx, st)
+		if err != nil {
+			return nil, err
+		}
+		rec.SetExcludedKeys(patterns)
+		keep, err := history.LoadKeep(ctx, st)
+		if err != nil {
+			return nil, err
+		}
+		rec.SetKeep(keep)
 		hist = rec
 		log.Info("recording metrics history", "level", level, "path", cfg.HistoryPath(), "limit_bytes", limit)
 	}

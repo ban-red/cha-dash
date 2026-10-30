@@ -4,7 +4,7 @@
  * history.db (ADR-0031), what it holds now, and clearing it.
  *
  *   GET  /api/settings/history         {level, locked, demo, series, resources, file_bytes, tiers, estimates}
- *   PUT  /api/settings/history         {level?, max_bytes?, exclude?} → the same
+ *   PUT  /api/settings/history         {level?, max_bytes?, exclude?, exclude_keys?, keep?} → the same
  *   POST /api/settings/history/clear   → the same; ?instance=<id> for one integration
  *
  * The levels are a native radio group with Save, like the security level,
@@ -14,7 +14,11 @@
  * hour, and the pane says when it last did. By integration lists every
  * connection (from the instances list, so one with nothing recorded yet can
  * be left out too) with a Record box and one Save; leaving one out stops its
- * metrics, never its health. Clearing, all or one, asks first, inline.
+ * metrics, never its health. On disk says how long each level of detail is
+ * kept, as a select per row (the level's own, or a choice the hub offers)
+ * with one Save. By metric lists patterns ("docker:*#net_rx") left out,
+ * each saved as it's added or removed. Clearing, all or one, asks first,
+ * inline.
  * With CHADASH_HISTORY=off, or in demo mode, the pane says why there's
  * nothing to choose.
  *
@@ -32,6 +36,9 @@ interface TierView {
   tier: string;
   step_ms: number;
   keep_ms: number;
+  default_keep_ms: number;
+  custom: boolean;
+  choices_ms: number[];
   chunks: number;
   bytes: number;
   oldest: number | null;
@@ -48,6 +55,7 @@ interface HistoryView {
   tiers: TierView[];
   instances: { id: string; series: number; bytes: number }[];
   excluded: string[];
+  exclude_keys: { pattern: string; series: number }[];
   estimates: Partial<Record<HistoryLevel, number>>;
 }
 
@@ -69,6 +77,14 @@ const excludeError = ref('');
 const confirming = ref<string>('');
 const clearing = ref(false);
 const clearError = ref('');
+/** Each tier's retention in the form: ms, or DEFAULT for the level's. */
+const DEFAULT = -1;
+const keepChoice = ref<Record<string, number>>({});
+const keeping = ref(false);
+const keepError = ref('');
+const pattern = ref('');
+const patterning = ref(false);
+const patternError = ref('');
 
 const LEVELS: { id: HistoryLevel; label: string; description: string }[] = [
   { id: 'standard', label: 'Standard', description: 'By the minute for 48 hours and by the quarter hour for 14 days, with health for 90 days.' },
@@ -110,6 +126,89 @@ function keepWords(ms: number): string {
   return y === 1 ? '1 year' : `${y} years`;
 }
 const stepWords: Record<string, string> = { '1m': 'Each minute', '15m': 'Each quarter hour', '1h': 'Each hour', '1d': 'Each day' };
+
+function syncKeep(): void {
+  const out: Record<string, number> = {};
+  for (const t of view.value?.tiers ?? []) out[t.tier] = t.custom ? t.keep_ms : DEFAULT;
+  keepChoice.value = out;
+}
+/** A tier's choices, with a saved value the hub was given another way. */
+function keepOptions(t: TierView): number[] {
+  const cs = t.choices_ms;
+  return !t.custom || cs.includes(t.keep_ms) ? cs : [...cs, t.keep_ms].sort((a, b) => (a || Infinity) - (b || Infinity));
+}
+const keepDirty = computed(() => (view.value?.tiers ?? []).some((t) => keepChoice.value[t.tier] !== (t.custom ? t.keep_ms : DEFAULT)));
+/** What a tier would keep with the form's choice, forever as Infinity. */
+function effective(t: TierView): number {
+  const c = keepChoice.value[t.tier] ?? DEFAULT;
+  const ms = c === DEFAULT ? t.default_keep_ms : c;
+  return ms === 0 ? Infinity : ms;
+}
+/** Coarser points kept for less time than finer ones would leave long ranges blank. */
+const keepProblem = computed(() => {
+  const ts = view.value?.tiers ?? [];
+  for (let i = 1; i < ts.length; i++) {
+    if (effective(ts[i]!) < effective(ts[i - 1]!)) {
+      return `${stepWords[ts[i]!.tier] ?? ts[i]!.tier} can’t be kept for less time than ${(stepWords[ts[i - 1]!.tier] ?? ts[i - 1]!.tier).toLowerCase()}.`;
+    }
+  }
+  return '';
+});
+
+async function saveKeep(): Promise<void> {
+  const v = view.value;
+  if (!v || !keepDirty.value || keeping.value || keepProblem.value) return;
+  const keep: Record<string, number | null> = {};
+  for (const t of v.tiers) {
+    const c = keepChoice.value[t.tier] ?? DEFAULT;
+    keep[t.tier] = c === DEFAULT ? null : c;
+  }
+  keeping.value = true;
+  keepError.value = '';
+  try {
+    view.value = await api<HistoryView>('/api/settings/history', { method: 'PUT', body: { keep } });
+    syncKeep();
+    ui.toast('History keeps each level of detail as chosen. Older points go within a minute.');
+  } catch (err) {
+    syncKeep();
+    keepError.value = errorWords(err, 'How long history is kept wasn’t changed.');
+  } finally {
+    keeping.value = false;
+  }
+}
+
+async function savePatterns(next: string[], done: string): Promise<boolean> {
+  patterning.value = true;
+  patternError.value = '';
+  try {
+    view.value = await api<HistoryView>('/api/settings/history', { method: 'PUT', body: { exclude_keys: next } });
+    ui.toast(done);
+    return true;
+  } catch (err) {
+    patternError.value = errorWords(err, 'What’s recorded wasn’t changed.');
+    return false;
+  } finally {
+    patterning.value = false;
+  }
+}
+async function addPattern(): Promise<void> {
+  const v = view.value;
+  const p = pattern.value.trim();
+  if (!v || !p || patterning.value) return;
+  if (v.exclude_keys.some((k) => k.pattern === p)) {
+    patternError.value = `${p} is already left out.`;
+    return;
+  }
+  if (await savePatterns([...v.exclude_keys.map((k) => k.pattern), p], `Metrics matching ${p} are left out of history.`)) pattern.value = '';
+}
+function removePattern(p: string): void {
+  const v = view.value;
+  if (!v || patterning.value) return;
+  void savePatterns(
+    v.exclude_keys.map((k) => k.pattern).filter((k) => k !== p),
+    `Metrics matching ${p} are recorded again.`,
+  );
+}
 const tiersShown = computed(() => (view.value?.tiers ?? []).filter((t) => t.chunks > 0 || view.value?.level === 'long-term' || t.tier === '1m' || t.tier === '15m'));
 
 async function load(): Promise<void> {
@@ -118,6 +217,7 @@ async function load(): Promise<void> {
     choice.value = view.value.level;
     limit.value = view.value.max_bytes;
     syncRecorded();
+    syncKeep();
     status.value = 'ready';
   } catch (err) {
     status.value = 'error';
@@ -296,12 +396,31 @@ onMounted(() => {
           <tbody>
             <tr v-for="t in tiersShown" :key="t.tier">
               <th scope="row">{{ stepWords[t.tier] ?? t.tier }}</th>
-              <td>{{ keepWords(t.keep_ms) }}</td>
+              <td>
+                <select v-model.number="keepChoice[t.tier]" :disabled="keeping" :aria-label="`Keep ${(stepWords[t.tier] ?? t.tier).toLowerCase()} points for`">
+                  <option :value="DEFAULT">{{ keepWords(t.default_keep_ms) }} (level’s)</option>
+                  <option v-for="ms in keepOptions(t)" :key="ms" :value="ms">{{ keepWords(ms) }}</option>
+                </select>
+              </td>
               <td>{{ t.oldest === null ? '—' : shortDate(t.oldest) }}</td>
               <td class="n">{{ t.chunks ? size(t.bytes) : '—' }}</td>
             </tr>
           </tbody>
         </table>
+        <div class="st-acts">
+          <button
+            type="button"
+            class="btn sm"
+            aria-label="Save how long each level of detail is kept"
+            :aria-disabled="!keepDirty || keeping || keepProblem ? 'true' : undefined"
+            :aria-busy="keeping || undefined"
+            @click="saveKeep"
+          >
+            Save
+          </button>
+        </div>
+        <p v-if="keepProblem" class="err" role="alert">{{ keepProblem }}</p>
+        <p v-if="keepError" class="err" role="alert">{{ keepError }}</p>
         <div class="hp-limit">
           <label for="hp-limit">Size limit</label>
           <select id="hp-limit" v-model.number="limit" :disabled="limiting" aria-describedby="hp-limit-d">
@@ -391,6 +510,27 @@ onMounted(() => {
         </div>
         <p v-if="excludeError" class="err" role="alert">{{ excludeError }}</p>
       </section>
+
+      <section v-if="!view.locked" class="st-section" aria-labelledby="hp-key-h">
+        <header><h3 id="hp-key-h">By metric</h3></header>
+        <p id="hp-key-d" class="st-lede">
+          Leave out single metrics by their key, such as <code>docker:plex#net_rx</code>. <code>*</code> stands for anything, so <code>docker:*#net_rx</code> is every
+          container’s download rate. What they recorded stays until it ages out.
+        </p>
+        <ul v-if="view.exclude_keys.length" class="hp-keys">
+          <li v-for="k in view.exclude_keys" :key="k.pattern">
+            <code>{{ k.pattern }}</code>
+            <span class="hp-keys-n">{{ k.series === 1 ? '1 series' : `${fmtInt(k.series)} series` }}</span>
+            <button type="button" class="btn sm ghost" :aria-label="`Record ${k.pattern} again`" :disabled="patterning" @click="removePattern(k.pattern)">Remove</button>
+          </li>
+        </ul>
+        <form class="hp-limit" @submit.prevent="addPattern">
+          <label for="hp-key">Leave out</label>
+          <input id="hp-key" v-model="pattern" type="text" spellcheck="false" autocomplete="off" maxlength="200" placeholder="docker:*#net_rx" aria-describedby="hp-key-d" />
+          <button type="submit" class="btn sm" :aria-disabled="!pattern.trim() || patterning ? 'true' : undefined" :aria-busy="patterning || undefined">Add</button>
+        </form>
+        <p v-if="patternError" class="err" role="alert">{{ patternError }}</p>
+      </section>
     </template>
   </div>
 </template>
@@ -424,6 +564,27 @@ onMounted(() => {
 }
 :is(.hp-tiers, .hp-ints) thead th {
   color: var(--text-3);
+}
+.hp-keys {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-small);
+}
+.hp-keys li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: var(--hairline) solid var(--line);
+}
+.hp-keys code {
+  overflow-wrap: anywhere;
+}
+.hp-keys-n {
+  margin-left: auto;
+  color: var(--text-3);
+  white-space: nowrap;
 }
 :is(.hp-tiers, .hp-ints) .n {
   text-align: right;

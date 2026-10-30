@@ -204,9 +204,17 @@ type historySettings struct {
 	Tiers     []historyTierJSON `json:"tiers"`
 	// Instances is what each instance's series hold, most series first;
 	// Excluded, the instances whose metrics aren't recorded.
-	Instances []historyInstanceJSON   `json:"instances"`
-	Excluded  []string                `json:"excluded"`
-	Estimates map[history.Level]int64 `json:"estimates"`
+	Instances []historyInstanceJSON `json:"instances"`
+	Excluded  []string              `json:"excluded"`
+	// ExcludeKeys are the metric patterns left out, with how many series
+	// each matches.
+	ExcludeKeys []historyPatternJSON    `json:"exclude_keys"`
+	Estimates   map[history.Level]int64 `json:"estimates"`
+}
+
+type historyPatternJSON struct {
+	Pattern string `json:"pattern"`
+	Series  int    `json:"series"`
 }
 
 type historyInstanceJSON struct {
@@ -219,9 +227,15 @@ type historyTierJSON struct {
 	Tier   string `json:"tier"`
 	StepMs int64  `json:"step_ms"`
 	KeepMs int64  `json:"keep_ms"` // 0: forever
-	Chunks int    `json:"chunks"`
-	Bytes  int64  `json:"bytes"`
-	Oldest *int64 `json:"oldest"` // Unix ms of the oldest chunk's start
+	// DefaultKeepMs is what the level keeps, and Custom whether keep_ms
+	// was set instead; ChoicesMs are the retentions to offer, shortest
+	// first (0: forever).
+	DefaultKeepMs int64   `json:"default_keep_ms"`
+	Custom        bool    `json:"custom"`
+	ChoicesMs     []int64 `json:"choices_ms"`
+	Chunks        int     `json:"chunks"`
+	Bytes         int64   `json:"bytes"`
+	Oldest        *int64  `json:"oldest"` // Unix ms of the oldest chunk's start
 }
 
 // historyExcludeMax bounds the exclusions, a list of instance IDs.
@@ -238,7 +252,7 @@ const historyEstimateFloor = 300
 // registerHistorySettings mounts Settings → History (admin).
 //
 //	GET  /api/settings/history         → historySettings
-//	PUT  /api/settings/history         {level?, max_bytes?, exclude?} → historySettings; 409 history_locked
+//	PUT  /api/settings/history         {level?, max_bytes?, exclude?, exclude_keys?, keep?} → historySettings; 409 history_locked
 //	POST /api/settings/history/clear   deletes every point and health row → historySettings;
 //	                                   ?instance=<id>: only that instance's series and points
 //
@@ -246,12 +260,16 @@ const historyEstimateFloor = 300
 // 64 MB) are kept in the hub's settings (history.LevelKey, LimitKey) and
 // apply at once; retention enforces the limit within the hour. exclude
 // replaces the instances whose metrics aren't recorded (their health still
-// is); what they recorded stays until it ages out or is cleared. Estimates are how big history.db grows at each level with the
-// series recorded so far (at least 300).
+// is); what they recorded stays until it ages out or is cleared.
+// exclude_keys replaces the metric patterns left out ("docker:*#net_rx", *
+// matching any run). keep replaces per-tier retention, tier name to
+// milliseconds (0: forever), within each tier's choices; a tier left out or
+// null keeps its level's. Estimates are how big history.db grows at each
+// level with the series recorded so far (at least 300).
 func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http.Handler, rec *history.Recorder, st *store.Store, demo bool, audit *authz.Recorder) {
 	view := func(w http.ResponseWriter, r *http.Request) {
 		out := historySettings{Level: history.Off, Locked: rec == nil, Demo: demo, Tiers: []historyTierJSON{}, Estimates: map[history.Level]int64{},
-			Instances: []historyInstanceJSON{}, Excluded: []string{}}
+			Instances: []historyInstanceJSON{}, Excluded: []string{}, ExcludeKeys: []historyPatternJSON{}}
 		if rec != nil {
 			s, err := rec.Stats(r.Context())
 			if err != nil {
@@ -264,7 +282,13 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 				out.TrimmedAt = &ms
 			}
 			for _, t := range s.Tiers {
-				tj := historyTierJSON{Tier: t.Tier, StepMs: t.Step.Milliseconds(), KeepMs: t.Keep.Milliseconds(), Chunks: t.Chunks, Bytes: t.Bytes}
+				tj := historyTierJSON{Tier: t.Tier, StepMs: t.Step.Milliseconds(), KeepMs: t.Keep.Milliseconds(), DefaultKeepMs: t.Default.Milliseconds(),
+					Custom: t.Custom, Chunks: t.Chunks, Bytes: t.Bytes, ChoicesMs: []int64{}}
+				if tier, ok := history.ParseTier(t.Tier); ok {
+					for _, c := range history.KeepChoices[tier] {
+						tj.ChoicesMs = append(tj.ChoicesMs, c.Milliseconds())
+					}
+				}
 				if !t.Oldest.IsZero() {
 					ms := t.Oldest.UnixMilli()
 					tj.Oldest = &ms
@@ -275,8 +299,12 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 				out.Instances = append(out.Instances, historyInstanceJSON{ID: in.ID, Series: in.Series, Bytes: in.Bytes})
 			}
 			out.Excluded = append(out.Excluded, rec.Excluded()...)
+			for _, p := range rec.ExcludedKeys() {
+				out.ExcludeKeys = append(out.ExcludeKeys, historyPatternJSON{Pattern: p, Series: rec.Matching(p)})
+			}
+			keep := rec.Keep()
 			for _, l := range []history.Level{history.Standard, history.LongTerm} {
-				out.Estimates[l] = history.Estimate(l, max(s.Series, historyEstimateFloor))
+				out.Estimates[l] = history.EstimateKeep(l, keep, max(s.Series, historyEstimateFloor))
 			}
 		}
 		httpx.WriteJSON(w, http.StatusOK, out)
@@ -291,20 +319,58 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 	mux.Handle("GET /api/settings/history", session(http.HandlerFunc(view)))
 	mux.Handle("PUT /api/settings/history", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Level    *string   `json:"level"`
-			MaxBytes *int64    `json:"max_bytes"`
-			Exclude  *[]string `json:"exclude"`
+			Level       *string            `json:"level"`
+			MaxBytes    *int64             `json:"max_bytes"`
+			Exclude     *[]string          `json:"exclude"`
+			ExcludeKeys *[]string          `json:"exclude_keys"`
+			Keep        *map[string]*int64 `json:"keep"`
 		}
 		if !httpx.DecodeJSON(w, r, &body) || locked(w) {
 			return
 		}
-		if body.Level == nil && body.MaxBytes == nil && body.Exclude == nil {
-			httpx.Error(w, http.StatusUnprocessableEntity, "nothing_to_change", "send level, max_bytes or exclude")
+		if body.Level == nil && body.MaxBytes == nil && body.Exclude == nil && body.ExcludeKeys == nil && body.Keep == nil {
+			httpx.Error(w, http.StatusUnprocessableEntity, "nothing_to_change", "send level, max_bytes, exclude, exclude_keys or keep")
 			return
 		}
 		if body.Exclude != nil && len(*body.Exclude) > historyExcludeMax {
 			httpx.Error(w, http.StatusUnprocessableEntity, "bad_exclude", "exclude lists at most 500 instances")
 			return
+		}
+		var patterns []string
+		if body.ExcludeKeys != nil {
+			if len(*body.ExcludeKeys) > history.MaxKeyPatterns {
+				httpx.Error(w, http.StatusUnprocessableEntity, "bad_exclude_keys", "exclude_keys lists at most 200 patterns")
+				return
+			}
+			patterns = []string{}
+			for _, p := range *body.ExcludeKeys {
+				p = strings.TrimSpace(p)
+				if err := history.CheckKeyPattern(p); err != nil {
+					httpx.Error(w, http.StatusUnprocessableEntity, "bad_exclude_keys", strings.TrimPrefix(err.Error(), "history: "))
+					return
+				}
+				if !slices.Contains(patterns, p) {
+					patterns = append(patterns, p)
+				}
+			}
+		}
+		var keep map[history.Tier]time.Duration
+		if body.Keep != nil {
+			keep = map[history.Tier]time.Duration{}
+			for name, ms := range *body.Keep {
+				t, ok := history.ParseTier(name)
+				if !ok || ms != nil && *ms < 0 {
+					httpx.Error(w, http.StatusUnprocessableEntity, "bad_keep", "keep maps 1m, 15m, 1h or 1d to milliseconds, or null for the default")
+					return
+				}
+				if ms != nil {
+					keep[t] = time.Duration(*ms) * time.Millisecond
+				}
+			}
+			if err := history.CheckKeep(keep); err != nil {
+				httpx.Error(w, http.StatusUnprocessableEntity, "bad_keep", strings.TrimPrefix(err.Error(), "history: "))
+				return
+			}
 		}
 		var l history.Level
 		if body.Level != nil {
@@ -348,6 +414,22 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 				return
 			}
 		}
+		if patterns != nil {
+			params["exclude_keys_from"], params["exclude_keys_to"] = rec.ExcludedKeys(), patterns
+			rec.SetExcludedKeys(patterns)
+			if err := history.SaveExcludedKeys(r.Context(), st, patterns, now); err != nil {
+				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the exclusions apply now but couldn't be saved for the next start")
+				return
+			}
+		}
+		if keep != nil {
+			params["keep_from"], params["keep_to"] = keepParams(rec.Keep()), keepParams(keep)
+			rec.SetKeep(keep)
+			if err := history.SaveKeep(r.Context(), st, keep, now); err != nil {
+				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the retention applies now but couldn't be saved for the next start")
+				return
+			}
+		}
 		audit.Change(r, authz.Audited["PUT /api/settings/history"], "settings:history", params, authz.T1, nil)
 		view(w, r)
 	})))
@@ -371,4 +453,13 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 		audit.Change(r, authz.Audited["POST /api/settings/history/clear"], "settings:history", nil, authz.T3, nil)
 		view(w, r)
 	})))
+}
+
+// keepParams is per-tier retention for the audit log, by tier name.
+func keepParams(over map[history.Tier]time.Duration) map[string]int64 {
+	out := map[string]int64{}
+	for t, k := range over {
+		out[history.TierNames[t]] = k.Milliseconds()
+	}
+	return out
 }

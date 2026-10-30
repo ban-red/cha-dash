@@ -126,12 +126,15 @@ func SaveLevel(ctx context.Context, st *store.Store, l Level, now time.Time) err
 
 // TierStats is what one tier holds on disk.
 type TierStats struct {
-	Tier   string // "1m", "15m", "1h", "1d"
-	Step   time.Duration
-	Keep   time.Duration // 0: forever
-	Chunks int
-	Bytes  int64     // chunk data, before SQLite's overhead
-	Oldest time.Time // zero when empty
+	Tier string // "1m", "15m", "1h", "1d"
+	Step time.Duration
+	Keep time.Duration // 0: forever
+	// Default is what the level keeps; Custom, whether Keep was set instead.
+	Default time.Duration
+	Custom  bool
+	Chunks  int
+	Bytes   int64     // chunk data, before SQLite's overhead
+	Oldest  time.Time // zero when empty
 }
 
 // Stats is what history.db holds.
@@ -159,7 +162,7 @@ var TierNames = [...]string{Minute: "1m", Quarter: "15m", Hour: "1h", Day: "1d"}
 // Stats reads what history.db holds.
 func (r *Recorder) Stats(ctx context.Context) (Stats, error) {
 	r.mu.Lock()
-	level := r.level
+	level, over := r.level, r.keepOver
 	out := Stats{Level: level, MaxBytes: r.maxBytes, TrimmedAt: r.trimmedAt}
 	r.mu.Unlock()
 	q := r.st.Reader()
@@ -174,7 +177,8 @@ func (r *Recorder) Stats(ctx context.Context) (Stats, error) {
 	_ = q.QueryRowContext(ctx, `PRAGMA page_size`).Scan(&size)
 	out.FileBytes = pages * size
 	for t := Minute; t <= Day; t++ {
-		ts := TierStats{Tier: TierNames[t], Step: tiers[t].step, Keep: level.keep(t)}
+		_, custom := over[t]
+		ts := TierStats{Tier: TierNames[t], Step: tiers[t].step, Keep: keepFor(level, over, t), Default: level.keep(t), Custom: custom}
 		var oldest sql.NullInt64
 		if err := q.QueryRowContext(ctx, `SELECT count(*), coalesce(sum(length(data)), 0), min(start) FROM chunks WHERE tier = ?`, int64(t)).
 			Scan(&ts.Chunks, &ts.Bytes, &oldest); err != nil {
@@ -244,10 +248,13 @@ const (
 
 // Estimate is about how big history.db grows at level with series series
 // once every tier is full (the 1-day tier after two years).
-func Estimate(level Level, series int) int64 {
+func Estimate(level Level, series int) int64 { return EstimateKeep(level, nil, series) }
+
+// EstimateKeep is Estimate with per-tier retention in place of the level's.
+func EstimateKeep(level Level, over map[Tier]time.Duration, series int) int64 {
 	var perSeries float64
 	for t := Minute; t <= level.top(); t++ {
-		keep := level.keep(t)
+		keep := keepFor(level, over, t)
 		if keep == 0 {
 			keep = foreverYears * 365 * day
 		}

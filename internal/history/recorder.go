@@ -78,6 +78,13 @@ type Recorder struct {
 	// excluded are instances whose samples aren't recorded (their health
 	// still is). Under mu.
 	excluded map[string]bool
+	// keyPatterns are the metric patterns left out (keep.go), and keySkip
+	// remembers which keys match. keepOver is per-tier retention in place
+	// of the level's, and retainSoon asks the next tick to apply it. Under mu.
+	keyPatterns []string
+	keySkip     map[string]bool
+	keepOver    map[Tier]time.Duration
+	retainSoon  bool
 }
 
 // OnLevel calls f with the level now and after every SetLevel. The hub
@@ -282,7 +289,7 @@ func (r *Recorder) Record(key, instance, unit string, at time.Time, v float64) {
 	ms := at.UnixMilli()
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.top == 0 || r.excluded[instance] {
+	if r.top == 0 || r.excluded[instance] || r.skipKey(key) {
 		return
 	}
 	s := r.series[key]
@@ -403,13 +410,15 @@ func (r *Recorder) tick(ctx context.Context, now time.Time) {
 		r.advance(s, ms)
 	}
 	checkpoint := now.Sub(r.lastCheckpoint) >= checkpointEvery
+	soon := r.retainSoon
+	r.retainSoon = false
 	r.mu.Unlock()
 	if err := r.flush(ctx, checkpoint); err != nil {
 		r.log.Warn("history: write failed", "err", err)
 	} else if checkpoint {
 		r.lastCheckpoint = now
 	}
-	if now.Sub(r.lastRetain) >= retainEvery {
+	if soon || now.Sub(r.lastRetain) >= retainEvery {
 		if err := r.retain(ctx, now); err != nil {
 			r.log.Warn("history: retention failed", "err", err)
 		}
@@ -541,7 +550,7 @@ func (r *Recorder) retain(ctx context.Context, now time.Time) error {
 	var gone []int64
 	var goneStates []string
 	r.mu.Lock()
-	level := r.level
+	level, over := r.level, r.keepOver
 	r.mu.Unlock()
 	err := r.st.WriteTx(ctx, func(tx *sql.Tx) error {
 		var err error
@@ -549,7 +558,7 @@ func (r *Recorder) retain(ctx context.Context, now time.Time) error {
 			return err
 		}
 		for t := Minute; t <= Day; t++ {
-			keep := level.keep(t)
+			keep := keepFor(level, over, t)
 			if keep == 0 {
 				continue
 			}
@@ -646,10 +655,13 @@ func (r *Recorder) Known(key string) bool {
 func (r *Recorder) Query(ctx context.Context, key string, from, to time.Time, maxPoints int) (Range, error) {
 	r.mu.Lock()
 	top := max(r.top, Quarter) // with recording off, what was kept is still there
+	level, over := r.level, r.keepOver
 	r.mu.Unlock()
-	t := top
+	// The finest tier that fits in maxPoints and still keeps from.
+	t, oldest := top, r.now().Sub(from)
 	for c := Minute; c <= top; c++ {
-		if to.Sub(from)/tiers[c].step <= time.Duration(maxPoints) {
+		keep := keepFor(level, over, c)
+		if to.Sub(from)/tiers[c].step <= time.Duration(maxPoints) && (keep == 0 || keep >= oldest) {
 			t = c
 			break
 		}

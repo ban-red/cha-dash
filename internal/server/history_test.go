@@ -209,9 +209,16 @@ func TestHistorySettings(t *testing.T) {
 		Series    int `json:"series"`
 		Estimates map[string]int64
 		Tiers     []struct {
-			Tier   string `json:"tier"`
-			KeepMs int64  `json:"keep_ms"`
+			Tier          string  `json:"tier"`
+			KeepMs        int64   `json:"keep_ms"`
+			DefaultKeepMs int64   `json:"default_keep_ms"`
+			Custom        bool    `json:"custom"`
+			ChoicesMs     []int64 `json:"choices_ms"`
 		} `json:"tiers"`
+		ExcludeKeys []struct {
+			Pattern string `json:"pattern"`
+			Series  int    `json:"series"`
+		} `json:"exclude_keys"`
 	}
 	call := func(c *http.Client, method, path string, in any, want int) body {
 		t.Helper()
@@ -268,6 +275,33 @@ func TestHistorySettings(t *testing.T) {
 		t.Fatalf("audit = %s", ev.Params)
 	}
 	call(owner, "PUT", "/api/settings/history", map[string]any{"exclude": make([]string, 501)}, http.StatusUnprocessableEntity)
+	// Leaving metrics out by pattern.
+	if got = call(owner, "PUT", "/api/settings/history", map[string]any{"exclude_keys": []string{" docker:*#net_rx ", "docker:*#net_rx", "*#temp"}}, http.StatusOK); len(got.ExcludeKeys) != 2 || got.ExcludeKeys[0].Pattern != "docker:*#net_rx" {
+		t.Fatalf("exclude_keys = %+v", got.ExcludeKeys)
+	}
+	if ps, _ := history.LoadExcludedKeys(t.Context(), st); !slices.Equal(ps, []string{"docker:*#net_rx", "*#temp"}) || !slices.Equal(rec.ExcludedKeys(), ps) {
+		t.Fatalf("saved patterns %v", ps)
+	}
+	for _, bad := range [][]string{{"*"}, {""}, make([]string, 201)} {
+		call(owner, "PUT", "/api/settings/history", map[string]any{"exclude_keys": bad}, http.StatusUnprocessableEntity)
+	}
+	// Per-tier retention: set, shown, saved, audited; null goes back to the level's.
+	got = call(owner, "PUT", "/api/settings/history", map[string]any{"keep": map[string]any{"1m": 6 * 3600_000, "1d": 0}}, http.StatusOK)
+	if m := got.Tiers[0]; m.KeepMs != 6*3600_000 || !m.Custom || m.DefaultKeepMs != 48*3600_000 || len(m.ChoicesMs) == 0 || got.Tiers[3].KeepMs != 0 || !got.Tiers[3].Custom {
+		t.Fatalf("tiers = %+v", got.Tiers)
+	}
+	if k, _ := history.LoadKeep(t.Context(), st); k[history.Minute] != 6*time.Hour || len(k) != 2 {
+		t.Fatalf("saved keep %v", k)
+	}
+	if ev, _ := lastAudit(t, st, "settings.history.update"); string(ev.Params) != `{"keep_from":{},"keep_to":{"1d":0,"1m":21600000}}` {
+		t.Fatalf("audit = %s", ev.Params)
+	}
+	if got = call(owner, "PUT", "/api/settings/history", map[string]any{"keep": map[string]any{"1m": nil}}, http.StatusOK); got.Tiers[0].Custom || len(rec.Keep()) != 0 {
+		t.Fatalf("after reset = %+v", got.Tiers[0])
+	}
+	for _, bad := range []map[string]any{{"1m": 3600_000}, {"2m": 6 * 3600_000}, {"1m": -1}, {"15m": 2 * 86_400_000, "1m": 7 * 86_400_000}} {
+		call(owner, "PUT", "/api/settings/history", map[string]any{"keep": bad}, http.StatusUnprocessableEntity)
+	}
 
 	if err := rec.Close(t.Context()); err != nil { // writes the series row
 		t.Fatal(err)

@@ -10,12 +10,27 @@ import { axeViolations } from './axe';
 import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
 
+const H = 3_600_000;
+const D = 24 * H;
+/** As the hub sends them: what each keeps, the level's own, and the choices. */
+const tier = (t: { tier: string; step_ms: number; keep_ms: number; chunks: number; bytes: number; oldest: number | null }, choices: number[]) => ({
+  ...t,
+  default_keep_ms: t.keep_ms,
+  custom: false,
+  choices_ms: choices,
+});
 const tiers = [
-  { tier: '1m', step_ms: 60_000, keep_ms: 172_800_000, chunks: 38_976, bytes: 9_800_000, oldest: Date.parse('2026-10-01T14:00:00Z') },
-  { tier: '15m', step_ms: 900_000, keep_ms: 1_209_600_000, chunks: 9_744, bytes: 5_100_000, oldest: Date.parse('2026-09-28T12:00:00Z') },
-  { tier: '1h', step_ms: 3_600_000, keep_ms: 31_536_000_000, chunks: 0, bytes: 0, oldest: null },
-  { tier: '1d', step_ms: 86_400_000, keep_ms: 0, chunks: 0, bytes: 0, oldest: null },
+  tier({ tier: '1m', step_ms: 60_000, keep_ms: 48 * H, chunks: 38_976, bytes: 9_800_000, oldest: Date.parse('2026-10-01T14:00:00Z') }, [6 * H, 12 * H, D, 2 * D, 7 * D, 14 * D]),
+  tier({ tier: '15m', step_ms: 900_000, keep_ms: 14 * D, chunks: 9_744, bytes: 5_100_000, oldest: Date.parse('2026-09-28T12:00:00Z') }, [2 * D, 7 * D, 14 * D, 30 * D, 90 * D, 180 * D, 365 * D]),
+  tier({ tier: '1h', step_ms: 3_600_000, keep_ms: 365 * D, chunks: 0, bytes: 0, oldest: null }, [30 * D, 90 * D, 180 * D, 365 * D, 730 * D, 1825 * D]),
+  tier({ tier: '1d', step_ms: 86_400_000, keep_ms: 0, chunks: 0, bytes: 0, oldest: null }, [365 * D, 730 * D, 1825 * D, 3650 * D, 0]),
 ];
+/** A row's cells as shown, a select by its chosen option. */
+const cells = (r: { findAll: (s: string) => { element: Element; text: () => string }[] }) =>
+  r.findAll('th, td').map((c) => {
+    const sel = c.element.querySelector('select');
+    return sel ? sel.options[sel.selectedIndex]!.text : c.text();
+  });
 const view = (over: Record<string, unknown> = {}) => ({
   level: 'standard',
   locked: false,
@@ -32,6 +47,7 @@ const view = (over: Record<string, unknown> = {}) => ({
     { id: 'i_gone', series: 3, bytes: 20_000 },
   ],
   excluded: [] as string[],
+  exclude_keys: [] as { pattern: string; series: number }[],
   estimates: { standard: 28_000_000, 'long-term': 101_000_000 },
   ...over,
 });
@@ -66,10 +82,10 @@ describe('Settings → History', () => {
     expect(cards[1]!.find('.sl-desc').text()).toContain('About 101 MB at 812 series, after two years.');
     expect(w.find('#hp-disk-h + .st-lede, .st-section:nth-of-type(2) .st-lede').text()).toContain('21 MB in history.db: 812 series and the health of 240 resources.');
     // Standard shows its two levels of detail; the long-term ones appear when they hold something.
-    const rows = w.findAll('.hp-tiers tbody tr').map((r) => r.findAll('th, td').map((c) => c.text()));
+    const rows = w.findAll('.hp-tiers tbody tr').map(cells);
     expect(rows).toEqual([
-      ['Each minute', '48 hours', 'Thu 1 Oct', '10 MB'],
-      ['Each quarter hour', '14 days', 'Mon 28 Sept', '5 MB'],
+      ['Each minute', '48 hours (level’s)', 'Thu 1 Oct', '10 MB'],
+      ['Each quarter hour', '14 days (level’s)', 'Mon 28 Sept', '5 MB'],
     ]);
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);
   });
@@ -81,7 +97,7 @@ describe('Settings → History', () => {
       'GET /api/settings/history': { status: 200, body: view() },
       'PUT /api/settings/history': (body) => {
         saved = body;
-        return { status: 200, body: view({ level: 'long-term', tiers: tiers.map((t) => (t.tier === '15m' ? { ...t, keep_ms: 2_592_000_000 } : t)) }) };
+        return { status: 200, body: view({ level: 'long-term', tiers: tiers.map((t) => (t.tier === '15m' ? { ...t, keep_ms: 30 * D, default_keep_ms: 30 * D } : t)) }) };
       },
     });
     const h = harness();
@@ -94,7 +110,7 @@ describe('Settings → History', () => {
     expect(saved).toEqual({ level: 'long-term' });
     // Long-term lists every level of detail, with what each keeps.
     expect(w.findAll('.hp-tiers tbody th').map((t) => t.text())).toEqual(['Each minute', 'Each quarter hour', 'Each hour', 'Each day']);
-    expect(w.findAll('.hp-tiers tbody tr').map((r) => r.findAll('td')[0]!.text())).toEqual(['48 hours', '30 days', '1 year', 'forever']);
+    expect(w.findAll('.hp-tiers tbody tr').map((r) => cells(r)[1])).toEqual(['48 hours (level’s)', '30 days (level’s)', '1 year (level’s)', 'forever (level’s)']);
     expect(w.find('button[aria-label="Save history level"]').attributes('aria-disabled')).toBe('true');
   });
 
@@ -205,5 +221,65 @@ describe('Settings → History', () => {
     await flushPromises();
     expect(cleared).toBe('i_pve');
     expect(w.find('[role="alertdialog"]').exists()).toBe(false);
+  });
+
+  it('keeps each level of detail as chosen, on Save, and refuses coarser points kept for less', async () => {
+    let sent: unknown;
+    fakeFetch({
+      'GET /api/integrations/instances': INSTANCES,
+      'GET /api/settings/history': { status: 200, body: view() },
+      'PUT /api/settings/history': (body) => {
+        sent = body;
+        return { status: 200, body: view({ tiers: tiers.map((t) => (t.tier === '1m' ? { ...t, keep_ms: 7 * D, custom: true } : t)) }) };
+      },
+    });
+    const w = harness().mountIn(HistoryPane);
+    await flushPromises();
+    const save = w.find('button[aria-label="Save how long each level of detail is kept"]');
+    expect(save.attributes('aria-disabled')).toBe('true');
+    const minute = w.find<HTMLSelectElement>('select[aria-label="Keep each minute points for"]');
+    expect([...minute.element.options].map((o) => o.text)).toEqual(['48 hours (level’s)', '6 hours', '12 hours', '24 hours', '48 hours', '7 days', '14 days']);
+    // Fourteen days of minutes against seven of quarter hours: not allowed.
+    await w.find('select[aria-label="Keep each quarter hour points for"]').setValue(String(7 * D));
+    await minute.setValue(String(14 * D));
+    expect(w.find('[role="alert"]').text()).toBe('Each quarter hour can’t be kept for less time than each minute.');
+    await save.trigger('click');
+    await flushPromises();
+    expect(sent).toBeUndefined();
+    await w.find('select[aria-label="Keep each quarter hour points for"]').setValue('-1');
+    await minute.setValue(String(7 * D));
+    await save.trigger('click');
+    await flushPromises();
+    expect(sent).toEqual({ keep: { '1m': 7 * D, '15m': null, '1h': null, '1d': null } });
+    expect(cells(w.findAll('.hp-tiers tbody tr')[0]!)[1]).toBe('7 days');
+    expect(save.attributes('aria-disabled')).toBe('true');
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+  });
+
+  it('leaves single metrics out by pattern, and records them again', async () => {
+    const sent: unknown[] = [];
+    fakeFetch({
+      'GET /api/integrations/instances': INSTANCES,
+      'GET /api/settings/history': { status: 200, body: view() },
+      'PUT /api/settings/history': (body) => {
+        sent.push(body);
+        const keys = (body as { exclude_keys: string[] }).exclude_keys;
+        return { status: 200, body: view({ exclude_keys: keys.map((p) => ({ pattern: p, series: 12 })) }) };
+      },
+    });
+    const w = harness().mountIn(HistoryPane);
+    await flushPromises();
+    await w.find('#hp-key').setValue('  docker:*#net_rx ');
+    await w.find('#hp-key').element.closest('form')!.dispatchEvent(new Event('submit'));
+    await flushPromises();
+    expect(sent).toEqual([{ exclude_keys: ['docker:*#net_rx'] }]);
+    expect(w.find('.hp-keys li').text()).toContain('docker:*#net_rx');
+    expect(w.find('.hp-keys li').text()).toContain('12 series');
+    expect(w.find<HTMLInputElement>('#hp-key').element.value).toBe('');
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+    await w.find('button[aria-label="Record docker:*#net_rx again"]').trigger('click');
+    await flushPromises();
+    expect(sent[1]).toEqual({ exclude_keys: [] });
+    expect(w.find('.hp-keys').exists()).toBe(false);
   });
 });
