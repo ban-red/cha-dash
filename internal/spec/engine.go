@@ -88,7 +88,7 @@ func (in *instance) fetch(ctx context.Context) (map[string]any, string, error) {
 	answered := false // a request got a 2xx: the app is there
 	for _, r := range in.s.f.Requests {
 		vals, err := in.do(ctx, r, env)
-		if me, ok := err.(*missingError); ok {
+		if me, ok := errors.AsType[*missingError](err); ok {
 			err = me.classify(in.s.manifest.Name, answered)
 		}
 		if err != nil {

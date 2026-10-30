@@ -696,7 +696,7 @@ describe('leaving edit mode', () => {
     await w.find('.edit-exit').trigger('click');
     await settle();
     expect(w.ui.state.editing).toBe(false);
-  });
+  }, 15_000); // the first to load edit mode's lazy parts: on a busy CI runner that passed 5 s
 });
 
 describe('a section header’s menu', () => {

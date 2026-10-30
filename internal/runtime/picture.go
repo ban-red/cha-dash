@@ -197,5 +197,5 @@ func (m *Manager) handlePicture(w http.ResponseWriter, r *http.Request) {
 		h.Set("Last-Modified", pic.At.UTC().Format(http.TimeFormat))
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(pic.Body)
+	_, _ = w.Write(pic.Body) // the viewer went away: nothing left to tell
 }
