@@ -1,6 +1,6 @@
 # 13 · History: metrics and state over time
 
-> **Status: steps 1 and 2 are built** (2026-10-29): the measurement, and the store and recorder with sparklines that survive a restart. Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
+> **Status: steps 1–3 are built** (2026-10-29): the measurement, the store and recorder with sparklines that survive a restart, and the query route with ranges on the resource sheet. Decided in [ADR-0031](../adr/0031-history-storage.md): standard recording on by default, a separate `history.db`, and the long-term tiers below. It fills in the "Metrics: tiered rollups" row of [03 · Architecture](03-architecture.md#storage) and the History line of [04 · Roadmap](04-roadmap.md) (rollups, the Pulse strip, time travel).
 
 ## What exists
 
@@ -165,7 +165,7 @@ For 1,000 series, at Standard:
 
 1. **Done. Spike:** encode 48 hours of the Demo Home and of the dogfood home's series in the chunk format. Measure bytes a point by metric, encode and decode time, and the query time for a year of 1h points. Compare with plain float32 arrays.
 2. **Done. Store and recorder:** `internal/history` with every tier, retention, checkpoints, and seeding sparklines on boot. Sparkline points become slot averages. The level is `CHADASH_HISTORY`.
-3. **Query route and the sheet's Metrics tab** with uPlot.
+3. **Done. Query route and the sheet's Metrics tab:** `GET /api/history`, and Now, 1 h, 24 h, 7 d and 30 d on the sheet. It uses the existing mini graph, not uPlot: averages at up to 720 points draw fine, and it adds nothing to the bundle. The raw ring was left out: the 1-minute tier is fine enough for the last hour.
 4. **State history:** the `states` table, "down since", uptime and the status bar.
 5. **Settings → History:** levels (replacing `CHADASH_HISTORY`), retention, the estimate, the size limit, exclusions, clear.
 6. **`Interest.Record`** and the record interval in the integrations that have idle modes.

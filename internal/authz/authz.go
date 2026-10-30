@@ -211,8 +211,9 @@ const FreshStepUp = time.Minute
 // allowed the read too; audit.read and tasks.all are Admin and Owner only.
 // "*" grants every read and every action the user's role allows.
 const (
-	// ScopeGraphRead: the Home Graph, boards and their layouts, correlation
-	// links and suggestions, the stacks list, the demo clock.
+	// ScopeGraphRead: the Home Graph and its metrics history, boards and
+	// their layouts, correlation links and suggestions, the stacks list, the
+	// demo clock.
 	ScopeGraphRead = "graph.read"
 	// ScopeInboxRead: the Inbox, as the user's role sees it.
 	ScopeInboxRead = "inbox.read"
@@ -236,7 +237,7 @@ type ReadScope struct {
 
 // ReadScopes is the read vocabulary, in the order the page shows it.
 var ReadScopes = []ReadScope{
-	{ScopeGraphRead, "Read the Home Graph", "Resources and relations, boards and their layouts, correlation links, the stacks list.", auth.RoleHousehold},
+	{ScopeGraphRead, "Read the Home Graph", "Resources and relations, metrics history, boards and their layouts, correlation links, the stacks list.", auth.RoleHousehold},
 	{ScopeInboxRead, "Read the Inbox", "Open and recent incidents, repairs and suggestions, as your role sees them.", auth.RoleHousehold},
 	{ScopeAuditRead, "Read the audit log", "Every recorded change, its export and the chain check.", auth.RoleAdmin},
 	{ScopeTasksAll, "See everyone's tasks", "Tasks other people and tokens started, not only this token's own.", auth.RoleAdmin},

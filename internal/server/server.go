@@ -42,6 +42,7 @@
 //	GET  /api/nodes, POST /api/nodes/{id}/revoke, POST /api/nodes/pairing/regenerate   nodes, revoking one, a fresh pairing secret (admin)
 //	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)
 //	/api/notify/…              notifications: channels, rules, delivery log (admin); the VAPID key and your own push subscriptions (session; see notify.Service.Register)
+//	GET  /api/history   metrics history: points of up to 20 series over a range (session, or graph.read; see history.go)
 //	GET  /api/icons, GET /api/icons/{id}   icons the hub cached for tiles (session; see icons)
 //	GET  /ws                   realtime WebSocket                  (session)
 //	GET  /…                    the web app (history-mode: unknown paths get index.html,
@@ -80,6 +81,7 @@ import (
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/export"
 	"dash.cha.sh/internal/firstpaint"
+	"dash.cha.sh/internal/history"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/icons"
 	"dash.cha.sh/internal/importer"
@@ -161,6 +163,9 @@ type Deps struct {
 	// Icons is the hub's icon cache for tiles. Nil leaves /api/icons
 	// unmounted.
 	Icons *icons.Service
+	// History is the metrics history (internal/history). Nil answers
+	// /api/history with level "off". It needs Topics for household's view.
+	History *history.Recorder
 }
 
 // New builds the root handler.
@@ -222,6 +227,7 @@ func New(d Deps) (http.Handler, error) {
 	tokens.Register(mux, session)
 	if d.Topics != nil {
 		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
+		registerHistory(mux, session, d.History, d.Topics.Graph)
 	}
 	if d.Integrations != nil {
 		d.Integrations.Audit = rec

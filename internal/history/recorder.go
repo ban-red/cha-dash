@@ -490,9 +490,20 @@ func hasOpen(s *series) bool {
 
 // Range is a run of one tier's points: point i is at Start + i × Step.
 type Range struct {
+	Unit   string
 	Start  time.Time
 	Step   time.Duration
 	Points []Point
+}
+
+// Level is what the recorder keeps.
+func (r *Recorder) Level() Level { return r.level }
+
+// Known says whether the recorder has seen a series.
+func (r *Recorder) Known(key string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.series[key] != nil
 }
 
 // Query returns a series' points from from to to, in the finest tier that
@@ -508,7 +519,13 @@ func (r *Recorder) Query(ctx context.Context, key string, from, to time.Time, ma
 	}
 	start := floor(from.UnixMilli(), t.step())
 	pts, err := r.points(ctx, key, t, start, to.UnixMilli())
-	return Range{Start: time.UnixMilli(start).UTC(), Step: tiers[t].step, Points: pts}, err
+	var unit string
+	r.mu.Lock()
+	if s := r.series[key]; s != nil {
+		unit = s.unit
+	}
+	r.mu.Unlock()
+	return Range{Unit: unit, Start: time.UnixMilli(start).UTC(), Step: tiers[t].step, Points: pts}, err
 }
 
 // Sparkline is n points step apart, the newest at newest, each the average

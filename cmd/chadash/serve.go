@@ -406,6 +406,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Notify:         nt,
 		Topics:         tp,
 		Icons:          icn,
+		History:        rec,
 	})
 	if err != nil {
 		eng.Close()

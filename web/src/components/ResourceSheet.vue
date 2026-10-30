@@ -38,6 +38,7 @@ import { navigate, settingsPath, stackPath } from '../lib/router';
 import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '../widgets/containers';
 import { statusOf } from '../widgets/subject';
 import { fmtValue, metricWords, upFor } from '../widgets/read';
+import { fetchHistory, keepWords, peak, pointTime, SPANS, type HistoryReply, type SpanId } from '../model/history';
 
 const live = useLive();
 const ui = useUi();
@@ -327,6 +328,30 @@ const METRICS = ['cpu.pct', 'mem.mib'] as const;
 const SEEN_MAX = 60;
 const seen = ref<Record<string, (number | null)[]>>({});
 watch(id, () => (seen.value = {}));
+// What the hub kept (GET /api/history): 'now' is what this sheet read while open.
+const span = ref<'now' | SpanId>('now');
+const past = ref<{ target?: string; span?: SpanId; reply?: HistoryReply; state: 'idle' | 'loading' | 'error' }>({ state: 'idle' });
+watch(id, () => {
+  span.value = 'now';
+  past.value = { state: 'idle' };
+});
+async function loadPast(want: SpanId): Promise<void> {
+  const target = id.value;
+  if (!target) return;
+  past.value = { ...past.value, target, span: want, state: 'loading' };
+  try {
+    const reply = await fetchHistory(
+      METRICS.map((k) => `${target}#${k}`),
+      want,
+      Date.now(),
+    );
+    if (id.value === target && past.value.span === want) past.value = { target, span: want, reply, state: 'idle' };
+  } catch {
+    if (id.value === target && past.value.span === want) past.value = { ...past.value, state: 'error' };
+  }
+}
+const historyLevel = computed(() => (past.value.target === id.value ? past.value.reply?.level : undefined));
+
 const metricRows = computed(() =>
   METRICS.flatMap((key) => {
     const sr = id.value ? series(live.metrics.value, id.value, key) : undefined;
@@ -334,6 +359,9 @@ const metricRows = computed(() =>
     const unit = sr.unit ?? (key === 'cpu.pct' ? '%' : 'MiB');
     const fmt = (v: number) => `${fmtValue(v, unit)}${unit === '%' ? '%' : ` ${unit}`}`;
     const local = seen.value[key] ?? [];
+    const h = span.value === 'now' || past.value.span !== span.value ? undefined : past.value.reply?.series[`${id.value}#${key}`];
+    const top = h ? peak(h) : undefined;
+    const spanName = SPANS.find((x) => x.id === span.value)?.name;
     return [
       {
         key,
@@ -341,7 +369,10 @@ const metricRows = computed(() =>
         sr,
         shown: typeof sr.value === 'number' ? fmt(sr.value) : '—',
         of: key === 'mem.mib' && sr.max ? `of ${fmt(sr.max)}` : '',
-        values: local.length >= 2 ? local : sr.history,
+        values: span.value === 'now' ? (local.length >= 2 ? local : sr.history) : (h?.avg ?? []),
+        at: h ? (i: number) => pointTime(h, i) : undefined,
+        peak: top === undefined ? '' : `peak ${fmt(top)}`,
+        graphLabel: span.value === 'now' ? `${metricWords(key)} while this is open` : `${metricWords(key)}, average over the last ${spanName}`,
         fmt,
       },
     ];
@@ -379,6 +410,12 @@ watch(tabs, (t) => {
 });
 // The audit log is read when History is first shown for a resource.
 watch([tab, id], ([t, now]) => t === 'history' && now && audit.value.target !== now && void loadAudit());
+// Opening the tab asks for a day, which also says whether the hub keeps history.
+watch([tab, id, span], ([t, now, sp]) => {
+  if (t !== 'metrics' || !now) return;
+  const want = sp === 'now' ? '24h' : sp;
+  if (past.value.target !== now || past.value.span !== want) void loadPast(want);
+});
 const tabEls = ref<HTMLElement[]>([]);
 function onTabKey(e: KeyboardEvent, i: number): void {
   const n = tabs.value.length;
@@ -641,16 +678,32 @@ onBeforeUnmount(() => {
               role="tabpanel"
               :aria-labelledby="`${uid}-tab-metrics`"
             >
-              <p class="rs-hint top">Read while this is open, every few seconds. Cha Dash doesn’t keep them.</p>
-              <ul class="rs-metrics">
+              <p class="rs-hint top">
+                Read while this is open, every few seconds.<template v-if="historyLevel"> {{ keepWords(historyLevel) }}</template>
+              </p>
+              <div v-if="historyLevel && historyLevel !== 'off'" class="rs-span" role="group" aria-label="Time range">
+                <button type="button" :aria-pressed="span === 'now'" @click="span = 'now'">Now</button>
+                <button v-for="s in SPANS" :key="s.id" type="button" :aria-pressed="span === s.id" @click="span = s.id">{{ s.name }}</button>
+              </div>
+              <p v-if="span !== 'now' && past.state === 'error'" class="rs-hint">Couldn’t load the history. Try again in a moment.</p>
+              <ul class="rs-metrics" :aria-busy="span !== 'now' && past.state === 'loading'">
                 <li v-for="m in metricRows" :key="m.key">
                   <span class="rs-mt">{{ m.name }}</span>
                   <span class="rs-mv">
-                    <b>{{ m.shown }}</b>{{ m.of ? ' ' : '' }}<small v-if="m.of">{{ m.of }}</small>
+                    <b>{{ m.shown }}</b>{{ m.of ? ' ' : '' }}<small v-if="m.of">{{ m.of }}</small>{{ span !== 'now' && m.peak ? ' ' : '' }}<small v-if="span !== 'now' && m.peak">· {{ m.peak }}</small>
                   </span>
-                  <MiniGraph :values="m.values" :band="m.sr.band" :height="28" :stale="m.sr.stale || live.stale.value" :label="`${m.name} while this is open`" :format="m.fmt" />
+                  <MiniGraph
+                    :values="m.values"
+                    :band="m.sr.band"
+                    :height="span === 'now' ? 28 : 56"
+                    :stale="span === 'now' && (m.sr.stale || live.stale.value)"
+                    :label="m.graphLabel"
+                    :format="m.fmt"
+                    :at="m.at"
+                  />
                 </li>
               </ul>
+              <p v-if="span !== 'now' && past.state === 'idle'" class="rs-hint">Containers are read only while their sheet is open, so their history has gaps.</p>
             </section>
 
             <section
@@ -847,6 +900,37 @@ onBeforeUnmount(() => {
 .rs-tabs [role='tab'].on {
   border-bottom-color: var(--text);
   color: var(--text);
+}
+.rs-span {
+  display: inline-flex;
+  margin-bottom: var(--space-4);
+  padding: 2px;
+  border-radius: calc(var(--radius-md) + 2px);
+  background: color-mix(in oklch, var(--text) 7%, transparent);
+}
+.rs-span button {
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: var(--weight-medium) var(--type-small) / 1 var(--font-ui);
+  color: var(--text-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.rs-span button:hover {
+  color: var(--text);
+}
+.rs-span button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 0 0 var(--hairline) var(--line-2),
+    0 1px 2px color-mix(in oklch, var(--bg) 60%, transparent);
+}
+.rs-span button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 .rs-metrics {
   display: grid;

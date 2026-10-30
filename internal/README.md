@@ -181,6 +181,7 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `GET /api/audit/export` | `audit.read` | Every event as NDJSON, oldest first, as an attachment: each line the stored canonical JSON plus `hash`. The chain's head as of the export is in `X-Chadash-Audit-Head: seq=<n> hash=sha256:…` (none for an empty log) |
 | `GET /api/audit/verify` | `audit.read` | `{"ok","checked","first_break"?:{"seq","id"?,"reason"},"head"?:{"seq","hash"}}`; `head` is the last event that checks out (the chain's head when `ok`), for the owner to record elsewhere |
 | `GET /api/graph` | session, or a token with `graph.read` | `{"version","resources","relations"}`: the Home Graph as the caller's role sees it on the `graph` topic (household: `topics.HouseholdGraph`) |
+| `GET /api/history?series=<key>&from=&to=&points=` | session, or a token with `graph.read` | `{"level","series":{"<resource>#<metric>":{"unit","start","step","avg","min","max"}}}`: up to 20 series from `internal/history`, in the finest tier that gives at most `points` (default 300, at most 2,000). Times are Unix ms; point i is at `start + i × step`, `null` a gap. `from` defaults to a day before `to`, `to` to now. Series nobody recorded are left out, and household gets only those of resources its graph shows. With history off, `level` is `off` and `series` is empty |
 | `GET /api/inbox` | session, or a token with `inbox.read` | `{"now","incidents"}`: the Inbox as the caller's role sees it on the `inbox` topic |
 | `GET /api/tokens` | session (any role) | `{"tokens":[{"id","user_id","username","name","scopes","created_at","expires_at","last_used_at","last_used_ip"?,"revoked_at","revoked_by"?}]}`, newest first: your own; the owner, everyone's; admins, everyone's but the owner's. Never a secret |
 | `POST /api/tokens` | session (any role) | `{"name","scopes","expires_in_days"?}` (1–365, default 90) → `201 {"token","secret"}`, the only time the secret is shown (never compressed). `422 invalid` for no scopes, more than 50, a malformed one, one your role can't use (`audit.read` below admin) or `approvals.decide`. Audited as `tokens.create`, refusals included |
@@ -284,7 +285,7 @@ curl -H "Authorization: Bearer $TOKEN" "$HUB/api/audit?limit=20"   # audit.read 
 
 | Scope | What it opens |
 |---|---|
-| `graph.read` | `GET /api/graph`, boards and their layouts, discovery dismissals, correlation links, suggestions and decisions, the stacks list, the demo clock |
+| `graph.read` | `GET /api/graph`, `GET /api/history`, boards and their layouts, discovery dismissals, correlation links, suggestions and decisions, the stacks list, the demo clock |
 | `inbox.read` | `GET /api/inbox`, as the user's role sees it (household: its projection) |
 | `audit.read` | the audit log, its export and verification (admin and owner only) |
 | `tasks.all` | other people's and tokens' tasks, not only the token's own (admin and owner only) |

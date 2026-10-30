@@ -618,4 +618,66 @@ describe('wave 4: metrics while it’s open', () => {
     expect(metrics.querySelectorAll('svg').length).toBe(2);
     expect(await axeViolations(metrics)).toEqual([]);
   });
+
+  it('looks back over what the hub kept, a range at a time', async () => {
+    const { ws, panel } = await sheetOn(SONARR);
+    ws.push({
+      op: 'diff',
+      id: ws.subId('metrics'),
+      seq: 2,
+      patch: [{ op: 'add', path: toPointer('metrics', 'series', `${SONARR}#cpu.pct`), value: { unit: '%', min: 0, max: 100, value: 12, as_of: '2026-10-03T14:05:00Z' } }],
+    });
+    await flushPromises();
+    const start = Date.parse('2026-10-03T00:00:00Z');
+    const net = fakeFetch({
+      'GET /api/history': (_b, url) => {
+        const points = Number(url.searchParams.get('points'));
+        const avg = Array.from({ length: points }, (_, i) => (i === 3 ? null : i % 10));
+        const series = { unit: '%', start, step: 900_000, avg, min: avg, max: avg.map((v) => (v === null ? null : v + 30)) };
+        return { status: 200, body: { level: 'standard', series: { [`${SONARR}#cpu.pct`]: series } } };
+      },
+    });
+    const tab = [...panel()!.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((t) => t.textContent!.trim() === 'Metrics')!;
+    tab.click();
+    await flushPromises();
+    const metrics = panel()!.querySelector<HTMLElement>(`[aria-labelledby="${tab.id}"]`)!;
+    // Opening the tab asks for a day, for both metrics, and learns what the hub keeps.
+    const first = new URL(net.calls.find((c) => c.path.startsWith('/api/history?'))!.path, 'http://hub.test');
+    expect(first.searchParams.getAll('series')).toEqual([`${SONARR}#cpu.pct`, `${SONARR}#mem.mib`]);
+    expect(first.searchParams.get('points')).toBe('96');
+    expect(metrics.querySelector('.rs-hint')!.textContent).toContain('by the quarter hour for 14 days');
+    const spans = () => [...metrics.querySelectorAll<HTMLButtonElement>('.rs-span button')];
+    expect(spans().map((b) => b.textContent!.trim())).toEqual(['Now', '1 h', '24 h', '7 d', '30 d']);
+    expect(spans()[0]!.getAttribute('aria-pressed')).toBe('true');
+
+    spans()[2]!.click();
+    await flushPromises();
+    const row = metrics.querySelector('.rs-metrics li')!;
+    expect(row.querySelector('.rs-mv')!.textContent!.replace(/\s+/g, ' ')).toContain('12% · peak 39%');
+    expect(row.querySelector('[role="img"]')!.getAttribute('aria-label')).toContain('CPU, average over the last 24 h');
+    expect(spans()[2]!.getAttribute('aria-pressed')).toBe('true');
+    expect(await axeViolations(metrics)).toEqual([]);
+
+    spans()[3]!.click();
+    await flushPromises();
+    expect(net.calls.filter((c) => c.path.startsWith('/api/history?')).map((c) => new URL(c.path, 'http://hub.test').searchParams.get('points'))).toEqual(['96', '168']);
+  });
+
+  it('says so when the hub keeps no history', async () => {
+    const { ws, panel } = await sheetOn(SONARR);
+    ws.push({
+      op: 'diff',
+      id: ws.subId('metrics'),
+      seq: 2,
+      patch: [{ op: 'add', path: toPointer('metrics', 'series', `${SONARR}#cpu.pct`), value: { unit: '%', min: 0, max: 100, value: 12, as_of: '2026-10-03T14:05:00Z' } }],
+    });
+    await flushPromises();
+    fakeFetch({ 'GET /api/history': { status: 200, body: { level: 'off', series: {} } } });
+    const tab = [...panel()!.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((t) => t.textContent!.trim() === 'Metrics')!;
+    tab.click();
+    await flushPromises();
+    const metrics = panel()!.querySelector<HTMLElement>(`[aria-labelledby="${tab.id}"]`)!;
+    expect(metrics.querySelector('.rs-hint')!.textContent).toContain('history is off on this hub');
+    expect(metrics.querySelector('.rs-span')).toBeNull();
+  });
 });
