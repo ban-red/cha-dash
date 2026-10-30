@@ -275,6 +275,22 @@ var Routes = []Route{
 	{Pattern: "PUT /api/stacks/{node}/{stack}", Access: Admin},
 	{Pattern: "DELETE /api/stacks/{node}/{stack}/draft", Access: Admin},
 	{Pattern: "POST /api/stacks/{node}/{stack}/validate", Access: Admin},
+	// Git sync and deploy webhooks (wave 12). Following git, the hooks and
+	// their secrets are stack settings, admin+; turning on deploy on push,
+	// changing a sync's remote and taking one over also need a step-up,
+	// which the handlers ask for (stacks.Service.stepUp). The webhook
+	// itself answers to its hook's signature, never a session.
+	{Pattern: "GET /api/stacks/{node}/{stack}/sync", Access: Admin},
+	{Pattern: "PUT /api/stacks/{node}/{stack}/sync", Access: Admin},
+	{Pattern: "DELETE /api/stacks/{node}/{stack}/sync", Access: Admin},
+	{Pattern: "POST /api/stacks/{node}/{stack}/sync/check", Access: Admin},
+	{Pattern: "POST /api/stacks/{node}/{stack}/sync/now", Access: Admin},
+	{Pattern: "POST /api/stacks/{node}/{stack}/sync/resume", Access: Admin},
+	{Pattern: "GET /api/stacks/hooks", Access: Admin},
+	{Pattern: "POST /api/stacks/hooks", Access: Admin},
+	{Pattern: "POST /api/stacks/hooks/{id}/rotate", Access: Admin},
+	{Pattern: "DELETE /api/stacks/hooks/{id}", Access: Admin},
+	{Pattern: "POST /api/hooks/{id}", Access: Signature},
 
 	// Settings → Notifications (track 10A): channels, rules and the
 	// delivery log are admin+ (notifications are Settings in the Roles

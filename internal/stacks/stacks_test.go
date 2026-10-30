@@ -41,6 +41,9 @@ type localCaller struct {
 	sent []string
 	// tamper, when set, rewrites a reply: a node that lies.
 	tamper func(verb string, req, reply json.RawMessage) json.RawMessage
+	// fake, when set, answers a verb instead of the module (ok true): a
+	// git remote the tests control (sync_test.go).
+	fake func(node, verb string, req json.RawMessage) (reply json.RawMessage, ok bool, err error)
 }
 
 func (c *localCaller) Call(ctx context.Context, nodeID, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error) {
@@ -56,7 +59,16 @@ func (c *localCaller) Call(ctx context.Context, nodeID, verb string, req any, pr
 	}
 	c.mu.Lock()
 	c.sent = append(c.sent, verb+" "+string(raw))
+	fake := c.fake
 	c.mu.Unlock()
+	if fake != nil {
+		if out, ok, err := fake(nodeID, verb, raw); ok {
+			if err != nil {
+				return nil, errors.New("node " + nodeID + ": " + err.Error())
+			}
+			return out, nil
+		}
+	}
 	for _, v := range m.Verbs() {
 		if v.Name == verb {
 			out, err := v.Handle(ctx, raw, progress)

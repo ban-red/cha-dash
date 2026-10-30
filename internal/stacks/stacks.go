@@ -26,6 +26,7 @@ import (
 
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/stackproto"
@@ -58,6 +59,9 @@ type Options struct {
 	Now   func() time.Time
 	// CallTimeout bounds a read from a node. Default 15 s.
 	CallTimeout time.Duration
+	// Proxies find a webhook caller's address behind trusted reverse
+	// proxies, for its rate limit. The zero value uses the peer address.
+	Proxies httpx.Proxies
 }
 
 // Service is the stacks API and actions.
@@ -74,6 +78,13 @@ type Service struct {
 	// Audit records secret changes (names only, never values). Set by the
 	// server; nil records nothing.
 	Audit *authz.Recorder
+
+	// Git sync and webhooks (sync.go, hooks.go).
+	proxies httpx.Proxies
+	syncer  *Syncer
+	hooks   *hookGuard
+	// actorOf replaces authz.ActorFrom, for tests.
+	actorOf func(*http.Request) (authz.Actor, bool)
 }
 
 // New returns the service.
@@ -81,7 +92,8 @@ func New(o Options) (*Service, error) {
 	if o.Store == nil || o.Caller == nil || o.Nodes == nil {
 		return nil, errors.New("stacks: Store, Caller and Nodes are required")
 	}
-	s := &Service{st: o.Store, vault: o.Vault, caller: o.Caller, nodes: o.Nodes, graph: o.Graph, inbox: o.Inbox, log: o.Log, now: o.Now, timeout: o.CallTimeout}
+	s := &Service{st: o.Store, vault: o.Vault, caller: o.Caller, nodes: o.Nodes, graph: o.Graph, inbox: o.Inbox, log: o.Log, now: o.Now, timeout: o.CallTimeout,
+		proxies: o.Proxies}
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
 	}
@@ -91,6 +103,7 @@ func New(o Options) (*Service, error) {
 	if s.timeout <= 0 {
 		s.timeout = 15 * time.Second
 	}
+	s.hooks = newHookGuard(s.now)
 	return s, nil
 }
 
@@ -211,9 +224,12 @@ func statusOf(err error) (int, string, string) {
 
 // ── drafts ───────────────────────────────────────────────────────────────
 
-// SourceWeb is the source of a draft saved in the editor. A git sync in
-// draft-and-ask mode will write "git:<sha>" instead (v0.3, not yet).
-const SourceWeb = "web"
+// SourceWeb is the source of a draft saved in the editor. A git sync
+// writes SourceGit followed by the commit's SHA.
+const (
+	SourceWeb = "web"
+	SourceGit = "git:"
+)
 
 // Draft is a saved, undeployed compose file.
 type Draft struct {
@@ -276,8 +292,9 @@ type errStale struct{ current int64 }
 func (e errStale) Error() string { return "the draft changed since this edit started" }
 
 // saveDraft saves content at the next revision, if from is the current one
-// (0 for none). It's the editor's save, so the draft's source is SourceWeb.
-func (s *Service) saveDraft(ctx context.Context, node, stack, content, by string, from int64) (*Draft, error) {
+// (0 for none). source is SourceWeb for the editor's save, or "git:<sha>"
+// for a sync's.
+func (s *Service) saveDraft(ctx context.Context, node, stack, content, by, source string, from int64) (*Draft, error) {
 	tx, err := s.st.Writer().BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -292,7 +309,7 @@ func (s *Service) saveDraft(ctx context.Context, node, stack, content, by string
 		return nil, errStale{cur}
 	}
 	now := s.now().UTC().Truncate(time.Millisecond)
-	d := &Draft{Content: content, Revision: cur + 1, UpdatedAt: now, UpdatedBy: by, Source: SourceWeb}
+	d := &Draft{Content: content, Revision: cur + 1, UpdatedAt: now, UpdatedBy: by, Source: source}
 	_, err = tx.ExecContext(ctx, `INSERT INTO stack_drafts (node, stack, content, revision, updated_at, updated_by, source) VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (node, stack) DO UPDATE SET content = excluded.content, revision = excluded.revision,
 		updated_at = excluded.updated_at, updated_by = excluded.updated_by, source = excluded.source`,

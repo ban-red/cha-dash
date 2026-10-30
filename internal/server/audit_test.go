@@ -123,6 +123,12 @@ var provenElsewhere = map[string]string{
 	"POST /api/nodes/pairing/regenerate":           "nodes.TestRevokeRegeneratesTheSecret",
 	"POST /api/approvals/{id}/approve":             "action.TestTokenT2WaitsForAPerson",
 	"POST /api/approvals/{id}/deny":                "action.TestApprovalDenyExpireWithdraw",
+	"PUT /api/stacks/{node}/{stack}/sync":          "stacks.TestSyncRoutesAudit (create, update, takeover)",
+	"DELETE /api/stacks/{node}/{stack}/sync":       "stacks.TestSyncRoutesAudit",
+	"POST /api/stacks/{node}/{stack}/sync/resume":  "stacks.TestSyncRoutesAudit",
+	"POST /api/stacks/hooks":                       "stacks.TestHookRoutes",
+	"POST /api/stacks/hooks/{id}/rotate":           "stacks.TestHookRoutes",
+	"DELETE /api/stacks/hooks/{id}":                "stacks.TestHookRoutes",
 }
 
 // Every route authz.Audited lists records its action: here, by calling it

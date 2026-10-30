@@ -53,7 +53,7 @@ Table `stack_drafts` (migration `00009`): one per node and stack, with a revisio
 - Drafts survive the node being offline.
 - They're kept when a deploy fails, so the work isn't lost.
 - They hold `${secret:…}` references, never values.
-- Each says where it came from in `source` (migration `00017`): `web` for the editor, which every save writes, and `git:<sha>` for a git sync in draft-and-ask mode (v0.3; nothing writes it yet). Drafts from before the column read back as `web`. A draft's JSON (`content`, `revision`, `updated_at`, `updated_by`, `source`) carries it.
+- Each says where it came from in `source` (migration `00017`): `web` for the editor, which every save writes, and `git:<sha>` for a git sync. Drafts from before the column read back as `web`. A draft's JSON (`content`, `revision`, `updated_at`, `updated_by`, `source`) carries it.
 
 ## Secrets
 
@@ -61,6 +61,49 @@ Stack secrets are vault entries named `stacks/<name>`, a namespace of their own.
 
 **The hub decides which secrets go.** For validation and deploys, the names come from the hub's own reading of the draft, never from the node's reply. A deploy records them in `stack_secret_grants` (migration `00014`) for that node and stack. A rollback restores a version that lives on the node, so the node says which names it needs; the hub sends them only if each was granted to that stack on that node, and otherwise fails with `secret_not_granted`, naming it. A node can't ask for another stack's secrets, or another node's. The vault namespace is unchanged (`stacks/<name>`): grants scope what goes where, so no secret had to move. `TestRollbackSendsOnlyGrantedSecrets` and `TestPlanSendsSecretsFromTheHubsReading` play a node that lies.
 
+## Git sync
+
+A stack can follow a branch and a path on a git remote ([ADR-0021](../../docs/adr/0021-git-sync-and-deploy-webhooks.md)). The node checks and fetches (`stack.remote.check`, `stack.fetch`); the hub decides.
+
+**One sync** (`sync.go`):
+1. **Trigger.** The poll timer (every `poll_seconds`, default 5 minutes, at least 1, with up to 10% jitter), Check now, a resume, or a webhook. `Syncer` runs one goroutine with a ticker, and each sync runs single-flight, with at most one more run queued behind it. It starts and stops with the hub's context.
+2. **Owner.** A sync acts for the admin who set it up (`owner_id`), as actor kind `sync` with ID `sync:<id>`. If that user is deleted, disabled or no longer an admin, the sync pauses and the Inbox says so. auth's `user.changed` event pauses it at once.
+3. **Check.** If the tip is the last SHA seen, or the rejected one, it stops. For SSH the host key the remote presents must be the pinned one.
+4. **Fetch** the file at the tip, and audit `stack.sync.fetch` once per new tip.
+5. **Gate.** A stack with drift waits (and retries on the next poll); a protected stack pauses the sync; content equal to what runs only records the SHA.
+6. **Draft and plan.** The content becomes the draft with source `git:<sha>`, by "git sync". Any older approval the sync is waiting on is withdrawn (`Engine.Withdraw`). The sync plans `stack.deploy` with `RequireApproval` in draft-and-ask mode, or when the file references a stack secret outside `secrets_allow`. Deploy on push then approves and runs it; otherwise the Inbox shows the approval.
+7. **Result** (`executeDeploy`, for any deploy of a git draft): deployed records `last_deployed_sha`; rolled back sets `rejected_sha` and opens "Commit `abc1234` failed its health gate; `def5678` is still running."; blocked says why. When the sync itself deploys, the node's commit reads "by git sync for sam" and carries `Chadash-Source: <url>@<sha>`.
+
+**Rules.**
+- A synced stack's draft routes answer `409 synced`, "Edit `<path>` on `<branch>` in `<url>`."; the web shows the editor read-only.
+- A rollback by a person holds the sync ("Held at `<commit>`…") until an admin resumes it. Resuming compares the tip afresh; a rejected commit stays rejected.
+- Protected stacks can't follow git (`409 protected`).
+- Turning on deploy on push, changing the remote and taking a sync over need a step-up (authz T3 on `stack.sync`). Taking over makes it the caller's.
+- URLs are compared normalized: lowercase scheme and host, no default port, no trailing `/` or `.git`. Stored URLs keep their spelling.
+- The credential is a vault entry, `stacksync/<id>/credential` (`{username, secret}`), read for one call and never answered. URLs with userinfo are refused.
+- One Inbox item per sync (`stack.<node>.<stack>.sync`, class `problem`, scenario `stack-sync`): a rejected or blocked commit and a paused sync need attention; a held sync and a remote failing for more than 3 polls in a row are hints.
+
+## Deploy webhooks
+
+A hook (`hooks.go`) belongs to a remote (normalized) and a branch, never a stack. A valid request triggers every active sync on them, on any node, which then checks and fetches as on a poll. Only the body's `ref` is read: another branch answers `202 ignored`.
+
+| Sender | Header checked | Signed over | Replay |
+|---|---|---|---|
+| `github` | `X-Hub-Signature-256: sha256=<hex>` | body | `X-GitHub-Delivery`, 24 h |
+| `gitea` | `X-Gitea-Signature: <hex>` | body | `X-Gitea-Delivery`, 24 h |
+| `forgejo` | `X-Forgejo-Signature: <hex>` | body | `X-Forgejo-Delivery`, 24 h |
+| `chadash` | `X-Chadash-Signature: sha256=<hex>`, `X-Chadash-Timestamp` | `ts + "." + body` (`notify.Sign`) | timestamp within 5 minutes |
+| `gitlab` | `X-Gitlab-Token` | nothing: a shared secret, `subtle.ConstantTimeCompare` | none |
+
+- Each hook checks only its sender's header, with `hmac.Equal`, so a GitHub hook never accepts a GitLab token.
+- The body is read raw through `http.MaxBytesReader` (1 MiB; `413` past it).
+- An unknown hook and a bad signature answer the same `401 {"error":"unauthorized"}`.
+- `httpx.Limiter` limits per client address (IPv6 per /64) and per hook.
+- Refusals are counted per hook, and the first in each 10 minutes is audited as `stack.hook.refused` (reason only, never a header).
+- The secret (`stackhook/<id>` in the vault, 256 bits as hex) is answered once, when the hook is made or rotated. Rotating it invalidates the old one at once.
+
 ## Tests
+
+`sync_test.go` plays the syncer through a table of states (a new tip, the same tip, a rejected tip, drift, held, an owner demoted or deleted, a newer tip during a pending approval, a secret outside the allowlist, a rollback by hand), with a fake remote in place of `stack.remote.check` and `stack.fetch` (the node's own tests fetch from a real repository). `hooks_test.go` has signature vectors for all five senders, the wrong secret, another sender's header, replay and a stale timestamp, one hook triggering syncs on two nodes and none on another branch, and `FuzzHookVerify`.
 
 The tests run this package against the real node module, in process, over a `Caller` that marshals JSON and flattens errors to text as a transport would, on `stackstest.Docker`. Only the test binary links the node module.

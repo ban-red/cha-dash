@@ -186,7 +186,9 @@ func TestNodeKeyRoutes(t *testing.T) {
 
 // signatureRoutes is every route that answers to a signed request instead
 // of a session. Adding one is a reviewed change: add it here too.
-var signatureRoutes = []string{}
+var signatureRoutes = []string{
+	"POST /api/hooks/{id}", // stacks: a deploy webhook (GitHub, Gitea, Forgejo, GitLab or Cha Dash signature)
+}
 
 // TestSignatureRoutes: no role admits a Signature route, and the table's
 // Signature rows are exactly signatureRoutes.

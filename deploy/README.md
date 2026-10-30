@@ -175,7 +175,7 @@ exec: false
 | `docker.remove` | remove containers (off by default) |
 | `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
 | `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks) |
-| `stacks.sync` | check and fetch the git remote a stack follows, only from the hosts in `stacks.remotes` when it lists any (git sync arrives in v0.3) |
+| `stacks.sync` | check and fetch the git remote a stack follows, only from the hosts in `stacks.remotes` when it lists any (Settings → Stacks → Follow git) |
 | `stacks.selfupdate` | update the hub's own container (off by default; for the hub's host only; arrives in v0.3) |
 
 The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: Cha Dash never restarts or removes itself until self-update lands in v0.3. Protection holds for stacks too: a deploy that would recreate or remove a protected container is refused. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
@@ -302,6 +302,7 @@ A reverse proxy gives Cha Dash a name and HTTPS. **HTTPS matters:** browsers onl
 - **Set `CHADASH_PUBLIC_URL`** to the address you open Cha Dash at, e.g. `https://dash.lab.example`. Passkeys are tied to that name, so changing it later means enrolling them again.
 - **WebSockets** (`/ws`) pass through Traefik and Caddy with no extra settings.
 - **`CHADASH_ALLOWED_ORIGINS`** is only needed if your proxy rewrites the `Host` header. Neither example below does.
+- **Deploy webhooks** from a forge on the internet need the hub reachable from it. Expose only `/api/hooks/` (a path prefix rule on its own router), not the whole hub, or don't expose anything and let syncs poll (every 5 minutes by default). A hook answers nothing but `401` without its signature. GitLab sends its secret as a plain header (`X-Gitlab-Token`), so a proxy that logs request headers would log it: turn header logging off for that path.
 
 Both examples assume the proxy runs in Docker, on an existing network called `proxy`, and the hub gets the name `dash.lab.example`.
 

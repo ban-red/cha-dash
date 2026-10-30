@@ -444,13 +444,27 @@ func (s *Service) executeDeploy(ctx context.Context, r action.Request, run *acti
 	if err := s.grantSecrets(ctx, ref.Node, ref.Stack, refs); err != nil {
 		return err
 	}
-	var res stackproto.DeployResult
-	err = s.call(ctx, ref.Node, stackproto.VerbDeploy, stackproto.DeployRequest{
+	req := stackproto.DeployRequest{
 		Stack: ref.Stack, Content: draft.Content, Secrets: secrets, ExpectHead: ref.Head,
 		By: r.Actor.Name, Via: r.Actor.Via, Ref: run.ID(),
-	}, &res, 0, progressTo(run))
+	}
+	// A draft from git names its commit. When the sync itself deploys it,
+	// the node's commit says "by git sync for <owner>" and carries the
+	// source in a Chadash-Source trailer.
+	gitSHA, fromGit := strings.CutPrefix(draft.Source, SourceGit)
+	if fromGit && r.Actor.Kind == action.KindSync {
+		req.By = r.Actor.UserName
+		if y, err := s.syncByStack(ctx, ref.Node, ref.Stack); err == nil && y != nil {
+			req.Source = y.URL + "@" + gitSHA
+		}
+	}
+	var res stackproto.DeployResult
+	err = s.call(ctx, ref.Node, stackproto.VerbDeploy, req, &res, 0, progressTo(run))
 	if err != nil {
 		return nodeFail(err)
+	}
+	if fromGit {
+		s.syncDeployed(ctx, ref.Node, ref.Stack, gitSHA, res)
 	}
 	if err := s.outcome(ctx, ref, res, run); err != nil {
 		return err
@@ -467,6 +481,11 @@ func (s *Service) executeDeploy(ctx context.Context, r action.Request, run *acti
 func (s *Service) executeRollback(ctx context.Context, r action.Request, run *action.TaskRun) error {
 	ref := refOf(r)
 	commit := commitOf(r)
+	if r.Actor.Kind != action.KindSync {
+		// A person rolled back: the sync holds at this commit until an
+		// admin resumes it, rather than deploying the tip again.
+		s.holdForRollback(ctx, ref.Node, ref.Stack, commit, r.Actor.Name)
+	}
 	// The old version may reference other secrets than today's file. Its
 	// text and its list of names come from the node, so the hub sends only
 	// names an earlier deploy already granted to this stack on this node.

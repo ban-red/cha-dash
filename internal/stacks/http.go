@@ -31,6 +31,18 @@ const maxBody = 768 << 10
 //	DELETE /api/stacks/{node}/{stack}/draft    discard the draft
 //	POST   /api/stacks/{node}/{stack}/validate {content} → messages, plan, diff
 //
+//	GET    /api/stacks/{node}/{stack}/sync         the sync, or null
+//	PUT    /api/stacks/{node}/{stack}/sync         follow git, or change how
+//	DELETE /api/stacks/{node}/{stack}/sync         unfollow
+//	POST   /api/stacks/{node}/{stack}/sync/check   test the remote: its tip and SSH host key
+//	POST   /api/stacks/{node}/{stack}/sync/now     check now
+//	POST   /api/stacks/{node}/{stack}/sync/resume  resume a held or paused sync
+//	GET    /api/stacks/hooks                       deploy webhooks, never their secrets
+//	POST   /api/stacks/hooks                       make one; its secret is answered once
+//	POST   /api/stacks/hooks/{id}/rotate           a new secret, answered once
+//	DELETE /api/stacks/hooks/{id}                  remove one
+//	POST   /api/hooks/{id}                         the webhook itself (authz.Signature)
+//
 // Deploying, rolling back and adopting are actions (POST /api/actions/plan).
 func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/stacks", session(http.HandlerFunc(s.handleList)))
@@ -41,6 +53,21 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 	mux.Handle("PUT /api/stacks/{node}/{stack}", session(http.HandlerFunc(s.handlePutDraft)))
 	mux.Handle("DELETE /api/stacks/{node}/{stack}/draft", session(http.HandlerFunc(s.handleDeleteDraft)))
 	mux.Handle("POST /api/stacks/{node}/{stack}/validate", session(http.HandlerFunc(s.handleValidate)))
+
+	// Git sync and deploy webhooks (sync.go, synchttp.go, hooks.go).
+	mux.Handle("GET /api/stacks/{node}/{stack}/sync", session(http.HandlerFunc(s.handleGetSync)))
+	mux.Handle("PUT /api/stacks/{node}/{stack}/sync", session(http.HandlerFunc(s.handlePutSync)))
+	mux.Handle("DELETE /api/stacks/{node}/{stack}/sync", session(http.HandlerFunc(s.handleDeleteSync)))
+	mux.Handle("POST /api/stacks/{node}/{stack}/sync/check", session(http.HandlerFunc(s.handleCheckSync)))
+	mux.Handle("POST /api/stacks/{node}/{stack}/sync/now", session(http.HandlerFunc(s.handleSyncNow)))
+	mux.Handle("POST /api/stacks/{node}/{stack}/sync/resume", session(http.HandlerFunc(s.handleResumeSync)))
+	mux.Handle("GET /api/stacks/hooks", session(http.HandlerFunc(s.handleListHooks)))
+	mux.Handle("POST /api/stacks/hooks", session(http.HandlerFunc(s.handleCreateHook)))
+	mux.Handle("POST /api/stacks/hooks/{id}/rotate", session(http.HandlerFunc(s.handleRotateHook)))
+	mux.Handle("DELETE /api/stacks/hooks/{id}", session(http.HandlerFunc(s.handleDeleteHook)))
+	// The webhook answers to its signature, not a session: Guard passes it
+	// through (authz.Signature) and handleHook verifies it.
+	mux.Handle("POST /api/hooks/{id}", http.HandlerFunc(s.handleHook))
 }
 
 // pathStack reads and checks {node} and {stack}.
@@ -198,6 +225,8 @@ type StackDetail struct {
 	Head            *stackproto.Commit   `json:"head"`
 	Draft           *Draft               `json:"draft"`
 	Secrets         []SecretState        `json:"secrets"`
+	// Sync is set when the stack follows git: its editor is read-only.
+	Sync *SyncView `json:"sync"`
 }
 
 func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, error) {
@@ -242,6 +271,15 @@ func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, 
 	if d.Secrets, err = s.secretStates(ctx, refs); err != nil {
 		return nil, err
 	}
+	y, err := s.syncByStack(ctx, node, name)
+	if err != nil {
+		return nil, err
+	}
+	if y != nil {
+		if d.Sync, err = s.syncView(ctx, y); err != nil {
+			return nil, err
+		}
+	}
 	return d, nil
 }
 
@@ -280,6 +318,10 @@ func (s *Service) handlePutDraft(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "The draft is empty.")
 		return
 	}
+	// A synced stack is edited in git.
+	if s.refuseSynced(w, r, node, name) {
+		return
+	}
 	// A protected stack can't be deployed, so a draft of it is pointless.
 	var st stackproto.Stack
 	err := s.call(r.Context(), node, stackproto.VerbGet, stackproto.GetRequest{Stack: name}, &st, s.timeout, nil)
@@ -295,7 +337,7 @@ func (s *Service) handlePutDraft(w http.ResponseWriter, r *http.Request) {
 	if id, ok := auth.FromContext(r.Context()); ok {
 		by = id.User.Username
 	}
-	d, err := s.saveDraft(r.Context(), node, name, req.Content, by, req.Revision)
+	d, err := s.saveDraft(r.Context(), node, name, req.Content, by, SourceWeb, req.Revision)
 	if stale, ok := errors.AsType[errStale](err); ok {
 		httpx.WriteJSON(w, http.StatusConflict, map[string]any{
 			"error":    map[string]string{"code": "conflict", "message": "Someone saved this draft since you started editing. Reload it to see their changes."},
@@ -316,6 +358,9 @@ func (s *Service) handlePutDraft(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleDeleteDraft(w http.ResponseWriter, r *http.Request) {
 	node, name, ok := pathStack(w, r)
 	if !ok {
+		return
+	}
+	if s.refuseSynced(w, r, node, name) {
 		return
 	}
 	if err := s.deleteDraft(r.Context(), node, name, 0); err != nil {

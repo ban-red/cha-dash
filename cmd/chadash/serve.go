@@ -360,7 +360,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// actions there.
 	var stk *stacks.Service
 	if !cfg.Demo {
-		stk, err = stacks.New(stacks.Options{Store: st, Vault: v, Caller: nodeHub, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "stacks"),
+		stk, err = stacks.New(stacks.Options{Store: st, Vault: v, Caller: nodeHub, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "stacks"), Proxies: proxies,
 			Nodes: func(ctx context.Context) ([]stacks.Node, error) {
 				list, err := nodeHub.List(ctx)
 				if err != nil {
@@ -413,6 +413,21 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	})
 	if err != nil {
 		return nil, err
+	}
+	// Git sync (wave 12): the syncer polls and runs the syncs as their
+	// owners' sync actors through the engine; a sync whose owner is demoted
+	// or disabled pauses at once.
+	var syncer *stacks.Syncer
+	if stk != nil {
+		if syncer, err = stacks.NewSyncer(stk, stacks.SyncerOptions{Engine: eng, Users: authSvc.GetUser}); err != nil {
+			eng.Close()
+			return nil, err
+		}
+		authSvc.OnEvent(func(ev auth.Event) {
+			if ev.Kind == auth.EventUserChanged {
+				go syncer.OwnerChanged(context.WithoutCancel(ctx), ev.UserID)
+			}
+		})
 	}
 
 	// index.html carries the first board's snapshot for a signed-in user,
@@ -492,6 +507,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	a.bg.Go(func() { eng.Run(bg) })
 	a.bg.Go(func() { nt.Run(bg) })
 	a.bg.Go(func() { icn.Run(bg) })
+	if syncer != nil {
+		a.bg.Go(func() { syncer.Run(bg) })
+	}
 	if rec != nil {
 		a.bg.Go(func() { rec.Run(bg) })
 	}
