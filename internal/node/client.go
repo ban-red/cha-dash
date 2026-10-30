@@ -36,6 +36,15 @@ type Config struct {
 	// node without a restart. Only its secret is used: the hub keys the
 	// node trusts change through the channel, never through this file.
 	PairingFile string
+	// Token is a join token (cdj_<secret>.<hub pin>, CHADASH_NODE_TOKEN),
+	// or "". It's used only while the node has no identity on a hub (no
+	// node ID saved): its pin is trusted, and its secret is sent only to a
+	// hub that proved that very key. Once the node is enrolled it's ignored,
+	// and NewClient logs that it can be removed.
+	Token string
+	// PendingRetry is how often a node waiting for approval asks again
+	// (30 s when 0).
+	PendingRetry time.Duration
 	// HTTPClient makes the outer connection; nil is http.DefaultClient.
 	HTTPClient *http.Client
 	Session    nodeproto.SessionOptions
@@ -50,10 +59,14 @@ type Client struct {
 	log    *slog.Logger
 	policy Policy
 	secret string // from the pairing token
+	// token and tokenPin are the join token's secret and the hub key it
+	// names, while the node has no identity yet.
+	token, tokenPin string
 
 	mu      sync.Mutex
 	sess    *nodeproto.Session
 	repair  bool // the hub forgot us: pair again
+	waiting bool // the hub said pending, and the log said so
 	backoff time.Duration
 }
 
@@ -89,8 +102,24 @@ func NewClient(cfg Config) (*Client, error) {
 			}
 		}
 	}
+	if cfg.Token != "" {
+		if cfg.Identity.State().Node != "" {
+			c.log.Info("CHADASH_NODE_TOKEN is set, but this node has joined its hub already; the token is ignored and can be removed")
+		} else {
+			secret, pin, err := nodeproto.ParseJoin(cfg.Token)
+			if err != nil {
+				return nil, err
+			}
+			c.token, c.tokenPin = secret, pin
+			if c.policy.Hub.Pin == "" && !slices.Contains(cfg.Identity.State().HubPins, pin) {
+				if err := cfg.Identity.AddHubPin(pin); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	if len(c.pins()) == 0 {
-		return nil, errors.New("node: no hub key to trust: set hub.pin in the policy, or give the node a pairing token")
+		return nil, errors.New("node: no hub key to trust: set hub.pin in the policy, or give the node a join token or a pairing token")
 	}
 	if st := cfg.Identity.State(); st.HubURL != cfg.HubURL {
 		if err := cfg.Identity.Update(func(s *State) { s.HubURL = cfg.HubURL }); err != nil {
@@ -151,7 +180,17 @@ func (c *Client) connectOnce(ctx context.Context) (time.Duration, error) {
 		Versions: nodeproto.Versions, Name: c.cfg.Name, Build: c.cfg.Build,
 		Node: st.Node, HubPins: c.pins(), Verbs: c.cfg.Dispatcher.Info(),
 	}
-	if st.Node == "" || repair {
+	switch {
+	case st.Node == "" && c.token != "":
+		// The token's secret goes only to the hub whose key it names, even
+		// when the node trusts others (a policy's hub.pin, saved keys).
+		if ch.PeerPin != c.tokenPin {
+			ch.Close()
+			return c.grow(), fmt.Errorf("node: the hub proved key %s, not the one in the join token (%s); the token wasn't sent",
+				nodeproto.Fingerprint(ch.PeerPin), nodeproto.Fingerprint(c.tokenPin))
+		}
+		hello.Node, hello.Token = "", c.token
+	case st.Node == "" || repair:
 		if secret := c.pairingSecret(); secret != "" {
 			hello.Node, hello.Pairing = "", secret
 		}
@@ -193,8 +232,9 @@ func (c *Client) connectOnce(ctx context.Context) (time.Duration, error) {
 		c.takePin(w.HubPin)
 	}
 	c.mu.Lock()
-	c.repair = false
+	c.repair, c.waiting = false, false
 	c.mu.Unlock()
+	c.token = "" // spent: the node has its identity now
 
 	sess := nodeproto.NewSession(ch, c.sessionOptions())
 	c.mu.Lock()
@@ -237,8 +277,12 @@ func (c *Client) grow() time.Duration {
 	return d
 }
 
+// pendingRetry is how often a node waiting for approval asks again.
+const pendingRetry = 30 * time.Second
+
 // refused handles a refusal: a forgotten node pairs again at once (when it
-// can), a rotation the hub never saw is dropped, and anything else waits.
+// can), a rotation the hub never saw is dropped, a pending node waits
+// quietly, and anything else waits.
 func (c *Client) refused(rotating bool, e *nodeproto.Error) (time.Duration, error) {
 	if e == nil {
 		e = nodeproto.Errorf(nodeproto.CodeProtocol, "refused without a reason")
@@ -253,6 +297,19 @@ func (c *Client) refused(rotating bool, e *nodeproto.Error) (time.Duration, erro
 	c.cfg.Health.Set(StateRefused, e.Code)
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if e.Code == nodeproto.CodePending {
+		// Enrolled, waiting for an admin: say so once, then keep asking
+		// every 30 s for as long as it takes.
+		if !c.waiting {
+			c.waiting = true
+			fp := nodeproto.Fingerprint(c.cfg.Identity.Current().Pin)
+			c.log.Info("waiting for approval in Cha Dash; fingerprint "+fp+" (an admin compares it in Settings → Nodes)", "fingerprint", fp)
+		}
+		if c.cfg.PendingRetry > 0 {
+			return c.cfg.PendingRetry, nil
+		}
+		return pendingRetry, nil
+	}
 	if e.Code == nodeproto.CodeUnknownNode && (c.secret != "" || c.cfg.PairingFile != "") && !c.repair {
 		c.repair = true // pair again on the next attempt, right away
 		return 0, fmt.Errorf("node: the hub doesn't know this node (%s); pairing again", e.Message)

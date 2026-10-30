@@ -86,3 +86,38 @@ func TestServeRefusesABadPolicy(t *testing.T) {
 		t.Fatalf("serve with a bad policy: %d %s", code, errb.String())
 	}
 }
+
+// TestJoinTokenFromEnvOrFile: CHADASH_NODE_TOKEN wins; else the file is
+// read, but only while the node has no identity on its hub.
+func TestJoinTokenFromEnvOrFile(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "join-token")
+	os.WriteFile(file, []byte("cdj_from-the-file\n"), 0o600)
+	c, err := loadConfig(envOf(map[string]string{"CHADASH_NODE_TOKEN_FILE": file, "CHADASH_NODE_DIR": dir}))
+	if err != nil || c.TokenFile != file {
+		t.Fatalf("config %+v %v", c, err)
+	}
+	ident, err := node.OpenIdentity(c.identityDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var log bytes.Buffer
+	logger := c.logger(&log)
+	if tok, err := joinToken(c, ident, logger); err != nil || tok != "cdj_from-the-file" {
+		t.Fatalf("from the file: %q %v", tok, err)
+	}
+	c.Token = "cdj_from-the-env"
+	if tok, _ := joinToken(c, ident, logger); tok != "cdj_from-the-env" {
+		t.Fatalf("the environment didn't win: %q", tok)
+	}
+	c.Token = ""
+	ident.Update(func(s *node.State) { s.Node = "n_joined" })
+	if tok, err := joinToken(c, ident, logger); err != nil || tok != "" || !strings.Contains(log.String(), "can be removed") {
+		t.Fatalf("after joining: %q %v %s", tok, err, log.String())
+	}
+	c.TokenFile = filepath.Join(dir, "missing")
+	ident.Update(func(s *node.State) { s.Node = "" })
+	if _, err := joinToken(c, ident, logger); err == nil {
+		t.Fatal("a missing token file was ignored before joining")
+	}
+}

@@ -85,7 +85,8 @@ Commands:
   version      print the build version
 
 Settings are CHADASH_NODE_* environment variables: HUB, NAME, DIR, POLICY,
-PAIRING, PAIRING_FILE, DOCKER_HOST, HEALTH_FILE, LOG_LEVEL, LOG_FORMAT.
+PAIRING, PAIRING_FILE, TOKEN, TOKEN_FILE, DOCKER_HOST, HEALTH_FILE, LOG_LEVEL,
+LOG_FORMAT.
 See deploy/README.md.
 `)
 }
@@ -178,19 +179,24 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	health := node.NewHealth(cfg.HealthFile)
 	go health.Run(ctx)
 
-	pairing, err := waitForPairing(ctx, cfg, ident, policy, log)
+	token, err := joinToken(cfg, ident, log)
 	if err != nil {
 		return err
 	}
-	// The secret is single-use and the hub regenerates it, so a token that
-	// came from the file is read again whenever the node pairs.
-	pairingFile := ""
-	if cfg.Pairing == "" {
-		pairingFile = cfg.PairingFile
+	pairing, pairingFile := cfg.Pairing, ""
+	if token == "" || ident.State().Node != "" {
+		if pairing, err = waitForPairing(ctx, cfg, ident, policy, log); err != nil {
+			return err
+		}
+		// The secret is single-use and the hub regenerates it, so a token
+		// that came from the file is read again whenever the node pairs.
+		if cfg.Pairing == "" {
+			pairingFile = cfg.PairingFile
+		}
 	}
 	c, err := node.NewClient(node.Config{
 		HubURL: hubURL, Name: cfg.Name, Build: buildinfo.Version, Identity: ident, Dispatcher: disp,
-		Pairing: pairing, PairingFile: pairingFile, Log: log, Health: health,
+		Pairing: pairing, PairingFile: pairingFile, Token: token, Log: log, Health: health,
 	})
 	if err != nil {
 		return err
@@ -234,6 +240,25 @@ func stackGuard(ctx context.Context, cfg config, policy node.Policy, dm *docker.
 func within(path, dir string) bool {
 	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(path))
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, "../")
+}
+
+// joinToken is the join token to enroll with: CHADASH_NODE_TOKEN, else the
+// file CHADASH_NODE_TOKEN_FILE names. A node that has joined its hub
+// already doesn't read the file; the client ignores a token from the
+// environment, and both say it can be removed.
+func joinToken(cfg config, ident *node.IdentityStore, log *slog.Logger) (string, error) {
+	if cfg.Token != "" || cfg.TokenFile == "" {
+		return cfg.Token, nil
+	}
+	if ident.State().Node != "" {
+		log.Info("CHADASH_NODE_TOKEN_FILE is set, but this node has joined its hub already; the file is ignored and can be removed", "file", cfg.TokenFile)
+		return "", nil
+	}
+	b, err := os.ReadFile(cfg.TokenFile)
+	if err != nil {
+		return "", fmt.Errorf("CHADASH_NODE_TOKEN_FILE: %w", err)
+	}
+	return strings.TrimSpace(string(b)), nil
 }
 
 // waitForPairing returns the pairing token: CHADASH_NODE_PAIRING, or the

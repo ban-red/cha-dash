@@ -23,6 +23,8 @@ import (
 //	CHADASH_NODE_POLICY        <dir>/policy.yaml          the local policy
 //	CHADASH_NODE_PAIRING       (none)                     a pairing token, cdp_<secret>.<hub pin>
 //	CHADASH_NODE_PAIRING_FILE  /pairing/token             where the hub writes the pairing token
+//	CHADASH_NODE_TOKEN         (none)                     a join token, cdj_<secret>.<hub pin> (Settings → Nodes → Add node)
+//	CHADASH_NODE_TOKEN_FILE    (none)                     a file holding the join token (a Docker secret, say)
 //	CHADASH_NODE_DOCKER_HOST   unix:///var/run/docker.sock
 //	CHADASH_NODE_HEALTH_FILE   /tmp/chadash-node.health
 //	CHADASH_NODE_LOG_LEVEL     info                       debug, info, warn, error
@@ -34,10 +36,14 @@ type config struct {
 	PolicyPath  string
 	Pairing     string
 	PairingFile string
-	DockerHost  string
-	HealthFile  string
-	LogLevel    slog.Level
-	LogFormat   string
+	// Token and TokenFile are read only while the node has no identity on
+	// its hub (joinToken).
+	Token      string
+	TokenFile  string
+	DockerHost string
+	HealthFile string
+	LogLevel   slog.Level
+	LogFormat  string
 }
 
 // Defaults.
@@ -60,6 +66,7 @@ func loadConfig(getenv func(string) string) (config, error) {
 	c := config{
 		HubURL: env("HUB", defaultHub), Name: env("NAME", defaultName), Dir: filepath.Clean(env("DIR", defaultDir)),
 		Pairing: env("PAIRING", ""), PairingFile: env("PAIRING_FILE", defaultPairingFile),
+		Token: env("TOKEN", ""), TokenFile: env("TOKEN_FILE", ""),
 		DockerHost: env("DOCKER_HOST", docker.DefaultHost), HealthFile: env("HEALTH_FILE", node.DefaultHealthFile),
 		LogFormat: strings.ToLower(env("LOG_FORMAT", "text")),
 	}
