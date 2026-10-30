@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 
 	"go.yaml.in/yaml/v3"
 
@@ -73,10 +74,17 @@ func (m *Module) move(ctx context.Context, req stackproto.MoveRequest, _ emitter
 		if p := filepath.Clean(req.FromPath); p != file && p != filepath.Dir(file) {
 			return out, stackproto.Errorf(stackproto.CodeInvalid, "%s isn't where %s runs from (%s).", req.FromPath, s.name, file)
 		}
+		// Both files are read as the regular files they were checked to be:
+		// never through a symlink, never a FIFO that would hang the move
+		// while it holds the stack's lock.
 		if content, err = readLimited(file); err != nil {
 			return out, err
 		}
-		if b, err := readLimited(filepath.Join(filepath.Dir(file), ".env")); err == nil {
+		envPath := filepath.Join(filepath.Dir(file), ".env")
+		if m.privatePath(envPath) {
+			return out, stackproto.Errorf(stackproto.CodeUnadoptable, "The .env beside %s is in one of the node's own directories, so the node won't read it.", file)
+		}
+		if b, err := readLimited(envPath); err == nil {
 			env = b
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return out, err
@@ -102,30 +110,26 @@ func (m *Module) move(ctx context.Context, req stackproto.MoveRequest, _ emitter
 	}
 	out.Rewrites, out.Path = rewrites, dir
 
-	// Stage the files where they'll live, so the loader sees the stack as
-	// its first deploy will (its directory, its .env). A dry run, or a move
-	// that's refused, takes them away again: the directory didn't exist.
-	if err := os.MkdirAll(m.root, 0o755); err != nil {
+	// Stage the files in a directory of their own under .chadash, which
+	// stack.list and stack.detect never look in, so the loader sees the
+	// stack with its .env as its first deploy will. Only a real move
+	// renames it into place; a dry run or a refusal removes it, and one a
+	// crash left behind goes when the node starts (cleanStaging).
+	staging, err := m.newStaging()
+	if err != nil {
 		return out, err
 	}
-	if err := os.Mkdir(dir, 0o755); err != nil {
-		if errors.Is(err, os.ErrExist) {
-			return out, stackproto.Errorf(stackproto.CodeExists, "%s already exists.", dir)
-		}
+	defer os.RemoveAll(staging)
+	stageDir := filepath.Join(staging, s.name)
+	if err := os.Mkdir(stageDir, 0o755); err != nil {
 		return out, err
 	}
-	keep := false
-	defer func() {
-		if !keep {
-			_ = os.RemoveAll(dir)
-		}
-	}()
-	target := stackRef{name: s.name, location: stackproto.LocationRoot, dir: dir, file: composeNames[0], tracked: s.name + "/" + composeNames[0]}
+	target := stackRef{name: s.name, location: stackproto.LocationRoot, dir: stageDir, file: composeNames[0], tracked: s.name + "/" + composeNames[0]}
 	if err := os.WriteFile(target.path(), []byte(moved), 0o644); err != nil {
 		return out, err
 	}
 	if env != "" {
-		if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(env), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(stageDir, ".env"), []byte(env), 0o600); err != nil {
 			return out, err
 		}
 	}
@@ -143,6 +147,7 @@ func (m *Module) move(ctx context.Context, req stackproto.MoveRequest, _ emitter
 	if err != nil {
 		return out, stackproto.Errorf(stackproto.CodeInvalid, "%s", loadMessage(err))
 	}
+	// The guard judges the stack where it will live, not where it's staged.
 	refused, _, flagged := m.guard.check(p, dir)
 	if len(refused) > 0 {
 		return out, stackproto.Errorf(stackproto.CodeInvalid, "%s", refused[0].Message)
@@ -157,6 +162,18 @@ func (m *Module) move(ctx context.Context, req stackproto.MoveRequest, _ emitter
 		return out, nil
 	}
 
+	if _, err := os.Lstat(dir); err == nil {
+		return out, stackproto.Errorf(stackproto.CodeExists, "%s already exists.", dir)
+	}
+	if err := os.Rename(stageDir, dir); err != nil {
+		return out, err
+	}
+	keep := false
+	defer func() {
+		if !keep {
+			_ = os.RemoveAll(dir)
+		}
+	}()
 	c := change{writes: map[string][]byte{target.tracked: []byte(moved)}}
 	if s.managed && s.location == stackproto.LocationExternal {
 		reg, err := m.readRegistry()
@@ -231,9 +248,35 @@ func (m *Module) moveRefusal(p Project, adoptRefusal string) string {
 	return ""
 }
 
-// readLimited reads a file of at most maxFile bytes.
+// stagingPrefix names a move's staging directories in the root's .chadash
+// directory, which the stack listings skip like every dot directory.
+const stagingPrefix = "move-"
+
+// newStaging makes an empty staging directory for a move, on the root's
+// filesystem so the move can rename out of it.
+func (m *Module) newStaging() (string, error) {
+	meta := filepath.Join(m.root, metaDir)
+	if err := os.MkdirAll(meta, 0o755); err != nil {
+		return "", err
+	}
+	return os.MkdirTemp(meta, stagingPrefix+"*")
+}
+
+// cleanStaging removes the staging directories a move left behind when
+// the node stopped in the middle of it. It runs when the module starts,
+// before any move can.
+func (m *Module) cleanStaging() {
+	stale, _ := filepath.Glob(filepath.Join(m.root, metaDir, stagingPrefix+"*"))
+	for _, d := range stale {
+		if err := os.RemoveAll(d); err != nil {
+			m.log.Warn("stacks: removing a move's leftover staging directory failed", "dir", d, "err", err)
+		}
+	}
+}
+
+// readLimited reads a regular file of at most maxFile bytes (openRegular).
 func readLimited(path string) (string, error) {
-	f, err := os.Open(path)
+	f, err := openRegular(path)
 	if err != nil {
 		return "", err
 	}
@@ -246,6 +289,41 @@ func readLimited(path string) (string, error) {
 		return "", stackproto.Errorf(stackproto.CodeInvalid, "%s is over %d KiB.", path, maxFile>>10)
 	}
 	return string(b), nil
+}
+
+// openRegular opens path for reading only if it's a regular file and not
+// a symlink. It checks with Lstat, opens with O_NOFOLLOW|O_NONBLOCK (so a
+// symlink or FIFO swapped in meanwhile fails or returns at once rather
+// than being followed or hanging), and checks that what it opened is the
+// regular file it saw. A missing file is os.ErrNotExist.
+func openRegular(path string) (*os.File, error) {
+	notRegular := func() error {
+		return stackproto.Errorf(stackproto.CodeUnadoptable, "%s isn't a regular file (a symlink, a pipe or a device); the node reads only regular files there.", path)
+	}
+	before, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !before.Mode().IsRegular() {
+		return nil, notRegular()
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, notRegular()
+	}
+	if err != nil {
+		return nil, err
+	}
+	after, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	if !after.Mode().IsRegular() || !os.SameFile(before, after) {
+		f.Close()
+		return nil, notRegular()
+	}
+	return f, nil
 }
 
 // movedFrom is where the stack was moved from, while a file is still there:

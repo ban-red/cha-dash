@@ -1,9 +1,11 @@
 package stacks
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
@@ -222,15 +225,42 @@ func load(ctx context.Context, s stackRef, content string, o loadOptions) (*type
 // dotEnv reads the .env next to the file, if there is one. The node's own
 // environment is deliberately left out, so a stack renders the same
 // whoever runs the node.
+//
+// It opens the file with O_NONBLOCK and reads it only if what it opened is
+// a regular file, so a FIFO or a device named .env can't hang a deploy or a
+// plan while it holds the stack's lock. Unlike stack.move's reads it still
+// follows a symlink, as Compose does: a stack's own .env may be one.
 func dotEnv(dir string) (map[string]string, error) {
 	path := filepath.Join(dir, ".env")
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if errors.Is(err, os.ErrNotExist) {
 		return map[string]string{}, nil
 	}
-	env, err := dotenv.Read(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if st, err := f.Stat(); err != nil {
+		return nil, err
+	} else if !st.Mode().IsRegular() {
+		return nil, fmt.Errorf("the .env next to the file isn't a regular file")
+	}
+	b, err := io.ReadAll(io.LimitReader(f, maxFile+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > maxFile {
+		return nil, fmt.Errorf("the .env next to the file is over %d KiB", maxFile>>10)
+	}
+	env, err := dotenv.ParseWithLookup(bytes.NewReader(b), nil)
 	if err != nil {
 		return nil, fmt.Errorf("the .env next to the file doesn't parse: %w", err)
 	}
+	// As dotenv.Read: a key starting with a digit isn't a variable.
+	maps.DeleteFunc(env, func(k, _ string) bool {
+		k = strings.TrimSpace(k)
+		return k != "" && k[0] >= '0' && k[0] <= '9'
+	})
 	return env, nil
 }
 

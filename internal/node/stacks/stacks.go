@@ -202,6 +202,7 @@ func New(o Options) (*Module, error) {
 		return nil, err
 	}
 	m.git = newRemotes(o, m.log)
+	m.cleanStaging()
 	return m, nil
 }
 
