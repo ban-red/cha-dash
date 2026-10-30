@@ -75,6 +75,9 @@ type Recorder struct {
 	// last dropped points to keep under it. Both under mu.
 	maxBytes  int64
 	trimmedAt time.Time
+	// excluded are instances whose samples aren't recorded (their health
+	// still is). Under mu.
+	excluded map[string]bool
 }
 
 // OnLevel calls f with the level now and after every SetLevel. The hub
@@ -279,7 +282,7 @@ func (r *Recorder) Record(key, instance, unit string, at time.Time, v float64) {
 	ms := at.UnixMilli()
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.top == 0 {
+	if r.top == 0 || r.excluded[instance] {
 		return
 	}
 	s := r.series[key]

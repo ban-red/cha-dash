@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"dash.cha.sh/internal/store"
@@ -15,10 +17,59 @@ import (
 // in Settings → History, a JSON string. Without it, CHADASH_HISTORY decides.
 // LimitKey holds the size limit, a JSON number of bytes (0: none); without
 // it, DefaultMaxBytes.
+// ExcludeKey holds the instances whose metrics aren't recorded, a JSON
+// array of instance IDs.
 const (
-	LevelKey = "history.level"
-	LimitKey = "history.max_bytes"
+	LevelKey   = "history.level"
+	LimitKey   = "history.max_bytes"
+	ExcludeKey = "history.exclude"
 )
+
+// LoadExcluded reads the instances an admin left out of history.
+func LoadExcluded(ctx context.Context, st *store.Store) ([]string, error) {
+	var raw string
+	err := st.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, ExcludeKey).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("history: %w", err)
+	}
+	var ids []string
+	if json.Unmarshal([]byte(raw), &ids) != nil {
+		return nil, nil
+	}
+	return ids, nil
+}
+
+// SaveExcluded stores the instances left out of history.
+func SaveExcluded(ctx context.Context, st *store.Store, ids []string, now time.Time) error {
+	if ids == nil {
+		ids = []string{}
+	}
+	b, _ := json.Marshal(ids)
+	_, err := st.Writer().ExecContext(ctx, `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, ExcludeKey, string(b), now.UnixMilli())
+	return err
+}
+
+// SetExcluded replaces the instances whose samples aren't recorded. What
+// they recorded before stays until it ages out or is cleared.
+func (r *Recorder) SetExcluded(ids []string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.excluded = make(map[string]bool, len(ids))
+	for _, id := range ids {
+		r.excluded[id] = true
+	}
+}
+
+// Excluded lists the instances SetExcluded left out, sorted.
+func (r *Recorder) Excluded() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string{}, slices.Sorted(maps.Keys(r.excluded))...)
+}
 
 // LoadLimit reads the size limit an admin set; ok is false when nobody did.
 func LoadLimit(ctx context.Context, st *store.Store) (limit int64, ok bool, err error) {
@@ -92,6 +143,14 @@ type Stats struct {
 	Resources int       // resources with health rows
 	FileBytes int64     // the database file, WAL not included
 	Tiers     []TierStats
+	Instances []InstanceStats // by series, most first
+}
+
+// InstanceStats is what one instance's series hold.
+type InstanceStats struct {
+	ID     string
+	Series int
+	Bytes  int64 // chunk data
 }
 
 // TierNames are the tiers as Settings → History names them.
@@ -126,7 +185,51 @@ func (r *Recorder) Stats(ctx context.Context) (Stats, error) {
 		}
 		out.Tiers = append(out.Tiers, ts)
 	}
-	return out, nil
+	rows, err := q.QueryContext(ctx, `SELECT s.instance, count(DISTINCT s.id), coalesce(sum(length(c.data)), 0)
+		FROM series s LEFT JOIN chunks c ON c.series = s.id GROUP BY s.instance ORDER BY count(DISTINCT s.id) DESC, s.instance`)
+	if err != nil {
+		return out, fmt.Errorf("history: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var in InstanceStats
+		if err := rows.Scan(&in.ID, &in.Series, &in.Bytes); err != nil {
+			return out, fmt.Errorf("history: %w", err)
+		}
+		out.Instances = append(out.Instances, in)
+	}
+	return out, rows.Err()
+}
+
+// ClearInstance deletes one instance's series and their points; health
+// rows stay, since they belong to resources, not to an instance.
+func (r *Recorder) ClearInstance(ctx context.Context, instance string) error {
+	r.flushMu.Lock()
+	defer r.flushMu.Unlock()
+	r.mu.Lock()
+	gone := map[int64]bool{}
+	for key, s := range r.series {
+		if s.instance == instance {
+			gone[s.id] = true
+			delete(r.series, key)
+			delete(r.byID, s.id)
+		}
+	}
+	r.sealed = slices.DeleteFunc(r.sealed, func(c chunkRow) bool { return gone[c.series] })
+	r.fresh = slices.DeleteFunc(r.fresh, func(s *series) bool { return gone[s.id] })
+	r.mu.Unlock()
+	err := r.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM chunks WHERE series IN (SELECT id FROM series WHERE instance = ?)`, instance); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `DELETE FROM series WHERE instance = ?`, instance)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("history: %w", err)
+	}
+	_, err = r.st.Writer().ExecContext(ctx, `PRAGMA incremental_vacuum`)
+	return err
 }
 
 // Bytes a point, as measured (13 · History): the 1-minute tier on the Demo

@@ -26,11 +26,29 @@ const view = (over: Record<string, unknown> = {}) => ({
   max_bytes: 1e9,
   trimmed_at: null,
   tiers,
+  instances: [
+    { id: 'i_pve', series: 412, bytes: 9_100_000 },
+    { id: 'i_arr', series: 60, bytes: 800_000 },
+    { id: 'i_gone', series: 3, bytes: 20_000 },
+  ],
+  excluded: [] as string[],
   estimates: { standard: 28_000_000, 'long-term': 101_000_000 },
   ...over,
 });
 
 beforeEach(() => setDisplayTimeZone('UTC'));
+/** The connections Settings → Integrations lists; Docker has recorded nothing yet. */
+const INSTANCES = {
+  status: 200,
+  body: {
+    instances: [
+      { id: 'i_pve', integration: 'proxmox', name: 'Proxmox', status: 'ok' },
+      { id: 'i_arr', integration: 'sonarr', name: 'Sonarr', status: 'ok' },
+      { id: 'i_dock', integration: 'docker', name: 'Docker', status: 'ok' },
+    ],
+  },
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
   document.body.innerHTML = '';
@@ -38,7 +56,7 @@ afterEach(() => {
 
 describe('Settings → History', () => {
   it('offers the levels with what each grows to, and what’s on disk', async () => {
-    fakeFetch({ 'GET /api/settings/history': { status: 200, body: view() } });
+    fakeFetch({ 'GET /api/integrations/instances': INSTANCES, 'GET /api/settings/history': { status: 200, body: view() } });
     const w = harness().mountIn(HistoryPane);
     await flushPromises();
     const cards = w.findAll('label.sl-card');
@@ -59,6 +77,7 @@ describe('Settings → History', () => {
   it('saves a level on Save, not on choosing it', async () => {
     let saved: unknown;
     const f = fakeFetch({
+      'GET /api/integrations/instances': INSTANCES,
       'GET /api/settings/history': { status: 200, body: view() },
       'PUT /api/settings/history': (body) => {
         saved = body;
@@ -82,6 +101,7 @@ describe('Settings → History', () => {
   it('clears only after asking', async () => {
     let cleared = 0;
     fakeFetch({
+      'GET /api/integrations/instances': INSTANCES,
       'GET /api/settings/history': { status: 200, body: view() },
       'POST /api/settings/history/clear': () => {
         cleared++;
@@ -103,13 +123,13 @@ describe('Settings → History', () => {
   });
 
   it('says why there’s nothing to choose when the hub keeps no history', async () => {
-    fakeFetch({ 'GET /api/settings/history': { status: 200, body: view({ level: 'off', locked: true, tiers: [], estimates: {} }) } });
+    fakeFetch({ 'GET /api/integrations/instances': INSTANCES, 'GET /api/settings/history': { status: 200, body: view({ level: 'off', locked: true, tiers: [], estimates: {} }) } });
     const w = harness().mountIn(HistoryPane);
     await flushPromises();
     expect(w.find('[role="note"]').text()).toContain('CHADASH_HISTORY=off');
     expect(w.find('fieldset').exists()).toBe(false);
     expect(w.find('.hp-tiers').exists()).toBe(false);
-    fakeFetch({ 'GET /api/settings/history': { status: 200, body: view({ level: 'off', locked: true, demo: true, tiers: [], estimates: {} }) } });
+    fakeFetch({ 'GET /api/integrations/instances': INSTANCES, 'GET /api/settings/history': { status: 200, body: view({ level: 'off', locked: true, demo: true, tiers: [], estimates: {} }) } });
     const d = harness().mountIn(HistoryPane);
     await flushPromises();
     expect(d.find('[role="note"]').text()).toContain('The Demo Home makes its own history');
@@ -118,6 +138,7 @@ describe('Settings → History', () => {
   it('sets a size limit on its own Save, and says when it last trimmed', async () => {
     let sent: unknown;
     fakeFetch({
+      'GET /api/integrations/instances': INSTANCES,
       'GET /api/settings/history': { status: 200, body: view({ trimmed_at: Date.parse('2026-10-20T03:00:00Z') }) },
       'PUT /api/settings/history': (body) => {
         sent = body;
@@ -136,5 +157,53 @@ describe('Settings → History', () => {
     await flushPromises();
     expect(sent).toEqual({ max_bytes: 512e6 });
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+  });
+
+  it('lists every integration with what it recorded, leaves one out on Save, and clears one after asking', async () => {
+    let sent: unknown;
+    let cleared = '';
+    const f = fakeFetch({
+      'GET /api/integrations/instances': INSTANCES,
+      'GET /api/settings/history': { status: 200, body: view() },
+      'PUT /api/settings/history': (body) => {
+        sent = body;
+        return { status: 200, body: view({ excluded: ['i_arr'] }) };
+      },
+      'POST /api/settings/history/clear': (_b, url) => {
+        cleared = url.searchParams.get('instance') ?? 'all';
+        return { status: 200, body: view({ instances: [view().instances[1], view().instances[2]] }) };
+      },
+    });
+    const w = harness().mountIn(HistoryPane);
+    await flushPromises();
+    const rows = () => w.findAll('.hp-ints tbody tr').filter((r) => r.find('th').exists()).map((r) => r.findAll('th, td').slice(0, 3).map((c) => c.text()));
+    // Most series first; a connection with nothing yet, and history from a removed one, are listed too.
+    expect(rows()).toEqual([
+      ['Proxmox', '412', '9 MB'],
+      ['Sonarr', '60', '800 kB'],
+      ['Removed (i_gone)', '3', '20 kB'],
+      ['Docker', '0', '—'],
+    ]);
+    const box = (name: string) => w.find<HTMLInputElement>(`input[aria-label="Record ${name}’s metrics"]`);
+    expect(box('Sonarr').element.checked).toBe(true);
+    const save = w.find('button[aria-label="Save what’s recorded"]');
+    expect(save.attributes('aria-disabled')).toBe('true');
+    await box('Sonarr').setValue(false);
+    expect(sent).toBeUndefined();
+    expect(save.attributes('aria-disabled')).toBeUndefined();
+    await save.trigger('click');
+    await flushPromises();
+    expect(sent).toEqual({ exclude: ['i_arr'] });
+    expect(box('Sonarr').element.checked).toBe(false);
+
+    await w.find('button[aria-label="Clear Proxmox’s history…"]').trigger('click');
+    const ask = w.find('[role="alertdialog"]');
+    expect(ask.text()).toContain('Delete the 412 series Proxmox recorded? Its health history stays.');
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+    expect(f.calls.some((c) => c.method === 'POST')).toBe(false);
+    await ask.findAll('button').find((b) => b.text().startsWith('Clear'))!.trigger('click');
+    await flushPromises();
+    expect(cleared).toBe('i_pve');
+    expect(w.find('[role="alertdialog"]').exists()).toBe(false);
   });
 });

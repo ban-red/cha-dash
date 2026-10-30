@@ -4,14 +4,17 @@
  * history.db (ADR-0031), what it holds now, and clearing it.
  *
  *   GET  /api/settings/history         {level, locked, demo, series, resources, file_bytes, tiers, estimates}
- *   PUT  /api/settings/history         {level?, max_bytes?} → the same
- *   POST /api/settings/history/clear   → the same
+ *   PUT  /api/settings/history         {level?, max_bytes?, exclude?} → the same
+ *   POST /api/settings/history/clear   → the same; ?instance=<id> for one integration
  *
  * The levels are a native radio group with Save, like the security level,
  * so arrowing through them never saves. Each says about how big history.db
  * grows at it, for the series recorded so far. The size limit is a select
  * with its own Save; past it, the hub drops the oldest points within the
- * hour, and the pane says when it last did. Clearing asks first, inline.
+ * hour, and the pane says when it last did. By integration lists every
+ * connection (from the instances list, so one with nothing recorded yet can
+ * be left out too) with a Record box and one Save; leaving one out stops its
+ * metrics, never its health. Clearing, all or one, asks first, inline.
  * With CHADASH_HISTORY=off, or in demo mode, the pane says why there's
  * nothing to choose.
  *
@@ -22,7 +25,7 @@ import Glyph from '../components/marks/Glyph.vue';
 import { api } from '../lib/api';
 import { fmtInt, shortDate } from '../lib/format';
 import type { HistoryLevel } from '../model/history';
-import { errorWords } from '../stores/integrations';
+import { errorWords, integrations, loadInstances } from '../stores/integrations';
 import { useUi } from '../stores/ui';
 
 interface TierView {
@@ -43,6 +46,8 @@ interface HistoryView {
   max_bytes: number;
   trimmed_at: number | null;
   tiers: TierView[];
+  instances: { id: string; series: number; bytes: number }[];
+  excluded: string[];
   estimates: Partial<Record<HistoryLevel, number>>;
 }
 
@@ -57,7 +62,11 @@ const saveError = ref('');
 const limit = ref(0);
 const limiting = ref(false);
 const limitError = ref('');
-const confirming = ref(false);
+const recorded = ref<Record<string, boolean>>({});
+const excluding = ref(false);
+const excludeError = ref('');
+/** The row whose Clear is asking, or '' (and 'all' for Clear history). */
+const confirming = ref<string>('');
 const clearing = ref(false);
 const clearError = ref('');
 
@@ -108,6 +117,7 @@ async function load(): Promise<void> {
     view.value = await api<HistoryView>('/api/settings/history');
     choice.value = view.value.level;
     limit.value = view.value.max_bytes;
+    syncRecorded();
     status.value = 'ready';
   } catch (err) {
     status.value = 'error';
@@ -133,6 +143,57 @@ async function save(): Promise<void> {
   }
 }
 
+/** Every connection, with what it has recorded: the instances list, plus any the hub still holds history for. */
+const byIntegration = computed(() => {
+  const v = view.value;
+  if (!v) return [];
+  const held = new Map(v.instances.map((i) => [i.id, i]));
+  const rows = integrations.instances.map((i) => ({ id: i.id, name: i.name, series: held.get(i.id)?.series ?? 0, bytes: held.get(i.id)?.bytes ?? 0 }));
+  for (const i of v.instances) if (!rows.some((r) => r.id === i.id)) rows.push({ id: i.id, name: i.id ? `Removed (${i.id})` : 'The hub', series: i.series, bytes: i.bytes });
+  return rows.sort((a, b) => b.series - a.series || a.name.localeCompare(b.name));
+});
+function syncRecorded(): void {
+  const out: Record<string, boolean> = {};
+  for (const r of byIntegration.value) out[r.id] = !view.value?.excluded.includes(r.id);
+  recorded.value = out;
+}
+const excludeDirty = computed(() => byIntegration.value.some((r) => recorded.value[r.id] !== !view.value?.excluded.includes(r.id)));
+
+async function saveExcluded(): Promise<void> {
+  const v = view.value;
+  if (!v || !excludeDirty.value || excluding.value) return;
+  const exclude = byIntegration.value.filter((r) => recorded.value[r.id] === false).map((r) => r.id);
+  // Keep exclusions of connections this page doesn't list.
+  for (const id of v.excluded) if (!byIntegration.value.some((r) => r.id === id)) exclude.push(id);
+  excluding.value = true;
+  excludeError.value = '';
+  try {
+    view.value = await api<HistoryView>('/api/settings/history', { method: 'PUT', body: { exclude } });
+    syncRecorded();
+    ui.toast(exclude.length ? `${exclude.length === 1 ? 'One integration is' : `${exclude.length} integrations are`} left out of history.` : 'Every integration is recorded.');
+  } catch (err) {
+    syncRecorded();
+    excludeError.value = errorWords(err, 'What’s recorded wasn’t changed.');
+  } finally {
+    excluding.value = false;
+  }
+}
+
+async function clearOne(id: string, name: string): Promise<void> {
+  clearing.value = true;
+  clearError.value = '';
+  try {
+    view.value = await api<HistoryView>(`/api/settings/history/clear?instance=${encodeURIComponent(id)}`, { method: 'POST' });
+    confirming.value = '';
+    syncRecorded();
+    ui.toast(`Cleared the history of ${name}.`);
+  } catch (err) {
+    clearError.value = errorWords(err, 'That history wasn’t cleared.');
+  } finally {
+    clearing.value = false;
+  }
+}
+
 async function saveLimit(): Promise<void> {
   const v = view.value;
   if (!v || v.max_bytes === limit.value || limiting.value) return;
@@ -155,7 +216,8 @@ async function clear(): Promise<void> {
   clearError.value = '';
   try {
     view.value = await api<HistoryView>('/api/settings/history/clear', { method: 'POST' });
-    confirming.value = false;
+    confirming.value = '';
+    syncRecorded();
     ui.toast('History cleared. Recording carries on from now.');
   } catch (err) {
     clearError.value = errorWords(err, 'The history wasn’t cleared.');
@@ -164,7 +226,10 @@ async function clear(): Promise<void> {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  void loadInstances().then(syncRecorded);
+  void load();
+});
 </script>
 
 <template>
@@ -259,15 +324,72 @@ onMounted(load);
           </p>
         </div>
         <p v-if="limitError" class="err" role="alert">{{ limitError }}</p>
-        <div v-if="!confirming" class="st-acts">
-          <button type="button" class="btn sm ghost" :disabled="view.series === 0 && view.resources === 0" @click="confirming = true">Clear history…</button>
+        <div v-if="confirming !== 'all'" class="st-acts">
+          <button type="button" class="btn sm ghost" :disabled="view.series === 0 && view.resources === 0" @click="confirming = 'all'">Clear history…</button>
         </div>
         <div v-else class="st-confirm" role="alertdialog" aria-labelledby="hp-clear-q">
           <span id="hp-clear-q">Delete every point and health change in <code>history.db</code>? Charts start over from now. This can’t be undone.</span>
           <button type="button" class="btn danger solid" :disabled="clearing" :aria-busy="clearing || undefined" @click="clear">Clear history<span class="tier">T3</span></button>
-          <button type="button" class="btn" @click="confirming = false">Cancel</button>
+          <button type="button" class="btn" @click="confirming = ''">Cancel</button>
         </div>
-        <p v-if="clearError" class="err" role="alert">{{ clearError }}</p>
+        <p v-if="clearError && confirming === 'all'" class="err" role="alert">{{ clearError }}</p>
+      </section>
+
+      <section v-if="!view.locked && byIntegration.length" class="st-section" aria-labelledby="hp-int-h">
+        <header><h3 id="hp-int-h">By integration</h3></header>
+        <p class="st-lede">Leave out an integration whose metrics you don’t need, such as a noisy one. Its health is still recorded.</p>
+        <table class="hp-ints">
+          <caption class="sr">
+            What each integration has recorded
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Integration</th>
+              <th scope="col" class="n">Series</th>
+              <th scope="col" class="n">Size</th>
+              <th scope="col">Record</th>
+              <th scope="col"><span class="sr">Clear</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="row in byIntegration" :key="row.id">
+              <tr>
+                <th scope="row">{{ row.name }}</th>
+                <td class="n">{{ fmtInt(row.series) }}</td>
+                <td class="n">{{ row.bytes ? size(row.bytes) : '—' }}</td>
+                <td><input v-model="recorded[row.id]" type="checkbox" :aria-label="`Record ${row.name}’s metrics`" :disabled="excluding" /></td>
+                <td class="n">
+                  <button v-if="row.series" type="button" class="btn sm ghost" :aria-label="`Clear ${row.name}’s history…`" @click="confirming = row.id">Clear…</button>
+                </td>
+              </tr>
+              <tr v-if="confirming === row.id">
+                <td colspan="5">
+                  <div class="st-confirm" role="alertdialog" :aria-labelledby="`hp-clear-${row.id}`">
+                    <span :id="`hp-clear-${row.id}`">Delete the {{ fmtInt(row.series) }} series {{ row.name }} recorded? Its health history stays. This can’t be undone.</span>
+                    <button type="button" class="btn danger solid" :disabled="clearing" :aria-busy="clearing || undefined" @click="clearOne(row.id, row.name)">
+                      Clear<span class="tier">T3</span>
+                    </button>
+                    <button type="button" class="btn" @click="confirming = ''">Cancel</button>
+                  </div>
+                  <p v-if="clearError" class="err" role="alert">{{ clearError }}</p>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div class="st-acts">
+          <button
+            type="button"
+            class="btn sm"
+            aria-label="Save what’s recorded"
+            :aria-disabled="!excludeDirty || excluding ? 'true' : undefined"
+            :aria-busy="excluding || undefined"
+            @click="saveExcluded"
+          >
+            Save
+          </button>
+        </div>
+        <p v-if="excludeError" class="err" role="alert">{{ excludeError }}</p>
       </section>
     </template>
   </div>
@@ -287,23 +409,23 @@ onMounted(load);
   margin: 0;
   color: var(--text-3);
 }
-.hp-tiers {
+:is(.hp-tiers, .hp-ints) {
   width: 100%;
   margin: 0 0 var(--space-3);
   border-collapse: collapse;
   font-size: var(--type-small);
 }
-.hp-tiers th,
-.hp-tiers td {
+:is(.hp-tiers, .hp-ints) th,
+:is(.hp-tiers, .hp-ints) td {
   padding: 6px var(--space-2) 6px 0;
   border-bottom: var(--hairline) solid var(--line);
   text-align: left;
   font-weight: normal;
 }
-.hp-tiers thead th {
+:is(.hp-tiers, .hp-ints) thead th {
   color: var(--text-3);
 }
-.hp-tiers .n {
+:is(.hp-tiers, .hp-ints) .n {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

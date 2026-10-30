@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -197,10 +198,15 @@ func TestHistorySettings(t *testing.T) {
 	_, viewer := addUser(t, e, owner, "gran", "viewer")
 
 	type body struct {
-		Level     string `json:"level"`
-		Locked    bool   `json:"locked"`
-		MaxBytes  int64  `json:"max_bytes"`
-		Series    int    `json:"series"`
+		Level     string   `json:"level"`
+		Locked    bool     `json:"locked"`
+		MaxBytes  int64    `json:"max_bytes"`
+		Excluded  []string `json:"excluded"`
+		Instances []struct {
+			ID     string `json:"id"`
+			Series int    `json:"series"`
+		} `json:"instances"`
+		Series    int `json:"series"`
 		Estimates map[string]int64
 		Tiers     []struct {
 			Tier   string `json:"tier"`
@@ -251,12 +257,30 @@ func TestHistorySettings(t *testing.T) {
 	if got = call(owner, "PUT", "/api/settings/history", map[string]any{"max_bytes": 0}, http.StatusOK); got.MaxBytes != 0 {
 		t.Fatalf("no limit = %+v", got)
 	}
+	// Leaving an integration out.
+	if got = call(owner, "PUT", "/api/settings/history", map[string]any{"exclude": []string{"i9", "i2", "i9"}}, http.StatusOK); !slices.Equal(got.Excluded, []string{"i2", "i9"}) || !slices.Equal(rec.Excluded(), []string{"i2", "i9"}) {
+		t.Fatalf("excluded = %v", got.Excluded)
+	}
+	if ids, _ := history.LoadExcluded(t.Context(), st); !slices.Equal(ids, []string{"i2", "i9"}) {
+		t.Fatalf("saved exclusions %v", ids)
+	}
+	if ev, _ := lastAudit(t, st, "settings.history.update"); string(ev.Params) != `{"exclude_from":[],"exclude_to":["i2","i9"]}` {
+		t.Fatalf("audit = %s", ev.Params)
+	}
+	call(owner, "PUT", "/api/settings/history", map[string]any{"exclude": make([]string, 501)}, http.StatusUnprocessableEntity)
 
 	if err := rec.Close(t.Context()); err != nil { // writes the series row
 		t.Fatal(err)
 	}
-	if got = call(owner, "GET", "/api/settings/history", nil, http.StatusOK); got.Series != 1 {
-		t.Fatalf("series before clear = %d", got.Series)
+	if got = call(owner, "GET", "/api/settings/history", nil, http.StatusOK); got.Series != 1 || len(got.Instances) != 1 || got.Instances[0].ID != "i1" || got.Instances[0].Series != 1 {
+		t.Fatalf("before clear = %+v", got)
+	}
+	// One instance's history; another's is untouched (there is none here).
+	if got = call(owner, "POST", "/api/settings/history/clear?instance=i1", nil, http.StatusOK); got.Series != 0 || len(got.Instances) != 0 {
+		t.Fatalf("after clearing i1 = %+v", got)
+	}
+	if ev, _ := lastAudit(t, st, "settings.history.clear"); ev.Target != "integration:i1" {
+		t.Fatalf("audit target %q", ev.Target)
 	}
 	if got = call(owner, "POST", "/api/settings/history/clear", nil, http.StatusOK); got.Series != 0 {
 		t.Fatalf("series after clear = %d", got.Series)

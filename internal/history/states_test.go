@@ -153,3 +153,47 @@ func TestStatsEstimateAndClear(t *testing.T) {
 		t.Fatal("nothing recorded after Clear")
 	}
 }
+
+func TestExcludedInstancesAndClearingOne(t *testing.T) {
+	c := &clock{t0}
+	r := openRecorder(t, openStore(t, filepath.Join(t.TempDir(), "history.db")), Standard, c)
+	r.SetExcluded([]string{"i_noisy"})
+	end := t0.Add(2 * time.Hour)
+	for ; c.t.Before(end); c.t = c.t.Add(time.Minute) {
+		r.Record("vm:a#cpu", "i_pve", "%", c.t, 1)
+		r.Record("vm:b#cpu", "i_pve", "%", c.t, 2)
+		r.Record("app:x#rx", "i_noisy", "B/s", c.t, 3)
+		r.Record("app:y#cpu", "i_arr", "%", c.t, 4)
+	}
+	r.State("app:x", "ok", t0) // health is recorded for every instance
+	r.tick(t.Context(), c.t)
+	if err := r.flush(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.Excluded(); len(got) != 1 || got[0] != "i_noisy" {
+		t.Fatalf("Excluded = %v", got)
+	}
+	s, err := r.Stats(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Instances) != 2 || s.Instances[0].ID != "i_pve" || s.Instances[0].Series != 2 || s.Instances[0].Bytes == 0 || s.Instances[1].ID != "i_arr" {
+		t.Fatalf("instances = %+v", s.Instances)
+	}
+	if err := r.ClearInstance(t.Context(), "i_pve"); err != nil {
+		t.Fatal(err)
+	}
+	s, _ = r.Stats(t.Context())
+	if len(s.Instances) != 1 || s.Instances[0].ID != "i_arr" || s.Series != 1 {
+		t.Fatalf("after clearing i_pve: %+v", s)
+	}
+	if got, _ := r.States(t.Context(), "app:x", t0, c.t); len(got) != 1 {
+		t.Fatal("clearing an instance dropped health rows")
+	}
+	// It carries on recording from now.
+	r.Record("vm:a#cpu", "i_pve", "%", c.t, 1)
+	r.Record("vm:a#cpu", "i_pve", "%", c.t.Add(time.Minute), 1)
+	if m := query(t, r, "vm:a#cpu", Minute, c.t, c.t.Add(time.Minute)); m[0].N != 1 {
+		t.Fatalf("after clearing: %+v", m)
+	}
+}

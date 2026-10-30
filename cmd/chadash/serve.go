@@ -193,6 +193,11 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 			limit = history.DefaultMaxBytes
 		}
 		rec.SetLimit(limit)
+		excluded, err := history.LoadExcluded(ctx, st)
+		if err != nil {
+			return nil, err
+		}
+		rec.SetExcluded(excluded)
 		hist = rec
 		log.Info("recording metrics history", "level", level, "path", cfg.HistoryPath(), "limit_bytes", limit)
 	}
