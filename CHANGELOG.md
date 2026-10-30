@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0-beta.2] - 2026-10-29
+
+The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and health now keep a history on disk, so sparklines survive a restart, a sheet looks back over what was kept, and the Pulse strip under the Briefing takes the whole board back to any moment of the last 24 hours. Tiles get views you swipe between, new sizes, a menu, and far more from Plex, Tautulli, qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant, Frigate and the weather. Settings → Bring in imports Homarr 2 backups and plain YAML boards. The v0.2 actions have now run against a real homelab, all but Pi-hole's, AdGuard Home's and Seerr's, and what those runs and a second security review found is fixed below.
+
+**History is on by default.** It writes `history.db` next to the database, tens of MB at a thousand series, and reads what your boards show once a minute. Set `CHADASH_HISTORY=off` to keep nothing, or `CHADASH_HISTORY_DIR` to put the file elsewhere. Nothing else needs changing from 0.2.0-beta.1. As before, point both images at `beta`, as the [install steps](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md) show, or pin `0.2.0-beta.2`.
+
 ### Added
 
 - **Camera pictures and controls for Frigate.** Turn on **Show camera pictures** in a Frigate connection and the Cameras tile shows each camera's current picture instead of a drawing. Cha Dash fetches it from Frigate (`latest.jpg`, nothing else) and passes it on, refreshing only while the tile is on screen; everyone signed in to Cha Dash can then see the pictures. There's no live video. Add an admin **control account** to the connection and Cha Dash can turn a camera's detection, recording, snapshots and alerts on and off, or the whole camera (Frigate 0.16 or later), each with Undo. Cameras now have a sheet: click a frame for a larger picture, the camera's switches and its last detections, with the controls under Actions. The Panel, Large and Hero tiles have a control row for the main camera.
@@ -295,5 +301,6 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.2.0-beta.1...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.2.0-beta.2...HEAD
+[0.2.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.1
