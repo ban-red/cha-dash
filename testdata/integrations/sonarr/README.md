@@ -10,6 +10,7 @@ The numbers match the Demo Home at 2026-10-03 14:05 UTC (queue 10, wanted 25), a
 | `health.json` | `GET /api/v3/health` | One warning (an update is available): the app stays `ok` |
 | `health_error.json` | `GET /api/v3/health` | Two errors and a warning: the app is `attention` |
 | `queue_status.json` | `GET /api/v3/queue/status` | 10 queued, warnings, no errors |
-| `wanted_missing.json` | `GET /api/v3/wanted/missing?page=1&pageSize=1&monitored=true` | `totalRecords` 21 |
+| `queue.json` | `GET /api/v3/queue?page=1&pageSize=25&includeSeries=true&includeEpisode=true` | Three downloads: one in progress (75%, 12 minutes left), one queued, one with an import blocked by a status message |
+| `wanted_missing.json` | `GET /api/v3/wanted/missing?page=1&pageSize=25&monitored=true` | `totalRecords` 21 |
 | `wanted_cutoff.json` | `GET /api/v3/wanted/cutoff?page=1&pageSize=1&monitored=true` | `totalRecords` 4 |
 | `calendar.json` | `GET /api/v3/calendar?start=…&end=…&includeSeries=true` | 7 episodes: one aired before the window, one after it, one with no air time (TBA), a season premiere, a season finale, a series premiere, and an episode whose title is "TBA" (that one is unmonitored, so the calendar marks it). A real Sonarr returns only the requested window; the extras test the integration's own filtering |

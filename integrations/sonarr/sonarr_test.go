@@ -22,6 +22,7 @@ func upstream(t *testing.T) *fixture.Server {
 		"GET /sonarr/api/v3/system/status":  {File: "system_status.json"},
 		"GET /sonarr/api/v3/health":         {File: "health.json"},
 		"GET /sonarr/api/v3/queue/status":   {File: "queue_status.json"},
+		"GET /sonarr/api/v3/queue":          {File: "queue.json"},
 		"GET /sonarr/api/v3/wanted/missing": {File: "wanted_missing.json"},
 		"GET /sonarr/api/v3/wanted/cutoff":  {File: "wanted_cutoff.json"},
 		"GET /sonarr/api/v3/calendar":       {File: "calendar.json"},
@@ -87,6 +88,22 @@ func TestSync(t *testing.T) {
 	if got := r.Attrs["calendar"]; !reflect.DeepEqual(got, want) {
 		t.Fatalf("calendar = %#v", got)
 	}
+	// The queue and what's wanted, for the tile's views.
+	wantQueue := []any{
+		map[string]any{"title": "Orbital Kitchen", "detail": "S02E01 · Re-entry", "status": "downloading", "progress": 75.0, "left_s": 750.0, "client": "qBittorrent", "protocol": "torrent"},
+		map[string]any{"title": "Quiet Valley", "detail": "S01E01 · Pilot", "status": "queued", "progress": 0.0, "client": "qBittorrent", "protocol": "torrent"},
+		map[string]any{"title": "The Lighthouse Keepers", "detail": "S03E05 · Tide Table", "status": "warning", "progress": 100.0, "client": "SABnzbd", "protocol": "usenet", "error": "No files found are eligible for import"},
+	}
+	if got := r.Attrs["queue_items"]; !reflect.DeepEqual(got, wantQueue) {
+		t.Fatalf("queue_items = %#v", got)
+	}
+	wantWanted := []any{
+		map[string]any{"title": "Quiet Valley", "detail": "S03E04 · Low Tide", "at": 1790978400.0},
+		map[string]any{"title": "Orbital Kitchen", "detail": "S02E09", "at": 1790557200.0},
+	}
+	if got := r.Attrs["wanted_items"]; !reflect.DeepEqual(got, wantWanted) {
+		t.Fatalf("wanted_items = %#v", got)
+	}
 	if h.Graph().Relations["integration:i_test monitors "+rid] == nil {
 		t.Fatal("the instance should monitor its app")
 	}
@@ -108,7 +125,7 @@ func TestSync(t *testing.T) {
 	if cal.Get("start") != "2026-10-03T02:05:00Z" || cal.Get("end") != "2026-10-10T14:05:00Z" || cal.Get("includeSeries") != "true" || cal.Get("unmonitored") != "true" {
 		t.Fatalf("calendar query = %v", cal)
 	}
-	if q := up.Requests("/wanted/missing")[0].URL.Query(); q.Get("pageSize") != "1" || q.Get("monitored") != "true" {
+	if q := up.Requests("/wanted/missing")[0].URL.Query(); q.Get("pageSize") != "25" || q.Get("monitored") != "true" || q.Get("includeSeries") != "true" {
 		t.Fatalf("missing query = %v", q)
 	}
 }

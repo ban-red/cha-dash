@@ -64,6 +64,17 @@ func TestSync(t *testing.T) {
 			t.Errorf("%s = %v", metric, se)
 		}
 	}
+	// The movies that are wanted: the latest release that has happened.
+	wantWanted := []any{
+		map[string]any{"title": "A Map of Small Islands", "detail": "2026", "at": 1780012800.0},
+		map[string]any{"title": "Tides of March", "detail": "2026", "at": 1781049600.0},
+	}
+	if got := r.Attrs["wanted_items"]; !reflect.DeepEqual(got, wantWanted) {
+		t.Fatalf("wanted_items = %#v", got)
+	}
+	if _, ok := r.Attrs["queue_items"]; ok {
+		t.Fatal("an empty queue has no items")
+	}
 	if h.Series(rid, "queued") != nil {
 		t.Fatal("the queue is published as queue, like Sonarr's")
 	}

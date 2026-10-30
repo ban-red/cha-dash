@@ -81,9 +81,13 @@ func TestSync(t *testing.T) {
 		}
 	}
 	for _, req := range up.Requests("/wanted/missing") {
-		if q := req.URL.Query(); q.Get("pageSize") != "1" || q.Get("monitored") != "true" {
+		if q := req.URL.Query(); q.Get("pageSize") != "25" || q.Get("monitored") != "true" || q.Get("includeArtist") != "true" {
 			t.Fatalf("wanted query = %s", req.URL.RawQuery)
 		}
+	}
+	r, _ = h.Resource("lidarr:i_test/app")
+	if got := r.Attrs["wanted_items"]; !reflect.DeepEqual(got, []any{map[string]any{"title": "The Weir Sisters", "detail": "Lanterns on the Weir", "at": 1776384000.0}}) {
+		t.Fatalf("wanted_items = %#v", got)
 	}
 }
 

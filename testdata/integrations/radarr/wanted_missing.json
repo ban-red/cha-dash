@@ -1,6 +1,6 @@
 {
   "page": 1,
-  "pageSize": 1,
+  "pageSize": 25,
   "sortKey": "movieMetadata.sortTitle",
   "sortDirection": "ascending",
   "totalRecords": 7,
@@ -18,6 +18,19 @@
       "isAvailable": true,
       "tmdbId": 9100001,
       "id": 301
+    },
+    {
+      "title": "Tides of March",
+      "sortTitle": "tides of march",
+      "status": "released",
+      "inCinemas": "2026-02-01T00:00:00Z",
+      "physicalRelease": "2026-06-10T00:00:00Z",
+      "year": 2026,
+      "hasFile": false,
+      "monitored": true,
+      "isAvailable": true,
+      "tmdbId": 9100002,
+      "id": 302
     }
   ]
 }

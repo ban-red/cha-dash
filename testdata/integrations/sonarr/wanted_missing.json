@@ -1,6 +1,6 @@
 {
   "page": 1,
-  "pageSize": 1,
+  "pageSize": 25,
   "sortKey": "episodes.airDateUtc",
   "sortDirection": "descending",
   "totalRecords": 21,
@@ -18,7 +18,23 @@
       "hasFile": false,
       "monitored": true,
       "unverifiedSceneNumbering": false,
-      "id": 4012
+      "id": 4012,
+      "series": {
+        "title": "Quiet Valley"
+      }
+    },
+    {
+      "seriesId": 13,
+      "seasonNumber": 2,
+      "episodeNumber": 9,
+      "title": "TBA",
+      "airDateUtc": "2026-09-28T01:00:00Z",
+      "hasFile": false,
+      "monitored": true,
+      "id": 4013,
+      "series": {
+        "title": "Orbital Kitchen"
+      }
     }
   ]
 }

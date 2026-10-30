@@ -6,6 +6,7 @@ package sonarr
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,7 +22,9 @@ var app = arr.MediaApp{
 	MissingKey: "missing.episodes", MissingMax: 100000,
 	SearchCommand: "MissingEpisodeSearch", MissingNoun: "episodes",
 	QueueBand: [2]float64{0, 15}, WantedBand: [2]float64{0, 40},
-	Calendar: calendar,
+	Calendar:    calendar,
+	QueueQuery:  url.Values{"includeSeries": {"true"}, "includeEpisode": {"true"}},
+	WantedQuery: url.Values{"sortKey": {"episodes.airDateUtc"}, "includeSeries": {"true"}},
 }
 
 func init() { integration.Register(Integration{}) }

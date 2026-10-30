@@ -1,0 +1,76 @@
+{
+  "page": 1,
+  "pageSize": 25,
+  "sortKey": "timeleft",
+  "sortDirection": "ascending",
+  "totalRecords": 10,
+  "records": [
+    {
+      "title": "Orbital.Kitchen.S02E01.1080p.WEB.h264-EXAMPLE",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "size": 2147483648,
+      "sizeleft": 536870912,
+      "timeleft": "00:12:30",
+      "protocol": "torrent",
+      "downloadClient": "qBittorrent",
+      "series": {
+        "title": "Orbital Kitchen"
+      },
+      "episode": {
+        "seasonNumber": 2,
+        "episodeNumber": 1,
+        "title": "Re-entry"
+      },
+      "id": 9001
+    },
+    {
+      "title": "Quiet.Valley.S01E01.1080p.WEB.h264-EXAMPLE",
+      "status": "queued",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "size": 1073741824,
+      "sizeleft": 1073741824,
+      "timeleft": "00:00:00",
+      "protocol": "torrent",
+      "downloadClient": "qBittorrent",
+      "series": {
+        "title": "Quiet Valley"
+      },
+      "episode": {
+        "seasonNumber": 1,
+        "episodeNumber": 1,
+        "title": "Pilot"
+      },
+      "id": 9002
+    },
+    {
+      "title": "The.Lighthouse.Keepers.S03E05.720p.HDTV.x264-EXAMPLE",
+      "status": "completed",
+      "trackedDownloadStatus": "warning",
+      "trackedDownloadState": "importBlocked",
+      "size": 1610612736,
+      "sizeleft": 0,
+      "protocol": "usenet",
+      "downloadClient": "SABnzbd",
+      "statusMessages": [
+        {
+          "title": "The.Lighthouse.Keepers.S03E05",
+          "messages": [
+            "No files found are eligible for import"
+          ]
+        }
+      ],
+      "series": {
+        "title": "The Lighthouse Keepers"
+      },
+      "episode": {
+        "seasonNumber": 3,
+        "episodeNumber": 5,
+        "title": "Tide Table"
+      },
+      "id": 9003
+    }
+  ]
+}

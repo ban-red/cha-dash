@@ -5,6 +5,7 @@ package radarr
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"dash.cha.sh/integrations/internal/arr"
@@ -19,7 +20,9 @@ var app = arr.MediaApp{
 	MissingKey: "missing.movies", MissingMax: 10000,
 	SearchCommand: "MissingMoviesSearch", MissingNoun: "movies",
 	QueueBand: [2]float64{0, 5}, WantedBand: [2]float64{0, 20},
-	Calendar: calendar,
+	Calendar:    calendar,
+	QueueQuery:  url.Values{"includeMovie": {"true"}},
+	WantedQuery: url.Values{"sortKey": {"movieMetadata.sortTitle"}, "sortDirection": {"ascending"}},
 }
 
 func init() { integration.Register(Integration{}) }

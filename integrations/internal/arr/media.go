@@ -27,6 +27,9 @@ type MediaApp struct {
 	// it looks for ("episodes"): the search-missing action (actions.go).
 	SearchCommand string
 	MissingNoun   string
+	// QueueQuery and WantedQuery are the app's include and sort parameters
+	// for the /queue and /wanted/missing lists (lists.go).
+	QueueQuery, WantedQuery url.Values
 }
 
 // Poll is a media *arr's polling plan: every minute while watched, every 5
@@ -53,6 +56,7 @@ type media struct {
 	haveMissing     bool
 	haveCutoff      bool
 	calendar        []CalendarItem
+	wanted          []WantedItem
 }
 
 func (in *media) Test(ctx context.Context) integration.TestResult { return in.c.Test(ctx) }
@@ -81,6 +85,18 @@ func (in *media) Sync(ctx context.Context, want integration.Interest) error {
 	}
 	res := in.c.AppResource(in.cfg, in.version, h, "media.calendar")
 	res.Attrs["calendar"] = Calendar(in.calendar, now)
+	if q.TotalCount > 0 {
+		items, err := in.c.QueueItems(ctx, in.m.QueueQuery)
+		if err != nil {
+			return err
+		}
+		if len(items) > 0 {
+			res.Attrs["queue_items"] = items
+		}
+	}
+	if len(in.wanted) > 0 {
+		res.Attrs["wanted_items"] = in.wanted
+	}
 	wanted := integration.Unknown()
 	if in.haveMissing {
 		wanted = float64(in.missing)
@@ -110,7 +126,7 @@ func (in *media) readSlow(ctx context.Context, now time.Time) error {
 	in.version = st.Version
 	in.d.Emit.SetVersion(st.Version)
 	monitored := url.Values{"monitored": {"true"}}
-	if in.missing, in.haveMissing, err = in.c.Total(ctx, "/wanted/missing", monitored); err != nil {
+	if in.missing, in.wanted, in.haveMissing, err = in.c.Missing(ctx, in.m.WantedQuery, now); err != nil {
 		return err
 	}
 	if in.cutoff, in.haveCutoff, err = in.c.Total(ctx, "/wanted/cutoff", monitored); err != nil {

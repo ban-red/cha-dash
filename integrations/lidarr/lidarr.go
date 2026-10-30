@@ -5,6 +5,7 @@ package lidarr
 
 import (
 	"context"
+	"net/url"
 	"strings"
 	"time"
 
@@ -20,7 +21,9 @@ var app = arr.MediaApp{
 	MissingKey: "missing.albums", MissingMax: 10000,
 	SearchCommand: "MissingAlbumSearch", MissingNoun: "albums",
 	QueueBand: [2]float64{0, 5}, WantedBand: [2]float64{0, 20},
-	Calendar: calendar,
+	Calendar:    calendar,
+	QueueQuery:  url.Values{"includeArtist": {"true"}, "includeAlbum": {"true"}},
+	WantedQuery: url.Values{"sortKey": {"releaseDate"}, "includeArtist": {"true"}},
 }
 
 func init() { integration.Register(Integration{}) }

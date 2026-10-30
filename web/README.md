@@ -328,6 +328,7 @@ The catalog (`model/widgets.ts`) covers the Workbench list's v0.1 rows ([docs/de
 |---|---|---|
 | `weather` | small | Now · Next hours (when there's an hourly forecast) |
 | `host` | small · wide | Overview · Guests or Containers (problems first) · Storage, each only when it has rows |
+| `arr` (Queue) | small · wide | Now · Queue (`attrs.queue_items`: progress, time left, client, why one is stuck) · Wanted (`attrs.wanted_items`: what's missing, with its date), each only when it has rows; both scroll |
 | `service` | small · wide | Now · History (Tautulli's `attrs.history`) · 24 hours (small, when the stat has history) · Up next (an app with `attrs.calendar`: Sonarr, Radarr, Lidarr) |
 
 Tautulli's Now view also lists what's playing (`attrs.now_playing`: title, who, how far along, direct play or transcode), two rows with a "+N more".

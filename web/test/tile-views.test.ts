@@ -11,7 +11,7 @@ import { preloadWidgets } from '../src/widgets/registry';
 import { resetViews, VIEWS_KEY } from '../src/widgets/views';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { axeViolations } from './axe';
-import { docs, withIncidents } from './fixtures';
+import { docs, healthy, withIncidents } from './fixtures';
 import { harness } from './harness';
 
 beforeAll(() => preloadWidgets());
@@ -108,6 +108,61 @@ describe('panel (4×3) and column (3×4)', () => {
     expect(WIDGETS.guests!.sizes).toEqual(expect.arrayContaining(['panel', 'column']));
     expect(WIDGETS.clock!.sizes).not.toContain('panel');
     expect(WIDGETS.clock!.sizes).not.toContain('column');
+  });
+});
+
+describe('Sonarr and Radarr', () => {
+  const withLists = () => {
+    const d = docs(withIncidents);
+    d.graph.resources['app:sonarr']!.attrs = {
+      ...d.graph.resources['app:sonarr']!.attrs,
+      queue_items: [
+        { title: 'Orbital Kitchen', detail: 'S02E01 · Re-entry', status: 'downloading', progress: 75, left_s: 750, client: 'qBittorrent' },
+        { title: 'The Lighthouse Keepers', detail: 'S03E05', status: 'warning', progress: 100, error: 'No files found are eligible for import' },
+      ],
+      wanted_items: [
+        { title: 'Quiet Valley', detail: 'S03E04 · Low Tide', at: Date.parse('2026-10-02T22:00:00Z') / 1000 },
+        { title: 'Orbital Kitchen', detail: 'S02E09' },
+      ],
+    };
+    return d;
+  };
+
+  it('pages a small tile between now, what is queued and what is wanted', async () => {
+    const { w, dots, pressed } = mountTile('arr', 'small', 'app:sonarr', withLists());
+    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Queue', 'Wanted']);
+    await dots()[1]!.trigger('click');
+    expect(pressed()).toBe('Queue');
+    const q = w.findAll('.arr-list .ag-row');
+    expect(q).toHaveLength(2);
+    expect(q[0]!.text()).toContain('Orbital Kitchen');
+    expect(q[0]!.text()).toContain('75%');
+    expect(q[0]!.text()).toContain('12m left');
+    expect(q[1]!.classes()).toContain('bad');
+    expect(q[1]!.text()).toContain('No files found are eligible for import');
+    await dots()[2]!.trigger('click');
+    const wr = w.findAll('.arr-list .ag-row');
+    expect(wr).toHaveLength(2);
+    expect(wr[0]!.text()).toContain('Quiet Valley');
+    expect(wr[0]!.text()).toContain('S03E04 · Low Tide');
+    expect(wr[1]!.text()).toContain('—');
+    expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('has only the views it has data for', () => {
+    expect(mountTile('arr', 'small', 'app:sonarr').dots()).toHaveLength(0);
+  });
+
+  it('passes axe on both lists', async () => {
+    vi.useRealTimers();
+    for (const size of ['small', 'wide'] as const) {
+      const { w, dots } = mountTile('arr', size, 'app:sonarr', withLists());
+      for (const i of [1, 2]) {
+        await dots()[i]!.trigger('click');
+        expect(await axeViolations(), `${size} view ${i}`).toEqual([]);
+      }
+      w.unmount();
+    }
   });
 });
 
@@ -281,6 +336,94 @@ describe('Tautulli', () => {
       expect(await axeViolations(), `${size} history`).toEqual([]);
       w.unmount();
     }
+  });
+});
+
+describe('Now playing on Plex', () => {
+  const at = (iso: string) => Date.parse(iso) / 1000;
+  const withPlex = (playing = true) => {
+    const d = docs(healthy);
+    const streams = d.metrics.series['app:plex#streams']!;
+    d.metrics.series['app:plex#streams'] = { ...streams, value: playing ? 3 : 0 };
+    d.metrics.series['app:plex#streams.transcode'] = { ...streams, value: playing ? 1 : 0 };
+    d.metrics.series['app:plex#bandwidth.mbps'] = { ...streams, value: playing ? 16 : 0, unit: 'Mb/s' };
+    d.graph.resources['app:plex']!.attrs = {
+      ...d.graph.resources['app:plex']!.attrs,
+      episodes: 14212,
+      artists: 412,
+      streams_remote: 1,
+      now_playing: playing
+        ? [
+            { title: 'Example Show - Pilot', kind: 'episode', user: 'Lab Member', player: 'Living room TV', state: 'playing', progress: 44, decision: 'direct play', remote: false },
+            { title: 'Big Buck Bunny', kind: 'movie', user: 'Lab Guest', player: 'Phone', state: 'paused', progress: 5, decision: 'transcode', remote: true },
+            { title: 'A Third Film', kind: 'movie', state: 'playing', progress: 80, decision: 'direct play', remote: false },
+          ]
+        : [],
+      recently_added: [
+        { kind: 'movie', title: 'Tears of Steel', detail: '2012', library: 'Movies', at: at('2026-10-03T13:05:00Z') },
+        { kind: 'season', title: 'Example Show', detail: 'Season 2', library: 'TV Shows', at: at('2026-10-03T09:00:00Z') },
+        { kind: 'album', title: 'Open Water', detail: 'The Synthetic Quartet', library: 'Music', at: at('2026-10-01T09:00:00Z') },
+      ],
+    };
+    return d;
+  };
+
+  it('lists what is playing beside the count on a wide tile, and pages to recently added', async () => {
+    const { w, dots, pressed } = mountTile('plex', 'wide', undefined, withPlex());
+    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Recently added']);
+    const rows = w.findAll('.split [role="listitem"]');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.text()).toContain('44%');
+    expect(rows[0]!.text()).toContain('Example Show - Pilot');
+    expect(rows[0]!.text()).toContain('Lab Member · Living room TV · direct play');
+    expect(rows[1]!.text()).toContain('paused');
+    expect(w.find('.px-more').text()).toBe('+1 more');
+    expect(w.find('.split .sub').text()).toBe('1 transcoding · 16 Mb/s');
+    await dots()[1]!.trigger('click');
+    expect(pressed()).toBe('Recently added');
+    const added = w.findAll('[role="listitem"]');
+    expect(added.map((r) => r.text())).toEqual(['1h agoTears of Steel2012 · Movies', '5h agoExample ShowSeason 2 · TV Shows', '2d agoOpen WaterThe Synthetic Quartet · Music']);
+    expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('shows the library beside the count when nothing plays', () => {
+    const { w } = mountTile('plex', 'wide', undefined, withPlex(false));
+    expect(w.find('.split [role="list"]').exists()).toBe(false);
+    expect(w.text()).toContain('14,212 episodes · 412 artists');
+    expect(w.text()).toContain('Nothing playing');
+  });
+
+  it('names the first title on a small tile', () => {
+    const { w } = mountTile('plex', 'small', undefined, withPlex());
+    expect(w.find('.v').text()).toBe('3playing');
+    expect(w.find('.lab').text()).toBe('Example Show - Pilot +2');
+  });
+
+  it('shows playing, recently added and the trend together on a 4×4', () => {
+    const { w, dots } = mountTile('plex', 'large', undefined, withPlex());
+    expect(dots()).toHaveLength(0);
+    expect(w.find('[aria-label="Recently added to Plex"]').exists()).toBe(true);
+    expect(w.find('.mg').exists()).toBe(true);
+    expect(w.find('[aria-label="Playing on Plex"]').findAll('[role="listitem"]')).toHaveLength(3);
+    expect(w.find('.tf').text()).toBe('1 of 3 remote');
+    expect(w.text()).not.toMatch(/undefined|NaN|\[object|arrive when/);
+  });
+
+  it('has no Recently added view without the list', () => {
+    expect(mountTile('plex', 'wide').dots()).toHaveLength(0);
+  });
+
+  it('passes axe on both views and the 4×4', async () => {
+    vi.useRealTimers();
+    for (const size of ['small', 'wide'] as const) {
+      const { w, dots } = mountTile('plex', size, undefined, withPlex());
+      expect(await axeViolations(), `${size} now`).toEqual([]);
+      await dots()[1]!.trigger('click');
+      expect(await axeViolations(), `${size} recent`).toEqual([]);
+      w.unmount();
+    }
+    mountTile('plex', 'large', undefined, withPlex());
+    expect(await axeViolations(), 'large').toEqual([]);
   });
 });
 

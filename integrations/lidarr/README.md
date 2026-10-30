@@ -22,6 +22,7 @@ Under `<url>/api/v1`, all `GET`: `/system/status`, `/wanted/missing` and `/wante
 
 - **`lidarr:<instance id>/app`**, kind `app`, `attrs.type = "lidarr"`, `attrs.url`, `attrs.version`, a link, `caps: ["media.calendar"]`, monitored by `integration:<instance id>`. Health as Sonarr's: `attention` on a health check error, else on a download error in the queue.
 - **`attrs.calendar`:** `[{"at", "title", "detail"}]`, soonest first, at most 30, from 12 hours ago to 7 days ahead. The artist is the title and the album the detail, with its type when it isn't an album (`Night Ferries · EP`, `… · single`). Lidarr gives release dates at midnight UTC, so `at` is midnight. Albums without a release date or an artist are left out.
+- **`attrs.queue_items`** (only while the queue isn't empty) and **`attrs.wanted_items`**, for the tile's Queue and Wanted views. A queue item is `{title, detail?, status, progress, left_s?, client?, protocol?, error?}`: the artist as the title, the album as the detail, `status` as the app says it (`downloading`, `queued`, `paused`, `warning`, `error`…), and the reason in `error` when an import is blocked or a download failed. Up to 25 come from `GET /queue?includeSeries…`. A wanted item is `{title, detail?, at?}` (`at` in Unix seconds, left out when unknown), newest first by release date, from the same `GET /wanted/missing` request that counts them (25 per read, every 10 minutes). The titles are your library's, so they're as visible as the tile is.
 
 | Metric | Unit | Scale | Band | Value |
 |---|---|---|---|---|

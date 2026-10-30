@@ -1,6 +1,6 @@
 {
   "page": 1,
-  "pageSize": 1,
+  "pageSize": 25,
   "sortKey": "releaseDate",
   "sortDirection": "descending",
   "totalRecords": 14,
@@ -12,7 +12,10 @@
       "monitored": true,
       "artistId": 21,
       "foreignAlbumId": "00000000-0000-4000-8000-000000000301",
-      "id": 301
+      "id": 301,
+      "artist": {
+        "artistName": "The Weir Sisters"
+      }
     }
   ]
 }
