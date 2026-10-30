@@ -547,3 +547,46 @@ func TestSecretRefs(t *testing.T) {
 		t.Errorf("%v", got)
 	}
 }
+
+// A draft says where it came from. The editor writes "web", a row from
+// before the column existed reads back as "web", and a sync's "git:<sha>"
+// reads back as it was written.
+func TestDraftSource(t *testing.T) {
+	h := newHub(t)
+	ctx := t.Context()
+
+	w := h.do("PUT", "/api/stacks/local/media", map[string]any{"content": good, "revision": 0})
+	if saved := decode[struct{ Draft Draft }](t, w); w.Code != 200 || saved.Draft.Source != SourceWeb {
+		t.Fatalf("save: %d %s", w.Code, w.Body)
+	}
+	if !strings.Contains(w.Body.String(), `"source":"web"`) {
+		t.Errorf("the saved draft's JSON has no source: %s", w.Body)
+	}
+	if d := decode[StackDetail](t, h.do("GET", "/api/stacks/local/media", nil)); d.Draft == nil || d.Draft.Source != SourceWeb {
+		t.Errorf("detail's draft = %+v", d.Draft)
+	}
+
+	// Saving over a sync's draft from the editor makes it the editor's.
+	if _, err := h.st.Writer().ExecContext(ctx, `UPDATE stack_drafts SET source = 'git:0123abc' WHERE stack = 'media'`); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := h.svc.draft(ctx, "local", "media"); err != nil || d.Source != "git:0123abc" {
+		t.Fatalf("draft = %+v, %v", d, err)
+	}
+	h.saveDraft("media", strings.Replace(good, "1.27", "1.28", 1))
+	if d, err := h.svc.draft(ctx, "local", "media"); err != nil || d.Source != SourceWeb || d.Revision != 2 {
+		t.Errorf("after an editor save, draft = %+v, %v", d, err)
+	}
+
+	// A row written the way v0.2 wrote it, without a source.
+	if _, err := h.st.Writer().ExecContext(ctx, `INSERT INTO stack_drafts (node, stack, content, revision, updated_at, updated_by) VALUES ('local', 'vpn', 'services: {}', 1, 0, 'sam')`); err != nil {
+		t.Fatal(err)
+	}
+	all, err := h.svc.drafts(ctx, "local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 || all["vpn"].Source != SourceWeb || all["media"].Source != SourceWeb {
+		t.Errorf("drafts = %+v", all)
+	}
+}

@@ -209,12 +209,17 @@ func statusOf(err error) (int, string, string) {
 
 // ── drafts ───────────────────────────────────────────────────────────────
 
+// SourceWeb is the source of a draft saved in the editor. A git sync in
+// draft-and-ask mode will write "git:<sha>" instead (v0.3, not yet).
+const SourceWeb = "web"
+
 // Draft is a saved, undeployed compose file.
 type Draft struct {
 	Content   string    `json:"content"`
 	Revision  int64     `json:"revision"`
 	UpdatedAt time.Time `json:"updated_at"`
 	UpdatedBy string    `json:"updated_by"`
+	Source    string    `json:"source"` // SourceWeb, or "git:<sha>"
 }
 
 func (d *Draft) sha() string {
@@ -229,8 +234,8 @@ func (s *Service) draft(ctx context.Context, node, stack string) (*Draft, error)
 	var d Draft
 	var at int64
 	err := s.st.Reader().QueryRowContext(ctx,
-		`SELECT content, revision, updated_at, updated_by FROM stack_drafts WHERE node = ? AND stack = ?`, node, stack).
-		Scan(&d.Content, &d.Revision, &at, &d.UpdatedBy)
+		`SELECT content, revision, updated_at, updated_by, source FROM stack_drafts WHERE node = ? AND stack = ?`, node, stack).
+		Scan(&d.Content, &d.Revision, &at, &d.UpdatedBy, &d.Source)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -244,7 +249,7 @@ func (s *Service) draft(ctx context.Context, node, stack string) (*Draft, error)
 // drafts lists a node's drafts by stack.
 func (s *Service) drafts(ctx context.Context, node string) (map[string]Draft, error) {
 	rows, err := s.st.Reader().QueryContext(ctx,
-		`SELECT stack, content, revision, updated_at, updated_by FROM stack_drafts WHERE node = ?`, node)
+		`SELECT stack, content, revision, updated_at, updated_by, source FROM stack_drafts WHERE node = ?`, node)
 	if err != nil {
 		return nil, fmt.Errorf("stacks: list drafts: %w", err)
 	}
@@ -254,7 +259,7 @@ func (s *Service) drafts(ctx context.Context, node string) (map[string]Draft, er
 		var name string
 		var d Draft
 		var at int64
-		if err := rows.Scan(&name, &d.Content, &d.Revision, &at, &d.UpdatedBy); err != nil {
+		if err := rows.Scan(&name, &d.Content, &d.Revision, &at, &d.UpdatedBy, &d.Source); err != nil {
 			return nil, err
 		}
 		d.UpdatedAt = time.UnixMilli(at).UTC()
@@ -269,7 +274,7 @@ type errStale struct{ current int64 }
 func (e errStale) Error() string { return "the draft changed since this edit started" }
 
 // saveDraft saves content at the next revision, if from is the current one
-// (0 for none).
+// (0 for none). It's the editor's save, so the draft's source is SourceWeb.
 func (s *Service) saveDraft(ctx context.Context, node, stack, content, by string, from int64) (*Draft, error) {
 	tx, err := s.st.Writer().BeginTx(ctx, nil)
 	if err != nil {
@@ -285,11 +290,11 @@ func (s *Service) saveDraft(ctx context.Context, node, stack, content, by string
 		return nil, errStale{cur}
 	}
 	now := s.now().UTC().Truncate(time.Millisecond)
-	d := &Draft{Content: content, Revision: cur + 1, UpdatedAt: now, UpdatedBy: by}
-	_, err = tx.ExecContext(ctx, `INSERT INTO stack_drafts (node, stack, content, revision, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?)
+	d := &Draft{Content: content, Revision: cur + 1, UpdatedAt: now, UpdatedBy: by, Source: SourceWeb}
+	_, err = tx.ExecContext(ctx, `INSERT INTO stack_drafts (node, stack, content, revision, updated_at, updated_by, source) VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (node, stack) DO UPDATE SET content = excluded.content, revision = excluded.revision,
-		updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
-		node, stack, content, d.Revision, now.UnixMilli(), by)
+		updated_at = excluded.updated_at, updated_by = excluded.updated_by, source = excluded.source`,
+		node, stack, content, d.Revision, now.UnixMilli(), by, d.Source)
 	if err != nil {
 		return nil, err
 	}

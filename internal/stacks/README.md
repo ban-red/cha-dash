@@ -53,6 +53,7 @@ Table `stack_drafts` (migration `00009`): one per node and stack, with a revisio
 - Drafts survive the node being offline.
 - They're kept when a deploy fails, so the work isn't lost.
 - They hold `${secret:…}` references, never values.
+- Each says where it came from in `source` (migration `00017`): `web` for the editor, which every save writes, and `git:<sha>` for a git sync in draft-and-ask mode (v0.3; nothing writes it yet). Drafts from before the column read back as `web`. A draft's JSON (`content`, `revision`, `updated_at`, `updated_by`, `source`) carries it.
 
 ## Secrets
 
