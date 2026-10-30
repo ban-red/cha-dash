@@ -937,6 +937,8 @@ function itemName(id: string, size: SizeId): string {
 }
 
 .layout-item-content {
+  /* A grid, so the item's content stretches to fill its block (as a read-only board's cell does). */
+  display: grid;
   width: 100%;
   height: 100%;
   transition: opacity var(--motion-move-duration, 0.5s) var(--motion-move-easing, ease);
@@ -957,6 +959,11 @@ function itemName(id: string, size: SizeId): string {
   border: var(--hairline, 1px) dashed var(--line-2);
   border-radius: inherit;
   pointer-events: none;
+}
+
+.layout-item-content > * {
+  min-width: 0;
+  min-height: 0;
 }
 
 .layout-board[data-editing] .layout-item-content {
