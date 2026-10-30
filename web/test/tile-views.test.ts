@@ -111,6 +111,91 @@ describe('panel (4×3) and column (3×4)', () => {
   });
 });
 
+describe('qBittorrent', () => {
+  const withTorrents = () => {
+    const d = docs(withIncidents);
+    d.graph.resources['app:qbittorrent']!.attrs = {
+      ...d.graph.resources['app:qbittorrent']!.attrs,
+      active: [
+        { name: 'debian-13.1.0-amd64-netinst.iso', state: 'downloading', progress: 62, dl_mbps: 15.2, ul_mbps: 0, eta_s: 5400 },
+        { name: 'archlinux-2026.10.01-x86_64.iso', state: 'stalled', progress: 18, dl_mbps: 0, ul_mbps: 0 },
+        { name: 'Sintel (2010) [2160p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 5.1 },
+      ],
+      list: [
+        { name: 'old-backup-archive', state: 'error', progress: 100, dl_mbps: 0, ul_mbps: 0, ratio: 2.6 },
+        { name: 'debian-13.1.0-amd64-netinst.iso', state: 'downloading', progress: 62, dl_mbps: 15.2, ul_mbps: 0, ratio: 0 },
+        { name: 'Sintel (2010) [2160p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 5.1, ratio: 1.8 },
+        { name: 'Tears of Steel (2012) [1080p]', state: 'seeding', progress: 100, dl_mbps: 0, ul_mbps: 0, ratio: 1.9 },
+      ],
+      torrents: 12,
+      ratio: 1.84,
+      free_gib: 6144,
+      peers: 88,
+    };
+    return d;
+  };
+
+  it('lists the torrents beside the speed on a wide tile, with the facts underneath', () => {
+    const { w } = mountTile('downloads', 'wide', 'app:qbittorrent', withTorrents());
+    const rows = w.findAll('.dl-beside .ag-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.text()).toContain('debian-13.1.0-amd64-netinst.iso');
+    expect(rows[0]!.text()).toContain('62%');
+    expect(rows[0]!.text()).toContain('1h 30m left');
+    expect(w.find('.dl-beside .more').text()).toBe('+1 more');
+    expect(w.find('.dl-facts').text()).toContain('ratio 1.84');
+    expect(w.find('.dl-facts').text()).toContain('6 TiB free');
+    expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('lists more of them under the speed on a panel, uploads last', () => {
+    const { w } = mountTile('downloads', 'panel', 'app:qbittorrent', withTorrents());
+    const rows = w.findAll('.dl-torrents .ag-row');
+    expect(rows).toHaveLength(3);
+    expect(rows[2]!.text()).toContain('↑ 5.1 Mb/s');
+    expect(w.find('.dl-beside').exists()).toBe(false);
+  });
+
+  it('pages to a compact table of every torrent with its status', async () => {
+    const { w, dots, pressed } = mountTile('downloads', 'wide', 'app:qbittorrent', withTorrents());
+    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'Torrents']);
+    await dots()[1]!.trigger('click');
+    expect(pressed()).toBe('Torrents');
+    const rows = w.findAll('.dl-tr');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]!.text()).toContain('old-backup-archive');
+    expect(rows[0]!.text()).toContain('error');
+    expect(rows[1]!.text()).toContain('62%');
+    expect(rows[1]!.text()).toContain('15.2 ↓');
+    expect(rows[3]!.text()).toContain('1.9×');
+    expect(w.find('.dl-more').text()).toBe('+8 more');
+    expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('has no Torrents view without a list', () => {
+    expect(mountTile('downloads', 'wide', 'app:qbittorrent').dots()).toHaveLength(0);
+  });
+
+  it('still lists the queues without torrent data', () => {
+    const { w } = mountTile('downloads', 'wide', 'app:qbittorrent');
+    expect(w.find('.dl-torrents').exists()).toBe(false);
+    expect(w.find('ul[aria-label="Queues"]').exists()).toBe(true);
+  });
+
+  it('passes axe', async () => {
+    vi.useRealTimers();
+    for (const size of ['wide', 'panel', 'tall'] as const) {
+      const { w, dots } = mountTile('downloads', size, 'app:qbittorrent', withTorrents());
+      expect(await axeViolations(), size).toEqual([]);
+      if (dots().length) {
+        await dots()[1]!.trigger('click');
+        expect(await axeViolations(), `${size} table`).toEqual([]);
+      }
+      w.unmount();
+    }
+  });
+});
+
 describe('Tautulli', () => {
   const withPlays = () => {
     const d = docs(withIncidents);

@@ -99,6 +99,6 @@ describe('every widget, size and state passes axe', () => {
         }
       }
       expect(problems).toEqual([]);
-    });
+    }, 30_000); // every size, state and widget runs axe: Panel and Column made that longer
   }
 });

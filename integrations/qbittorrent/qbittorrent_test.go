@@ -201,6 +201,29 @@ func TestSync(t *testing.T) {
 	if r, _ := h.Resource(rid); r.Attrs["health.reason"] != "1 torrent has an error" || r.Attrs["torrents"] != 12.0 {
 		t.Fatalf("full: %v", r.Attrs)
 	}
+	// The tile's list: downloads first, fastest first, then what uploads.
+	r, _ := h.Resource(rid)
+	active, _ := r.Attrs["active"].([]any)
+	if len(active) < 3 || len(active) > maxActive {
+		t.Fatalf("active = %v", r.Attrs["active"])
+	}
+	first, _ := active[0].(map[string]any)
+	if first["name"] != "debian-13.1.0-amd64-netinst.iso" || first["state"] != "downloading" || first["progress"] != 62.0 || first["dl_mbps"] != 15.2 || first["eta_s"] != nil {
+		t.Errorf("first active = %v", first)
+	}
+	list, _ := r.Attrs["list"].([]any)
+	if len(list) != 12 {
+		t.Fatalf("list has %d torrents", len(list))
+	}
+	if l0, _ := list[0].(map[string]any); l0["state"] != "error" || l0["name"] != "old-backup-archive" {
+		t.Errorf("the list should lead with the torrent in error: %v", list[0])
+	}
+	if l1, _ := list[1].(map[string]any); l1["state"] != "downloading" {
+		t.Errorf("then the downloads: %v", list[1])
+	}
+	if r.Attrs["ratio"] != 1.84 || r.Attrs["free_gib"] != 6144.0 || r.Attrs["peers"] != 88.0 {
+		t.Errorf("ratio, free space, peers = %v %v %v", r.Attrs["ratio"], r.Attrs["free_gib"], r.Attrs["peers"])
+	}
 	if se := h.Series(rid, "dl.mbps"); se["unit"] != "Mb/s" {
 		t.Fatalf("dl.mbps = %v", se)
 	}

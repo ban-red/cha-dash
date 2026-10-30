@@ -5,6 +5,7 @@
 package qbittorrent
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -164,13 +166,13 @@ type instance struct {
 	base string
 	http *http.Client
 
-	// The sync/maindata feed: the last response id, each torrent's state by
-	// hash, and the merged server state. Only Sync touches them.
-	rid     int64
-	states  map[string]string
-	server  map[string]json.RawMessage
-	version string
-	readVer time.Time
+	// The sync/maindata feed: the last response id, each torrent by hash,
+	// and the merged server state. Only Sync touches them.
+	rid      int64
+	torrents map[string]*torrent
+	server   map[string]json.RawMessage
+	version  string
+	readVer  time.Time
 }
 
 // Close implements integration.Instance; the framework logs the session out.
@@ -258,8 +260,52 @@ type maindata struct {
 	ServerState     map[string]json.RawMessage `json:"server_state"`
 }
 
+// torrentDelta is a torrent's changed fields; torrent is what they add up to.
 type torrentDelta struct {
-	State *string `json:"state"`
+	Name     *string  `json:"name"`
+	State    *string  `json:"state"`
+	Progress *float64 `json:"progress"`
+	Size     *int64   `json:"size"`
+	DLSpeed  *int64   `json:"dlspeed"`
+	UPSpeed  *int64   `json:"upspeed"`
+	ETA      *int64   `json:"eta"`
+	Ratio    *float64 `json:"ratio"`
+}
+
+type torrent struct {
+	name, state      string
+	progress         float64
+	size             int64
+	dlSpeed, upSpeed int64
+	eta              int64
+	ratio            float64
+}
+
+func (t *torrent) apply(d torrentDelta) {
+	if d.Name != nil {
+		t.name = *d.Name
+	}
+	if d.State != nil {
+		t.state = *d.State
+	}
+	if d.Progress != nil {
+		t.progress = *d.Progress
+	}
+	if d.Size != nil {
+		t.size = *d.Size
+	}
+	if d.DLSpeed != nil {
+		t.dlSpeed = *d.DLSpeed
+	}
+	if d.UPSpeed != nil {
+		t.upSpeed = *d.UPSpeed
+	}
+	if d.ETA != nil {
+		t.eta = *d.ETA
+	}
+	if d.Ratio != nil {
+		t.ratio = *d.Ratio
+	}
 }
 
 // Torrent states, grouped the way the WebUI's filters group them.
@@ -298,8 +344,8 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	in.fold(md)
 
 	var seeding, leeching, queued, errored int
-	for _, st := range in.states {
-		switch {
+	for _, t := range in.torrents {
+		switch st := t.state; {
 		case seedingStates[st]:
 			seeding++
 		case leechingStates[st]:
@@ -323,7 +369,7 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 		key = "test"
 	}
 	rid := ID + ":" + key + "/app"
-	attrs := map[string]any{"type": ID, "url": in.base, "torrents": len(in.states), "errored": errored}
+	attrs := map[string]any{"type": ID, "url": in.base, "torrents": len(in.torrents), "errored": errored}
 	if in.version != "" {
 		attrs["version"] = in.version
 	}
@@ -332,6 +378,19 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	}
 	if alt, ok := in.serverBool("use_alt_speed_limits"); ok {
 		attrs["alt_speed"] = alt
+	}
+	if active := in.active(); len(active) > 0 {
+		attrs["active"] = active
+		attrs["list"] = in.list()
+	}
+	if r, err := strconv.ParseFloat(in.serverString("global_ratio"), 64); err == nil {
+		attrs["ratio"] = r
+	}
+	if free, ok := in.serverNumber("free_space_on_disk"); ok && free >= 0 {
+		attrs["free_gib"] = math.Round(free/(1<<30)*10) / 10
+	}
+	if peers, ok := in.serverNumber("total_peer_connections"); ok {
+		attrs["peers"] = int(peers)
 	}
 	res := integration.Resource{ID: rid, Kind: "app", Name: in.cfg.Name, State: "running", Health: h, Attrs: attrs,
 		Caps: []string{"downloads.queue"}, Links: []integration.Link{{Title: "qBittorrent", URL: in.base}}}
@@ -356,18 +415,19 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 
 // fold applies one maindata answer.
 func (in *instance) fold(md maindata) {
-	if md.FullUpdate || in.states == nil {
-		in.states, in.server = map[string]string{}, map[string]json.RawMessage{}
+	if md.FullUpdate || in.torrents == nil {
+		in.torrents, in.server = map[string]*torrent{}, map[string]json.RawMessage{}
 	}
-	for hash, t := range md.Torrents {
-		if t.State != nil {
-			in.states[hash] = *t.State
-		} else if _, ok := in.states[hash]; !ok {
-			in.states[hash] = "unknown"
+	for hash, d := range md.Torrents {
+		t, ok := in.torrents[hash]
+		if !ok {
+			t = &torrent{state: "unknown"}
+			in.torrents[hash] = t
 		}
+		t.apply(d)
 	}
 	for _, hash := range md.TorrentsRemoved {
-		delete(in.states, hash)
+		delete(in.torrents, hash)
 	}
 	maps.Copy(in.server, md.ServerState)
 	in.rid = md.RID
@@ -377,6 +437,124 @@ func (in *instance) serverString(k string) string {
 	var s string
 	_ = json.Unmarshal(in.server[k], &s)
 	return s
+}
+
+func (in *instance) serverNumber(k string) (float64, bool) {
+	var n float64
+	if err := json.Unmarshal(in.server[k], &n); err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// maxActive is how many torrents the tile gets: it has room for a handful.
+const maxActive = 8
+
+// stateWords is a torrent's state in the words a tile shows.
+func stateWords(st string) string {
+	switch {
+	case st == "downloading" || st == "forcedDL":
+		return "downloading"
+	case st == "stalledDL":
+		return "stalled"
+	case st == "metaDL" || st == "forcedMetaDL":
+		return "fetching metadata"
+	case st == "queuedDL" || st == "queuedUP":
+		return "queued"
+	case seedingStates[st]:
+		return "seeding"
+	case erroredStates[st]:
+		return "error"
+	case strings.HasPrefix(st, "stopped") || strings.HasPrefix(st, "paused"):
+		return "stopped"
+	}
+	return st
+}
+
+// maxList is how many torrents the Torrents view gets.
+const maxList = 30
+
+// rank orders the list by what needs a look: errors, then downloads, then
+// the queue, then what uploads, then the rest.
+func rank(st string) int {
+	switch {
+	case erroredStates[st]:
+		return 0
+	case st == "downloading" || st == "forcedDL":
+		return 1
+	case leechingStates[st]:
+		return 2
+	case st == "queuedDL":
+		return 3
+	case st == "uploading" || st == "forcedUP":
+		return 4
+	}
+	return 5
+}
+
+// list is a compact table of the torrents, in rank order, for the Torrents
+// view: name, status, progress, speeds and ratio.
+func (in *instance) list() []map[string]any {
+	all := make([]*torrent, 0, len(in.torrents))
+	for _, t := range in.torrents {
+		all = append(all, t)
+	}
+	slices.SortFunc(all, func(a, b *torrent) int {
+		return cmp.Or(cmp.Compare(rank(a.state), rank(b.state)), cmp.Compare(b.dlSpeed+b.upSpeed, a.dlSpeed+a.upSpeed), strings.Compare(a.name, b.name))
+	})
+	out := make([]map[string]any, 0, min(len(all), maxList))
+	for _, t := range all[:min(len(all), maxList)] {
+		out = append(out, map[string]any{
+			"name":     t.name,
+			"state":    stateWords(t.state),
+			"progress": int(math.Floor(t.progress * 100)),
+			"dl_mbps":  math.Round(float64(t.dlSpeed)*8/1e5) / 10,
+			"ul_mbps":  math.Round(float64(t.upSpeed)*8/1e5) / 10,
+			"ratio":    math.Round(t.ratio*100) / 100,
+		})
+	}
+	return out
+}
+
+// active is what is moving, for the tile: the downloads first (fastest
+// first, then the queue), then what is uploading. Names are the user's own
+// torrents, so they're as visible as the tile is.
+func (in *instance) active() []map[string]any {
+	var down, up []*torrent
+	for _, t := range in.torrents {
+		switch {
+		case leechingStates[t.state] || t.state == "queuedDL":
+			down = append(down, t)
+		case seedingStates[t.state] && t.upSpeed > 0:
+			up = append(up, t)
+		}
+	}
+	slices.SortFunc(down, func(a, b *torrent) int {
+		return cmp.Or(cmp.Compare(b.dlSpeed, a.dlSpeed), cmp.Compare(b.progress, a.progress), strings.Compare(a.name, b.name))
+	})
+	slices.SortFunc(up, func(a, b *torrent) int {
+		return cmp.Or(cmp.Compare(b.upSpeed, a.upSpeed), strings.Compare(a.name, b.name))
+	})
+	out := []map[string]any{}
+	for _, t := range append(down, up...) {
+		if len(out) == maxActive {
+			break
+		}
+		item := map[string]any{
+			"name":     t.name,
+			"state":    stateWords(t.state),
+			"progress": int(math.Floor(t.progress * 100)),
+			"dl_mbps":  math.Round(float64(t.dlSpeed)*8/1e5) / 10,
+			"ul_mbps":  math.Round(float64(t.upSpeed)*8/1e5) / 10,
+			"size_gb":  math.Round(float64(t.size)/(1<<30)*10) / 10,
+		}
+		// 8640000 s is qBittorrent's "never".
+		if t.dlSpeed > 0 && t.eta > 0 && t.eta < 8640000 {
+			item["eta_s"] = t.eta
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func (in *instance) serverBool(k string) (bool, bool) {

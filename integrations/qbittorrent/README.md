@@ -41,7 +41,9 @@ A cookie session through the runtime's `Session` hook:
 
 ## What it publishes
 
-- **`qbittorrent:<instance id>/app`**, kind `app`, named after the instance, state `running`, with `attrs.type = "qbittorrent"`, `attrs.url`, `attrs.version`, `attrs.connection_status` (`connected`, `firewalled`, `disconnected`), `attrs.torrents` (how many), `attrs.errored`, `attrs.alt_speed` (alternative speed limits on), a link and `caps: ["downloads.queue"]`. `integration:<instance id> monitors` it.
+- **`qbittorrent:<instance id>/app`**, kind `app`, named after the instance, state `running`, with `attrs.type = "qbittorrent"`, `attrs.url`, `attrs.version`, `attrs.connection_status` (`connected`, `firewalled`, `disconnected`), `attrs.torrents` (how many), `attrs.errored`, `attrs.alt_speed` (alternative speed limits on), `attrs.ratio` (global share ratio), `attrs.free_gib`, `attrs.peers`, `attrs.active`, a link and `caps: ["downloads.queue"]`. `integration:<instance id> monitors` it.
+- **`attrs.active`** is what's moving, for the tile: up to 8 torrents, downloads first (fastest first, queued ones after), then the ones uploading. Each has `name`, `state` (downloading, stalled, fetching metadata, queued, seeding), `progress` (percent), `dl_mbps`, `ul_mbps`, `size_gb` and `eta_s` (only while downloading). The names are your own torrents, so they're as visible as the tile is.
+- **`attrs.list`** is a compact table of up to 30 torrents for the tile's Torrents view, worst first (errors, downloads, the queue, uploads, the rest): `name`, `state` (adds `error` and `stopped`), `progress`, `dl_mbps`, `ul_mbps` and `ratio`.
 - **Health:** `attention` with "qBittorrent has no network connection" when `connection_status` is `disconnected` (a VPN container that lost its tunnel, typically); else `attention` with "N torrents have an error" when any torrent is in `error` or `missingFiles`; else `ok`. `firewalled` (no incoming connections) stays `ok`.
 
 | Metric | Unit | Scale | Band | Value |
