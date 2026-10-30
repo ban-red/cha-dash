@@ -47,6 +47,7 @@ func (Integration) Manifest() integration.Manifest {
 	key := integration.Secret("API key").Describe("Account Settings → API Keys. An admin's key with the server.statistics permission reads server-wide statistics; any other key reads its own library.")
 	return integration.Manifest{
 		ID: ID, Name: "Immich", Icon: "immich", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatFiles,
 		Capabilities: []integration.Capability{"photos.library"},
 		ConfigSchema: integration.Object(integration.URLProp(), integration.TLSProp(), integration.Prop("api_key", key)).Require("url", "api_key"),
 		Poll:         integration.Poll{Interval: interval, Idle: idle, Timeout: 30 * time.Second},

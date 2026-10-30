@@ -29,6 +29,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Prowlarr", Icon: "prowlarr", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatAutomation,
 		Capabilities: []integration.Capability{"downloads.indexers"},
 		ConfigSchema: arr.Schema(app),
 		Poll:         arr.Poll,

@@ -43,6 +43,7 @@ func (Integration) Manifest() integration.Manifest {
 	key := integration.Secret("API key").Describe("Settings → API Keys (Audiobookshelf 2.26 and later), or a user's API token from Settings → Users.")
 	return integration.Manifest{
 		ID: ID, Name: "Audiobookshelf", Icon: "audiobookshelf", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatMedia,
 		Capabilities: []integration.Capability{"media.library", "media.sessions"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Audiobookshelf's address, with its path if it has one, e.g. https://audiobooks.home.arpa.")),

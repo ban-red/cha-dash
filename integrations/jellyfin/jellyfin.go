@@ -40,6 +40,7 @@ func (Integration) Manifest() integration.Manifest {
 	key := integration.Secret("API key").Describe("Dashboard → API Keys → New API key. Jellyfin's API keys act as an administrator.")
 	return integration.Manifest{
 		ID: ID, Name: "Jellyfin", Icon: "jellyfin", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatMedia,
 		Capabilities: []integration.Capability{"media.sessions", "media.library"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Your Jellyfin server: https://jellyfin.lab.example, or http://<address>:8096.")),

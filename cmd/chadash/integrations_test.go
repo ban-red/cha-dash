@@ -126,3 +126,12 @@ func TestCorrelatorWired(t *testing.T) {
 		t.Fatalf("GET /api/correlate/suggestions without a session = %d", rec.Code)
 	}
 }
+
+// Every integration sits in a category, so the Add list can group them.
+func TestEveryIntegrationHasACategory(t *testing.T) {
+	for _, m := range integration.Default.Manifests() {
+		if m.Category == "" {
+			t.Errorf("%s has no category (Manifest.Category, or meta.category in its spec)", m.ID)
+		}
+	}
+}

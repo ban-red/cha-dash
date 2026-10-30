@@ -38,6 +38,7 @@ func (Integration) Manifest() integration.Manifest {
 	pass := integration.Secret("Password").Describe("That user's password (RestrictedPassword or ControlPassword).")
 	return integration.Manifest{
 		ID: ID, Name: "NZBGet", Icon: "nzbget", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatDownloads,
 		Capabilities: []integration.Capability{"downloads.queue"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("NZBGet's web interface, e.g. http://nas.home.arpa:6789, with its path if it's behind a reverse proxy.")),

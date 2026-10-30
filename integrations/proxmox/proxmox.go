@@ -57,6 +57,7 @@ func (Integration) Manifest() integration.Manifest {
 		Description: "Optional. A second token that lets Cha Dash start, stop, snapshot and back up guests, as user@realm!name (e.g. chadash-control@pve!control)."}
 	return integration.Manifest{
 		ID: ID, Name: "Proxmox VE", Icon: "proxmox", Version: "0.2.0", Tier: integration.Silver,
+		Category:     integration.CatHosts,
 		Capabilities: []integration.Capability{"host.metrics", "compute.guests", "backups.jobs"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Where the PVE API answers, e.g. https://pve.lab.example:8006. For a cluster, any node.")),

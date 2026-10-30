@@ -11,6 +11,7 @@ meta:
   icon: tautulli
   version: 0.1.0
   tier: bronze
+  category: media
   capabilities: [media.sessions]
 
 config:

@@ -66,6 +66,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Unraid", Icon: "unraid", Version: "0.2.0", Tier: integration.Silver,
+		Category:     integration.CatHosts,
 		Capabilities: []integration.Capability{"host.metrics", "storage.pools", "storage.disks", "storage.shares", "containers", "compute.guests"},
 		ConfigSchema: integration.Object(
 			integration.URLProp(), integration.TLSProp(),

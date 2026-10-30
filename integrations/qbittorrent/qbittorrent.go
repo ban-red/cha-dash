@@ -38,6 +38,7 @@ func (Integration) Manifest() integration.Manifest {
 	pass := integration.Secret("Password").Describe("The WebUI password.")
 	return integration.Manifest{
 		ID: ID, Name: "qBittorrent", Icon: "qbittorrent", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatDownloads,
 		Capabilities: []integration.Capability{"downloads.queue"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("The WebUI's address.")),

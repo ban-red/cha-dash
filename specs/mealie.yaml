@@ -11,6 +11,7 @@ meta:
   icon: mealie
   version: 0.1.0
   tier: bronze
+  category: files
   capabilities: [recipes.library]
 
 config:

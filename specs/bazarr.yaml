@@ -12,6 +12,7 @@ meta:
   icon: bazarr
   version: 0.1.0
   tier: bronze
+  category: automation
   capabilities: [media.library]
 
 config:

@@ -36,6 +36,7 @@ func (Integration) Manifest() integration.Manifest {
 	pass := integration.Secret("App password").Describe("Settings → Web interface / API → Configure app password (expert mode). The web password works too, unless two-factor authentication is on. Leave empty if the Pi-hole has no password.")
 	return integration.Manifest{
 		ID: ID, Name: "Pi-hole", Icon: "pi-hole", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatNetwork,
 		Capabilities: []integration.Capability{"dns.filter"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("The Pi-hole's address, e.g. https://pihole.lab.example. The admin page's address (…/admin) works too.")),

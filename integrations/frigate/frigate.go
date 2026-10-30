@@ -39,6 +39,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Frigate", Icon: "frigate", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatHome,
 		Capabilities: []integration.Capability{"cameras", "cameras.events"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Frigate's address. Prefer the authenticated port (8971) with a viewer account; the internal port (5000) needs no sign-in and grants admin to anyone who can reach it.")),

@@ -60,6 +60,7 @@ func (Integration) Manifest() integration.Manifest {
 	tls.Describe("Only for an endpoint that speaks TLS (usually :2376). Leave it out for a socket proxy on plain TCP.")
 	return integration.Manifest{
 		ID: ID, Name: "Docker", Icon: "docker", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatHosts,
 		Capabilities: []integration.Capability{"containers"},
 		ConfigSchema: integration.Object(
 			integration.Prop("endpoint", integration.URL("Endpoint").Describe(

@@ -114,6 +114,9 @@ func ValidateManifest(m Manifest) error {
 	default:
 		return fail("tier %q isn't bronze, silver or gold", m.Tier)
 	}
+	if m.Category != "" && !slices.Contains(Categories, m.Category) {
+		return fail("category %q isn't one of %v", m.Category, Categories)
+	}
 	switch m.Engine {
 	case "", EngineGo, EngineSpec:
 	default:

@@ -33,6 +33,7 @@ func (Integration) Manifest() integration.Manifest {
 	token.Authorize = true
 	return integration.Manifest{
 		ID: ID, Name: "Plex", Icon: "plex", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatMedia,
 		Capabilities: []integration.Capability{"media.sessions", "media.library"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Your Plex Media Server: https://plex.lab.example, or https://<address>:32400.")),

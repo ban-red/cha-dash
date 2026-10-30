@@ -55,6 +55,7 @@ func (Integration) Manifest() integration.Manifest {
 		Description: "Optional. A second token that lets Cha Dash prune datastores by their retention policy, as user@realm!name (e.g. chadash-control@pbs!control)."}
 	return integration.Manifest{
 		ID: ID, Name: "Proxmox Backup Server", Icon: "proxmox-backup-server", Version: "0.2.0", Tier: integration.Silver,
+		Category:     integration.CatHosts,
 		Capabilities: []integration.Capability{"backups.targets", "backups.jobs"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Where PBS answers, e.g. https://pbs.lab.example:8007.")),

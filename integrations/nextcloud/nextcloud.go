@@ -41,6 +41,7 @@ func (Integration) Manifest() integration.Manifest {
 	pass := integration.Secret("App password").Describe("An app password for that user (Personal settings → Security → Devices & sessions).")
 	return integration.Manifest{
 		ID: ID, Name: "Nextcloud", Icon: "nextcloud", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatFiles,
 		Capabilities: []integration.Capability{"files.storage"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Nextcloud's address, with its path if it has one, e.g. https://nextcloud.home.arpa.")),

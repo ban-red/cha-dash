@@ -47,6 +47,7 @@ func (Integration) Manifest() integration.Manifest {
 	pass := integration.Secret("Password").Describe("rpc-password in settings.json.")
 	return integration.Manifest{
 		ID: ID, Name: "Transmission", Icon: "transmission", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatDownloads,
 		Capabilities: []integration.Capability{"downloads.queue"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Transmission's address, without the /transmission/ path, e.g. https://torrents.home.arpa or http://nas.home.arpa:9091.")),

@@ -41,6 +41,7 @@ const entityPattern = `^sensor\.[a-z0-9_]+$`
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Home Assistant", Icon: "homeassistant", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatHome,
 		Capabilities: []integration.Capability{"home.entities"},
 		ConfigSchema: integration.Object(
 			integration.URLProp(),

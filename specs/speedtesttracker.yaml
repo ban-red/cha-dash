@@ -12,6 +12,7 @@ meta:
   icon: speedtest-tracker
   version: 0.1.0
   tier: bronze
+  category: network
   capabilities: [net.speedtest]
 
 config:

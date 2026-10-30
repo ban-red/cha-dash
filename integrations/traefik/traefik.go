@@ -38,6 +38,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Traefik", Icon: "traefik", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatNetwork,
 		Capabilities: []integration.Capability{"proxy.routes"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("Where Traefik's API answers, e.g. http://traefik:8080 or https://traefik.lab.example (the /api paths are added).")),

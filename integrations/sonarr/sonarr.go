@@ -33,6 +33,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Sonarr", Icon: "sonarr", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatAutomation,
 		Capabilities: []integration.Capability{"media.calendar"},
 		ConfigSchema: arr.Schema(app.App),
 		Poll:         arr.Poll,

@@ -67,6 +67,7 @@ func (Integration) Manifest() integration.Manifest {
 	lng, lnx := -180.0, 180.0
 	return integration.Manifest{
 		ID: ID, Name: "Weather", Icon: "weather", Version: "0.1.0", Tier: integration.Bronze,
+		Category:     integration.CatHome,
 		Capabilities: []integration.Capability{"weather.current", "weather.forecast"},
 		ConfigSchema: integration.Object(
 			integration.Prop("latitude", &integration.Schema{Type: "number", Title: "Latitude", Minimum: &lat, Maximum: &lon,

@@ -78,6 +78,7 @@ type meta struct {
 	Icon         string   `yaml:"icon"`
 	Version      string   `yaml:"version"`
 	Tier         string   `yaml:"tier"`
+	Category     string   `yaml:"category"`
 	Capabilities []string `yaml:"capabilities"`
 }
 
@@ -299,7 +300,7 @@ func compile(f file) (*Spec, error) {
 	}
 	s.manifest = integration.Manifest{
 		ID: f.Meta.ID, Name: f.Meta.Name, Aliases: f.Meta.Aliases, Icon: f.Meta.Icon, Version: f.Meta.Version,
-		Tier: integration.Tier(f.Meta.Tier), Capabilities: caps, Engine: integration.EngineSpec,
+		Tier: integration.Tier(f.Meta.Tier), Category: integration.Category(f.Meta.Category), Capabilities: caps, Engine: integration.EngineSpec,
 		ConfigSchema: integration.Object(props...).Require(required...),
 		Poll:         integration.Poll{Interval: every, Timeout: min(MaxTimeout, s.timeout*time.Duration(max(1, len(f.Requests)))+5*time.Second)},
 	}

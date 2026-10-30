@@ -58,6 +58,7 @@ func (Integration) Manifest() integration.Manifest {
 	targets.MinItems, targets.MaxItems = new(1), new(MaxTargets)
 	return integration.Manifest{
 		ID: ID, Name: "Checks", Icon: "checks", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatMonitoring,
 		Capabilities: []integration.Capability{"checks.uptime"},
 		ConfigSchema: integration.Object(integration.Prop("targets", targets), integration.TLSProp()).Require("targets"),
 		Poll:         integration.Poll{Interval: DefaultInterval, Background: true, Timeout: 90 * time.Second},

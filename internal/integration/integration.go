@@ -109,6 +109,25 @@ const (
 	Gold   Tier = "gold"   // realtime where available, scoped actions, multi-version fixtures
 )
 
+// Category is the group an integration sits in on the Add list. The web app
+// owns the labels and the order; an integration without one lands in "Other".
+type Category string
+
+// Categories.
+const (
+	CatMedia      Category = "media"      // servers and requests: Plex, Jellyfin, Seerr
+	CatAutomation Category = "automation" // library managers and indexers: Sonarr, Prowlarr
+	CatDownloads  Category = "downloads"  // clients: qBittorrent, SABnzbd
+	CatHosts      Category = "hosts"      // hosts, containers and backups: Proxmox, Docker
+	CatNetwork    Category = "network"    // DNS, routers, proxies
+	CatMonitoring Category = "monitoring" // uptime and checks
+	CatHome       Category = "home"       // home automation, cameras, weather
+	CatFiles      Category = "files"      // files, photos, documents, notes
+)
+
+// Categories lists every Category.
+var Categories = []Category{CatMedia, CatAutomation, CatDownloads, CatHosts, CatNetwork, CatMonitoring, CatHome, CatFiles}
+
 // Capability is a contract widgets bind to: "checks.uptime",
 // "compute.guests", "media.requests", … (03 · Architecture, capability
 // contracts).
@@ -169,6 +188,7 @@ type Manifest struct {
 	Icon         string       `json:"icon"`    // icon slug, resolved by the web app
 	Version      string       `json:"version"` // the integration's own version
 	Tier         Tier         `json:"tier"`
+	Category     Category     `json:"category,omitempty"` // where it sits on the Add list; optional
 	Capabilities []Capability `json:"capabilities"`
 	// Aliases are other names the same upstream goes by (Seerr is also
 	// Overseerr and Jellyseerr), for search and the add list. Optional.

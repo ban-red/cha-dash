@@ -39,6 +39,7 @@ func (Integration) Manifest() integration.Manifest {
 	pass := integration.Secret("Password").Describe("That user's password.")
 	return integration.Manifest{
 		ID: ID, Name: "AdGuard Home", Icon: "adguard-home", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatNetwork,
 		Capabilities: []integration.Capability{"dns.filter"},
 		ConfigSchema: integration.Object(
 			integration.Prop("url", integration.URL("URL").Describe("The web interface's address, e.g. https://adguard.lab.example.")),

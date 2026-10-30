@@ -23,6 +23,7 @@ meta:
   icon: seerr
   version: 0.1.0
   tier: bronze
+  category: media
   capabilities: [media.requests]
 
 # url and tls are added to every spec.

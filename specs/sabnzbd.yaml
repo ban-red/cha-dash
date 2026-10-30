@@ -11,6 +11,7 @@ meta:
   icon: sabnzbd
   version: 0.1.0
   tier: bronze
+  category: downloads
   capabilities: [downloads.queue]
 
 config:

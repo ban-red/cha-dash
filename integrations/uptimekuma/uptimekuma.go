@@ -29,6 +29,7 @@ type Integration struct{}
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
 		ID: ID, Name: "Uptime Kuma", Icon: "uptimekuma", Version: "0.1.0", Tier: integration.Silver,
+		Category:     integration.CatMonitoring,
 		Capabilities: []integration.Capability{"checks.uptime"},
 		ConfigSchema: integration.Object(
 			integration.URLProp(),
