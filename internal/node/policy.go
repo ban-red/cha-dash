@@ -341,8 +341,10 @@ func (p Policy) PinRotation() bool {
 	return p.Hub.Pin == "" && (p.Hub.PinRotation == nil || *p.Hub.PinRotation)
 }
 
-// AlwaysProtected are protected under any policy until self-update lands
-// (v0.3): Cha Dash never restarts, recreates or removes itself.
+// AlwaysProtected are protected under any policy: no Docker or stack verb
+// restarts, recreates or removes Cha Dash. The one exception is
+// stack.selfupdate (stacks.selfupdate), which recreates the hub's container
+// with a new image and never touches the node's.
 var AlwaysProtected = []string{"chadash", "chadash-node"}
 
 // Protected reports whether a container is protected: its name or its

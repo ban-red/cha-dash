@@ -47,8 +47,8 @@ const (
 )
 
 // DefaultProtectImages mark Cha Dash's own stack: a project running (or
-// declaring) one of these images can be viewed and diffed, not deployed,
-// until self-update lands (v0.3).
+// declaring) one of these images can be viewed and diffed, not deployed.
+// Cha Dash updates its own image with stack.selfupdate instead.
 var DefaultProtectImages = []string{"ghcr.io/ban-red/chadash"}
 
 // Options configure the module.
@@ -73,6 +73,9 @@ type Options struct {
 	ProtectContainer func(name, service string) bool
 	// Guard is what the node refuses or flags in a compose file (guard.go).
 	Guard Guard
+	// SelfUpdate recreates the hub's container for stack.selfupdate. Nil:
+	// this node can't update the hub.
+	SelfUpdate SelfUpdater
 	// PrivateDirs are the node's own directories on its filesystem (its
 	// identity, the pairing volume): a running project whose compose file
 	// is under one of them is never read or adopted.
@@ -112,6 +115,7 @@ type Module struct {
 	selfProject   func(ctx context.Context) (string, error)
 	protect       func(name, service string) bool
 	guard         Guard
+	selfUpdater   SelfUpdater
 	privateDirs   []string
 	wait, soak    time.Duration
 	rollbackSoak  time.Duration
@@ -140,7 +144,7 @@ func New(o Options) (*Module, error) {
 	}
 	m := &Module{
 		root: o.Root, docker: o.Docker, protected: o.Protected, protectImages: o.ProtectImages,
-		selfProject: o.SelfProject, protect: o.ProtectContainer, guard: o.Guard, privateDirs: o.PrivateDirs,
+		selfProject: o.SelfProject, protect: o.ProtectContainer, guard: o.Guard, selfUpdater: o.SelfUpdate, privateDirs: o.PrivateDirs,
 		wait: o.Wait, soak: o.Soak, rollbackSoak: o.RollbackSoak, poll: o.Poll,
 		log: o.Log, now: o.Now, sleep: o.Sleep, locks: map[string]*sync.Mutex{},
 	}
@@ -218,6 +222,12 @@ func (m *Module) Verbs() []node.Verb {
 		// Git sync (v0.3, wave 12): read a remote a stack follows.
 		verb(stackproto.VerbRemoteCheck, stackproto.PermSync, m.remoteCheck),
 		verb(stackproto.VerbFetch, stackproto.PermSync, m.fetch),
+
+		// Fleet stacks (v0.3, wave 14): move a project into the root, and
+		// Cha Dash updating itself (selfupdate.go).
+		verb(stackproto.VerbMove, stackproto.PermAdopt, m.move),
+		verb(stackproto.VerbSelfUpdate, stackproto.PermSelfUpdate, m.selfUpdate),
+		verb(stackproto.VerbSelfUpdateResult, stackproto.PermSelfUpdate, m.selfUpdateResult),
 	}
 }
 
@@ -318,7 +328,7 @@ func healthOf(c Container) string {
 
 // protectedReason says why a stack is view-only, or "".
 func (m *Module) protectedReason(name string, contents []string, cs []Container) string {
-	const why = "This is Cha Dash's own stack. It can be viewed and diffed here, but deploying it from Cha Dash waits for self-update (v0.3)."
+	const why = "This is Cha Dash's own stack. It can be viewed and diffed here, not deployed: Cha Dash changes its own image by self-update (Update Cha Dash) instead."
 	if slices.Contains(m.protected, name) || (name != "" && m.selfProjectName() == name) {
 		return why
 	}
@@ -534,6 +544,7 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 			// its labels, which may name a path inside another tool's
 			// container (Hawser, Portainer). Adopt versions that file.
 			d.Path, d.ConfigFiles, d.Adoptable = s.dir, []string{s.path()}, true
+			d.MoveRefusal = "It's already in the stacks root: adopt it in place."
 			out.Projects = append(out.Projects, d)
 			continue
 		}
@@ -548,6 +559,8 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 			d.Reason, d.Protected = why, true
 		}
 		d.Adoptable = d.Reason == ""
+		d.MoveRefusal = m.moveRefusal(p, d.Reason)
+		d.Moveable = d.MoveRefusal == ""
 		out.Projects = append(out.Projects, d)
 	}
 	for _, name := range sortedKeys(root) {
@@ -558,6 +571,7 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 		out.Projects = append(out.Projects, stackproto.Detected{
 			Name: name, Status: stackproto.StatusDown, Path: s.dir,
 			ConfigFiles: []string{s.path()}, Adoptable: true,
+			MoveRefusal: "It's already in the stacks root: adopt it in place.",
 		})
 	}
 	slices.SortFunc(out.Projects, func(a, b stackproto.Detected) int { return strings.Compare(a.Name, b.Name) })
@@ -625,8 +639,13 @@ func (m *Module) get(ctx context.Context, req stackproto.GetRequest, _ emitter) 
 		if err != nil {
 			return out, err
 		}
+		messages := map[string]string{}
 		for _, c := range hist {
 			out.History = append(out.History, toCommit(c))
+			messages[c.Hash.String()] = c.Message
+		}
+		if s.location == stackproto.LocationRoot {
+			out.MovedFrom = movedFrom(out.History, messages)
 		}
 	} else {
 		b, err := os.ReadFile(s.path())
@@ -678,13 +697,19 @@ func (m *Module) protectedRunning(ctx context.Context, name string) (stackproto.
 		return stackproto.Stack{}, false
 	}
 	// Not the usual "viewed and diffed": there's no one file here to show.
-	const why = "This is Cha Dash's own stack. It isn't in one compose file Cha Dash can read here, so only its containers are shown; deploying it from Cha Dash waits for self-update (v0.3)."
+	const why = "This is Cha Dash's own stack. It isn't in one compose file Cha Dash can read here, so only its containers are shown. Cha Dash changes its own image by self-update (Update Cha Dash)."
 	out := stackproto.Stack{Meta: map[string]any{}, Containers: []stackproto.Service{}, History: []stackproto.Commit{}, Secrets: []string{}, ProtectedReason: why}
 	out.Name, out.Protected, out.Location = name, true, stackproto.LocationExternal
 	out.Status, out.Services, out.Running = status(cs)
 	slices.SortFunc(cs, func(a, b Container) int { return strings.Compare(a.Service+a.Name, b.Service+b.Name) })
 	for _, c := range cs {
 		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
+	}
+	// Its self-updates are in the stacks repo under its name.
+	if hist, err := m.repo.history(name, name+"/"+composeNames[0], historyLimit); err == nil {
+		for _, c := range hist {
+			out.History = append(out.History, toCommit(c))
+		}
 	}
 	return out, true
 }

@@ -79,6 +79,9 @@ const (
 	OutcomeBlocked    = "blocked"     // the preflight refused it; nothing was touched
 	OutcomeRolledBack = "rolled_back" // the gate failed; the previous version is healthy again
 	OutcomeStuck      = "stuck"       // the rollback failed too
+	// OutcomeRunning is a self-update that hasn't ended yet, as
+	// stack.selfupdate.result reports it while the hub restarts.
+	OutcomeRunning = "running"
 )
 
 // Error codes a verb fails with.
@@ -235,6 +238,9 @@ type Stack struct {
 	Containers      []Service      `json:"containers"`
 	History         []Commit       `json:"history"`
 	Secrets         []string       `json:"secrets"` // ${secret:…} names the committed file references
+	// MovedFrom is where stack.move brought the file from, while a copy is
+	// still there: the tool that wrote it may still deploy it.
+	MovedFrom string `json:"moved_from,omitempty"`
 }
 
 // EnvInfo describes the .env next to the file: whether there is one and its
@@ -486,14 +492,19 @@ type MoveRequest struct {
 	Env      string `json:"env,omitempty"`
 	By       string `json:"by,omitempty"`
 	Via      string `json:"via,omitempty"`
+	// DryRun answers what the move would do (the rewrites and the plan)
+	// and leaves nothing behind: no files, no commit.
+	DryRun bool `json:"dry_run,omitempty"`
 }
 
 // MoveResult is the commit that recorded the move, each relative path it
-// made absolute, and what the first deploy will do.
+// made absolute, and what the first deploy will do. A dry run has no
+// commit.
 type MoveResult struct {
 	Commit   string    `json:"commit"`
 	Rewrites []Rewrite `json:"rewrites"`
 	Plan     Plan      `json:"plan"`
+	Path     string    `json:"path,omitempty"` // the stack's directory in the root
 }
 
 // Rewrite is one line a move changed: a relative path made absolute.
@@ -520,11 +531,28 @@ type SelfUpdateResultRequest struct{}
 
 // SelfUpdateResult says how a self-update ended (OutcomeDeployed,
 // OutcomeRolledBack or OutcomeStuck), with the image digests before and
-// after.
+// after. The node keeps the last one on disk, so stack.selfupdate.result
+// can answer after the hub restarts: OutcomeRunning while it hasn't ended,
+// and an empty Outcome when there has never been one.
 type SelfUpdateResult struct {
 	Outcome  string `json:"outcome"`
 	Previous string `json:"previous"`
 	Current  string `json:"current"`
+	// Ref is the hub's task ID the update ran for, Image the image asked
+	// for, and Reason a sentence when it rolled back or got stuck.
+	Ref        string     `json:"ref,omitempty"`
+	Image      string     `json:"image,omitempty"`
+	Reason     string     `json:"reason,omitempty"`
+	Commit     string     `json:"commit,omitempty"` // the stacks repo's record of it
+	StartedAt  *time.Time `json:"started_at,omitempty"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	// Available says whether this node can update the hub at all (it runs
+	// in the hub's compose project), and Unavailable why not. Only
+	// stack.selfupdate.result fills them in.
+	Available   bool   `json:"available,omitempty"`
+	Unavailable string `json:"unavailable,omitempty"`
+	// Running is the image the hub's container runs now.
+	Running string `json:"running,omitempty"`
 }
 
 // ── progress ─────────────────────────────────────────────────────────────

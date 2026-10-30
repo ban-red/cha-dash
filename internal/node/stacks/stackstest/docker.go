@@ -33,10 +33,12 @@ type Docker struct {
 	FailUp int
 	// Unchecked makes the dry run unable to reach a registry.
 	Unchecked bool
-	ups       int
-	calls     []string
-	envs      []map[string]map[string]string
-	next      int
+	// OnRecreate runs at the start of each RecreateImage (self-update).
+	OnRecreate func(image string)
+	ups        int
+	calls      []string
+	envs       []map[string]map[string]string
+	next       int
 }
 
 type project struct {
@@ -213,6 +215,75 @@ func Digest(image string) string {
 	}
 	sum := sha256.Sum256([]byte(image))
 	return repo + "@sha256:" + hex.EncodeToString(sum[:])
+}
+
+// AddContainer runs a container in a project (made if need be), as
+// something outside Cha Dash would: Cha Dash's own hub and node, say. An
+// empty ID gets one.
+func (f *Docker) AddContainer(name string, c dockerapi.Container) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	p := f.projects[name]
+	if p == nil {
+		p = &project{}
+		f.projects[name] = p
+	}
+	if c.ID == "" {
+		f.next++
+		c.ID = fmt.Sprintf("c%d", f.next)
+	}
+	p.containers = append(p.containers, &c)
+}
+
+// ── self-update (dockerapi.SelfUpdater) ──────────────────────────────────
+
+var _ dockerapi.SelfUpdater = (*Docker)(nil)
+
+// PullImage implements dockerapi.SelfUpdater: "…missing…" isn't in any
+// registry; anything else resolves to Digest(ref).
+func (f *Docker) PullImage(_ context.Context, ref string, progress func(string)) (string, error) {
+	f.mu.Lock()
+	f.calls = append(f.calls, "pullimage "+ref)
+	f.mu.Unlock()
+	if strings.Contains(ref, "missing") {
+		return "", fmt.Errorf("pull access denied for %s: manifest unknown", ref)
+	}
+	progress("Pulled " + ref)
+	return Digest(ref), nil
+}
+
+// RecreateImage implements dockerapi.SelfUpdater: the container gets a new
+// ID and the image, and behaves by its name as Up's containers do (a
+// healthcheck is assumed, as the hub's image has one). OnRecreate, when
+// set, runs first, outside the lock: a test can hold the update there.
+func (f *Docker) RecreateImage(_ context.Context, id, image string, progress func(string)) (string, error) {
+	f.mu.Lock()
+	hook := f.OnRecreate
+	f.mu.Unlock()
+	if hook != nil {
+		hook(image)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, p := range f.projects {
+		for _, c := range p.containers {
+			if c.ID != id {
+				continue
+			}
+			f.calls = append(f.calls, "recreate "+c.Service+" "+image)
+			f.next++
+			c.ID, c.Image, c.State, c.Health, c.ExitCode, c.RestartCount = fmt.Sprintf("c%d", f.next), image, "running", "healthy", 0, 0
+			switch {
+			case strings.Contains(image, "unhealthy"):
+				c.Health = "unhealthy"
+			case strings.Contains(image, "exits"):
+				c.State, c.ExitCode = "exited", 1
+			}
+			progress("Recreated " + c.Name)
+			return c.ID, nil
+		}
+	}
+	return "", fmt.Errorf("no such container: %s", id)
 }
 
 // Called counts the calls that start with prefix ("up media", "pull ").

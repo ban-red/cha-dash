@@ -86,7 +86,7 @@ Commands:
 
 Settings are CHADASH_NODE_* environment variables: HUB, NAME, DIR, POLICY,
 PAIRING, PAIRING_FILE, TOKEN, TOKEN_FILE, DOCKER_HOST, HEALTH_FILE, LOG_LEVEL,
-LOG_FORMAT.
+LOG_FORMAT, SELFUPDATE.
 See deploy/README.md.
 `)
 }
@@ -130,6 +130,15 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	if cfg.SelfUpdate && !slices.Contains(policy.Stacks.Allow, "selfupdate") {
+		// The compose file this repo ships turns self-update on for the node
+		// beside the hub. A policy file, when there is one, decides alone.
+		if missing {
+			policy.Stacks.Allow = append(policy.Stacks.Allow, "selfupdate")
+		} else {
+			log.Warn("CHADASH_NODE_SELFUPDATE is ignored: the policy file decides, and its stacks.allow doesn't list selfupdate")
+		}
+	}
 	grants := []any{"path", cfg.PolicyPath, "docker", strings.Join(policy.Docker.Allow, ","), "stacks", strings.Join(policy.Stacks.Allow, ",")}
 	if missing {
 		log.Info("no policy file; using the default policy", grants...)
@@ -159,7 +168,7 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	// The node's own project is asked for lazily, and again until Docker
 	// answers, so a slow daemon at start doesn't leave it deployable.
 	sm, err := stacks.New(stacks.Options{
-		Root: policy.Stacks.Root, Docker: sdk, SelfProject: dm.SelfProject,
+		Root: policy.Stacks.Root, Docker: sdk, SelfProject: dm.SelfProject, SelfUpdate: dm,
 		ProtectContainer: policy.Protected,
 		Guard:            stackGuard(ctx, cfg, policy, dm, log),
 		PrivateDirs:      []string{cfg.Dir, cfg.identityDir(), filepath.Dir(cfg.PairingFile)},

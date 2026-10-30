@@ -27,10 +27,17 @@ func TestConfig(t *testing.T) {
 	for k, v := range map[string]string{
 		"CHADASH_NODE_HUB": "http://chadash:3696/node", "CHADASH_NODE_NAME": "bad name",
 		"CHADASH_NODE_LOG_LEVEL": "loud", "CHADASH_NODE_LOG_FORMAT": "xml", "CHADASH_NODE_DOCKER_HOST": "/var/run/docker.sock",
+		"CHADASH_NODE_SELFUPDATE": "sometimes",
 	} {
 		if _, err := loadConfig(envOf(map[string]string{k: v})); err == nil {
 			t.Errorf("%s=%s accepted", k, v)
 		}
+	}
+	if c.SelfUpdate {
+		t.Fatal("self-update is on by default")
+	}
+	if c, err := loadConfig(envOf(map[string]string{"CHADASH_NODE_SELFUPDATE": "true"})); err != nil || !c.SelfUpdate {
+		t.Fatalf("CHADASH_NODE_SELFUPDATE=true: %+v %v", c, err)
 	}
 	c, _ = loadConfig(envOf(map[string]string{"CHADASH_NODE_DIR": "/srv/node/", "CHADASH_NODE_HUB": "wss://dash.lab.example/node"}))
 	if c.PolicyPath != "/srv/node/policy.yaml" || c.identityDir() != "/srv/node/identity" {

@@ -9,6 +9,8 @@ type (
 	Project   = dockerapi.Project
 	Container = dockerapi.Container
 	Event     = dockerapi.Event
+	// SelfUpdater recreates the hub's container (stack.selfupdate).
+	SelfUpdater = dockerapi.SelfUpdater
 )
 
 // ErrUnchecked marks a preflight that couldn't reach a registry.

@@ -62,6 +62,10 @@ services:
     environment:
       CHADASH_NODE_HUB: ws://chadash:3696/node
       CHADASH_NODE_NAME: local      # the hub reads this host as node://local
+      # Grants stacks.selfupdate on top of the default policy, so Settings →
+      # Stacks can update the hub (this node only: it runs beside the hub).
+      # A mounted policy.yaml decides alone; list selfupdate in it instead.
+      CHADASH_NODE_SELFUPDATE: "true"
     # The healthcheck comes from the image: `/chadash-node healthcheck`.
 
 volumes:

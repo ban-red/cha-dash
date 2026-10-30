@@ -29,6 +29,7 @@ import (
 //	CHADASH_NODE_HEALTH_FILE   /tmp/chadash-node.health
 //	CHADASH_NODE_LOG_LEVEL     info                       debug, info, warn, error
 //	CHADASH_NODE_LOG_FORMAT    text                       text or json
+//	CHADASH_NODE_SELFUPDATE    false                      true: grant stacks.selfupdate when there's no policy file
 type config struct {
 	HubURL      string
 	Name        string
@@ -44,6 +45,9 @@ type config struct {
 	HealthFile string
 	LogLevel   slog.Level
 	LogFormat  string
+	// SelfUpdate grants stacks.selfupdate on top of the default policy (no
+	// policy file): deploy/compose.yaml sets it for the node beside the hub.
+	SelfUpdate bool
 }
 
 // Defaults.
@@ -72,6 +76,13 @@ func loadConfig(getenv func(string) string) (config, error) {
 	}
 	c.PolicyPath = env("POLICY", filepath.Join(c.Dir, "policy.yaml"))
 	var errs []error
+	switch su := strings.ToLower(env("SELFUPDATE", "false")); su {
+	case "true", "1", "yes":
+		c.SelfUpdate = true
+	case "false", "0", "no":
+	default:
+		errs = append(errs, fmt.Errorf("CHADASH_NODE_SELFUPDATE %q: want true or false", su))
+	}
 	if u, err := url.Parse(c.HubURL); err != nil || (u.Scheme != "ws" && u.Scheme != "wss") || u.Host == "" {
 		errs = append(errs, fmt.Errorf("CHADASH_NODE_HUB %q: want ws://host:port/node or wss://host/node", c.HubURL))
 	}

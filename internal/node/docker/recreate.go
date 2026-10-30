@@ -49,7 +49,29 @@ func (m *Module) recreate(ctx context.Context, req json.RawMessage, emit func(js
 	if old.HostConfig.AutoRemove {
 		return nil, nodeproto.Errorf(nodeproto.CodeConflict, "%s removes itself when it stops (--rm), so it can't be recreated in place", name)
 	}
+	created, err := m.replace(ctx, old, "", t.Timeout, func(label string) { step(emit, label) })
+	if err != nil {
+		return nil, err
+	}
+	wctx, cancel := waitCtx(ctx)
+	defer cancel()
+	st, err := m.stateOf(wctx, created)
+	if err != nil {
+		return nil, err
+	}
+	return reply(map[string]string{"id": st["id"], "name": st["name"], "state": st["state"], "old_id": old.ID})
+}
+
+// replace recreates old from its own config, with image instead of its
+// configured one when image isn't "", and returns the new container's ID.
+// Once the old one has stopped it finishes (or puts the old one back) even
+// if ctx ends.
+func (m *Module) replace(ctx context.Context, old container.InspectResponse, image string, timeout int, step func(string)) (string, error) {
+	name := strings.TrimPrefix(old.Name, "/")
 	cfg, hc, nc := recreateConfig(old)
+	if image != "" {
+		cfg.Image = image
+	}
 	running := old.State != nil && old.State.Running
 
 	// From here on, finish (or undo) even if the caller goes away.
@@ -57,9 +79,9 @@ func (m *Module) recreate(ctx context.Context, req json.RawMessage, emit func(js
 	defer cancel()
 	tmp := fmt.Sprintf("%s-chadash-old-%d", name, time.Now().Unix())
 	if running {
-		step(emit, "Stop "+name)
-		if _, err := m.cli.ContainerStop(wctx, old.ID, client.ContainerStopOptions{Timeout: timeoutPtr(t.Timeout)}); err != nil {
-			return nil, mapErr(err)
+		step("Stop " + name)
+		if _, err := m.cli.ContainerStop(wctx, old.ID, client.ContainerStopOptions{Timeout: timeoutPtr(timeout)}); err != nil {
+			return "", mapErr(err)
 		}
 	}
 	undo := func(newID string) {
@@ -73,31 +95,27 @@ func (m *Module) recreate(ctx context.Context, req json.RawMessage, emit func(js
 	}
 	if _, err := m.cli.ContainerRename(wctx, old.ID, client.ContainerRenameOptions{NewName: tmp}); err != nil {
 		undo("")
-		return nil, mapErr(err)
+		return "", mapErr(err)
 	}
-	step(emit, "Create a new "+name)
+	step("Create a new " + name)
 	created, err := m.cli.ContainerCreate(wctx, client.ContainerCreateOptions{Name: name, Config: cfg, HostConfig: hc, NetworkingConfig: nc})
 	if err != nil {
 		undo("")
-		return nil, mapErr(err)
+		return "", mapErr(err)
 	}
 	if running {
-		step(emit, "Start the new "+name)
+		step("Start the new " + name)
 		if _, err := m.cli.ContainerStart(wctx, created.ID, client.ContainerStartOptions{}); err != nil {
 			undo(created.ID)
-			return nil, mapErr(err)
+			return "", mapErr(err)
 		}
 	}
-	step(emit, "Remove the old container")
+	step("Remove the old container")
 	if _, err := m.cli.ContainerRemove(wctx, old.ID, client.ContainerRemoveOptions{}); err != nil {
 		// The new one runs; the old one is left stopped under tmp.
 		m.log.Warn("removing the old container after a recreate failed", "container", name, "err", err)
 	}
-	st, err := m.stateOf(wctx, created.ID)
-	if err != nil {
-		return nil, err
-	}
-	return reply(map[string]string{"id": st["id"], "name": st["name"], "state": st["state"], "old_id": old.ID})
+	return created.ID, nil
 }
 
 // recreateConfig derives the new container's config from the old one's.

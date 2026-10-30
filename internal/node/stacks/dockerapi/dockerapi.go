@@ -40,6 +40,22 @@ type Docker interface {
 	ImageRefs(ctx context.Context, project string) (map[string]string, error)
 }
 
+// SelfUpdater is what Cha Dash updating itself asks of Docker beyond
+// Docker: the hub's container is recreated on its own, from the config it
+// runs with, so the node never needs the hub's compose files and never
+// touches any other service (its own included). The node's Docker module
+// implements it; stackstest.Docker fakes it.
+type SelfUpdater interface {
+	// PullImage pulls ref and returns the digest reference it resolved to
+	// ("ghcr.io/ban-red/chadash@sha256:…"), sending each progress line.
+	PullImage(ctx context.Context, ref string, progress func(line string)) (string, error)
+	// RecreateImage replaces the container id with one from the same
+	// config (name, labels, networks, volumes) running image, and returns
+	// the new container's ID. If it fails after stopping the old one, it
+	// puts the old one back.
+	RecreateImage(ctx context.Context, id, image string, progress func(line string)) (string, error)
+}
+
 // ErrUnchecked marks a preflight that couldn't reach a registry: "couldn't
 // check" is not "would fail", and the message says which.
 var ErrUnchecked = errors.New("couldn't reach the registry to check the images")
