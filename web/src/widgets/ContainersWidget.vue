@@ -105,7 +105,7 @@ const hasStats = computed(() => all.value.some((r) => series(live.metrics.value,
       <p class="lab">No containers on this engine.</p>
     </template>
 
-    <template v-else-if="size === 'tall'">
+    <template v-else-if="size === 'tall' || size === 'column'">
       <div class="v sm">{{ running }}<span class="u">/{{ all.length }} running</span></div>
       <ul class="list" :aria-label="name">
         <li v-for="x in rows.slice(0, 10)" :key="x.r.id" :class="['li', { dim: x.status === 'off' }]">
@@ -149,10 +149,10 @@ const hasStats = computed(() => all.value.some((r) => series(live.metrics.value,
     <template v-else>
       <div class="row">
         <div class="v">{{ running }}<span class="u">/{{ all.length }} running</span></div>
-        <span v-if="size === 'wide'" class="lab">{{ unhealthy.length ? `${unhealthy.length} not healthy` : 'none unhealthy' }}</span>
+        <span v-if="size === 'wide' || size === 'panel'" class="lab">{{ unhealthy.length ? `${unhealthy.length} not healthy` : 'none unhealthy' }}</span>
       </div>
-      <ul v-if="size === 'wide' && (unhealthy.length || recent.length)" class="list" :aria-label="unhealthy.length ? 'Containers that need attention' : 'Recent changes'">
-        <li v-for="x in (unhealthy.length ? unhealthy : recent).slice(0, 3)" :key="x.r.id" class="li">
+      <ul v-if="(size === 'wide' || size === 'panel') && (unhealthy.length || recent.length)" class="list" :aria-label="unhealthy.length ? 'Containers that need attention' : 'Recent changes'">
+        <li v-for="x in (unhealthy.length ? unhealthy : recent).slice(0, size === 'panel' ? 6 : 3)" :key="x.r.id" class="li">
           <Glyph v-if="x.status !== 'ok'" :kind="glyphFor(x.status)" :label="x.word" />
           <span v-else></span>
           <span>

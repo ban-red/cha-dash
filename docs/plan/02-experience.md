@@ -224,7 +224,7 @@ Springs are defined by **duration + bounce**, per WWDC23. Every animation can be
 
 ### Widget sizes
 
-Every size except Glyph has an even column count, so everything tiles cleanly on 4 columns.
+Every size except Glyph and Column has an even column count, so everything tiles cleanly on 4 columns. Column (3×4) is the exception: it leaves one column free beside it on a 4-column grid, which a Glyph or a short strip can fill.
 
 | Name | U | Typical use | iOS analog |
 |---|---|---|---|
@@ -232,7 +232,9 @@ Every size except Glyph has an even column count, so everything tiles cleanly on
 | **Strip** | 4×1 · 8×1 | Status sentence, pill row | accessory inline |
 | **Small** | 2×2 | One metric plus a sparkline, or one control | systemSmall |
 | **Wide** | 4×2 | Metric with chart, or a list of 3–4 items | systemMedium |
+| **Panel** | 4×3 | A list with room for 5–6 rows beside a headline | — |
 | **Tall** | 2×4 | Container list, download queue | — |
+| **Column** | 3×4 | A longer list with a wider row than Tall | — |
 | **Large** | 4×4 | Proxmox node, Unraid array | systemLarge |
 | **Hero** | 8×4 | Atlas topology, cameras, a big chart | systemExtraLarge |
 

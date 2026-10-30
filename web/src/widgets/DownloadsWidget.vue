@@ -147,10 +147,10 @@ const MONO: Record<string, string> = { qbittorrent: 'QB', transmission: 'TR', sa
           <div v-else class="sub"><b class="n">{{ fmtInt(leeching?.value) }}</b> leeching · <b class="n">{{ fmtInt(seeding?.value) }}</b> seeding · ↑ <b class="n">{{ fmtNum(ul?.value) }}</b></div>
           <StateNote :subject="s" :line="downLine" :last-known="dl?.value != null" />
         </div>
-        <MiniGraph :values="dl?.history" :band="dl?.band" :tone="tone" :stale="dl?.stale" :height="size === 'tall' ? 36 : 48" label="Download speed, 24 hours" :format="rate" />
+        <MiniGraph :values="dl?.history" :band="dl?.band" :tone="tone" :stale="dl?.stale" :height="size === 'tall' || size === 'column' ? 36 : 48" label="Download speed, 24 hours" :format="rate" />
       </div>
       <ul class="list" aria-label="Queues">
-        <li v-for="q in rows.slice(0, size === 'tall' ? 8 : 3)" :key="q.id" class="li">
+        <li v-for="q in rows.slice(0, size === 'tall' || size === 'column' ? 8 : size === 'panel' ? 5 : 3)" :key="q.id" class="li">
           <Glyph :kind="glyphFor(q.status)" :label="q.status === 'ok' ? 'ok' : q.status" />
           <span class="t">{{ q.name }}</span>
           <span class="n">{{ q.words }}</span>

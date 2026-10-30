@@ -51,8 +51,9 @@ const rows = computed<Row[]>(() =>
 );
 const RANK = (r: Row) => (r.status === 'down' ? (r.core ? 0 : 1) : r.status === 'attention' ? 2 : r.status === 'repair' ? 3 : r.status === 'maintenance' ? 4 : r.status === 'off' ? 6 : 5);
 const needs = computed(() => rows.value.filter((r) => isProblem(r.health) || r.status === 'down'));
-const shown = computed(() => (size === 'wide' ? [...rows.value].sort((a, b) => RANK(a) - RANK(b)).slice(0, 3) : [...rows.value].sort((a, b) => RANK(a) - RANK(b))));
-const healthyHidden = computed(() => (size === 'wide' ? rows.value.length - shown.value.length : 0));
+const cap = size === 'wide' ? 3 : size === 'panel' ? 5 : Infinity;
+const shown = computed(() => [...rows.value].sort((a, b) => RANK(a) - RANK(b)).slice(0, cap));
+const healthyHidden = computed(() => (cap === Infinity ? 0 : rows.value.length - shown.value.length));
 const guests = computed(() => {
   const g = live.graph.value;
   const all = [...byKind(g, 'vm'), ...byKind(g, 'lxc')];
@@ -92,7 +93,7 @@ const rowGlyph = (r: Row) => (r.status === 'ok' ? undefined : glyphFor(r.status)
       <p class="sub">Connect Proxmox or Unraid to see them here.</p>
     </template>
 
-    <ul v-else-if="size === 'tall'" class="fleet-tall" aria-label="Hosts">
+    <ul v-else-if="size === 'tall' || size === 'column'" class="fleet-tall" aria-label="Hosts">
       <li v-for="h in shown" :key="h.id" :class="{ dim: h.status === 'off', stale: h.stale }">
         <span class="h"><Glyph v-if="rowGlyph(h)" :kind="rowGlyph(h)!" :label="h.word || h.status" />{{ h.name }}</span>
         <span class="n">{{ cell(h, h.mem) }}</span>

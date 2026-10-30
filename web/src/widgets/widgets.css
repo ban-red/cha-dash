@@ -471,3 +471,11 @@ a.gv {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* A wide tile's trend fills its column, so a 4x2 tile doesn't leave its lower half empty. */
+.tile.s-wide .split > .mg,
+.tile.s-panel .split > .mg {
+  align-self: stretch;
+  height: auto !important;
+  min-height: 48px;
+}

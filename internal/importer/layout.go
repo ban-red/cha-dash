@@ -51,7 +51,7 @@ type LayoutItem struct {
 type sizeSpec struct{ w, h int }
 
 // sizeIDs is SIZE_IDS, in canonical order (the tie-breaker in closestFit).
-var sizeIDs = []string{"glyph", "strip", "strip-long", "small", "wide", "tall", "large", "hero"}
+var sizeIDs = []string{"glyph", "strip", "strip-long", "small", "wide", "panel", "tall", "column", "large", "hero"}
 
 var sizes = map[string]sizeSpec{
 	"glyph":      {1, 1},
@@ -59,7 +59,9 @@ var sizes = map[string]sizeSpec{
 	"strip-long": {8, 1},
 	"small":      {2, 2},
 	"wide":       {4, 2},
+	"panel":      {4, 3},
 	"tall":       {2, 4},
+	"column":     {3, 4},
 	"large":      {4, 4},
 	"hero":       {8, 4},
 }

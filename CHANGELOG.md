@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Two more tile sizes: Panel (4×3) and Column (3×4).** Panel gives a list 5–6 rows under a headline; Column is a taller list that's wider than Tall. Fleet, Guests, Containers, Unraid array, Unraid server, Up next, Incidents, Downloads and Bookmarks offer both; Host offers Panel. Column is 3 wide, so on a 4-column grid it leaves one column beside it.
 - **Tautulli shows what's playing and what was watched.** The tile lists the titles playing now, with who's watching, how far along and whether it's transcoding, and has a second view with the last few things watched. Cha Dash reads two more things from Tautulli: the sessions it already fetched, and `get_history` (optional, 8 rows).
 - **Leave layout editing with Escape, or a button.** Escape exits edit mode, and an Exit layout editing button stays at the foot of the page while you edit.
 - **Reorder from a tile's menu.** Move a widget earlier or later in its section, or to its start or end.
@@ -55,6 +56,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Wide tiles use their height.** On a wide (4x2) tile the trend graph now grows to fill the column instead of staying a thin strip, and Tautulli lists what's playing there.
 - **A new widget picker.** Search the catalog, by name or by what a widget can show ("cpu" finds Metric), or browse it by group. Each widget is a card with what it shows and its sizes. The one you pick appears live, with your data, at the size you choose and in proportion, before it goes on the board. Long lists of what a widget can show (64 metrics) have their own filter. Arrow keys move through the cards, ⌘↵ or a double-click adds.
 - **Homepage import recognises apps with no widget.** A service whose icon or name is Unraid, Linkding, Plex, Sonarr or any other app Cha Dash has an integration for now gets that integration, ready for its API key, instead of only a check in the shared "Homepage" checks instance. It keeps the check for its status. Import again from Settings → Bring in to pick this up; the old import can be reverted in History.
 - **A tile bound to an integration is named after it.** Rename the integration in Settings and its tile follows at once. In the tile editor the Name field is greyed out for these tiles.
@@ -93,6 +95,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **chadash-node logs the policy it loaded.** With a policy file mounted, the node said nothing about it. It now logs what the file grants, denies and protects at start.
 - **Guests outside the control token's reach can't be planned.** A Proxmox guest outside the control token's pool, or one its role lacks a privilege on, planned like any other and failed with a 403 once approved. Its actions are now unavailable, naming the privilege and the guest.
 - **A rollback leaves untouched services alone.** Rolling a stack back, on its own or when asked, pinned every service to its image digest, so it recreated services the failed deploy never changed, and their pins stayed in the file. Only the services it recreates are pinned now.
+- **A PBS prune the control token can't do is refused when planned.** With a control token weaker than DatastoreAdmin, Prune per policy planned and then failed once approved, saying the datastore had no prune job. Planning now checks the token's rights on the datastore and names what it lacks, and a job that disappears before the run says so.
 - **Accessibility fixes from the review.** The widget picker no longer reads its whole detail pane aloud on every arrow key, its faint text on the selected card and rows is readable (4.5:1), a widget not available here keeps its text at full contrast, the link error is tied to its field, and Add says why it can't go yet. The resource sheet keeps Tab inside it. Nodes → Revoke moves focus into its confirm and back. A warning glyph's target is 24 px, and Esc closes its tooltip wherever focus is. A field Tab reaches no longer hides under the floating Edit layout row or a form's Save bar. The demo clock no longer says UTC to screen readers when it shows the hub's zone.
 
 ### Security

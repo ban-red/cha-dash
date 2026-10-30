@@ -66,8 +66,8 @@ const all = computed(() => {
     : undefined;
   return calendar(doc, live.now.value, withUnmonitored).filter((e) => Date.parse(e.at) < live.now.value + 7 * DAY);
 });
-const horizon = computed(() => (size === 'wide' ? 2 : 7));
-const limit = computed(() => (size === 'tall' ? 8 : size === 'large' ? 40 : 4));
+const horizon = computed(() => (size === 'wide' ? 2 : size === 'panel' ? 3 : 7));
+const limit = computed(() => (size === 'tall' || size === 'column' ? 8 : size === 'large' ? 40 : size === 'panel' ? 6 : 4));
 const entries = computed(() => {
   const end = startOfDay(live.now.value) + horizon.value * DAY;
   return all.value.filter((e) => Date.parse(e.at) < end).slice(0, limit.value);

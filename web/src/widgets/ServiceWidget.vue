@@ -159,7 +159,9 @@ const plays = computed<Play[]>(() =>
     .map((x) => ({ title: str(x['title']), user: str(x['user']), at: (num(x['at']) ?? NaN) * 1000, percent: num(x['percent']), watched: x['watched'] === true }))
     .filter((x) => x.title && Number.isFinite(x.at)),
 );
-const PLAYING_ROWS = 2;
+const PLAYING_ROWS = 2
+/** A wide tile lists what's playing in the space the trend would take. */
+const beside = computed(() => size === 'wide' && playing.value.length > 0);
 const HISTORY_ROWS = 4;
 const { views, view } = useViews(() => {
   if (!hasStat.value || (size !== 'small' && size !== 'wide')) return [];
@@ -263,8 +265,15 @@ const { views, view } = useViews(() => {
           <StateNote :subject="s" :limited="limited" :last-known="value !== null" />
           <div v-if="s.status === 'ok' && !limited && reading?.context && !reading.empty" class="lab svc-ctx">{{ reading.context }}</div>
         </div>
+        <div v-if="beside" class="list svc-playing svc-beside" role="list" :aria-label="`Playing on ${name}`">
+          <div v-for="p in playing.slice(0, PLAYING_ROWS)" :key="p.title + p.user" class="ag-row" role="listitem">
+            <span class="n">{{ p.progress === null ? '—' : `${p.progress}%` }}</span>
+            <span>{{ p.title }}<small>{{ p.user }} · {{ p.state === 'playing' ? p.decision : p.state }}</small></span>
+          </div>
+          <small v-if="playing.length > PLAYING_ROWS" class="svc-more">+{{ playing.length - PLAYING_ROWS }} more</small>
+        </div>
         <MiniGraph
-          v-if="size === 'wide'"
+          v-else-if="size === 'wide'"
           :values="limited ? [] : reading?.series?.history"
           :band="reading?.series?.band"
           :tone="tone"
@@ -273,7 +282,7 @@ const { views, view } = useViews(() => {
           :label="`${name}, ${reading?.unit ?? 'value'}, 24 hours`"
         />
       </div>
-      <div v-if="playing.length" class="list svc-playing" role="list" :aria-label="`Playing on ${name}`">
+      <div v-if="playing.length && !beside" class="list svc-playing" role="list" :aria-label="`Playing on ${name}`">
         <div v-for="p in playing.slice(0, PLAYING_ROWS)" :key="p.title + p.user" class="ag-row" role="listitem">
           <span class="n">{{ p.progress === null ? '—' : `${p.progress}%` }}</span>
           <span>{{ p.title }}<small>{{ p.user }} · {{ p.state === 'playing' ? p.decision : p.state }}</small></span>
@@ -322,6 +331,10 @@ const { views, view } = useViews(() => {
 }
 .svc-playing {
   margin-top: auto;
+}
+.svc-beside {
+  margin-top: 0;
+  min-width: 0;
 }
 .svc-more {
   color: var(--text-3);

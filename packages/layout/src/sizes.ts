@@ -10,7 +10,9 @@ export const SIZE_IDS = [
   'strip-long',
   'small',
   'wide',
+  'panel',
   'tall',
+  'column',
   'large',
   'hero',
 ] as const;
@@ -33,7 +35,9 @@ export const SIZES: { readonly [K in SizeId]: SizeSpec } = {
   'strip-long': { id: 'strip-long', name: 'Strip (long)', w: 8, h: 1 },
   small: { id: 'small', name: 'Small', w: 2, h: 2 },
   wide: { id: 'wide', name: 'Wide', w: 4, h: 2 },
+  panel: { id: 'panel', name: 'Panel', w: 4, h: 3 },
   tall: { id: 'tall', name: 'Tall', w: 2, h: 4 },
+  column: { id: 'column', name: 'Column', w: 3, h: 4 },
   large: { id: 'large', name: 'Large', w: 4, h: 4 },
   hero: { id: 'hero', name: 'Hero', w: 8, h: 4 },
 };

@@ -181,8 +181,8 @@ const pct = (v: number) => `${Math.round(v)}%`;
           <MiniGraph :values="cpu?.history" :band="cpu?.band" :tone="tone === 'down' ? 'down' : 'neutral'" :stale="cpu?.stale" :height="size === 'large' ? 28 : 18" :label="`${label(host)} CPU, 24 hours`" :format="pct" />
         </div>
       </div>
-      <template v-if="size === 'large'">
-        <div v-if="disks.length" class="host-disks" role="list" aria-label="Storage">
+      <template v-if="size === 'large' || size === 'panel'">
+        <div v-if="disks.length && size === 'large'" class="host-disks" role="list" aria-label="Storage">
           <div v-for="d in disks" :key="d.r.id" class="disk" role="listitem">
             <span class="dn">{{ label(d.r) }}</span>
             <Meter :value="d.used?.value" :warn="d.used?.warn ?? 85" :crit="d.used?.crit ?? 95" :tick="d.used?.warn ?? 85" thin :label="`${label(d.r)} used`" />
@@ -190,7 +190,7 @@ const pct = (v: number) => `${Math.round(v)}%`;
           </div>
         </div>
         <ul v-if="rows.length" class="list" :aria-label="`Guests on ${label(host)}`">
-          <li v-for="g in rows.slice(0, 6)" :key="g.id" :class="['li', { dim: g.status === 'off' }]">
+          <li v-for="g in rows.slice(0, size === 'panel' ? 4 : 6)" :key="g.id" :class="['li', { dim: g.status === 'off' }]">
             <Glyph :kind="g.progress ? 'prog' : glyphFor(g.status)" :label="g.word || 'running'" />
             <span><span class="t">{{ g.name }}</span><small v-if="g.word">{{ g.word }}</small></span>
             <span class="n">{{ g.mem === null ? '—' : `${fmtInt(g.mem)}%` }}</span>

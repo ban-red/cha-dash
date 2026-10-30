@@ -105,7 +105,7 @@ const tag = computed(() => {
     if (overdue.value) return 'parity check overdue';
     return parityWords.value;
   }
-  return size === 'wide' || size === 'large' || size === 'hero' ? parityWords.value : '';
+  return size === 'wide' || size === 'panel' || size === 'large' || size === 'hero' ? parityWords.value : '';
 });
 const tagGlyph = computed(() => (checking.value ? 'prog' : tag.value ? glyphFor(status.value) : undefined));
 const downLine = computed(() =>
@@ -157,7 +157,7 @@ const diskTip = (d: Disk) => `${d.name}: ${d.parity ? 'parity' : d.used === null
       <div class="tf"><span>{{ parityWords }}</span></div>
     </template>
 
-    <template v-else-if="size === 'wide'">
+    <template v-else-if="size === 'wide' || size === 'panel'">
       <div class="split">
         <div class="col">
           <div :class="['v', { unknown: used?.value == null }]">{{ fmtPct(used?.value) }}<span class="u">{{ ofTb }}</span></div>
@@ -173,9 +173,18 @@ const diskTip = (d: Disk) => `${d.name}: ${d.parity ? 'parity' : d.used === null
           <dd>{{ containers }}</dd>
         </dl>
       </div>
+      <div v-if="size === 'panel'" class="disks" role="list" aria-label="Disks">
+        <div v-for="d in disks.slice(0, 4)" :key="d.r.id" class="disk" role="listitem" :aria-label="diskTip(d)">
+          <span class="dn"><Glyph v-if="d.status !== 'ok'" :kind="glyphFor(d.status)" />{{ d.name }}</span>
+          <span v-if="d.parity" class="sub par">{{ parity === 'valid' ? 'valid' : parity }}</span>
+          <Meter v-else :value="d.used" :warn="90" :crit="97" thin :label="`${d.name} used`" />
+          <span v-if="!d.parity" class="n">{{ d.used === null ? '' : `${Math.round(d.used)}%` }}</span>
+          <span class="n">{{ d.temp === null ? '—' : `${d.temp}°` }}</span>
+        </div>
+      </div>
     </template>
 
-    <template v-else-if="size === 'tall' || size === 'large'">
+    <template v-else-if="size === 'tall' || size === 'column' || size === 'large'">
       <div class="row">
         <div :class="['v', { lg: size === 'large', unknown: used?.value == null }]">{{ fmtPct(used?.value) }}<span class="u">{{ size === 'large' ? ofTb : '%' }}</span></div>
         <span v-if="size === 'large'" class="lab">{{ parityWords }}{{ checkedWords && !checking ? ` · ${checkedWords}` : '' }}</span>

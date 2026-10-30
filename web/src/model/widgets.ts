@@ -53,12 +53,12 @@ export const USENET_CLIENTS: readonly string[] = ['sabnzbd', 'nzbget'];
 export const DOWNLOAD_CLIENTS: readonly string[] = ['qbittorrent', 'transmission', 'sabnzbd', 'nzbget'];
 
 export const WIDGETS: Record<string, WidgetSpec> = {
-  fleet: spec('fleet', 'Fleet', 'large', ['wide', 'tall', 'large', 'hero'], { group: 'servers', about: 'Every host in one table: CPU, memory and guests.' }),
-  host: spec('host', 'Host', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { bound: true, accepts: { kinds: ['host'] }, group: 'servers', about: 'One host in detail, with memory against its warning line.' }),
-  guests: spec('guests', 'Guests', 'wide', ['wide', 'tall', 'large'], { accepts: { kinds: ['host', 'cluster'] }, group: 'servers', about: 'VMs and LXCs, problems first, the ones stopped on purpose dimmed.', icon: 'proxmox' }),
-  containers: spec('containers', 'Containers', 'small', ['small', 'wide', 'tall', 'large'], { accepts: { kinds: ['engine', 'host'] }, group: 'servers', about: 'Docker containers on an engine or host; problems rise to the top.', icon: 'docker' }),
-  unraid: spec('unraid', 'Unraid array', 'wide', ['glyph', 'strip', 'small', 'wide', 'tall', 'large', 'hero'], { accepts: { kinds: ['array', 'host'] }, group: 'servers', about: 'The Unraid array, from its fill to a map of every disk.', icon: 'unraid' }),
-  unraidhost: spec('unraidhost', 'Unraid server', 'wide', ['glyph', 'strip', 'small', 'wide', 'tall', 'large'], { accepts: { kinds: ['host', 'array'] }, group: 'servers', about: 'The whole Unraid server: CPU, memory, array, parity, containers and VMs.', icon: 'unraid' }),
+  fleet: spec('fleet', 'Fleet', 'large', ['wide', 'panel', 'tall', 'column', 'large', 'hero'], { group: 'servers', about: 'Every host in one table: CPU, memory and guests.' }),
+  host: spec('host', 'Host', 'wide', ['glyph', 'strip', 'small', 'wide', 'panel', 'large'], { bound: true, accepts: { kinds: ['host'] }, group: 'servers', about: 'One host in detail, with memory against its warning line.' }),
+  guests: spec('guests', 'Guests', 'wide', ['wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['host', 'cluster'] }, group: 'servers', about: 'VMs and LXCs, problems first, the ones stopped on purpose dimmed.', icon: 'proxmox' }),
+  containers: spec('containers', 'Containers', 'small', ['small', 'wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['engine', 'host'] }, group: 'servers', about: 'Docker containers on an engine or host; problems rise to the top.', icon: 'docker' }),
+  unraid: spec('unraid', 'Unraid array', 'wide', ['glyph', 'strip', 'small', 'wide', 'panel', 'tall', 'column', 'large', 'hero'], { accepts: { kinds: ['array', 'host'] }, group: 'servers', about: 'The Unraid array, from its fill to a map of every disk.', icon: 'unraid' }),
+  unraidhost: spec('unraidhost', 'Unraid server', 'wide', ['glyph', 'strip', 'small', 'wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['host', 'array'] }, group: 'servers', about: 'The whole Unraid server: CPU, memory, array, parity, containers and VMs.', icon: 'unraid' }),
   storage: spec('storage', 'Storage', 'small', ['glyph', 'strip', 'small', 'wide'], {
     group: 'servers', about: 'How full one pool, datastore or share is.',
     bound: true,
@@ -75,9 +75,9 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   traefik: spec('traefik', 'Traefik', 'small', ['small', 'wide'], { accepts: { kinds: ['app'], types: ['traefik'] }, group: 'network', about: 'Routers, services and middlewares, with the routes behind them.', icon: 'traefik' }),
   plex: spec('plex', 'Now playing', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], { accepts: { kinds: ['app'], types: ['plex', 'jellyfin', 'tautulli'] }, group: 'media', about: 'What’s streaming on Plex, Jellyfin or Tautulli.', icon: 'plex' }),
   arr: spec('arr', 'Queue', 'small', ['small', 'wide'], { bound: true, accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'A Sonarr, Radarr or Lidarr queue, and what’s wanted.' }),
-  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'tall'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] }, group: 'media', about: 'Download speed and queue from your torrent or Usenet client.' }),
-  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'tall', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'What Sonarr and Radarr expect next.' }),
-  incidents: spec('incidents', 'Incidents', 'large', ['wide', 'tall', 'large'], { group: 'basics', about: 'Everything open, problems first; the latest fix when it’s quiet.' }),
+  downloads: spec('downloads', 'Downloads', 'wide', ['glyph', 'small', 'wide', 'panel', 'tall', 'column'], { accepts: { kinds: ['app'], types: [...DOWNLOAD_CLIENTS] }, group: 'media', about: 'Download speed and queue from your torrent or Usenet client.' }),
+  calendar: spec('calendar', 'Up next', 'wide', ['strip', 'wide', 'panel', 'tall', 'column', 'large'], { accepts: { kinds: ['app'], types: ['sonarr', 'radarr', 'lidarr'] }, group: 'media', about: 'What Sonarr and Radarr expect next.' }),
+  incidents: spec('incidents', 'Incidents', 'large', ['wide', 'panel', 'tall', 'column', 'large'], { group: 'basics', about: 'Everything open, problems first; the latest fix when it’s quiet.' }),
   /**
    * Any service: an imported Homepage entry (`service@homepage:<section>/<entry>`),
    * an app (`service@sonarr:<instance id>/app`, `service@app:sonarr`) or a check.
@@ -86,7 +86,7 @@ export const WIDGETS: Record<string, WidgetSpec> = {
   /** One series: `metric@<resource id>#<metric key>`. */
   metric: spec('metric', 'Metric', 'small', ['glyph', 'strip', 'small', 'wide'], { bound: true, group: 'servers', about: 'One number with its unit, normal band and trend.' }),
   check: spec('check', 'Uptime checks', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['check', 'app', 'integration'], types: ['uptimekuma'] }, group: 'network', about: 'The built-in checks and Uptime Kuma monitors, up or down.' }),
-  bookmarks: spec('bookmarks', 'Bookmarks', 'small', ['glyph', 'small', 'wide', 'tall'], { group: 'basics', about: 'Links to the services Cha Dash found, with their state.' }),
+  bookmarks: spec('bookmarks', 'Bookmarks', 'small', ['glyph', 'small', 'wide', 'panel', 'tall', 'column'], { group: 'basics', about: 'Links to the services Cha Dash found, with their state.' }),
   clock: spec('clock', 'Clock', 'small', ['glyph', 'strip', 'small', 'wide'], { group: 'basics', about: 'The time, on the dot-matrix face.' }),
   weather: spec('weather', 'Weather', 'small', ['glyph', 'strip', 'small', 'wide'], { accepts: { kinds: ['weather'] }, group: 'home', about: 'Temperature, today’s range, wind and rain.' }),
 };

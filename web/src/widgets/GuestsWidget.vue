@@ -35,7 +35,7 @@ const scope = computed(() => (target ? resolve(live.graph.value, target) : undef
 const s = useSubject(() => scope.value?.id);
 const rows = computed(() => sortGuests(guestsOf(live.graph.value, scope.value).map((r) => guestRow(live.graph.value, live.metrics.value, r, live.now.value))));
 const hidden = computed(() => Number(attr(scope.value, 'hidden.guests') ?? 0));
-const limit = computed(() => (size === 'tall' ? 10 : size === 'large' ? 8 : 4));
+const limit = computed(() => (size === 'tall' || size === 'column' ? 10 : size === 'large' ? 8 : size === 'panel' ? 6 : 4));
 const shown = computed(() => rows.value.slice(0, limit.value));
 const more = computed(() => rows.value.length - shown.value.length);
 const running = computed(() => rows.value.filter((r) => r.resource.state === 'running').length);
@@ -97,7 +97,7 @@ const incident = computed(() => live.problems.value.find((i) => problems.value.s
       </div>
     </div>
 
-    <ul v-else-if="size === 'tall'" class="list" :aria-label="name">
+    <ul v-else-if="size === 'tall' || size === 'column'" class="list" :aria-label="name">
       <li v-for="g in shown" :key="g.id" :class="['li', { dim: g.status === 'off' }]">
         <Glyph :kind="g.progress ? 'prog' : glyphFor(g.status)" :label="word(g)" />
         <span><span class="t">{{ g.name }}</span><small v-if="g.word">{{ g.word }}</small></span>

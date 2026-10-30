@@ -10,16 +10,19 @@ describe('size system', () => {
       'strip-long': '8×1',
       small: '2×2',
       wide: '4×2',
+      panel: '4×3',
       tall: '2×4',
+      column: '3×4',
       large: '4×4',
       hero: '8×4',
     });
   });
 
-  test('every size except glyph has an even width, so everything tiles on 4 columns', () => {
+  test('every size but glyph and column has an even width, so it tiles on 4 columns', () => {
     for (const id of SIZE_IDS) {
-      if (id !== 'glyph') expect(SIZES[id].w % 2).toBe(0);
+      if (id !== 'glyph' && id !== 'column') expect(SIZES[id].w % 2).toBe(0);
     }
+    expect(SIZES.column.w).toBe(3);
   });
 
   test('isSizeId and sizeFits', () => {

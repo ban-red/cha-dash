@@ -56,7 +56,7 @@ const links = computed<Link[]>(() =>
     return { id: r.id, name: label(r), url, host: hostOf(url), down: statusOf(r) === 'down' || checkDown };
   }),
 );
-const limit = computed(() => (size === 'glyph' ? 1 : size === 'small' ? 4 : size === 'wide' ? 8 : 10));
+const limit = computed(() => (size === 'glyph' ? 1 : size === 'small' ? 4 : size === 'wide' ? 8 : size === 'panel' ? 12 : 10));
 const shown = computed(() => links.value.slice(0, limit.value));
 const downs = computed(() => links.value.filter((l) => l.down));
 /** Linkding and Karakeep: the bookmark sources, and whether their sync works. */
@@ -93,7 +93,7 @@ const name = computed(() => (group.value ? `Links · ${target}` : 'Bookmarks'));
     </template>
 
     <template v-else>
-      <ul :class="['bm', { two: size === 'wide' }]" :aria-label="name">
+      <ul :class="['bm', { two: size === 'wide' || size === 'panel' }]" :aria-label="name">
         <li v-for="l in shown" :key="l.id">
           <a :href="l.url" target="_blank" rel="noopener noreferrer" :class="{ down: l.down }" @click.stop>
             <span class="mono" aria-hidden="true">{{ monogram(l.name) }}</span>

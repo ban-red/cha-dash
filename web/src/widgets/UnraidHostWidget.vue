@@ -177,7 +177,7 @@ const parityShort = computed(() => (checking.value ? parityWords.value : checked
           <span><Glyph v-if="parity === 'valid'" kind="check" label="parity valid" /><template v-else>{{ parityWords }}</template> · <span class="n">{{ running }}</span> containers</span>
         </div>
 
-        <dl v-else-if="size === 'wide'" class="uh-facts">
+        <dl v-else-if="size === 'wide' || size === 'panel'" class="uh-facts">
           <div><dt>Up</dt><dd>{{ upFor(attr(host, 'boot_at'), live.now.value) }}</dd></div>
           <div><dt>Parity</dt><dd>{{ parityCell }}</dd></div>
           <div><dt>Hottest</dt><dd>{{ tempWords }}</dd></div>
@@ -200,7 +200,7 @@ const parityShort = computed(() => (checking.value ? parityWords.value : checked
         </dl>
       </div>
 
-      <template v-if="size === 'tall' || size === 'large'">
+      <template v-if="size === 'tall' || size === 'column' || size === 'panel' || size === 'large'">
         <MiniGraph :values="mem?.history" :band="mem?.band" :tone="memTone" :threshold="mem?.warn" :stale="mem?.stale" :height="36" :label="`${name} memory, 24 hours`" :format="pct" />
         <MiniGraph :values="cpu?.history" :band="cpu?.band" :stale="cpu?.stale" :height="24" :label="`${name} CPU, 24 hours`" :format="pct" />
       </template>

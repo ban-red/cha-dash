@@ -92,6 +92,25 @@ describe('which tiles have views', () => {
   });
 });
 
+describe('panel (4×3) and column (3×4)', () => {
+  it('shows a guest list with more rows in a panel than a wide tile, and a plain list in a column', () => {
+    const wide = mountTile('guests', 'wide', 'pve:stork').w.findAll('.li.g4').length;
+    const panel = mountTile('guests', 'panel', 'pve:stork').w.findAll('.li.g4').length;
+    expect(panel).toBeGreaterThanOrEqual(wide);
+    expect(panel).toBeLessThanOrEqual(6);
+    const col = mountTile('guests', 'column', 'pve:stork').w;
+    expect(col.find('.li.g4').exists()).toBe(false);
+    expect(col.findAll('.li').length).toBeGreaterThan(0);
+  });
+
+  it('offers them only where a widget declares them', async () => {
+    const { WIDGETS } = await import('../src/model/widgets');
+    expect(WIDGETS.guests!.sizes).toEqual(expect.arrayContaining(['panel', 'column']));
+    expect(WIDGETS.clock!.sizes).not.toContain('panel');
+    expect(WIDGETS.clock!.sizes).not.toContain('column');
+  });
+});
+
 describe('Tautulli', () => {
   const withPlays = () => {
     const d = docs(withIncidents);
@@ -127,6 +146,13 @@ describe('Tautulli', () => {
     expect(hist[0]!.text()).toContain('Today');
     expect(hist[1]!.text()).toContain('stopped at 41%');
     expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('lists what is playing beside the stat on a wide tile, not under it', () => {
+    const { w } = mountTile('service', 'wide', 'app:tautulli', withPlays());
+    expect(w.find('.split .svc-playing').exists()).toBe(true);
+    expect(w.findAll('.svc-playing .ag-row')).toHaveLength(2);
+    expect(w.find('.mg').exists()).toBe(false);
   });
 
   it('has no History view without history, and no list without sessions', () => {

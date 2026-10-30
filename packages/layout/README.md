@@ -75,10 +75,12 @@ From [02 · Experience → Widget sizes](../../docs/plan/02-experience.md#widget
 
 | `SizeId` | U | | `SizeId` | U |
 |---|---|---|---|---|
-| `glyph` | 1×1 | | `wide` | 4×2 |
-| `strip` | 4×1 | | `tall` | 2×4 |
+| `glyph` | 1×1 | | `tall` | 2×4 |
+| `strip` | 4×1 | | `column` | 3×4 |
 | `strip-long` | 8×1 | | `large` | 4×4 |
 | `small` | 2×2 | | `hero` | 8×4 |
+| `wide` | 4×2 | | | |
+| `panel` | 4×3 | | | |
 
 `SIZES[id]` gives `{ id, name, w, h }`, and `sizeLabel(id)` gives the "4×2" label the resize handle shows.
 

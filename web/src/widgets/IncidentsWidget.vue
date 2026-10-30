@@ -15,7 +15,7 @@ const live = useLive();
 const ui = useUi();
 
 const open = computed(() => [...live.problems.value, ...live.repairs.value, ...settling(live.inbox.value)]);
-const shown = computed(() => open.value.slice(0, size === 'wide' ? 3 : 7));
+const shown = computed(() => open.value.slice(0, size === 'wide' ? 3 : size === 'panel' ? 5 : 7));
 const last = computed(() => resolved(live.inbox.value)[0]);
 const status = computed(() => (live.problems.value.some((i) => i.severity === 'down') ? 'down' : live.problems.value.length ? 'attention' : 'ok'));
 const tag = computed(() => (open.value.length ? `${open.value.length} open` : 'none open'));
