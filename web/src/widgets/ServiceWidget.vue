@@ -123,13 +123,48 @@ const upcoming = computed(() => {
   if (app?.kind !== 'app' || !Array.isArray(attr(app, 'calendar'))) return [];
   return calendar({ resources: { [app.id]: app }, relations: {} }, live.now.value).slice(0, 8);
 });
-const day = (at: string) => {
+const day = (at: string | number) => {
   const d = shortDate(at);
   return d === shortDate(live.now.value) ? 'Today' : d === shortDate(live.now.value + 86_400_000) ? 'Tomorrow' : d;
 };
+interface Playing {
+  title: string;
+  user: string;
+  state: string;
+  progress: number | null;
+  decision: string;
+}
+interface Play {
+  title: string;
+  user: string;
+  at: number;
+  percent: number | null;
+  watched: boolean;
+}
+const str = (v: unknown) => (typeof v === 'string' ? v : '');
+const num = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
+const rows = (key: string): Record<string, unknown>[] => {
+  const v = limited.value ? undefined : attr<unknown>(r.value, key);
+  return Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => typeof x === 'object' && x !== null) : [];
+};
+/** What's playing right now (Tautulli's `now_playing`), as the stat view lists it. */
+const playing = computed<Playing[]>(() =>
+  rows('now_playing')
+    .map((x) => ({ title: str(x['title']), user: str(x['user']), state: str(x['state']), progress: num(x['progress']), decision: str(x['decision']) }))
+    .filter((x) => x.title),
+);
+/** The last plays, newest first (Tautulli's `history`, `at` in Unix seconds). */
+const plays = computed<Play[]>(() =>
+  rows('history')
+    .map((x) => ({ title: str(x['title']), user: str(x['user']), at: (num(x['at']) ?? NaN) * 1000, percent: num(x['percent']), watched: x['watched'] === true }))
+    .filter((x) => x.title && Number.isFinite(x.at)),
+);
+const PLAYING_ROWS = 2;
+const HISTORY_ROWS = 4;
 const { views, view } = useViews(() => {
   if (!hasStat.value || (size !== 'small' && size !== 'wide')) return [];
   const out = [{ id: 'stat', label: 'Now' }];
+  if (plays.value.length) out.push({ id: 'history', label: 'History' });
   if (size === 'small' && !limited.value && (reading.value?.series?.history?.length ?? 0) > 1) out.push({ id: 'trend', label: '24 hours' });
   if (upcoming.value.length) out.push({ id: 'upcoming', label: 'Up next' });
   return out;
@@ -190,6 +225,16 @@ const { views, view } = useViews(() => {
       />
     </template>
 
+    <div v-else-if="view === 'history'" class="list" role="list" :aria-label="`Recently watched on ${name}`">
+      <div v-for="p in plays.slice(0, HISTORY_ROWS)" :key="p.at + p.title + p.user" class="ag-row" role="listitem">
+        <span class="n">{{ hhmm(p.at) }}</span>
+        <span>
+          {{ p.title }}
+          <small>{{ p.user }} · {{ day(p.at) }}<template v-if="!p.watched && p.percent !== null"> · stopped at {{ Math.round(p.percent) }}%</template></small>
+        </span>
+      </div>
+    </div>
+
     <div v-else-if="view === 'upcoming'" class="list" role="list" :aria-label="`Up next on ${name}`">
       <div v-for="e in upcoming" :key="e.at + e.title" class="ag-row" role="listitem">
         <span class="n">{{ hhmm(e.at) }}</span>
@@ -227,6 +272,13 @@ const { views, view } = useViews(() => {
           :stale="stale || s.needsRepair"
           :label="`${name}, ${reading?.unit ?? 'value'}, 24 hours`"
         />
+      </div>
+      <div v-if="playing.length" class="list svc-playing" role="list" :aria-label="`Playing on ${name}`">
+        <div v-for="p in playing.slice(0, PLAYING_ROWS)" :key="p.title + p.user" class="ag-row" role="listitem">
+          <span class="n">{{ p.progress === null ? '—' : `${p.progress}%` }}</span>
+          <span>{{ p.title }}<small>{{ p.user }} · {{ p.state === 'playing' ? p.decision : p.state }}</small></span>
+        </div>
+        <small v-if="playing.length > PLAYING_ROWS" class="svc-more">+{{ playing.length - PLAYING_ROWS }} more</small>
       </div>
       <div class="tf">
         <span v-if="footer">{{ footer }}</span>
@@ -267,6 +319,13 @@ const { views, view } = useViews(() => {
 }
 .svc-main {
   gap: var(--space-1);
+}
+.svc-playing {
+  margin-top: auto;
+}
+.svc-more {
+  color: var(--text-3);
+  font-size: var(--type-caption);
 }
 .svc-ctx {
   white-space: nowrap;

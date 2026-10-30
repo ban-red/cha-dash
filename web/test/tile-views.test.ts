@@ -92,6 +92,61 @@ describe('which tiles have views', () => {
   });
 });
 
+describe('Tautulli', () => {
+  const withPlays = () => {
+    const d = docs(withIncidents);
+    d.graph.resources['app:tautulli']!.attrs = {
+      ...d.graph.resources['app:tautulli']!.attrs,
+      now_playing: [
+        { title: 'Big Buck Bunny', user: 'Lab Guest', state: 'playing', progress: 64, decision: 'transcode' },
+        { title: 'Example Show - Pilot', user: 'Lab Member', state: 'paused', progress: 10, decision: 'direct play' },
+        { title: 'A Third Film', user: 'Lab Member', state: 'playing', progress: 5, decision: 'direct play' },
+      ],
+      history: [
+        { title: 'Example Show - Pilot', user: 'Lab Member', at: Date.parse('2026-10-03T09:00:00Z') / 1000, percent: 98, watched: true },
+        { title: 'Big Buck Bunny', user: 'Lab Guest', at: Date.parse('2026-10-02T20:30:00Z') / 1000, percent: 41, watched: false },
+      ],
+    };
+    return d;
+  };
+
+  it('lists what is playing, and pages to a viewing history', async () => {
+    const { w, dots, pressed } = mountTile('service', 'small', 'app:tautulli', withPlays());
+    expect(dots().map((d) => d.attributes('aria-label'))).toEqual(['Now', 'History']);
+    const rows = w.findAll('.svc-playing .ag-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.text()).toContain('Big Buck Bunny');
+    expect(rows[0]!.text()).toContain('64%');
+    expect(rows[1]!.text()).toContain('paused');
+    expect(w.find('.svc-more').text()).toBe('+1 more');
+    await dots()[1]!.trigger('click');
+    expect(pressed()).toBe('History');
+    const hist = w.findAll('.ag-row');
+    expect(hist).toHaveLength(2);
+    expect(hist[0]!.text()).toContain('Example Show - Pilot');
+    expect(hist[0]!.text()).toContain('Today');
+    expect(hist[1]!.text()).toContain('stopped at 41%');
+    expect(w.text()).not.toMatch(/undefined|NaN|\[object/);
+  });
+
+  it('has no History view without history, and no list without sessions', () => {
+    const { w, dots } = mountTile('service', 'small', 'app:tautulli');
+    expect(dots().map((d) => d.attributes('aria-label'))).not.toContain('History');
+    expect(w.find('.svc-playing').exists()).toBe(false);
+  });
+
+  it('passes axe on both views', async () => {
+    vi.useRealTimers();
+    for (const size of ['small', 'wide'] as const) {
+      const { w, dots } = mountTile('service', size, 'app:tautulli', withPlays());
+      expect(await axeViolations(), `${size} now`).toEqual([]);
+      await dots()[1]!.trigger('click');
+      expect(await axeViolations(), `${size} history`).toEqual([]);
+      w.unmount();
+    }
+  });
+});
+
 describe('paging', () => {
   it('moves with the arrow keys on the dots, wrapping, and keeps focus on the pressed dot', async () => {
     const { dots, pressed } = mountTile('host', 'small', 'pve:stork');

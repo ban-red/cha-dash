@@ -8,6 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Tautulli shows what's playing and what was watched.** The tile lists the titles playing now, with who's watching, how far along and whether it's transcoding, and has a second view with the last few things watched. Cha Dash reads two more things from Tautulli: the sessions it already fetched, and `get_history` (optional, 8 rows).
+- **Leave layout editing with Escape, or a button.** Escape exits edit mode, and an Exit layout editing button stays at the foot of the page while you edit.
+- **Reorder from a tile's menu.** Move a widget earlier or later in its section, or to its start or end.
 - **A menu on section headers.** Hover a section's title for a three-dot menu with Resize, to set the section's width from a quarter of the board to the full row, and Reorder, to move it up or down.
 - **Swipe a tile for more.** Some tiles now have more than one view. Swipe sideways on a phone or tablet, or click the dots at the bottom of the tile. A small weather tile has the next hours; a host tile has its guests or containers and its storage; a Sonarr, Radarr or Lidarr tile has what's coming next, and a small service tile its last 24 hours. Each tile remembers its view on that device. Tiles with nothing more to show look as before.
 - **A menu on every tile.** The settings cog on a tile is now three dots that open a compact menu with icons: Integration settings, Widget settings, Resize (the sizes that fit its section) and Remove widget, which asks first and offers Undo.

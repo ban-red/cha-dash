@@ -1,4 +1,5 @@
-# Tautulli: what's playing on Plex right now, as Tautulli sees it.
+# Tautulli: what's playing on Plex right now, as Tautulli sees it, and what
+# was watched lately.
 #
 # Format: chadash/v1alpha1, internal and unstable until v1.0; see
 # internal/README.md, "Tier 1 specs". Fixture test: tautulli_test.go, against
@@ -44,6 +45,14 @@ requests:
       transcode: response.data.stream_count_transcode
       bandwidth_kbps: response.data.total_bandwidth
       wan_kbps: response.data.wan_bandwidth
+      sessions: response.data.sessions
+  # The last few plays, newest first. Optional: the tile's History view only.
+  history:
+    path: /api/v2
+    query: { apikey: "{{ secret.api_key }}", cmd: get_history, length: "8", order_column: date, order_dir: desc }
+    optional: true
+    extract:
+      rows: response.data.data
   plex:
     path: /api/v2
     query: { apikey: "{{ secret.api_key }}", cmd: server_status }
@@ -66,6 +75,28 @@ resources:
       branch: info.branch
       install_type: info.install_type
       plex_connected: plex.connected
+      # What's playing, at most 8 sessions. No player addresses: the tile shows
+      # the title, who watches it and how far along.
+      now_playing: |
+        activity.sessions == nil ? nil : map(activity.sessions[:8], {{
+          title: #.full_title ?? #.title,
+          kind: #.media_type,
+          user: #.friendly_name ?? #.user,
+          state: #.state,
+          progress: #.progress_percent == nil ? nil : int(#.progress_percent),
+          decision: #.transcode_decision,
+          player: #.player
+        }})
+      # The last plays (Unix seconds), newest first.
+      history: |
+        history.rows == nil ? nil : map(history.rows[:8], {{
+          title: #.full_title ?? #.title,
+          kind: #.media_type,
+          user: #.friendly_name ?? #.user,
+          at: #.date,
+          percent: #.percent_complete,
+          watched: #.watched_status == 1
+        }})
     caps: [media.sessions]
     links:
       - { title: Tautulli, url: config.url }

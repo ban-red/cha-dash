@@ -1,0 +1,51 @@
+{
+  "response": {
+    "result": "success",
+    "message": null,
+    "data": {
+      "recordsFiltered": 3,
+      "recordsTotal": 3,
+      "data": [
+        {
+          "date": 1793318400,
+          "started": 1793318400,
+          "stopped": 1793323000,
+          "media_type": "episode",
+          "title": "Pilot",
+          "grandparent_title": "Example Show",
+          "full_title": "Example Show - Pilot",
+          "user": "lab-member",
+          "friendly_name": "Lab Member",
+          "percent_complete": 98,
+          "watched_status": 1
+        },
+        {
+          "date": 1793232000,
+          "started": 1793232000,
+          "stopped": 1793236000,
+          "media_type": "movie",
+          "title": "Big Buck Bunny",
+          "grandparent_title": "",
+          "full_title": "Big Buck Bunny",
+          "user": "lab-guest",
+          "friendly_name": "Lab Guest",
+          "percent_complete": 41,
+          "watched_status": 0
+        },
+        {
+          "date": 1793145600,
+          "started": 1793145600,
+          "stopped": 1793152000,
+          "media_type": "movie",
+          "title": "Night of the Living Dead",
+          "grandparent_title": "",
+          "full_title": "Night of the Living Dead",
+          "user": "lab-member",
+          "friendly_name": "Lab Member",
+          "percent_complete": 100,
+          "watched_status": 1
+        }
+      ]
+    }
+  }
+}
