@@ -341,15 +341,15 @@ func (s *Service) RequireToken(next http.Handler) http.Handler {
 			return
 		}
 		ip := s.proxies.ClientIP(r)
-		key := "token|" + clientKey(ip)
-		if wait := s.tokenFailures.wait(key); wait > 0 {
+		key := "token|" + httpx.ClientKey(ip)
+		if wait := s.tokenFailures.Wait(key); wait > 0 {
 			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 			httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many bad API tokens from this address; try again later.")
 			return
 		}
 		id, err := s.AuthenticateToken(r.Context(), presented, ip.String())
 		if err != nil {
-			s.tokenFailures.allow(key)
+			s.tokenFailures.Allow(key)
 			switch {
 			case errors.Is(err, ErrTokenExpired):
 				httpx.Error(w, http.StatusUnauthorized, "token_expired", "This API token has expired. Make a new one in Settings → API tokens.")

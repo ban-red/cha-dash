@@ -127,7 +127,7 @@ func (s *Service) clearCookie(w http.ResponseWriter, r *http.Request) {
 
 // rateLimited applies the per-client attempt budget and writes 429 when spent.
 func (s *Service) rateLimited(w http.ResponseWriter, r *http.Request, scope string) bool {
-	ok, wait := s.limiter.allow(scope + "|" + clientKey(s.proxies.ClientIP(r)))
+	ok, wait := s.limiter.Allow(scope + "|" + httpx.ClientKey(s.proxies.ClientIP(r)))
 	if ok {
 		return false
 	}

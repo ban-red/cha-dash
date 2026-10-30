@@ -235,7 +235,7 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Wrong passwords here draw on the same per-account budget as sign-in.
-		if wait := s.failures.wait(id.User.ID); wait > 0 {
+		if wait := s.failures.Wait(id.User.ID); wait > 0 {
 			tooManyAttempts(w, wait)
 			return
 		}
@@ -245,7 +245,7 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !ok {
-			s.failures.allow(id.User.ID)
+			s.failures.Allow(id.User.ID)
 			fail("wrong password", nil)
 			return
 		}

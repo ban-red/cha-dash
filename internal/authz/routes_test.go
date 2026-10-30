@@ -1,12 +1,14 @@
 package authz
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -154,7 +156,7 @@ func TestEveryRouteHasARow(t *testing.T) {
 		if _, ok := found[r.Pattern]; !ok && !r.Optional {
 			t.Errorf("routes.go lists %q, but nothing registers it: remove the row, or mark it Optional if another track adds it", r.Pattern)
 		}
-		if r.Access < Public || r.Access > NodeKey {
+		if r.Access < Public || r.Access > Signature {
 			t.Errorf("%q: access %d", r.Pattern, r.Access)
 		}
 	}
@@ -179,6 +181,35 @@ func TestNodeKeyRoutes(t *testing.T) {
 	}
 	if NodeKey.String() != "node key" {
 		t.Fatal(NodeKey.String())
+	}
+}
+
+// signatureRoutes is every route that answers to a signed request instead
+// of a session. Adding one is a reviewed change: add it here too.
+var signatureRoutes = []string{}
+
+// TestSignatureRoutes: no role admits a Signature route, and the table's
+// Signature rows are exactly signatureRoutes.
+func TestSignatureRoutes(t *testing.T) {
+	for _, role := range []string{"", "household", "viewer", "operator", "admin", "owner"} {
+		if Signature.Allows(role) {
+			t.Errorf("Signature allows role %q", role)
+		}
+	}
+	if Signature.String() != "signature" {
+		t.Fatal(Signature.String())
+	}
+	var signed []string
+	for _, r := range Routes {
+		if r.Access == Signature {
+			signed = append(signed, r.Pattern)
+		}
+	}
+	if !slices.Equal(signed, signatureRoutes) {
+		t.Fatalf("Signature routes = %q, reviewed list = %q: a Signature route answers without a session, so update the list only after review", signed, signatureRoutes)
+	}
+	if err := TokenRoute(Route{Access: Signature, Token: TokenAny}, "owner", []string{"*"}); !errors.Is(err, ErrSessionOnly) {
+		t.Fatalf("a token on a Signature route = %v, want session only", err)
 	}
 }
 

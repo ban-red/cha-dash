@@ -117,12 +117,12 @@ type Service struct {
 	st      *store.Store
 	log     *slog.Logger
 	proxies httpx.Proxies
-	limiter *limiter
+	limiter *httpx.Limiter
 	// failures is the per-account budget for wrong passwords, keyed by user
 	// ID, so changing address doesn't buy more guesses at one account.
-	failures *limiter
+	failures *httpx.Limiter
 	// tokenFailures is the per-client budget for bad API tokens.
-	tokenFailures *limiter
+	tokenFailures *httpx.Limiter
 	now           func() time.Time
 	params        argonParams
 
@@ -161,10 +161,10 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.P
 		st:       st,
 		log:      log,
 		proxies:  proxies,
-		limiter:  newLimiter(10, 6*time.Second), // 10 attempts, then one per 6 s, per client IP
-		failures: newLimiter(20, time.Minute),   // 20 wrong passwords, then one a minute, per account
+		limiter:  httpx.NewLimiter(10, 6*time.Second), // 10 attempts, then one per 6 s, per client IP
+		failures: httpx.NewLimiter(20, time.Minute),   // 20 wrong passwords, then one a minute, per account
 		// 10 bad API tokens, then one per 6 s, per client IP.
-		tokenFailures: newLimiter(10, 6*time.Second),
+		tokenFailures: httpx.NewLimiter(10, 6*time.Second),
 		now:           time.Now,
 		params:        defaultParams,
 	}
@@ -285,7 +285,7 @@ func (s *Service) Login(ctx context.Context, username, password string) (User, e
 	if err != nil {
 		return User{}, fmt.Errorf("auth: %w", err)
 	}
-	if wait := s.failures.wait(u.ID); wait > 0 {
+	if wait := s.failures.Wait(u.ID); wait > 0 {
 		return User{}, &AccountLimitedError{UserID: u.ID, Wait: wait}
 	}
 	ok, err := verifyPassword(password, hash.String)
@@ -293,7 +293,7 @@ func (s *Service) Login(ctx context.Context, username, password string) (User, e
 		return User{}, fmt.Errorf("auth: user %s: %w", u.ID, err)
 	}
 	if !ok {
-		s.failures.allow(u.ID)
+		s.failures.Allow(u.ID)
 	}
 	if !ok || disabled.Valid {
 		return User{}, ErrBadCredentials

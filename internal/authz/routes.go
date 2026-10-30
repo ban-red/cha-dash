@@ -32,6 +32,12 @@ const (
 	// like public routes, and no person's role ever satisfies one. What a
 	// node may do on its host is its own policy file's business.
 	NodeKey
+	// Signature routes are for machines that sign each request, such as a
+	// forge's webhook: the handler verifies the request itself. Guard
+	// passes them through without a session, like NodeKey, and no person's
+	// role ever satisfies one, so a session gains nothing. Every Signature
+	// row is in TestSignatureRoutes' reviewed list.
+	Signature
 )
 
 func (a Access) String() string {
@@ -50,6 +56,8 @@ func (a Access) String() string {
 		return "owner"
 	case NodeKey:
 		return "node key"
+	case Signature:
+		return "signature"
 	}
 	return "unknown"
 }
@@ -71,7 +79,7 @@ func (a Access) Allows(role string) bool {
 	case Owner:
 		return r >= rank(auth.RoleOwner)
 	}
-	return false // NodeKey: never a person
+	return false // NodeKey, Signature: never a person
 }
 
 func (a Access) refusal() string {
@@ -337,7 +345,7 @@ func Lookup(pattern string) (Route, bool) {
 }
 
 // Guard authorizes every request to mux by the route it matches, then serves
-// it: public routes as they are, the rest behind a session (auth.Require,
+// it: public, node-key and signature routes as they are, the rest behind a session (auth.Require,
 // which attaches the identity handlers read) and the row's role. A route
 // with no row is refused with 500 and an error in the log, so a forgotten
 // row fails closed and loudly. Requests mux would answer with 404 or 405
@@ -367,8 +375,10 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 			httpx.Error(w, http.StatusInternalServerError, "no_authz_rule", "This route has no authorization rule yet, so it's refused.")
 			return
 		}
-		if route.Access == Public || route.Access == NodeKey {
-			mux.ServeHTTP(w, r) // a node authenticates in the channel, by key
+		if route.Access == Public || route.Access == NodeKey || route.Access == Signature {
+			// A node authenticates in the channel, by key; a signed request
+			// in its handler. A cookie or bearer token counts for nothing.
+			mux.ServeHTTP(w, r)
 			return
 		}
 		if _, ok := auth.BearerToken(r); ok {
@@ -412,7 +422,7 @@ func TokenRoute(route Route, role string, scopes []string) error {
 	switch {
 	case route.Access == Public:
 		return nil
-	case route.Token == "" || route.Access == NodeKey:
+	case route.Token == "" || route.Access == NodeKey || route.Access == Signature:
 		return &Refusal{Err: ErrSessionOnly, Msg: "API tokens can't use this; sign in to Cha Dash instead."}
 	case !route.Access.Allows(role):
 		return forbid("%s This token acts as its user, so it can't either.", route.Access.refusal())

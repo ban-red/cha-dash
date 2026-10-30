@@ -231,7 +231,7 @@ func TestRouteMatrix(t *testing.T) {
 		// Is it on the router? The API's fallback answers what isn't. Public
 		// routes are probed anonymously (one of them is sign-out).
 		prober := clients[auth.RoleOwner]
-		if row.Access == authz.Public || row.Access == authz.NodeKey {
+		if row.Access == authz.Public || row.Access == authz.NodeKey || row.Access == authz.Signature {
 			prober = anon
 		}
 		status, _, b := hit(prober)
@@ -248,6 +248,20 @@ func TestRouteMatrix(t *testing.T) {
 			for role, c := range map[string]*http.Client{"anonymous": anon, auth.RoleOwner: clients[auth.RoleOwner]} {
 				if status, _, b := hit(c); status == http.StatusUnauthorized || status < 400 {
 					t.Errorf("%s as %s: %d %s", row.Pattern, role, status, b)
+				}
+			}
+			continue
+		}
+		if row.Access == authz.Signature {
+			// No session asked, and neither a session nor an API token gains
+			// anything: an unsigned request is refused, 401 or another 4xx.
+			probes := map[string]*http.Client{"anonymous": anon, auth.RoleOwner: clients[auth.RoleOwner]}
+			for role, c := range tokens {
+				probes[role+"'s token"] = c
+			}
+			for who, c := range probes {
+				if status, _, b := hit(c); status < 400 || status >= 500 {
+					t.Errorf("%s as %s: %d %s, want a 4xx without a valid signature", row.Pattern, who, status, b)
 				}
 			}
 			continue

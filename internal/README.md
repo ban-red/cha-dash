@@ -52,7 +52,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/firstpaint` | Builds the snapshot inlined into the first paint, for any signed-in role: user, board (layout and tiles), graph, metrics for its resources, open incidents as the role's inbox topic shows them. HTML-escaped, capped at 512 KiB |
 | `internal/vault` | Envelope-encrypted secrets |
 | `internal/store` | SQLite (ncruces) connections, pragmas, embedded goose migrations: `00001` schema v0, `00002` passkeys, `00003` integration state, `00004` board tiles and dismissals, `00005` correlation decisions, `00006` step-up grants on sessions and the `api_tokens` table, `00007` plans, tasks and idempotency keys, `00008` the audit log, `00009` stack drafts, `00010` node identities and the hub's node keys, `00011` notifications (channels, rules, push subscriptions, events, deliveries), `00012` API tokens' revoker and last address, and the approvals queue, `00013` the icon cache, `00014` stack secret grants, `00015` banned client addresses, `00016` import History (`imports`) and hub-wide lead dismissals (`discovery_dismissals`), `00017` stack syncs and hooks (`stack_syncs`, `stack_hooks`) and a draft's `source`, `00018` OIDC identities and logins (`oidc_identities`, `oidc_logins`) and forward-auth links (`forward_auth_links`), `00019` node join tokens (`node_join_tokens`). `OpenHistory` opens `history.db` with its own migrations under `history/`: `00001` series and chunks, `00002` health states |
-| `internal/httpx` | Client IP and scheme behind trusted proxies, `EmbeddedIPv4` (the IPv4 address inside a NAT64 or 6to4 address) and `GuardDial` (a dialer that checks IP literals before any socket and resolved names on the address dialled), the outbound address checks `notify` and `icons` share, `ProxyCheck` (notices an untrusted reverse proxy), JSON I/O, shared middleware; `GzipJSON` compresses `/api` JSON of 1 KiB or more (never auth, setup or sign-in flows, upgrades or ranges; the BREACH reasoning is at the top of `gzip.go`) |
+| `internal/httpx` | Client IP and scheme behind trusted proxies, `EmbeddedIPv4` (the IPv4 address inside a NAT64 or 6to4 address) and `GuardDial` (a dialer that checks IP literals before any socket and resolved names on the address dialled), the outbound address checks `notify` and `icons` share, `ProxyCheck` (notices an untrusted reverse proxy), `Limiter` (the per-key token bucket `auth` limits attempts with) and `ClientKey` (its key for an address, IPv6 by /64), JSON I/O, shared middleware; `GzipJSON` compresses `/api` JSON of 1 KiB or more (never auth, setup or sign-in flows, upgrades or ranges; the BREACH reasoning is at the top of `gzip.go`) |
 | `internal/config` | `CHADASH_*` env and flags |
 | `internal/buildinfo` | Version and commit stamped with `-ldflags` |
 
@@ -228,7 +228,11 @@ a fumbled confirmation can't lock anyone out of signing in.
 
 **Roles.** The Auth column is the least a route admits: `session` is any
 signed-in role, household included; `viewer` is everything but household;
-then `operator`, `admin`, `owner`. The table that decides is
+then `operator`, `admin`, `owner`. Two kinds admit no role and need no
+session: `node key` (chadash-node proves its key in the channel) and
+`signature` (the handler verifies a signed request, such as a webhook; every
+such route is in `TestSignatureRoutes`' reviewed list, empty today). The
+table that decides is
 [`authz/routes.go`](authz/routes.go): `authz.Guard` sits in front of the whole
 mux (inside the cross-origin check), looks up the pattern each request
 matched, and answers `401` without a session or `403 forbidden` with a

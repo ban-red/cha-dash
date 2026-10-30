@@ -374,7 +374,7 @@ func TestLoginRateLimited(t *testing.T) {
 	// A frozen clock: under a loaded -race run, 11 attempts can take longer
 	// than the 6 s refill, and a refilled token would let the 11th through.
 	frozen := time.Now()
-	h.svc.limiter.now = func() time.Time { return frozen }
+	h.svc.limiter.SetClock(func() time.Time { return frozen })
 	c := h.client()
 	var last *http.Response
 	for range 11 {
@@ -406,74 +406,6 @@ func TestPasswordHash(t *testing.T) {
 	}
 }
 
-func TestLimiter(t *testing.T) {
-	now := time.Unix(0, 0)
-	l := newLimiter(2, time.Second)
-	l.now = func() time.Time { return now }
-	for i := range 2 {
-		if ok, _ := l.allow("a"); !ok {
-			t.Fatalf("attempt %d denied within burst", i)
-		}
-	}
-	ok, wait := l.allow("a")
-	if ok || wait != time.Second {
-		t.Fatalf("over burst: ok=%v wait=%v", ok, wait)
-	}
-	if ok, _ := l.allow("b"); !ok {
-		t.Fatal("keys must be independent")
-	}
-	now = now.Add(time.Second)
-	if ok, _ := l.allow("a"); !ok {
-		t.Fatal("token should refill")
-	}
-}
-
-func TestLimiterFullMapKeepsDebt(t *testing.T) {
-	now := time.Unix(0, 0)
-	l := newLimiter(1, time.Hour)
-	l.now = func() time.Time { return now }
-	l.allow("attacker")
-	// Fill the map with keys that are all still draining.
-	for i := range maxBuckets - 1 {
-		l.allow(fmt.Sprintf("k%d", i))
-	}
-	if ok, _ := l.allow("attacker"); ok {
-		t.Fatal("a full map reset an existing key's budget")
-	}
-	// New keys share the overflow bucket: the first gets its token, the next waits.
-	if ok, _ := l.allow("new-1"); !ok {
-		t.Fatal("first overflow key denied")
-	}
-	if ok, _ := l.allow("new-2"); ok {
-		t.Fatal("overflow keys must share one budget")
-	}
-	if len(l.buckets) > maxBuckets {
-		t.Fatalf("map grew to %d", len(l.buckets))
-	}
-	if w := l.wait("attacker"); w <= 0 {
-		t.Fatalf("wait = %v for a drained key", w)
-	}
-	if w := l.wait("never-seen"); w != 0 {
-		t.Fatalf("wait = %v for an unknown key", w)
-	}
-}
-
-func TestClientKey(t *testing.T) {
-	key := func(s string) string { return clientKey(netip.MustParseAddr(s)) }
-	if key("2001:db8:1:2::1") != key("2001:db8:1:2:ffff::9") {
-		t.Error("addresses in one /64 must share a key")
-	}
-	if key("2001:db8:1:2::1") == key("2001:db8:1:3::1") {
-		t.Error("different /64s must not share a key")
-	}
-	if key("fe80::1%eth0") != key("fe80::2") {
-		t.Error("zones must not split a /64")
-	}
-	if key("192.0.2.1") == key("192.0.2.2") {
-		t.Error("IPv4 is keyed by address")
-	}
-}
-
 func TestLoginAccountLimited(t *testing.T) {
 	// Trust the test client as a proxy so each attempt can claim a new address.
 	h := newHarness(t, netip.MustParsePrefix("127.0.0.0/8"), netip.MustParsePrefix("::1/128"))
@@ -481,7 +413,7 @@ func TestLoginAccountLimited(t *testing.T) {
 	// A frozen clock (see TestLoginRateLimited) that the test can move safely.
 	frozen := time.Now()
 	var later atomic.Int64
-	h.svc.failures.now = func() time.Time { return frozen.Add(time.Duration(later.Load())) }
+	h.svc.failures.SetClock(func() time.Time { return frozen.Add(time.Duration(later.Load())) })
 	c := h.client()
 	login := func(i int, password string) *http.Response {
 		resp, _ := h.doRaw(c, "POST", "/api/auth/login", loginRequest{Username: "owner", Password: password},
