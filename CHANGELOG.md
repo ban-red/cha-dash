@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A Frigate detection in its own dialog.** On the Cameras tile, click a recent detection to see just that event: the event's snapshot (when the connection shares pictures), what it saw, how sure Frigate was and when, with an Open in Frigate link to the event in Frigate's Explore page. The link needs the connection's URL to be one you can reach from the browser. A camera's sheet lists its five newest events, and each opens the same dialog.
 - **Move a widget to another section.** The widget menu has a Move to section item that lists the board's other sections and puts the widget at the end of the one you pick.
 - **Home Assistant's panel.** Click a facet on the Home Assistant tile (Indoors, Lights, Playing, open Doors), who's home, or the needs-a-look line to see everything behind it: every light and switch, each thermostat, each media player, each person, and what needs a look. Optionally, it can control them too: list **Devices Cha Dash may control** in the connection's settings (lights, switches, media players, thermostats) and the panel gets a switch per light and switch, Play and Pause, and a thermostat's target, each with Undo where there is one. Nothing is controlled unless you allow it, and locks, doors and the alarm never are. Household users may switch lights (unless switches are allowed too, since a switch can be a server's plug), play and pause, and set thermostats.
 - **Calendars in the Demo Home.** The demo's Home Assistant publishes two invented calendars, Family and School, so the Calendar widget has something to show there.
@@ -19,6 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - **Whole numbers on count graphs.** The graph on a Plex, Jellyfin or Tautulli tile showed a 24 h average like 1.5 for streams or transcodes. Counts now read as whole numbers.
+- **One reason, not a dozen.** A camera's Actions tab repeated the same "add a control account" paragraph under every switch. Actions that can't run for the same reason now say it once.
 - **Danger buttons always look like danger buttons.** The board's Remove section button only turned red once Settings had been opened, and the tile menu's Remove used a fainter red. Buttons, fields and dialogs now share one set of styles, so they look the same wherever they appear.
 - **Screen readers read a field's help.** Some form fields showed help under the input without tying it to the input, so a screen reader didn't read it. Every field now does.
 - **Logos stay on tiles that need you.** A tile's logo used to give way to a coloured monogram when the tile needed attention or was down. The logo now always shows; the bar and the glyph say what's wrong. Proxmox and Unraid host tiles show their logo too.

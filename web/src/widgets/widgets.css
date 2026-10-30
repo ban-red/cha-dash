@@ -418,6 +418,34 @@ a.gv {
 .cam-events .li {
   align-items: center;
 }
+.cam-events .li {
+  position: relative;
+}
+/* The whole row is the button: its caption stretches over it. */
+.cam-ev-open {
+  all: unset;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cam-ev-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.cam-ev-open:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+.cam-ev-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
 .cam-thumb {
   position: relative;
   display: block;

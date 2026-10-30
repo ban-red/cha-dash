@@ -13,7 +13,7 @@
  * size from the tile's settings (1 × 1, 2 wide, 2 tall, 2 × 2) or, on Auto,
  * the first a big frame and the rest one cell; one that doesn't fit is left
  * out and counted ("+2 more"). Small: the latest detection with its caption.
- * Large and Hero add the recent detections. Panel, Large and Hero have a control row for the
+ * Large and Hero add the recent detections; one opens its own dialog (CameraEventDialog) with a link to the event in Frigate. Panel, Large and Hero have a control row for the
  * big camera (detection, recording, the camera, snapshots, alerts) when the
  * viewer may run Frigate's actions.
  *
@@ -302,7 +302,8 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
       <ul v-if="showEvents" class="list cam-events" aria-label="Recent detections">
         <li v-for="e in events.slice(0, size === 'hero' ? 4 : 2)" :key="e.id" class="li">
           <span class="cam-thumb" aria-hidden="true"><CameraScene :variant="variant(e.cam, 0)" :person="attr(e.cam, 'last_event.label') === 'person'" /></span>
-          <span class="t">{{ e.text }}</span>
+          <button v-if="!ui.state.editing" type="button" class="t cam-ev-open" :aria-label="`${e.text}, open`" @click="ui.openCameraEvent(e.id)">{{ e.text }}</button>
+          <span v-else class="t">{{ e.text }}</span>
           <span></span>
         </li>
       </ul>

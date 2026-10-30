@@ -80,11 +80,16 @@ type camera struct {
 	count     int    // tracked objects in the last 24 h
 	lastEvent event
 	lastHuman event
+	recent    []event // the newest few, newest first, one per id
 }
+
+// recentEvents is how many of a camera's newest events are published.
+const recentEvents = 5
 
 // event is one tracked object, as /api/events and the WebSocket's events
 // topic report it. sub_label (a recognised face or plate) is never read.
 type event struct {
+	ID            string   `json:"id"`
 	Camera        string   `json:"camera"`
 	Label         string   `json:"label"`
 	StartTime     float64  `json:"start_time"`
@@ -379,12 +384,34 @@ func (in *instance) applyEvents(evs []event, now time.Time) {
 
 // noteEvent keeps the newest event and the newest person per camera.
 func (c *camera) noteEvent(e event) {
+	c.keepRecent(e)
 	if e.at().After(c.lastEvent.at()) || c.lastEvent.StartTime == 0 {
 		c.lastEvent = e
 	}
 	if e.Label == "person" && (e.at().After(c.lastHuman.at()) || c.lastHuman.StartTime == 0) {
 		c.lastHuman = e
 	}
+}
+
+// keepRecent adds e to the camera's newest events: an id seen again
+// replaces its earlier copy, and only recentEvents are kept.
+func (c *camera) keepRecent(e event) {
+	if e.StartTime <= 0 {
+		return
+	}
+	if e.ID != "" {
+		c.recent = slices.DeleteFunc(c.recent, func(o event) bool { return o.ID == e.ID })
+	}
+	c.recent = append(c.recent, e)
+	slices.SortStableFunc(c.recent, func(a, b event) int { return b.at().Compare(a.at()) })
+	if len(c.recent) > recentEvents {
+		c.recent = c.recent[:recentEvents]
+	}
+}
+
+// hasRecent says whether id is one of the camera's published events.
+func (c *camera) hasRecent(id string) bool {
+	return id != "" && slices.ContainsFunc(c.recent, func(e event) bool { return e.ID == id })
 }
 
 // health is a camera's state and health, freshest source first.
@@ -421,6 +448,19 @@ func plural(n int, w string) string {
 		return w
 	}
 	return w + "s"
+}
+
+// eventURL is the event's page in Frigate's own UI (Explore), built on the
+// URL the user configured; empty when there isn't an http(s) one.
+func (in *instance) eventURL(id string) string {
+	u, err := url.Parse(in.link)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return ""
+	}
+	u.Path = strings.TrimRight(u.Path, "/") + "/explore"
+	u.RawQuery = url.Values{"event_id": {id}}.Encode()
+	u.Fragment = ""
+	return u.String()
 }
 
 func (in *instance) camID(key string) string { return in.prefix + "/camera/" + key }
@@ -489,8 +529,29 @@ func (in *instance) graphFacts() integration.Facts {
 		if e := c.lastEvent; e.StartTime > 0 {
 			a["last_event.at"] = e.at().Truncate(time.Second).Format(time.RFC3339)
 			a["last_event.label"] = e.Label
+			if e.ID != "" {
+				a["last_event.id"] = e.ID
+				if u := in.eventURL(e.ID); u != "" {
+					a["last_event.url"] = u
+				}
+			}
 			if s := e.score(); s > 0 {
 				a["last_event.score"] = s
+			}
+		}
+		for i, e := range c.recent {
+			if e.ID == "" {
+				continue
+			}
+			k := fmt.Sprintf("events.%d.", i)
+			a[k+"id"] = e.ID
+			a[k+"at"] = e.at().Truncate(time.Second).Format(time.RFC3339)
+			a[k+"label"] = e.Label
+			if s := e.score(); s > 0 {
+				a[k+"score"] = s
+			}
+			if u := in.eventURL(e.ID); u != "" {
+				a[k+"url"] = u
 			}
 		}
 		if e := c.lastHuman; e.StartTime > 0 {

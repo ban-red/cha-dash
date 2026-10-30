@@ -8,6 +8,8 @@ import { computed, defineComponent, h as el, nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import type { SizeId } from '@chadash/layout';
 import CamerasWidget from '../src/widgets/CamerasWidget.vue';
+import ResourceSheet from '../src/components/ResourceSheet.vue';
+import CameraEventDialog from '../src/widgets/CameraEventDialog.vue';
 import { optionValue } from '../src/widgets/options';
 import { WIDGETS } from '../src/model/widgets';
 import { setDisplayTimeZone } from '../src/lib/format';
@@ -206,6 +208,76 @@ describe('Cameras', () => {
     const none = mountCams('large', { options: { controls: true } }).w;
     await flushPromises();
     expect(none.find('.cam-ctl').exists()).toBe(false);
+  });
+
+  it('opens a detection in its own dialog, with a link to it in Frigate', async () => {
+    fakeFetch({ 'GET /api/actions': { status: 200, body: [] } });
+    const d = house();
+    d.graph.resources['frigate:camera/driveway']!.attrs!['last_event.id'] = '1790989836.632026-bto7xe';
+    d.graph.resources['frigate:camera/driveway']!.attrs!['last_event.url'] = 'https://nvr.example/explore?event_id=1790989836.632026-bto7xe';
+    const { w, ui, mountIn } = mountCams('hero', undefined, d);
+    await flushPromises();
+    const rows = w.findAll('.cam-events .cam-ev-open');
+    expect(rows.length).toBeGreaterThan(0);
+    const row = rows.find((r) => r.text().startsWith('Driveway'))!;
+    await row.trigger('click');
+    expect(ui.state.cameraEvent).toEqual({ camera: 'frigate:camera/driveway' });
+    const dlg = mountIn(CameraEventDialog);
+    await flushPromises();
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Driveway');
+    expect(text).toMatch(/\d+%/);
+    const img = document.querySelector<HTMLImageElement>('.cam-ev-pic img');
+    expect(img?.getAttribute('src')).toMatch(/\/picture\?resource=frigate%3Acamera%2Fdriveway&event=1790989836\.632026-bto7xe&h=540$/);
+    expect(img?.getAttribute('alt')).toContain('Driveway');
+    img!.dispatchEvent(new Event('error'));
+    await nextTick();
+    expect(document.querySelector('.cam-ev-pic')).toBeNull();
+    const link = document.querySelector<HTMLAnchorElement>('a[href^="https://nvr.example/explore"]');
+    expect(link?.textContent).toContain('Open in Frigate');
+    expect(link?.getAttribute('rel')).toContain('noopener');
+    expect(await axeViolations()).toEqual([]);
+    dlg.unmount();
+  });
+
+  it('lists a camera’s five newest events in its sheet, and each opens its own dialog', async () => {
+    fakeFetch({ 'GET /api/actions': { status: 200, body: [] } });
+    const d = house();
+    const attrs = d.graph.resources['frigate:camera/driveway']!.attrs!;
+    for (let i = 0; i < 5; i++) {
+      attrs[`events.${i}.id`] = `1790989${i}00.000000-ev${i}`;
+      attrs[`events.${i}.at`] = `2026-10-03T01:${String(50 - i * 5).padStart(2, '0')}:00Z`;
+      attrs[`events.${i}.label`] = i % 2 ? 'car' : 'person';
+      attrs[`events.${i}.score`] = 0.9 - i * 0.1;
+      attrs[`events.${i}.url`] = `https://nvr.example/explore?event_id=1790989${i}00.000000-ev${i}`;
+    }
+    const { ui, mountIn } = mountCams('wide', undefined, d);
+    ui.openSheet('frigate:camera/driveway');
+    const sheet = mountIn(ResourceSheet);
+    await flushPromises();
+    const rows = [...document.querySelectorAll<HTMLButtonElement>('.rs-events button')];
+    expect(rows.map((b) => b.textContent!.replace(/\s+/g, ' ').trim())).toEqual(['person 90%', 'car 80%', 'person 70%', 'car 60%', 'person 50%']);
+    rows[2]!.click();
+    expect(ui.state.cameraEvent).toEqual({ camera: 'frigate:camera/driveway', event: '179098920' + '0.000000-ev2' });
+    const dlg = mountIn(CameraEventDialog);
+    await flushPromises();
+    expect(document.querySelector('dialog')?.textContent).toContain('70%');
+    expect(document.querySelector<HTMLAnchorElement>('a[href*="event_id=1790989200.000000-ev2"]')).not.toBeNull();
+    expect(document.querySelector('.cam-ev-pic img')?.getAttribute('src')).toContain('event=1790989200.000000-ev2');
+    dlg.unmount();
+    sheet.unmount();
+  });
+
+  it('has no Frigate link in the dialog when the hub gave none', async () => {
+    fakeFetch({ 'GET /api/actions': { status: 200, body: [] } });
+    const { ui, mountIn } = mountCams('hero');
+    ui.openCameraEvent('frigate:camera/driveway');
+    const dlg = mountIn(CameraEventDialog);
+    await flushPromises();
+    expect(document.body.textContent).not.toContain('Open in Frigate');
+    expect(document.querySelector('.cam-ev-pic')).toBeNull();
+    expect(document.body.textContent).toContain('Close');
+    dlg.unmount();
   });
 
   it('hides the detections list when turned off', async () => {

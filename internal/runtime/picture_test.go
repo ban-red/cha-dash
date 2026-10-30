@@ -21,6 +21,7 @@ type cam struct {
 	err    error
 	calls  int
 	height int
+	event  string
 }
 
 func (c *cam) Manifest() integration.Manifest {
@@ -57,6 +58,7 @@ func (i *camInst) Picture(_ context.Context, rid string, o integration.PictureOp
 	defer i.c.mu.Unlock()
 	i.c.calls++
 	i.c.height = o.Height
+	i.c.event = o.Event
 	if rid != "cam:front" {
 		return integration.Picture{}, integration.ErrNoPicture
 	}
@@ -125,6 +127,17 @@ func TestPicture(t *testing.T) {
 	// Another height is another fetch.
 	if code, _, _ := e.get(t, base+"&h=240"); code != 200 || c.count() != 2 {
 		t.Fatalf("other height: %d, %d calls", code, c.count())
+	}
+
+	// An event's picture is its own fetch, and the integration is told which.
+	if code, _, _ := e.get(t, base+"&h=240&event=e1"); code != 200 || c.count() != 3 {
+		t.Fatalf("an event: %d, %d calls", code, c.count())
+	}
+	c.mu.Lock()
+	event := c.event
+	c.mu.Unlock()
+	if event != "e1" {
+		t.Errorf("the integration was asked for event %q, want e1", event)
 	}
 
 	// Not this instance's picture.
@@ -196,16 +209,16 @@ func TestPictureCacheBounded(t *testing.T) {
 	pc.entries = map[pictureKey]*pictureEntry{}
 	now := time.Now()
 	for i := range pictureCacheSize + 10 {
-		pc.put(pictureKey{"i", "r", i}, &pictureEntry{at: now}, now)
+		pc.put(pictureKey{"i", "r", "", i}, &pictureEntry{at: now}, now)
 	}
 	if len(pc.entries) != pictureCacheSize || len(pc.order) != pictureCacheSize {
 		t.Fatalf("%d entries, %d keys", len(pc.entries), len(pc.order))
 	}
-	if _, ok := pc.entries[pictureKey{"i", "r", 0}]; ok {
+	if _, ok := pc.entries[pictureKey{"i", "r", "", 0}]; ok {
 		t.Fatal("the oldest entry stayed")
 	}
 	// Expired entries go on the next put.
-	pc.put(pictureKey{"i", "r", -1}, &pictureEntry{at: now}, now.Add(pictureTTL))
+	pc.put(pictureKey{"i", "r", "", -1}, &pictureEntry{at: now}, now.Add(pictureTTL))
 	if len(pc.entries) != 1 {
 		t.Fatalf("%d entries after expiry", len(pc.entries))
 	}

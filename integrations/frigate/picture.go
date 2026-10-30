@@ -41,14 +41,39 @@ func (in *instance) Picture(ctx context.Context, rid string, opts integration.Pi
 		// Frigate scales the frame to this height (0.14+; spike 4.5 measured it).
 		q.Set("height", strconv.Itoa(opts.Height))
 	}
-	return in.getPicture(ctx, key, q)
+	if opts.Event == "" {
+		return in.getPicture(ctx, q, "api", key, "latest.jpg")
+	}
+	// An event's snapshot, but only of this camera's newest events: the
+	// id came from the graph, and one that didn't is never passed on.
+	in.mu.Lock()
+	mine := eventIDOK(opts.Event) && (c.hasRecent(opts.Event) || c.lastEvent.ID == opts.Event || c.lastHuman.ID == opts.Event)
+	in.mu.Unlock()
+	if !mine {
+		return integration.Picture{}, integration.ErrNoPicture
+	}
+	return in.getPicture(ctx, q, "api", "events", opts.Event, "snapshot.jpg")
 }
 
-// getPicture fetches GET /api/<camera>/latest.jpg: the one media endpoint
-// the integration ever calls. The answer must be a picture, and at most
-// integration.MaxPictureBytes; anything else is refused.
-func (in *instance) getPicture(ctx context.Context, key string, q url.Values) (integration.Picture, error) {
-	u := in.base.JoinPath("api", key, "latest.jpg")
+// eventIDOK is Frigate's event id shape ("1790989836.632026-bto7xe"), so
+// nothing else reaches the URL path.
+func eventIDOK(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '.' || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return !strings.Contains(id, "..")
+}
+
+// getPicture fetches GET /api/<camera>/latest.jpg or /api/events/<id>/snapshot.jpg:
+// the only media endpoints the integration calls. The answer must be a
+// picture, and at most integration.MaxPictureBytes; anything else is refused.
+func (in *instance) getPicture(ctx context.Context, q url.Values, path ...string) (integration.Picture, error) {
+	u := in.base.JoinPath(path...)
 	u.RawQuery = q.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {

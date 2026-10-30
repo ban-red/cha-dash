@@ -100,6 +100,8 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     taskLog: undefined as TaskLog | undefined,
     /** A tile note shown whole (NoteDialog). */
     note: undefined as NoteView | undefined,
+    /** A camera's detection in its own dialog (CameraEventDialog): the camera's resource id and the event (its newest when none). */
+    cameraEvent: undefined as { camera: string; event?: string } | undefined,
     /** Home Assistant's panel (HomeAssistantPanel): the app it shows, and on which list. */
     homePanel: undefined as { app: string; tab: string } | undefined,
   });
@@ -380,6 +382,14 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     },
     closeNote: () => {
       state.note = undefined;
+    },
+    /** Open a camera's detection in a dialog (the Cameras tile's detections, the camera's sheet). */
+    openCameraEvent: (camera: string, event?: string) => {
+      state.paletteOpen = false;
+      state.cameraEvent = event ? { camera, event } : { camera };
+    },
+    closeCameraEvent: () => {
+      state.cameraEvent = undefined;
     },
     /** Open Home Assistant's panel on one of its lists (the tile's facets). */
     openHomePanel: (app: string, tab: string) => {

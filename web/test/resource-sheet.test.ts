@@ -332,6 +332,7 @@ describe('a container’s sheet', () => {
 const OFFERS = [
   { id: 'docker.container.start', label: 'Start', tier: 'T1', available: true },
   { id: 'docker.container.recreate', label: 'Recreate', tier: 'T2', available: false, unavailable: 'sonarr is protected by this node’s policy', recipe: 'i_d' },
+  { id: 'docker.container.restart', label: 'Restart', tier: 'T2', available: false, unavailable: 'sonarr is protected by this node’s policy', recipe: 'i_d' },
   { id: 'docker.container.remove', label: 'Remove', tier: 'T3', available: true },
   { id: 'docker.container.logs', label: 'Show the logs of', tier: 'T0', available: true },
 ] as const;
@@ -377,6 +378,11 @@ describe('wave 2: acting from the sheet', () => {
     const why = document.getElementById(recreate.getAttribute('aria-describedby')!)!;
     expect(why.textContent).toContain('sonarr is protected by this node’s policy');
     expect(why.querySelector('button')!.textContent!.trim()).toBe('Open its settings');
+    // Offers that can't run for the same reason say it once; the others point at it.
+    const restart = [...acts.querySelectorAll<HTMLButtonElement>('.rs-tier .btn')].find((b) => b.textContent!.startsWith('Restart'))!;
+    expect(restart.getAttribute('aria-disabled')).toBe('true');
+    expect(restart.getAttribute('aria-describedby')).toBe(recreate.getAttribute('aria-describedby'));
+    expect([...acts.querySelectorAll('.rs-why')].map((p) => p.textContent).filter((t) => t!.includes('protected'))).toHaveLength(1);
     expect(await axeViolations(panel())).toEqual([]);
   });
 

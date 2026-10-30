@@ -24,6 +24,11 @@ type PictureOptions struct {
 	// Height in pixels, scaled by the source when it can. 0: as the source
 	// has it.
 	Height int
+	// Event asks for the snapshot of one event of the resource (a camera's
+	// detection) instead of its latest frame. Empty: the latest frame. An
+	// integration that has no such picture, or not of that event, returns
+	// ErrNoPicture.
+	Event string
 }
 
 // Picture is one still image.

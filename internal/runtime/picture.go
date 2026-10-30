@@ -41,8 +41,8 @@ func (e *PictureError) Error() string { return e.Message }
 func (e *PictureError) Unwrap() error { return e.Err }
 
 type pictureKey struct {
-	inst, rid string
-	height    int
+	inst, rid, event string
+	height           int
 }
 
 // pictureEntry is one fetch: in flight until done closes, then its result
@@ -68,6 +68,13 @@ type pictureCache struct {
 // ErrNotRunning (disabled, or not connected yet), integration.ErrNoPicture
 // (no such picture, or the integration has none) and *PictureError.
 func (m *Manager) Picture(ctx context.Context, id, rid string, height int) (integration.Picture, error) {
+	return m.EventPicture(ctx, id, rid, "", height)
+}
+
+// EventPicture is Picture for one event of the resource (a camera's
+// detection snapshot); event "" is the latest frame. The integration decides
+// which events it will show (integration.PictureOptions.Event).
+func (m *Manager) EventPicture(ctx context.Context, id, rid, event string, height int) (integration.Picture, error) {
 	mi := m.get(id)
 	if mi == nil {
 		return integration.Picture{}, ErrNotFound
@@ -76,7 +83,7 @@ func (m *Manager) Picture(ctx context.Context, id, rid string, height int) (inte
 		return integration.Picture{}, integration.ErrNoPicture
 	}
 	height = min(max(height, 0), MaxPictureHeight)
-	key := pictureKey{id, rid, height}
+	key := pictureKey{id, rid, event, height}
 
 	m.pics.mu.Lock()
 	if m.pics.entries == nil {
@@ -91,7 +98,7 @@ func (m *Manager) Picture(ctx context.Context, id, rid string, height int) (inte
 		m.pics.put(key, e, m.o.Now())
 		m.pics.mu.Unlock()
 		// The fetch outlives the first caller's request: others wait on it.
-		e.pic, e.err = m.fetchPicture(context.WithoutCancel(ctx), mi, rid, height)
+		e.pic, e.err = m.fetchPicture(context.WithoutCancel(ctx), mi, rid, event, height)
 		m.pics.mu.Lock()
 		e.at = m.o.Now()
 		m.pics.mu.Unlock()
@@ -128,14 +135,14 @@ func (pc *pictureCache) put(key pictureKey, e *pictureEntry, now time.Time) {
 }
 
 // fetchPicture asks mi's coordinator and checks the answer.
-func (m *Manager) fetchPicture(ctx context.Context, mi *managed, rid string, height int) (integration.Picture, error) {
+func (m *Manager) fetchPicture(ctx context.Context, mi *managed, rid, event string, height int) (integration.Picture, error) {
 	mi.life.Lock()
 	c := mi.coord
 	mi.life.Unlock()
 	if c == nil {
 		return integration.Picture{}, ErrNotRunning
 	}
-	pic, err := c.picture(ctx, rid, integration.PictureOptions{Height: height})
+	pic, err := c.picture(ctx, rid, integration.PictureOptions{Height: height, Event: event})
 	fail := func(msg string, err error) (integration.Picture, error) {
 		c.log.Debug("serving a picture failed", "resource", rid, "err", c.red.scrub(err.Error()))
 		return integration.Picture{}, &PictureError{Message: msg, Err: err}
@@ -173,7 +180,7 @@ func (m *Manager) handlePicture(w http.ResponseWriter, r *http.Request) {
 		}
 		height = n
 	}
-	pic, err := m.Picture(r.Context(), r.PathValue("id"), q.Get("resource"), height)
+	pic, err := m.EventPicture(r.Context(), r.PathValue("id"), q.Get("resource"), q.Get("event"), height)
 	var pe *PictureError
 	switch {
 	case errors.Is(err, integration.ErrNoPicture):

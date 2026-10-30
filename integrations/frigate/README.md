@@ -8,9 +8,9 @@ Frigate NVR: the service, its cameras and their health, the detector's inference
 
 Until v0.2 this integration never requested a picture. That changed on purpose, behind a switch: with `pictures` off (the default) it still requests none.
 
-- **With `pictures` on, it requests one media endpoint, `GET /api/<camera>/latest.jpg`**, only when a tile asks the hub for a camera's picture (`integration.Picturer`; the hub's route, `GET /api/integrations/instances/{id}/picture`, caches each one for 2 s). A tile's height becomes `?height=<px>`, and Frigate scales the frame. Only cameras this instance publishes have a picture (a limited role's allowed cameras); anything else is `ErrNoPicture`. The answer must be `image/jpeg`, `image/webp` or `image/png` and at most `integration.MaxPictureBytes` (4 MiB): Cha Dash reads one byte past that and refuses the picture if it gets it.
+- **With `pictures` on, it requests two media endpoints, `GET /api/<camera>/latest.jpg` and `GET /api/events/<id>/snapshot.jpg`**, only when a tile asks the hub for a camera's picture (`integration.Picturer`; the hub's route, `GET /api/integrations/instances/{id}/picture`, caches each one for 2 s). The snapshot is for the detection dialog on the Cameras tile: only of an event that is one of that camera's five newest (`events.*`, `last_event`, `last_person`) and whose id has Frigate's shape, anything else is `ErrNoPicture`. A tile's height becomes `?height=<px>`, and Frigate scales the frame. Only cameras this instance publishes have a picture (a limited role's allowed cameras); anything else is `ErrNoPicture`. The answer must be `image/jpeg`, `image/webp` or `image/png` and at most `integration.MaxPictureBytes` (4 MiB): Cha Dash reads one byte past that and refuses the picture if it gets it.
 - **Everyone signed in to Cha Dash can see the pictures** of an instance that has them on, whatever their role. The browser asks the hub, never Frigate, and never holds Frigate's credential. These are still frames, never live video.
-- **Still never requested:** snapshots, thumbnails, clips, recordings, exports and every other media endpoint. Events are requested with `include_thumbnails=0`, every other response with an `image/*` or `video/*` type is refused unread, and binary WebSocket frames are dropped undecoded. The tests' fake Frigate fails on any request outside the metadata API, and on `latest.jpg` unless the test turned pictures on.
+- **Still never requested:** thumbnails, clips, recordings, exports and every other media endpoint. Events are requested with `include_thumbnails=0`, every other response with an `image/*` or `video/*` type is refused unread, and binary WebSocket frames are dropped undecoded. The tests' fake Frigate fails on any request outside the metadata API, and on `latest.jpg` or `snapshot.jpg` unless the test turned pictures on.
 
 ## Config
 
@@ -43,6 +43,7 @@ Until v0.2 this integration never requested a picture. That changed on purpose, 
 | `GET /api/events?after=<now − 24 h>&limit=500&include_thumbnails=0` | every 5 min while watched, every 30 min while idle, and 30 s after the WebSocket reports a new object | Counts per camera and each camera's latest object and latest person. `sub_label` (a recognised face or plate) is never decoded |
 | `WS /ws` | only while watched (`Subscribe`) | See below |
 | `GET /api/<camera>/latest.jpg[?height=<px>]` | only with `pictures` on, when a tile asks | The camera's picture (above) |
+| `GET /api/events/<id>/snapshot.jpg[?height=<px>]` | only with `pictures` on, when the detection dialog asks | The snapshot of the camera's newest event (above) |
 
 The heavy endpoints the spike found (`/api/stats/history`, 780 kB; `/api/events/summary`, 161 kB) are never called.
 
@@ -89,7 +90,7 @@ IDs follow the wave 5 convention, `frigate:<instance id>/…`.
 | `fps` | the configured detect fps |
 | `ip` (or `host`) | the camera's address: the detect input's host, or, for a go2rtc restream on localhost, the host of that go2rtc stream's first source. Credentials and paths are never kept |
 | `motion` | WebSocket only |
-| `last_event.at`, `last_event.label`, `last_event.score`; `last_person.at`, `last_person.score` | the newest object (and the newest person) seen in the last 24 h, or since, while the instance runs. Score is `top_score`, to two places |
+| `last_event.at`, `last_event.label`, `last_event.score`, `last_event.id`, `last_event.url` (the event's page in Frigate's Explore, on the connection's URL); `events.0.*` to `events.4.*` (`id`, `at`, `label`, `score`, `url`: the camera's five newest events, newest first, for the camera sheet's list); `last_person.at`, `last_person.score` | the newest object (and the newest person) seen in the last 24 h, or since, while the instance runs. Score is `top_score`, to two places |
 
 Camera state and health, freshest source first:
 

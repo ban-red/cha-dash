@@ -219,6 +219,10 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			f.servePicture(w, r, cam)
 			return
 		}
+		if id, ok := snapshotJPG(r.URL.Path); ok {
+			f.serveSnapshot(w, r, id)
+			return
+		}
 		f.t.Errorf("unexpected request: %s %s", r.Method, r.URL)
 		http.NotFound(w, r)
 	}
@@ -239,6 +243,28 @@ func latestJPG(path string) (string, bool) {
 	rest, ok := strings.CutPrefix(path, "/api/")
 	cam, ok2 := strings.CutSuffix(rest, "/latest.jpg")
 	return cam, ok && ok2 && cam != "" && !strings.Contains(cam, "/")
+}
+
+// snapshotJPG is the event of /api/events/<id>/snapshot.jpg.
+func snapshotJPG(path string) (string, bool) {
+	rest, ok := strings.CutPrefix(path, "/api/events/")
+	id, ok2 := strings.CutSuffix(rest, "/snapshot.jpg")
+	return id, ok && ok2 && id != "" && !strings.Contains(id, "/")
+}
+
+// serveSnapshot is snapshot.jpg: only while pictures are allowed.
+func (f *fake) serveSnapshot(w http.ResponseWriter, r *http.Request, id string) {
+	f.mu.Lock()
+	allowed, typ := f.pictures, f.picType
+	f.heights = append(f.heights, r.URL.Query().Get("height"))
+	f.mu.Unlock()
+	if !allowed {
+		f.t.Errorf("a snapshot was requested with pictures off: %s", r.URL)
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", typ)
+	w.Write(testJPEG(f.t))
 }
 
 // servePicture is latest.jpg: only while pictures are allowed, and only for
@@ -477,6 +503,9 @@ func TestInternalPort(t *testing.T) {
 	}
 	for k, want := range map[string]any{"ip": "10.0.21.16", "fps": 5.0, "detect": true, "record": true, "camera": "driveway",
 		"last_event.label": "person", "last_event.at": "2026-10-03T01:10:36Z", "last_event.score": 0.78,
+		"last_event.id": "1790989836.632026-bto7xe", "last_event.url": f.URL + "/explore?event_id=1790989836.632026-bto7xe",
+		"events.0.id": "1790989836.632026-bto7xe", "events.0.label": "person", "events.0.url": f.URL + "/explore?event_id=1790989836.632026-bto7xe",
+		"events.1.id": "1790986781.449676-8ahmz5", "events.3.id": "1790986752.388527-azflyp",
 		"last_person.at": "2026-10-03T01:10:36Z", "last_person.score": 0.78} {
 		if drive.Attrs[k] != want {
 			t.Errorf("driveway.attrs.%s = %v, want %v", k, drive.Attrs[k], want)
@@ -488,6 +517,9 @@ func TestInternalPort(t *testing.T) {
 	// go2rtc restreams resolve to the camera; ffmpeg: sources too.
 	if side, _ := h.Resource("frigate:i_test/camera/side_deck"); side.Name != "Side deck" || side.Attrs["ip"] != "10.0.21.18" {
 		t.Fatalf("side deck = %+v", side)
+	}
+	if drive.Attrs["events.4.id"] != nil {
+		t.Errorf("the 24 h window holds four driveway events, got a fifth: %v", drive.Attrs["events.4.id"])
 	}
 	if back, _ := h.Resource("frigate:i_test/camera/backyard"); back.Attrs["ip"] != "10.0.21.17" || back.Attrs["last_event.at"] != nil {
 		t.Fatalf("backyard = %+v (its last event is older than 24 h)", back)
@@ -927,5 +959,77 @@ func TestPicturesLimitedRole(t *testing.T) {
 	}
 	if _, err := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); err != nil {
 		t.Fatalf("the allowed camera, signed in: %v", err)
+	}
+}
+
+func TestEventURL(t *testing.T) {
+	for link, want := range map[string]string{
+		"https://nvr.lab.example:8971":     "https://nvr.lab.example:8971/explore?event_id=a.1-b",
+		"http://nvr.lab.example/frigate/":  "http://nvr.lab.example/frigate/explore?event_id=a.1-b",
+		"https://nvr.lab.example/?x=1#top": "https://nvr.lab.example/explore?event_id=a.1-b",
+		"rtsp://nvr.lab.example":           "",
+		"":                                 "",
+	} {
+		if got := (&instance{link: link}).eventURL("a.1-b"); got != want {
+			t.Errorf("eventURL(%q) = %q, want %q", link, got, want)
+		}
+	}
+}
+
+// TestEventSnapshots: an event's snapshot only with pictures on, and only for
+// one of the camera's own newest detections, with an id of Frigate's shape.
+func TestEventSnapshots(t *testing.T) {
+	f := newFake(t, false)
+	f.allowPictures()
+	h := integrationtest.New(t)
+	inst := h.Connect(Integration{}, map[string]any{"url": f.URL, "pictures": true}, nil)
+	mustSync(t, inst, integrationtest.Watched)
+	pic := inst.(integration.Picturer)
+	const drive, deck = "frigate:i_test/camera/driveway", "frigate:i_test/camera/side_deck"
+
+	got, err := pic.Picture(t.Context(), drive, integration.PictureOptions{Height: 270, Event: "1790989836.632026-bto7xe"})
+	if err != nil || got.ContentType != "image/jpeg" || !bytes.Equal(got.Body, testJPEG(t)) {
+		t.Fatalf("snapshot = %s %d bytes, %v", got.ContentType, len(got.Body), err)
+	}
+	if f.count("/api/events/1790989836.632026-bto7xe/snapshot.jpg") != 1 {
+		t.Fatal("the snapshot was not fetched from Frigate's event endpoint")
+	}
+	for name, c := range map[string]struct{ rid, event string }{
+		"another camera's event": {drive, "1790990044.189975-n1qbkv"},
+		"an unknown event":       {drive, "1790000000.000000-zzzzzz"},
+		"a path":                 {drive, "../../config"},
+		"a path with a slash":    {drive, "1790989836.632026-bto7xe/../x"},
+		"not a camera":           {"frigate:i_test/app", "1790989836.632026-bto7xe"},
+	} {
+		if _, err := pic.Picture(t.Context(), c.rid, integration.PictureOptions{Event: c.event}); !errors.Is(err, integration.ErrNoPicture) {
+			t.Errorf("%s: %v, want ErrNoPicture", name, err)
+		}
+	}
+	// One of its five newest, not only the newest.
+	if _, err := pic.Picture(t.Context(), drive, integration.PictureOptions{Event: "1790986781.449676-8ahmz5"}); err != nil {
+		t.Errorf("an older one of its newest: %v", err)
+	}
+	if _, err := pic.Picture(t.Context(), deck, integration.PictureOptions{Event: "1790990044.189975-n1qbkv"}); err != nil {
+		t.Errorf("the side deck's own event: %v", err)
+	}
+}
+
+func TestKeepRecent(t *testing.T) {
+	c := &camera{}
+	at := func(i int) float64 { return float64(1_790_000_000 + i*60) }
+	for i := range 8 {
+		c.noteEvent(event{ID: fmt.Sprintf("e%d", i), StartTime: at(i)})
+	}
+	c.noteEvent(event{ID: "e7", Label: "dog", StartTime: at(7)}) // the same id again replaces its copy
+	c.noteEvent(event{ID: "old", StartTime: at(-5)})             // older than the five: not kept
+	ids := []string{}
+	for _, e := range c.recent {
+		ids = append(ids, e.ID)
+	}
+	if !slices.Equal(ids, []string{"e7", "e6", "e5", "e4", "e3"}) || c.recent[0].Label != "dog" {
+		t.Fatalf("recent = %v", ids)
+	}
+	if !c.hasRecent("e3") || c.hasRecent("e2") || c.hasRecent("") {
+		t.Fatal("hasRecent disagrees with recent")
 	}
 }

@@ -28,6 +28,7 @@ import { isDone, listActions, type Offer } from '../lib/actions';
 import { absolute, duration, hhmm, shortDate } from '../lib/format';
 import { transition, useReducedMotion } from '../lib/motion';
 import { layerAbove, trapTab } from '../lib/trap';
+import { cameraEvents } from '../model/cameraEvents';
 import { attr, incoming, label, mergedHealth, outgoing, series, sourcesOf } from '../model/graph';
 import { glyphFor } from '../model/status';
 import { resourceLinks, safeUrl, type Resource, type Task, type Tier } from '../model/types';
@@ -275,10 +276,28 @@ async function ask(target: string | undefined): Promise<void> {
   const list = await listActions(target, ctrl.signal);
   if (!ctrl.signal.aborted && id.value === target) offers.value = { target, list };
 }
+/** A camera's newest events, for the Overview. */
+const camEvents = computed(() => (r.value?.kind === 'camera' ? cameraEvents(r.value) : []));
 const mineOffers = computed(() => (offers.value.target === id.value ? offers.value.list : []).filter((o) => ui.can.value.act(o.tier, o.household)));
 const actionOffers = computed(() => mineOffers.value.filter((o) => !LOG_ACTIONS.has(o.id)));
 const logOffer = computed(() => (ui.can.value.readData ? mineOffers.value.find((o) => LOG_ACTIONS.has(o.id)) : undefined));
 const byTier = computed(() => TIERS.map((tier) => ({ tier, list: actionOffers.value.filter((o) => o.tier === tier) })).filter((g) => g.list.length));
+/**
+ * Offers that can't run for the same reason (Frigate without a control
+ * account turns off every switch with one sentence) say it once: the first
+ * keeps the line, the others point at it.
+ */
+const whyOf = computed(() => {
+  const first = new Map<string, string>();
+  const out = new Map<string, string>();
+  for (const o of actionOffers.value) {
+    if (o.available) continue;
+    const key = JSON.stringify([o.unavailable ?? '', o.instead?.url ?? '', o.recipe ?? '']);
+    out.set(o.id, first.get(key) ?? o.id);
+    if (!first.has(key)) first.set(key, o.id);
+  }
+  return out;
+});
 /** Tasks on this resource: the topic's, plus the ones this tab started. */
 const tasksHere = computed(() =>
   Object.values(ui.tasks.value)
@@ -662,6 +681,17 @@ onBeforeUnmount(() => {
                   <dd>{{ f.value }}</dd>
                 </template>
               </dl>
+              <template v-if="camEvents.length && r">
+                <h3 class="rs-h3">Recent events · {{ camEvents.length }}</h3>
+                <ul class="rs-events" :aria-label="`Recent events on ${label(r)}`">
+                  <li v-for="e in camEvents" :key="e.id || e.at">
+                    <button type="button" class="lk" @click="ui.openCameraEvent(r.id, e.id || undefined)">
+                      {{ (e.label || 'Detection') + (e.score ? ` ${Math.round(e.score * 100)}%` : '') }}
+                    </button>
+                    <small>{{ shortDate(e.at) }}, {{ hhmm(e.at) }}</small>
+                  </li>
+                </ul>
+              </template>
               <template v-if="members.length">
                 <h3 class="rs-h3">Containers · {{ members.length }}</h3>
                 <ul class="rs-members" :aria-label="`Containers of ${label(r)}`">
@@ -710,14 +740,14 @@ onBeforeUnmount(() => {
                 <h3>{{ g.tier }}</h3>
                 <ul>
                   <li v-for="o in g.list" :key="o.params ? `${o.id} ${JSON.stringify(o.params)}` : o.id">
-                    <UiButton :aria-disabled="!o.available || live.stale.value || !!working || undefined" :aria-describedby="!o.available ? `${uid}-why-${o.id}` : undefined" @click="!working && run(o)">
+                    <UiButton :aria-disabled="!o.available || live.stale.value || !!working || undefined" :aria-describedby="!o.available ? `${uid}-why-${whyOf.get(o.id) ?? o.id}` : undefined" @click="!working && run(o)">
                       {{ o.label }}<span class="tier">{{ o.tier }}</span>
                     </UiButton>
                     <label v-if="o.id === REMOVE && o.available" class="rs-check">
                       <input v-model="deleteVolumes" type="checkbox" />
                       Also delete its anonymous volumes (named volumes always stay)
                     </label>
-                    <p v-if="!o.available" :id="`${uid}-why-${o.id}`" class="rs-why">
+                    <p v-if="!o.available && (whyOf.get(o.id) ?? o.id) === o.id" :id="`${uid}-why-${o.id}`" class="rs-why">
                       {{ o.unavailable ?? 'Cha Dash can’t run this here yet.' }}
                       <a v-if="o.instead && safeUrl(o.instead.url)" class="lk under" :href="safeUrl(o.instead.url)" target="_blank" rel="noopener">{{ o.instead.title }}</a>
                       <button
@@ -1131,6 +1161,24 @@ onBeforeUnmount(() => {
 }
 .rs-metrics li > :last-child {
   grid-column: 1 / -1;
+}
+.rs-events {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--type-small);
+}
+.rs-events li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+}
+.rs-events small {
+  color: var(--text-3);
+  font-family: var(--font-num);
 }
 .rs-pic {
   position: relative;
