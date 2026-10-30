@@ -1,0 +1,24 @@
+# Cha Dash theme document · format 1 · see ../schema/theme.schema.json
+# A Neon variant: rain-wet indigo, hot-pink signs, cyan reflections.
+$schema: ../schema/theme.schema.json
+format: 1
+id: neon-tokyo
+name: Neon Tokyo
+description: Neon's Tokyo variant. Indigo night, hot-pink accent, cyan and amber. Sharp corners, mono figures.
+scheme: dark
+color:
+  base: oklch(0.155 0.04 290)
+  accent: oklch(0.74 0.19 345)   # hot pink
+  contrast: 60
+  ink: { hue: 310, chroma: 0.03 }
+  status:
+    attention: { hue: 85, chroma: 0.16 }    # amber, clear of the pink accent
+    down: { hue: 25, chroma: 0.21 }         # red
+    maintenance: { hue: 210, chroma: 0.12 } # cyan
+typography: { ui: IBM Plex Sans, numeral: JetBrains Mono, clock: Doto, headline: Geist Mono }
+surface: card
+shape: { radius: 0, hairline: 1 }
+density: comfortable
+briefing: sentence
+material: { frosted: 0.82 }
+backdrop: solid

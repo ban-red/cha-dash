@@ -12,7 +12,7 @@ export const DIST_DIR = join(ROOT, 'dist');
 export const PROTOTYPE = join(ROOT, '..', 'prototypes', 'm0-v2.html');
 
 /** Canonical order: the default first, then as listed in 02-experience → Theming. */
-export const THEME_ORDER = ['instrument-dark', 'instrument-light', 'oled', 'night', 'high-contrast', 'paper', 'neon'] as const;
+export const THEME_ORDER = ['instrument-dark', 'instrument-light', 'oled', 'night', 'high-contrast', 'paper', 'neon', 'neon-tokyo'] as const;
 
 export function readThemeFile(file: string): unknown {
   return Bun.YAML.parse(readFileSync(join(THEMES_DIR, file), 'utf8'));

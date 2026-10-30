@@ -1,5 +1,5 @@
 /**
- * The seven built-in themes (design/tokens/themes/*.yaml) and their layout
+ * The eight built-in themes (design/tokens/themes/*.yaml) and their layout
  * defaults. Picking a theme sets `data-theme` on <html> plus the theme's
  * surface, density and Briefing style (tokens README, decision 12). The
  * choice is remembered per device; `public/boot.js` applies it before first
@@ -7,7 +7,7 @@
  */
 import { ref } from 'vue';
 
-export type ThemeId = 'instrument-dark' | 'instrument-light' | 'oled' | 'night' | 'high-contrast' | 'paper' | 'neon';
+export type ThemeId = 'instrument-dark' | 'instrument-light' | 'oled' | 'night' | 'high-contrast' | 'paper' | 'neon' | 'neon-tokyo';
 
 export interface ThemeInfo {
   id: ThemeId;
@@ -26,6 +26,7 @@ export const THEMES: readonly ThemeInfo[] = [
   { id: 'high-contrast', name: 'High Contrast', note: 'Firm rules, brightest text', surface: 'card', density: 'comfortable', briefing: 'sentence' },
   { id: 'paper', name: 'Paper', note: 'Newsprint and headlines', surface: 'ruled', density: 'comfortable', briefing: 'headline' },
   { id: 'neon', name: 'Neon', note: 'Signal yellow on blue-black', surface: 'card', density: 'comfortable', briefing: 'sentence' },
+  { id: 'neon-tokyo', name: 'Neon Tokyo', note: 'Hot pink on indigo', surface: 'card', density: 'comfortable', briefing: 'sentence' },
 ];
 
 export const DEFAULT_THEME: ThemeId = 'instrument-dark';

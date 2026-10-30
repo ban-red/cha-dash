@@ -4,7 +4,7 @@ Cha Dash's design tokens. A **theme is a versioned token document** (YAML) that 
 
 ```
 design/tokens/
-  themes/*.yaml              the seven built-in theme documents
+  themes/*.yaml              the eight built-in theme documents
   schema/theme.schema.json   JSON Schema for theme documents (format 1)
   src/core.js                the generator core: pure, no imports, also runs in the browser
   scripts/generate.ts        themes → dist/tokens.css + dist/tokens.json + dist/grain-<hash>.svg
@@ -73,6 +73,7 @@ Fonts are limited to the bundled set: Instrument Sans, Inter, IBM Plex Sans, Sch
 | High Contrast | dark | Contrast 100: text Lc 104/90/75, firm rules, solid chrome |
 | Paper | light | Direction B as a theme: newsprint, ruled surface, Newsreader headline, proportional figures, grain |
 | Neon | dark | Night-city HUD: blue-black, signal-yellow accent, orange attention, hot-red down, cyan maintenance, square corners, mono headlines |
+| Neon Tokyo | dark | Neon's variant: indigo base, hot-pink accent, amber attention, red down, cyan maintenance |
 
 ## How generation works
 
@@ -174,6 +175,7 @@ Each theme's attention/down pair was run through `validate_palette.js` (the data
 | High Contrast | `oklch(0.84 0.1551 80)` | `oklch(0.68 0.2 18)` | 25.6 | 17.5 | 21.7 | 24.6 | 12.16 / 11.57 | 6.36 / 6.05 | 23.7 / 33.7 |
 | Paper | `oklch(0.64 0.137 72)` | `oklch(0.53 0.2 18)` | 20.1 | 11.8 | 13.1 | 19.7 | 3.18 / 3.46 | 5.40 / 5.87 | 25.6 / 27.4 |
 | Neon | `oklch(0.74 0.17 55)` | `oklch(0.64 0.22 10)` | 19.9 | 13.4 | 11.7 | 18.6 | 8.01 / 7.56 | 5.15 / 4.86 | 23.5 / 41.2 |
+| Neon Tokyo | `oklch(0.74 0.1516 85)` | `oklch(0.64 0.21 25)` | 19.8 | 10.5 | 18.5 | 21.3 | 8.43 / 8.00 | 5.28 / 5.01 | 26.4 / 17.1 |
 
 ### Text contrast (APCA Lc / WCAG ratio)
 
@@ -188,6 +190,7 @@ Targets: text Lc 90, text-2 Lc 75, text-3 Lc 60 (labels), and WCAG AA 4.5:1 for 
 | High Contrast | standard | 104.6 / 19.30 | 104.2 / 18.36 | 90.4 / 15.85 | 90.1 / 15.08 | 75.7 / 12.55 | 75.4 / 11.94 |
 | Paper | standard | 91.4 / 10.89 | 97.2 / 11.83 | 76.6 / 6.00 | 82.4 / 6.52 | 68.3 / 4.52 | 74.0 / 4.91 |
 | Neon | standard | 93.5 / 16.02 | 92.9 / 15.12 | 78.8 / 12.79 | 78.2 / 12.06 | 63.7 / 9.77 | 63.1 / 9.22 |
+| Neon Tokyo | standard | 93.3 / 16.13 | 92.8 / 15.32 | 78.4 / 12.83 | 78.0 / 12.19 | 63.6 / 9.85 | 63.2 / 9.35 |
 
 In the light themes, text-3 lands at Lc 66–68 rather than 60. That's because **WCAG AA is the binding constraint there**: Lc 60 dark-on-light is only about 3.8:1. In the dim profile the AA floor alone would put text-2 and text-3 at about the same 4.5:1, so each Night text level has its own floor (`WCAG_TEXT_LEVELS`: 6.4, 5.4 and 4.5:1), which keeps three visible levels, all AA: 6.52, 5.50 and 4.52:1.
 
@@ -204,12 +207,13 @@ In the light themes, text-3 lands at Lc 66–68 rather than 60. That's because *
 | High Contrast | on-down on down | 6.36 | on-down on down | 6.36 |
 | Paper | attention-text on attention-bg | 4.51 | maint-text on maint-bg | 4.98 |
 | Neon | on-down on down | 5.15 | on-down on down | 5.15 |
+| Neon Tokyo | on-down on down | 5.28 | on-down on down | 5.28 |
 
 Reported, not gated:
 - **Hairlines** are measured as OKLab lightness difference after compositing, because WCAG ratios compress near black. They must be visible (≥ 5) and, below contrast 70, quiet (≤ 20).
 - **APCA for text-2 and text-3 on surface-2** (hover and raised rows): about 1 Lc below their floors in Instrument Dark, 74.3 and 59.2. WCAG AA holds there.
 
-All seven themes pass: 57 checks each, and 51 for Night.
+All eight themes pass: 57 checks each, and 51 for Night.
 
 ---
 

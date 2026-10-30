@@ -10,6 +10,7 @@
     'high-contrast': ['card', 'sentence'],
     paper: ['ruled', 'headline'],
     neon: ['card', 'sentence'],
+    'neon-tokyo': ['card', 'sentence'],
   };
   var id = 'instrument-dark';
   try {
