@@ -1,6 +1,6 @@
 # 12 · Unraid control beyond start, stop and update
 
-> **Status: step 1 (from the published schema) and steps 2, 4, 5 and 6 are built; step 3 was dropped. The live run (7) and the array start and stop are not done.** Step 3 changed: there is no `full` mode (see Design). It builds on [08 · v0.2 → Unraid](08-v0.2.md) and [ADR-0010](../adr/0010-unraid-stays-unraid.md), and uses the "can slip to v0.2.x" row for parity and array in 08's action table.
+> **Status: step 1 (from the published schema) and steps 2, 4, 5 and 6 are built; step 3 was dropped. The live run (7) passed on the maintainer's Unraid on 2026-10-29. The array start and stop are not done.** Step 3 changed: there is no `full` mode (see Design). It builds on [08 · v0.2 → Unraid](08-v0.2.md) and [ADR-0010](../adr/0010-unraid-stays-unraid.md), and uses the "can slip to v0.2.x" row for parity and array in 08's action table.
 
 ## What exists
 
