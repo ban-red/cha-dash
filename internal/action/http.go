@@ -29,7 +29,7 @@ const maxIdempotencyKey = 128
 //	GET  /api/audit, /api/audit/export, /api/audit/verify   (ScopeAuditRead; see audit.Log.Register)
 //
 // Refusals use the error envelope with the codes in docs/plan/08-v0.2.md;
-// "unavailable" adds "recipe" and "invalid" adds "fields" beside it.
+// "unavailable" adds "recipe" or "instead", and "invalid" adds "fields", beside it.
 func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Handler, log *slog.Logger) {
 	sessions := e.sessions
 	actorOf := func(w http.ResponseWriter, r *http.Request) (Actor, bool) {
@@ -228,10 +228,11 @@ func (e *Engine) Guard(scope string) func(http.Handler) http.Handler {
 
 func writeRefusal(w http.ResponseWriter, r *Refusal) {
 	body := struct {
-		Error  httpx.ErrorDetail `json:"error"`
-		Recipe string            `json:"recipe,omitempty"`
-		Fields []FieldError      `json:"fields,omitempty"`
-	}{httpx.ErrorDetail{Code: r.Code, Message: r.Message}, r.Recipe, r.Fields}
+		Error   httpx.ErrorDetail `json:"error"`
+		Recipe  string            `json:"recipe,omitempty"`
+		Instead *Link             `json:"instead,omitempty"`
+		Fields  []FieldError      `json:"fields,omitempty"`
+	}{httpx.ErrorDetail{Code: r.Code, Message: r.Message}, r.Recipe, r.Instead, r.Fields}
 	status := r.Status
 	if status == 0 {
 		status = http.StatusConflict

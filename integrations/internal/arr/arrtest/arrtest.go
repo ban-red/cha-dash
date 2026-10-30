@@ -6,6 +6,7 @@ package arrtest
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"dash.cha.sh/integrations/internal/act/acttest"
+	"dash.cha.sh/integrations/internal/arr"
 	"dash.cha.sh/integrations/internal/fixture"
 	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/integration"
@@ -30,8 +32,9 @@ func cmdBody(name, status string) string {
 // (dir, served under api, such as "/sonarr/api/v3", with key): it plans
 // with the right words, posts the app's command (named cmd) with the
 // key, reads it back, and refuses when nothing is missing or a search is
-// already queued, or fails when the search did. noun is what's missing
-// ("episodes").
+// already queued, or fails when the search did. With SearchMissingMax or
+// more missing it's unavailable and offers the app's Missing page instead.
+// noun is what's missing ("episodes").
 func SearchMissing(t *testing.T, integ integration.Integration, dir, api, key, cmd, noun string) {
 	t.Helper()
 	var mu sync.Mutex
@@ -78,6 +81,20 @@ func SearchMissing(t *testing.T, integ integration.Integration, dir, api, key, c
 	}
 	env := acttest.New(t, h.Set.Graph, defs...)
 	app := integ.Manifest().ID + ":i_test/app"
+	missing := func(n int) {
+		srv.Set("GET "+api+"/wanted/missing", fixture.Route{Body: fmt.Sprintf(`{"page":1,"pageSize":1,"totalRecords":%d,"records":[]}`, n)})
+	}
+
+	// As many as the limit, or more: the app's Missing page, not a search.
+	missing(arr.SearchMissingMax)
+	r := env.Refusal(id, app, nil)
+	wantMsg := fmt.Sprintf("%d monitored %s are missing in Test. Cha Dash searches for fewer than %d at once; pick them in %s's Missing page instead.",
+		arr.SearchMissingMax, noun, arr.SearchMissingMax, integ.Manifest().Name)
+	if r.Code != "unavailable" || r.Message != wantMsg || r.Instead == nil ||
+		r.Instead.Title != "Open Missing in Test" || r.Instead.URL != srv.URL+base+"/wanted/missing" {
+		t.Fatalf("refusal at the limit = %+v (instead %+v)", r, r.Instead)
+	}
+	missing(arr.SearchMissingMax - 1)
 
 	_, plan := env.Succeeded(id, app, nil)
 	if plan.Label != "Search for missing "+noun+" in Test" || plan.Undo != nil || plan.Confirm != "undo" || len(plan.Steps) != 2 {
@@ -104,7 +121,7 @@ func SearchMissing(t *testing.T, integ integration.Integration, dir, api, key, c
 	}
 
 	// Nothing missing.
-	srv.Set("GET "+api+"/wanted/missing", fixture.Route{Body: `{"page":1,"pageSize":1,"totalRecords":0,"records":[]}`})
+	missing(0)
 	if r := env.Refusal(id, app, nil); r.Code != "precondition" || r.Message != "Nothing monitored is missing in Test." {
 		t.Fatalf("refusal = %+v", r)
 	}

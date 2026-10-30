@@ -45,6 +45,7 @@ As Sonarr's: one `admin` grant (`Radarr API key`; there are no read-only keys); 
 | `radarr.app.search-missing` | T1 | — (a search only looks) | `POST /command` with `{"name": "MissingMoviesSearch"}`: Radarr searches for every monitored movie that's missing | `GET /command/{id}` reads the command back: queued, started or completed passes; failed, aborted or cancelled fails the task. The search itself can run for long and isn't waited for |
 
 - **Preconditions** (`409 precondition`): nothing monitored is missing (`/wanted/missing` totals 0; skipped on versions without it), or the same search is already queued or running.
+- **Fewer than 10 at once.** With 10 or more monitored movies missing, the search is `409 unavailable` with `"instead"`: a link to the app's own Missing page (`<url>/wanted/missing`), where you pick what to search for. A search for everything missing can hammer indexers. The listing keeps the action with that sentence, and the sheet, the palette and the error toast offer the link.
 - **Credential:** the instance's API key. Radarr has one key with full access and no scopes, so there's no separate control credential to add.
 - **Audit:** the target and empty params; the key never appears in a plan, task log or audit record.
 

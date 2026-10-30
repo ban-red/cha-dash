@@ -135,6 +135,12 @@ func (in *media) running(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
+// SearchMissingMax is how many missing items search missing takes on at
+// once: below it, one search; at it or above, the app's own Missing page,
+// where someone picks what to search for, so one click doesn't send every
+// indexer hundreds of queries and queue a pile of downloads.
+const SearchMissingMax = 10
+
 func (in *media) searchPreconditions(ctx context.Context, req action.Request) error {
 	n, found, err := in.c.Total(ctx, "/wanted/missing", url.Values{"monitored": {"true"}})
 	if err != nil {
@@ -142,6 +148,12 @@ func (in *media) searchPreconditions(ctx context.Context, req action.Request) er
 	}
 	if found && n == 0 {
 		return action.Precondition("Nothing monitored is missing in " + req.Target.Name + ".")
+	}
+	if found && n >= SearchMissingMax {
+		return action.UnavailableInstead(
+			fmt.Sprintf("%d monitored %s are missing in %s. Cha Dash searches for fewer than %d at once; pick them in %s's Missing page instead.",
+				n, in.m.MissingNoun, req.Target.Name, SearchMissingMax, in.m.Name),
+			action.Link{Title: "Open Missing in " + req.Target.Name, URL: strings.TrimSuffix(in.c.URL(), "/") + "/wanted/missing"})
 	}
 	busy, err := in.running(ctx)
 	if err != nil {

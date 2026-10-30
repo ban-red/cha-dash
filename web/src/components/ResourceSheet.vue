@@ -697,6 +697,7 @@ onBeforeUnmount(() => {
                     </label>
                     <p v-if="!o.available" :id="`${uid}-why-${o.id}`" class="rs-why">
                       {{ o.unavailable ?? 'Cha Dash can’t run this here yet.' }}
+                      <a v-if="o.instead && safeUrl(o.instead.url)" class="lk under" :href="safeUrl(o.instead.url)" target="_blank" rel="noopener">{{ o.instead.title }}</a>
                       <button
                         v-if="o.recipe && ui.can.value.integrations"
                         type="button"

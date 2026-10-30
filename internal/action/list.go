@@ -22,6 +22,8 @@ type Offer struct {
 	Available   bool   `json:"available"`
 	Unavailable string `json:"unavailable,omitempty"`
 	Recipe      string `json:"recipe,omitempty"`
+	// Instead is a page to open in its place, when the refusal offers one.
+	Instead *Link `json:"instead,omitempty"`
 	// Household marks an action the household role may run.
 	Household bool `json:"household,omitempty"`
 }
@@ -183,7 +185,7 @@ func (e *Engine) offer(ctx context.Context, a Actor, d *Def, target string, s *l
 			case ref.Code != "unavailable":
 				keep = false
 			default:
-				o.Available, o.Unavailable, o.Recipe = false, ref.Message, ref.Recipe
+				o.Available, o.Unavailable, o.Recipe, o.Instead = false, ref.Message, ref.Recipe, ref.Instead
 			}
 		}
 	}

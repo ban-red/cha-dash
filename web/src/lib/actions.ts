@@ -14,7 +14,20 @@
  * failure into one of the codes below plus that sentence.
  */
 import { ApiError, api } from './api';
-import type { Impact, Task, Tier, UndoSpec } from '../model/types';
+import { safeUrl, type Impact, type Task, type Tier, type UndoSpec } from '../model/types';
+
+/** A page to open in place of an action the hub won't run here (`instead`). */
+export interface Instead {
+  title: string;
+  url: string;
+}
+
+/** The hub's `instead`, when it's a link that's safe to open. */
+export function insteadOf(v: unknown): Instead | undefined {
+  const o = v as { title?: unknown; url?: unknown } | null | undefined;
+  const url = safeUrl(o?.url);
+  return url && typeof o?.title === 'string' && o.title ? { title: o.title, url } : undefined;
+}
 
 export type Confirm = 'none' | 'undo' | 'hold' | 'type';
 export type StepUp = 'none' | 'required' | 'fresh';
@@ -60,6 +73,8 @@ export interface ActionFailure {
   status: number;
   /** `unavailable`: the instance whose recipe grants the action. */
   recipe?: string;
+  /** `unavailable`: a page to open instead, such as the app's own list. */
+  instead?: Instead;
   /** `plan_changed`: the new plan, when the hub sends one. */
   plan?: Plan;
 }
@@ -97,12 +112,14 @@ export function actionError(err: unknown): ActionFailure {
     else if (err.status === 422) code = 'invalid';
   }
   // The hub's message is a sentence; the fallback is only for a hub that sent none.
-  const body = err.body as { recipe?: unknown; plan?: unknown; error?: { message?: unknown; recipe?: unknown; plan?: unknown } } | undefined;
+  const body = err.body as { recipe?: unknown; instead?: unknown; plan?: unknown; error?: { message?: unknown; recipe?: unknown; plan?: unknown } } | undefined;
   const said = body?.error?.message;
   const fromHub = typeof said === 'string' && said.trim() ? said.trim() : '';
   const out: ActionFailure = { code, message: fromHub || FALLBACK[code], status: err.status };
   const recipe = body?.error?.recipe ?? body?.recipe;
   if (typeof recipe === 'string' && recipe) out.recipe = recipe;
+  const instead = insteadOf(body?.instead);
+  if (instead) out.instead = instead;
   const plan = body?.error?.plan ?? body?.plan;
   if (isPlan(plan)) out.plan = plan;
   return out;
@@ -150,6 +167,8 @@ export interface Offer {
   /** Why not, when `available` is false. */
   unavailable?: string;
   recipe?: string;
+  /** A page to open in its place (unavailable only). */
+  instead?: Instead;
   household?: boolean;
 }
 

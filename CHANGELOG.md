@@ -60,6 +60,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Search for missing runs only for fewer than 10.** Sonarr, Radarr and Lidarr's Search for missing is offered while fewer than 10 monitored items are missing. With more, a search for all of them can hammer your indexers, so the resource sheet and ⌘K offer **Open Missing in …** instead, which opens the app's Missing page to pick from.
 - **Wide tiles use their height.** On a wide (4x2) tile the trend graph now grows to fill the column instead of staying a thin strip, and Tautulli lists what's playing there.
 - **A new widget picker.** Search the catalog, by name or by what a widget can show ("cpu" finds Metric), or browse it by group. Each widget is a card with what it shows and its sizes. The one you pick appears live, with your data, at the size you choose and in proportion, before it goes on the board. Long lists of what a widget can show (64 metrics) have their own filter. Arrow keys move through the cards, ⌘↵ or a double-click adds.
 - **Homepage import recognises apps with no widget.** A service whose icon or name is Unraid, Linkding, Plex, Sonarr or any other app Cha Dash has an integration for now gets that integration, ready for its API key, instead of only a check in the shared "Homepage" checks instance. It keeps the check for its status. Import again from Settings → Bring in to pick this up; the old import can be reverted in History.

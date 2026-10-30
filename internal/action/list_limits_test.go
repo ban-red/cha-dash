@@ -91,6 +91,22 @@ func TestActionsForDeadline(t *testing.T) {
 	}
 }
 
+// A refusal that offers a page instead lists the action with that link.
+func TestActionsForListsInstead(t *testing.T) {
+	link := Link{Title: "Open Missing in Sonarr", URL: "https://sonarr.home.example/wanted/missing"}
+	pre := func(context.Context, Request) error {
+		return UnavailableInstead("21 monitored episodes are missing.", link)
+	}
+	e := newEnv(t, rolePolicy{}, Def{ID: "x.search", Title: "Search", Targets: []string{"vm"}, Tier: T1, Preconditions: pre, Execute: noop})
+	offers, err := e.e.ActionsFor(t.Context(), owner, vm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(offers) != 1 || offers[0].Available || offers[0].Unavailable != "21 monitored episodes are missing." || offers[0].Instead == nil || *offers[0].Instead != link {
+		t.Fatalf("offers = %+v", offers)
+	}
+}
+
 func TestActionsForFailedReadIsUnavailable(t *testing.T) {
 	down := func(context.Context, string) (Target, error) {
 		return Target{}, Unavailable("Cha Dash couldn't read Proxmox VE just now: connection refused.", "i_x")

@@ -349,6 +349,10 @@ type Refusal struct {
 	// Recipe names the instance whose recipe grants what's missing
 	// (unavailable only).
 	Recipe string
+	// Instead is a page to open in place of the action, such as the
+	// upstream's own list when there's too much to do at once
+	// (unavailable only).
+	Instead *Link
 	// Fields are the invalid params (invalid only).
 	Fields []FieldError
 }
@@ -365,6 +369,18 @@ func Precondition(msg string) *Refusal {
 // credential, a scope missing from a key. recipe names the instance.
 func Unavailable(msg, recipe string) *Refusal {
 	return &Refusal{Status: 409, Code: "unavailable", Message: msg, Recipe: recipe}
+}
+
+// Link is a page someone can open: a title and an http(s) URL.
+type Link struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// UnavailableInstead refuses an action and offers a page to open in its
+// place; listings show it as that link.
+func UnavailableInstead(msg string, instead Link) *Refusal {
+	return &Refusal{Status: 409, Code: "unavailable", Message: msg, Instead: &instead}
 }
 
 // ErrNotFound is what a Def's Resolve returns for an unknown target.

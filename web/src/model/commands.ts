@@ -10,7 +10,7 @@
 import { rank, type Searchable } from '../lib/fuzzy';
 import { THEMES, type ThemeId } from '../lib/theme';
 import { distinct, label, placeOf } from './graph';
-import type { Action, GraphDoc, InboxDoc, Incident, Tier } from './types';
+import { safeUrl, type Action, type GraphDoc, type InboxDoc, type Incident, type Tier } from './types';
 import type { Instance } from './integrations';
 import type { SettingsPane } from '../lib/router';
 import type { Permissions } from './roles';
@@ -98,6 +98,8 @@ export interface ActionOffer {
   tier: Tier;
   available: boolean;
   unavailable?: string;
+  /** A page to open in its place: listed as that link. */
+  instead?: { title: string; url: string };
   household?: boolean;
 }
 
@@ -117,13 +119,16 @@ export interface ActionContext {
   run: (offer: ActionOffer, target: string) => void;
   /** Say why an unavailable action can't run. */
   refuse: (why: string) => void;
+  /** Open a page an offer lists instead (a new tab when absent). */
+  open?: (url: string) => void;
 }
 
 /**
  * Actions as commands, in the Run group: every open incident's suggested
  * action and alternatives the role may run (not links), then the hub's
  * offers for the subject that no incident already covers. An offer the hub
- * says is unavailable stays listed, disabled, with its sentence. Each runs
+ * says is unavailable stays listed, disabled, with its sentence, or as the
+ * page it offers instead ("Open Missing in Sonarr"). Each runs
  * the normal safety ladder: the hub plans it, and the plan's tier decides
  * how it's confirmed.
  */
@@ -158,6 +163,18 @@ export function actionCommands(ctx: ActionContext): Command[] {
       const key = `${o.id}@${subject}`;
       if (seen.has(key) || !allowed(o.tier, o.household)) continue;
       seen.add(key);
+      const instead = o.available ? undefined : safeUrl(o.instead?.url);
+      if (instead && o.instead) {
+        out.push({
+          id: `act:${key}`,
+          group: 'Run',
+          label: o.instead.title,
+          keywords: `${o.label} ${o.id} ${subject} ${nameOf(subject)}`,
+          hint: 'link',
+          run: () => (ctx.open ?? ((u: string) => void window.open(u, '_blank', 'noopener')))(instead),
+        });
+        continue;
+      }
       const why = o.available ? undefined : (o.unavailable ?? 'Cha Dash can’t run this here yet.');
       out.push({
         id: `act:${key}`,

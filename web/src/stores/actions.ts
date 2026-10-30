@@ -202,7 +202,12 @@ export function createActions(deps: ActionsDeps) {
 
   function fail(req: ActionRequest, f: ActionFailure): void {
     const canRecipe = deps.canOpenRecipe?.() ?? true;
-    const link = f.code === 'unavailable' && f.recipe && canRecipe ? { label: 'Open its settings', run: () => deps.openRecipe(f.recipe!) } : undefined;
+    const instead = f.code === 'unavailable' ? f.instead : undefined;
+    const link = instead
+      ? { label: instead.title, run: () => void window.open(instead.url, '_blank', 'noopener') }
+      : f.code === 'unavailable' && f.recipe && canRecipe
+        ? { label: 'Open its settings', run: () => deps.openRecipe(f.recipe!) }
+        : undefined;
     toast(f.message, 'error', link ? 10_000 : 6000, link);
     setFix(req, { state: 'failed', error: f.message, ...(f.recipe ? { recipe: f.recipe } : {}) });
   }

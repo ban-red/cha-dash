@@ -67,6 +67,29 @@ describe('actionCommands', () => {
     list.find((c) => c.label === 'Restart files')!.run();
     expect(act.mock.calls[0]![0].id).toBe('host-memory-pressure');
   });
+
+  it('lists an offer the hub sends elsewhere as that link, and opens it instead of planning', () => {
+    const open = vi.fn();
+    const run = vi.fn();
+    const missing = {
+      id: 'sonarr.app.search-missing',
+      label: 'Search for missing episodes in Sonarr',
+      tier: 'T1' as const,
+      available: false,
+      unavailable: '21 monitored episodes are missing in Sonarr.',
+      instead: { title: 'Open Missing in Sonarr', url: 'https://sonarr.home.example/wanted/missing' },
+    };
+    const sneaky = { ...missing, id: 'x.y', instead: { title: 'Open it', url: 'javascript:alert(1)' } };
+    const list = base({ subject: NAS, offers: [missing, sneaky], onlySubject: true, run, open });
+    const link = list.find((c) => c.label === 'Open Missing in Sonarr')!;
+    expect(link).toMatchObject({ hint: 'link' });
+    expect(link.disabled).toBeUndefined();
+    link.run();
+    expect(open).toHaveBeenCalledWith('https://sonarr.home.example/wanted/missing');
+    expect(run).not.toHaveBeenCalled();
+    // A link that isn't http(s) is never offered; the action stays disabled with its sentence.
+    expect(list.find((c) => c.id === `act:x.y@${NAS}`)).toMatchObject({ hint: 'unavailable', label: 'Search for missing episodes in Sonarr' });
+  });
 });
 
 describe('the command bar’s Run group', () => {

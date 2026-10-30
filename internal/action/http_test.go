@@ -20,10 +20,15 @@ func TestHTTP(t *testing.T) {
 			return Unavailable("Add a control token to let Cha Dash snapshot guests on io.", "i_x")
 		},
 		Execute: func(context.Context, Request, *TaskRun) error { return nil }}
+	instead := Def{ID: "sonarr.app.search-missing", Targets: []string{"vm"}, Tier: T1,
+		Preconditions: func(context.Context, Request) error {
+			return UnavailableInstead("21 monitored episodes are missing.", Link{Title: "Open Missing in Sonarr", URL: "https://sonarr.home.example/wanted/missing"})
+		},
+		Execute: func(context.Context, Request, *TaskRun) error { return nil }}
 	withParams := Def{ID: "users.create", Tier: T1, Params: fakeSchema{}, Resolve: func(_ context.Context, id string) (Target, error) {
 		return Target{ID: id}, nil
 	}, Execute: func(context.Context, Request, *TaskRun) error { return nil }}
-	e := newEnv(t, rolePolicy{}, reboot(&calls), unavail, withParams)
+	e := newEnv(t, rolePolicy{}, reboot(&calls), unavail, instead, withParams)
 
 	mux := http.NewServeMux()
 	// The session check: a test header names the user, as auth.Require
@@ -95,6 +100,7 @@ func TestHTTP(t *testing.T) {
 		{"lee", map[string]any{"action": "proxmox.guest.reboot", "target": "proxmox:i_x/qemu/201"}, 403, "forbidden", ""},
 		{"sam", map[string]any{"action": "nope.nope", "target": "x"}, 404, "not_found", ""},
 		{"sam", map[string]any{"action": "proxmox.guest.snapshot.create", "target": "proxmox:i_x/qemu/201"}, 409, "unavailable", "recipe"},
+		{"sam", map[string]any{"action": "sonarr.app.search-missing", "target": "proxmox:i_x/qemu/201"}, 409, "unavailable", "instead"},
 		{"sam", map[string]any{"action": "users.create", "target": "users", "params": map[string]any{"username": ""}}, 422, "invalid", "fields"},
 		{"sam", map[string]any{"action": "users.create", "target": "users", "extra": 1}, 400, "bad_json", ""},
 	} {
