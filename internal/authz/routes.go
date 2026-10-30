@@ -200,6 +200,8 @@ var Routes = []Route{
 	{Pattern: "POST /api/integrations/instances/{id}/test", Access: Admin},
 	{Pattern: "POST /api/integrations/instances/{id}/refresh", Access: Viewer},
 	{Pattern: "GET /api/integrations/instances/{id}/diagnostics", Access: Admin},
+	// A camera's latest frame: whoever sees the board sees its cameras.
+	{Pattern: "GET /api/integrations/instances/{id}/picture", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "POST /api/integrations/authorize/{integration}", Access: Admin},
 	{Pattern: "GET /api/integrations/authorize/{integration}/{id}", Access: Admin},
 

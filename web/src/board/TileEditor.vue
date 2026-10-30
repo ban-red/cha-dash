@@ -5,8 +5,10 @@
  * be pointed at another (the queue at the other Sonarr); a service tile takes
  * its status from a check, an integration or any resource. The media
  * calendar also has "Include unmonitored releases" (`options.unmonitored`;
- * saving it replaces the importer's per-source option). Everything else in
- * its config (icon, other options, where it came from) is kept as it is.
+ * saving it replaces the importer's per-source option). A widget that
+ * declares settings of its own (WidgetSpec.options) gets them here, saved in
+ * `options`; a value left at its default isn't stored. Everything else in its
+ * config (icon, other options, where it came from) is kept as it is.
  *
  * It only describes the change; EditableBoard records it in the history, so
  * Undo takes it back, and saves it.
@@ -15,7 +17,9 @@ import { computed, ref, useId, useTemplateRef } from 'vue';
 import type { Item } from '@chadash/layout';
 import { WIDGETS, parseItemId } from '../model/widgets';
 import { bindKind, candidateLabel, decodeBinding, encodeBinding, feedFor, serviceBindingGroups } from '../model/feeds';
-import { label } from '../model/graph';
+import { byKind, label, outgoing } from '../model/graph';
+import type { WidgetOption } from '../model/widgets';
+import { optionValue, type OptionValue } from '../widgets/options';
 import { useLive } from '../stores/live';
 import { instanceName } from '../stores/integrations';
 import { hrefOk, type TileConfig } from '../stores/tiles';
@@ -44,6 +48,26 @@ const unmonitored = ref(
   config?.options?.['unmonitored'] === true ||
     (config?.bind?.sources ?? []).some((s) => s.capability === 'media.calendar' && s.options?.['unmonitored'] === true),
 );
+
+/** The widget's own settings, as edited. */
+const widgetOptions = computed(() => spec.value?.options ?? []);
+const values = ref<Record<string, OptionValue>>(Object.fromEntries((spec.value?.options ?? []).map((o) => [o.key, optionValue(o, config?.options?.[o.key])])));
+/** What a `resources` option can pick: the target's related resources of that kind, else all of them. */
+function pickable(o: WidgetOption & { kind: 'resources' }) {
+  const g = live.graph.value;
+  const t = target.value ? g?.resources[target.value] : undefined;
+  if (t?.kind === o.resourceKind) return [];
+  const list = t && o.via ? outgoing(g, t.id, o.via).filter((r) => r.kind === o.resourceKind) : byKind(g, o.resourceKind);
+  return [...list].sort((a, b) => label(a).localeCompare(label(b)));
+}
+function togglePick(key: string, id: string, on: boolean): void {
+  const cur = (values.value[key] as string[] | undefined) ?? [];
+  values.value = { ...values.value, [key]: on ? [...cur.filter((x) => x !== id), id] : cur.filter((x) => x !== id) };
+}
+/** Stored only when it differs from the default. */
+function isDefault(o: WidgetOption, v: OptionValue): boolean {
+  return o.kind === 'resources' ? !(v as string[]).length : v === o.default;
+}
 
 const candidates = computed(() => {
   if (kind.value !== 'resource' || !spec.value) return [];
@@ -81,12 +105,15 @@ function submit(): void {
     delete bind.resource;
     Object.assign(bind, decodeBinding(binding.value));
   }
+  const options = { ...config?.options };
+  for (const o of widgetOptions.value) {
+    const v = values.value[o.key] ?? optionValue(o, undefined);
+    if (isDefault(o, v)) delete options[o.key];
+    else options[o.key] = v;
+  }
   if (isCalendar) {
-    const options = { ...config?.options };
     if (unmonitored.value) options['unmonitored'] = true;
     else delete options['unmonitored'];
-    if (Object.keys(options).length) next.options = options;
-    else delete next.options;
     // One answer for the tile: the sources' own option goes.
     if (bind.sources?.some((s) => s.options && 'unmonitored' in s.options)) {
       bind.sources = bind.sources.map((s) => {
@@ -99,6 +126,8 @@ function submit(): void {
       });
     }
   }
+  if (Object.keys(options).length) next.options = options;
+  else delete next.options;
   if (Object.keys(bind).length) next.bind = bind;
   else delete next.bind;
   emit('save', Object.keys(next).length ? next : undefined);
@@ -156,6 +185,31 @@ function submit(): void {
         </label>
         <span :id="`${uid}-unmon-help`" class="help">Lists what Sonarr, Radarr and Lidarr know about but aren’t monitoring, marked as such.</span>
       </div>
+
+      <template v-for="o in widgetOptions" :key="o.key">
+        <div v-if="o.kind === 'boolean'" class="field check">
+          <label :for="`${uid}-o-${o.key}`">
+            <input :id="`${uid}-o-${o.key}`" v-model="values[o.key]" type="checkbox" :aria-describedby="o.help ? `${uid}-o-${o.key}-help` : undefined" />
+            {{ o.label }}
+          </label>
+          <span v-if="o.help" :id="`${uid}-o-${o.key}-help`" class="help">{{ o.help }}</span>
+        </div>
+        <div v-else-if="o.kind === 'choice'" class="field">
+          <label :for="`${uid}-o-${o.key}`">{{ o.label }}</label>
+          <select :id="`${uid}-o-${o.key}`" v-model="values[o.key]" :aria-describedby="o.help ? `${uid}-o-${o.key}-help` : undefined">
+            <option v-for="c in o.choices" :key="c.value" :value="c.value">{{ c.label }}</option>
+          </select>
+          <span v-if="o.help" :id="`${uid}-o-${o.key}-help`" class="help">{{ o.help }}</span>
+        </div>
+        <fieldset v-else-if="o.kind === 'resources' && pickable(o).length" class="field picks">
+          <legend>{{ o.label }}</legend>
+          <label v-for="r in pickable(o)" :key="r.id" class="pick">
+            <input type="checkbox" :checked="(values[o.key] as string[]).includes(r.id)" @change="togglePick(o.key, r.id, ($event.target as HTMLInputElement).checked)" />
+            {{ label(r) }}
+          </label>
+          <span v-if="o.help" class="help">{{ o.help }}</span>
+        </fieldset>
+      </template>
 
       <div class="edit-dlg-foot">
         <button type="button" class="btn ghost" @click="emit('close')">Cancel</button>

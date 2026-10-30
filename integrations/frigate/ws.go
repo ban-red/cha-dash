@@ -14,9 +14,10 @@ import (
 // the stats push (~11 kB for three cameras).
 const wsReadLimit = 2 << 20
 
-// onConnect is the only frame ever sent: Frigate answers it by republishing
-// its current state (camera_activity, …) and changes nothing. Topics that
-// change state (…/set, …/ptz, restart) are never sent.
+// onConnect is the only frame Subscribe ever sends: Frigate answers it by
+// republishing its current state (camera_activity, …) and changes nothing.
+// The one place a …/set is sent is an approved action, on a connection of
+// its own (actions.go); …/ptz, restart and the rest are never sent.
 const onConnect = `{"topic":"onConnect","payload":"","retain":false}`
 
 // Subscribe implements integration.Subscriber: Frigate's /ws WebSocket,
@@ -98,9 +99,11 @@ func (in *instance) handle(emit integration.Emitter, topic, p string) error {
 	case "camera_activity":
 		var act map[string]struct {
 			Config struct {
-				Enabled *bool `json:"enabled"`
-				Detect  *bool `json:"detect"`
-				Record  *bool `json:"record"`
+				Enabled   *bool `json:"enabled"`
+				Detect    *bool `json:"detect"`
+				Record    *bool `json:"record"`
+				Snapshots *bool `json:"snapshots"`
+				Alerts    *bool `json:"alerts"`
 			} `json:"config"`
 			Motion *bool `json:"motion"`
 		}
@@ -112,6 +115,12 @@ func (in *instance) handle(emit integration.Emitter, topic, p string) error {
 				c.enabled = boolOr(a.Config.Enabled, c.enabled)
 				c.detect = boolOr(a.Config.Detect, c.detect)
 				c.record = boolOr(a.Config.Record, c.record)
+				if a.Config.Snapshots != nil {
+					c.snapshots = a.Config.Snapshots
+				}
+				if a.Config.Alerts != nil {
+					c.alerts = a.Config.Alerts
+				}
 				if a.Motion != nil {
 					m := *a.Motion
 					c.motion = &m
@@ -154,6 +163,12 @@ func (in *instance) handle(emit integration.Emitter, topic, p string) error {
 			graph, c.detect = c.detect != on, on
 		case "recordings/state":
 			graph, c.record = c.record != on, on
+		case "snapshots/state":
+			graph = c.snapshots == nil || *c.snapshots != on
+			c.snapshots = &on
+		case "review_alerts/state":
+			graph = c.alerts == nil || *c.alerts != on
+			c.alerts = &on
 		}
 	}
 	if !in.synced {

@@ -1,29 +1,41 @@
 <script setup lang="ts">
 /**
- * Camera Hero (Frigate). No footage: every frame is a placeholder drawn from
- * neutral tokens (CameraScene), captioned with the camera's last detection.
- * Target: a Frigate instance (`cameras@frigate:<instance id>/app`, its
- * cameras are what it `exposes`), one camera, or with none, every camera.
+ * Camera Hero (Frigate). Each frame is the camera's current picture when the
+ * Frigate connection shares pictures (`attrs.picture`, fetched through the
+ * hub by CameraPicture, refreshed while on screen), else a placeholder drawn
+ * from neutral tokens (CameraScene); either way captioned with the camera's
+ * last detection. Target: a Frigate instance (`cameras@frigate:<instance
+ * id>/app`, its cameras are what it `exposes`), one camera, or with none,
+ * every camera. A frame opens its camera's sheet.
  *
  * Small: the latest detection with its caption. Wide: the cameras side by
- * side. Large: one big frame and two small. Hero: three frames and the recent
- * detections.
+ * side. Panel and Large: one big frame and two small. Hero: three frames and
+ * the recent detections. Panel, Large and Hero have a control row for the
+ * big camera (detection, recording, the camera, snapshots, alerts) when the
+ * viewer may run Frigate's actions.
+ *
+ * Widget settings (WidgetSpec.options): which cameras, pictures on or off,
+ * how often they refresh, the detections list, the controls.
  *
  * A camera offline while others record is attention; Frigate down keeps the
  * last frames, hatched, "last frame 14:02". A camera turned off on purpose
  * (privacy) is quiet and dimmed. While the integration needs repair, events
  * are "—".
  */
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../components/marks/Glyph.vue';
 import type { TileStatus } from '../components/Tile.vue';
+import CameraPicture from './CameraPicture.vue';
 import CameraScene from './CameraScene.vue';
 import { fmtInt, hhmm, plural } from '../lib/format';
 import { attr, byKind, incoming, label, outgoing, placeOf, resolve, value } from '../model/graph';
 import { glyphFor } from '../model/status';
 import { normalizeHealth, resourceLinks, type Resource } from '../model/types';
+import { listActions, type Offer } from '../lib/actions';
 import { useLive } from '../stores/live';
+import { useUi } from '../stores/ui';
+import { useOptions } from './options';
 import Frame from './parts/Frame.vue';
 import StateNote from './parts/StateNote.vue';
 import { statusOf } from './subject';
@@ -31,6 +43,8 @@ import { useSubject } from './use';
 
 const { size, target } = defineProps<{ size: SizeId; target?: string | undefined }>();
 const live = useLive();
+const ui = useUi();
+const opts = useOptions('cameras');
 
 // The Demo Home's cameras, each with its own scene (CameraScene: drive, deck, garden; the garage reuses the drive).
 const ORDER = ['driveway', 'front_door', 'garden', 'garage'];
@@ -51,7 +65,9 @@ const cams = computed(() => {
     const i = ORDER.findIndex((k) => r.id.endsWith(k));
     return i < 0 ? 99 : i;
   };
-  return [...list].sort((a, b) => rank(a) - rank(b) || label(a).localeCompare(label(b)));
+  const pick = opts.value['cameras'] as string[];
+  const wanted = pick.length && p?.kind !== 'camera' ? list.filter((r) => pick.includes(r.id)) : list;
+  return [...wanted].sort((a, b) => rank(a) - rank(b) || label(a).localeCompare(label(b)));
 });
 const variant = (c: Resource, i: number) => {
   const k = ORDER.findIndex((o) => c.id.endsWith(o));
@@ -107,7 +123,64 @@ const events = computed(() =>
 );
 /** Small shows the camera with the newest detection. */
 const shown = computed(() => (size === 'small' ? (events.value[0] ? [events.value[0].cam] : cams.value.slice(0, 1)) : size === 'wide' ? cams.value.slice(0, 2) : cams.value.slice(0, 3)));
+const showEvents = computed(() => (size === 'hero' || size === 'large') && opts.value['detections'] === true && events.value.length > 0);
 const layout = computed(() => (size === 'small' ? 'one' : size === 'wide' ? 'two' : size === 'hero' ? 'hero' : ''));
+/** The instance a camera comes from (`integration:<id>`), when it shares pictures and the tile shows them. */
+function pictureFrom(c: Resource): string | undefined {
+  if (!opts.value['pictures'] || attr(c, 'picture') !== true) return undefined;
+  const src = c.source ?? '';
+  return src.startsWith('integration:') ? src.slice('integration:'.length) : undefined;
+}
+const every = computed(() => Number(opts.value['refresh']) || 10);
+/** Pixels tall to ask for: the big frame of a large tile is bigger. */
+const heightFor = (i: number) => (i === 0 && (size === 'large' || size === 'hero' || size === 'panel') ? 540 : size === 'small' || size === 'wide' ? 360 : 240);
+const opens = (c: Resource) => !ui.state.editing && ui.hasSheet(c.id);
+function open(c: Resource): void {
+  if (opens(c)) ui.openSheet(c.id);
+}
+
+/** The control row: Frigate's camera switches, as the hub offers them to this viewer. */
+const FEATURES = [
+  { key: 'detect', label: 'Detection' },
+  { key: 'record', label: 'Recording' },
+  { key: 'snapshots', label: 'Snapshots' },
+  { key: 'alerts', label: 'Alerts' },
+  { key: 'enabled', label: 'Camera' },
+] as const;
+const main = computed(() => (size === 'panel' || size === 'large' || size === 'hero') && opts.value['controls'] ? shown.value[0] : undefined);
+const offers = ref<{ target: string; list: Offer[] }>({ target: '', list: [] });
+let asking: AbortController | undefined;
+watch(
+  () => main.value?.id,
+  async (id) => {
+    asking?.abort();
+    if (!id) return;
+    const ctrl = new AbortController();
+    asking = ctrl;
+    const list = await listActions(id, ctrl.signal);
+    if (!ctrl.signal.aborted) offers.value = { target: id, list: list.filter((o) => ui.can.value.act(o.tier, o.household)) };
+  },
+  { immediate: true },
+);
+const busy = computed(() => Boolean(main.value && Object.values(ui.tasks.value).some((t) => t.target === main.value!.id && !['succeeded', 'failed', 'cancelled'].includes(t.state))));
+const controls = computed(() => {
+  const c = main.value;
+  if (!c || offers.value.target !== c.id) return [];
+  return FEATURES.flatMap((f) => {
+    const on = attr<boolean>(c, f.key);
+    if (typeof on !== 'boolean') return [];
+    const o = offers.value.list.find((x) => x.id === `frigate.camera.${f.key}.${on ? 'off' : 'on'}`);
+    return o ? [{ ...f, on, offer: o }] : [];
+  });
+});
+/** Why the switches can't be used (no control account), said once. */
+const controlsWhy = computed(() => (controls.value.length && controls.value.every((x) => !x.offer.available) ? controls.value[0]!.offer.unavailable ?? '' : ''));
+function toggle(x: { offer: Offer; label: string; on: boolean }): void {
+  const c = main.value;
+  if (!c || !x.offer.available || busy.value || live.stale.value || ui.state.editing) return;
+  void ui.runAction({ action: x.offer.id, target: c.id, label: x.offer.label, tier: x.offer.tier, ...(x.offer.params ? { params: x.offer.params } : {}) });
+}
+
 const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.value ?? normalizeHealth(frigate.value).since)}` : ''));
 </script>
 
@@ -136,22 +209,43 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
     </template>
     <template v-else>
       <div :class="['cams', layout]">
-        <div
+        <component
+          :is="opens(c) ? 'button' : 'div'"
           v-for="(c, i) in shown"
           :key="c.id"
-          :class="['cam', { big: i === 0, off: camStatus(c) !== 'ok' && camStatus(c) !== 'attention', frozen }]"
-          role="img"
+          :type="opens(c) ? 'button' : undefined"
+          :class="['cam', { big: i === 0, off: camStatus(c) !== 'ok' && camStatus(c) !== 'attention', frozen, pic: Boolean(pictureFrom(c)) }]"
+          :role="opens(c) ? undefined : 'img'"
           :aria-label="caption(c) + (frozen ? `, ${stamp}` : '')"
+          @click="open(c)"
         >
-          <CameraScene :variant="variant(c, i)" :person="recent(c)" />
+          <CameraPicture v-if="pictureFrom(c)" :instance="pictureFrom(c)!" :resource="c.id" :height="heightFor(i)" :every="every" :frozen="frozen">
+            <CameraScene :variant="variant(c, i)" :person="recent(c)" />
+          </CameraPicture>
+          <CameraScene v-else :variant="variant(c, i)" :person="recent(c)" />
           <span class="cam-ts">{{ label(c).toUpperCase() }} {{ i === 0 && !frozen ? hhmm(live.now.value) : '' }}</span>
-          <span v-if="i === 0" class="cam-rec">{{ frozen ? 'LAST FRAME' : attr(c, 'record') ? 'REC' : '' }}</span>
+          <span v-if="i === 0" class="cam-rec">{{ frozen ? 'LAST FRAME' : attr(c, 'record') ? 'REC' : '' }}<template v-if="!frozen && attr(c, 'detect') === false"> · DETECT OFF</template></span>
           <span class="cam-cap">
             <Glyph v-if="camStatus(c) !== 'ok'" :kind="glyphFor(camStatus(c))" />{{ caption(c) }}
           </span>
-        </div>
+        </component>
       </div>
-      <ul v-if="(size === 'hero' || size === 'large') && events.length" class="list cam-events" aria-label="Recent detections">
+      <div v-if="controls.length" class="cam-ctl" role="group" :aria-label="`${label(main)} controls`">
+        <button
+          v-for="x in controls"
+          :key="x.key"
+          type="button"
+          class="cam-sw"
+          :aria-pressed="x.on"
+          :disabled="!x.offer.available || busy || live.stale.value || ui.state.editing"
+          :title="x.offer.available ? x.offer.label : x.offer.unavailable"
+          @click="toggle(x)"
+        >
+          <span class="cam-dot" aria-hidden="true"></span>{{ x.label }}
+        </button>
+        <span v-if="controlsWhy" class="cam-why">{{ controlsWhy }}</span>
+      </div>
+      <ul v-if="showEvents" class="list cam-events" aria-label="Recent detections">
         <li v-for="e in events.slice(0, size === 'hero' ? 4 : 2)" :key="e.id" class="li">
           <span class="cam-thumb" aria-hidden="true"><CameraScene :variant="variant(e.cam, 0)" :person="attr(e.cam, 'last_event.label') === 'person'" /></span>
           <span class="t">{{ e.text }}</span>
@@ -167,3 +261,72 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
     </template>
   </Frame>
 </template>
+
+<style>
+/* A real picture: the overlays sit on a dark scrim with light text, whatever the theme, since a photo isn't themed. */
+.cam.pic .cam-ts,
+.cam.pic .cam-rec,
+.cam.pic .cam-cap {
+  color: oklch(0.98 0 0);
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.6);
+}
+.cam.pic::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, oklch(0 0 0 / 0.45), transparent 22%, transparent 70%, oklch(0 0 0 / 0.6));
+}
+button.cam {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.cam:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.cam-ctl {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+.cam-sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: var(--type-caption);
+}
+.cam-sw[aria-pressed='true'] {
+  color: var(--text);
+}
+.cam-sw .cam-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.4px currentColor;
+}
+.cam-sw[aria-pressed='true'] .cam-dot {
+  background: currentColor;
+  box-shadow: none;
+}
+.cam-sw:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.cam-why {
+  color: var(--text-3);
+  font-size: var(--type-caption);
+}
+</style>

@@ -84,6 +84,8 @@ type Manager struct {
 
 	actions *Actions // nil without Options.Actions
 
+	pics pictureCache // recent pictures (picture.go)
+
 	posture atomic.Value // security.Posture
 }
 

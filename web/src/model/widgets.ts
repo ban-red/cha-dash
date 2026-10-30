@@ -32,7 +32,25 @@ export interface WidgetSpec {
   about: string;
   /** A bundled service icon slug for the picker (lib/serviceIcons.ts); else a monogram. */
   icon?: string;
+  /** Settings of its own, edited in Widget settings and kept in the tile's `options` (widgets/options.ts). */
+  options?: WidgetOption[];
 }
+
+/**
+ * One setting a widget offers in Widget settings. Its value lives in the
+ * tile config's `options[key]`; a missing or malformed value is the default.
+ *
+ * - `boolean`: a checkbox.
+ * - `choice`: a select of string values.
+ * - `resources`: which resources of a kind to show, in the graph's order;
+ *   none picked means all. Limited to those the tile's target relates to
+ *   with `via` when the target is one.
+ */
+export type WidgetOption = { key: string; label: string; help?: string } & (
+  | { kind: 'boolean'; default: boolean }
+  | { kind: 'choice'; default: string; choices: { value: string; label: string }[] }
+  | { kind: 'resources'; resourceKind: string; via?: string }
+);
 
 /** The widget picker's groups, in the order it shows them. */
 export const WIDGET_GROUPS = [
@@ -65,7 +83,20 @@ export const WIDGETS: Record<string, WidgetSpec> = {
     accepts: { kinds: ['storage', 'pool', 'share', 'backup_target', 'array', 'disk'] },
   }),
   backups: spec('backups', 'Backups', 'small', ['strip', 'small', 'wide', 'large'], { accepts: { kinds: ['backup_target'] }, group: 'servers', about: 'A backup datastore’s fill and how the nightly runs went.' }),
-  cameras: spec('cameras', 'Cameras', 'large', ['small', 'wide', 'large', 'hero'], { accepts: { kinds: ['app', 'camera'], types: ['frigate'] }, group: 'home', about: 'Frigate’s cameras, captioned with their last detection.', icon: 'frigate' }),
+  cameras: spec('cameras', 'Cameras', 'large', ['small', 'wide', 'panel', 'large', 'hero'], {
+    accepts: { kinds: ['app', 'camera'], types: ['frigate'] }, group: 'home', about: 'Frigate’s cameras: their pictures, last detections and controls.', icon: 'frigate',
+    options: [
+      { key: 'cameras', kind: 'resources', resourceKind: 'camera', via: 'exposes', label: 'Cameras', help: 'Which cameras the tile shows. None picked shows them all.' },
+      { key: 'pictures', kind: 'boolean', default: true, label: 'Show pictures', help: 'When the Frigate connection shares them. Off draws a placeholder instead.' },
+      {
+        key: 'refresh', kind: 'choice', default: '10', label: 'Refresh pictures every',
+        choices: [{ value: '2', label: '2 seconds' }, { value: '5', label: '5 seconds' }, { value: '10', label: '10 seconds' }, { value: '30', label: '30 seconds' }, { value: '60', label: 'Minute' }],
+        help: 'Only while the tile is on screen.',
+      },
+      { key: 'detections', kind: 'boolean', default: true, label: 'List recent detections', help: 'On the larger sizes.' },
+      { key: 'controls', kind: 'boolean', default: true, label: 'Show camera controls', help: 'Detection, recording and more for the main camera, for roles that may use them.' },
+    ],
+  }),
   homeassistant: spec('homeassistant', 'Home Assistant', 'wide', ['glyph', 'strip', 'small', 'wide', 'large'], {
     group: 'home', about: 'Who’s home, lights and switches, and house power.', icon: 'homeassistant',
     accepts: { kinds: ['app'], types: ['homeassistant'] },

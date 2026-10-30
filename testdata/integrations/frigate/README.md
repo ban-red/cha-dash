@@ -2,7 +2,7 @@
 
 Recorded on 2026-10-03 by [spike 4.5](../../../spikes/frigate/README.md) against the owner's Frigate **0.18.0** (LXC on **minig5**: 3 cameras, a Coral USB TPU, an Intel N100 iGPU). The spike used the internal, unauthenticated API port, which answers as `anonymous` with role `admin`. These fixtures seed the v0.1 Frigate integration's contract tests.
 
-**There are no pictures here.** No snapshot, thumbnail, clip or recording was ever written to disk: media endpoints were measured (status, type, size) with their bytes counted into `io.Discard`, and base64 images were stripped from JSON before anything was saved.
+**There are no pictures here.** No snapshot, thumbnail, clip or recording was ever written to disk: media endpoints were measured (status, type, size) with their bytes counted into `io.Discard`, and base64 images were stripped from JSON before anything was saved. The integration's picture tests (`latest.jpg`, with pictures on) serve a small grey JPEG the test draws itself, so there's still no picture on disk.
 
 ## Files
 

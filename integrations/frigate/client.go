@@ -16,7 +16,8 @@ import (
 )
 
 // get fetches path (under the instance URL's path) with the instance's
-// client. Every request goes through here, and none of them is for media.
+// client. Every request but a camera's latest picture (getPicture) goes
+// through here, and none of them is for media.
 func (in *instance) get(ctx context.Context, path string, query url.Values) (*http.Response, error) {
 	u := in.base.JoinPath(strings.Split(strings.Trim(path, "/"), "/")...)
 	u.RawQuery = query.Encode()
@@ -33,7 +34,7 @@ func (in *instance) get(ctx context.Context, path string, query url.Values) (*ht
 		return nil, err
 	}
 	// Frigate's API answers JSON or text. A picture or a video is never
-	// read: not even by accident through a proxy.
+	// read here: not even by accident through a proxy.
 	if ct := resp.Header.Get("Content-Type"); strings.HasPrefix(ct, "image/") || strings.HasPrefix(ct, "video/") {
 		drain(resp)
 		return nil, &integration.RepairError{Code: integration.CodeAPIChanged, Message: fmt.Sprintf("GET %s answered %s, not JSON; Cha Dash never reads media", u.Path, ct)}

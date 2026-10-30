@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -57,13 +58,20 @@ type coordinator struct {
 	// attempt failed (zero after one that worked), in Unix milliseconds.
 	asked, failed atomic.Int64
 
+	// live is the connected instance, lent to Picture (borrow); uses counts
+	// the loans, and closing the instance waits for them.
+	liveMu sync.Mutex
+	live   integration.Instance
+	uses   sync.WaitGroup
+
+	ctx    context.Context // the run's; ends on stop
 	cancel context.CancelFunc
 	done   chan struct{}
 }
 
 func (c *coordinator) start(parent context.Context) {
 	ctx, cancel := context.WithCancel(parent)
-	c.cancel = cancel
+	c.ctx, c.cancel = ctx, cancel
 	c.done = make(chan struct{})
 	if c.jitter == nil {
 		c.jitter = jitter
@@ -124,6 +132,8 @@ func (c *coordinator) run(ctx context.Context) {
 		backoff bool      // next was set by a failure
 	)
 	defer func() {
+		c.setLive(nil)
+		c.uses.Wait() // loans end by stop: their contexts end with the run's
 		sub.stop()
 		if inst != nil {
 			if err := safeClose(inst); err != nil {
@@ -183,6 +193,7 @@ func (c *coordinator) run(ctx context.Context) {
 				continue
 			}
 			inst, release = in, done
+			c.setLive(inst)
 		}
 		sub = c.subscribe(ctx, inst, interest, sub)
 
@@ -282,6 +293,48 @@ func (c *coordinator) sync(ctx context.Context, inst integration.Instance, want 
 		}
 	}()
 	return inst.Sync(ctx, want)
+}
+
+// setLive sets the instance borrow lends; nil stops the lending.
+func (c *coordinator) setLive(inst integration.Instance) {
+	c.liveMu.Lock()
+	defer c.liveMu.Unlock()
+	c.live = inst
+}
+
+// borrow lends the connected instance, nil before Connect or after stop.
+// The caller calls c.uses.Done when it's done with a non-nil one.
+func (c *coordinator) borrow() integration.Instance {
+	c.liveMu.Lock()
+	defer c.liveMu.Unlock()
+	if c.live != nil {
+		c.uses.Add(1)
+	}
+	return c.live
+}
+
+// picture asks the connected instance for a picture of rid, within
+// pictureTimeout and never past stop. ErrNotRunning: not connected (yet);
+// integration.ErrNoPicture: the instance isn't a Picturer.
+func (c *coordinator) picture(ctx context.Context, rid string, opts integration.PictureOptions) (pic integration.Picture, err error) {
+	inst := c.borrow()
+	if inst == nil {
+		return pic, ErrNotRunning
+	}
+	defer c.uses.Done()
+	p, ok := inst.(integration.Picturer)
+	if !ok {
+		return pic, integration.ErrNoPicture
+	}
+	ctx, cancel := context.WithTimeout(ctx, pictureTimeout)
+	defer cancel()
+	defer context.AfterFunc(c.ctx, cancel)()
+	defer func() {
+		if v := recover(); v != nil {
+			pic, err = integration.Picture{}, &panicError{v}
+		}
+	}()
+	return p.Picture(ctx, rid, opts)
 }
 
 func safeClose(inst integration.Instance) (err error) {

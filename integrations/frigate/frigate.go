@@ -1,8 +1,10 @@
 // Package frigate is the Frigate NVR integration: the service and its
 // cameras, camera health from /api/stats (or the /ws WebSocket while someone
 // watches), detector inference time, and tracked objects per camera over the
-// last 24 hours. It never requests a picture, snapshot, clip or recording.
-// See README.md.
+// last 24 hours. With pictures on, it fetches each camera's latest frame for
+// the tiles (and nothing else of Frigate's media); with a control
+// credential, it turns cameras and their detection, recording, snapshots
+// and review alerts on and off. See README.md.
 package frigate
 
 import (
@@ -38,7 +40,7 @@ type Integration struct{}
 // Manifest implements integration.Integration.
 func (Integration) Manifest() integration.Manifest {
 	return integration.Manifest{
-		ID: ID, Name: "Frigate", Icon: "frigate", Version: "0.1.0", Tier: integration.Silver,
+		ID: ID, Name: "Frigate", Icon: "frigate", Version: "0.2.0", Tier: integration.Silver,
 		Category:     integration.CatHome,
 		Capabilities: []integration.Capability{"cameras", "cameras.events"},
 		ConfigSchema: integration.Object(
@@ -46,7 +48,19 @@ func (Integration) Manifest() integration.Manifest {
 			integration.TLSProp(),
 			integration.Prop("username", integration.String("Username").Describe("A Frigate user, ideally with the viewer role. Leave empty on the internal port.")),
 			integration.Prop("password", integration.Secret("Password")),
+			integration.Prop("pictures", integration.Boolean("Camera pictures").
+				Describe("Lets camera tiles show each camera's latest picture, which Cha Dash fetches from Frigate. Everyone signed in to Cha Dash can then see them. No live video.")),
+			integration.Prop("control_username", integration.String("Control username").InGroup(integration.GroupControl).
+				Describe("Optional. A Frigate admin user that lets Cha Dash turn cameras, detection, recording, snapshots and review alerts on and off. Cha Dash keeps reading with the account above.")),
+			integration.Prop("control_password", integration.Secret("Control password").InGroup(integration.GroupControl)),
 		).Require("url"),
+		Control: &integration.Control{
+			Fields: []integration.ControlField{
+				{Field: "control_username", Replaces: "username"},
+				{Field: "control_password", Replaces: "password"},
+			},
+			Missing: "Add a control account to {instance} to let Cha Dash turn cameras and their features on and off. Frigate only takes these changes from an admin, so it needs a Frigate user with the admin role; the recipe's control variant shows how.",
+		},
 		Poll: integration.Poll{Interval: 30 * time.Second, Idle: 5 * time.Minute, Timeout: 30 * time.Second},
 	}
 }
@@ -55,6 +69,7 @@ type config struct {
 	URL      string `json:"url"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Pictures bool   `json:"pictures"`
 }
 
 // ValidateConfig implements integration.ConfigValidator: a username and a
@@ -98,7 +113,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 	}
 	in := &instance{
 		d: d, base: base, http: d.HTTP, name: name, link: c.URL,
-		prefix: ID + ":" + key, creds: c.Username != "",
+		prefix: ID + ":" + key, key: key, creds: c.Username != "", pictures: c.Pictures,
 		cams: map[string]*camera{}, needFull: true, inference: integration.Unknown(),
 	}
 	in.appID = in.prefix + "/app"

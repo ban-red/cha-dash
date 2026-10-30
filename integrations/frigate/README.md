@@ -1,15 +1,22 @@
 # Frigate (`frigate`)
 
-Frigate NVR: the service, its cameras and their health, the detector's inference time, and tracked objects per camera over the last 24 hours. Live camera state comes over Frigate's `/ws` WebSocket while someone is watching; otherwise it polls.
+Frigate NVR: the service, its cameras and their health, the detector's inference time, and tracked objects per camera over the last 24 hours. Live camera state comes over Frigate's `/ws` WebSocket while someone is watching; otherwise it polls. When the owner turns them on, camera tiles show each camera's latest picture, and with a control account Cha Dash can turn cameras and their features on and off (see Actions).
 
-**Tier:** silver (repairs, version detection, the anonymous-admin hint, fixture tests against spike 4.5's recording). **Capabilities:** `cameras`, `cameras.events`. **Secrets:** `password` (optional).
+**Tier:** silver (repairs, version detection, the anonymous-admin hint, fixture tests against spike 4.5's recording). **Capabilities:** `cameras`, `cameras.events`. **Secrets:** `password`, `control_password` (both optional).
 
-**It never requests a picture.** No snapshot, thumbnail, clip, recording or `latest.jpg` endpoint is ever called, events are requested with `include_thumbnails=0`, a response with an `image/*` or `video/*` type is refused unread, and binary WebSocket frames are dropped undecoded. The tests' fake Frigate fails on any request outside the metadata API.
+## Pictures: off by default
+
+Until v0.2 this integration never requested a picture. That changed on purpose, behind a switch: with `pictures` off (the default) it still requests none.
+
+- **With `pictures` on, it requests one media endpoint, `GET /api/<camera>/latest.jpg`**, only when a tile asks the hub for a camera's picture (`integration.Picturer`; the hub's route, `GET /api/integrations/instances/{id}/picture`, caches each one for 2 s). A tile's height becomes `?height=<px>`, and Frigate scales the frame. Only cameras this instance publishes have a picture (a limited role's allowed cameras); anything else is `ErrNoPicture`. The answer must be `image/jpeg`, `image/webp` or `image/png` and at most `integration.MaxPictureBytes` (4 MiB): Cha Dash reads one byte past that and refuses the picture if it gets it.
+- **Everyone signed in to Cha Dash can see the pictures** of an instance that has them on, whatever their role. The browser asks the hub, never Frigate, and never holds Frigate's credential. These are still frames, never live video.
+- **Still never requested:** snapshots, thumbnails, clips, recordings, exports and every other media endpoint. Events are requested with `include_thumbnails=0`, every other response with an `image/*` or `video/*` type is refused unread, and binary WebSocket frames are dropped undecoded. The tests' fake Frigate fails on any request outside the metadata API, and on `latest.jpg` unless the test turned pictures on.
 
 ## Config
 
 ```json
-{"url": "https://nvr.lab.example:8971", "tls": {"mode": "tofu"}, "username": "dash", "password": "${secret:instance/<id>/password}"}
+{"url": "https://nvr.lab.example:8971", "tls": {"mode": "tofu"}, "username": "dash", "password": "${secret:instance/<id>/password}",
+ "pictures": true, "control_username": "chadash-control", "control_password": "${secret:instance/<id>/control_password}"}
 ```
 
 | Key | Required | Meaning |
@@ -18,6 +25,8 @@ Frigate NVR: the service, its cameras and their health, the detector's inference
 | `tls` | no | The usual `{"mode", "pin"}` |
 | `username` | no | A Frigate user. Give it the `viewer` role (or a custom role limited to the cameras the dashboard shows) |
 | `password` | with `username` | Write-only, kept in the vault |
+| `pictures` | no | `true` lets camera tiles show each camera's latest picture (above). Off by default. Everyone signed in to Cha Dash can then see them |
+| `control_username`, `control_password` | no, both or neither | The control account the actions use (the form's control group, `Manifest.Control`): a Frigate user with the **admin** role, replacing `username` and `password` when the instance acts. Sync and Test never see it. Made by the recipe's control variant |
 
 **Two ports, two setups** (spike 4.5, section 5):
 - **Preferred: the authenticated port (8971) with a viewer account.** The hub signs in with `POST /api/login` (`{"user", "password"}`) and keeps the JWT cookie Frigate sets (`frigate_token` unless `auth.cookie_name` says otherwise). It's applied to every request and to the WebSocket handshake. When the token expires (`auth.session_length`, a day by default), the next request gets a 401 and the runtime signs in again and retries once.
@@ -29,23 +38,24 @@ Frigate NVR: the service, its cameras and their health, the detector's inference
 |---|---|---|
 | `GET /api/version` | every sync | Liveness and the version (14 bytes, `text/plain`) |
 | `GET /api/profile` | first sync, then every 15 min | Role and `allowed_cameras`; spots the anonymous admin. A 404 means Frigate before 0.14, which has no users |
-| `GET /api/config` | first sync, every 15 min, and after the WebSocket (re)connects (Frigate restarts to apply config) | Cameras (`enabled`, `detect`, `record`, detect fps, UI order, `friendly_name`), detector types, `mqtt.stats_interval`, and go2rtc streams to find each camera's address. 42 kB, and sensitive: only the fields named here are decoded, and of the stream URLs only the host is kept |
+| `GET /api/config` | first sync, every 15 min, and after the WebSocket (re)connects (Frigate restarts to apply config) | Cameras (`enabled`, `detect`, `record`, `snapshots`, review `alerts`, detect fps, UI order, `friendly_name`), detector types, `mqtt.stats_interval`, and go2rtc streams to find each camera's address. 42 kB, and sensitive: only the fields named here are decoded, and of the stream URLs only the host is kept |
 | `GET /api/stats` | every sync, unless the WebSocket pushed stats within 3 × `stats_interval` | Per camera `camera_fps`, `expected_fps`, `connection_quality`, `reconnects_last_hour`, `detection_enabled`; detector `inference_speed`; `service.latest_version`, `uptime`, `last_updated` |
 | `GET /api/events?after=<now − 24 h>&limit=500&include_thumbnails=0` | every 5 min while watched, every 30 min while idle, and 30 s after the WebSocket reports a new object | Counts per camera and each camera's latest object and latest person. `sub_label` (a recognised face or plate) is never decoded |
 | `WS /ws` | only while watched (`Subscribe`) | See below |
+| `GET /api/<camera>/latest.jpg[?height=<px>]` | only with `pictures` on, when a tile asks | The camera's picture (above) |
 
 The heavy endpoints the spike found (`/api/stats/history`, 780 kB; `/api/events/summary`, 161 kB) are never called.
 
 **Poll plan.** `Poll.Interval` 30 s while watched, `Poll.Idle` 5 min otherwise, 30 s timeout. An idle sync is the version and the stats (≈10 kB), plus events every 30 minutes, so the 30-minute history grid gets a point. After a failed sync, the next one reads everything.
 
-**The WebSocket.** It relays Frigate's MQTT topics without broker credentials. On connect the hub sends the one read-only frame `{"topic":"onConnect"}`, which makes Frigate republish its state; it never sends anything else (no `…/set`, `…/ptz` or `restart`). It reads:
+**The WebSocket.** It relays Frigate's MQTT topics without broker credentials. On connect the hub sends the one read-only frame `{"topic":"onConnect"}`, which makes Frigate republish its state; this connection never sends anything else. The only `…/set` frames Cha Dash ever sends are approved actions, each on a connection of its own (see Actions); `…/ptz`, `restart` and the rest are never sent. It reads:
 
 | Topic | Effect |
 |---|---|
 | `<camera>/status/detect` (`online`, `offline`, `disabled`; a heartbeat every 10 s) | Camera state, fresher than stats; published only when it changes |
 | `<camera>/motion` (`ON`/`OFF`) | `attrs.motion` |
-| `<camera>/enabled/state`, `detect/state`, `recordings/state` | The camera's flags |
-| `camera_activity` (answer to `onConnect`) | Flags and motion for every camera |
+| `<camera>/enabled/state`, `detect/state`, `recordings/state`, `snapshots/state`, `review_alerts/state` | The camera's flags |
+| `camera_activity` (answer to `onConnect`) | Flags (`enabled`, `detect`, `record`, `snapshots`, `alerts`) and motion for every camera |
 | `stats` (every `mqtt.stats_interval`, 60 s by default) | Same as `/api/stats`; while it arrives, syncs stop polling stats |
 | `events`, type `new` | The camera's latest object now; the count on the next sync |
 
@@ -72,7 +82,10 @@ IDs follow the wave 5 convention, `frigate:<instance id>/…`.
 | Attr | From |
 |---|---|
 | `camera` | Frigate's camera name |
+| `enabled` | whether the camera is on: config, and the WebSocket |
 | `detect`, `record` | config, stats' `detection_enabled`, and the WebSocket |
+| `snapshots`, `alerts` | snapshots and review alerts on or off: config, and the WebSocket. Left out while unknown |
+| `picture` | `true` when `pictures` is on: the tile may ask the hub for the camera's picture |
 | `fps` | the configured detect fps |
 | `ip` (or `host`) | the camera's address: the detect input's host, or, for a go2rtc restream on localhost, the host of that go2rtc stream's first source. Credentials and paths are never kept |
 | `motion` | WebSocket only |
@@ -100,6 +113,22 @@ Camera state and health, freshest source first:
 
 Scopes: `graph` (resources), `stats` (inference), `events` (counts), each published when its source was read, so a series' `as_of` is when its source was.
 
+## Actions
+
+Each camera can be switched on and off as a whole, and so can its detection, recording, snapshots and review alerts. All are T1, on target kind `camera`, each direction the other's undo.
+
+| Action | Tier | Undo | Frame sent | Verify |
+|---|---|---|---|---|
+| `frigate.camera.detect.on` / `.off` | T1 | the other | `<camera>/detect/set` `ON` / `OFF` | Frigate publishes `<camera>/detect/state` with the new value |
+| `frigate.camera.record.on` / `.off` | T1 | the other | `<camera>/recordings/set` | `<camera>/recordings/state` |
+| `frigate.camera.enabled.on` / `.off` | T1 | the other | `<camera>/enabled/set` (Frigate 0.16+) | `<camera>/enabled/state` |
+| `frigate.camera.snapshots.on` / `.off` | T1 | the other | `<camera>/snapshots/set` | `<camera>/snapshots/state` |
+| `frigate.camera.alerts.on` / `.off` | T1 | the other | `<camera>/review_alerts/set` | `<camera>/review_alerts/state` |
+
+- **The control account.** They act with `control_username` and `control_password`, a Frigate user with the admin role: Frigate takes these switches from admins only, and has no narrower role that can. Without it, every action answers `409 unavailable` saying an admin account is needed, with a link to the recipe's control variant. Before offering an action, Cha Dash signs in with it and reads `/api/profile`; an account with another role makes the actions unavailable, naming the role.
+- **Preconditions,** from a fresh read with the viewer account (`/api/version`, `/api/profile`, `/api/config`; once per listing): the camera is one this instance publishes; it isn't already in that state (`/api/config`, which Frigate keeps in step with what's been switched at runtime); for `.on`, the config file allows it (`record.enabled_in_config`, `review.alerts.enabled_in_config`, the camera's `enabled_in_config`: Frigate refuses to turn those on at runtime otherwise); and for `enabled`, Frigate is 0.16 or later.
+- **Execute** signs in with the control account, opens a `/ws` connection of its own, sends the one frame `{"topic":"<camera>/<feature>/set","payload":"ON"|"OFF","retain":false}`, and waits up to 10 s for `<camera>/<feature>/state` with the new value; without it the task fails with `verify_failed`. Camera names that aren't Frigate's `[a-zA-Z0-9_-]+` are refused before anything is sent. No other topic is ever sent; the tests check every frame. After the action the runtime syncs the instance; the tile's flags follow over the WebSocket while someone watches, else with the next config read.
+
 ## Test connection
 
 Reads `/api/version` and `/api/profile`, and reports:
@@ -107,6 +136,8 @@ Reads `/api/version` and `/api/profile`, and reports:
 - **`viewer`** → a read grant, with the number of allowed cameras.
 - **a custom role** → a read grant named after it.
 - **no `/api/profile`** (before 0.14) → an `admin` grant: there are no users, so anyone who reaches it can change it.
+
+Test checks the read account only, never the control account. Without a control account the runtime adds its `control_available` note, pointing at the recipe's control variant.
 
 ## Repairs and hints
 
@@ -119,6 +150,9 @@ Reads `/api/version` and `/api/profile`, and reports:
 - **Detections are capped at 500 per 24 h** (one `/api/events` page, ≈0.9 kB each). A busier home undercounts.
 - **The latest object** is from the last 24 hours, or later while the instance runs: a camera with no event in the last day shows none after a restart.
 - **No stale-heartbeat detection.** Frigate older than the 10 s heartbeat doesn't send it, so a missing heartbeat can't mean offline; an explicit `offline` or zero fps does.
+- **Pictures are the latest frame only**, fetched when a tile asks; no live video, no event snapshots, no clips.
+- **Switches don't survive a Frigate restart** unless they match the config file: Frigate's runtime switches aren't written back to it.
+- **No PTZ, no restart, no config edits.** The admin control account could do them; Cha Dash never sends them.
 - **Not read yet:** storage (`stats.service.storage`, `/api/recordings/storage`), GPU usage, per-camera CPU, review items and summaries, zones, the MQTT broker as a `depends_on` relation, `provides_network_for` from the router (the correlator's job, from `attrs.ip`).
 - **The session isn't logged out on stop**: Frigate's `/api/logout` only clears the browser's cookie, and the JWT lapses on its own.
 - Faces and plates (`sub_label`) are personal data and are never read.

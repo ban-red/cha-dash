@@ -27,7 +27,10 @@ type instance struct {
 	link   string // the configured URL, for the app's link
 	prefix string // "frigate:<instance id>"
 	appID  string
+	key    string // the instance ID, for recipes in refusals
 	creds  bool
+	// pictures lets Picture fetch latest.jpg (config pictures).
+	pictures bool
 
 	mu           sync.Mutex
 	synced       bool // the first sync has published
@@ -62,6 +65,8 @@ type camera struct {
 	enabled   bool
 	detect    bool
 	record    bool
+	snapshots *bool   // nil until the config or the WebSocket says
+	alerts    *bool   // review alerts; nil until known
 	fps       float64 // configured detect fps
 	host      string  // the camera's address, from its stream URL
 	haveStats bool
@@ -110,15 +115,29 @@ func (e event) score() float64 {
 // (stream URLs, MQTT identity, …) is sensitive and never kept.
 type frigateConfig struct {
 	Cameras map[string]struct {
-		Enabled      *bool  `json:"enabled"`
-		FriendlyName string `json:"friendly_name"`
-		Detect       struct {
+		Enabled *bool `json:"enabled"`
+		// The *_in_config flags are the config file's values; the others
+		// are as switched at runtime. Frigate only turns a feature on at
+		// runtime when its config enables it.
+		EnabledInConfig *bool  `json:"enabled_in_config"`
+		FriendlyName    string `json:"friendly_name"`
+		Detect          struct {
 			Enabled *bool   `json:"enabled"`
 			FPS     float64 `json:"fps"`
 		} `json:"detect"`
 		Record struct {
-			Enabled *bool `json:"enabled"`
+			Enabled         *bool `json:"enabled"`
+			EnabledInConfig *bool `json:"enabled_in_config"`
 		} `json:"record"`
+		Snapshots struct {
+			Enabled *bool `json:"enabled"`
+		} `json:"snapshots"`
+		Review struct {
+			Alerts struct {
+				Enabled         *bool `json:"enabled"`
+				EnabledInConfig *bool `json:"enabled_in_config"`
+			} `json:"alerts"`
+		} `json:"review"`
 		FFmpeg struct {
 			Inputs []ffmpegInput `json:"inputs"`
 		} `json:"ffmpeg"`
@@ -216,6 +235,8 @@ func (in *instance) applyConfig(cfg frigateConfig, now time.Time) {
 		c.enabled = boolOr(cc.Enabled, true)
 		c.detect = boolOr(cc.Detect.Enabled, true)
 		c.record = boolOr(cc.Record.Enabled, false)
+		c.snapshots = cc.Snapshots.Enabled
+		c.alerts = cc.Review.Alerts.Enabled
 		c.fps = cc.Detect.FPS
 		c.host = ""
 		// The detect input first: it's the stream Frigate watches.
@@ -442,7 +463,16 @@ func (in *instance) graphFacts() integration.Facts {
 	for _, c := range in.sortedCams() {
 		id := in.camID(c.key)
 		state, health := c.health()
-		a := map[string]any{"camera": c.key, "detect": c.detect, "record": c.record}
+		a := map[string]any{"camera": c.key, "enabled": c.enabled, "detect": c.detect, "record": c.record}
+		if c.snapshots != nil {
+			a["snapshots"] = *c.snapshots
+		}
+		if c.alerts != nil {
+			a["alerts"] = *c.alerts
+		}
+		if in.pictures {
+			a["picture"] = true
+		}
 		if c.fps > 0 {
 			a["fps"] = c.fps
 		}

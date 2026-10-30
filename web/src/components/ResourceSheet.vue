@@ -38,6 +38,7 @@ import { navigate, settingsPath, stackPath } from '../lib/router';
 import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '../widgets/containers';
 import { statusOf } from '../widgets/subject';
 import { fmtValue, metricWords, upFor } from '../widgets/read';
+import CameraPicture from '../widgets/CameraPicture.vue';
 import {
   csvName,
   fetchHistory,
@@ -113,6 +114,7 @@ const facts = computed<Fact[]>(() => {
   if (!c) return [];
   if (c.kind === 'engine') return engineFacts(c);
   if (c.kind === 'stack') return stackFacts(c);
+  if (c.kind === 'camera') return cameraFacts(c);
   const running = c.state === 'running';
   const out: Fact[] = [
     { term: 'Image', value: dash(attr(c, 'image')) },
@@ -162,6 +164,36 @@ function engineFacts(e: Resource): Fact[] {
   if (attr(e, 'node')) out.push({ term: 'Node', value: String(attr(e, 'node')) });
   return out;
 }
+const onOff = (v: unknown) => (v === true ? 'On' : v === false ? 'Off' : '—');
+function cameraFacts(c: Resource): Fact[] {
+  const ev = (k: 'last_event' | 'last_person') => {
+    const at = attr<string>(c, `${k}.at`);
+    if (!at) return '—';
+    const what = k === 'last_event' ? `${String(attr(c, 'last_event.label') ?? 'object')} · ` : '';
+    const score = attr<number>(c, `${k}.score`);
+    return `${what}${hhmm(at)}${score ? ` · ${Math.round(score * 100)}%` : ''}`;
+  };
+  const out: Fact[] = [
+    { term: 'Camera', value: attr(c, 'enabled') === false ? 'Turned off in Frigate' : onOff(attr(c, 'enabled') ?? true) },
+    { term: 'Detection', value: onOff(attr(c, 'detect')) + (attr(c, 'fps') ? ` · ${String(attr(c, 'fps'))} fps` : '') },
+    { term: 'Recording', value: onOff(attr(c, 'record')) },
+    { term: 'Snapshots', value: onOff(attr(c, 'snapshots')) },
+    { term: 'Alerts', value: onOff(attr(c, 'alerts')) },
+    { term: 'Motion', value: attr(c, 'motion') === true ? 'Now' : attr(c, 'motion') === false ? 'None' : '—' },
+    { term: 'Last detection', value: ev('last_event') },
+    { term: 'Last person', value: ev('last_person') },
+    { term: 'Address', value: dash(attr(c, 'ip') ?? attr(c, 'host')) },
+  ];
+  const app = incoming(live.graph.value, c.id, 'exposes')[0];
+  if (app) out.push({ term: 'Frigate', value: `${label(app)}${attr(app, 'version') ? ` · ${String(attr(app, 'version'))}` : ''}` });
+  return out;
+}
+/** A camera that shares pictures: the instance to ask (`integration:<id>`). */
+const pictureFrom = computed(() => {
+  const c = r.value;
+  if (c?.kind !== 'camera' || attr(c, 'picture') !== true || !c.source?.startsWith('integration:')) return undefined;
+  return c.source.slice('integration:'.length);
+});
 function stackFacts(st: Resource): Fact[] {
   const out: Fact[] = [
     { term: 'Project', value: dash(attr(st, 'project') ?? st.name) },
@@ -621,6 +653,9 @@ onBeforeUnmount(() => {
               :role="tabs.length > 1 ? 'tabpanel' : undefined"
               :aria-labelledby="tabs.length > 1 ? `${uid}-tab-overview` : `${uid}-h`"
             >
+              <div v-if="pictureFrom && r" class="rs-pic" role="img" :aria-label="`${label(r)}, current picture`">
+                <CameraPicture :instance="pictureFrom" :resource="r.id" :height="720" :every="2" :frozen="live.stale.value" />
+              </div>
               <dl class="rs-facts">
                 <template v-for="f in facts" :key="f.term">
                   <dt>{{ f.term }}</dt>
@@ -1115,6 +1150,14 @@ onBeforeUnmount(() => {
 }
 .rs-metrics li > :last-child {
   grid-column: 1 / -1;
+}
+.rs-pic {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  margin-bottom: var(--space-3);
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--neutral-2);
 }
 .rs-facts {
   display: grid;

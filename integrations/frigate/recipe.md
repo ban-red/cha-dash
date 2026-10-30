@@ -27,3 +27,5 @@ Set the URL to Frigate's authenticated port, `https://<frigate host>:8971`, with
 
 - Port 5000 answers without signing in, as an anonymous admin that can change the config and delete recordings. It works, but the Inbox keeps a quiet hint until the instance moves to 8971.
 - A Frigate without roles makes every user an admin. Test connection shows which role the account got.
+- **Camera pictures** is a separate switch in the instance's settings, off by default. With it on, Cha Dash fetches each camera's latest picture with this account for the tiles, and everyone signed in to Cha Dash can see them.
+- To let Cha Dash turn cameras, detection, recording, snapshots and review alerts on and off, add a second account with the **admin** role as the control account: Frigate takes those changes from admins only. The control variant of this recipe shows how. This viewer account stays read-only either way.

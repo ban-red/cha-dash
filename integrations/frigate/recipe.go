@@ -12,4 +12,12 @@ import (
 //go:embed recipe.md
 var recipe []byte
 
-func init() { integration.RegisterRecipe(ID, recipe) }
+// controlRecipe is the control variant: the admin account the actions use.
+//
+//go:embed recipe.control.md
+var controlRecipe []byte
+
+func init() {
+	integration.RegisterRecipe(ID, recipe)
+	integration.RegisterControlRecipe(ID, controlRecipe)
+}

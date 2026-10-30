@@ -1,10 +1,13 @@
 package frigate
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +29,8 @@ import (
 // The fixtures are spike 4.5's recording of a Frigate 0.18 on its internal
 // port (testdata/integrations/frigate). They hold no pictures, and the fake
 // server below fails the test on any request outside the metadata API, so a
-// picture can't be fetched by accident either.
+// picture can't be fetched by accident either. The one exception is
+// /api/<camera>/latest.jpg, and only while a test allows it (pictures on).
 var fixtures = filepath.Join("..", "..", "testdata", "integrations", "frigate")
 
 func fixture(t *testing.T, name string) []byte {
@@ -40,6 +44,7 @@ func fixture(t *testing.T, name string) []byte {
 
 // fake is a Frigate serving the fixtures. With auth set it behaves like the
 // authenticated port: /api/login sets a cookie every other route needs.
+// Two users sign in: dash (the viewer) and admin (the control account).
 type fake struct {
 	*httptest.Server
 	t    *testing.T
@@ -47,16 +52,26 @@ type fake struct {
 
 	mu       sync.Mutex
 	files    map[string][]byte // path → body override
-	token    string
+	token    string            // the newest session token
+	users    map[string]string // session token → user
 	logins   int
 	hits     map[string]int
 	events   []string // the query of each /api/events request
 	wsCookie string
 	push     chan string // wire frames for /ws after the onConnect replay
+
+	pictures bool     // latest.jpg may be asked for
+	picType  string   // its Content-Type
+	heights  []string // the height asked for, per latest.jpg request
+	frames   []string // every frame an action's socket sent
+	silent   bool     // don't answer a …/set with its state
 }
 
+// passwords are the fake's users.
+var passwords = map[string]string{"dash": "viewer-pass", "admin": "admin-pass"}
+
 func newFake(t *testing.T, auth bool) *fake {
-	f := &fake{t: t, auth: auth, files: map[string][]byte{}, hits: map[string]int{}, push: make(chan string, 16)}
+	f := &fake{t: t, auth: auth, files: map[string][]byte{}, users: map[string]string{}, hits: map[string]int{}, push: make(chan string, 16), picType: "image/jpeg"}
 	f.Server = httptest.NewServer(f)
 	t.Cleanup(f.Close)
 	return f
@@ -91,6 +106,21 @@ func (f *fake) expire() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.token = "expired"
+	f.users = map[string]string{}
+}
+
+// sent is every frame an action's socket sent.
+func (f *fake) sent() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.frames)
+}
+
+// allowPictures lets the integration ask for latest.jpg.
+func (f *fake) allowPictures() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pictures = true
 }
 
 func (f *fake) body(path, file string) []byte {
@@ -109,7 +139,7 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 	if r.URL.Path == "/api/login" {
 		var body struct{ User, Password string }
-		if r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&body) != nil || body.User != "dash" || body.Password != "viewer-pass" {
+		if r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&body) != nil || passwords[body.User] == "" || body.Password != passwords[body.User] {
 			w.WriteHeader(http.StatusUnauthorized)
 			io.WriteString(w, `{"message":"Login failed"}`)
 			return
@@ -118,15 +148,20 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.logins++
 		f.token = "jwt-" + strconv.Itoa(f.logins)
 		tok := f.token
+		f.users[tok] = body.User
 		f.mu.Unlock()
 		http.SetCookie(w, &http.Cookie{Name: "frigate_token", Value: tok, HttpOnly: true, Path: "/"})
 		return
 	}
+	user := ""
 	if f.auth {
+		c, err := r.Cookie("frigate_token")
 		f.mu.Lock()
-		tok := f.token
+		if err == nil {
+			user = f.users[c.Value]
+		}
 		f.mu.Unlock()
-		if c, err := r.Cookie("frigate_token"); err != nil || c.Value != tok {
+		if user == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -140,6 +175,9 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write(f.body(r.URL.Path, "version.txt"))
 	case "/api/profile":
 		b := f.body(r.URL.Path, "profile.json")
+		if user == "admin" {
+			b = f.adminProfile()
+		}
 		if len(b) == 0 {
 			http.NotFound(w, r)
 			return
@@ -177,13 +215,80 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/ws":
 		f.serveWS(w, r)
 	default:
+		if cam, ok := latestJPG(r.URL.Path); ok {
+			f.servePicture(w, r, cam)
+			return
+		}
 		f.t.Errorf("unexpected request: %s %s", r.Method, r.URL)
 		http.NotFound(w, r)
 	}
 }
 
+func (f *fake) adminProfile() []byte {
+	f.mu.Lock()
+	b, ok := f.files["/api/profile#admin"]
+	f.mu.Unlock()
+	if ok {
+		return b
+	}
+	return []byte(`{"username":"admin","role":"admin","allowed_cameras":[]}`)
+}
+
+// latestJPG is the camera of /api/<camera>/latest.jpg.
+func latestJPG(path string) (string, bool) {
+	rest, ok := strings.CutPrefix(path, "/api/")
+	cam, ok2 := strings.CutSuffix(rest, "/latest.jpg")
+	return cam, ok && ok2 && cam != "" && !strings.Contains(cam, "/")
+}
+
+// servePicture is latest.jpg: only while pictures are allowed, and only for
+// a camera in the config.
+func (f *fake) servePicture(w http.ResponseWriter, r *http.Request, cam string) {
+	f.mu.Lock()
+	allowed, typ := f.pictures, f.picType
+	f.heights = append(f.heights, r.URL.Query().Get("height"))
+	f.mu.Unlock()
+	if !allowed {
+		f.t.Errorf("a picture was requested with pictures off: %s", r.URL)
+		http.NotFound(w, r)
+		return
+	}
+	if cam != "driveway" && cam != "side_deck" && cam != "backyard" {
+		f.t.Errorf("a picture of an unknown camera was requested: %s", r.URL)
+		http.NotFound(w, r)
+		return
+	}
+	if len(r.URL.Query()) > 1 || (len(r.URL.Query()) == 1 && r.URL.Query().Get("height") == "") {
+		f.t.Errorf("latest.jpg with more than a height: %s", r.URL.RawQuery)
+	}
+	f.mu.Lock()
+	b, ok := f.files[r.URL.Path]
+	f.mu.Unlock()
+	if !ok {
+		b = testJPEG(f.t)
+	}
+	w.Header().Set("Content-Type", typ)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Write(b)
+}
+
+// testJPEG is a small synthetic picture: 32×18 pixels of one grey.
+func testJPEG(t *testing.T) []byte {
+	img := image.NewGray(image.Rect(0, 0, 32, 18))
+	for i := range img.Pix {
+		img.Pix[i] = 0x80
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, nil); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
 // serveWS answers onConnect with the recorded state (ws_onconnect.json),
-// then sends whatever the test pushes. Closing push closes the socket.
+// then sends whatever the test pushes. Closing push closes the socket. An
+// action's socket instead sends one …/set frame: the fake records every
+// frame it sends and answers the set with Frigate's …/state.
 func (f *fake) serveWS(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie("frigate_token"); err == nil {
 		f.mu.Lock()
@@ -201,7 +306,7 @@ func (f *fake) serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if string(first) != onConnect {
-		f.t.Errorf("the integration sent %s; only onConnect is allowed", first)
+		f.serveAction(ctx, conn, first)
 		return
 	}
 	var rec struct {
@@ -235,6 +340,51 @@ func (f *fake) serveWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// serveAction plays Frigate's dispatcher for an action's socket: a set frame
+// gets heartbeats first (noise the action must skip), then the feature's
+// state with the new value, as Frigate publishes it.
+func (f *fake) serveAction(ctx context.Context, conn *websocket.Conn, first []byte) {
+	f.mu.Lock()
+	f.frames = append(f.frames, string(first))
+	silent := f.silent
+	f.mu.Unlock()
+	var msg struct {
+		Topic   string `json:"topic"`
+		Payload string `json:"payload"`
+	}
+	if json.Unmarshal(first, &msg) != nil {
+		f.t.Errorf("an action sent %s", first)
+		return
+	}
+	if state, ok := strings.CutSuffix(msg.Topic, "/set"); ok && !silent {
+		cam, _, _ := strings.Cut(state, "/")
+		other := "OFF"
+		if msg.Payload == "OFF" {
+			other = "ON"
+		}
+		for _, fr := range []string{
+			frame(cam+"/status/detect", "online"),
+			frame(state+"/state", other), // not the value asked for: keep waiting
+			frame("other_cam/"+strings.TrimPrefix(state, cam+"/")+"/state", msg.Payload),
+			frame(state+"/state", msg.Payload),
+		} {
+			if conn.Write(ctx, websocket.MessageText, []byte(fr)) != nil {
+				return
+			}
+		}
+	}
+	// Record anything else the action sends until it hangs up.
+	for {
+		_, b, err := conn.Read(ctx)
+		if err != nil {
+			return
+		}
+		f.mu.Lock()
+		f.frames = append(f.frames, string(b))
+		f.mu.Unlock()
+	}
+}
+
 // frame is a message as Frigate sends it: the payload is a string, with
 // JSON documents encoded inside it.
 func frame(topic string, payload any) string {
@@ -265,7 +415,7 @@ func mustSync(t *testing.T, inst integration.Instance, want integration.Interest
 
 func TestRegistered(t *testing.T) {
 	_, m, ok := integration.Default.Get(ID)
-	if !ok || m.Name != "Frigate" || !slices.Equal(m.SecretFields(), []string{"password"}) || m.Poll.Interval != 30*time.Second {
+	if !ok || m.Name != "Frigate" || !slices.Equal(m.SecretFields(), []string{"password", "control_password"}) || m.Poll.Interval != 30*time.Second {
 		t.Fatalf("manifest = %+v", m)
 	}
 }
@@ -666,5 +816,116 @@ func TestHostOf(t *testing.T) {
 		if got := hostOf(in); got != want {
 			t.Errorf("hostOf(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestPictures: latest.jpg only with pictures on, only for a published
+// camera, and only a picture of bounded size.
+func TestPictures(t *testing.T) {
+	f := newFake(t, false)
+	h := integrationtest.New(t)
+	off := h.Connect(Integration{}, map[string]any{"url": f.URL}, nil)
+	mustSync(t, off, integrationtest.Watched)
+	if _, err := off.(integration.Picturer).Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); !errors.Is(err, integration.ErrNoPicture) {
+		t.Fatalf("pictures off: %v", err)
+	}
+	if r, _ := h.Resource("frigate:i_test/camera/driveway"); r.Attrs["picture"] != nil {
+		t.Fatal("attrs.picture is only set with pictures on")
+	}
+
+	f.allowPictures()
+	h = integrationtest.New(t)
+	inst := h.Connect(Integration{}, map[string]any{"url": f.URL, "pictures": true}, nil)
+	pic := inst.(integration.Picturer)
+	if _, err := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); !errors.Is(err, integration.ErrNoPicture) {
+		t.Fatalf("before the config is read, no camera is known: %v", err)
+	}
+	mustSync(t, inst, integrationtest.Watched)
+	r, _ := h.Resource("frigate:i_test/camera/driveway")
+	for k, want := range map[string]any{"picture": true, "enabled": true, "snapshots": true, "alerts": true} {
+		if r.Attrs[k] != want {
+			t.Errorf("driveway.attrs.%s = %v, want %v", k, r.Attrs[k], want)
+		}
+	}
+	if app, _ := h.Resource("frigate:i_test/app"); app.Attrs["picture"] != nil {
+		t.Error("only cameras have pictures")
+	}
+
+	got, err := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{Height: 180})
+	if err != nil || got.ContentType != "image/jpeg" || !bytes.Equal(got.Body, testJPEG(t)) || !got.At.Equal(h.Now()) {
+		t.Fatalf("picture = %s %d bytes at %v, %v", got.ContentType, len(got.Body), got.At, err)
+	}
+	if _, err := pic.Picture(t.Context(), "frigate:i_test/camera/side_deck", integration.PictureOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	heights := slices.Clone(f.heights)
+	f.mu.Unlock()
+	if !slices.Equal(heights, []string{"180", ""}) || f.count("/api/driveway/latest.jpg") != 1 {
+		t.Fatalf("heights asked = %q", heights)
+	}
+
+	for _, rid := range []string{"frigate:i_test/camera/garage", "frigate:i_test/app", "frigate:other/camera/driveway",
+		"frigate:i_test/camera/driveway/x", "frigate:i_test/camera/", "docker:i_test/camera/driveway"} {
+		if _, err := pic.Picture(t.Context(), rid, integration.PictureOptions{}); !errors.Is(err, integration.ErrNoPicture) {
+			t.Errorf("%s: %v, want ErrNoPicture", rid, err)
+		}
+	}
+
+	// Too big, or not a picture: refused.
+	f.set("/api/driveway/latest.jpg", bytes.Repeat([]byte{0xff}, integration.MaxPictureBytes+1))
+	if _, err := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); err == nil || errors.Is(err, integration.ErrNoPicture) {
+		t.Fatalf("an oversize picture: %v", err)
+	}
+	f.set("/api/driveway/latest.jpg", bytes.Repeat([]byte{0xff}, integration.MaxPictureBytes))
+	if got, err := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); err != nil || len(got.Body) != integration.MaxPictureBytes {
+		t.Fatalf("a picture of exactly the limit: %d bytes, %v", len(got.Body), err)
+	}
+	for _, typ := range []string{"text/html", "video/mp4", "image/svg+xml", ""} {
+		f.mu.Lock()
+		f.picType = typ
+		f.mu.Unlock()
+		if _, err := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); err == nil {
+			t.Errorf("%q was taken for a picture", typ)
+		}
+	}
+	f.mu.Lock()
+	f.picType = "image/webp"
+	f.mu.Unlock()
+	if got, _ := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); got.ContentType != "image/webp" {
+		t.Fatalf("webp = %q", got.ContentType)
+	}
+
+	// Picture runs beside Sync.
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			for range 5 {
+				_, _ = pic.Picture(t.Context(), "frigate:i_test/camera/backyard", integration.PictureOptions{Height: 90})
+			}
+		})
+	}
+	for range 3 {
+		h.Advance(15 * time.Minute)
+		mustSync(t, inst, integrationtest.Watched)
+	}
+	wg.Wait()
+}
+
+// TestPicturesLimitedRole: a camera the read account's role can't see has
+// no picture.
+func TestPicturesLimitedRole(t *testing.T) {
+	f := newFake(t, true)
+	f.allowPictures()
+	f.set("/api/profile", []byte(`{"username":"dash","role":"viewer","allowed_cameras":["driveway"]}`))
+	h := integrationtest.New(t)
+	inst := h.Connect(Integration{}, map[string]any{"url": f.URL, "username": "dash", "pictures": true}, map[string]string{"password": "viewer-pass"})
+	mustSync(t, inst, integrationtest.Watched)
+	pic := inst.(integration.Picturer)
+	if _, err := pic.Picture(t.Context(), "frigate:i_test/camera/backyard", integration.PictureOptions{}); !errors.Is(err, integration.ErrNoPicture) {
+		t.Fatalf("a camera the role can't see: %v", err)
+	}
+	if _, err := pic.Picture(t.Context(), "frigate:i_test/camera/driveway", integration.PictureOptions{}); err != nil {
+		t.Fatalf("the allowed camera, signed in: %v", err)
 	}
 }
