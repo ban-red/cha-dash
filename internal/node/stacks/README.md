@@ -7,7 +7,7 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 - The stacks root defaults to `/opt/stacks`. It uses Dockge's layout: `<root>/<stack>/compose.yaml` and an optional `.env`. `compose.yml`, `docker-compose.yaml` and `docker-compose.yml` work too.
 - The root is a git repository, created on first use with a `.gitignore` that keeps `.env` files out. Every change Cha Dash makes is a commit.
 - A stack adopted in place **outside** the root is listed in `.chadash/stacks.json`. A shadow copy of its file at `.chadash/shadow/<stack>/<file>` is what git versions. The real file stays where it is, and a deploy writes it there.
-- Commits carry trailers the module reads back: `Chadash-Kind` (deploy, rollback, adopt, unadopt, accept), `Chadash-Stack`, `Chadash-Actor`, and on deploys `Chadash-Previous-Image: <service>=<repo>@sha256:…` for each image that was running when the deploy started.
+- Commits carry trailers the module reads back: `Chadash-Kind` (deploy, rollback, adopt, unadopt, accept), `Chadash-Stack`, `Chadash-Actor`, and on deploys `Chadash-Previous-Image: <service>=<repo>@sha256:…` for each image that was running when the deploy started. A deploy a git sync started also carries `Chadash-Source: <url>@<sha>`, and its subject reads "by git sync for sam".
 - Files are staged by writing the git index directly. `Worktree.Add` would walk the whole worktree, and a stack directory often holds its data too.
 
 ## Verbs
@@ -23,6 +23,8 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 | `stack.rollback` | `stacks.deploy` | An earlier commit's file as a new commit, through the same steps. The services it recreates are pinned to the digests they last ran; the rest are left as they are |
 | `stack.adopt` | `stacks.adopt` | Adopt in place: commit a root directory, or register an external path and start its shadow history. Nothing moves and nothing restarts. On a drifted stack it accepts the edits made outside Cha Dash |
 | `stack.unadopt` | `stacks.adopt` | Stop versioning a stack. Its files and containers stay as they are |
+| `stack.remote.check` | `stacks.sync` | A branch's tip on a git remote, listed without fetching. Over SSH it also returns the host key the server presented, for the hub to pin |
+| `stack.fetch` | `stacks.sync` | A shallow fetch of the branch into the node's cache, then one file at the tip: its content, the commit, its subject and author. Over SSH only the pinned host key is accepted |
 
 Errors are `stackproto.Error{code, message}`, and `Error()` reads `<code>: <message>`. `stackproto.ErrorFrom` gets the code back even if a transport passes only the text. Blocked, rolled back and stuck are outcomes in `DeployResult`, not errors.
 
@@ -50,6 +52,16 @@ Other rules:
 - **Adopting** reads a running project's compose file only if it's an absolute `.yaml` or `.yml` path outside the node's own directories: anything that can start a container can set the labels that name it.
 
 To lock a node down, list features in `stacks.deny` (with `bind_roots` for the paths stacks may use), or remove `deploy` from `stacks.allow`.
+
+## Git remotes
+
+A stack that follows git ([ADR-0021](../../../docs/adr/0021-git-sync-and-deploy-webhooks.md)) reads one file from a remote. The remote is an input, never history to merge: the stacks root only changes when the hub deploys that content, like any deploy.
+
+- **The cache** is in the node's own directory (`<CHADASH_NODE_DIR>/git-cache`), never under the stacks root. There's one bare, shallow repository per remote and branch, named by a hash of the normalized URL (lowercase scheme and host, no default port, no trailing `/` or `.git`) and the branch, so stacks that follow the same remote share it. A cache that fails to fetch is thrown away and fetched again once.
+- **Limits.** 60 s per call and 1 MiB per file (`Options.FetchTimeout`, `Options.MaxFile`). Only depth 1 of one branch is fetched, without tags.
+- **What it reaches.** `https://`, `http://` and `ssh://` only (`file://` is for tests). A URL with a user or password in it, or scp-style `git@host:path`, is refused (`invalid`): the user goes with the credential. The policy's `stacks.remotes` limits the hosts (`forbidden` outside it); an entry without a port matches any port. All of this is checked before any I/O.
+- **Credentials.** The hub sends them with each call: none, an HTTPS user and token (the user defaults to `git`), or an SSH private key (the SSH user defaults to `git`). They stay in memory and are never logged; only the host is. Every error is scrubbed of the secret and of any `user:password@` a transport echoes.
+- **SSH host keys.** `stack.remote.check` accepts the key the server presents and returns it (`ssh-ed25519 AAAA…`). `stack.fetch` requires a pinned key and accepts only that one; another key fails with a sentence saying it changed.
 
 ## Secrets
 
@@ -86,6 +98,7 @@ Unknown keys and bad values are warnings, never errors.
 - drift, conflict, protected, busy, and a missing secret;
 - the guard: every always-refused path and reference (and that a refused `env_file` is never read), each policy denial, root-equivalent warnings in validation and the plan, a secret whose value is a private path, `docker.protect` on deploy, plan and rollback, the node's own project learned late, and adoption refusing the node's files;
 - adopt in place (root and external), un-adopt, and accepting edits;
+- git remotes: a fetch from a local repository over `file://` (go-git's in-process server), a new commit, a shared cache, the size and time limits, the URL and allowlist refusals, scrubbed errors, the auth each credential kind builds and SSH host-key pinning, and the `Chadash-Source` trailer;
 - secrets never on disk.
 
 **The Done-when scenario** is `TestBadDeployRollsBackOnItsOwn`. v1 is healthy. v2 fails its healthcheck, or crash-loops. The gate catches it, and v1 comes back as a new commit pinned to its digest, comments kept. The failed attempt stays in the history, and a good deploy works afterwards. `internal/stacks`'s `TestScenarioBadDeployRollsBackOnItsOwn` runs the same scenario end to end through the action engine.

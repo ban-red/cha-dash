@@ -43,6 +43,7 @@ type attempt struct {
 	subject  string            // the commit subject, without the "· by" tail
 	by, via  string
 	ref      string // the hub's task ID
+	source   string // "<url>@<sha>" for a deploy a git sync started
 	running  []Container
 	prevRefs map[string]string // service → digest reference running now
 }
@@ -58,6 +59,7 @@ func (m *Module) deploy(ctx context.Context, req stackproto.DeployRequest, em em
 		return stackproto.DeployResult{}, err
 	}
 	a.content, a.kind, a.by, a.via, a.ref = req.Content, stackproto.KindDeploy, req.By, req.Via, req.Ref
+	a.source = req.Source
 	a.subject = "Deploy " + a.s.name
 	return m.run(ctx, a, em.withSecrets(a.secrets))
 }
@@ -225,7 +227,16 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 	for _, svc := range sortedKeys(a.prevRefs) {
 		trailers = append(trailers, [2]string{trailerPrevious, svc + "=" + a.prevRefs[svc]})
 	}
-	subject := a.subject + ": " + summary(services) + by(a.by, a.via)
+	who := a.by
+	if a.source != "" {
+		// A git sync deploys for its owner: "by git sync for sam".
+		trailers = append(trailers, [2]string{trailerSource, a.source})
+		who = "git sync"
+		if a.by != "" {
+			who += " for " + a.by
+		}
+	}
+	subject := a.subject + ": " + summary(services) + by(who, a.via)
 	if a.ref != "" {
 		subject += " · " + oneLine(a.ref)
 	}

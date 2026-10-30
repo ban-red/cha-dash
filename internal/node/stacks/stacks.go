@@ -83,6 +83,19 @@ type Options struct {
 	// often the soak looks. A stack's x-chadash overrides the first three.
 	Wait, Soak, RollbackSoak, Poll time.Duration
 	Log                            *slog.Logger
+
+	// Git remotes (stack.remote.check, stack.fetch; remote.go). CacheDir
+	// holds one shallow cache per remote and branch, in the node's state
+	// directory, never under Root; empty refuses stack.fetch. Remotes is
+	// the policy's stacks.remotes (empty: any host). FetchTimeout bounds
+	// each call (default 60 s) and MaxFile the file read (default 1 MiB).
+	// AllowFileRemotes admits file:// URLs, for tests only.
+	CacheDir         string
+	Remotes          []string
+	FetchTimeout     time.Duration
+	MaxFile          int64
+	AllowFileRemotes bool
+
 	// Now and Sleep are for tests.
 	Now   func() time.Time
 	Sleep func(ctx context.Context, d time.Duration) error
@@ -113,6 +126,8 @@ type Module struct {
 	selfMu   sync.Mutex
 	self     string    // the node's compose project, once known
 	selfNext time.Time // when to ask again
+
+	git *remotes // stack.remote.check and stack.fetch (remote.go)
 }
 
 var _ node.Module = (*Module)(nil)
@@ -180,6 +195,7 @@ func New(o Options) (*Module, error) {
 	if m.repo, err = openRepo(m.root, m.now); err != nil {
 		return nil, err
 	}
+	m.git = newRemotes(o, m.log)
 	return m, nil
 }
 
@@ -198,6 +214,10 @@ func (m *Module) Verbs() []node.Verb {
 		verb(stackproto.VerbRollback, stackproto.PermDeploy, m.rollback),
 		verb(stackproto.VerbAdopt, stackproto.PermAdopt, m.adopt),
 		verb(stackproto.VerbUnadopt, stackproto.PermAdopt, m.unadopt),
+
+		// Git sync (v0.3, wave 12): read a remote a stack follows.
+		verb(stackproto.VerbRemoteCheck, stackproto.PermSync, m.remoteCheck),
+		verb(stackproto.VerbFetch, stackproto.PermSync, m.fetch),
 	}
 }
 

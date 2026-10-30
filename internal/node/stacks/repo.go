@@ -28,6 +28,7 @@ import (
 //	Chadash-Stack: media
 //	Chadash-Actor: sam
 //	Chadash-Previous-Image: web=nginx@sha256:…   (one per service, on deploys)
+//	Chadash-Source: https://git.example/ops/stacks@<sha>   (deploys a git sync started)
 //
 // Chadash-Previous-Image records the images that were running when a
 // deploy started, which are the images the previous commit last ran: a
@@ -50,6 +51,7 @@ const (
 	trailerStack    = "Chadash-Stack"
 	trailerActor    = "Chadash-Actor"
 	trailerPrevious = "Chadash-Previous-Image"
+	trailerSource   = "Chadash-Source" // <url>@<sha>, on a deploy a git sync started
 )
 
 var signature = object.Signature{Name: "chadash-node", Email: "node@chadash.invalid"}

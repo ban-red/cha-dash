@@ -163,6 +163,10 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 		Guard:            stackGuard(ctx, cfg, policy, dm, log),
 		PrivateDirs:      []string{cfg.Dir, cfg.identityDir(), filepath.Dir(cfg.PairingFile)},
 		Log:              log.With("module", "stacks"),
+		// Git sync: the shallow caches live in the node's own directory,
+		// never under the stacks root, and reach only stacks.remotes.
+		CacheDir: filepath.Join(cfg.Dir, "git-cache"),
+		Remotes:  policy.Stacks.Remotes,
 	})
 	if err != nil {
 		return err
