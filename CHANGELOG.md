@@ -6,11 +6,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-### Changed
-
-- **Arrange the Cameras tile.** In Widget settings, tick cameras and move them up or down to set their order, and give each a size: one cell, two wide, two tall or 2 × 2. The tile fits them in that order and says how many more didn't fit. On Auto, the first camera is the big one, as before.
-- **House power is off by default on the Home Assistant tile.** Turn on **Show house power** in Widget settings to bring back the power graph and energy today. Without it, wide and large tiles show cards for what your house reports: Indoors (thermostat temperature and what it's doing), Safety (smoke, CO, gas and leak sensors: OK, or what tripped) and Playing (media players, with the track). The home stat names who is home. A tripped safety sensor marks the tile and heads Needs a look. The small tile shows who's home with lights and switches, and indoors temperature at the foot.
-
 ## [0.2.0-beta.2] - 2026-10-29
 
 The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and health now keep a history on disk, so sparklines survive a restart, a sheet looks back over what was kept, and the Pulse strip under the Briefing takes the whole board back to any moment of the last 24 hours. Tiles get views you swipe between, new sizes, a menu, and far more from Plex, Tautulli, qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant, Frigate and the weather. Settings → Bring in imports Homarr 2 backups and plain YAML boards. The v0.2 actions have now run against a real homelab, all but Pi-hole's, AdGuard Home's and Seerr's, and what those runs and a second security review found is fixed below.
@@ -81,6 +76,8 @@ The second beta of v0.2: **Cha Dash remembers, and tiles say more.** Metrics and
 
 ### Changed
 
+- **Arrange the Cameras tile.** In Widget settings, tick cameras and move them up or down to set their order, and give each a size: one cell, two wide, two tall or 2 × 2. The tile fits them in that order and says how many more didn't fit. On Auto, the first camera is the big one, as before.
+- **House power is off by default on the Home Assistant tile.** Turn on **Show house power** in Widget settings to bring back the power graph and energy today. Without it, wide and large tiles show cards for what your house reports: Indoors (thermostat temperature and what it's doing), Safety (smoke, CO, gas and leak sensors: OK, or what tripped) and Playing (media players, with the track). The home stat names who is home. A tripped safety sensor marks the tile and heads Needs a look. The small tile shows who's home with lights and switches, and indoors temperature at the foot.
 - **Search for missing runs only for fewer than 10.** Sonarr, Radarr and Lidarr's Search for missing is offered while fewer than 10 monitored items are missing. With more, a search for all of them can hammer your indexers, so the resource sheet and ⌘K offer **Open Missing in …** instead, which opens the app's Missing page to pick from.
 - **Wide tiles use their height.** On a wide (4x2) tile the trend graph now grows to fill the column instead of staying a thin strip, and Tautulli lists what's playing there.
 - **A new widget picker.** Search the catalog, by name or by what a widget can show ("cpu" finds Metric), or browse it by group. Each widget is a card with what it shows and its sizes. The one you pick appears live, with your data, at the size you choose and in proportion, before it goes on the board. Long lists of what a widget can show (64 metrics) have their own filter. Arrow keys move through the cards, ⌘↵ or a double-click adds.
