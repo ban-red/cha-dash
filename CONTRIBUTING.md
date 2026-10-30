@@ -46,6 +46,17 @@ go fix ./...         # CI fails if the Go 1.27 modernizers would change anything
 
 After editing a theme in `design/tokens/themes/`, run `bun run generate` in `design/tokens`. CI fails when `dist/` is stale.
 
+**Before you push: `bun run check`.** It runs what CI's Go and JavaScript jobs run, without building anything: gofmt, go vet (also for linux/386 and linux/arm/v7), go fix, golangci-lint, govulncheck, the Dockerfile's COPY lines, real home paths in tests, tagged changelog sections, the typecheck, lint, the design tokens, and every test, Go's with the race detector. It takes a few minutes.
+
+```sh
+bun run check              # the working tree
+bun run check --ref HEAD   # a clean copy of a commit, without uncommitted edits
+bun run check --quick      # no race detector or govulncheck
+bun run hooks              # once: a pre-push hook runs `check --ref` on what you push
+```
+
+What it leaves to CI: the build, the images, the end-to-end tests and the performance budgets. Push small batches, so CI's answer comes the day the code was written; a release is no time to meet a month of it.
+
 **End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, and the safety ladder on the action engine. Playwright's test runner needs Node.js (any current LTS); nothing else here does.
 
 ```sh
@@ -115,7 +126,7 @@ The maintainer cuts releases by pushing a version tag. [`.github/workflows/relea
 
 | Job | What it does | Permissions |
 |---|---|---|
-| Prepare | Checks the tag (`vMAJOR.MINOR.PATCH`, optionally `-beta.N` or `-rc.N`), works out the image tags, and fails early if `CHANGELOG.md` has no section for the version | `contents: read` |
+| Prepare | Checks the tag (`vMAJOR.MINOR.PATCH`, optionally `-beta.N` or `-rc.N`), works out the image tags, and fails early if `CHANGELOG.md` has no section for the version, or its summary still says `TODO(summary)` | `contents: read` |
 | Build and push | The binaries from the Dockerfile's `binary` stage (linux amd64, arm64 and armv7; darwin amd64 and arm64) and `node-binary` stage (linux only), checked and summed into `SHA256SUMS`; smoke-tested linux/amd64 hub and node images; then both pushed for linux/amd64, arm64 and arm/v7 to `ghcr.io/ban-red/chadash` and `ghcr.io/ban-red/chadash-node`, with provenance and SBOMs | `contents: read`, `packages: write` |
 | Sign | cosign keyless signing of both images (by digest) and of `SHA256SUMS`, each verified straight after | `packages: write`, `id-token: write`, `actions: read` |
 | Draft release | The draft, marked prerelease for `-beta` and `-rc`: notes from `CHANGELOG.md` plus install and verify instructions, with the binaries, `SHA256SUMS` and its signature attached | `contents: write`, `actions: read` |
@@ -130,17 +141,18 @@ The node image gets the same tags as the hub.
 
 **Cutting a beta:**
 
-1. **Start from `main` with CI green** on the commit you're going to tag.
+1. **Start from `main` with CI green**, everything for the release committed.
 2. **Check `COSIGN_VERSION`** at the top of `release.yml`. It should be the current cosign release; Renovate proposes new ones. A new major version changes the module path in the install step too (`github.com/sigstore/cosign/v3/...`).
-3. **Write the changelog.** Move what's under `## [Unreleased]` in `CHANGELOG.md` into a new `## [0.1.0-beta.2] - YYYY-MM-DD` section, written for people who run Cha Dash. It becomes the release text, so links must be full URLs. Update the comparison links at the bottom. Preview it with `scripts/release-notes.sh 0.1.0-beta.2`.
-4. **Merge that to `main`** the usual way.
-5. **Tag the merge commit and push the tag:**
+3. **Cut the changelog** with `bun run release:cut 0.1.0-beta.2`. It moves what's under `## [Unreleased]` into the version's section and updates the comparison links; run it again if more lands before the tag, and it merges that in. A new section opens with a `TODO(summary)` line: replace it with the release's summary, written for people who run Cha Dash (what it is, and what to do on upgrade). The notes are the release text, so links must be full URLs. `scripts/release-notes.sh 0.1.0-beta.2` previews them and refuses a section that still says TODO.
+4. **Commit it and push `main`.** This is the commit you tag; anything committed after it is the next release's, and `bun run check` fails if a tagged section changes.
+5. **Run `bun run release:check 0.1.0-beta.2`** on it: the full check, the release build and the end-to-end tests on a clean copy, about ten minutes. Wait for CI to be green on it too.
+6. **Tag that commit and push the tag:**
    ```sh
    git tag -a v0.1.0-beta.2 -m "Cha Dash 0.1.0-beta.2"
    git push origin v0.1.0-beta.2
    ```
-6. **Watch the Release run** in Actions. Building and installing cosign take most of its time.
-7. **Read the draft** under Releases: the notes, the image tags, the attached files. To check the signature yourself, run the `cosign verify` command in the notes. Then press **Publish**.
+7. **Watch the Release run** in Actions. Building and installing cosign take most of its time.
+8. **Read the draft** under Releases: the notes, the image tags, the attached files. To check the signature yourself, run the `cosign verify` command in the notes. Then press **Publish**.
 
 **If something goes wrong,** don't move or reuse a pushed tag: images may already be published under it. Fix it on `main` and tag the next beta. Re-running the workflow for the same tag is safe; it rebuilds and pushes the same image tags again, and updates the draft instead of adding a second one.
 

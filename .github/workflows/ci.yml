@@ -43,7 +43,9 @@ jobs:
   go:
     name: Go (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    # golangci-lint once ran past a 15-minute limit on a slow runner and the
+    # whole job was cancelled; it has its own limit below.
+    timeout-minutes: 25
     strategy:
       fail-fast: false          # an arm64-only failure still reports amd64, and vice versa
       matrix:
@@ -83,34 +85,12 @@ jobs:
           go test -p 1 -count=1 -run '^TestBudget' -v ./internal/server/ ./internal/demo/ | tee budgets.txt
           { echo "### Performance budgets (${{ matrix.arch }})"; echo; sed -n 's/^ *budget_test.go:[0-9]*: /- /p' budgets.txt; } >> "$GITHUB_STEP_SUMMARY"
       - name: The Dockerfile copies every package the hub and the node import
-        # Each binary's build stage must COPY every top-level directory its
-        # `go list -deps` names: the hub's stage (hub) and the node's
-        # (node-build), checked separately.
-        run: |
-          python3 - <<'PY'
-          import re, subprocess, sys
-          lines = open("Dockerfile", encoding="utf-8").read().splitlines()
-          def stage(name):
-              out, inside = [], False
-              for l in lines:
-                  if l.startswith("FROM "):
-                      inside = l.rstrip().endswith(" AS " + name)
-                  elif inside:
-                      out.append(l.strip())
-              return out
-          failed = False
-          for pkg, name in (("./cmd/chadash", "hub"), ("./cmd/chadash-node", "node-build")):
-              deps = subprocess.run(["go", "list", "-deps", pkg], check=True, capture_output=True, text=True).stdout.split()
-              dirs = sorted({m.group(1) for d in deps if (m := re.match(r"dash\.cha\.sh/([^/]+)", d))})
-              body = stage(name)
-              if not body:
-                  sys.exit(f"::error::No '{name}' stage in the Dockerfile")
-              missing = [d for d in dirs if f"COPY {d} {d}" not in body]
-              if missing:
-                  print(f"::error::Add COPY lines to the Dockerfile's {name} stage for: {' '.join(missing)}")
-                  failed = True
-          sys.exit(1 if failed else 0)
-          PY
+        # scripts/ci/dockerfile-copies.py, which `bun run check` runs too.
+        run: python3 scripts/ci/dockerfile-copies.py
+      - name: No real home directories in tests
+        # A path under /root or /home passes on a laptop and fails here, where
+        # it exists but can't be read (scripts/ci/test-paths.py).
+        run: python3 scripts/ci/test-paths.py
       - name: dev login (-tags devlogin)
         # Only `bun run dev` builds with this tag; release builds must not.
         run: |
@@ -127,8 +107,11 @@ jobs:
           fi
       - name: golangci-lint
         # staticcheck plus the bug-finding linters in .golangci.yml. The
-        # tools are pinned in tools/go.mod and built with this Go.
-        run: go tool -modfile=tools/go.mod golangci-lint run
+        # tools are pinned in tools/go.mod and built with this Go. Its cache
+        # goes inside Go's build cache, which setup-go saves and restores.
+        timeout-minutes: 10
+        run: |
+          GOLANGCI_LINT_CACHE="$(go env GOCACHE)/golangci-lint" go tool -modfile=tools/go.mod golangci-lint run
       - name: govulncheck
         run: go tool -modfile=tools/go.mod govulncheck ./...
 
@@ -220,6 +203,9 @@ jobs:
         run: bun run lint
       - name: Test
         run: bun run test
+      - name: Release scripts
+        # scripts/cut-release.ts, which moves Unreleased into a version.
+        run: bun test scripts/
       - name: Design tokens are up to date
         working-directory: design/tokens
         run: bun run generate --check

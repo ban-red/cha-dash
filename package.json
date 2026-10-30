@@ -16,7 +16,11 @@
     "e2e": "bun run --filter @chadash/web e2e",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "oxlint && bun --bun eslint . --cache",
-    "lint:fix": "oxlint --fix && bun --bun eslint . --cache --fix"
+    "lint:fix": "oxlint --fix && bun --bun eslint . --cache --fix",
+    "check": "bun scripts/check.ts",
+    "hooks": "git config core.hooksPath .githooks",
+    "release:cut": "bun scripts/cut-release.ts",
+    "release:check": "bun scripts/release-check.ts"
   },
   "devDependencies": {
     "@vue/eslint-config-typescript": "14.9.0",

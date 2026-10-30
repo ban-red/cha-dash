@@ -25,5 +25,10 @@ if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
 	echo "release-notes: $changelog has no \"## [$version]\" section, or it's empty" >&2
 	exit 1
 fi
+# scripts/cut-release.ts opens a section with this line for its summary.
+if printf '%s\n' "$notes" | grep -q '^TODO(summary)'; then
+	echo "release-notes: the $version section still says TODO(summary): write its summary first" >&2
+	exit 1
+fi
 # Without the blank lines at either end.
 printf '%s\n' "$notes" | sed '/./,$!d'

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Checks what you push before it leaves: `bun run check --ref <commit>` on a
+# clean copy of the branch tip, so nobody's uncommitted edits count. Tags and
+# deletes alone pass straight through: their commits were checked when the
+# branch went up. Installed by `bun run hooks`; skip it once with
+# `git push --no-verify`.
+zero=0000000000000000000000000000000000000000
+sha=
+while read -r local_ref local_sha remote_ref remote_sha; do
+	case $local_ref in
+	refs/heads/*) [ "$local_sha" != "$zero" ] && sha=$local_sha ;;
+	esac
+done
+[ -n "$sha" ] || exit 0
+exec bun scripts/check.ts --ref "$sha"
