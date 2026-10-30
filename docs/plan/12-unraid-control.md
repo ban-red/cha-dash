@@ -64,3 +64,37 @@ Docs move with each step: the integration README's scope and action tables, the 
 - Does Unraid refuse a mutation cleanly when the scope is missing, or does it fail later? The spike decides whether the grants check must be strict.
 - Answered: no `full` mode; delete is a second consent link (see Design).
 - Should an instance whose key has more than its mode offer to switch ("This key can do more. Use Full?") in Test connection, or stay silent?
+
+## Live run checklist
+
+Run it by hand, in the web, against **throwaway guests only**: a container and a VM made for the run, and a separate API key. Never jupiter's real guests, and not Plex or anything with data. Tick each line; write what Unraid actually did where it differs from the fake server.
+
+**Prepare**
+- [ ] A container: `chadash-test`, from `alpine`, command `sleep 3600`, made in Unraid's Docker tab. Another stopped one, `chadash-test-off`, for Remove.
+- [ ] A VM: `chadash-test-vm`, a minimal Linux guest with no data, running.
+- [ ] A key from the recipe's **full control** link. Paste it into a test Unraid connection set to Control. Test connection should list `docker:delete_any` as a grant and not warn about it.
+- [ ] A second key from the plain **Control** link, kept for the missing-scope checks.
+
+**Containers** (on `chadash-test`)
+- [ ] Pause, then Unpause. Each undoes the other. The tile follows within one sync.
+- [ ] Pause a stopped container (`chadash-test-off`): refused, "isn't running".
+- [ ] Restart. It reports running again. Note how long it takes.
+- [ ] Remove `chadash-test` while running: refused, "Stop it first".
+- [ ] Stop it, then Remove with the full-control key: typed name, T3. It leaves the list, and its image stays (check Unraid's Docker tab).
+- [ ] Remove `chadash-test-off` with the plain Control key: refused as unavailable, naming `docker:delete_any`.
+
+**VMs** (on `chadash-test-vm`)
+- [ ] Pause, then Resume.
+- [ ] Reboot. Note whether it ever leaves `running`, and for how long.
+- [ ] Shut down, then Force stop while it's shutting down or off: refused when off, works when it hangs.
+- [ ] Start it again.
+
+**Parity** (only when the array can afford it)
+- [ ] Without "Also let Cha Dash run parity checks": no array actions.
+- [ ] With it on and the plain Control key: the four actions show as unavailable, naming `array:update_any`.
+- [ ] With the parity link's key: Start (correct off), Pause, Resume, Cancel. Check Unraid's own Main tab agrees at each step. Confirm nothing wrote to the parity disk.
+
+**Afterwards**
+- [ ] Delete the test VM, container, image and both keys.
+- [ ] Record what differed from the fake server, and fix the fixtures and the README's "tested against the fake server only" line.
+
