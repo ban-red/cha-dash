@@ -580,33 +580,78 @@ describe('the widget picker', () => {
   });
 });
 
-describe('a tile’s settings cog', () => {
+describe('a tile’s menu', () => {
   afterEach(() => navigate('/', { replace: true }));
+  const items = () => [...document.querySelectorAll<HTMLElement>('.tile-pop [role^="menuitem"]')];
+  const item = (text: string) => items().find((e) => e.textContent?.trim().startsWith(text))!;
 
   it('opens the settings of the integration that feeds the tile', async () => {
     const w = mountSurface(fakeStore(start()));
     await settle();
     const cog = w.find('[data-item="plex"] .tile-cog');
-    expect(cog.attributes('aria-label')).toMatch(/ settings$/);
+    expect(cog.attributes('aria-label')).toMatch(/ menu$/);
     await cog.trigger('click');
+    await settle();
+    expect(items().map((e) => /^(Integration settings|Widget settings|Resize|Remove)/.exec(e.textContent?.trim() ?? '')?.[1])).toEqual(['Integration settings', 'Widget settings', 'Resize', 'Remove']);
+    item('Integration settings').click();
+    await settle();
     expect(route.value.path).toBe('/settings/integrations/plex');
     expect(w.ui.state.editing).toBe(false);
   });
 
-  it('opens the tile’s Edit when nothing feeds it, and hides in edit mode', async () => {
+  it('opens the tile editor over the normal board, without edit mode', async () => {
     const store = fakeStore(start());
     const w = mountSurface(store);
     await settle();
-    const cog = w.find('[data-item="clock"] .tile-cog');
-    expect(cog.attributes('aria-label')).toMatch(/^Edit /);
-    await cog.trigger('click');
+    await w.find('[data-item="clock"] .tile-cog').trigger('click');
     await settle();
-    expect(w.ui.state.editing).toBe(true);
+    expect(items().some((e) => e.textContent?.includes('Integration settings'))).toBe(false);
+    item('Widget settings').click();
+    await settle();
+    expect(w.ui.state.editing).toBe(false);
     expect(w.findComponent(TileEditor).props('item')).toMatchObject({ id: 'clock' });
-    expect(w.find('.tile-cog').exists()).toBe(false);
+    expect(w.find('.tile-cog').exists()).toBe(true);
   });
 
-  it('isn’t there for a role that can open neither', async () => {
+  it('resizes the tile from the menu and saves the layout', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    await w.find('[data-item="clock"] .tile-cog').trigger('click');
+    await settle();
+    item('Resize').click();
+    await settle();
+    const before = [...document.querySelectorAll('.tile-pop [aria-checked="true"]')].length;
+    expect(before).toBe(1);
+    const other = items().find((e) => e.getAttribute('aria-checked') === 'false')!;
+    other.click();
+    await settle();
+    expect(store.save).toHaveBeenCalled();
+    expect(document.querySelector('.tile-pop')).toBeNull();
+  });
+
+  it('asks before removing, and Undo puts the tile back', async () => {
+    const store = fakeStore(start());
+    const w = mountSurface(store);
+    await settle();
+    await w.find('[data-item="clock"] .tile-cog').trigger('click');
+    await settle();
+    item('Remove').click();
+    await settle();
+    expect(document.querySelector('.tile-pop [role="alertdialog"]')).not.toBeNull();
+    expect(store.save).not.toHaveBeenCalled();
+    document.querySelector<HTMLElement>('.tile-pop [data-confirm]')!.click(); // Cancel
+    await settle();
+    expect(store.save).not.toHaveBeenCalled();
+    item('Remove').click();
+    await settle();
+    [...document.querySelectorAll<HTMLElement>('.tile-pop [data-confirm]')].find((b) => b.textContent === 'Remove')!.click();
+    await settle();
+    expect(store.save).toHaveBeenCalledTimes(1);
+    expect(w.ui.state.toasts.at(-1)?.action?.label).toBe('Undo');
+  });
+
+  it('isn’t there for a role that can do none of it', async () => {
     const w = mountSurface(fakeStore(start()));
     await settle();
     expect(w.find('.tile-cog').exists()).toBe(true);

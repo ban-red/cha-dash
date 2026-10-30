@@ -7,7 +7,7 @@
  * It also loads the hub's icon map when a tile could use it.
  */
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
-import type { Board, Breakpoint } from '@chadash/layout';
+import { findItem, type Board, type Breakpoint } from '@chadash/layout';
 import StaticBoard from './StaticBoard.vue';
 import SectionHeader from './SectionHeader.vue';
 import WidgetHost from '../widgets/WidgetHost.vue';
@@ -16,10 +16,12 @@ import { useBoard } from '../stores/board';
 import { loadIcons, wantsIcon } from '../stores/icons';
 import { loadInstances } from '../stores/integrations';
 import { settingsPath } from '../lib/router';
-import type { AddRequest } from '../model/edit';
+import { editTile, type AddRequest } from '../model/edit';
+import type { TileConfig } from '../stores/tiles';
 
 const EditableBoard = defineAsyncComponent(() => import('./EditableBoard.vue'));
 const WidgetPicker = defineAsyncComponent(() => import('./WidgetPicker.vue'));
+const TileEditor = defineAsyncComponent(() => import('./TileEditor.vue'));
 
 const { board, breakpoint } = defineProps<{ board: Board; breakpoint?: Breakpoint | undefined }>();
 // Edit mode lives in the UI store, so ⌘K → "Edit layout" can toggle it too.
@@ -56,6 +58,31 @@ function picked(req: AddRequest): void {
   ui.state.pendingAdd = req;
   ui.state.editing = true;
 }
+// A tile's menu → Widget settings: the tile editor over the board as it is. In
+// edit mode EditableBoard answers editingTile itself.
+const editingId = ref('');
+const editingItem = computed(() => (editingId.value ? findItem(board, editingId.value)?.item : undefined));
+watch(
+  () => ui.state.editingTile,
+  (id) => {
+    if (!id || ui.state.editing) return;
+    ui.state.editingTile = '';
+    if (ui.can.value.editBoards && findItem(board, id)) editingId.value = id;
+  },
+  { immediate: true },
+);
+function saveTile(config: TileConfig | undefined): void {
+  const id = editingId.value;
+  editingId.value = '';
+  if (!id || !findItem(board, id)) return;
+  const next = editTile({ board, tiles: store.tiles.value }, id, config);
+  store.save(next.board, next.tiles).then(
+    (ok) => {
+      if (!ok) ui.toast('This board changed somewhere else. Showing the latest layout.', 'error');
+    },
+    () => ui.toast('Couldn’t save the tile.', 'error'),
+  );
+}
 watch(
   () => store.tiles.value,
   (tiles) => {
@@ -91,6 +118,7 @@ watch(
         <WidgetHost :item="item" :size="size" />
       </template>
     </StaticBoard>
+    <TileEditor v-if="editingItem" :item="editingItem" :config="store.tiles.value[editingItem.id]" @save="saveTile" @close="editingId = ''" />
     <WidgetPicker v-if="picking !== null" :board="board" :tiles="store.tiles.value" :section-id="picking" @add="picked" @close="picking = null" />
   </template>
 </template>

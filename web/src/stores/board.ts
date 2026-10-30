@@ -263,6 +263,8 @@ export type BoardStore = ReturnType<typeof createBoardStore>;
 
 const KEY: InjectionKey<BoardStore> = Symbol('board');
 export const provideBoard = (b: BoardStore) => provide(KEY, b);
+/** The board store, or undefined outside the app (a tile in a preview or a test). */
+export const useBoardIfAny = (): BoardStore | undefined => inject(KEY, undefined);
 export function useBoard(): BoardStore {
   const b = inject(KEY);
   if (!b) throw new Error('useBoard() outside the app');

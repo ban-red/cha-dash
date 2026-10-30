@@ -36,7 +36,7 @@
     0 0 0 2px var(--bg),
     0 0 0 4px var(--focus);
 }
-/* The settings cog: top-right, on hover or focus within. */
+/* The tile menu button (three dots): top-right, on hover or focus within. */
 .tile-cog {
   position: absolute;
   top: calc(var(--tile-pad-y) - 6px);
@@ -55,8 +55,9 @@
   pointer-events: none;
   transition: opacity var(--motion-press-duration) var(--motion-press-easing);
 }
-.tile:hover > .tile-cog,
-.tile:focus-within > .tile-cog,
+.tile:hover .tile-cog,
+.tile:focus-within .tile-cog,
+.tile-cog[aria-expanded='true'],
 .tile-cog:focus-visible {
   opacity: 1;
   pointer-events: auto;
@@ -72,10 +73,7 @@
 .tile-cog svg {
   width: 15px;
   height: 15px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.4;
-  stroke-linejoin: round;
+  fill: currentColor;
 }
 .th {
   display: flex;
