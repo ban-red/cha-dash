@@ -128,3 +128,69 @@ export function segments(states: readonly StateChange[], from: number, to: numbe
     return [{ status: s.status, left: ((a - from) / span) * 100, width: ((b - a) / span) * 100, from: a, to: b }];
   });
 }
+
+/** A CSV cell: quoted when it holds a comma, quote or line break; text that a spreadsheet would run as a formula starts with '. */
+function cell(v: string): string {
+  const s = /^[=+\-@\t\r]/.test(v) && Number.isNaN(Number(v)) ? `'${v}` : v;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/**
+ * The reply as CSV: a row a point, oldest first, with its time in UTC
+ * (ISO 8601), then the average, low and high of each series, empty for a
+ * gap. names labels the columns ("CPU" for "vm:a#cpu.pct"); the unit follows
+ * in brackets.
+ */
+export function historyCsv(reply: HistoryReply, names: Record<string, string> = {}): string {
+  const keys = Object.keys(reply.series);
+  const times = new Set<number>();
+  for (const k of keys) {
+    const h = reply.series[k]!;
+    for (let i = 0; i < h.avg.length; i++) times.add(h.start + i * h.step);
+  }
+  const head = ['time'];
+  for (const k of keys) {
+    const h = reply.series[k]!;
+    const name = names[k] ?? k;
+    const unit = h.unit ? ` (${h.unit})` : '';
+    head.push(`${name} avg${unit}`, `${name} min${unit}`, `${name} max${unit}`);
+  }
+  const num = (v: number | null | undefined) => (typeof v === 'number' ? String(v) : '');
+  const rows = [...times]
+    .sort((a, b) => a - b)
+    .map((t) => {
+      const row = [new Date(t).toISOString()];
+      for (const k of keys) {
+        const h = reply.series[k]!;
+        const i = (t - h.start) / h.step;
+        row.push(num(h.avg[i]), num(h.min[i]), num(h.max[i]));
+      }
+      return row.map(cell).join(',');
+    });
+  return [head.map(cell).join(','), ...rows].join('\r\n') + '\r\n';
+}
+
+/** Saves text as a file through the browser; false when it can't. */
+export function saveText(text: string, name: string, type = 'text/csv'): boolean {
+  if (typeof URL.createObjectURL !== 'function') return false;
+  const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
+/** "plex-24h-2026-10-29.csv": a file name from a resource's name, the span and the day. */
+export function csvName(resource: string, span: string, now: number): string {
+  const base = resource
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return `${base || 'history'}-${span}-${new Date(now).toISOString().slice(0, 10)}.csv`;
+}

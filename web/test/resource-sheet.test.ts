@@ -698,6 +698,19 @@ describe('wave 4: metrics while it’s open', () => {
     expect(row.querySelector('[role="img"]')!.getAttribute('aria-label')).toContain('CPU, average over the last 24 h');
     expect(spans()[2]!.getAttribute('aria-pressed')).toBe('true');
     expect(await axeViolations(metrics)).toEqual([]);
+    // The range shown, as CSV.
+    let saved: Blob | undefined;
+    const real = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+    URL.createObjectURL = (b: Blob) => ((saved = b), 'blob:x');
+    URL.revokeObjectURL = () => {};
+    // The test DOM would follow the link instead of saving it.
+    const follow = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const csv = [...metrics.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.trim() === 'Download CSV')!;
+    csv.click();
+    Object.assign(URL, { createObjectURL: real.create, revokeObjectURL: real.revoke });
+    expect(follow).toHaveBeenCalledOnce();
+    follow.mockRestore();
+    expect(await saved!.text()).toMatch(/^time,CPU avg \(%\),CPU min \(%\),CPU max \(%\)\r\n2026-10-03T00:00:00\.000Z,0,0,30\r\n/);
 
     spans()[3]!.click();
     await flushPromises();
