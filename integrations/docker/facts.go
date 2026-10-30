@@ -67,6 +67,7 @@ func (in *instance) publish(list []summary) error {
 	f.Relations = append(f.Relations, integration.Relation{From: self, Type: "monitors", To: eng})
 	stacks := map[string]*stack{}
 	var secretHolders []string
+	var down []downContainer
 	running, managed := 0, ""
 	for _, s := range list {
 		c := in.cache[s.ID]
@@ -75,6 +76,9 @@ func (in *instance) publish(list []summary) error {
 		f.Relations = append(f.Relations, integration.Relation{From: r.ID, Type: "runs_on", To: eng})
 		if len(secret) > 0 {
 			secretHolders = append(secretHolders, s.name())
+		}
+		if r.Health.Status == integration.HealthDown {
+			down = append(down, downContainer{r: r, state: s.State, stack: s.Labels["com.docker.compose.project"]})
 		}
 		if s.State == "running" {
 			running++
@@ -118,7 +122,10 @@ func (in *instance) publish(list []summary) error {
 	if err := in.d.Emit.Replace("", f); err != nil {
 		return err
 	}
-	return in.hints(eng, secretHolders)
+	if err := in.hints(eng, secretHolders); err != nil {
+		return err
+	}
+	return in.downs(down)
 }
 
 // composeDependencies turns compose's depends_on (the
@@ -631,6 +638,85 @@ func (in *instance) hints(eng string, secretHolders []string) error {
 		}
 	}
 	return nil
+}
+
+// downContainer is a container whose health is down, for its incident.
+type downContainer struct {
+	r     integration.Resource
+	state string
+	stack string // its compose project, or empty
+}
+
+// downPrefix starts the ID of a down container's incident (local to the
+// instance): "container.<name>".
+const downPrefix = "container."
+
+// downs raises a problem for each container that's down (OOM-killed while
+// it should run, dead, or failing its health check) and resolves the ones
+// that are back or gone. An incident's fields stay the same while the
+// container stays down, so raising it again on each sync publishes nothing.
+func (in *instance) downs(list []downContainer) error {
+	want := map[string]bool{}
+	for _, c := range list {
+		id := downPrefix + c.r.Name
+		want[id] = true
+		if err := in.d.Emit.Raise(in.downIncident(id, c)); err != nil {
+			return err
+		}
+		in.raised[id] = true
+	}
+	for id := range in.raised {
+		if !strings.HasPrefix(id, downPrefix) || want[id] {
+			continue
+		}
+		name := strings.TrimPrefix(id, downPrefix)
+		if err := in.d.Emit.Resolve(id, name+" is no longer down."); err != nil {
+			return err
+		}
+		delete(in.raised, id)
+	}
+	return nil
+}
+
+// downIncident is the problem for one down container.
+func (in *instance) downIncident(id string, c downContainer) integration.Incident {
+	name, rid := c.r.Name, c.r.ID
+	inc := integration.Incident{
+		ID: id, Scenario: "container-down", Class: integration.ClassProblem, Severity: integration.SeverityDown,
+		Target: rid, OpenedAt: c.r.Health.Since,
+		Facts:  map[string]any{"container": name, "state": c.state},
+		Causes: []integration.Cause{{Text: c.r.Health.Reason, Resource: rid, At: c.r.Health.Since.UTC().Truncate(time.Second)}},
+		Alternatives: []integration.Action{
+			{ID: ActionPrefix + "logs", Label: "Show its logs", Tier: "T0", Target: rid},
+		},
+	}
+	switch c.state {
+	case "running":
+		inc.Title = name + " is failing its health check"
+		inc.Summary = fmt.Sprintf("%s on %s runs, but Docker's health check for it keeps failing.", name, in.name)
+		inc.ResolvesWhen = "Resolves when its health check passes again."
+		// The reason counts the failures; the cause stays put so a sync
+		// doesn't republish it.
+		inc.Causes[0].Text = "health check failing"
+		inc.Suggested = integration.Action{ID: ActionPrefix + "restart", Label: "Restart " + name, Tier: "T2", Target: rid}
+	case "dead":
+		inc.Title = name + " is dead"
+		inc.Summary = fmt.Sprintf("%s on %s is dead: Docker couldn't remove it.", name, in.name)
+		inc.ResolvesWhen = "Resolves when the container is removed or runs again."
+		inc.Suggested = integration.Action{ID: ActionPrefix + "remove", Label: "Remove " + name, Tier: "T3", Target: rid}
+	default:
+		inc.Title = name + " is down"
+		inc.Summary = fmt.Sprintf("%s on %s stopped (%s), and its restart policy says it should run.", name, in.name, c.r.Health.Reason)
+		inc.ResolvesWhen = "Resolves when it runs again."
+		inc.Suggested = integration.Action{ID: ActionPrefix + "start", Label: "Start " + name, Tier: "T1", Target: rid}
+	}
+	if c.r.Health.Since.IsZero() {
+		inc.Causes[0].At = time.Time{}
+	}
+	if c.stack != "" {
+		inc.BlastRadius = []integration.Impact{{Resource: in.rid("stack/" + c.stack), Via: "part_of", Depth: 1}}
+	}
+	return inc
 }
 
 // joinNames lists names in a sentence, at most five.

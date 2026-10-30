@@ -186,7 +186,7 @@ That keeps out the health-check `exec_*` events, which were all of the traffic i
 
 Each sync is one list request, plus inspects only for containers that changed. A restart between polls changes the list's `Status` text ("Up 5 seconds"), so it's caught without events.
 
-## Grants, repairs and hints
+## Grants, repairs, problems and hints
 
 **Test** negotiates, probes and lists, and reports:
 - **Grants:** `containers`, plus `inspect`, `events`, `stats`, `info`, `images` when allowed; `logs and files` on a broad proxy.
@@ -205,6 +205,14 @@ Each sync is one list request, plus inspects only for containers that changed. A
 |---|---|
 | `hint.docker_endpoint` | a raw API over TCP ("root on the host"), the raw socket ("full Docker access"), or a broad proxy ("every container's environment, logs and files"). It's the over-broad proxy hint the dogfood home's coarse Tecnativa proxy earns |
 | `hint.label_secrets` | containers carry secret-looking labels. Names them (never the values) and notes that Cha Dash doesn't copy them. On the capture: `immich_server`, `mealie` and `proxmox-backup-server` |
+
+**Problems** (severity `down`, on the container, scenario `container-down`; they resolve themselves when the container is no longer down or is gone):
+
+| ID | When | Suggested |
+|---|---|---|
+| `container.<name>` | the container's health is `down`: OOM-killed while its restart policy says it should run, dead, or failing its health check. Its stack, if any, is the blast radius. On the capture: `llama-swap` | Start it, Remove it (dead) or Restart it (failing its check); Show its logs as the alternative |
+
+A container that exited while its policy says it should run is only `attention`, so it raises nothing; its tile says so.
 
 ## Limits
 - Container stats only for watched containers (above), and no history beyond the metrics topic's.

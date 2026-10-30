@@ -227,6 +227,20 @@ func TestSyncThroughTecnativa(t *testing.T) {
 		t.Fatalf("label secrets hint = %+v", ls)
 	}
 
+	// A container that's down is a problem of its own: llama-swap was
+	// OOM-killed though its policy says it should run.
+	ls1, ok := h.Incident("container.llama-swap")
+	if !ok || ls1.Class != "problem" || ls1.Severity != "down" || ls1.Status != "open" || ls1.Target != "docker:i_test/container/llama-swap" ||
+		ls1.Title != "llama-swap is down" || !strings.Contains(ls1.Summary, "OOM-killed") ||
+		ls1.Suggested.ID != "docker.container.start" || !ls1.OpenedAt.Equal(time.Date(2026, 7, 29, 19, 11, 54, 0, time.UTC)) ||
+		len(ls1.BlastRadius) != 1 || ls1.BlastRadius[0].Resource != "docker:i_test/stack/ai" {
+		t.Fatalf("llama-swap incident = %+v", ls1)
+	}
+	// One that's stopped as it should be (pingvin-share's policy is no) isn't.
+	if _, ok := h.Incident("container.pingvin-share"); ok {
+		t.Fatal("pingvin-share raised an incident")
+	}
+
 	// Nothing secret reaches the graph or the inbox: no environment, no
 	// label secrets, no other labels.
 	all, _ := json.Marshal(g)
@@ -274,6 +288,21 @@ func TestSyncThroughTecnativa(t *testing.T) {
 	}
 	if hint, _ := h.Incident(hintEndpoint); hint.Status != "open" {
 		t.Fatalf("endpoint hint = %+v", hint)
+	}
+	// llama-swap runs again: its incident resolves itself.
+	c, ins = f.container("llama-swap")
+	f.update(func() {
+		c["State"], c["Status"] = "running", "Up 5 seconds (healthy)"
+		if hs, ok := c["Health"].(map[string]any); ok {
+			hs["Status"] = "healthy"
+		}
+		st := ins["State"].(map[string]any)
+		st["Status"], st["Running"], st["OOMKilled"] = "running", true, false
+		st["Health"].(map[string]any)["Status"] = "healthy"
+	})
+	syncOK(t, inst)
+	if r, _ := h.Incident("container.llama-swap"); r.Status != "resolved" || r.ResolvedBy != "auto" || r.Resolution != "llama-swap is no longer down." {
+		t.Fatalf("llama-swap incident = %+v", r)
 	}
 }
 

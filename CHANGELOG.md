@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A container that's down reaches the Inbox.** A Docker container that was OOM-killed while it should run, is dead or fails its health check now opens a problem in the Inbox, with Start, Restart or Remove as the suggested fix. Before, it showed as down on its tile and on the Briefing's 24-hour health strip while the Briefing said all was quiet. The problem resolves itself once the container is back.
 - **Camera controls are off by default.** The Cameras tile shows its switches for detection, recording and more only once you turn on **Show camera controls** in its Widget settings, which also says how to add the Frigate admin account they need.
 
 ### Fixed
