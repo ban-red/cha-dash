@@ -35,10 +35,17 @@ type Docker struct {
 	Unchecked bool
 	// OnRecreate runs at the start of each RecreateImage (self-update).
 	OnRecreate func(image string)
-	ups        int
-	calls      []string
-	envs       []map[string]map[string]string
-	next       int
+	// NoRepoDigests makes ImageRefs find no registry digest, as for an
+	// image built or loaded locally.
+	NoRepoDigests bool
+	// LeaveOld makes RecreateImage leave the old container behind, stopped
+	// and renamed <name>-chadash-old-<n>, as a recreate does when removing
+	// it fails.
+	LeaveOld bool
+	ups      int
+	calls    []string
+	envs     []map[string]map[string]string
+	next     int
 }
 
 type project struct {
@@ -193,7 +200,7 @@ func (f *Docker) ImageRefs(_ context.Context, name string) (map[string]string, e
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := map[string]string{}
-	if p := f.projects[name]; p != nil {
+	if p := f.projects[name]; p != nil && !f.NoRepoDigests {
 		for _, c := range p.containers {
 			out[c.Service] = Digest(c.Image)
 		}
@@ -272,6 +279,15 @@ func (f *Docker) RecreateImage(_ context.Context, id, image string, progress fun
 			}
 			f.calls = append(f.calls, "recreate "+c.Service+" "+image)
 			f.next++
+			if f.LeaveOld {
+				// The old one stays, stopped and renamed, ahead of the new.
+				old := *c
+				old.Name, old.State, old.Health = fmt.Sprintf("%s-chadash-old-%d", c.Name, f.next), "exited", ""
+				nc := *c
+				p.containers = append(p.containers, &nc)
+				*c = old
+				c = &nc
+			}
 			c.ID, c.Image, c.State, c.Health, c.ExitCode, c.RestartCount = fmt.Sprintf("c%d", f.next), image, "running", "healthy", 0, 0
 			switch {
 			case strings.Contains(image, "unhealthy"):

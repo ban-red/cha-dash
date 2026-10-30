@@ -97,9 +97,12 @@ func (m *Module) hubContainer(ctx context.Context) (project string, hub Containe
 	if err != nil {
 		return project, Container{}, "", fmt.Errorf("list %s's containers: %w", project, err)
 	}
+	// Only a running container is the hub (it's the one asking). A stopped
+	// one is a leftover: a recreate that couldn't remove the old container
+	// leaves it under <name>-chadash-old-<time>, still in the project.
 	var hubs []Container
 	for _, c := range cs {
-		if imageRepo(c.Image) == normalRepo(HubImage) {
+		if imageRepo(c.Image) == normalRepo(HubImage) && c.State == "running" && !strings.Contains(c.Name, "-chadash-old-") {
 			hubs = append(hubs, c)
 		}
 	}
@@ -134,13 +137,25 @@ func (m *Module) selfUpdate(ctx context.Context, req stackproto.SelfUpdateReques
 	ctx = context.WithoutCancel(ctx)
 	line := func(s string) { em.line("%s", s) }
 	start := m.now().UTC()
-	// What to put back if the new one fails: the digest the hub runs now,
-	// with its tag kept for reading (ghcr.io/ban-red/chadash:0.2.0@sha256:…).
-	prev := hub.Image
-	if refs, err := m.docker.ImageRefs(ctx, project); err == nil && !strings.Contains(hub.Image, "@") {
-		if _, sum, ok := strings.Cut(refs[hub.Service], "@"); ok {
-			prev = hub.Image + "@" + sum
-		}
+	// What to put back if the new one fails: a reference no pull can move,
+	// the digest the hub runs now with its tag kept for reading
+	// (ghcr.io/ban-red/chadash:0.2.0@sha256:…). Never the bare tag: the
+	// pull below would move it to the image being tried. An image with no
+	// registry digest (built or loaded locally) is refused rather than
+	// rolled back by image ID: a hub running "sha256:…" would no longer
+	// read as ghcr.io/ban-red/chadash, so it would lose its protection and
+	// the next update couldn't find it.
+	prev := ""
+	if strings.Contains(hub.Image, "@") {
+		prev = hub.Image
+	} else if refs, err := m.docker.ImageRefs(ctx, project); err != nil {
+		return stackproto.SelfUpdateResult{}, fmt.Errorf("read the hub's image digest: %w", err)
+	} else if _, sum, ok := strings.Cut(refs[hub.Service], "@"); ok {
+		prev = hub.Image + "@" + sum
+	}
+	if prev == "" {
+		return stackproto.SelfUpdateResult{}, stackproto.Errorf(stackproto.CodeConflict,
+			"The hub's image, %s, has no registry digest (it was built or loaded on this host), so there'd be no fixed image to roll back to. Nothing was changed; update it with docker compose instead.", hub.Image)
 	}
 	res := stackproto.SelfUpdateResult{Outcome: stackproto.OutcomeRunning, Previous: prev, Current: prev, Ref: req.Ref, Image: ref, StartedAt: &start}
 	if err := m.saveSelfUpdate(res); err != nil {
@@ -186,12 +201,15 @@ func (m *Module) selfUpdate(ctx context.Context, req stackproto.SelfUpdateReques
 		return finish(stackproto.OutcomeUnchanged, "The hub already runs "+ref+".")
 	}
 
+	// The gate and the rollback follow the container RecreateImage made, by
+	// its ID: a service lookup could find a stopped leftover instead.
 	em.step("Recreate the hub with " + pinned)
-	if _, err := m.selfUpdater.RecreateImage(ctx, hub.ID, pinned, line); err != nil {
+	newID, err := m.selfUpdater.RecreateImage(ctx, hub.ID, pinned, line)
+	if err != nil {
 		res.Current = prev
 		return finish(stackproto.OutcomeBlocked, "Recreating the hub failed, so the old container was put back: "+err.Error())
 	}
-	gateErr := m.hubGate(ctx, project, hub.Service, em)
+	gateErr := m.hubGate(ctx, project, newID, em)
 	if gateErr == nil {
 		em.step("Updated and healthy")
 		return finish(stackproto.OutcomeDeployed, "")
@@ -199,19 +217,15 @@ func (m *Module) selfUpdate(ctx context.Context, req stackproto.SelfUpdateReques
 	reason := gateErr.Error()
 	em.line("Health gate failed: %s", reason)
 
-	// Roll back: the digest it ran before, through the same gate.
+	// Roll back: the image it ran before, through the same gate.
 	em.step("Roll back to " + prev)
 	res.Current = prev
-	cur, err := m.hubByService(ctx, project, hub.Service)
+	backID, err := m.selfUpdater.RecreateImage(ctx, newID, prev, line)
 	if err != nil {
-		res.Current = pinned
-		return finish(stackproto.OutcomeStuck, fmt.Sprintf("%s; and the hub's container couldn't be found to roll back: %v", reason, err))
-	}
-	if _, err := m.selfUpdater.RecreateImage(ctx, cur.ID, prev, line); err != nil {
 		res.Current = pinned
 		return finish(stackproto.OutcomeStuck, fmt.Sprintf("%s; and recreating it with %s failed: %v", reason, prev, err))
 	}
-	if err := m.hubGate(ctx, project, hub.Service, em); err != nil {
+	if err := m.hubGate(ctx, project, backID, em); err != nil {
 		em.step("Stuck: the rollback failed too")
 		return finish(stackproto.OutcomeStuck, fmt.Sprintf("%s; and the rollback to %s failed too: %v", reason, prev, err))
 	}
@@ -219,28 +233,28 @@ func (m *Module) selfUpdate(ctx context.Context, req stackproto.SelfUpdateReques
 	return finish(stackproto.OutcomeRolledBack, fmt.Sprintf("%s. Rolled back to %s on its own, and it's healthy again.", strings.TrimSuffix(reason, "."), prev))
 }
 
-// hubByService is the project's container for service.
-func (m *Module) hubByService(ctx context.Context, project, service string) (Container, error) {
+// hubByID is the project's container with the ID id.
+func (m *Module) hubByID(ctx context.Context, project, id string) (Container, error) {
 	cs, err := m.docker.Containers(ctx, project)
 	if err != nil {
 		return Container{}, err
 	}
 	for _, c := range cs {
-		if c.Service == service {
+		if c.ID == id {
 			return c, nil
 		}
 	}
-	return Container{}, fmt.Errorf("%s has no %s container", project, service)
+	return Container{}, fmt.Errorf("%s has no container %s", project, id)
 }
 
-// hubGate waits up to SelfUpdateGate for the hub's container to report
-// healthy. It fails at once if it exits, restarts or turns unhealthy. A
-// container without a healthcheck passes once it runs.
-func (m *Module) hubGate(ctx context.Context, project, service string, em emitter) error {
+// hubGate waits up to SelfUpdateGate for the hub's container, the one with
+// the ID id, to report healthy. It fails at once if it exits, restarts or
+// turns unhealthy. A container without a healthcheck passes once it runs.
+func (m *Module) hubGate(ctx context.Context, project, id string, em emitter) error {
 	em.step(fmt.Sprintf("Health gate: the hub must report healthy within %s", SelfUpdateGate))
 	start := m.now()
 	for {
-		c, err := m.hubByService(ctx, project, service)
+		c, err := m.hubByID(ctx, project, id)
 		if err == nil {
 			switch {
 			case c.State == "exited" || c.State == "dead":

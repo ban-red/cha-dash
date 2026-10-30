@@ -44,14 +44,14 @@ Errors are `stackproto.Error{code, message}`, and `Error()` reads `<code>: <mess
 
 ## Cha Dash updates itself
 
-`stack.selfupdate {image, ref}` (`selfupdate.go`) runs only on a node in the hub's compose project (`Options.SelfProject`) that can recreate containers (`Options.SelfUpdate`, the node's Docker module). The hub is the one container in that project whose image is `ghcr.io/ban-red/chadash`; `chadash-node` is never touched.
+`stack.selfupdate {image, ref}` (`selfupdate.go`) runs only on a node in the hub's compose project (`Options.SelfProject`) that can recreate containers (`Options.SelfUpdate`, the node's Docker module). The hub is the one running container in that project whose image is `ghcr.io/ban-red/chadash`, leaving out stopped leftovers a recreate couldn't remove (`<name>-chadash-old-<time>`); `chadash-node` is never touched. The hub's image must have a registry digest to roll back to: a hub built or loaded on the host is refused (`conflict`) before anything changes, since its tag is the one the pull moves.
 
 1. `image` is a tag, or `ghcr.io/ban-red/chadash:<tag>`. Another repository or a digest is `invalid`.
 2. The result is written to `.chadash/selfupdate.json` as `running`, with the hub's task ID, before anything changes.
 3. Pull the tag and pin its digest (`…:0.3.0@sha256:…`). A failed pull is `blocked`. The digest the hub already runs is `unchanged`.
 4. Recreate the hub's container from its own config with the pinned image (`RecreateImage`; a failure puts the old container back: `blocked`).
-5. Gate: the hub must report healthy within 120 s. Exited, restarting or unhealthy fails at once.
-6. On failure, recreate it with the previous digest and gate again: `rolled_back`, or `stuck`.
+5. Gate: the new container, by the ID `RecreateImage` returned, must report healthy within 120 s. Exited, restarting or unhealthy fails at once.
+6. On failure, recreate that container with the previous digest and gate the one that returns: `rolled_back`, or `stuck`.
 7. Commit `.chadash/selfupdate.json` with `Chadash-Kind: self-update` under the project's name, so it shows in that stack's history, then write the final result.
 
 The work runs on even when the request's context ends: the hub that asked is the one going away. `stack.selfupdate.result` reads the file. A `running` record that no update holds means the node stopped mid-update, and it reads as `stuck` with a sentence. The policy grant is off by default. `deploy/compose.yaml` turns it on for the node beside the hub with `CHADASH_NODE_SELFUPDATE`.
@@ -130,7 +130,7 @@ Unknown keys and bad values are warnings, never errors.
 - git remotes: a fetch from a local repository over `file://` (go-git's in-process server), a new commit, a shared cache, the size, byte and time limits, pruning idle caches, redirects outside the allowlist, the URL and allowlist refusals, scrubbed errors, the auth each credential kind builds and SSH host-key pinning, and the `Chadash-Source` trailer;
 - secrets never on disk;
 - moving from another tool's file and from an in-place stack, supplied content, every rewrite, and each refusal (`move_test.go`); symlinked and FIFO files refused, and staging outside the stacks (`move_files_test.go`);
-- self-update: a good image, a bad one rolled back, the node's own image and other refusals, the policy grant, and the result while it runs and after the node stopped mid-update (`selfupdate_test.go`).
+- self-update: a good image, a bad one rolled back, the node's own image and other refusals, the policy grant, and the result while it runs and after the node stopped mid-update (`selfupdate_test.go`); no registry digest to roll back to, and stopped leftovers of earlier recreates (`selfupdate_refs_test.go`).
 
 **The Done-when scenario** is `TestBadDeployRollsBackOnItsOwn`. v1 is healthy. v2 fails its healthcheck, or crash-loops. The gate catches it, and v1 comes back as a new commit pinned to its digest, comments kept. The failed attempt stays in the history, and a good deploy works afterwards. `internal/stacks`'s `TestScenarioBadDeployRollsBackOnItsOwn` runs the same scenario end to end through the action engine.
 
