@@ -20,7 +20,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, useId, useTemplateRef, watch } from 'vue';
 import '../styles/act-dialog.css';
-import Glyph from '../components/marks/Glyph.vue';
+import Glyph from '../ui/marks/Glyph.vue';
 import { useModal } from '../board/useModal';
 import { fmtInt } from '../lib/format';
 import { attr, resolve, series } from '../model/graph';
