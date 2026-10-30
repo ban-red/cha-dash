@@ -196,6 +196,22 @@ describe('Settings → Security → Sign-in', () => {
     expect(facts).toContain('Operator');
   });
 
+  it('warns when roles come from groups and no proxy has sent a groups header, and shows the last one', async () => {
+    const on = { ...VIEW, forward_auth: { ...VIEW.forward_auth, enabled: true }, trusted_proxies: true };
+    fakeFetch({ 'GET /api/settings/sign-in': { status: 200, body: { ...on, forward_groups: null } } });
+    const { mountIn } = harness();
+    const w = mountIn(SignInPane);
+    await flushPromises();
+    expect(w.text()).toContain('no proxy has sent a groups header');
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+
+    fakeFetch({ 'GET /api/settings/sign-in': { status: 200, body: { ...on, forward_groups: { header: 'Remote-Groups', value: 'lab-ops, family', at: '2026-10-30T10:00:00Z' } } } });
+    const w2 = harness().mountIn(SignInPane);
+    await flushPromises();
+    expect(w2.text()).not.toContain('no proxy has sent a groups header');
+    expect(w2.text()).toContain('Remote-Groups: lab-ops, family');
+  });
+
   it('shows nothing on a hub without it', async () => {
     fakeFetch({});
     const { mountIn } = harness();
@@ -266,7 +282,7 @@ describe('Settings → Security → Linked sign-ins', () => {
 });
 
 describe('Users: roles from groups', () => {
-  it('marks them and offers no role picker', async () => {
+  it('marks them, and offers the role picker with a note on how long it holds', async () => {
     fakeFetch({
       'GET /api/users': {
         status: 200,
@@ -285,8 +301,13 @@ describe('Users: roles from groups', () => {
     const sam = rows.find((r) => r.text().includes('sam'))!;
     const kim = rows.find((r) => r.text().includes('kim'))!;
     expect(sam.text()).toContain('from groups');
-    expect(sam.find('select').exists()).toBe(false);
+    const pick = sam.find('select');
+    expect(pick.exists()).toBe(true);
+    const note = sam.find(`[id="${pick.attributes('aria-describedby')}"]`);
+    expect(note.text()).toContain('next sign-in through the provider or proxy');
+    expect(note.text()).toContain('disable the account');
     expect(kim.find('select').exists()).toBe(true);
+    expect(kim.find('select').attributes('aria-describedby')).toBeUndefined();
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);
   });
 });

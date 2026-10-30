@@ -44,7 +44,7 @@ export interface HubUser {
   disabled?: boolean;
   has_passkey?: boolean;
   last_seen_at?: string | null;
-  /** The role comes from the identity provider's groups (Settings → Security → Sign-in): change it there. */
+  /** The role comes from the identity provider's groups (Settings → Security → Sign-in): the next sign-in through the provider or proxy sets it, whatever an admin picks here. */
   role_from_groups?: boolean;
 }
 
@@ -266,25 +266,33 @@ onMounted(load);
               <span v-if="u.disabled" class="chip">disabled</span>
             </span>
             <span class="m">
-              {{ ROLE_WORDS[asRole(u.role)].label }}<template v-if="u.role_from_groups"> <span class="chip" :title="`${u.username}’s role comes from their groups at the sign-in provider. Change it there.`">from groups</span></template> ·
+              {{ ROLE_WORDS[asRole(u.role)].label }}<template v-if="u.role_from_groups"> <span class="chip" :title="`${u.username}’s role comes from their groups at the sign-in provider.`">from groups</span></template> ·
               <template v-if="u.has_passkey">passkey</template><template v-else>no passkey</template> ·
               <template v-if="u.last_seen_at">seen <span :title="absolute(u.last_seen_at)">{{ ago(u.last_seen_at, now) }}</span></template>
               <template v-else>never signed in</template>
+            </span>
+            <span v-if="u.role_from_groups && manageable(u)" :id="`${uid}-g-${u.id}`" class="m">
+              Their groups set this role at their next sign-in through the provider or proxy; a role set here holds until then. To take away access now, disable the account.
             </span>
             <span v-if="rowError[u.id]" class="err" role="alert">{{ rowError[u.id] }}</span>
           </span>
           <span v-if="manageable(u) || canTransfer(u)" class="end us-acts">
             <template v-if="manageable(u)">
-              <template v-if="!u.role_from_groups">
-                <label :for="`${uid}-r-${u.id}`" class="sr">Role for {{ u.username }}</label>
-                <select :id="`${uid}-r-${u.id}`" class="us-role" :value="roleDraft[u.id] ?? u.role" :disabled="u.disabled" @change="pickRole(u, $event)">
-                  <option v-if="!assignable.includes(asRole(u.role))" :value="u.role" disabled>{{ ROLE_WORDS[asRole(u.role)].label }}</option>
-                  <option v-for="r in assignable" :key="r" :value="r">{{ ROLE_WORDS[r].label }}</option>
-                </select>
-                <UiButton v-if="!u.disabled" size="sm" :aria-label="`Save role for ${u.username}`" :aria-disabled="!roleDirty(u) || busy === u.id ? 'true' : undefined" :aria-busy="(busy === u.id && roleDirty(u)) || undefined" @click="saveRole(u)">
-                  Save
-                </UiButton>
-              </template>
+              <label :for="`${uid}-r-${u.id}`" class="sr">Role for {{ u.username }}</label>
+              <select
+                :id="`${uid}-r-${u.id}`"
+                class="us-role"
+                :value="roleDraft[u.id] ?? u.role"
+                :disabled="u.disabled"
+                :aria-describedby="u.role_from_groups ? `${uid}-g-${u.id}` : undefined"
+                @change="pickRole(u, $event)"
+              >
+                <option v-if="!assignable.includes(asRole(u.role))" :value="u.role" disabled>{{ ROLE_WORDS[asRole(u.role)].label }}</option>
+                <option v-for="r in assignable" :key="r" :value="r">{{ ROLE_WORDS[r].label }}</option>
+              </select>
+              <UiButton v-if="!u.disabled" size="sm" :aria-label="`Save role for ${u.username}`" :aria-disabled="!roleDirty(u) || busy === u.id ? 'true' : undefined" :aria-busy="(busy === u.id && roleDirty(u)) || undefined" @click="saveRole(u)">
+                Save
+              </UiButton>
               <UiButton variant="ghost" size="sm" :aria-disabled="busy === u.id ? 'true' : undefined" @click="toggleDisabled(u)">{{ u.disabled ? 'Enable' : 'Disable' }}</UiButton>
             </template>
             <UiButton v-if="canTransfer(u) && transferring !== u.id" variant="ghost" size="sm" :id="`${uid}-mo-${u.id}`" @click="startTransfer(u)">Make owner…</UiButton>

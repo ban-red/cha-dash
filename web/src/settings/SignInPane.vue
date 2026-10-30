@@ -149,6 +149,9 @@ const authTimeWords = computed(() => {
 });
 
 const last = computed(() => view.value?.last_test ?? null);
+const groupsSeen = computed(() => view.value?.forward_groups ?? null);
+/** Mappings are saved and forward-auth is on, but no proxy has sent a groups header yet. */
+const groupsMissing = computed(() => !!view.value && view.value.forward_auth.enabled && view.value.mappings.length > 0 && !groupsSeen.value);
 
 onMounted(load);
 </script>
@@ -242,7 +245,17 @@ onMounted(load);
           <Glyph kind="attn" />
           <span>CHADASH_TRUSTED_PROXIES lists no proxy, so these headers never count. Add your proxy’s address to it and restart Cha Dash.</span>
         </div>
-        <p class="si-hint">Headers count only from addresses in CHADASH_TRUSTED_PROXIES; from anywhere else they’re removed. A header never confirms it’s you for a destructive action.</p>
+        <p class="si-hint">
+          Headers count only from addresses in CHADASH_TRUSTED_PROXIES; from anywhere else they’re removed. Your proxy must set or clear every one of these headers
+          on every request, or a header a browser sent could pass as the proxy’s. A header never confirms it’s you for a destructive action.
+        </p>
+        <p v-if="groupsSeen" class="si-hint">
+          Groups header last received: <span class="st-mono">{{ groupsSeen.header }}: {{ groupsSeen.value || '(empty)' }}</span>, {{ absolute(groupsSeen.at) }}.
+        </p>
+        <div v-if="groupsMissing" class="st-note attn" role="note">
+          <Glyph kind="attn" />
+          <span>Roles come from groups, but no proxy has sent a groups header since Cha Dash started. Check the groups header name and your proxy’s settings.</span>
+        </div>
         <div class="si-grid">
           <UiField label="User header" v-slot="{ control }">
             <input v-bind="control" v-model="draft.forward_auth.user_header" autocomplete="off" spellcheck="false" />
