@@ -13,8 +13,10 @@
  * Adding one is two steps: Check shows what the spec reads and which
  * actions it adds (each one's method, path and tier), then Install, with a
  * step-up. Its reads start at once; its actions stay off until the owner
- * turns them on here, after seeing each one. A spec with the ID of one
- * already installed offers Replace, which turns changed actions off again.
+ * turns them on here, after seeing each one: turning them on names the
+ * version reviewed (its SHA-256), so a replacement nobody looked at stays
+ * off. A spec with the ID of one already installed offers Replace, which
+ * turns changed actions off again.
  *
  * Its own chunk, loaded with the section.
  */
@@ -34,7 +36,7 @@ interface Summary {
   version: string;
   secrets: string[];
   requests: { name: string; method: string; path: string; optional?: boolean }[];
-  actions: { id: string; title: string; tier: string; method: string; path: string }[];
+  actions: { id: string; title: string; tier: string; method: string; path: string; body?: string[]; household?: boolean }[];
 }
 interface Installed {
   id: string;
@@ -155,10 +157,14 @@ async function install(): Promise<void> {
 async function setActions(s: Installed, on: boolean): Promise<void> {
   try {
     const path = `/api/specs/installed/${encodeURIComponent(s.id)}/actions`;
-    const v = await ui.withStepUp(`Turn on ${s.summary.name}’s actions`, () => api<Installed>(path, { method: 'PUT', body: { on } }));
+    const v = await ui.withStepUp(`Turn ${on ? 'on' : 'off'} ${s.summary.name}’s actions`, () =>
+      api<Installed>(path, { method: 'PUT', body: { on, sha256: s.sha256 } }),
+    );
     specs.value = specs.value.map((x) => (x.id === v.id ? v : x));
   } catch (err) {
     if (!(err instanceof StepUpCancelled)) ui.toast(err instanceof ApiError ? err.message : 'That didn’t work.', 'error');
+    // Replaced since this page loaded: show what's installed now.
+    if (err instanceof ApiError && err.code === 'changed') await load();
   }
 }
 
@@ -230,6 +236,8 @@ async function remove(s: Installed): Promise<void> {
           <ul class="is-list">
             <li v-for="a in preview.summary.actions" :key="a.id">
               {{ a.title }} <span class="chip">{{ a.tier }}</span> · <span class="st-mono">{{ a.method }} {{ a.path }}</span>
+              <template v-if="a.body?.length"> · sends <span class="st-mono">{{ a.body.join(', ') }}</span></template>
+              <template v-if="a.household"> · <strong>household members can run it</strong></template>
             </li>
           </ul>
         </template>
@@ -262,7 +270,7 @@ async function remove(s: Installed): Promise<void> {
             <span v-if="s.error" class="m is-why">{{ s.error }}</span>
             <span v-if="s.summary.actions.length" class="m">
               {{ s.actions_on ? 'Actions on' : 'Actions off' }}:
-              <template v-for="(a, i) in s.summary.actions" :key="a.id">{{ i ? ', ' : '' }}{{ a.title }} ({{ a.tier }}, <span class="st-mono">{{ a.method }} {{ a.path }}</span>)</template>
+              <template v-for="(a, i) in s.summary.actions" :key="a.id">{{ i ? ', ' : '' }}{{ a.title }} ({{ a.tier }}, <span class="st-mono">{{ a.method }} {{ a.path }}</span><template v-if="a.household">, household too</template>)</template>
             </span>
           </span>
           <span class="end is-acts">

@@ -1,7 +1,12 @@
 package spec
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"maps"
 	"net/url"
+	"slices"
 	"strings"
 
 	"dash.cha.sh/internal/integration"
@@ -54,6 +59,9 @@ type Summary struct {
 	Secrets  []string        `json:"secrets"`
 	Requests []RequestInfo   `json:"requests"`
 	Actions  []ActionSummary `json:"actions"`
+	// ActionsDigest covers every key of the actions and their targets: two
+	// specs with the same digest can change the same things the same way.
+	ActionsDigest string `json:"actions_digest"`
 }
 
 // RequestInfo is one read.
@@ -71,6 +79,10 @@ type ActionSummary struct {
 	Tier   string `json:"tier"`
 	Method string `json:"method"`
 	Path   string `json:"path"`
+	// Body is the keys of the JSON body it sends, sorted.
+	Body []string `json:"body,omitempty"`
+	// Household marks an action the Household role may run.
+	Household bool `json:"household,omitempty"`
 }
 
 // Summarize describes the spec.
@@ -85,7 +97,21 @@ func (s *Spec) Summarize() Summary {
 		out.Requests = append(out.Requests, RequestInfo{Name: r.Name, Method: cmp(strings.ToUpper(r.Method), "GET"), Path: r.Path, Optional: r.Optional})
 	}
 	for _, a := range s.actions {
-		out.Actions = append(out.Actions, ActionSummary{ID: a.tpl.ID, Title: a.tpl.Title, Tier: a.tier.String(), Method: strings.ToUpper(a.tpl.Request.Method), Path: a.tpl.Request.Path})
+		out.Actions = append(out.Actions, ActionSummary{ID: a.tpl.ID, Title: a.tpl.Title, Tier: a.tier.String(), Method: strings.ToUpper(a.tpl.Request.Method), Path: a.tpl.Request.Path,
+			Body: slices.Sorted(maps.Keys(a.tpl.Request.Body)), Household: a.tpl.Household})
 	}
+	out.ActionsDigest = s.actionsDigest()
 	return out
+}
+
+// actionsDigest hashes the actions and targets as parsed, every key
+// included (bodies, params, preconditions, verify, undo, household, the
+// targets' patterns and reads). JSON sorts map keys, so it's stable.
+func (s *Spec) actionsDigest() string {
+	b, _ := json.Marshal(struct {
+		Actions []actionTpl
+		Targets targets
+	}{s.f.Actions, s.f.Targets})
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
 }

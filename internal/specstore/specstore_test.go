@@ -90,7 +90,7 @@ func TestInstall(t *testing.T) {
 		t.Fatalf("action %+v", a)
 	}
 
-	v, err := e.s.Install(t.Context(), src, "github.com/ban-red/cha-dash-specs", "u_owner", false)
+	v, _, err := e.s.Install(t.Context(), src, "github.com/ban-red/cha-dash-specs", "u_owner", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestInstall(t *testing.T) {
 		"again":    {src, "exists"},
 		"too long": {src + strings.Repeat("#", MaxYAML), "too_large"},
 	} {
-		_, err := e.s.Install(t.Context(), c.yaml, "", "u_owner", false)
+		_, _, err := e.s.Install(t.Context(), c.yaml, "", "u_owner", false)
 		if p, ok := err.(*Problem); !ok || p.Code != c.code {
 			t.Errorf("%s: %v", what, err)
 		}
@@ -131,7 +131,8 @@ func TestInstall(t *testing.T) {
 func TestActionsOff(t *testing.T) {
 	e := newEnv(t)
 	src := community(t)
-	if _, err := e.s.Install(t.Context(), src, "", "u_owner", false); err != nil {
+	v0, _, err := e.s.Install(t.Context(), src, "", "u_owner", false)
+	if err != nil {
 		t.Fatal(err)
 	}
 	integ, _, _ := e.reg.Get("myseerr")
@@ -146,7 +147,7 @@ func TestActionsOff(t *testing.T) {
 		t.Fatalf("defs %d", len(defs))
 	}
 	req := action.Request{Action: defs[0].ID, Target: action.Target{ID: "myseerr:i_test/request/1"}}
-	err := defs[0].Preconditions(t.Context(), req)
+	err = defs[0].Preconditions(t.Context(), req)
 	if r, ok := err.(*action.Refusal); !ok || r.Code != "unavailable" || !strings.Contains(r.Message, "actions stay off until the owner turns them on") {
 		t.Fatalf("off: %v", err)
 	}
@@ -154,7 +155,7 @@ func TestActionsOff(t *testing.T) {
 		t.Fatalf("execute while off: %v", err)
 	}
 
-	if _, err := e.s.SetActions(t.Context(), "myseerr", true); err != nil {
+	if _, err := e.s.SetActions(t.Context(), "myseerr", true, v0.SHA256); err != nil {
 		t.Fatal(err)
 	}
 	if err := defs[0].Preconditions(t.Context(), req); err != nil && strings.Contains(err.Error(), "stay off") {
@@ -166,19 +167,39 @@ func TestActionsOff(t *testing.T) {
 	if newer == src {
 		t.Fatal("no version to bump")
 	}
-	if v, err := e.s.Install(t.Context(), newer, "", "u_owner", true); err != nil || !v.ActionsOn || len(e.rebound) != 1 {
+	v, replaced, err := e.s.Install(t.Context(), newer, "", "u_owner", true)
+	if err != nil || !replaced || !v.ActionsOn || len(e.rebound) != 1 {
 		t.Fatalf("replace with the same actions: %+v %v %v", v, err, e.rebound)
+	}
+	// Turning them on names the version reviewed: the one before is stale.
+	if _, err := e.s.SetActions(t.Context(), "myseerr", true, v0.SHA256); err == nil || err.(*Problem).Code != "changed" {
+		t.Fatalf("on with a stale sha256: %v", err)
+	}
+	// The same method, path and tier but another verify: off again.
+	body := strings.Replace(newer, `+ " declined."'`, `+ " declined, as asked."'`, 1)
+	if body == newer {
+		t.Fatal("no decline verify message")
+	}
+	if v, _, err := e.s.Install(t.Context(), body, "", "u_owner", true); err != nil || v.ActionsOn {
+		t.Fatalf("replace with a changed write: %+v %v", v, err)
+	}
+	if _, err := e.s.SetActions(t.Context(), "myseerr", true, v.SHA256); err == nil {
+		t.Fatal("on with the replaced version's sha256")
+	}
+	cur, _ := e.s.List(t.Context())
+	if _, err := e.s.SetActions(t.Context(), "myseerr", true, cur[0].SHA256); err != nil {
+		t.Fatal(err)
 	}
 	// Other actions: off again.
 	other := strings.Replace(newer, "tier: T1", "tier: T2", 1)
-	if v, err := e.s.Install(t.Context(), other, "", "u_owner", true); err != nil || v.ActionsOn {
+	if v, _, err := e.s.Install(t.Context(), other, "", "u_owner", true); err != nil || v.ActionsOn {
 		t.Fatalf("replace with other actions: %+v %v", v, err)
 	}
 }
 
 func TestRemove(t *testing.T) {
 	e := newEnv(t)
-	if _, err := e.s.Install(t.Context(), community(t), "", "", false); err != nil {
+	if _, _, err := e.s.Install(t.Context(), community(t), "", "", false); err != nil {
 		t.Fatal(err)
 	}
 	e.instances["myseerr"] = 1
@@ -224,13 +245,18 @@ func TestRoutes(t *testing.T) {
 		t.Fatalf("install without a step-up %d %s", code, body)
 	}
 	owner.StepUpUntil = time.Now().Add(time.Minute)
-	if code, body := do("POST", "/api/specs/installed", map[string]any{"yaml": src, "source": "a paste"}); code != 200 || !strings.Contains(body, `"actions_on":false`) {
+	code, body := do("POST", "/api/specs/installed", map[string]any{"yaml": src, "source": "a paste"})
+	var made Installed
+	if code != 200 || json.Unmarshal([]byte(body), &made) != nil || made.ActionsOn {
 		t.Fatalf("install %d %s", code, body)
 	}
 	if code, body := do("POST", "/api/specs/installed/preview", map[string]any{"yaml": src}); code != 409 || !strings.Contains(body, `"exists"`) || !strings.Contains(body, `"replacing"`) {
 		t.Fatalf("preview of an installed one %d %s", code, body)
 	}
-	if code, body := do("PUT", "/api/specs/installed/myseerr/actions", map[string]any{"on": true}); code != 200 || !strings.Contains(body, `"actions_on":true`) {
+	if code, body := do("PUT", "/api/specs/installed/myseerr/actions", map[string]any{"on": true}); code != 409 || !strings.Contains(body, `"changed"`) {
+		t.Fatalf("actions on without naming the version %d %s", code, body)
+	}
+	if code, body := do("PUT", "/api/specs/installed/myseerr/actions", map[string]any{"on": true, "sha256": made.SHA256}); code != 200 || !strings.Contains(body, `"actions_on":true`) {
 		t.Fatalf("actions on %d %s", code, body)
 	}
 	if code, body := do("GET", "/api/specs/installed", nil); code != 200 || !strings.Contains(body, `"id":"myseerr"`) {
@@ -256,5 +282,47 @@ func TestRoutes(t *testing.T) {
 	want := []string{"settings.specs.remove ok", "settings.specs.actions ok", "settings.specs.install ok", "settings.specs.install refused"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("audit %q", got)
+	}
+}
+
+// A spec installed under an ID the hub later bundles: it doesn't load, says
+// why, and neither replacing nor removing it touches the bundled one.
+func TestBundledLater(t *testing.T) {
+	e := newEnv(t)
+	b, _ := fs.ReadFile(specs.FS, "linkding.yaml")
+	src := strings.ReplaceAll(string(b), "linkding", "mylinks")
+	if _, _, err := e.s.Install(t.Context(), src, "", "", false); err != nil {
+		t.Fatal(err)
+	}
+	// The next hub bundles mylinks.
+	e.restart()
+	e.reg.Unregister("mylinks")
+	bundled, err := spec.Parse([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.reg.Register(bundled); err != nil {
+		t.Fatal(err)
+	}
+	// Loaded again on that hub: refused, with the reason listed.
+	e.s = New(Options{Store: e.st, Registry: e.reg})
+	if err := e.s.Load(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	list, _ := e.s.List(t.Context())
+	if len(list) != 1 || !strings.Contains(list[0].Error, "now includes an integration called") {
+		t.Fatalf("list %+v", list)
+	}
+	if _, m, _ := e.reg.Get("mylinks"); m.Installed {
+		t.Fatal("the installed spec replaced the bundled one")
+	}
+	if _, _, err := e.s.Install(t.Context(), src, "", "", true); err == nil || err.(*Problem).Code != "bundled" {
+		t.Fatalf("replace over a bundled ID: %v", err)
+	}
+	if _, err := e.s.Remove(t.Context(), "mylinks"); err != nil {
+		t.Fatal(err)
+	}
+	if _, m, ok := e.reg.Get("mylinks"); !ok || m.Installed {
+		t.Fatal("removing the row unregistered the bundled integration")
 	}
 }

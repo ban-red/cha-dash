@@ -49,11 +49,19 @@ import (
 	"dash.cha.sh/internal/topics"
 )
 
+// MaxSize is the largest spec a hub installs: the largest bundled one is
+// under 8 KiB.
+const MaxSize = 64 << 10
+
 // Lint checks a spec against the published schema, then the engine's
-// load-time rules (spec.Parse: patterns, templates, where secrets may go).
-// It returns each problem as a sentence; none means it would load.
+// load-time rules (spec.Parse: patterns, templates, where secrets may go)
+// and the size a hub installs. It returns each problem as a sentence; none
+// means it would load.
 func Lint(b []byte) []string {
 	var problems []string
+	if len(b) > MaxSize {
+		problems = append(problems, fmt.Sprintf("It's %d KiB, and a hub installs specs of at most %d KiB.", (len(b)+1023)>>10, MaxSize>>10))
+	}
 	var v any
 	if err := yaml.Unmarshal(b, &v); err != nil {
 		return []string{"It isn't YAML: " + err.Error()}

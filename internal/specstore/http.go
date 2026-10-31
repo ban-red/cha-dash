@@ -17,7 +17,7 @@ import (
 //	POST   /api/specs/installed/preview        {yaml, replace?} → Preview: what it reads and adds
 //	POST   /api/specs/installed                {yaml, source?, replace?} → Installed (step-up)
 //	DELETE /api/specs/installed/{id}           → the spec, removed; 409 in_use with instances
-//	PUT    /api/specs/installed/{id}/actions   {on} → Installed (step-up to turn them on)
+//	PUT    /api/specs/installed/{id}/actions   {on, sha256} → Installed (step-up to turn them on; 409 changed when sha256 isn't the installed version)
 func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/specs/installed", session(http.HandlerFunc(s.handleList)))
 	mux.Handle("POST /api/specs/installed/preview", session(http.HandlerFunc(s.handlePreview)))
@@ -77,7 +77,7 @@ func (s *Service) handleInstall(w http.ResponseWriter, r *http.Request) {
 	if !s.stepUp(w, r, action, "spec", params) {
 		return
 	}
-	v, err := s.Install(r.Context(), b.YAML, b.Source, s.userOf(r), b.Replace)
+	v, replaced, err := s.Install(r.Context(), b.YAML, b.Source, s.userOf(r), b.Replace)
 	if err != nil {
 		var p *Problem
 		if errors.As(err, &p) {
@@ -87,6 +87,10 @@ func (s *Service) handleInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	params["spec"], params["sha256"], params["actions"] = v.ID, v.SHA256, len(v.Summary.Actions)
+	action = "settings.specs.install"
+	if replaced {
+		action = "settings.specs.replace"
+	}
 	s.Audit.Change(r, action, "spec:"+v.ID, params, authz.T3, nil)
 	httpx.WriteJSON(w, http.StatusOK, v)
 }
@@ -113,7 +117,8 @@ func (s *Service) handleActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var b struct {
-		On *bool `json:"on"`
+		On     *bool  `json:"on"`
+		SHA256 string `json:"sha256"` // the version reviewed; required to turn them on
 	}
 	if !httpx.DecodeJSONLimit(w, r, &b, 1<<10) {
 		return
@@ -128,7 +133,7 @@ func (s *Service) handleActions(w http.ResponseWriter, r *http.Request) {
 	if *b.On && !s.stepUp(w, r, "settings.specs.actions", "spec:"+id, params) {
 		return
 	}
-	v, err := s.SetActions(r.Context(), id, *b.On)
+	v, err := s.SetActions(r.Context(), id, *b.On, b.SHA256)
 	if err != nil {
 		s.fail(w, err, Preview{})
 		return
@@ -180,7 +185,7 @@ func (s *Service) fail(w http.ResponseWriter, err error, pv Preview) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "No spec with that ID is installed.")
 	case errors.As(err, &p):
 		status := http.StatusBadRequest
-		if p.Code == "exists" || p.Code == "bundled" || p.Code == "in_use" {
+		if p.Code == "exists" || p.Code == "bundled" || p.Code == "in_use" || p.Code == "changed" {
 			status = http.StatusConflict
 		}
 		body := map[string]any{"error": p}

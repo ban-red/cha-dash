@@ -799,3 +799,59 @@ func TestInsecureTLSWarningStays(t *testing.T) {
 		t.Fatalf("warnings = %+v", got.Warnings)
 	}
 }
+
+// echoV2 is echo at another version, as a replaced installed spec is.
+type echoV2 struct{ echo }
+
+func (e echoV2) Manifest() integration.Manifest {
+	m := e.echo.Manifest()
+	m.Version = "0.2.0"
+	return m
+}
+
+// Rebind restarts an integration's instances on what the registry holds
+// now, without a race against readers of the instance (List, Get).
+func TestRebind(t *testing.T) {
+	e := newEnv(t)
+	up := newUpstream(t, "fake-key", false)
+	id, err := e.m.Create(t.Context(), CreateRequest{Integration: "echo", Name: "Echo", Config: map[string]any{"url": up.URL}, Secrets: map[string]any{"api_key": "fake-key"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := e.m.Instances("echo"); n != 1 {
+		t.Fatalf("instances %d", n)
+	}
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_ = e.m.List()
+				_, _ = e.m.Get(id)
+			}
+		}
+	}()
+	e.m.reg.Unregister("echo")
+	if err := e.m.reg.Register(echoV2{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.m.Rebind("echo"); n != 1 {
+		t.Fatalf("rebound %d", n)
+	}
+	close(stop)
+	<-done
+	if mi := e.m.get(id); mi == nil || mi.man.Version != "0.2.0" {
+		t.Fatalf("not on the new version: %+v", mi)
+	}
+	waitFor(t, "the instance to read again", func() bool {
+		v, err := e.m.Get(id)
+		return err == nil && v.Status == "ok"
+	})
+	if n := e.m.Rebind("nothing"); n != 0 {
+		t.Fatalf("rebound %d of nothing", n)
+	}
+}

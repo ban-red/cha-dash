@@ -32,7 +32,7 @@ const SUMMARY = {
     { name: 'status', method: 'GET', path: '/api/v1/status' },
     { name: 'pending', method: 'GET', path: '/api/v1/request', optional: true },
   ],
-  actions: [{ id: 'myseerr.request.approve', title: 'Approve', tier: 'T1', method: 'POST', path: '/api/v1/request/{{ target.id }}/approve' }],
+  actions: [{ id: 'myseerr.request.approve', title: 'Approve', tier: 'T1', method: 'POST', path: '/api/v1/request/{{ target.id }}/approve', body: ['note'], household: true }],
 };
 const INSTALLED = { id: 'myseerr', sha256: 'ab'.repeat(32), actions_on: false, installed_by: 'owner', installed_at: '2026-10-31T11:00:00Z', updated_at: '2026-10-31T11:00:00Z', instances: 1, summary: SUMMARY };
 
@@ -67,7 +67,7 @@ describe('Installed specs', () => {
     expect(pv.text()).toContain('GET /api/v1/status');
     expect(pv.text()).toContain('optional');
     expect(pv.text()).toContain('adds 1 action, off until you turn them on');
-    expect(pv.text()).toContain('Approve T1 · POST /api/v1/request/{{ target.id }}/approve');
+    expect(pv.text()).toContain('Approve T1 · POST /api/v1/request/{{ target.id }}/approve · sends note · household members can run it');
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);
     await w.findAll('button').find((b) => b.text() === 'Install')!.trigger('click');
     await flushPromises();
@@ -81,7 +81,7 @@ describe('Installed specs', () => {
     expect(remove.attributes('disabled') ?? remove.attributes('aria-disabled')).toBeDefined();
     await w.findAll('button').find((b) => b.text() === 'Turn actions on')!.trigger('click');
     await flushPromises();
-    expect(hub.last('PUT', '/api/specs/installed/myseerr/actions')?.body).toEqual({ on: true });
+    expect(hub.last('PUT', '/api/specs/installed/myseerr/actions')?.body).toEqual({ on: true, sha256: INSTALLED.sha256 });
     expect(w.find('.is-row').text()).toContain('Actions on');
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);
   });

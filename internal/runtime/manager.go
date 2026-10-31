@@ -345,20 +345,18 @@ func (m *Manager) add(r row) *managed {
 
 // Rebind looks the integration id up in the registry again and restarts
 // its instances on what's registered now: an installed spec replaced
-// (internal/specstore). It returns how many it restarted.
+// (internal/specstore). Each instance is retired and added again from its
+// row, as a fresh managed, so nothing that reads mi.integ or mi.man
+// without mi.life ever sees them change. It returns how many it restarted.
 func (m *Manager) Rebind(id string) int {
 	n := 0
 	for _, mi := range m.all() {
-		if r, _ := mi.snapshotRow(); r.Integration != id {
+		r, _ := mi.snapshotRow()
+		if r.Integration != id {
 			continue
 		}
-		mi.life.Lock()
-		mi.integ, mi.man = nil, integration.Manifest{}
-		if integ, man, ok := m.reg.Get(id); ok {
-			mi.integ, mi.man = integ, man
-		}
-		m.restartLocked(mi)
-		mi.life.Unlock()
+		m.retire(mi)
+		m.restart(m.add(r))
 		n++
 	}
 	return n

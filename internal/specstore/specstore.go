@@ -35,8 +35,8 @@ import (
 	"dash.cha.sh/internal/store"
 )
 
-// MaxYAML bounds a spec's size: the largest bundled one is under 8 KiB.
-const MaxYAML = 64 << 10
+// MaxYAML bounds a spec's size (spectest.MaxSize, which lint checks too).
+const MaxYAML = spectest.MaxSize
 
 // Options configure a Service.
 type Options struct {
@@ -64,15 +64,20 @@ type Service struct {
 	// or off. Set by the server.
 	Audit *authz.Recorder
 
-	mu sync.Mutex
-	on map[string]bool // spec ID → its actions are on
+	mu      sync.Mutex
+	on      map[string]bool   // spec ID → its actions are on
+	loadErr map[string]string // spec ID → why the stored spec didn't load
+
+	// writing serialises installs, removals and the actions' switch, so
+	// the database and on agree.
+	writing sync.Mutex
 
 	actorOf func(*http.Request) (authz.Actor, bool) // tests: authz.ActorFrom otherwise
 }
 
 // New returns a Service. Call Load before the runtime starts its instances.
 func New(o Options) *Service {
-	s := &Service{st: o.Store, reg: o.Registry, instances: o.Instances, rebind: o.Rebind, now: o.Now, log: o.Log, on: map[string]bool{}}
+	s := &Service{st: o.Store, reg: o.Registry, instances: o.Instances, rebind: o.Rebind, now: o.Now, log: o.Log, on: map[string]bool{}, loadErr: map[string]string{}}
 	if s.reg == nil {
 		s.reg = integration.Default
 	}
@@ -248,19 +253,50 @@ func (s *Service) Load(ctx context.Context) error {
 		return err
 	}
 	for _, r := range rows {
-		sp, err := spec.Parse([]byte(r.yaml))
-		if err == nil {
-			err = s.reg.Register(installed{Spec: sp, svc: s})
-		}
-		if err != nil {
-			s.log.Warn("specstore: an installed spec didn't load", "spec", r.specID, "err", err)
-			continue
+		// The same checks as an install: a rule this hub added since, or an
+		// integration it now bundles under the same ID, keeps it out.
+		var err error
+		var sp *spec.Spec
+		if p := spectest.Lint([]byte(r.yaml)); len(p) > 0 {
+			err = errors.New(p[0])
+		} else if sp, err = spec.Parse([]byte(r.yaml)); err == nil {
+			if _, _, taken := s.reg.Get(r.specID); taken {
+				err = errBundledNow
+			} else {
+				err = s.reg.Register(installed{Spec: sp, svc: s})
+			}
 		}
 		s.mu.Lock()
-		s.on[r.specID] = r.actionsOn
+		if err != nil {
+			s.loadErr[r.specID] = err.Error()
+			if errors.Is(err, errBundledNow) {
+				s.loadErr[r.specID] = fmt.Sprintf("Cha Dash now includes an integration called %q, so this spec isn't loaded. Remove it, or install it under another meta.id.", r.specID)
+			}
+			s.log.Warn("specstore: an installed spec didn't load", "spec", r.specID, "err", err)
+		} else {
+			s.on[r.specID] = r.actionsOn
+		}
 		s.mu.Unlock()
 	}
 	return nil
+}
+
+// errBundledNow is a stored spec whose ID the hub now has built in.
+var errBundledNow = errors.New("specstore: the ID is built in now")
+
+// builtIn says whether id is registered as something other than an
+// installed spec: a bundled spec or a Go integration.
+func (s *Service) builtIn(id string) bool {
+	_, m, ok := s.reg.Get(id)
+	return ok && !m.Installed
+}
+
+// unregister removes an installed spec from the registry, never anything
+// built in under the same ID.
+func (s *Service) unregister(id string) {
+	if _, m, ok := s.reg.Get(id); ok && m.Installed {
+		s.reg.Unregister(id)
+	}
 }
 
 func (s *Service) view(r row) Installed {
@@ -271,6 +307,9 @@ func (s *Service) view(r row) Installed {
 	if s.instances != nil {
 		v.Instances = s.instances(r.specID)
 	}
+	s.mu.Lock()
+	v.Error = s.loadErr[r.specID]
+	s.mu.Unlock()
 	sp, err := spec.Parse([]byte(r.yaml))
 	if err != nil {
 		v.Error = err.Error()
@@ -328,10 +367,10 @@ func (s *Service) Check(ctx context.Context, yaml string, replace bool) (*spec.S
 	if err != nil {
 		return nil, pv, err
 	}
+	if s.builtIn(id) {
+		return nil, pv, problem("bundled", fmt.Sprintf("%q is the ID of an integration built into Cha Dash. Give the spec another meta.id.", id))
+	}
 	if !ok {
-		if _, _, taken := s.reg.Get(id); taken {
-			return nil, pv, problem("bundled", fmt.Sprintf("%q is the ID of an integration built into Cha Dash. Give the spec another meta.id.", id))
-		}
 		return sp, pv, nil
 	}
 	v := s.view(cur)
@@ -344,12 +383,15 @@ func (s *Service) Check(ctx context.Context, yaml string, replace bool) (*spec.S
 
 // Install adds a spec, or replaces the installed one with the same ID when
 // replace is set; its instances restart on the new version. A replacement
-// keeps the actions' switch only when the actions are the same: changed
-// actions are off again until the owner looks.
-func (s *Service) Install(ctx context.Context, yaml, source, userID string, replace bool) (Installed, error) {
+// keeps the actions' switch only when its actions and targets are the
+// same, every key (spec.Summary.ActionsDigest): changed actions are off
+// again until the owner looks. replaced says which it was.
+func (s *Service) Install(ctx context.Context, yaml, source, userID string, replace bool) (_ Installed, replaced bool, _ error) {
+	s.writing.Lock()
+	defer s.writing.Unlock()
 	sp, pv, err := s.Check(ctx, yaml, replace)
 	if err != nil {
-		return Installed{}, err
+		return Installed{}, false, err
 	}
 	id := sp.Manifest().ID
 	sum := sha256.Sum256([]byte(yaml))
@@ -360,7 +402,7 @@ func (s *Service) Install(ctx context.Context, yaml, source, userID string, repl
 	}
 	on := false
 	if pv.Replacing != nil {
-		on = pv.Replacing.ActionsOn && sameActions(pv.Replacing.Summary.Actions, pv.Summary.Actions)
+		on = pv.Replacing.ActionsOn && pv.Replacing.Summary.ActionsDigest == pv.Summary.ActionsDigest
 		_, err = s.st.Writer().ExecContext(ctx, `UPDATE installed_specs SET yaml = ?, sha256 = ?, source = ?, actions_on = ?, installed_by = ?, updated_at = ? WHERE spec_id = ?`,
 			yaml, hex.EncodeToString(sum[:]), source, boolInt(on), by, now, id)
 	} else {
@@ -368,35 +410,26 @@ func (s *Service) Install(ctx context.Context, yaml, source, userID string, repl
 			VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`, "isp_"+strings.ToLower(crand.Text()), id, yaml, hex.EncodeToString(sum[:]), source, by, now, now)
 	}
 	if err != nil {
-		return Installed{}, fmt.Errorf("specstore: install: %w", err)
+		return Installed{}, false, fmt.Errorf("specstore: install: %w", err)
 	}
 	s.mu.Lock()
 	s.on[id] = on
+	delete(s.loadErr, id)
 	s.mu.Unlock()
-	s.reg.Unregister(id)
+	s.unregister(id)
 	if err := s.reg.Register(installed{Spec: sp, svc: s}); err != nil {
-		return Installed{}, fmt.Errorf("specstore: register %s: %w", id, err)
+		return Installed{}, false, fmt.Errorf("specstore: register %s: %w", id, err)
 	}
-	if pv.Replacing != nil && s.rebind != nil {
+	// Restart its instances on this version: a replacement's, or rows a
+	// removed spec left that now have their integration back.
+	if s.rebind != nil && (pv.Replacing != nil || s.instances != nil && s.instances(id) > 0) {
 		s.rebind(id)
 	}
 	r, _, err := s.get(ctx, id)
 	if err != nil {
-		return Installed{}, err
+		return Installed{}, false, err
 	}
-	return s.view(r), nil
-}
-
-func sameActions(a, b []spec.ActionSummary) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return s.view(r), pv.Replacing != nil, nil
 }
 
 func boolInt(b bool) int {
@@ -411,6 +444,8 @@ var ErrNotFound = errors.New("specstore: not installed")
 
 // Remove uninstalls a spec with no instances.
 func (s *Service) Remove(ctx context.Context, id string) (Installed, error) {
+	s.writing.Lock()
+	defer s.writing.Unlock()
 	r, ok, err := s.get(ctx, id)
 	if err != nil {
 		return Installed{}, err
@@ -425,28 +460,38 @@ func (s *Service) Remove(ctx context.Context, id string) (Installed, error) {
 	if _, err := s.st.Writer().ExecContext(ctx, `DELETE FROM installed_specs WHERE spec_id = ?`, id); err != nil {
 		return v, fmt.Errorf("specstore: remove: %w", err)
 	}
-	s.reg.Unregister(id)
+	s.unregister(id)
 	s.mu.Lock()
 	delete(s.on, id)
+	delete(s.loadErr, id)
 	s.mu.Unlock()
 	return v, nil
 }
 
 // SetActions turns an installed spec's actions on or off. Off takes
-// effect at the next plan or approval; on, likewise.
-func (s *Service) SetActions(ctx context.Context, id string, on bool) (Installed, error) {
-	res, err := s.st.Writer().ExecContext(ctx, `UPDATE installed_specs SET actions_on = ?, updated_at = ? WHERE spec_id = ?`, boolInt(on), s.now().UnixMilli(), id)
+// effect at the next plan or approval; on, likewise. Turning them on names
+// the version the owner reviewed (its SHA-256): a spec replaced since is
+// refused with changed, so actions nobody looked at never turn on.
+func (s *Service) SetActions(ctx context.Context, id string, on bool, sha string) (Installed, error) {
+	s.writing.Lock()
+	defer s.writing.Unlock()
+	r, ok, err := s.get(ctx, id)
 	if err != nil {
-		return Installed{}, fmt.Errorf("specstore: actions: %w", err)
+		return Installed{}, err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	if !ok {
 		return Installed{}, ErrNotFound
+	}
+	if on && sha != r.sum {
+		return s.view(r), problem("changed", fmt.Sprintf("%s changed since you looked at it. Review its actions again before turning them on.", cmpName(s.view(r))))
+	}
+	if _, err := s.st.Writer().ExecContext(ctx, `UPDATE installed_specs SET actions_on = ?, updated_at = ? WHERE spec_id = ?`, boolInt(on), s.now().UnixMilli(), id); err != nil {
+		return Installed{}, fmt.Errorf("specstore: actions: %w", err)
 	}
 	s.mu.Lock()
 	s.on[id] = on
 	s.mu.Unlock()
-	r, _, err := s.get(ctx, id)
-	if err != nil {
+	if r, _, err = s.get(ctx, id); err != nil {
 		return Installed{}, err
 	}
 	return s.view(r), nil
