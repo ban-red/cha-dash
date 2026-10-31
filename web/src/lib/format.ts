@@ -5,7 +5,38 @@
  * fake 0.
  */
 
+import { ref } from 'vue';
+
 export const UNKNOWN = '—';
+
+/** How clock times read: '24h' (14:02) or '12h' (2:02 pm). A per-device choice, kept in localStorage. */
+export type TimeFormat = '24h' | '12h';
+const TIME_FORMAT_KEY = 'chadash.timeformat';
+
+function readTimeFormat(): TimeFormat {
+  try {
+    return globalThis.localStorage?.getItem(TIME_FORMAT_KEY) === '12h' ? '12h' : '24h';
+  } catch {
+    return '24h';
+  }
+}
+
+/** Reactive, so anything computed from hhmm() or absolute() follows a change. */
+export const timeFormat = ref<TimeFormat>(readTimeFormat());
+
+export function setTimeFormat(f: TimeFormat): void {
+  timeFormat.value = f;
+  try {
+    globalThis.localStorage?.setItem(TIME_FORMAT_KEY, f);
+  } catch {
+    /* private mode or blocked storage: the choice lasts for this page only */
+  }
+}
+
+/** Intl options for the hour and minute in the chosen format. */
+export function clockParts(): Intl.DateTimeFormatOptions {
+  return timeFormat.value === '12h' ? { hour: 'numeric', minute: '2-digit', hour12: true } : { hour: '2-digit', minute: '2-digit', hour12: false };
+}
 
 let displayTimeZone: string | undefined;
 let displayZoneLabel: string | undefined;
@@ -60,11 +91,11 @@ function toDate(v: string | number | Date | undefined): Date | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-/** "14:02" in the display time zone. */
+/** "14:02" (or "2:02 pm") in the display time zone. */
 export function hhmm(v: string | number | Date | undefined): string {
   const d = toDate(v);
   if (!d) return UNKNOWN;
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: displayTimeZone });
+  return d.toLocaleTimeString('en-GB', { ...clockParts(), timeZone: displayTimeZone });
 }
 
 /** "Sat 3 Oct" in the display time zone. */
@@ -89,9 +120,7 @@ export function absolute(v: string | number | Date | undefined): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
+    ...clockParts(),
     timeZone: displayTimeZone,
     ...(displayZoneLabel ? {} : { timeZoneName: 'short' as const }),
   });

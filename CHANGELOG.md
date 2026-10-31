@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The spec format's schema.** Every hub serves the JSON Schema of the integration spec format at `/api/specs/schema/v1alpha1.json`, so an editor can check a spec as you write it. A spec with a misspelt key inside `config`, `requests` or `targets` is now refused instead of the key being dropped.
 - **Install a spec from Settings.** The owner can add an integration from a spec file in Settings → Integrations → Installed specs. Cha Dash first lists every request it makes and every action it adds, with each action's method, path and tier. Its reads start at once; its actions stay off until the owner turns them on. Installed specs are kept in the database, so a backup carries them.
 - **`chadash spec lint` and `chadash spec test`.** Spec authors can check a spec against the schema and the hub's load rules, and run it against recorded answers to see what it publishes, without a running hub. The format, `chadash/v1alpha1`, is now public; [docs/specs.md](docs/specs.md) is the guide.
+- **Vendor logos in Settings.** The Integrations list and the catalogue show each service's logo (Proxmox, Plex, Radarr and the rest) in place of a two-letter badge. A service with no bundled logo keeps its badge.
+- **A 12-hour or 24-hour clock.** Settings has a new General section, open to every role, with a Time format choice. It changes every time on the page, the Clock widget included, and each device remembers its own.
 
 ### Fixed
 

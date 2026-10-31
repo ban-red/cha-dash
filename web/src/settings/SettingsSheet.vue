@@ -4,7 +4,7 @@
  * (02 · Experience → Surfaces). The route picks the pane:
  * /settings/integrations, /settings/stacks, /settings/nodes, /settings/updates, /settings/import, /settings/backup, /settings/history,
  * /settings/users, /settings/audit, /settings/notifications, /settings/tokens,
- * /settings/security. The board, the
+ * /settings/security, /settings/general. The board, the
  * socket and the Inbox stay live underneath; Esc or the scrim goes back.
  *
  * Only owners and admins open Settings; the panes listed are the ones the
@@ -16,6 +16,7 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import IntegrationsPane from './IntegrationsPane.vue';
 import SecurityPane from './SecurityPane.vue';
+import GeneralPane from './GeneralPane.vue';
 import { back, navigate, settingsPath, view, type SettingsPane } from '../lib/router';
 import { layerAbove, trapTab } from '../lib/trap';
 import { useUi } from '../stores/ui';
@@ -39,6 +40,7 @@ const panel = ref<HTMLElement | null>(null);
 let lastFocus: Element | null = null;
 
 const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
+  { id: 'general', label: 'General', note: 'how this device shows things' },
   { id: 'integrations', label: 'Integrations', note: 'what Cha Dash reads' },
   { id: 'stacks', label: 'Stacks', note: 'compose, deploy, roll back' },
   { id: 'nodes', label: 'Nodes', note: 'hosts Cha Dash acts on' },
@@ -59,6 +61,7 @@ const PANES = computed(() =>
 );
 /** The nav in three groups, so eleven panes read as three decisions. A group with no pane for this role is left out. */
 const GROUPS: { label: string; ids: SettingsPane[] }[] = [
+  { label: 'This device', ids: ['general'] },
   { label: 'Connect', ids: ['integrations', 'stacks', 'nodes', 'updates', 'import'] },
   { label: 'Keep', ids: ['backup', 'history'] },
   { label: 'People & access', ids: ['users', 'tokens', 'security', 'notifications', 'audit'] },
@@ -85,6 +88,7 @@ const TITLES: Record<SettingsPane, string> = {
   notifications: 'Notifications',
   tokens: 'API tokens',
   security: 'Security',
+  general: 'General',
 };
 const title = computed(() => TITLES[pane.value]);
 
@@ -159,6 +163,7 @@ onBeforeUnmount(() => {
             <AuditPane v-else-if="pane === 'audit'" />
             <NotificationsPane v-else-if="pane === 'notifications'" />
             <TokensPane v-else-if="pane === 'tokens'" />
+            <GeneralPane v-else-if="pane === 'general'" />
             <SecurityPane v-else />
           </div>
         </div>
@@ -413,10 +418,15 @@ a.st-row:hover {
   background: color-mix(in oklch, var(--text) 4%, transparent);
 }
 .st-row .t {
+  display: block;
   font: var(--weight-medium) var(--type-body) / 1.3 var(--font-ui);
   color: var(--text);
 }
 .st-row .m {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   margin-top: 2px;
   font-size: var(--type-small);
   line-height: 1.4;
@@ -443,6 +453,22 @@ a.st-row:hover {
   font: 600 11px/1 var(--font-num);
   letter-spacing: 0.02em;
   color: var(--text-2);
+}
+.mono-badge.has-icon {
+  background: var(--surface-2);
+}
+.mono-badge.has-icon.tone-dark {
+  background: light-dark(var(--surface-2), oklch(0.93 0.008 80));
+}
+.mono-badge.has-icon.tone-light {
+  background: light-dark(oklch(0.27 0.008 80), var(--surface-2));
+}
+.mono-badge-img {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  box-sizing: border-box;
+  object-fit: contain;
 }
 .st-status {
   display: inline-flex;

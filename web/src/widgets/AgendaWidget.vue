@@ -27,7 +27,7 @@ import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
 import Glyph from '../ui/marks/Glyph.vue';
 import type { TileStatus } from '../components/Tile.vue';
-import { duration, hhmm, plural, shortDate } from '../lib/format';
+import { duration, hhmm, plural, shortDate, timeFormat } from '../lib/format';
 import { addDays, dayKey, dayStart, daysBetween, eventsOf, mediaEvents, onDay, weekday, type AgendaEvent } from '../model/agenda';
 import { attr, byKind, calendar, distinct, label, resolve } from '../model/graph';
 import type { GraphDoc, Resource } from '../model/types';
@@ -336,7 +336,7 @@ const openSettings = () => ui.openSettings('integrations', 'new');
     </div>
 
     <!-- Tall and column: the agenda by day. -->
-    <div v-else class="list ev-agenda">
+    <div v-else :class="['list ev-agenda', { h12: timeFormat === '12h' }]">
       <template v-for="d in agenda" :key="d.day">
         <div class="ag-day" aria-hidden="true">{{ dayWord(d.day) }}</div>
         <ul :aria-label="dayWord(d.day)">
@@ -614,6 +614,10 @@ const openSettings = () => ui.openSettings('integrations', 'new');
   padding: 5px 0;
   border-top: var(--hairline) solid var(--line);
   font-size: var(--type-small);
+}
+/* "11:02 am" and "–11:03 am" need more room than "11:02". */
+.ev-agenda.h12 .ev-row {
+  grid-template-columns: 5.4em minmax(0, 1fr);
 }
 .ev-at {
   display: flex;

@@ -11,7 +11,8 @@
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import IntegrationEditor from './IntegrationEditor.vue';
-import { ago, monogram } from '../lib/format';
+import ServiceBadge from './ServiceBadge.vue';
+import { ago } from '../lib/format';
 import { navigate, route, settingsPath, view } from '../lib/router';
 import { rank } from '../lib/fuzzy';
 import { groupCatalog, STATUS_WORDS, statusGlyph } from '../model/integrations';
@@ -116,7 +117,7 @@ onMounted(() => {
         <ul class="catalog">
           <li v-for="c in g.items" :key="c.id">
             <a class="cat-card" :href="addPath(c.id)" @click.prevent="navigate(addPath(c.id))">
-              <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
+              <ServiceBadge :integration="c.id" :name="c.name" />
               <span class="t">{{ c.name }}<span v-if="c.installed" class="chip">installed</span></span>
               <span class="m">
                 <span v-if="connected.get(c.id)" class="cat-on"><Glyph kind="ok" />{{ connected.get(c.id) }} connected</span>
@@ -129,7 +130,7 @@ onMounted(() => {
       <ul v-if="query.trim()" class="catalog">
         <li v-for="c in catalogShown" :key="c.id">
           <a class="cat-card" :href="addPath(c.id)" @click.prevent="navigate(addPath(c.id))">
-            <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
+            <ServiceBadge :integration="c.id" :name="c.name" />
             <span class="t">{{ c.name }}<span v-if="c.installed" class="chip">installed</span></span>
             <span class="m">
               <span v-if="connected.get(c.id)" class="cat-on"><Glyph kind="ok" />{{ connected.get(c.id) }} connected</span>
@@ -173,7 +174,7 @@ onMounted(() => {
       <ul class="st-list">
         <li v-for="x in listShown" :key="x.id">
           <a class="st-row" :href="settingsPath('integrations', x.id)" @click.prevent="navigate(settingsPath('integrations', x.id))">
-            <span class="mono-badge" aria-hidden="true">{{ monogram(catalogEntry(x.integration)?.name ?? x.name) }}</span>
+            <ServiceBadge :integration="x.integration" :name="catalogEntry(x.integration)?.name ?? x.name" :instance="x.id" />
             <span>
               <span class="t">{{ x.name }}</span>
               <span class="m">

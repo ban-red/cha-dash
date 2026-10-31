@@ -15,7 +15,7 @@
  */
 import { computed } from 'vue';
 import type { SizeId } from '@chadash/layout';
-import { getDisplayTimeZone, hhmm, longDate, monogram, shortDate } from '../lib/format';
+import { clockParts, getDisplayTimeZone, hhmm, longDate, monogram, shortDate } from '../lib/format';
 import { useLive } from '../stores/live';
 import { useTile } from '../stores/tiles';
 import TileCog from '../components/TileCog.vue';
@@ -65,7 +65,7 @@ const other = computed(() => {
   if (!z) return undefined;
   const ms = shifted.value ? live.wall.value : live.now.value;
   const here = shifted.value ? browserZone() : primary.value;
-  const t = new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: z });
+  const t = new Date(ms).toLocaleTimeString('en-GB', { ...clockParts(), timeZone: z });
   const diff = (offsetMin(z, ms) - offsetMin(here, ms)) / 60;
   const city = z === 'UTC' ? 'UTC' : (z.split('/').pop() ?? z).replace(/_/g, ' ');
   const rel = diff === 0 ? 'same time' : `${diff > 0 ? '+' : '−'}${Math.abs(diff) % 1 ? Math.abs(diff).toFixed(1) : Math.abs(diff)} h`;
