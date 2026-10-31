@@ -526,6 +526,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		// Household gets the graph without chadash-node's resources and
 		// without addresses (topics.HouseholdGraph).
 		topics.Graph: tp.GraphSource(server.GraphViewer()),
+		// Household gets the causes of what its graph shows.
+		topics.Causes: tp.CausesSource(server.GraphViewer()),
 	})), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,

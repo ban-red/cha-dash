@@ -41,6 +41,7 @@
 //	GET|POST /api/tokens, DELETE /api/tokens/{id}, GET /api/tokens/scopes
 //	                           API tokens: your own; admins and the owner see and revoke any (session only)
 //	GET  /api/graph, GET /api/inbox   the Home Graph and the Inbox as plain reads (session, or a token's graph.read / inbox.read)
+//	GET  /api/causes?resource=<id>    one resource's cause hints with their paths (session, or graph.read)
 //	GET  /node                 chadash-node's channel (the node's pinned key, not a session; see nodes.Hub)
 //	GET  /api/nodes, POST /api/nodes/{id}/revoke, POST /api/nodes/pairing/regenerate   nodes, revoking one, a fresh pairing secret (admin)
 //	/api/stacks/…              owned stacks: list (viewer), files, drafts, validation, secrets (admin; see stacks.Service.Register)

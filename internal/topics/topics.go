@@ -4,6 +4,7 @@
 //	graph     {"resources": {id: resource}, "relations": {key: relation}}
 //	metrics   {"series": {"<resource id>#<metric key>": series}}
 //	inbox     {"now": RFC 3339, "incidents": {id: incident}}
+//	causes    {"causes": {resource id: [Cause]}} (causes.go)
 //
 // graph also answers graph:kind/<kind>[,<kind>…] (see realtime.GraphSource).
 // The action engine adds tasks ({"tasks": {id: task}}, filtered per viewer)
@@ -12,7 +13,7 @@
 // Series and incidents use the Demo Home simulator's JSON shapes (see
 // sim/README.md). Demo mode fills metrics and inbox from the simulator;
 // outside it they start empty, and real integrations will write the same
-// shapes.
+// shapes. causes starts empty and only the hub's cause engine writes it.
 package topics
 
 import (
@@ -32,6 +33,9 @@ const (
 	Graph   = "graph"
 	Metrics = "metrics"
 	Inbox   = "inbox"
+	// Causes is the cause hints' topic, and its collection keyed by
+	// resource ID.
+	Causes = "causes"
 )
 
 // ResourceMetrics prefixes the topic of one resource's series,
@@ -52,12 +56,13 @@ type Set struct {
 	Graph   *graph.Graph
 	Metrics *livedoc.Doc
 	Inbox   *livedoc.Doc
+	Causes  *CauseSet
 }
 
-// New returns a set around g with empty metrics and an empty inbox whose
-// clock reads now.
+// New returns a set around g with empty metrics, no causes and an empty
+// inbox whose clock reads now.
 func New(g *graph.Graph, now time.Time) *Set {
-	s := &Set{Graph: g, Metrics: livedoc.New(Series), Inbox: livedoc.New(Incidents)}
+	s := &Set{Graph: g, Metrics: livedoc.New(Series), Inbox: livedoc.New(Incidents), Causes: NewCauseSet()}
 	_, _ = s.Inbox.Update(func(tx *livedoc.Tx) error {
 		SetNow(tx, now)
 		return nil
@@ -71,6 +76,7 @@ func (s *Set) Source() realtime.Source {
 		Graph:   realtime.GraphSource{Graph: s.Graph},
 		Metrics: metricsSource{doc: s.Metrics},
 		Inbox:   realtime.DocSource{Doc: s.Inbox, Topic: Inbox},
+		Causes:  realtime.DocSource{Doc: s.Causes.Doc, Topic: Causes},
 	}
 }
 

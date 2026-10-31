@@ -125,6 +125,7 @@ func Correlate(doc graph.Doc, decisions []Decision) Result {
 	w.checks()
 	w.storages()
 	w.dependencies()
+	w.uses()
 	w.names()
 	w.confirmedRest()
 	return w.result()

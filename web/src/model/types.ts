@@ -1,11 +1,12 @@
 /**
- * Wire shapes of the three realtime topics.
+ * Wire shapes of the realtime topics.
  *
  * - `graph`: internal/graph/graph.go `Doc` (`resources` by id, `relations` by key).
  * - `metrics`: `{ series: { "<resource id>#<metric key>": Series } }`, each
  *   series shaped like an entry of `sim/snapshots/*.json` `series`.
  * - `inbox`: `{ now, incidents: { id: Incident } }`, each incident shaped like
  *   an entry of `sim/snapshots/*.json` `incidents`.
+ * - `causes`: `{ causes: { "<resource id>": CauseHint[] } }` (internal/topics/causes.go).
  *
  * The graph's `health` is a plain string in internal/graph, and an object
  * (`{status, reason, since}`) in the simulator. `normalizeHealth` accepts both,
@@ -51,6 +52,19 @@ export interface Relation {
 export interface GraphDoc {
   resources: Record<string, Resource>;
   relations: Record<string, Relation>;
+}
+
+/**
+ * One entry of an app's `uses` attr (internal/integration `Use`): a service
+ * it is set up to use, by address. The correlator joins it and publishes
+ * `depends_on` with rule `uses`. Never credentials.
+ */
+export interface Use {
+  /** A word for the copy: "download client", "indexer", "media server". */
+  role: string;
+  url?: string;
+  /** What the app calls it, for the copy when nothing joins. */
+  name?: string;
 }
 
 export interface Series {
@@ -119,6 +133,38 @@ export interface Cause {
   text: string;
   resource?: string;
   at?: string;
+}
+
+/** One relation on a cause hint's path, as the graph has it. */
+export interface CauseStep {
+  from: string;
+  type: string;
+  to: string;
+}
+
+/**
+ * A cause hint (internal/topics `Cause`): why a resource that isn't ok may
+ * not be. A hint, never a verdict. `path` comes only from `GET /api/causes`.
+ */
+export interface CauseHint extends Cause {
+  resource: string;
+  /** What found it: the relation walked, or the event read. */
+  rule: string;
+  /** The sentence's message ID and arguments, for translation. */
+  message?: string;
+  args?: Record<string, unknown>;
+  path?: CauseStep[];
+}
+
+/** The `causes` topic: `{"causes": {resource id: [CauseHint]}}`, the first cause first. */
+export interface CausesDoc {
+  causes: Record<string, CauseHint[]>;
+}
+
+/** `GET /api/causes?resource=<id>`: one resource's hints, with their paths. */
+export interface CausesResponse {
+  resource: string;
+  causes: CauseHint[];
 }
 
 /**
@@ -251,6 +297,8 @@ export interface LiveDoc {
   inbox?: InboxDoc;
   /** The `tasks` topic: running tasks plus the last 24 hours. */
   tasks?: TasksDoc;
+  /** The `causes` topic: cause hints for the resources that have any. */
+  causes?: CausesDoc;
   [topic: string]: unknown;
 }
 

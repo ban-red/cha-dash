@@ -157,3 +157,77 @@ func TestHouseholdGraph(t *testing.T) {
 		}
 	}
 }
+
+// Cause hints, over the socket and GET /api/causes alike: household gets
+// those of what its graph shows, without the node's; the read carries the
+// path, the topic doesn't.
+func TestCauses(t *testing.T) {
+	tp := topics.New(graph.New(), time.Now())
+	if _, err := tp.Graph.Update(func(tx *graph.Tx) error {
+		if err := tx.Upsert(graph.Resource{ID: "node:n1", Kind: "node", Name: "local"}); err != nil {
+			return err
+		}
+		return tx.Upsert(graph.Resource{ID: "app:sonarr", Kind: "app", Name: "Sonarr"})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	path := []topics.Step{{From: "app:sonarr", Type: "depends_on", To: "container:qbit"}}
+	if err := tp.Causes.Replace(map[string][]topics.Cause{
+		"app:sonarr": {{Text: "qBittorrent's container was OOM-killed.", Resource: "container:qbit", Rule: "oom_killed", Path: path}},
+		"node:n1":    {{Text: "The node's host is down.", Resource: "host:pve", Rule: "runs_on"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e := newEnvWith(t, func(d *Deps) {
+		hub := realtime.New(tp.SourceWith(realtime.Mux{topics.Causes: tp.CausesSource(GraphViewer())}), realtime.Options{Log: d.Log})
+		t.Cleanup(hub.Close)
+		d.Realtime, d.Topics = hub, tp
+	})
+	owner := signIn(t, e)
+	_, household := addUser(t, e, owner, "kid", "household")
+	snap := func(c *http.Client) string {
+		t.Helper()
+		ws := openSocket(t, e, c)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		b, _ := json.Marshal(map[string]any{"op": "sub", "id": 1, "topics": []string{"causes"}})
+		if err := ws.Write(ctx, websocket.MessageText, b); err != nil {
+			t.Fatal(err)
+		}
+		for {
+			_, msg, err := ws.Read(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(msg), `"op":"snap"`) {
+				return string(msg)
+			}
+		}
+	}
+	read := func(c *http.Client, id string) string {
+		t.Helper()
+		status, _, b := e.call(t, c, "GET", "/api/causes?resource="+id, nil)
+		if status != http.StatusOK {
+			t.Fatalf("GET /api/causes: %d %s", status, b)
+		}
+		return string(b)
+	}
+	if got := snap(owner); !strings.Contains(got, "OOM-killed") || !strings.Contains(got, "node:n1") || strings.Contains(got, `"path"`) {
+		t.Errorf("owner's causes topic: %s", got)
+	}
+	if got := snap(household); !strings.Contains(got, "OOM-killed") || strings.Contains(got, "node:n1") {
+		t.Errorf("household's causes topic: %s", got)
+	}
+	if got := read(owner, "app:sonarr"); !strings.Contains(got, `"path":[{"from":"app:sonarr","type":"depends_on","to":"container:qbit"}]`) {
+		t.Errorf("owner's read: %s", got)
+	}
+	if got := read(household, "node:n1"); !strings.Contains(got, `"causes":[]`) {
+		t.Errorf("household read the node's causes: %s", got)
+	}
+	if got := read(owner, "app:nothing"); !strings.Contains(got, `"causes":[]`) {
+		t.Errorf("no causes: %s", got)
+	}
+	if status, _, _ := e.call(t, owner, "GET", "/api/causes", nil); status != http.StatusBadRequest {
+		t.Errorf("no resource: %d", status)
+	}
+}

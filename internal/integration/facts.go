@@ -2,7 +2,9 @@ package integration
 
 import (
 	"math"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -236,6 +238,48 @@ const (
 	AttrLinks     = "links"
 	AttrCaps      = "caps"
 )
+
+// AttrUses is what an app is set up to use, a []Use: its download clients,
+// indexers, media server. The integration says only the address; the
+// correlator joins it to an app, a route or a container and publishes
+// depends_on (rule "uses").
+const AttrUses = "uses"
+
+// Use is one service an app uses. It carries no credentials: build URL
+// with UseURL, which keeps only the scheme, host, port and path, whatever
+// else the app's settings return.
+type Use struct {
+	// Role is a word the copy can use: "download client", "indexer",
+	// "media server", "MQTT broker".
+	Role string `json:"role"`
+	URL  string `json:"url,omitempty"`
+	// Name is what the app calls it ("qBittorrent"), for the copy when
+	// nothing joins, and for a suggestion by name.
+	Name string `json:"name,omitempty"`
+}
+
+// UseURL is a Use's URL from an app's settings: scheme://host:port/path,
+// with no user, query or fragment. A port of 0 is left out. It returns ""
+// without a scheme or a host.
+func UseURL(scheme, host string, port int, path string) string {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if scheme == "" || host == "" || strings.ContainsAny(host, "/@?#") {
+		return ""
+	}
+	u := url.URL{Scheme: strings.ToLower(scheme), Host: host}
+	if strings.Contains(host, ":") {
+		u.Host = "[" + host + "]"
+	}
+	if port > 0 && port <= 65535 {
+		u.Host += ":" + strconv.Itoa(port)
+	}
+	path, _, _ = strings.Cut(path, "?")
+	path, _, _ = strings.Cut(path, "#")
+	if p := strings.Trim(path, "/"); p != "" {
+		u.Path = "/" + p
+	}
+	return u.String()
+}
 
 // AttrUpdate is a container's image update, an ImageUpdate. The Docker
 // integration publishes it from the node's image.check verb, and Unraid's

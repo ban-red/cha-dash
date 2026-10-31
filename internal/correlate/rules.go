@@ -717,20 +717,7 @@ func (w *world) checks() {
 			for _, a := range uniq(byKey[u.key()]) {
 				cs = append(cs, w.rel(k.ID, Monitors, a, "target", Strong, appSlot, scoreAddress, "The check's target is "+w.name(a)+"'s URL."))
 			}
-			bestLen := -1
-			var best []graph.RID
-			for _, r := range routes {
-				ru, ok := w.routeURL[r.ID]
-				if !ok || !u.under(ru) {
-					continue
-				}
-				if n := len(ru.path); n > bestLen {
-					best, bestLen = []graph.RID{r.ID}, n
-				} else if n == bestLen {
-					best = append(best, r.ID)
-				}
-			}
-			for _, r := range best {
+			for _, r := range w.coveringRoutes(routes, u) {
 				cs = append(cs, w.rel(k.ID, Monitors, r, "target", Strong, routeSlot, scoreRoute, "The check's target is served by this route."))
 			}
 			for _, c := range w.href[u.key()] {

@@ -364,6 +364,9 @@ var Routes = []Route{
 	// call them too; the web app uses the socket.
 	{Pattern: "GET /api/graph", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /api/inbox", Access: SignedIn, Token: ScopeInboxRead},
+	// Cause hints, as the causes topic: household's only for what its
+	// graph shows (server/reads.go).
+	{Pattern: "GET /api/causes", Access: SignedIn, Token: ScopeGraphRead},
 	// Metrics history, as the metrics topic: household reads the series of
 	// what its graph shows (server/history.go).
 	{Pattern: "GET /api/history", Access: SignedIn, Token: ScopeGraphRead},
