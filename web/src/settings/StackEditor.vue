@@ -88,7 +88,7 @@ async function load(): Promise<void> {
     loadCode.value = err instanceof ApiError ? err.code : '';
     loadError.value =
       err instanceof ApiError && err.status === 404 && err.code === 'not_found'
-        ? `Cha Dash doesn’t manage a stack called ${props.name} on ${props.node}.`
+        ? `Cha Dash doesn’t manage a stack called ${props.name} on ${nodeLabel.value}.`
         : hubWords(err, 'This stack couldn’t be loaded.');
   }
 }
@@ -106,6 +106,9 @@ function onSyncChanged(s: SyncView | null): void {
   // A check that finished may have made a new draft.
   if (s && !s.running) void load();
 }
+
+// What people call the node: its name, or its ID when the list doesn't have it.
+const nodeLabel = computed(() => props.nodes.find((n) => n.node === props.node)?.name || props.node);
 
 // ── a new stack: where and what it's called ──
 
@@ -443,7 +446,7 @@ onBeforeUnmount(() => {
     <!-- the header -->
     <header v-if="fresh"><h3 id="ske-h">New stack</h3></header>
     <header v-else>
-      <h3 id="ske-h">{{ name }} <span class="sk-on">on {{ node }}</span></h3>
+      <h3 id="ske-h">{{ name }} <span class="sk-on">on {{ nodeLabel }}</span></h3>
       <span v-if="detail" class="st-meta st-status">
         <Glyph :kind="STATUS_GLYPH[detail.status] ?? 'repair'" />{{ statusWords({ status: detail.status, services: detail.services.length, running: detail.services.filter((s) => s.state === 'running').length }) }}
       </span>

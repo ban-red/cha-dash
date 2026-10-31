@@ -188,7 +188,7 @@ func TestHookTriggersEverySyncOnItsRemote(t *testing.T) {
 		}
 		time.Sleep(2 * time.Millisecond)
 	}
-	if v := decode[struct{ Hooks []HookView }](t, e.do("GET", "/api/stacks/hooks", nil)); len(v.Hooks) != 1 || v.Hooks[0].LastUsedAt == nil || len(v.Hooks[0].Syncs) != 2 {
+	if v := decode[struct{ Hooks []HookView }](t, e.do("GET", "/api/stacks/hooks", nil)); len(v.Hooks) != 1 || v.Hooks[0].LastUsedAt == nil || len(v.Hooks[0].Syncs) != 2 || v.Hooks[0].Syncs[0].NodeName != "jupiter" {
 		t.Fatalf("hooks %+v", v.Hooks)
 	}
 }

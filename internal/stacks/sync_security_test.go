@@ -185,7 +185,9 @@ func TestSyncAsksBeforeRootEquivalent(t *testing.T) {
 		t.Fatalf("sync %+v", got)
 	}
 	in, ok := e.item(got)
-	if !ok || in.Status != "open" || !strings.Contains(in.Summary, "root on local") || !strings.Contains(strings.ToLower(in.Summary), "privileged") {
+	// It names the node by its name, and each reason ends its sentence.
+	if !ok || in.Status != "open" || !strings.Contains(in.Summary, "root on jupiter") || !strings.Contains(strings.ToLower(in.Summary), "privileged.") ||
+		!strings.HasSuffix(in.Summary, ". Approve or deny it in the Inbox.") {
 		t.Fatalf("inbox %+v", in)
 	}
 

@@ -142,6 +142,19 @@ func (e errNodeOffline) Error() string {
 	return fmt.Sprintf("The node %s isn't connected, so its stacks can't be read or changed right now.", e.node)
 }
 
+// nodeName is what people call a node: its name, or its ID when there's
+// none or the hub can't say.
+func (s *Service) nodeName(ctx context.Context, id string) string {
+	if ns, err := s.nodes(ctx); err == nil {
+		for _, n := range ns {
+			if n.ID == id && n.Name != "" {
+				return n.Name
+			}
+		}
+	}
+	return id
+}
+
 // node finds a node by ID.
 func (s *Service) node(ctx context.Context, id string) (Node, error) {
 	ns, err := s.nodes(ctx)

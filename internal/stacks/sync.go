@@ -380,7 +380,7 @@ func (s *Service) syncDeployed(ctx context.Context, node, stack, sha string, res
 	case stackproto.OutcomeBlocked:
 		y.LastError = "Commit " + short(sha) + " was blocked: " + res.Reason
 		s.syncItem(y, itemBlocked, "attention", "Commit "+short(sha)+" of "+stack+" was blocked",
-			fmt.Sprintf("Commit %s was blocked before anything stopped: %s %s is still running.", short(sha), res.Reason, still))
+			fmt.Sprintf("Commit %s was blocked before anything stopped: %s %s is still running.", short(sha), sentence(res.Reason), still))
 	default:
 		return
 	}
@@ -885,7 +885,7 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 	if !ask {
 		switch p, _ := y.s.planDraft(ctx, s.Node, s.Stack, got.Content); {
 		case p != nil && len(p.RootEquivalent) > 0:
-			why = append(why, "it amounts to root on "+s.Node+": "+strings.Join(p.RootEquivalent, "; "))
+			why = append(why, sentence("it amounts to root on "+y.s.nodeName(ctx, s.Node)+": "+strings.Join(p.RootEquivalent, "; ")))
 		case p == nil:
 			why = append(why, "its plan couldn't be read.")
 		}
@@ -920,6 +920,15 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 		y.s.syncItem(s, itemAsks, "attention", "Commit "+short(sha)+" of "+s.Stack+" waits for approval",
 			"Deploy on push asks first for commit "+short(sha)+": "+strings.Join(why, " ")+" Approve or deny it in the Inbox.")
 	}
+}
+
+// sentence ends s with a full stop, so another sentence can follow it.
+func sentence(s string) string {
+	s = strings.TrimSpace(s)
+	if s != "" && !strings.HasSuffix(s, ".") {
+		s += "."
+	}
+	return s
 }
 
 // maxSubject caps a commit's subject in an approval's note, in runes.

@@ -84,7 +84,7 @@ export interface HookView {
   created_by: string | null;
   last_used_at: string | null;
   failures: number;
-  syncs: { node: string; stack: string; mode: SyncMode; state: SyncState }[];
+  syncs: { node: string; node_name?: string; stack: string; mode: SyncMode; state: SyncState }[];
 }
 
 export interface HookCreated {

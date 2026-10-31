@@ -335,6 +335,26 @@ func TestSyncAsks(t *testing.T) {
 	}
 }
 
+// A commit the dry run refuses is blocked, and the Inbox says so in whole
+// sentences: the node's reason ends before "… is still running."
+func TestSyncBlockedSaysWhy(t *testing.T) {
+	e := newSyncEnv(t)
+	ctx := t.Context()
+	y := e.follow(ModeDeploy, "db_password")
+	e.remote.push(remoteURL, "main", sha1, "media/compose.yaml", good)
+	e.y.runOnce(ctx, y.ID)
+	e.waitSync(y.ID, "deploy c1", func(s *Sync) bool { return s.LastDeployed == sha1 })
+
+	e.remote.push(remoteURL, "main", sha2, "media/compose.yaml", plainGood("nginx-missing:1.28"))
+	e.y.runOnce(ctx, y.ID)
+	got := e.waitSync(y.ID, "block c2", func(s *Sync) bool { return strings.Contains(s.LastError, "blocked") })
+	in, ok := e.item(got)
+	if !ok || !strings.HasPrefix(in.Summary, "Commit 2222222 was blocked before anything stopped: ") ||
+		!strings.HasSuffix(in.Summary, ". 1111111 is still running.") || strings.Contains(in.Summary, "..") {
+		t.Fatalf("inbox %+v", in)
+	}
+}
+
 // The gate: drift waits (and retries), a held sync doesn't check, and an
 // owner who can't act any more pauses it.
 func TestSyncGate(t *testing.T) {

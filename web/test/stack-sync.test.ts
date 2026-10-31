@@ -90,7 +90,10 @@ const HOOK: HookView = {
   created_by: 'owner',
   last_used_at: '2026-10-29T12:00:00Z',
   failures: 2,
-  syncs: [{ node: 'local', stack: 'media', mode: 'ask', state: 'active' }],
+  syncs: [
+    { node: 'n_jupiter', node_name: 'jupiter', stack: 'media', mode: 'ask', state: 'active' },
+    { node: 'local', stack: 'books', mode: 'ask', state: 'active' },
+  ],
 };
 
 const KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeHostKeyForTestsOnly';
@@ -347,6 +350,7 @@ describe('The editor of a synced stack', () => {
 
   it('is read-only, says where to edit, and marks a draft from git', async () => {
     fakeFetch({
+      'GET /api/stacks': { status: 200, body: { nodes: [{ node: 'local', name: 'jupiter', online: true, error: null, root: '/opt/stacks', stacks: [], detected: [] }] } },
       'GET /api/stacks/local/media': { status: 200, body: detail() },
       [`GET ${SYNC_PATH}`]: { status: 200, body: { sync: synced() } },
       'POST /api/stacks/local/media/validate': { status: 200, body: { ok: true, messages: [], secrets: [], plan: null, diff: [] } },
@@ -356,6 +360,8 @@ describe('The editor of a synced stack', () => {
     await settle();
     await settle();
     expect(w.find('textarea').attributes('readonly')).toBeDefined();
+    // The header names the node, not its ID.
+    expect(w.find('#ske-h').text()).toBe('media on jupiter');
     expect(w.find('.sk-synced').text()).toContain(`Edit media/compose.yaml on main in ${URL_}.`);
     expect(w.text()).toContain('From git, commit aaaaaaa');
     expect(w.findAll('button').some((b) => b.text().startsWith('Save draft'))).toBe(false);
@@ -374,7 +380,8 @@ describe('Deploy webhooks', () => {
     expect(row.text()).toContain('https://git.lab.example/ops/stacks');
     expect(row.text()).toContain('GitHub');
     expect(row.text()).toContain(`${location.origin}/api/hooks/whk_1`);
-    expect(row.text()).toContain('media on local (draft and ask)');
+    // Nodes by name, or by ID when the hub has none.
+    expect(row.text()).toContain('media on jupiter (draft and ask), books on local (draft and ask)');
     expect(row.text()).toContain('2 refused requests');
     expect(await axeViolations()).toEqual([]);
 

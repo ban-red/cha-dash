@@ -171,7 +171,7 @@ async function remove(h: HookView): Promise<void> {
 }
 
 const syncWords = (h: HookView) =>
-  h.syncs.length ? h.syncs.map((s) => `${s.stack} on ${s.node} (${MODE_WORDS[s.mode]}${s.state === 'active' ? '' : `, ${STATE_WORDS[s.state].label}`})`).join(', ') : 'no stack follows it yet';
+  h.syncs.length ? h.syncs.map((s) => `${s.stack} on ${s.node_name || s.node} (${MODE_WORDS[s.mode]}${s.state === 'active' ? '' : `, ${STATE_WORDS[s.state].label}`})`).join(', ') : 'no stack follows it yet';
 
 onMounted(load);
 </script>

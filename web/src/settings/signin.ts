@@ -153,7 +153,7 @@ export const OIDC_ERRORS: Record<string, string> = {
   stale_auth: 'The provider didn’t confirm a fresh sign-in, so that didn’t count as confirming it’s you.',
   not_linked: 'That provider account isn’t the one linked to you.',
   step_up_required: 'Confirm it’s you first, then link the account.',
-  step_up_unavailable: 'Your account confirms it’s you with its passkey or password, not at the provider.',
+  step_up_unavailable: 'Your account confirms it’s you here in Cha Dash, not at the provider.',
   cross_site: 'That was started from another site, so Cha Dash ignored it. Start it again from Cha Dash.',
   not_signed_in: 'Your session ended. Sign in again.',
   ip_banned: 'This device’s address is banned after five wrong passwords. An admin can clear it in Settings → Users.',

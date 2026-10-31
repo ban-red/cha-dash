@@ -84,7 +84,7 @@ onMounted(load);
 </script>
 
 <template>
-  <StackEditor v-if="detail" :key="`${detail.node}/${detail.name}`" :node="detail.node" :name="detail.name" />
+  <StackEditor v-if="detail" :key="`${detail.node}/${detail.name}`" :node="detail.node" :name="detail.name" :nodes="nodes" />
   <StackEditor v-else-if="creating" key="new" :nodes="nodes" fresh />
 
   <template v-else>

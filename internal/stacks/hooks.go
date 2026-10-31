@@ -454,10 +454,11 @@ type HookView struct {
 
 // HookSync is a sync a hook triggers.
 type HookSync struct {
-	Node  string `json:"node"`
-	Stack string `json:"stack"`
-	Mode  string `json:"mode"`
-	State string `json:"state"`
+	Node     string `json:"node"`
+	NodeName string `json:"node_name"`
+	Stack    string `json:"stack"`
+	Mode     string `json:"mode"`
+	State    string `json:"state"`
 }
 
 func (s *Service) hookView(ctx context.Context, h *Hook, all []*Sync) HookView {
@@ -474,7 +475,7 @@ func (s *Service) hookView(ctx context.Context, h *Hook, all []*Sync) HookView {
 	}
 	for _, y := range all {
 		if y.Branch == h.Branch && normalizeURL(y.URL) == h.URL {
-			v.Syncs = append(v.Syncs, HookSync{Node: y.Node, Stack: y.Stack, Mode: y.Mode, State: y.State})
+			v.Syncs = append(v.Syncs, HookSync{Node: y.Node, NodeName: s.nodeName(ctx, y.Node), Stack: y.Stack, Mode: y.Mode, State: y.State})
 		}
 	}
 	return v
