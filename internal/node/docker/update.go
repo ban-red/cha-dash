@@ -56,6 +56,9 @@ func (m *Module) update(ctx context.Context, req json.RawMessage, emit func(json
 		return nil, nodeproto.Errorf(nodeproto.CodeConflict, "%s can't be updated. %s", name, why)
 	}
 	tag := reference.FamiliarString(tagged)
+	if old.State == nil || !old.State.Running || old.State.Restarting {
+		return nil, nodeproto.Errorf(nodeproto.CodeConflict, "%s isn't running. Start it first, so the update can check that the new image comes up healthy", name)
+	}
 	if old.HostConfig != nil && old.HostConfig.AutoRemove {
 		return nil, nodeproto.Errorf(nodeproto.CodeConflict, "%s removes itself when it stops (--rm), so it can't be updated in place", name)
 	}
@@ -106,7 +109,7 @@ func (m *Module) update(ctx context.Context, req json.RawMessage, emit func(json
 	}
 	line("Health gate failed: " + gateErr.Error())
 	line("Roll back to " + prev)
-	backID, err := m.RecreateImage(wctx, newID, prev, line)
+	backID, err := m.RollbackImage(wctx, newID, prev, line)
 	if err != nil {
 		return finish(outcomeStuck, fmt.Sprintf("%s; and recreating it with %s failed: %v", gateErr, prev, err), newID, pinned)
 	}

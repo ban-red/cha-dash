@@ -51,7 +51,7 @@ func (m *Module) recreate(ctx context.Context, req json.RawMessage, emit func(js
 	if old.HostConfig.AutoRemove {
 		return nil, nodeproto.Errorf(nodeproto.CodeConflict, "%s removes itself when it stops (--rm), so it can't be recreated in place", name)
 	}
-	created, err := m.replace(ctx, old, "", t.Timeout, func(label string) { step(emit, label) })
+	created, err := m.replace(ctx, old, "", t.Timeout, false, func(label string) { step(emit, label) })
 	if err != nil {
 		return nil, err
 	}
@@ -66,9 +66,11 @@ func (m *Module) recreate(ctx context.Context, req json.RawMessage, emit func(js
 
 // replace recreates old from its own config, with image instead of its
 // configured one when image isn't "", and returns the new container's ID.
+// The new container starts when old was running, or always with start
+// (a rollback: the container it replaces may have crashed).
 // Once the old one has stopped it finishes (or puts the old one back) even
 // if ctx ends.
-func (m *Module) replace(ctx context.Context, old container.InspectResponse, image string, timeout int, step func(string)) (string, error) {
+func (m *Module) replace(ctx context.Context, old container.InspectResponse, image string, timeout int, start bool, step func(string)) (string, error) {
 	name := strings.TrimPrefix(old.Name, "/")
 	cfg, hc, nc := recreateConfig(old)
 	if image != "" {
@@ -122,7 +124,7 @@ func (m *Module) replace(ctx context.Context, old container.InspectResponse, ima
 		undo("")
 		return "", mapErr(err)
 	}
-	if running {
+	if running || start {
 		step("Start the new " + name)
 		if _, err := m.cli.ContainerStart(wctx, created.ID, client.ContainerStartOptions{}); err != nil {
 			undo(created.ID)

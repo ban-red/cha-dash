@@ -6,8 +6,9 @@
 //
 // It checks nothing itself. A Docker instance through chadash-node asks the
 // node (image.check) every 15 minutes, and the node asks each registry at
-// most every 6 hours; Check now refreshes those instances, which ask the
-// node to ask again.
+// most every 6 hours. Check now asks each node to ask its registries
+// again, then refreshes those instances. Only Check now does: an
+// instance's own refresh reads what the node keeps.
 package updates
 
 import (
@@ -52,8 +53,9 @@ type Options struct {
 	Graph *graph.Graph
 	// Inbox receives the one info item; nil leaves it out.
 	Inbox *livedoc.Doc
-	// Refresh asks every instance that publishes updates to sync now as a
-	// Check now (Interest.Refresh), and says how many it asked.
+	// Refresh starts a Check now: the nodes ask their registries again,
+	// then the instances that publish updates sync. It returns at once,
+	// with how many instances it will refresh.
 	Refresh func() int
 	Now     func() time.Time
 	Log     *slog.Logger

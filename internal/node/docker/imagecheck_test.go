@@ -25,6 +25,7 @@ func TestImageCheck(t *testing.T) {
 	t.Cleanup(func() { m.Close() })
 	now := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
 	m.now = func() time.Time { return now }
+	m.registry = f.fakeRegistry(t, "")
 	d, err := node.NewDispatcher(p, m)
 	if err != nil {
 		t.Fatal(err)
@@ -93,6 +94,16 @@ func TestImageCheck(t *testing.T) {
 	if !slices.Equal(f.asked, []string{"docker.io/library/nginx:1.27", "ghcr.io/example/private:1", "lscr.io/linuxserver/sonarr:4"}) {
 		t.Fatalf("asked %q: only tags with a registry digest go to a registry", f.asked)
 	}
+	// Each a HEAD with no credentials but Docker Hub's anonymous token, and
+	// Docker's own lookup (a pull on Docker Hub) never.
+	for _, h := range f.headers {
+		if a := h.Get("Authorization"); a != "" && a != "Bearer anon" || !strings.Contains(h.Get("Accept"), "image.index") {
+			t.Fatalf("a HEAD sent %v", h)
+		}
+	}
+	if len(f.inspected) != 0 {
+		t.Fatalf("asked Docker about %q", f.inspected)
+	}
 
 	// Within CheckEvery the answers come from memory, the login refusal too.
 	f.asked = nil
@@ -156,5 +167,32 @@ func TestImageCheckOff(t *testing.T) {
 	}
 	if len(f.asked) != 0 {
 		t.Fatalf("asked %q", f.asked)
+	}
+}
+
+// A registry the node can't reach directly (plain http, one only the
+// daemon's config knows) is asked through Docker instead.
+func TestImageCheckThroughDocker(t *testing.T) {
+	f, host := newFakeDocker(t)
+	p := node.DefaultPolicy()
+	m, err := New(Options{Host: host, Policy: p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { m.Close() })
+	m.registry = f.fakeRegistry(t, "registry.lab.example:5000")
+	d, err := node.NewDispatcher(p, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.repoDigests[digest("a")] = []string{"registry.lab.example:5000/tools@" + digest("1")}
+	f.add(&fakeContainer{Name: "tools", Image: "registry.lab.example:5000/tools:1", ImageID: digest("a")})
+	f.registry["registry.lab.example:5000/tools:1"] = digest("2")
+	res, _, err := call(t, d, "image.check", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(res), `"state":"available"`) || !slices.Equal(f.inspected, []string{"registry.lab.example:5000/tools:1"}) || len(f.asked) != 0 {
+		t.Fatalf("%s; Docker asked %q, the registry %q", res, f.inspected, f.asked)
 	}
 }

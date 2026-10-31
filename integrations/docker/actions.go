@@ -222,6 +222,8 @@ func (in *instance) preconditions(verb, policy string) func(context.Context, act
 			return action.Precondition(name + " is already running.")
 		case verb == "stop" && ref.State != "running" && ref.State != "restarting" && ref.State != "paused":
 			return action.Precondition(name + " isn't running.")
+		case verb == "update" && ref.State != "running":
+			return action.Precondition(name + " isn't running. Start it first, so the update can check that the new image comes up healthy.")
 		case verb == "remove" && ref.State == "running":
 			return action.Precondition(name + " is running. Stop it first.")
 		}

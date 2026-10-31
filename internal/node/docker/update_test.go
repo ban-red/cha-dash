@@ -86,6 +86,23 @@ func TestContainerUpdate(t *testing.T) {
 	if c := f.byName("bad"); c.Image != prev || c.State != "running" {
 		t.Fatalf("bad now %+v", c)
 	}
+	// One that exits at once, with no restart policy to bring it back: the
+	// rollback still starts the previous image.
+	f.crash["example/bad:1@"+digest("8")] = false
+	f.exits["example/bad:1@"+digest("8")] = true
+	f.add(&fakeContainer{Name: "flaky", Image: "example/bad:1", ImageID: digest("b")})
+	if out, _ = update("flaky"); out["outcome"] != "rolled_back" || !strings.Contains(out["reason"], "flaky exited") {
+		t.Fatalf("flaky: %v", out)
+	}
+	if c := f.byName("flaky"); c.Image != prev || c.State != "running" {
+		t.Fatalf("flaky after an exit %+v", c)
+	}
+
+	// A stopped container isn't updated: the gate couldn't tell it works.
+	f.add(&fakeContainer{Name: "idle", Image: "example/app:1", ImageID: digest("a"), State: "exited"})
+	if _, _, err := call(t, d, "container.update", map[string]any{"id": "idle"}); nodeproto.CodeOf(err) != nodeproto.CodeConflict {
+		t.Fatalf("stopped = %v", err)
+	}
 
 	// Protected containers and refused policies.
 	if _, _, err := call(t, d, "container.update", map[string]any{"id": "vault"}); nodeproto.CodeOf(err) != nodeproto.CodeForbidden {

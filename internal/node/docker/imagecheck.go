@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -63,12 +64,12 @@ type tagCache struct {
 }
 
 // imageCheck answers whether each container's image tag has moved in its
-// registry (images.check). It asks Docker to look the tag up
-// (/distribution/{ref}/json), which sends the registry a HEAD for the
-// manifest, so it needs no registry client and changes nothing. Docker
-// sends no credentials with it, so a registry that needs a login answers
-// cant_check. With fresh (Check now), answers older than freshAfter are
-// asked again.
+// registry (images.check). It sends the registry a HEAD for the tag's
+// manifest (headTag), which changes nothing and which Docker Hub doesn't
+// count as a pull, and asks Docker only for a registry it can't reach
+// itself. It sends no credentials, so a registry that needs a login
+// answers cant_check. With fresh (Check now), answers older than
+// freshAfter are asked again.
 func (m *Module) imageCheck(ctx context.Context, req json.RawMessage, _ func(json.RawMessage)) (json.RawMessage, error) {
 	var r struct {
 		IDs   []string `json:"ids"`
@@ -139,7 +140,7 @@ func (m *Module) checkOne(ctx context.Context, c container.InspectResponse, fres
 		u.Reason = "It was built or loaded on this host, so no registry has it."
 		return u
 	}
-	a := m.askRegistry(ctx, tagged.String(), fresh)
+	a := m.askRegistry(ctx, tagged, fresh)
 	u.CheckedAt = a.at
 	if a.digest == "" {
 		u.Reason = a.reason
@@ -179,9 +180,12 @@ func tagOf(image string) (tag reference.NamedTagged, why string) {
 	return tag, ""
 }
 
-// askRegistry is the registry's answer for ref, from the cache while it's
-// fresh: for keep, or with fresh for freshAfter.
-func (m *Module) askRegistry(ctx context.Context, ref string, fresh bool) tagAnswer {
+// askRegistry is the registry's answer for the tag, from the cache while
+// it's fresh: for keep, or with fresh for freshAfter. It asks the registry
+// with a HEAD (headTag), and Docker only when the registry can't be reached
+// directly.
+func (m *Module) askRegistry(ctx context.Context, tagged reference.NamedTagged, fresh bool) tagAnswer {
+	ref := tagged.String()
 	now := m.now()
 	m.tags.mu.Lock()
 	a, ok := m.tags.tags[ref]
@@ -194,14 +198,29 @@ func (m *Module) askRegistry(ctx context.Context, ref string, fresh bool) tagAns
 		return a
 	}
 	a = tagAnswer{at: now, keep: CheckEvery}
-	res, err := m.cli.DistributionInspect(ctx, ref, client.DistributionInspectOptions{})
+	d, err := m.headTag(ctx, tagged)
+	if err != nil && ctx.Err() == nil && !errors.Is(err, errRegistryLogin) && !errors.Is(err, errRegistryNotFound) {
+		// Not reachable from here (plain http, a registry only the
+		// daemon's config knows): Docker's lookup, which may count as a
+		// pull, but only for such registries.
+		res, ierr := m.cli.DistributionInspect(ctx, ref, client.DistributionInspectOptions{})
+		if err = ierr; err == nil {
+			d = res.Descriptor.Digest.String()
+		}
+	}
+	if err != nil && ctx.Err() != nil {
+		// The caller gave up (a sync's budget): say so, but keep nothing,
+		// so the next check asks the registry instead of repeating this.
+		a.reason = "The check was cut short before its registry answered."
+		return a
+	}
 	switch {
 	case err == nil:
-		a.digest = res.Descriptor.Digest.String()
-	case cerrdefs.IsUnauthorized(err) || cerrdefs.IsPermissionDenied(err) || strings.Contains(err.Error(), "unauthorized") || strings.Contains(err.Error(), "denied"):
+		a.digest = d
+	case errors.Is(err, errRegistryLogin) || cerrdefs.IsUnauthorized(err) || cerrdefs.IsPermissionDenied(err) || strings.Contains(err.Error(), "unauthorized") || strings.Contains(err.Error(), "denied"):
 		// A login won't appear by itself: kept as long as an answer.
 		a.reason = "Its registry needs a login, and the node doesn't send one."
-	case cerrdefs.IsNotFound(err):
+	case errors.Is(err, errRegistryNotFound) || cerrdefs.IsNotFound(err):
 		a.reason, a.keep = "Its registry doesn't have that tag any more.", checkRetry
 	default:
 		a.reason, a.keep = "Its registry didn't answer: "+err.Error(), checkRetry

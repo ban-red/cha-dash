@@ -220,7 +220,7 @@ func (m *Module) selfUpdate(ctx context.Context, req stackproto.SelfUpdateReques
 	// Roll back: the image it ran before, through the same gate.
 	em.step("Roll back to " + prev)
 	res.Current = prev
-	backID, err := m.selfUpdater.RecreateImage(ctx, newID, prev, line)
+	backID, err := m.selfUpdater.RollbackImage(ctx, newID, prev, line)
 	if err != nil {
 		res.Current = pinned
 		return finish(stackproto.OutcomeStuck, fmt.Sprintf("%s; and recreating it with %s failed: %v", reason, prev, err))

@@ -220,7 +220,7 @@ type instance struct {
 
 	updates   map[string]integration.ImageUpdate // node:// only: image.check's answers, by container ID
 	updatesAt time.Time                          // when the node was last asked
-	recheck   bool                               // this sync is a Check now: ask the registries again
+	recheck   bool                               // this sync is one someone asked for: ask the node now
 }
 
 // rid is a resource ID of this instance.

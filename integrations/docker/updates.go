@@ -18,9 +18,11 @@ const updatesEvery = 15 * time.Minute
 // moved in its registry (image.check), and keeps the answers by container
 // ID. Only instances through a node can: the Docker API alone has no way
 // to ask without pulling. A node whose policy refuses images.check gets one
-// answer for every container saying so. fresh (Check now) asks at once,
-// and asks the node to ask the registries again.
-func (in *instance) checkImages(ctx context.Context, list []summary, fresh bool) {
+// answer for every container saying so. now (a sync someone asked for)
+// asks at once; the node answers from what it keeps, so a refresh never
+// makes it ask a registry sooner. Only the Update Center's Check now does
+// (internal/updates), asking the node itself first.
+func (in *instance) checkImages(ctx context.Context, list []summary, now bool) {
 	if in.ep.node == "" {
 		return
 	}
@@ -31,15 +33,11 @@ func (in *instance) checkImages(ctx context.Context, list []summary, fresh bool)
 			break
 		}
 	}
-	if !fresh && !missing && !in.updatesAt.IsZero() && in.d.Now().Sub(in.updatesAt) < updatesEvery {
+	if !now && !missing && !in.updatesAt.IsZero() && in.d.Now().Sub(in.updatesAt) < updatesEvery {
 		return
 	}
 	in.updatesAt = in.d.Now()
-	var req any
-	if fresh {
-		req = map[string]bool{"fresh": true}
-	}
-	res, err := in.d.Nodes.Call(ctx, in.ep.node, "image.check", req, nil)
+	res, err := in.d.Nodes.Call(ctx, in.ep.node, "image.check", nil, nil)
 	if code := integration.NodeErrorCode(err); code == "forbidden" || code == "not_found" {
 		// not_found: a node from before image.check, which doesn't know the verb.
 		why := "The node's policy doesn't allow image checks (images.check)."

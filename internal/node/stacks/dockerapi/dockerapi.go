@@ -54,6 +54,9 @@ type SelfUpdater interface {
 	// the new container's ID. If it fails after stopping the old one, it
 	// puts the old one back.
 	RecreateImage(ctx context.Context, id, image string, progress func(line string)) (string, error)
+	// RollbackImage is RecreateImage for a rollback: the new container
+	// starts even when the one it replaces has stopped (the update crashed).
+	RollbackImage(ctx context.Context, id, image string, progress func(line string)) (string, error)
 }
 
 // ErrUnchecked marks a preflight that couldn't reach a registry: "couldn't

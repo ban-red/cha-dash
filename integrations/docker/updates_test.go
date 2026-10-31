@@ -73,18 +73,19 @@ func TestNodeImageUpdates(t *testing.T) {
 	if asked() != 1 {
 		t.Fatalf("asked %d times within %s", asked(), updatesEvery)
 	}
-	// Check now asks at once, and asks the node to ask the registries.
+	// A sync someone asked for asks at once, but never for fresh answers:
+	// a viewer's refresh mustn't make the node ask registries.
 	answer("current")
 	if err := inst.Sync(t.Context(), integration.Interest{Watched: true, Metrics: true, Refresh: true}); err != nil {
 		t.Fatal(err)
 	}
-	if asked() != 2 || n.fresh != 1 || update("sonarr")["state"] != "current" {
-		t.Fatalf("Check now: asked %d, fresh %d, sonarr %v", asked(), n.fresh, update("sonarr"))
+	if asked() != 2 || n.fresh != 0 || update("sonarr")["state"] != "current" {
+		t.Fatalf("a refresh: asked %d, fresh %d, sonarr %v", asked(), n.fresh, update("sonarr"))
 	}
-	// After updatesEvery, the node is asked again, not fresh.
+	// After updatesEvery, the node is asked again.
 	h.Advance(updatesEvery)
 	syncOK(t, inst)
-	if asked() != 3 || n.fresh != 1 {
+	if asked() != 3 || n.fresh != 0 {
 		t.Fatalf("after %s: asked %d, fresh %d", updatesEvery, asked(), n.fresh)
 	}
 

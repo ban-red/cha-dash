@@ -26,8 +26,11 @@ type fakeDocker struct {
 	imageCfg    map[string]map[string]any // image ID → its Config, as inspect gives it
 	repoDigests map[string][]string       // image ID → its RepoDigests
 	registry    map[string]string         // tag → its digest, "401" (needs a login) or "" (no such tag)
-	asked       []string                  // the tags /distribution was asked about
+	asked       []string                  // the tags the fake registry was asked about (fakeRegistry)
+	inspected   []string                  // the tags Docker's /distribution was asked about
+	headers     []http.Header             // what each registry HEAD sent
 	crash       map[string]bool           // images whose containers restart at once on start
+	exits       map[string]bool           // images whose containers exit at once on start (restart policy no)
 	nextID      int
 	calls       []string // "POST /containers/x/start", for asserting what the module did
 	failCreate  bool
@@ -90,7 +93,7 @@ func (c *fakeContainer) state() map[string]any {
 
 func newFakeDocker(t *testing.T) (*fakeDocker, string) {
 	t.Helper()
-	f := &fakeDocker{containers: map[string]*fakeContainer{}, images: map[string]string{}, imageCfg: map[string]map[string]any{}, repoDigests: map[string][]string{}, registry: map[string]string{}, crash: map[string]bool{}}
+	f := &fakeDocker{containers: map[string]*fakeContainer{}, images: map[string]string{}, imageCfg: map[string]map[string]any{}, repoDigests: map[string][]string{}, registry: map[string]string{}, crash: map[string]bool{}, exits: map[string]bool{}}
 	// Unix socket paths are short on macOS: keep it out of the long TempDir.
 	dir, err := os.MkdirTemp("", "cdd")
 	if err != nil {
@@ -235,6 +238,9 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 			if f.crash[c.Image] {
 				c.State, c.RestartCount = "restarting", c.RestartCount+1
 			}
+			if f.exits[c.Image] {
+				c.State = "exited"
+			}
 			w.WriteHeader(204)
 		case verb == "stop":
 			c.State = "exited"
@@ -306,7 +312,7 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 		jsonOut(w, 200, map[string]any{"Id": id, "Config": f.imageCfg[id], "RepoDigests": f.repoDigests[id]})
 	case strings.HasPrefix(path, "/distribution/") && strings.HasSuffix(path, "/json"):
 		ref := strings.TrimSuffix(strings.TrimPrefix(path, "/distribution/"), "/json")
-		f.asked = append(f.asked, ref)
+		f.inspected = append(f.inspected, ref)
 		switch d := f.registry[ref]; d {
 		case "":
 			jsonOut(w, 404, map[string]string{"message": "manifest unknown"})
@@ -322,5 +328,61 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 		enc.Encode(map[string]any{"Type": "container", "Action": "die", "Actor": map[string]any{"ID": "abc"}, "time": 2})
 	default:
 		jsonOut(w, 404, map[string]string{"message": "page not found"})
+	}
+}
+
+// fakeRegistry serves the registry API for every domain under
+// <url>/<domain>, answering HEADs from f.registry: a digest, "401" (a
+// token is refused: a login) or "" (no such tag). docker.io wants an
+// anonymous token first, as Docker Hub does. unreachable is a domain whose
+// registry the node can't reach directly, so Docker is asked instead.
+// It returns the function the module's registry field takes.
+func (f *fakeDocker) fakeRegistry(t *testing.T, unreachable string) func(string) string {
+	t.Helper()
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if r.URL.Path == "/token" {
+			if r.URL.Query().Get("scope") == "" || strings.Contains(r.URL.Query().Get("scope"), "private") {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			jsonOut(w, 200, map[string]string{"token": "anon"})
+			return
+		}
+		domain, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
+		repo, tag, ok := strings.Cut(strings.TrimPrefix(rest, "v2/"), "/manifests/")
+		if r.Method != http.MethodHead || !ok {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		ref := domain + "/" + repo + ":" + tag
+		authed := r.Header.Get("Authorization") == "Bearer anon"
+		challenge := `Bearer realm="` + srv.URL + `/token",service="registry.example",scope="repository:` + repo + `:pull"`
+		if domain == "docker.io" && !authed {
+			w.Header().Set("WWW-Authenticate", challenge)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		f.asked = append(f.asked, ref)
+		f.headers = append(f.headers, r.Header.Clone())
+		switch d := f.registry[ref]; d {
+		case "":
+			w.WriteHeader(http.StatusNotFound)
+		case "401":
+			w.Header().Set("WWW-Authenticate", strings.Replace(challenge, repo, "private/"+repo, 1))
+			w.WriteHeader(http.StatusUnauthorized)
+		default:
+			w.Header().Set("Docker-Content-Digest", d)
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return func(domain string) string {
+		if domain == unreachable {
+			return "http://127.0.0.1:1"
+		}
+		return srv.URL + "/" + domain
 	}
 }

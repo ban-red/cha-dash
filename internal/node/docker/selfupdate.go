@@ -55,6 +55,17 @@ func (m *Module) PullImage(ctx context.Context, ref string, progress func(string
 // running image, and returns the new container's ID. The node's own
 // container is refused.
 func (m *Module) RecreateImage(ctx context.Context, id, image string, progress func(string)) (string, error) {
+	return m.recreateImage(ctx, id, image, false, progress)
+}
+
+// RollbackImage is RecreateImage for a rollback: the new container starts
+// even when the one it replaces isn't running, since that is usually the
+// update that crashed (dockerapi.SelfUpdater).
+func (m *Module) RollbackImage(ctx context.Context, id, image string, progress func(string)) (string, error) {
+	return m.recreateImage(ctx, id, image, true, progress)
+}
+
+func (m *Module) recreateImage(ctx context.Context, id, image string, start bool, progress func(string)) (string, error) {
 	res, err := m.cli.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	if err != nil {
 		return "", mapErr(err)
@@ -66,5 +77,5 @@ func (m *Module) RecreateImage(ctx context.Context, id, image string, progress f
 	if old.Config == nil || old.HostConfig == nil {
 		return "", nodeproto.Errorf(nodeproto.CodeFailed, "Docker's inspect of %s is incomplete", strings.TrimPrefix(old.Name, "/"))
 	}
-	return m.replace(ctx, old, image, 0, progress)
+	return m.replace(ctx, old, image, 0, start, progress)
 }

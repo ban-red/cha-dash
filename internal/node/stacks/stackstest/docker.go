@@ -259,6 +259,12 @@ func (f *Docker) PullImage(_ context.Context, ref string, progress func(string))
 	return Digest(ref), nil
 }
 
+// RollbackImage implements dockerapi.SelfUpdater: RecreateImage, whose
+// containers start anyway.
+func (f *Docker) RollbackImage(ctx context.Context, id, image string, progress func(string)) (string, error) {
+	return f.RecreateImage(ctx, id, image, progress)
+}
+
 // RecreateImage implements dockerapi.SelfUpdater: the container gets a new
 // ID and the image, and behaves by its name as Up's containers do (a
 // healthcheck is assumed, as the hub's image has one). OnRecreate, when

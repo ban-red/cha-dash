@@ -418,14 +418,32 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	var upd *updates.Service
 	if !cfg.Demo {
 		upd, err = updates.New(updates.Options{Store: st, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "updates"),
-			// Check now: every Docker instance through a node syncs at once
-			// and asks its node to ask the registries again.
+			// Check now: each node behind a Docker instance asks its
+			// registries again (image.check with fresh, which the node
+			// limits to once a minute per tag), then those instances sync
+			// and publish the answers. In the background: registries can
+			// be slow, and the page polls.
 			Refresh: func() int {
-				n := 0
+				nodesOf := map[string][]string{} // node name → instance IDs
 				for _, in := range mgr.List() {
-					if ep, _ := in.Config["endpoint"].(string); in.Enabled && in.Integration == "docker" && strings.HasPrefix(ep, "node://") && mgr.Refresh(in.ID) == nil {
-						n++
+					if ep, _ := in.Config["endpoint"].(string); in.Enabled && in.Integration == "docker" && strings.HasPrefix(ep, "node://") {
+						name := strings.TrimPrefix(ep, "node://")
+						nodesOf[name] = append(nodesOf[name], in.ID)
 					}
+				}
+				n := 0
+				for name, ids := range nodesOf {
+					n += len(ids)
+					go func() {
+						cctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+						defer cancel()
+						if _, err := nodeHub.Call(cctx, name, "image.check", map[string]bool{"fresh": true}, nil); err != nil {
+							log.Warn("updates: check now", "node", name, "err", err)
+						}
+						for _, id := range ids {
+							_ = mgr.Refresh(id)
+						}
+					}()
 				}
 				return n
 			}})
