@@ -56,6 +56,7 @@ beforeEach(() => {
   setDisplayTimeZone(undefined);
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   document.body.innerHTML = '';
   navigate('/', { replace: true });
@@ -143,13 +144,16 @@ describe('the first paint', () => {
     // Demo times are UTC from the first paint.
     expect(page().textContent).toMatch(/\d\d:\d\d/);
 
-    // The hub answers: the same documents arrive as snapshots.
+    // The hub answers: the same documents arrive as snapshots. The clock
+    // stands still meanwhile, or a slow run sees a minute turn over.
     await flushPromises();
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
     const before = page().innerHTML;
     const ws = FakeSocket.last;
     ws.handshake({ graph: s.graph, metrics: s.metrics, inbox: s.inbox });
     await flushPromises();
     expect(page().innerHTML).toBe(before);
+    vi.useRealTimers();
     // No connection banner, only the standing demo note.
     expect(document.querySelector('.banner:not(.demo)')).toBeNull();
     expect(document.querySelector('.banner.demo')?.textContent).toContain('Demo Home');
