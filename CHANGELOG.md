@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0-beta.1] - 2026-10-31
+
+The first beta of v0.3: **Cha Dash runs your stacks from git, signs you in through your provider, and reaches more hosts.** A stack can follow a git branch and deploy on push or ask first, behind the same health gate as a manual deploy, and a webhook from Forgejo, Gitea, GitHub or GitLab triggers it. Sign in with an OIDC provider or behind a forward-auth proxy, with roles from the provider's groups. Nodes on other hosts join with a one-time token and an approval, stacks other tools started can move into the stacks root, and Cha Dash can update itself, rolling back on its own if the new image fails its health check. These ran against two sandboxes and a real host before this beta, and what those runs found is fixed below.
+
+**On upgrade,** point both images at `beta`, as the [install steps](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md) show, or pin `0.3.0-beta.1`. For self-update, take the new [`compose.yaml`](https://github.com/ban-red/cha-dash/blob/main/deploy/compose.yaml), which turns it on for the node beside the hub. A node named `hooks` or `secrets` is refused now: rename it first. The Cameras tile hides its switches until you turn on **Show camera controls** in its Widget settings.
+
 ### Added
 
 - **A Frigate detection in its own dialog.** On the Cameras tile, click a recent detection to see just that event: the event's snapshot (when the connection shares pictures), what it saw, how sure Frigate was and when, with an Open in Frigate link to the event in Frigate's Explore page. The link needs the connection's URL to be one you can reach from the browser. A camera's sheet lists its five newest events, and each opens the same dialog.
@@ -358,6 +364,7 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.2.0-beta.2...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0-beta.1...HEAD
+[0.3.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.1
 [0.2.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.1
