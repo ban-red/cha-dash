@@ -80,7 +80,7 @@ func (t *targets) UnmarshalYAML(n *yaml.Node) error {
 	}
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		var x targetTpl
-		if err := n.Content[i+1].Decode(&x); err != nil {
+		if err := decodeStrict(n.Content[i+1], &x); err != nil {
 			return err
 		}
 		x.ID = n.Content[i].Value

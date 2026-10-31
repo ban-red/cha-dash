@@ -39,16 +39,18 @@ const DefaultPolicyPath = "/etc/chadash-node/policy.yaml"
 //	stacks.adopt      adopt a running compose project in place, or move it into the root
 //	stacks.sync       check and fetch a git remote a stack follows (limited by stacks.remotes)
 //	stacks.selfupdate update the hub's own container (not by default; the hub's host only)
+//	images.check      ask containers' registries whether their image tags moved (read-only, but traffic from this host)
 //	host.metrics      host CPU, memory, disk (later)
 //	host.smart        SMART detail (later; needs CAP_SYS_RAWIO)
 //
-// Write permissions (everything but docker.read, docker.logs, stacks.read
-// and host.*) are refused for protected containers whatever the allow lists
+// Write permissions (everything but docker.read, docker.logs, stacks.read,
+// images.check and host.*) are refused for protected containers whatever the allow lists
 // say: see Protected.
 type Policy struct {
 	Hub    HubPolicy    `yaml:"hub"`
 	Docker DockerPolicy `yaml:"docker"`
 	Stacks StacksPolicy `yaml:"stacks"`
+	Images ImagesPolicy `yaml:"images"`
 	Host   HostPolicy   `yaml:"host"`
 	// Exec is the master switch for exec, off by default: docker.exec needs
 	// it and "exec" in docker.allow.
@@ -118,6 +120,15 @@ var StackDenials = []string{"privileged", "host_namespaces", "devices", "cap_add
 // Denies reports whether stacks.deny lists feature.
 func (s StacksPolicy) Denies(feature string) bool { return slices.Contains(s.Deny, feature) }
 
+// ImagesPolicy is the images section. images.check sends a HEAD for each
+// running container's image tag to its registry, at most every 6 hours, so
+// the Update Center knows when a tag has moved. It changes nothing, but it
+// is network traffic from this host, so it has its own grant: allow: []
+// turns it off.
+type ImagesPolicy struct {
+	Allow []string `yaml:"allow"`
+}
+
 // HostPolicy is the host section.
 type HostPolicy struct {
 	Metrics bool `yaml:"metrics"`
@@ -134,15 +145,16 @@ type RelayPolicy struct {
 var grants = map[string][]string{
 	"docker": {"read", "logs", "lifecycle", "update", "exec", "remove"},
 	"stacks": {"read", "deploy", "adopt", "sync", "selfupdate"},
+	"images": {"check"},
 	"host":   {"metrics", "smart"},
 }
 
 // readOnly are the permissions that never change anything.
-var readOnly = []string{"docker.read", "docker.logs", "stacks.read", "host.metrics", "host.smart"}
+var readOnly = []string{"docker.read", "docker.logs", "stacks.read", "images.check", "host.metrics", "host.smart"}
 
 // DefaultPolicy is what a node without a policy file runs: Docker reads,
 // logs, lifecycle and updates; stacks read, deploy, adopt and sync, from
-// any remote; the hub and the node itself protected; exec, remove and
+// any remote; image update checks; the hub and the node itself protected; exec, remove and
 // selfupdate off; env redacted.
 func DefaultPolicy() Policy {
 	t := true
@@ -154,6 +166,7 @@ func DefaultPolicy() Policy {
 			RedactEnv: &t,
 		},
 		Stacks: StacksPolicy{Root: "/opt/stacks", Allow: []string{"read", "deploy", "adopt", "sync"}},
+		Images: ImagesPolicy{Allow: []string{"check"}},
 	}
 }
 
@@ -202,6 +215,9 @@ func ParsePolicy(b []byte) (Policy, error) {
 	if p.Stacks.Allow == nil {
 		p.Stacks.Allow = def.Stacks.Allow
 	}
+	if p.Images.Allow == nil {
+		p.Images.Allow = def.Images.Allow
+	}
 	return p, p.Validate()
 }
 
@@ -217,6 +233,7 @@ func (p Policy) Validate() error {
 	}
 	check("docker", p.Docker.Allow)
 	check("stacks", p.Stacks.Allow)
+	check("images", p.Images.Allow)
 	for _, d := range p.Stacks.Deny {
 		if !slices.Contains(StackDenials, d) {
 			errs = append(errs, fmt.Errorf("policy: stacks.deny: unknown feature %q (want one of %s)", d, strings.Join(StackDenials, ", ")))
@@ -323,6 +340,8 @@ func (p Policy) Allows(perm string) bool {
 		return slices.Contains(p.Docker.Allow, grant)
 	case "stacks":
 		return slices.Contains(p.Stacks.Allow, grant)
+	case "images":
+		return slices.Contains(p.Images.Allow, grant)
 	case "host":
 		return grant == "metrics" && p.Host.Metrics || grant == "smart" && p.Host.Smart
 	}

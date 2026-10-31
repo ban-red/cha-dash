@@ -23,6 +23,7 @@
 package spec
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -97,6 +98,22 @@ type field struct {
 	Max         *float64 `yaml:"max"`
 }
 
+// decodeStrict decodes n into v and refuses a key v doesn't have, as Parse
+// does at the top level: yaml.v3's Node.Decode doesn't, so a typo inside a
+// request or a config field would otherwise be dropped without a word.
+func decodeStrict(n *yaml.Node, v any) error {
+	b, err := yaml.Marshal(n)
+	if err != nil {
+		return err
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	dec.KnownFields(true)
+	if err := dec.Decode(v); err != nil {
+		return fmt.Errorf("line %d: %w", n.Line, err)
+	}
+	return nil
+}
+
 // fields keeps the config's order, so the form follows the file.
 type fields []field
 
@@ -106,7 +123,7 @@ func (f *fields) UnmarshalYAML(n *yaml.Node) error {
 	}
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		var x field
-		if err := n.Content[i+1].Decode(&x); err != nil {
+		if err := decodeStrict(n.Content[i+1], &x); err != nil {
 			return err
 		}
 		x.Name = n.Content[i].Value
@@ -140,7 +157,7 @@ func (r *requests) UnmarshalYAML(n *yaml.Node) error {
 	}
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		var x request
-		if err := n.Content[i+1].Decode(&x); err != nil {
+		if err := decodeStrict(n.Content[i+1], &x); err != nil {
 			return err
 		}
 		x.Name = n.Content[i].Value

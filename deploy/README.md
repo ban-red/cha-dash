@@ -162,6 +162,7 @@ docker:
 stacks: { root: /opt/stacks, allow: [read, deploy, adopt, sync] }   # also: selfupdate (compose.yaml adds it; see below)
 # stacks: { remotes: [git.lab.example, "git.lab.example:2222"] }   # git hosts sync may reach; none listed is any
 # stacks: { deny: [privileged, host_namespaces, devices, cap_add, host_binds], bind_roots: [/mnt/media] }
+images: { allow: [check] }                 # allow: [] stops the registry checks
 exec: false
 # hub: { pin: "ed25519:…", pin_rotation: false }   # fix the hub's key
 ```
@@ -176,6 +177,7 @@ exec: false
 | `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
 | `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks) |
 | `stacks.sync` | check and fetch the git remote a stack follows, only from the hosts in `stacks.remotes` when it lists any (Settings → Stacks → Follow git) |
+| `images.check` | ask each running container's registry whether its image tag has moved, with a `HEAD` request at most every 6 hours, for the Update Center. It changes nothing, but it is traffic from the node's host, so `images: { allow: [] }` turns it off |
 | `stacks.selfupdate` | update the hub's own container: Settings → Stacks → Update Cha Dash. Off by default. `compose.yaml` turns it on for the node beside the hub with `CHADASH_NODE_SELFUPDATE: "true"`, which adds it to the default policy; a mounted `policy.yaml` decides alone, so list `selfupdate` there instead. Only a node in the hub's compose project can use it, and it only ever recreates the hub's container |
 
 The hub (`chadash`) and the node (`chadash-node`) are always protected, whatever the file says: no Docker or stack action restarts or removes them. The one exception is Update Cha Dash (`stacks.selfupdate`), which recreates the hub's container with a new image; the node never touches its own. Protection holds for stacks too: a deploy that would recreate or remove a protected container is refused. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.

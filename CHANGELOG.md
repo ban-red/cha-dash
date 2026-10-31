@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **The spec format's schema.** Every hub serves the JSON Schema of the integration spec format at `/api/specs/schema/v1alpha1.json`, so an editor can check a spec as you write it. A spec with a misspelt key inside `config`, `requests` or `targets` is now refused instead of the key being dropped.
+
 ## [0.3.0-beta.2] - 2026-10-31
 
 A fix for Update Cha Dash, and the first published beta of v0.3. 0.3.0-beta.1 was tagged but never published: its last live check found that a hub crashing at start passed self-update's health gate and stayed down. Both fixes are below.

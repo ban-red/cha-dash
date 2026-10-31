@@ -149,6 +149,8 @@ var Routes = []Route{
 	// Linking and step-up through them check the session themselves.
 	{Pattern: "GET /api/auth/oidc/start", Access: Public},
 	{Pattern: "GET /api/auth/oidc/callback", Access: Public},
+	// The spec format's JSON Schema: the same for every hub of a version.
+	{Pattern: "GET /api/specs/schema/v1alpha1.json", Access: Public},
 
 	// chadash-node's channel: authenticated by the node's pinned key inside
 	// mutual TLS, never by a session (internal/nodes).

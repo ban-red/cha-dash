@@ -22,7 +22,7 @@ func TestDefaultPolicy(t *testing.T) {
 		"docker.read": true, "docker.logs": true, "docker.lifecycle": true, "docker.update": true,
 		"docker.remove": false, "docker.exec": false,
 		"stacks.read": true, "stacks.deploy": true, "stacks.adopt": true, "stacks.sync": true,
-		"stacks.selfupdate": false, "host.metrics": false, "host.smart": false, "docker.root": false, "nonsense": false, "": false,
+		"stacks.selfupdate": false, "images.check": true, "host.metrics": false, "host.smart": false, "docker.root": false, "nonsense": false, "": false,
 	} {
 		if p.Allows(perm) != want {
 			t.Errorf("default Allows(%q) = %v", perm, !want)
@@ -106,11 +106,20 @@ exec: false
 	if err != nil || p.Allows("docker.read") {
 		t.Fatalf("empty allow: %v", err)
 	}
+	// Image checks are on unless the file says otherwise, and allow: [] turns them off.
+	if !p.Allows("images.check") {
+		t.Fatal("images.check off without an images section")
+	}
+	p, err = ParsePolicy([]byte("images: { allow: [] }\n"))
+	if err != nil || p.Allows("images.check") || !p.Allows("docker.read") {
+		t.Fatalf("images off: %v", err)
+	}
 	for name, doc := range map[string]string{
 		"unknown key":     "dockr: {}\n",
 		"unknown field":   "docker: { alow: [read] }\n",
 		"unknown grant":   "docker: { allow: [root] }\n",
 		"stacks grant":    "stacks: { allow: [read, delete] }\n",
+		"images grant":    "images: { allow: [pull] }\n",
 		"bad pin":         "hub: { pin: abc }\n",
 		"relay":           "relay: { allow: [192.0.2.1] }\n",
 		"empty protected": "docker: { protect: [''] }\n",
@@ -153,7 +162,7 @@ func TestEveryWriteVerbRefused(t *testing.T) {
 		}
 	}
 	slices.Sort(perms)
-	readOnlyPolicy, err := ParsePolicy([]byte("docker: { allow: [read] }\nstacks: { allow: [read] }\n"))
+	readOnlyPolicy, err := ParsePolicy([]byte("docker: { allow: [read] }\nstacks: { allow: [read] }\nimages: { allow: [] }\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

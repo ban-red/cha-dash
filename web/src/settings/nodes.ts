@@ -80,6 +80,7 @@ export const GRANTS: Record<string, string> = {
   'stacks.adopt': 'Adopt running compose projects',
   'stacks.sync': 'Follow stacks from git',
   'stacks.selfupdate': 'Update Cha Dash itself',
+  'images.check': 'Check registries for image updates',
   'host.metrics': 'Read host metrics',
   'host.smart': 'Read disk health (SMART)',
 };

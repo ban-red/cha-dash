@@ -119,6 +119,12 @@ func TestEndToEnd(t *testing.T) {
 	if resp := e.request(t, c, "GET", "/", nil, nil); resp.StatusCode != 200 {
 		t.Fatalf("placeholder: %d", resp.StatusCode)
 	}
+	// The spec format's schema needs no session.
+	if resp := e.request(t, c, "GET", "/api/specs/schema/v1alpha1.json", nil, nil); resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "application/schema+json" {
+		t.Fatalf("spec schema: %d %s", resp.StatusCode, resp.Header.Get("Content-Type"))
+	} else if b, _ := io.ReadAll(resp.Body); !strings.Contains(string(b), `"const": "chadash/v1alpha1"`) {
+		t.Fatalf("spec schema body: %.200s", b)
+	}
 	if resp := e.request(t, c, "GET", "/api/nope", nil, nil); resp.StatusCode != 404 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
 		t.Fatalf("unknown api: %d %s", resp.StatusCode, resp.Header.Get("Content-Type"))
 	}

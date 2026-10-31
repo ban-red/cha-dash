@@ -101,6 +101,7 @@ import (
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
+	"dash.cha.sh/internal/spec"
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -193,6 +194,12 @@ func New(d Deps) (http.Handler, error) {
 	mux.Handle("GET /api/version", d.Auth.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"version": buildinfo.Version, "commit": buildinfo.Commit})
 	})))
+	// The spec format's schema, for spec authors and their editors. It's the
+	// same for every hub of a version, so it needs no session.
+	mux.HandleFunc("GET /api/specs/schema/v1alpha1.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/schema+json")
+		_, _ = w.Write(spec.Schema())
+	})
 	// session attaches the signed-in identity. Who may call each route is
 	// decided by authz.Guard, in front of the whole mux, from the table in
 	// internal/authz/routes.go: a new route needs a row there.

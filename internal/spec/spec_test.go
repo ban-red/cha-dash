@@ -73,6 +73,8 @@ func TestParse(t *testing.T) {
 		"api version":       {"chadash/v1alpha1", "chadash/v1"},
 		"kind":              {"kind: Integration", "kind: Widget"},
 		"unknown key":       {"\nversion: info.version", "\nversion: info.version\nfrobnicate: true"},
+		"typo in a request": {"    optional: true", "    optinal: true"},
+		"typo in a field":   {"site: { type: string, title: Site }", "site: { type: string, titel: Site }"},
 		"secret in path":    {"/api/{{ config.site }}/stats", "/api/{{ secret.token }}/stats"},
 		"config as secret":  {`key: "{{ secret.token }}"`, `key: "{{ secret.site }}"`},
 		"secret as config":  {`site: "{{ config.site }}"`, `site: "{{ config.token }}"`},

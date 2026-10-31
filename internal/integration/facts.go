@@ -236,3 +236,35 @@ const (
 	AttrLinks     = "links"
 	AttrCaps      = "caps"
 )
+
+// AttrUpdate is a container's image update, an ImageUpdate. The Docker
+// integration publishes it from the node's image.check verb, and Unraid's
+// integration from Unraid's own update status. An app that updates itself
+// (Pi-hole, Seerr) keeps its own update_available instead.
+const AttrUpdate = "update"
+
+// The states of an ImageUpdate.
+const (
+	UpdateCurrent   = "current"    // the tag points at the image the container runs
+	UpdateAvailable = "available"  // the tag has moved: Latest is newer than Current
+	UpdateCantCheck = "cant_check" // see Reason: built locally, pinned by digest, or the registry needs a login
+	UpdateHeld      = "held"       // held or snoozed in the Update Center; Latest may still be newer
+)
+
+// ImageUpdate says whether a container's image tag has moved in its
+// registry. Current and Latest are registry digests ("sha256:…"); either
+// is "" when unknown.
+//
+// The node's image.check verb (images.check) answers
+// {"images": [ImageUpdate + "id", "image"]} for {"ids": [container IDs]},
+// or for every running container when ids is empty. It sends one HEAD per
+// distinct tag, and a tag checked in the last 6 hours answers from the
+// node's memory, so CheckedAt can be older than the request.
+type ImageUpdate struct {
+	State     string    `json:"state"`
+	Current   string    `json:"current,omitempty"`
+	Latest    string    `json:"latest,omitempty"`
+	CheckedAt time.Time `json:"checked_at,omitzero"`
+	// Reason says why State is cant_check, as a sentence.
+	Reason string `json:"reason,omitempty"`
+}

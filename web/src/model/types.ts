@@ -300,3 +300,31 @@ export function resourceLinks(r: Resource | undefined): Link[] {
 }
 
 export const seriesKey = (resource: string, metric: string): string => `${resource}#${metric}`;
+
+/** Whether a container's image tag has moved in its registry (integration.ImageUpdate). */
+export type UpdateState = 'current' | 'available' | 'cant_check' | 'held';
+
+export interface ImageUpdate {
+  state: UpdateState;
+  /** Registry digests, "sha256:…". */
+  current?: string;
+  latest?: string;
+  checked_at?: string;
+  /** Why it's cant_check, as a sentence. */
+  reason?: string;
+}
+
+const UPDATE_STATES: readonly string[] = ['current', 'available', 'cant_check', 'held'];
+
+/** A resource's `update` attr, or undefined when it has none or it doesn't parse. */
+export function imageUpdate(r: Resource | undefined): ImageUpdate | undefined {
+  const u = r?.attrs?.['update'];
+  if (!u || typeof u !== 'object' || Array.isArray(u)) return undefined;
+  const v = u as Record<string, unknown>;
+  if (typeof v.state !== 'string' || !UPDATE_STATES.includes(v.state)) return undefined;
+  const out: ImageUpdate = { state: v.state as UpdateState };
+  for (const k of ['current', 'latest', 'checked_at', 'reason'] as const) {
+    if (typeof v[k] === 'string') out[k] = v[k];
+  }
+  return out;
+}
