@@ -310,6 +310,36 @@ describe('Settings → Nodes: remote nodes', () => {
     expect(ui.state.toasts.at(-1)?.text).toBe('Revoked the join token for any name. It won’t enroll a node.');
   });
 
+  it('reads again while a node may turn up, and stops once nothing waits', async () => {
+    // The token gets used, the node waits, then someone approves it elsewhere.
+    let phase: 'token' | 'pending' | 'approved' = 'token';
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { w, f } = await pane({
+      'GET /api/nodes': () => ({ status: 200, body: { nodes: phase === 'token' ? [] : [{ ...PENDING, state: phase }], hub_pin: 'ed25519:hubkey', pairing: true } }),
+      'GET /api/nodes/tokens': () => ({ status: 200, body: { tokens: phase === 'token' ? [ACTIVE] : [TOKEN] } }),
+    });
+    const reads = () => f.calls.filter((c) => c.path === '/api/nodes').length;
+    try {
+      expect(w.find('.nd-pending').exists()).toBe(false);
+      phase = 'pending';
+      await vi.advanceTimersByTimeAsync(5000);
+      await flushPromises();
+      expect(w.find('.nd-pending h4').text()).toBe('attic wants to join');
+      phase = 'approved';
+      await vi.advanceTimersByTimeAsync(5000);
+      await flushPromises();
+      expect(w.find('.nd-pending').exists()).toBe(false);
+      expect(w.findAll('.nd-row .t').map((t) => t.text())).toContain('attic');
+      const before = reads();
+      await vi.advanceTimersByTimeAsync(20000);
+      await flushPromises();
+      expect(reads()).toBe(before);
+      w.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('opens Settings → Nodes from the pending node’s Inbox item', async () => {
     fakeFetch({});
     const h = harness(home());

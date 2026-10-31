@@ -20,7 +20,7 @@
  * Its own chunk, loaded with the pane.
  */
 import SettingsHelp from './SettingsHelp.vue';
-import { computed, defineAsyncComponent, onMounted, ref, useId } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import HoldToConfirm from '../components/HoldToConfirm.vue';
 import { api } from '../lib/api';
@@ -60,6 +60,7 @@ async function load(): Promise<void> {
     hubPin.value = res.hub_pin ?? '';
     pairing.value = res.pairing === true;
     status.value = 'ready';
+    schedule();
   } catch (err) {
     status.value = 'error';
     loadError.value = hubWords(err, 'Nodes couldn’t be loaded.');
@@ -69,6 +70,21 @@ onMounted(() => void load());
 
 const pending = computed(() => nodes.value.filter((n) => n.state === 'pending'));
 const listed = computed(() => nodes.value.filter((n) => n.state !== 'pending'));
+
+/** A node may turn up any moment: a join token is unused, or a node waits for approval. */
+const waiting = computed(() => pending.value.length > 0 || tokens.value.some((t) => t.state === 'active'));
+// Nothing on the hub pushes node changes, so read again every few seconds until nothing waits.
+const POLL_MS = 5000;
+let poll: ReturnType<typeof setTimeout> | undefined;
+let gone = false;
+function schedule(): void {
+  clearTimeout(poll);
+  poll = !gone && waiting.value ? setTimeout(() => void load(), POLL_MS) : undefined;
+}
+onBeforeUnmount(() => {
+  gone = true;
+  clearTimeout(poll);
+});
 
 // ── Add node ──
 const adding = ref(false);
@@ -81,6 +97,7 @@ function closeAdd(): void {
 }
 function tokenMade(t: JoinToken): void {
   tokens.value = [t, ...tokens.value.filter((x) => x.id !== t.id)];
+  schedule();
 }
 /** A pending card or a token changed on the hub: say so and read again. */
 async function changed(message: string): Promise<void> {
