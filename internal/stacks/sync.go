@@ -763,7 +763,7 @@ func (y *Syncer) runOnce(ctx context.Context, id string) {
 		return
 	}
 	if s.isRejected(chk.SHA) {
-		_, _ = y.s.patchSync(ctx, id, func(s *Sync) { s.LastSeen = chk.SHA })
+		y.skipRejected(ctx, s, owner, chk.SHA)
 		return
 	}
 	var got stackproto.FetchResponse
@@ -796,6 +796,25 @@ func (y *Syncer) auditFetch(ctx context.Context, s *Sync, owner auth.UserInfo, g
 	}
 }
 
+// skipRejected records that the tip is a commit that failed its health
+// gate here before, so the sync doesn't deploy it again: the tip is seen,
+// and stack.sync.skip is audited once (only a new tip gets here).
+func (y *Syncer) skipRejected(ctx context.Context, s *Sync, owner auth.UserInfo, sha string) {
+	_, _ = y.s.patchSync(ctx, s.ID, func(s *Sync) { s.LastSeen = sha })
+	if y.s.Audit == nil || y.s.Audit.Log == nil {
+		return
+	}
+	params, _ := json.Marshal(map[string]any{"sync": s.ID, "sha": sha, "branch": s.Branch})
+	a := syncActor(s, owner)
+	if _, err := y.s.Audit.Log.Append(context.WithoutCancel(ctx), audit.Entry{
+		Actor:  audit.Actor{Kind: a.Kind, ID: a.ID, Name: a.Name, Via: a.Via, OnBehalfOf: a.User},
+		Action: "stack.sync.skip", Target: Target(s.Node, s.Stack), Params: params, Result: audit.Refused,
+		Error: &audit.Error{Code: "rejected", Message: "Commit " + short(sha) + " failed its health gate here before, so the sync won't deploy it again. It waits for a newer commit on " + s.Branch + "."},
+	}); err != nil {
+		y.s.log.Error("stacks: audit a skipped commit", "sync", s.ID, "err", err)
+	}
+}
+
 // process gates a fetched tip and hands it to the engine.
 func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got stackproto.FetchResponse) {
 	sha := got.SHA
@@ -819,7 +838,7 @@ func (y *Syncer) process(ctx context.Context, s *Sync, owner auth.UserInfo, got 
 	// The commit that ran (a check can race a push): a rejected one stops
 	// here too.
 	if s.isRejected(sha) {
-		_, _ = y.s.patchSync(ctx, s.ID, func(s *Sync) { s.LastSeen = sha })
+		y.skipRejected(ctx, s, owner, sha)
 		return
 	}
 	// The gate: the stack as the node has it.

@@ -261,6 +261,22 @@ func TestSyncDeploysOnPushAndRejectsARollback(t *testing.T) {
 	if in, _ := e.item(got); in.Status != "resolved" {
 		t.Fatalf("inbox after c3: %+v", in)
 	}
+
+	// The rejected commit force-pushed back: seen, not deployed, and the
+	// skip is audited once, with why.
+	e.remote.push(remoteURL, "main", sha2, "media/compose.yaml", plainGood("nginx-unhealthy:1.28"))
+	e.y.runOnce(ctx, y.ID)
+	e.y.runOnce(ctx, y.ID)
+	if s := e.sync(y.ID); s.LastSeen != sha2 || s.LastDeployed != sha3 {
+		t.Fatalf("after the force-push: %+v", s)
+	}
+	ev, ok := lastEvent(t, e.hubEnv, "stack.sync.skip")
+	if !ok || ev.Result != audit.Refused || ev.Actor.Kind != "sync" || ev.Error == nil || !strings.Contains(ev.Error.Message, "Commit 2222222 failed its health gate here before") {
+		t.Fatalf("skip event %+v", ev)
+	}
+	if n := countEvents(t, e.hubEnv, "stack.sync.skip"); n != 1 {
+		t.Fatalf("%d skip events, want 1", n)
+	}
 }
 
 func lastEvent(t *testing.T, h *hubEnv, action string) (audit.Event, bool) {
