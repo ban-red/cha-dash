@@ -186,9 +186,10 @@ func (s *Service) redirectURI(r *http.Request) string {
 // hub would send it for r.
 func (s *Service) RedirectURI(r *http.Request) string { return s.redirectURI(r) }
 
-// oidcFail redirects a failed browser flow with its code.
+// oidcFail redirects a failed browser flow with its code, to a path on
+// this origin only.
 func oidcFail(w http.ResponseWriter, r *http.Request, to, code string) {
-	http.Redirect(w, r, withParam(to, "oidc_error", code), http.StatusSeeOther)
+	http.Redirect(w, r, withParam(SafeReturn(to), "oidc_error", code), http.StatusSeeOther) //nolint:gosec // G710: SafeReturn keeps only a path on this origin
 }
 
 func (s *Service) handleOIDCStart(w http.ResponseWriter, r *http.Request) {
@@ -263,7 +264,7 @@ func (s *Service) handleOIDCStart(w http.ResponseWriter, r *http.Request) {
 		fail(code)
 		return
 	}
-	http.Redirect(w, r, to, http.StatusSeeOther)
+	http.Redirect(w, r, to, http.StatusSeeOther) //nolint:gosec // G710: the provider's authorization endpoint, from the issuer the owner set
 }
 
 var errOIDCOff = errors.New("auth: OIDC isn't configured")
