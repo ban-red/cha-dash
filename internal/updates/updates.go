@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
@@ -242,6 +243,43 @@ func stringAttr(attrs map[string]any, k string) string {
 }
 
 // ── holds ─────────────────────────────────────────────────────────────
+
+// updateActions put a newer image on a container: what a hold refuses.
+var updateActions = map[string]bool{"docker.container.update": true, "unraid.container.update": true}
+
+// Guard refuses updating a container held on its image, wherever the
+// update is asked for: the page, ⌘K, the API (action.Options.Guard). A
+// snooze only hides an update, so it refuses nothing.
+func (s *Service) Guard(ctx context.Context, req action.Request) error {
+	if !updateActions[req.Action] {
+		return nil
+	}
+	target := graph.RID(req.Target.ID)
+	_, doc := s.g.Snapshot(func(r *graph.Resource) bool { return r.ID == target || r.Kind == "engine" })
+	r, ok := doc.Resources[target]
+	if !ok {
+		return nil
+	}
+	engine := ""
+	for _, rel := range doc.Relations {
+		if rel.From == target && rel.Type == "runs_on" {
+			engine = string(rel.To)
+		}
+	}
+	holds, err := s.holds(ctx)
+	if err != nil {
+		return err
+	}
+	name := cmp.Or(r.Name, string(r.ID))
+	if h, ok := holds[holdKey(engine, name)]; ok && h.Kind == KindHold {
+		by := ""
+		if h.CreatedBy != "" {
+			by = " by " + h.CreatedBy
+		}
+		return action.Precondition(fmt.Sprintf("%s is held on its image%s. Release it in Settings → Updates to update it.", name, by))
+	}
+	return nil
+}
 
 // holdKey keys a hold by the engine and the container's name: an update
 // recreates the container, and its ID changes with it.

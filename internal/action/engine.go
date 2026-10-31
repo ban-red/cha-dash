@@ -64,6 +64,11 @@ type Options struct {
 	// after the approval's audit record and Inbox item, on the caller's
 	// goroutine, so it must return quickly. Nil skips it.
 	OnApprovalEnded func(Approval)
+	// Guard refuses, as a Def's Preconditions do, by a rule of the hub's
+	// rather than the source's: an update of a container held on its
+	// image (internal/updates). It runs after Preconditions wherever they
+	// do (plan, approve, the listing). Nil refuses nothing.
+	Guard func(ctx context.Context, req Request) error
 	// Inbox receives an item (class "approval") for each plan waiting for a
 	// person, kept current as it's decided. Nil: approvals work, but only
 	// the API lists them.
@@ -86,6 +91,7 @@ type Engine struct {
 	consume  func(ctx context.Context, tx *sql.Tx, session string, until time.Time) (bool, error)
 	onDone   func(TaskDone)
 	onEnded  func(Approval)
+	guard    func(context.Context, Request) error
 	inbox    *livedoc.Doc
 	// approvalTTL is how long a plan waits for a person.
 	approvalTTL time.Duration
@@ -136,7 +142,7 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 		return nil, errors.New("action: Store, Audit, Registry and Policy are required")
 	}
 	e := &Engine{
-		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, onDone: o.OnTaskDone, onEnded: o.OnApprovalEnded, log: o.Log, now: o.Now,
+		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, onDone: o.OnTaskDone, onEnded: o.OnApprovalEnded, guard: o.Guard, log: o.Log, now: o.Now,
 		inbox: o.Inbox, approvalTTL: o.ApprovalTTL,
 		tasks:         livedoc.New(tasksColl),
 		live:          map[string]*liveTask{},
@@ -218,4 +224,17 @@ func (e *Engine) unlock(resource, task string) {
 	if e.locks[resource] == task {
 		delete(e.locks, resource)
 	}
+}
+
+// preconditions runs d's Preconditions, then the hub's Guard.
+func (e *Engine) preconditions(ctx context.Context, d *Def, r Request) error {
+	if d.Preconditions != nil {
+		if err := d.Preconditions(ctx, r); err != nil {
+			return err
+		}
+	}
+	if e.guard != nil {
+		return e.guard(ctx, r)
+	}
+	return nil
 }

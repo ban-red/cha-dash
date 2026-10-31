@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
@@ -253,5 +254,35 @@ func TestRoutes(t *testing.T) {
 	}
 	if w := do("POST", "/api/updates/"+url.PathEscape("docker:i_a/container/nope")+"/hold", `{"kind":"hold"}`); w.Code != 404 {
 		t.Fatalf("hold of nothing %d", w.Code)
+	}
+}
+
+// A hold refuses the update actions however they're asked for; a snooze
+// and other actions pass.
+func TestGuard(t *testing.T) {
+	e := newEnv(t)
+	sonarr := e.container("sonarr", integration.UpdateAvailable, "sha256:bb")
+	radarr := e.container("radarr", integration.UpdateAvailable, "sha256:bb")
+	req := func(act, target string) action.Request {
+		return action.Request{Action: act, Target: action.Target{ID: target, Name: "x"}}
+	}
+	if err := e.s.Guard(t.Context(), req("docker.container.update", sonarr)); err != nil {
+		t.Fatalf("not held: %v", err)
+	}
+	if _, err := e.s.Hold(t.Context(), sonarr, KindHold, "u_op"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Hold(t.Context(), radarr, KindSnooze, ""); err != nil {
+		t.Fatal(err)
+	}
+	err := e.s.Guard(t.Context(), req("docker.container.update", sonarr))
+	if r, ok := err.(*action.Refusal); !ok || r.Code != "precondition" || r.Message != "sonarr is held on its image by op. Release it in Settings → Updates to update it." {
+		t.Fatalf("held: %v", err)
+	}
+	if err := e.s.Guard(t.Context(), req("docker.container.restart", sonarr)); err != nil {
+		t.Fatalf("a restart of a held container: %v", err)
+	}
+	if err := e.s.Guard(t.Context(), req("docker.container.update", radarr)); err != nil {
+		t.Fatalf("snoozed: %v", err)
 	}
 }

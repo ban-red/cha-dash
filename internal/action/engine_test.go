@@ -66,6 +66,8 @@ type env struct {
 	spent    map[string]time.Time
 	// ended lists the approvals OnApprovalEnded heard of, as "state id".
 	ended []string
+	// guard is Options.Guard, read when it runs.
+	guard func(context.Context, Request) error
 }
 
 var (
@@ -125,6 +127,12 @@ func (e *env) start() {
 	e.t.Helper()
 	eng, err := New(e.t.Context(), Options{Store: e.st, Audit: e.audit, Registry: e.reg, Policy: e.policy, Graph: e.g,
 		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now, Inbox: e.inbox,
+		Guard: func(ctx context.Context, r Request) error {
+			if e.guard == nil {
+				return nil
+			}
+			return e.guard(ctx, r)
+		},
 		OnApprovalEnded: func(a Approval) { e.ended = append(e.ended, a.State+" "+a.ID) },
 		ConsumeStepUp: func(_ context.Context, _ *sql.Tx, session string, until time.Time) (bool, error) {
 			if e.spent == nil {
@@ -965,4 +973,31 @@ func TestTopicKeepsRecentTasks(t *testing.T) {
 
 func openCtx(src realtime.Source, ctx context.Context) (realtime.Feed, error) {
 	return realtime.OpenWith(ctx, src, TasksTopic, make(chan struct{}, 1))
+}
+
+// The hub's Guard refuses as a Def's Preconditions do, at plan and again at
+// approve, and its refusal keeps the action off the listing.
+func TestGuard(t *testing.T) {
+	var calls []string
+	e := newEnv(t, OwnerOnly{}, reboot(&calls))
+	const vm = "proxmox:i_x/qemu/201"
+	p, err := e.plan(owner, "proxmox.guest.reboot", vm, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seen []string
+	e.guard = func(_ context.Context, r Request) error {
+		seen = append(seen, r.Action+" "+r.Target.ID)
+		return Precondition(r.Target.Name + " is held.")
+	}
+	if _, err := e.approve(owner, p, "", ""); !strings.Contains(fmt.Sprint(err), "win-gaming is held.") {
+		t.Fatalf("approve = %v", err)
+	}
+	r := refusal(t, func() error { _, err := e.plan(owner, "proxmox.guest.reboot", vm, ""); return err }(), "precondition")
+	if r.Message != "win-gaming is held." || len(seen) != 2 || seen[0] != "proxmox.guest.reboot "+vm {
+		t.Fatalf("refusal %+v, guard saw %q", r, seen)
+	}
+	if len(calls) != 0 {
+		t.Fatalf("ran %q", calls)
+	}
 }

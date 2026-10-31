@@ -187,17 +187,15 @@ func (e *Engine) offer(ctx context.Context, a Actor, d *Def, target string, s *l
 				r.Params = emptyParams
 			}
 			o := Offer{ID: d.ID, Label: labelOf(d, r), Tier: tier, Available: true, Household: d.Household, Params: params}
-			if d.Preconditions != nil {
-				if err := d.Preconditions(ctx, r); err != nil {
-					ref := refusalOf(err, "")
-					switch {
-					case ctx.Err() != nil:
-						return // settle says it timed out
-					case ref.Code != "unavailable":
-						continue // a precondition, or any other refusal: nothing to offer
-					default:
-						o.Available, o.Unavailable, o.Recipe, o.Instead = false, ref.Message, ref.Recipe, ref.Instead
-					}
+			if err := e.preconditions(ctx, d, r); err != nil {
+				ref := refusalOf(err, "")
+				switch {
+				case ctx.Err() != nil:
+					return // settle says it timed out
+				case ref.Code != "unavailable":
+					continue // a precondition, or any other refusal: nothing to offer
+				default:
+					o.Available, o.Unavailable, o.Recipe, o.Instead = false, ref.Message, ref.Recipe, ref.Instead
 				}
 			}
 			offers = append(offers, o)

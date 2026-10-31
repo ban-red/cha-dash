@@ -103,10 +103,8 @@ func (e *Engine) Plan(ctx context.Context, a Actor, req PlanRequest) (*Plan, err
 		stepUp = "fresh"
 	}
 	r := Request{Action: d.ID, Target: t, Params: params, Actor: a}
-	if d.Preconditions != nil {
-		if err := d.Preconditions(ctx, r); err != nil {
-			return nil, e.refuse(ctx, a, d.ID, t.ID, params, d, tier.String(), refusalOf(err, ""))
-		}
+	if err := e.preconditions(ctx, d, r); err != nil {
+		return nil, e.refuse(ctx, a, d.ID, t.ID, params, d, tier.String(), refusalOf(err, ""))
 	}
 
 	now := e.now().UTC().Truncate(time.Millisecond)
@@ -463,10 +461,8 @@ func (e *Engine) ApproveOrSubmit(ctx context.Context, a Actor, planID string, re
 		return refuse(&Refusal{Status: http.StatusConflict, Code: "plan_changed", Message: "The target changed since this was planned. Plan it again."})
 	}
 	r := Request{Action: d.ID, Target: t, Params: p.params, Actor: a, Plan: p.id}
-	if d.Preconditions != nil {
-		if err := d.Preconditions(ctx, r); err != nil {
-			return refuse(refusalOf(err, ""))
-		}
+	if err := e.preconditions(ctx, d, r); err != nil {
+		return refuse(refusalOf(err, ""))
 	}
 	if p.tier >= T3 && strings.TrimSpace(req.Typed) != p.doc.ConfirmText {
 		return refuse(&Refusal{Status: http.StatusUnprocessableEntity, Code: "confirm_mismatch", Message: fmt.Sprintf("Type %q to confirm.", p.doc.ConfirmText)})

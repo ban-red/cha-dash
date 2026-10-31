@@ -291,10 +291,8 @@ func (e *Engine) Grant(ctx context.Context, a Actor, id string, req ApproveReque
 		return void(&Refusal{Status: http.StatusConflict, Code: "plan_changed", Message: "The target changed since this was planned, so the approval no longer fits. It has to be planned again."})
 	}
 	r := Request{Action: d.ID, Target: t, Params: p.params, Actor: apv.originator, Plan: p.id}
-	if d.Preconditions != nil {
-		if err := d.Preconditions(ctx, r); err != nil {
-			return void(refusalOf(err, ""))
-		}
+	if err := e.preconditions(ctx, d, r); err != nil {
+		return void(refusalOf(err, ""))
 	}
 	if p.tier >= T3 && strings.TrimSpace(req.Typed) != p.doc.ConfirmText {
 		return refuse(&Refusal{Status: http.StatusUnprocessableEntity, Code: "confirm_mismatch", Message: fmt.Sprintf("Type %q to confirm.", p.doc.ConfirmText)})

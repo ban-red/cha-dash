@@ -479,6 +479,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		// A T4 spends the grant that allowed it, and tells the admins.
 		ConsumeStepUp: authSvc.SpendStepUp,
 		OnTaskDone:    nt.TaskDone,
+		// A container held on its image isn't updated, however it's asked.
+		Guard: guardOf(upd),
 		// A git sync's denied or expired approval closes its Inbox item.
 		OnApprovalEnded: func(a action.Approval) {
 			if stk != nil {
@@ -613,4 +615,13 @@ func (a *app) close() error {
 		errs = append(errs, a.history.Close(context.Background()), a.historyStore.Close())
 	}
 	return errors.Join(append(errs, a.store.Close())...)
+}
+
+// guardOf is the action engine's Guard: the Update Center's holds, or none
+// in demo mode.
+func guardOf(upd *updates.Service) func(context.Context, action.Request) error {
+	if upd == nil {
+		return nil
+	}
+	return upd.Guard
 }
