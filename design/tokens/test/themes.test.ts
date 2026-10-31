@@ -231,7 +231,8 @@ describe('text contrast', () => {
       }
     }
     expect(refused).toBeGreaterThan(0); // the mid-lightness band really is unreachable
-  });
+    // 150 themes take a few seconds alone, and over 15 beside the Go tests in `bun run check`.
+  }, 60_000);
 });
 
 describe('dataviz validator parity', () => {
