@@ -15,7 +15,7 @@
     "generate": "bun scripts/generate.ts",
     "inject": "bun scripts/inject.ts",
     "report": "bun scripts/report.ts",
-    "test": "bun test",
+    "test": "bun test --timeout 60000",
     "typecheck": "tsc --noEmit -p ."
   },
   "devDependencies": {

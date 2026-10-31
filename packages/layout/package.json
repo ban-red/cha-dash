@@ -13,7 +13,7 @@
     "src"
   ],
   "scripts": {
-    "test": "bun test",
+    "test": "bun test --timeout 60000",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
