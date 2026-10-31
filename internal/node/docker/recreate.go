@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -71,6 +73,23 @@ func (m *Module) replace(ctx context.Context, old container.InspectResponse, ima
 	cfg, hc, nc := recreateConfig(old)
 	if image != "" {
 		cfg.Image = image
+	}
+	// Docker copied the old image's defaults into the container's config.
+	// Drop them so the image the new container runs supplies its own, as
+	// compose does. Without the old image to compare against, keep them.
+	if img, err := m.cli.ImageInspect(ctx, old.Image); err == nil && img.Config != nil {
+		withoutImageDefaults(cfg, img.Config)
+	} else if err != nil {
+		m.log.Warn("recreate: couldn't read the old image, so its defaults stay", "container", name, "err", err)
+	}
+	// compose recreates a container whose image label isn't the one its
+	// file names, so a later `docker compose up -d` puts the file's image
+	// back. Name the image this container really runs.
+	if _, ok := cfg.Labels[composeImageLabel]; ok {
+		if img, err := m.cli.ImageInspect(ctx, cfg.Image); err == nil {
+			cfg.Labels = maps.Clone(cfg.Labels)
+			cfg.Labels[composeImageLabel] = img.ID
+		}
 	}
 	running := old.State != nil && old.State.Running
 
@@ -162,6 +181,68 @@ func recreateConfig(old container.InspectResponse) (*container.Config, *containe
 		}
 	}
 	return &cfg, &hc, nc
+}
+
+// composeImageLabel is the image ID compose records on a container it
+// made, to tell when the service's image has changed.
+const composeImageLabel = "com.docker.compose.image"
+
+// withoutImageDefaults removes from cfg each setting that's the same as
+// the image's own: its health check, entrypoint, command, user, working
+// directory, stop signal and shell, and its env entries, labels, ports and
+// volumes. What the container set itself stays.
+func withoutImageDefaults(cfg *container.Config, img *dockerspec.DockerOCIImageConfig) {
+	if cfg.Healthcheck != nil && img.Healthcheck != nil {
+		a, _ := json.Marshal(cfg.Healthcheck)
+		b, _ := json.Marshal(img.Healthcheck)
+		if string(a) == string(b) {
+			cfg.Healthcheck = nil
+		}
+	}
+	if len(cfg.Entrypoint) > 0 && slices.Equal(cfg.Entrypoint, img.Entrypoint) {
+		cfg.Entrypoint = nil
+	}
+	if len(cfg.Cmd) > 0 && slices.Equal(cfg.Cmd, img.Cmd) {
+		cfg.Cmd = nil
+	}
+	if len(cfg.Shell) > 0 && slices.Equal(cfg.Shell, img.Shell) {
+		cfg.Shell = nil
+	}
+	if cfg.User == img.User {
+		cfg.User = ""
+	}
+	if cfg.WorkingDir == img.WorkingDir {
+		cfg.WorkingDir = ""
+	}
+	if cfg.StopSignal == img.StopSignal {
+		cfg.StopSignal = ""
+	}
+	cfg.Env = slices.DeleteFunc(slices.Clone(cfg.Env), func(e string) bool { return slices.Contains(img.Env, e) })
+	if len(cfg.Labels) > 0 {
+		labels := maps.Clone(cfg.Labels)
+		for k, v := range img.Labels {
+			if labels[k] == v {
+				delete(labels, k)
+			}
+		}
+		cfg.Labels = labels
+	}
+	if len(cfg.ExposedPorts) > 0 {
+		ports := maps.Clone(cfg.ExposedPorts)
+		for p := range ports {
+			if _, ok := img.ExposedPorts[p.String()]; ok {
+				delete(ports, p)
+			}
+		}
+		cfg.ExposedPorts = ports
+	}
+	if len(cfg.Volumes) > 0 {
+		vols := maps.Clone(cfg.Volumes)
+		for v := range img.Volumes {
+			delete(vols, v)
+		}
+		cfg.Volumes = vols
+	}
 }
 
 type removeReq struct {

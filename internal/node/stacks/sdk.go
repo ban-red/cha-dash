@@ -100,6 +100,11 @@ func (d *SDK) Containers(ctx context.Context, project string) ([]Container, erro
 			return nil, err
 		}
 		ct.RestartCount = info.Container.RestartCount
+		// Compose's list can leave Health empty, say while a container
+		// restarts, and empty reads as "no healthcheck". Inspect knows.
+		if st := info.Container.State; st != nil && st.Health != nil {
+			ct.Health = string(st.Health.Status)
+		}
 		out = append(out, ct)
 	}
 	return out, nil

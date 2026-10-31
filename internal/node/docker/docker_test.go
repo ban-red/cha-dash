@@ -263,6 +263,35 @@ func TestPullAndRecreate(t *testing.T) {
 	}
 }
 
+// A recreate drops what the container had only from its old image, so the
+// image it runs now brings its own health check, command, env and labels.
+func TestRecreateTakesTheNewImagesDefaults(t *testing.T) {
+	f, d := setup(t, "")
+	oldImg := "sha256:" + strings.Repeat("3", 64)
+	check := map[string]any{"Test": []string{"CMD", "/old-check"}}
+	f.mu.Lock()
+	f.imageCfg[oldImg] = map[string]any{"Env": []string{"PATH=/old"}, "Cmd": []string{"/old"}, "Healthcheck": check,
+		"Labels": map[string]string{"org.example.image": "old"}}
+	f.mu.Unlock()
+	f.add(&fakeContainer{Name: "app", Image: "app:1", ImageID: oldImg, Env: []string{"PATH=/old", "TZ=UTC"}, Cmd: []string{"/old"}, Healthcheck: check,
+		Labels: map[string]string{"com.docker.compose.service": "app", "com.docker.compose.image": oldImg, "org.example.image": "old"}})
+	if _, _, err := call(t, d, "container.pull", map[string]any{"id": "app"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := call(t, d, "container.recreate", map[string]any{"id": "app"}); err != nil {
+		t.Fatal(err)
+	}
+	nw := f.byName("app")
+	if !slices.Equal(nw.Env, []string{"TZ=UTC"}) || nw.Cmd != nil || nw.Healthcheck != nil {
+		t.Fatalf("the old image's defaults stayed: env %v cmd %v healthcheck %v", nw.Env, nw.Cmd, nw.Healthcheck)
+	}
+	// compose's image label names the image it runs now, so a later
+	// `docker compose up -d` sees the change.
+	if nw.Labels["com.docker.compose.service"] != "app" || nw.Labels["org.example.image"] != "" || nw.Labels["com.docker.compose.image"] != "sha256:"+strings.Repeat("2", 64) {
+		t.Fatalf("labels %v", nw.Labels)
+	}
+}
+
 func TestRemove(t *testing.T) {
 	f, d := setup(t, "docker: { allow: [read, lifecycle, remove] }\n")
 	if _, _, err := call(t, d, "container.remove", map[string]any{"id": "sonarr"}); nodeproto.CodeOf(err) != nodeproto.CodeConflict {

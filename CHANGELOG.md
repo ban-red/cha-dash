@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **Update Cha Dash rolls back a hub that crashes at start.** The health gate read health from compose's container list, which is empty while a container restarts, so a hub that crashed at once passed the gate and stayed down. It now reads Docker's own health state, and a crashing hub is put back on its previous image.
+- **A recreated container takes its new image's settings.** Recreate after a pull, and Update Cha Dash, kept the old image's health check, command, entrypoint, environment and labels, so the new image's own never applied. They now come from the image the container runs, as with compose. The container also names its new image for compose, so a later `docker compose up -d` puts the compose file's image back, as the deploy guide says.
+
 ## [0.3.0-beta.1] - 2026-10-31
 
 The first beta of v0.3: **Cha Dash runs your stacks from git, signs you in through your provider, and reaches more hosts.** A stack can follow a git branch and deploy on push or ask first, behind the same health gate as a manual deploy, and a webhook from Forgejo, Gitea, GitHub or GitLab triggers it. Sign in with an OIDC provider or behind a forward-auth proxy, with roles from the provider's groups. Nodes on other hosts join with a one-time token and an approval, stacks other tools started can move into the stacks root, and Cha Dash can update itself, rolling back on its own if the new image fails its health check. These ran against two sandboxes and a real host before this beta, and what those runs found is fixed below.

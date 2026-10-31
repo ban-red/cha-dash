@@ -22,7 +22,8 @@ import (
 type fakeDocker struct {
 	mu         sync.Mutex
 	containers map[string]*fakeContainer
-	images     map[string]string // tag → image ID
+	images     map[string]string         // tag → image ID
+	imageCfg   map[string]map[string]any // image ID → its Config, as inspect gives it
 	nextID     int
 	calls      []string // "POST /containers/x/start", for asserting what the module did
 	failCreate bool
@@ -45,13 +46,15 @@ type fakeContainer struct {
 	Networks                 map[string]any
 	Hostname                 string
 	Tty                      bool
+	Cmd                      []string
+	Healthcheck              map[string]any
 }
 
 func (c *fakeContainer) inspect() map[string]any {
 	return map[string]any{
 		"Id": c.ID, "Name": "/" + c.Name, "Image": c.ImageID,
 		"State":      map[string]any{"Status": c.State, "Running": c.State == "running"},
-		"Config":     map[string]any{"Image": c.Image, "Env": c.Env, "Labels": c.Labels, "Hostname": c.Hostname, "Tty": c.Tty},
+		"Config":     map[string]any{"Image": c.Image, "Env": c.Env, "Labels": c.Labels, "Hostname": c.Hostname, "Tty": c.Tty, "Cmd": c.Cmd, "Healthcheck": c.Healthcheck},
 		"HostConfig": map[string]any{"NetworkMode": "bridge", "RestartPolicy": map[string]any{"Name": "unless-stopped"}},
 		"Mounts":     c.Mounts, "NetworkSettings": map[string]any{"Networks": c.Networks},
 	}
@@ -59,7 +62,7 @@ func (c *fakeContainer) inspect() map[string]any {
 
 func newFakeDocker(t *testing.T) (*fakeDocker, string) {
 	t.Helper()
-	f := &fakeDocker{containers: map[string]*fakeContainer{}, images: map[string]string{}}
+	f := &fakeDocker{containers: map[string]*fakeContainer{}, images: map[string]string{}, imageCfg: map[string]map[string]any{}}
 	// Unix socket paths are short on macOS: keep it out of the long TempDir.
 	dir, err := os.MkdirTemp("", "cdd")
 	if err != nil {
@@ -159,11 +162,13 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var body struct {
-			Image      string
-			Env        []string
-			Labels     map[string]string
-			Hostname   string
-			HostConfig struct {
+			Image       string
+			Env         []string
+			Labels      map[string]string
+			Hostname    string
+			Cmd         []string
+			Healthcheck map[string]any
+			HostConfig  struct {
 				Mounts []struct{ Source, Target string }
 			}
 		}
@@ -174,7 +179,7 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		f.nextID++
-		c := &fakeContainer{ID: fmt.Sprintf("%064x", f.nextID+0xdef000), Name: name, Image: body.Image, ImageID: f.images[body.Image], State: "created", Env: body.Env, Labels: body.Labels, Hostname: body.Hostname}
+		c := &fakeContainer{ID: fmt.Sprintf("%064x", f.nextID+0xdef000), Name: name, Image: body.Image, ImageID: f.images[body.Image], State: "created", Env: body.Env, Labels: body.Labels, Hostname: body.Hostname, Cmd: body.Cmd, Healthcheck: body.Healthcheck}
 		for _, m := range body.HostConfig.Mounts {
 			c.Mounts = append(c.Mounts, map[string]any{"Type": "volume", "Name": m.Source, "Destination": m.Target, "RW": true})
 		}
@@ -258,11 +263,14 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 	case len(parts) >= 3 && parts[0] == "images" && parts[len(parts)-1] == "json":
 		ref := strings.Join(parts[1:len(parts)-1], "/")
 		id, ok := f.images[ref]
+		if _, known := f.imageCfg[ref]; !ok && known {
+			id, ok = ref, true // by ID, as a container's Image names it
+		}
 		if !ok {
 			jsonOut(w, 404, map[string]string{"message": "No such image: " + ref})
 			return
 		}
-		jsonOut(w, 200, map[string]any{"Id": id})
+		jsonOut(w, 200, map[string]any{"Id": id, "Config": f.imageCfg[id]})
 	case path == "/events":
 		w.Header().Set("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
