@@ -478,6 +478,13 @@ func (s *Service) hookView(ctx context.Context, h *Hook, all []*Sync) HookView {
 			v.Syncs = append(v.Syncs, HookSync{Node: y.Node, NodeName: s.nodeName(ctx, y.Node), Stack: y.Stack, Mode: y.Mode, State: y.State})
 		}
 	}
+	// By node, then stack, so the list reads the same every time.
+	slices.SortFunc(v.Syncs, func(a, b HookSync) int {
+		if c := strings.Compare(a.NodeName, b.NodeName); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Stack, b.Stack)
+	})
 	return v
 }
 
