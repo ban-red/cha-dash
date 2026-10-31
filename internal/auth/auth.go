@@ -335,6 +335,10 @@ func (s *Service) createSession(ctx context.Context, userID, method, ip, userAge
 			INSERT INTO sessions (id, token_hash, user_id, method, created_at, expires_at, last_seen_at, ip, user_agent)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			sess.ID, tokenHash(token), userID, method, now.UnixMilli(), sess.ExpiresAt.UnixMilli(), now.UnixMilli(), ip, userAgent)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE users SET last_seen_at = ? WHERE id = ?`, now.UnixMilli(), userID)
 		return err
 	})
 	if err != nil {
@@ -384,7 +388,7 @@ func (s *Service) touchSession(ctx context.Context, sess *Session) (renewed bool
 	switch {
 	case sess.ExpiresAt.Sub(now) < SessionTTL-renewEvery:
 		expires := now.Add(SessionTTL)
-		if _, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?`,
+		if err := s.markSeen(ctx, sess, now, `UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?`,
 			now.UnixMilli(), expires.UnixMilli(), sess.ID); err != nil {
 			s.log.Warn("could not renew session", "session", sess.ID, "err", err)
 			return false
@@ -392,11 +396,23 @@ func (s *Service) touchSession(ctx context.Context, sess *Session) (renewed bool
 		sess.ExpiresAt, sess.lastSeen = expires, now
 		return true
 	case now.Sub(sess.lastSeen) >= lastSeenEvery:
-		if _, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, now.UnixMilli(), sess.ID); err != nil {
+		if err := s.markSeen(ctx, sess, now, `UPDATE sessions SET last_seen_at = ? WHERE id = ?`, now.UnixMilli(), sess.ID); err != nil {
 			s.log.Warn("could not update session last_seen", "session", sess.ID, "err", err)
 		}
 	}
 	return false
+}
+
+// markSeen runs the session update and stamps the user as seen at now, so
+// the Users page still knows after the session ends.
+func (s *Service) markSeen(ctx context.Context, sess *Session, now time.Time, update string, args ...any) error {
+	return s.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, update, args...); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE users SET last_seen_at = ? WHERE id = ?`, now.UnixMilli(), sess.UserID)
+		return err
+	})
 }
 
 // deleteSession deletes the session behind token and returns its ID and

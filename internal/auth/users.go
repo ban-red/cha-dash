@@ -44,7 +44,7 @@ type UserInfo struct {
 
 const userInfoQuery = `SELECT u.id, u.username, u.role, u.disabled_at IS NOT NULL,
 	EXISTS (SELECT 1 FROM passkeys p WHERE p.user_id = u.id),
-	(SELECT max(s.last_seen_at) FROM sessions s WHERE s.user_id = u.id),
+	u.last_seen_at,
 	EXISTS (SELECT 1 FROM oidc_identities i WHERE i.user_id = u.id),
 	EXISTS (SELECT 1 FROM forward_auth_links f WHERE f.user_id = u.id),
 	u.role_override
@@ -64,7 +64,8 @@ func scanUserInfo(sc scanner) (UserInfo, error) {
 }
 
 // ListUsers returns every account, the owner first, then by username.
-// last_seen_at is the latest of the user's live sessions. Never nil.
+// Never nil. last_seen_at is when the account last used a session, and
+// stays after the session ends.
 func (s *Service) ListUsers(ctx context.Context) ([]UserInfo, error) {
 	rows, err := s.st.Reader().QueryContext(ctx, userInfoQuery+` ORDER BY u.role <> 'owner', u.username COLLATE NOCASE`)
 	if err != nil {

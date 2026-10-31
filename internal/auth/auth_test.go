@@ -230,6 +230,10 @@ func TestFirstRunFlow(t *testing.T) {
 	if resp, err := replay.Do(req); err != nil || resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("replayed cookie after logout: %v %v", resp.StatusCode, err)
 	}
+	// The Users page still knows when the owner was last seen.
+	if users, err := h.svc.ListUsers(t.Context()); err != nil || len(users) != 1 || users[0].LastSeenAt == nil {
+		t.Fatalf("users after logout = %+v %v", users, err)
+	}
 
 	// Login works with the right password only.
 	if resp, _ := h.do(c, "POST", "/api/auth/login", loginRequest{Username: "owner", Password: "wrong password!!"}); resp.StatusCode != http.StatusUnauthorized {
