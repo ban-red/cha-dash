@@ -1,5 +1,5 @@
 /**
- * The line ADR-0032 draws: buttons, the ×, fields and dialogs come from
+ * The line ADR-0032 draws: buttons, the ×, fields, dialogs and menus come from
  * src/ui, and feature code doesn't write them by hand. A hand-written copy
  * is how the danger button ended up defined three times.
  */
@@ -22,6 +22,7 @@ const RULES: { name: string; re: RegExp; use: string }[] = [
   { name: 'close', re: /<button\b[^>]*\sclass="x"/, use: 'UiCloseButton' },
   { name: 'field', re: /<(div|label)\b[^>]*\sclass="field\b/, use: 'UiField' },
   { name: 'dialog', re: /<dialog\b/, use: 'UiDialog' },
+  { name: 'menu', re: /\sclass="(menu-pop|tile-pop)\b/, use: 'UiMenu' },
 ];
 
 function templateOf(text: string): string {

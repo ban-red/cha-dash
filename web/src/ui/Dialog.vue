@@ -27,7 +27,7 @@ const {
   closeLabel = 'Close',
 } = defineProps<{
   title?: string | undefined;
-  /** 460, 520 or 720 px wide, less 32 px on a phone. */
+  /** 460, 520 or 720 px wide; nearly full width on a phone. */
   size?: DialogSize;
   as?: 'div' | 'form';
   closeLabel?: string;

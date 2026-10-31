@@ -27,48 +27,12 @@
 }
 
 /* ───────────── Inbox ───────────── */
+/* The panel is a UiSheet (ui/sheet.css); this is its padding. */
 .inbox {
-  position: absolute;
-  right: max(16px, calc((100% - var(--board-max)) / 2));
-  top: 84px;
-  width: min(460px, calc(100% - 32px));
-  max-height: min(80vh, 820px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: 6px;
-  border-radius: var(--radius-lg);
-  transform-origin: top right;
+  --sheet-pad: 6px;
 }
 .inbox.compact {
-  left: 0;
-  right: 0;
-  top: auto;
-  bottom: 0;
-  width: auto;
-  max-height: 86%;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  padding: var(--space-2) var(--space-2) calc(var(--space-6) + env(safe-area-inset-bottom));
-  border-bottom: 0;
-  transform-origin: bottom center;
-}
-.grab {
-  display: none;
-}
-.inbox.compact .grab {
-  display: block;
-  height: 18px;
-  position: relative;
-}
-.grab::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 4px;
-  width: 38px;
-  height: 5px;
-  margin-left: -19px;
-  border-radius: 3px;
-  background: var(--line-2);
+  --sheet-pad: var(--space-2);
 }
 .ib-head {
   display: flex;
@@ -446,17 +410,6 @@
 .settings-menu {
   position: relative;
 }
-.settings-pop {
-  position: absolute;
-  z-index: 45;
-  right: 0;
-  top: calc(100% + 8px);
-  padding: var(--space-2);
-  border-radius: var(--radius-lg);
-}
-.menu-pop {
-  width: 240px;
-}
 .menu-who {
   padding: 6px 8px 8px;
   margin-bottom: 4px;
@@ -467,44 +420,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.menu-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: 36px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text);
-  font: var(--weight-regular) var(--type-callout) / 1.2 var(--font-ui);
-  text-align: left;
-  text-decoration: none;
-}
-.menu-item:hover,
-.menu-item:focus-visible {
-  background: var(--surface-hover);
-}
-.menu-val {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-3);
-  font-size: var(--type-caption);
-}
-.menu-val svg {
-  width: 12px;
-  height: 12px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.theme-pop {
+.menu-pop.theme-pop {
   width: 300px;
+  padding: var(--space-2);
 }
 .theme-head {
   display: flex;
@@ -755,4 +673,43 @@
 .ed-split .rel .help {
   display: block;
   color: var(--text-3);
+}
+
+/* ───────────── A file drop: Backup's restore box and Bring in's roles ───────────── */
+.import-file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) dashed var(--line-2);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--motion-press-duration) var(--motion-press-easing),
+    background-color var(--motion-press-duration) var(--motion-press-easing);
+}
+.import-file.filled {
+  border-style: solid;
+}
+.import-file.drag {
+  border-color: var(--text-2);
+  background: color-mix(in oklch, var(--text) 4%, transparent);
+}
+.if-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--space-3);
+}
+.if-name {
+  font: var(--weight-medium) var(--type-body) / 1.2 var(--font-num);
+  color: var(--text);
+}
+.if-what {
+  font-size: var(--type-small);
+  color: var(--text-3);
+}
+.if-acts {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--space-2);
 }

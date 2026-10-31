@@ -16,12 +16,12 @@
  * Home Assistant is read once a minute, so a change shows as asked for
  * (`pending`) until the next read agrees, the task fails, or 90 s pass.
  * Controls are off while the hub is unreachable. Its own chunk, loaded the
- * first time the panel opens.
+ * first time the panel opens. Built on UiDialog and UiButton (ADR-0032).
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, useId, useTemplateRef, watch } from 'vue';
-import '../styles/act-dialog.css';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, useId, watch } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
-import { useModal } from '../board/useModal';
+import UiButton from '../ui/Button.vue';
+import UiDialog from '../ui/Dialog.vue';
 import { fmtInt } from '../lib/format';
 import { attr, resolve, series } from '../model/graph';
 import { useLive } from '../stores/live';
@@ -32,8 +32,6 @@ import { ACT, GLYPH_LABEL, controlOf, deg, devicesOf, householdMay, lookOf, pers
 const ui = useUi();
 const live = useLive();
 const uid = useId();
-const dlg = useTemplateRef<HTMLDialogElement>('dlg');
-useModal(dlg);
 
 const app = computed(() => (ui.state.homePanel ? resolve(live.graph.value, ui.state.homePanel.app) : undefined));
 const name = computed(() => app.value?.name || 'Home Assistant');
@@ -265,143 +263,135 @@ function openSettings(): void {
 </script>
 
 <template>
-  <dialog ref="dlg" class="act-dlg ha-dlg" :aria-labelledby="`${uid}-h`" @cancel.prevent="close" @keydown.esc.stop>
-    <div class="act-dlg-body">
-      <header class="act-dlg-head">
-        <h2 :id="`${uid}-h`">{{ name }}</h2>
-        <button type="button" class="x" aria-label="Close" @click="close">
-          <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2.5 2.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+  <UiDialog class="ha-dlg" :title="name" @close="close" @keydown.esc.stop>
+    <p v-if="!app" class="ha-none">Home Assistant isn't connected any more.</p>
+    <p v-else-if="!tabs.length" class="ha-none">Nothing to list yet. Home Assistant is read once a minute.</p>
+
+    <template v-else>
+      <div class="ha-tabs" role="tablist" :aria-label="name">
+        <button
+          v-for="(t, i) in tabs"
+          :id="`${uid}-t-${t.id}`"
+          :key="t.id"
+          ref="tabEls"
+          type="button"
+          role="tab"
+          class="ha-tab"
+          :aria-selected="current === t.id"
+          :aria-controls="`${uid}-p`"
+          :tabindex="current === t.id ? 0 : -1"
+          @click="tab = t.id"
+          @keydown="onTabKey($event, i)"
+        >
+          {{ t.label }}
         </button>
-      </header>
-      <p v-if="!app" class="ha-none">Home Assistant isn't connected any more.</p>
-      <p v-else-if="!tabs.length" class="ha-none">Nothing to list yet. Home Assistant is read once a minute.</p>
+      </div>
 
-      <template v-else>
-        <div class="ha-tabs" role="tablist" :aria-label="name">
-          <button
-            v-for="(t, i) in tabs"
-            :id="`${uid}-t-${t.id}`"
-            :key="t.id"
-            ref="tabEls"
-            type="button"
-            role="tab"
-            class="ha-tab"
-            :aria-selected="current === t.id"
-            :aria-controls="`${uid}-p`"
-            :tabindex="current === t.id ? 0 : -1"
-            @click="tab = t.id"
-            @keydown="onTabKey($event, i)"
-          >
-            {{ t.label }}
-          </button>
-        </div>
+      <div :id="`${uid}-p`" class="ha-pane" role="tabpanel" :aria-labelledby="`${uid}-t-${current}`" tabindex="0">
+        <template v-if="current === 'people'">
+          <ul class="ha-rows">
+            <li v-for="p in persons" :key="p.name" class="ha-row">
+              <span :class="['ha-face', { home: p.home }]" aria-hidden="true">{{ p.initial }}</span>
+              <span class="ha-main">{{ p.name }}<small>{{ p.since }}</small></span>
+              <span :class="['ha-where', { home: p.home }]">{{ p.where }}</span>
+            </li>
+          </ul>
+        </template>
 
-        <div :id="`${uid}-p`" class="ha-pane" role="tabpanel" :aria-labelledby="`${uid}-t-${current}`" tabindex="0">
-          <template v-if="current === 'people'">
-            <ul class="ha-rows">
-              <li v-for="p in persons" :key="p.name" class="ha-row">
-                <span :class="['ha-face', { home: p.home }]" aria-hidden="true">{{ p.initial }}</span>
-                <span class="ha-main">{{ p.name }}<small>{{ p.since }}</small></span>
-                <span :class="['ha-where', { home: p.home }]">{{ p.where }}</span>
-              </li>
-            </ul>
-          </template>
+        <template v-else-if="current === 'look'">
+          <ul class="ha-rows">
+            <li v-for="l in look" :key="l.key" class="ha-row">
+              <Glyph :kind="l.glyph" :label="GLYPH_LABEL[l.glyph] ?? 'needs a look'" />
+              <span class="ha-main">{{ l.name }}</span>
+              <span class="ha-side">{{ l.detail }}</span>
+            </li>
+          </ul>
+          <p class="ha-hint">Lists show up to eight of each. Locks, doors and the alarm are changed in Home Assistant.</p>
+        </template>
 
-          <template v-else-if="current === 'look'">
-            <ul class="ha-rows">
-              <li v-for="l in look" :key="l.key" class="ha-row">
-                <Glyph :kind="l.glyph" :label="GLYPH_LABEL[l.glyph] ?? 'needs a look'" />
-                <span class="ha-main">{{ l.name }}</span>
-                <span class="ha-side">{{ l.detail }}</span>
-              </li>
-            </ul>
-            <p class="ha-hint">Lists show up to eight of each. Locks, doors and the alarm are changed in Home Assistant.</p>
-          </template>
+        <template v-else-if="current === 'lights' || current === 'switches'">
+          <div class="ha-sum">
+            <span>{{ fmtInt(onCount(kind.list)) }} of {{ fmtInt(kind.list.length) }} on</span>
+            <input v-if="kind.list.length >= FILTER_FROM" v-model="query" type="search" class="ha-filter" :placeholder="`Find ${kind.noun}`" :aria-label="`Find ${kind.noun}`" />
+          </div>
+          <ul class="ha-rows">
+            <li v-for="d in shown(kind.list)" :key="d.entity" :class="['ha-row', { off: !isOn(d), gone: stateOf(d) === 'unavailable' }]">
+              <span :class="['ha-dot', { on: isOn(d) }]" aria-hidden="true" />
+              <span class="ha-main">{{ d.name }}<small v-if="isOn(d) && d.brightness !== undefined && !pendingOf(d.entity)">{{ Math.round(d.brightness) }}%</small></span>
+              <button
+                v-if="canAct(kind.domain) && (stateOf(d) === 'on' || stateOf(d) === 'off')"
+                type="button"
+                role="switch"
+                class="ha-switch"
+                :aria-checked="isOn(d)"
+                :aria-label="d.name"
+                :aria-busy="working(d.entity) || undefined"
+                :disabled="offline || working(d.entity)"
+                @click="toggle(d, kind.domain)"
+              >
+                <span class="ha-knob" />
+              </button>
+              <span v-else class="ha-side">{{ stateWord(stateOf(d)) }}</span>
+            </li>
+          </ul>
+          <p v-if="query && !shown(kind.list).length" class="ha-none">No {{ kind.noun }} match “{{ query }}”.</p>
+          <p v-if="showAllow(kind.domain)" class="ha-hint">
+            To switch {{ kind.noun }} from here, allow them in this connection's settings.
+            <UiButton variant="ghost" size="sm" @click="openSettings">Open its settings</UiButton>
+          </p>
+        </template>
 
-          <template v-else-if="current === 'lights' || current === 'switches'">
-            <div class="ha-sum">
-              <span>{{ fmtInt(onCount(kind.list)) }} of {{ fmtInt(kind.list.length) }} on</span>
-              <input v-if="kind.list.length >= FILTER_FROM" v-model="query" type="search" class="ha-filter" :placeholder="`Find ${kind.noun}`" :aria-label="`Find ${kind.noun}`" />
-            </div>
-            <ul class="ha-rows">
-              <li v-for="d in shown(kind.list)" :key="d.entity" :class="['ha-row', { off: !isOn(d), gone: stateOf(d) === 'unavailable' }]">
-                <span :class="['ha-dot', { on: isOn(d) }]" aria-hidden="true" />
-                <span class="ha-main">{{ d.name }}<small v-if="isOn(d) && d.brightness !== undefined && !pendingOf(d.entity)">{{ Math.round(d.brightness) }}%</small></span>
-                <button
-                  v-if="canAct(kind.domain) && (stateOf(d) === 'on' || stateOf(d) === 'off')"
-                  type="button"
-                  role="switch"
-                  class="ha-switch"
-                  :aria-checked="isOn(d)"
-                  :aria-label="d.name"
-                  :aria-busy="working(d.entity) || undefined"
-                  :disabled="offline || working(d.entity)"
-                  @click="toggle(d, kind.domain)"
-                >
-                  <span class="ha-knob" />
-                </button>
-                <span v-else class="ha-side">{{ stateWord(stateOf(d)) }}</span>
-              </li>
-            </ul>
-            <p v-if="query && !shown(kind.list).length" class="ha-none">No {{ kind.noun }} match “{{ query }}”.</p>
-            <p v-if="showAllow(kind.domain)" class="ha-hint">
-              To switch {{ kind.noun }} from here, allow them in this connection's settings.
-              <button type="button" class="btn ghost sm" @click="openSettings">Open its settings</button>
-            </p>
-          </template>
+        <template v-else-if="current === 'climate'">
+          <ul class="ha-rows">
+            <li v-for="r in rooms" :key="r.entity || r.name" class="ha-row ha-room">
+              <span class="ha-main">{{ r.name }}<small>{{ roomLine(r) }}</small></span>
+              <span class="ha-temp">{{ r.current.toFixed(1) }}<span class="u">{{ tempUnit }}</span></span>
+              <span v-if="canSet(r)" class="ha-step" role="group" :aria-label="`${r.name} target`">
+                <button type="button" :aria-label="`Lower ${r.name}'s target`" :disabled="offline || working(r.entity) || atMin(r)" @click="nudge(r, -1)">−</button>
+                <output :aria-live="'polite'" :class="{ asked: pendingOf(r.entity) }">{{ targetOf(r)?.toFixed(1) }}<span class="u">{{ tempUnit }}</span></output>
+                <button type="button" :aria-label="`Raise ${r.name}'s target`" :disabled="offline || working(r.entity) || atMax(r)" @click="nudge(r, 1)">+</button>
+              </span>
+            </li>
+          </ul>
+          <p v-if="showAllow('climate')" class="ha-hint">
+            To set thermostats from here, allow them in this connection's settings.
+            <UiButton variant="ghost" size="sm" @click="openSettings">Open its settings</UiButton>
+          </p>
+        </template>
 
-          <template v-else-if="current === 'climate'">
-            <ul class="ha-rows">
-              <li v-for="r in rooms" :key="r.entity || r.name" class="ha-row ha-room">
-                <span class="ha-main">{{ r.name }}<small>{{ roomLine(r) }}</small></span>
-                <span class="ha-temp">{{ r.current.toFixed(1) }}<span class="u">{{ tempUnit }}</span></span>
-                <span v-if="canSet(r)" class="ha-step" role="group" :aria-label="`${r.name} target`">
-                  <button type="button" :aria-label="`Lower ${r.name}'s target`" :disabled="offline || working(r.entity) || atMin(r)" @click="nudge(r, -1)">−</button>
-                  <output :aria-live="'polite'" :class="{ asked: pendingOf(r.entity) }">{{ targetOf(r)?.toFixed(1) }}<span class="u">{{ tempUnit }}</span></output>
-                  <button type="button" :aria-label="`Raise ${r.name}'s target`" :disabled="offline || working(r.entity) || atMax(r)" @click="nudge(r, 1)">+</button>
-                </span>
-              </li>
-            </ul>
-            <p v-if="showAllow('climate')" class="ha-hint">
-              To set thermostats from here, allow them in this connection's settings.
-              <button type="button" class="btn ghost sm" @click="openSettings">Open its settings</button>
-            </p>
-          </template>
-
-          <template v-else-if="current === 'media'">
-            <ul class="ha-rows">
-              <li v-for="d in players" :key="d.entity" :class="['ha-row', { off: !['playing', 'paused'].includes(stateOf(d)) }]">
-                <MediaMark :kind="d.artist ? 'music' : 'tv'" />
-                <span class="ha-main">{{ d.name }}<small>{{ trackLine(d) || stateWord(stateOf(d)) }}</small></span>
-                <button
-                  v-if="canPlayPause(d)"
-                  type="button"
-                  class="btn sm ha-play"
-                  :aria-label="`${stateOf(d) === 'playing' ? 'Pause' : 'Play'} ${d.name}`"
-                  :disabled="offline || working(d.entity)"
-                  @click="playPause(d)"
-                >
-                  {{ stateOf(d) === 'playing' ? 'Pause' : 'Play' }}
-                </button>
-                <span v-else class="ha-side">{{ trackLine(d) ? stateWord(stateOf(d)) : '' }}</span>
-              </li>
-            </ul>
-            <p v-if="showAllow('media_player')" class="ha-hint">
-              To play and pause from here, allow media players in this connection's settings.
-              <button type="button" class="btn ghost sm" @click="openSettings">Open its settings</button>
-            </p>
-          </template>
-        </div>
-        <p v-if="offline && control.size" class="ha-hint">
-          {{ ui.state.editing ? 'Controls are off while editing the board.' : 'Controls are off while the hub is unreachable.' }}
-        </p>
-      </template>
-    </div>
-  </dialog>
+        <template v-else-if="current === 'media'">
+          <ul class="ha-rows">
+            <li v-for="d in players" :key="d.entity" :class="['ha-row', { off: !['playing', 'paused'].includes(stateOf(d)) }]">
+              <MediaMark :kind="d.artist ? 'music' : 'tv'" />
+              <span class="ha-main">{{ d.name }}<small>{{ trackLine(d) || stateWord(stateOf(d)) }}</small></span>
+              <UiButton
+                v-if="canPlayPause(d)"
+                size="sm"
+                class="ha-play"
+                :aria-label="`${stateOf(d) === 'playing' ? 'Pause' : 'Play'} ${d.name}`"
+                :disabled="offline || working(d.entity)"
+                @click="playPause(d)"
+              >
+                {{ stateOf(d) === 'playing' ? 'Pause' : 'Play' }}
+              </UiButton>
+              <span v-else class="ha-side">{{ trackLine(d) ? stateWord(stateOf(d)) : '' }}</span>
+            </li>
+          </ul>
+          <p v-if="showAllow('media_player')" class="ha-hint">
+            To play and pause from here, allow media players in this connection's settings.
+            <UiButton variant="ghost" size="sm" @click="openSettings">Open its settings</UiButton>
+          </p>
+        </template>
+      </div>
+      <p v-if="offline && control.size" class="ha-hint">
+        {{ ui.state.editing ? 'Controls are off while editing the board.' : 'Controls are off while the hub is unreachable.' }}
+      </p>
+    </template>
+  </UiDialog>
 </template>
 
 <style>
-.ha-dlg .act-dlg-body {
+.ha-dlg .dlg-body {
   gap: var(--space-3);
 }
 .ha-hint,

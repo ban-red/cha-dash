@@ -3,8 +3,8 @@
  * A resource's sheet (10 · The resource sheet): one container, Docker engine
  * or compose stack, over the front page, opened from the containers tile, ⌘K,
  * the Inbox, another sheet or a deep link
- * (`?r=<resource id>`). A glass panel on the right on desktop, a card a
- * flick dismisses on a phone; the board, the socket and the Inbox stay live
+ * (`?r=<resource id>`). A UiSheet: a glass panel on the right on desktop, a
+ * card a flick dismisses on a phone; the board, the socket and the Inbox stay live
  * underneath. It follows the graph, so a recreated container (keyed by
  * name) keeps its sheet.
  *
@@ -18,16 +18,13 @@
  *
  * Its own chunk, mounted on first open and kept, so the exit can play.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
-import { AnimatePresence, motion } from 'motion-v';
+import { computed, nextTick, ref, useId, watch } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import MiniGraph from '../ui/marks/MiniGraph.vue';
 import { copyText } from '../settings/recipe';
 import { api } from '../lib/api';
 import { isDone, listActions, type Offer } from '../lib/actions';
 import { absolute, duration, hhmm, shortDate } from '../lib/format';
-import { transition, useReducedMotion } from '../lib/motion';
-import { layerAbove, trapTab } from '../lib/trap';
 import { cameraEvents } from '../model/cameraEvents';
 import { attr, incoming, label, mergedHealth, outgoing, series, sourcesOf } from '../model/graph';
 import { glyphFor } from '../model/status';
@@ -58,15 +55,13 @@ import {
   type StatesReply,
 } from '../model/history';
 import UiButton from '../ui/Button.vue';
+import UiSheet from '../ui/Sheet.vue';
 import UiCloseButton from '../ui/CloseButton.vue';
 
 const live = useLive();
 const ui = useUi();
 const uid = useId();
-const reduced = useReducedMotion();
 const heading = ref<HTMLElement | null>(null);
-const compact = ref(typeof window !== 'undefined' && window.innerWidth < 640);
-let lastFocus: Element | null = null;
 
 const id = computed(() => ui.sheet.value);
 const open = computed(() => id.value !== undefined);
@@ -550,393 +545,300 @@ function onTabKey(e: KeyboardEvent, i: number): void {
 function close(): void {
   ui.closeSheet();
 }
-function onKey(e: KeyboardEvent): void {
-  // A confirm, the step-up or a modal <dialog> above the sheet takes its own Esc.
-  if (e.key === 'Escape' && open.value && !e.defaultPrevented && !layerAbove(ui.state)) close();
-  // It's a modal dialog (the scrim closes it), so Tab stays inside it.
-  if (e.key === 'Tab' && open.value && !layerAbove(ui.state)) trapTab(e, heading.value?.closest<HTMLElement>('.rsheet'));
-}
-function onResize(): void {
-  compact.value = window.innerWidth < 640;
-}
-function onDragEnd(_e: PointerEvent, info: { offset: { y: number }; velocity: { y: number } }): void {
-  if (info.offset.y + info.velocity.y * 0.2 > 140) close();
-}
-const enter = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { y: '100%' } : { opacity: 0, x: 24 }));
-const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { y: '100%' } : { opacity: 0, x: 16 }));
-
-watch(
-  id,
-  async (now, before) => {
-    if (!now) {
-      if (lastFocus instanceof HTMLElement && lastFocus.isConnected) lastFocus.focus();
-      lastFocus = null;
-      return;
-    }
-    // Moving between sheets keeps where the first one was opened from.
-    if (!before) lastFocus = document.activeElement;
-    onResize();
-    await nextTick();
-    heading.value?.focus();
-  },
-  { immediate: true },
-);
-onMounted(() => {
-  document.addEventListener('keydown', onKey);
-  window.addEventListener('resize', onResize);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener('keydown', onKey);
-  window.removeEventListener('resize', onResize);
+// Moving to another resource's sheet keeps it open; its heading takes focus. UiSheet does the first open.
+watch(id, async (now, before) => {
+  if (!now || !before) return;
+  await nextTick();
+  heading.value?.focus();
 });
 </script>
 
 <template>
-  <Teleport to="body">
-    <div :class="['layer', { inert: !open }]">
-      <AnimatePresence>
-        <motion.div
-          v-if="open"
-          key="scrim"
-          :class="['scrim', { clear: !compact }]"
-          :initial="{ opacity: 0 }"
-          :animate="{ opacity: 1 }"
-          :exit="{ opacity: 0 }"
-          :transition="transition('sheet', reduced)"
-          @click="close"
-        />
-      </AnimatePresence>
-      <AnimatePresence>
-        <motion.div
-          v-if="open"
-          key="panel"
-          :class="['rsheet', 'glass', { compact }]"
-          role="dialog"
-          aria-modal="true"
-          :aria-labelledby="`${uid}-h`"
-          :initial="enter"
-          :animate="{ opacity: 1, x: 0, y: 0 }"
-          :exit="exit"
-          :transition="transition('sheet', reduced)"
-          :drag="compact ? 'y' : false"
-          :drag-constraints="{ top: 0, bottom: 0 }"
-          :drag-elastic="{ top: 0, bottom: 0.9 }"
-          @drag-end="onDragEnd"
+  <UiSheet :open="open" from="right" size="lg" class="rsheet" :aria-labelledby="`${uid}-h`" @close="close" @open="heading?.focus()">
+    <header class="rs-head">
+      <Glyph v-if="status" :kind="glyphFor(status)" :label="status" />
+      <div class="rs-id">
+        <h2 :id="`${uid}-h`" ref="heading" tabindex="-1">{{ label(r) || id }}</h2>
+        <p class="rs-sub">
+          <span>{{ kindWord || 'resource' }}</span><template v-if="engine"> · {{ label(engine) }}</template>
+          <template v-if="kind === 'engine' && attr(r, 'node')"> · node {{ attr(r, 'node') }}</template>
+          <template v-if="status"> · <span :class="['rs-word', status]">{{ statusWord }}</span></template>
+        </p>
+      </div>
+      <UiCloseButton :label="`Close ${label(r) || 'the sheet'}`" @click="close" />
+    </header>
+
+    <p v-if="live.stale.value" class="rs-note"><Glyph kind="down" /><span>The hub is unreachable. This is how it was at {{ hhmm(live.offlineAt.value) }}.</span></p>
+    <p v-if="gone" class="rs-note"><Glyph kind="off" /><span>This {{ kindWord || 'resource' }} isn’t in the graph any more.</span></p>
+    <button v-if="incident && ui.can.value.inbox" type="button" class="rs-incident" @click="ui.openInbox(incident.id)">
+      <Glyph :kind="glyphFor(incident.severity)" />
+      <span>{{ incident.title }}</span>
+      <span class="go">Open in the Inbox</span>
+    </button>
+
+    <template v-if="r && !gone">
+      <div v-if="tabs.length > 1" class="rs-tabs" role="tablist" :aria-label="`${label(r)}`">
+        <button
+          v-for="(t, i) in tabs"
+          :id="`${uid}-tab-${t.id}`"
+          :key="t.id"
+          ref="tabEls"
+          type="button"
+          role="tab"
+          :aria-selected="tab === t.id"
+          :aria-controls="`${uid}-panel-${t.id}`"
+          :tabindex="tab === t.id ? 0 : -1"
+          :class="{ on: tab === t.id }"
+          @click="tab = t.id"
+          @keydown="onTabKey($event, i)"
         >
-          <div class="grab" aria-hidden="true"></div>
-          <header class="rs-head">
-            <Glyph v-if="status" :kind="glyphFor(status)" :label="status" />
-            <div class="rs-id">
-              <h2 :id="`${uid}-h`" ref="heading" tabindex="-1">{{ label(r) || id }}</h2>
-              <p class="rs-sub">
-                <span>{{ kindWord || 'resource' }}</span><template v-if="engine"> · {{ label(engine) }}</template>
-                <template v-if="kind === 'engine' && attr(r, 'node')"> · node {{ attr(r, 'node') }}</template>
-                <template v-if="status"> · <span :class="['rs-word', status]">{{ statusWord }}</span></template>
-              </p>
-            </div>
-            <UiCloseButton :label="`Close ${label(r) || 'the sheet'}`" @click="close" />
-          </header>
+          {{ t.name }}
+        </button>
+      </div>
 
-          <p v-if="live.stale.value" class="rs-note"><Glyph kind="down" /><span>The hub is unreachable. This is how it was at {{ hhmm(live.offlineAt.value) }}.</span></p>
-          <p v-if="gone" class="rs-note"><Glyph kind="off" /><span>This {{ kindWord || 'resource' }} isn’t in the graph any more.</span></p>
-          <button v-if="incident && ui.can.value.inbox" type="button" class="rs-incident" @click="ui.openInbox(incident.id)">
-            <Glyph :kind="glyphFor(incident.severity)" />
-            <span>{{ incident.title }}</span>
-            <span class="go">Open in the Inbox</span>
-          </button>
-
-          <template v-if="r && !gone">
-            <div v-if="tabs.length > 1" class="rs-tabs" role="tablist" :aria-label="`${label(r)}`">
-              <button
-                v-for="(t, i) in tabs"
-                :id="`${uid}-tab-${t.id}`"
-                :key="t.id"
-                ref="tabEls"
-                type="button"
-                role="tab"
-                :aria-selected="tab === t.id"
-                :aria-controls="`${uid}-panel-${t.id}`"
-                :tabindex="tab === t.id ? 0 : -1"
-                :class="{ on: tab === t.id }"
-                @click="tab = t.id"
-                @keydown="onTabKey($event, i)"
-              >
-                {{ t.name }}
-              </button>
-            </div>
-
-            <section
-              v-show="tab === 'overview'"
-              :id="`${uid}-panel-overview`"
-              class="rs-panel"
-              :role="tabs.length > 1 ? 'tabpanel' : undefined"
-              :aria-labelledby="tabs.length > 1 ? `${uid}-tab-overview` : `${uid}-h`"
-            >
-              <div v-if="pictureFrom && r" class="rs-pic" role="img" :aria-label="`${label(r)}, current picture`">
-                <CameraPicture :instance="pictureFrom" :resource="r.id" :height="720" :every="2" :frozen="live.stale.value" />
-              </div>
-              <dl class="rs-facts">
-                <template v-for="f in facts" :key="f.term">
-                  <dt>{{ f.term }}</dt>
-                  <dd>{{ f.value }}</dd>
-                </template>
-              </dl>
-              <template v-if="camEvents.length && r">
-                <h3 class="rs-h3">Recent events · {{ camEvents.length }}</h3>
-                <ul class="rs-events" :aria-label="`Recent events on ${label(r)}`">
-                  <li v-for="e in camEvents" :key="e.id || e.at">
-                    <button type="button" class="lk" @click="ui.openCameraEvent(r.id, e.id || undefined)">
-                      {{ (e.label || 'Detection') + (e.score ? ` ${Math.round(e.score * 100)}%` : '') }}
-                    </button>
-                    <small>{{ shortDate(e.at) }}, {{ hhmm(e.at) }}</small>
-                  </li>
-                </ul>
-              </template>
-              <template v-if="members.length">
-                <h3 class="rs-h3">Containers · {{ members.length }}</h3>
-                <ul class="rs-members" :aria-label="`Containers of ${label(r)}`">
-                  <li v-for="x in members" :key="x.r.id">
-                    <Glyph v-if="x.status !== 'ok'" :kind="glyphFor(x.status)" :label="x.word" />
-                    <span v-else class="rs-dot" aria-hidden="true"></span>
-                    <button type="button" class="lk" :aria-label="rowName(x)" @click="ui.openSheet(x.r.id)">{{ label(x.r) }}</button>
-                    <small v-if="x.word">{{ x.word }}</small>
-                  </li>
-                </ul>
-              </template>
-              <div v-if="stackLink || nodeLink" class="rs-acts">
-                <UiButton v-if="stackLink" size="sm" :href="stackLink" @click.prevent="navigate(stackLink)">Open in Settings → Stacks</UiButton>
-                <UiButton v-if="nodeLink" size="sm" :href="settingsPath('nodes')" @click.prevent="ui.openSettings('nodes')">Its node in Settings → Nodes</UiButton>
-              </div>
-              <ul v-if="links.length" class="rs-links">
-                <li v-for="l in links" :key="l.url"><a :href="l.url" target="_blank" rel="noopener noreferrer">{{ l.title }}</a></li>
-              </ul>
-              <details v-if="labels.length" class="rs-labels">
-                <summary>Labels · {{ labels.length }}</summary>
-                <dl class="rs-facts mono">
-                  <template v-for="[k, v] in labels" :key="k">
-                    <dt>{{ k }}</dt>
-                    <dd>{{ v }}</dd>
-                  </template>
-                </dl>
-              </details>
-              <p v-if="live.demo.value" class="rs-hint">In the Demo Home, Docker is read-only: nothing here has actions or logs.</p>
-            </section>
-
-            <section
-              v-if="tabs.some((t) => t.id === 'actions')"
-              v-show="tab === 'actions'"
-              :id="`${uid}-panel-actions`"
-              class="rs-panel"
-              role="tabpanel"
-              :aria-labelledby="`${uid}-tab-actions`"
-            >
-              <div v-if="working" class="rs-working">
-                <span>{{ working.label }} · {{ stepOf(working) }}{{ pct(working) }}</span>
-                <UiButton v-if="working.cancellable" variant="ghost" size="sm" :disabled="live.stale.value || ui.cancelling[working.id]" :aria-label="`Cancel ${working.label}`" @click="ui.cancelTask(working)">
-                  Cancel
-                </UiButton>
-              </div>
-              <div v-for="g in byTier" :key="g.tier" class="rs-tier">
-                <h3>{{ g.tier }}</h3>
-                <ul>
-                  <li v-for="o in g.list" :key="o.params ? `${o.id} ${JSON.stringify(o.params)}` : o.id">
-                    <UiButton :aria-disabled="!o.available || live.stale.value || !!working || undefined" :aria-describedby="!o.available ? `${uid}-why-${whyOf.get(o.id) ?? o.id}` : undefined" @click="!working && run(o)">
-                      {{ o.label }}<span class="tier">{{ o.tier }}</span>
-                    </UiButton>
-                    <label v-if="o.id === REMOVE && o.available" class="rs-check">
-                      <input v-model="deleteVolumes" type="checkbox" />
-                      Also delete its anonymous volumes (named volumes always stay)
-                    </label>
-                    <p v-if="!o.available && (whyOf.get(o.id) ?? o.id) === o.id" :id="`${uid}-why-${o.id}`" class="rs-why">
-                      {{ o.unavailable ?? 'Cha Dash can’t run this here yet.' }}
-                      <a v-if="o.instead && safeUrl(o.instead.url)" class="lk under" :href="safeUrl(o.instead.url)" target="_blank" rel="noopener">{{ o.instead.title }}</a>
-                      <button
-                        v-if="o.recipe && ui.can.value.integrations"
-                        type="button"
-                        class="lk under"
-                        @click="ui.openSettings('integrations', o.recipe, { section: 'control' })"
-                      >
-                        Open its settings
-                      </button>
-                    </p>
-                  </li>
-                </ul>
-              </div>
-              <p v-if="live.stale.value" class="rs-hint">Actions come back when the hub does.</p>
-            </section>
-
-            <section
-              v-if="logOffer"
-              v-show="tab === 'logs'"
-              :id="`${uid}-panel-logs`"
-              class="rs-panel"
-              role="tabpanel"
-              :aria-labelledby="`${uid}-tab-logs`"
-            >
-              <p class="rs-hint top">The last 50 lines when you ask, newest at the bottom. Cha Dash doesn’t keep them: they go when you close this. Live logs come with v0.3.</p>
-              <p v-if="!logOffer.available" class="rs-why">{{ logOffer.unavailable ?? 'Cha Dash can’t read these logs here yet.' }}</p>
-              <div class="rs-acts">
-                <UiButton :aria-disabled="!logOffer.available || live.stale.value || logBusy || undefined" :aria-busy="logBusy || undefined" @click="!logBusy && showLogs()">
-                  {{ logBusy ? 'Reading…' : logLines ? 'Show again' : 'Show the last 50 lines' }}
-                </UiButton>
-                <UiButton v-if="logLines?.lines.length" variant="ghost" @click="copyLogs">{{ logCopied ? 'Copied' : 'Copy' }}</UiButton>
-              </div>
-              <p class="sr" aria-live="polite">{{ logCopied ? 'Copied to the clipboard.' : logLines ? `${logLines.lines.length} lines.` : '' }}</p>
-              <pre v-if="logLines?.lines.length" class="rs-log" tabindex="0" :aria-label="`Last lines of ${label(r)}’s log`">{{ logLines.lines.join('\n') }}</pre>
-              <p v-else-if="logLines" class="rs-hint">No lines came back.</p>
-            </section>
-
-            <section
-              v-if="metricRows.length"
-              v-show="tab === 'metrics'"
-              :id="`${uid}-panel-metrics`"
-              class="rs-panel"
-              role="tabpanel"
-              :aria-labelledby="`${uid}-tab-metrics`"
-            >
-              <p class="rs-hint top">
-                Read while this is open, every few seconds.<template v-if="historyLevel"> {{ keepWords(historyLevel) }}</template>
-              </p>
-              <div v-if="historyLevel && historyLevel !== 'off'" class="rs-span-row">
-                <div class="rs-span" role="group" aria-label="Time range">
-                  <button type="button" :aria-pressed="span === 'now'" @click="span = 'now'">Now</button>
-                  <button v-for="s in SPANS" :key="s.id" type="button" :aria-pressed="span === s.id" @click="span = s.id">{{ s.name }}</button>
-                </div>
-                <UiButton v-if="pastShown" variant="ghost" size="sm" @click="downloadCsv">Download CSV</UiButton>
-              </div>
-              <p v-if="span !== 'now' && past.state === 'error'" class="rs-hint">Couldn’t load the history. Try again in a moment.</p>
-              <ul class="rs-metrics" :aria-busy="span !== 'now' && past.state === 'loading'">
-                <li v-for="m in metricRows" :key="m.key">
-                  <span class="rs-mt">{{ m.name }}</span>
-                  <span class="rs-mv">
-                    <b>{{ m.shown }}</b>{{ m.of ? ' ' : '' }}<small v-if="m.of">{{ m.of }}</small>{{ span !== 'now' && m.peak ? ' ' : '' }}<small v-if="span !== 'now' && m.peak">· {{ m.peak }}</small>
-                  </span>
-                  <MiniGraph
-                    :values="m.values"
-                    :band="m.sr.band"
-                    :height="span === 'now' ? 28 : 56"
-                    :stale="span === 'now' && (m.sr.stale || live.stale.value)"
-                    :label="m.graphLabel"
-                    :format="m.fmt"
-                    :at="m.at"
-                  />
-                </li>
-              </ul>
-              <p v-if="span !== 'now' && past.state === 'idle'" class="rs-hint">Containers are read only while their sheet is open, so their history has gaps.</p>
-            </section>
-
-            <section
-              v-show="tab === 'history'"
-              :id="`${uid}-panel-history`"
-              class="rs-panel"
-              role="tabpanel"
-              :aria-labelledby="`${uid}-tab-history`"
-            >
-              <template v-if="healthShown">
-                <h3 class="rs-h3">Health · the last 7 days</h3>
-                <p class="rs-up">{{ healthSummary }}</p>
-                <template v-if="healthBar.length">
-                  <div class="rs-health" role="img" :aria-label="`Health over the last 7 days. ${healthSummary}`">
-                    <span
-                      v-for="s in healthBar"
-                      :key="s.from"
-                      :class="['seg', `st-${s.status}`]"
-                      :style="{ left: `${s.left}%`, width: `${s.width}%` }"
-                      :title="`${stateWords(s.status)} · ${absolute(s.from)}`"
-                    ></span>
-                  </div>
-                  <div class="rs-health-axis" aria-hidden="true"><span>7 days ago</span><span>Now</span></div>
-                  <ul class="rs-hist" aria-label="Health changes, newest first">
-                    <li v-for="c in healthChanges" :key="c.from">
-                      <span class="t">{{ stateWords(c.status) }}</span>
-                      <small>{{ shortDate(c.from) }} {{ hhmm(c.from) }} · {{ c.length }}</small>
-                    </li>
-                  </ul>
-                </template>
-              </template>
-              <p v-else-if="health.state === 'error' && health.target === id" class="rs-why">
-                Its health history couldn’t be read. <button type="button" class="lk under" @click="loadHealth()">Try again</button>
-              </p>
-              <h3 class="rs-h3">Tasks · the last 24 hours</h3>
-              <ul v-if="tasksHere.length" class="rs-hist">
-                <li v-for="t in tasksHere" :key="t.id">
-                  <span class="t">{{ t.label }}</span>
-                  <small>{{ t.actor?.name ?? t.actor?.kind ?? '' }}{{ t.started_at ? ` · ${hhmm(t.started_at)}` : '' }} · <span :class="['w', t.state]">{{ taskWord(t) }}</span></small>
-                </li>
-              </ul>
-              <p v-else class="rs-hint">No tasks on it in the last 24 hours.</p>
-              <template v-if="ui.can.value.audit">
-                <h3 class="rs-h3">Audit log</h3>
-                <p v-if="audit.state === 'error'" class="rs-why">The audit log couldn’t be read. <button type="button" class="lk under" @click="loadAudit()">Try again</button></p>
-                <ul v-else-if="audit.events.length" class="rs-hist">
-                  <li v-for="e in audit.events" :key="e.id">
-                    <span class="t mono">{{ e.action }}</span>
-                    <small>{{ e.actor?.name ?? e.actor?.kind ?? '' }} · {{ hhmm(e.at) }} · <span :class="['w', e.result]">{{ resultWord(e) }}</span></small>
-                  </li>
-                </ul>
-                <p v-else-if="audit.state === 'idle' && audit.target === id" class="rs-hint">Nothing in the audit log for it yet.</p>
-                <div class="rs-acts">
-                  <UiButton v-if="audit.next" size="sm" :aria-busy="audit.state === 'loading' || undefined" @click="loadAudit(true)">Older</UiButton>
-                  <UiButton variant="ghost" size="sm" @click="openAudit">Open in Settings → Audit</UiButton>
-                </div>
-              </template>
-              <p v-else class="rs-hint">Older history is in the audit log, for admins and the owner.</p>
-            </section>
-
-            <section
-              v-if="related.length"
-              v-show="tab === 'related'"
-              :id="`${uid}-panel-related`"
-              class="rs-panel"
-              role="tabpanel"
-              :aria-labelledby="`${uid}-tab-related`"
-            >
-              <div v-for="g in related" :key="g.name" class="rs-group">
-                <h3>{{ g.name }}</h3>
-                <ul>
-                  <li v-for="x in g.items" :key="x.id">
-                    <button type="button" class="lk" @click="go(x)">{{ label(x) }}</button>
-                    <small>{{ x.kind }}</small>
-                  </li>
-                </ul>
-              </div>
-            </section>
+      <section
+        v-show="tab === 'overview'"
+        :id="`${uid}-panel-overview`"
+        class="rs-panel"
+        :role="tabs.length > 1 ? 'tabpanel' : undefined"
+        :aria-labelledby="tabs.length > 1 ? `${uid}-tab-overview` : `${uid}-h`"
+      >
+        <div v-if="pictureFrom && r" class="rs-pic" role="img" :aria-label="`${label(r)}, current picture`">
+          <CameraPicture :instance="pictureFrom" :resource="r.id" :height="720" :every="2" :frozen="live.stale.value" />
+        </div>
+        <dl class="rs-facts">
+          <template v-for="f in facts" :key="f.term">
+            <dt>{{ f.term }}</dt>
+            <dd>{{ f.value }}</dd>
           </template>
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  </Teleport>
+        </dl>
+        <template v-if="camEvents.length && r">
+          <h3 class="rs-h3">Recent events · {{ camEvents.length }}</h3>
+          <ul class="rs-events" :aria-label="`Recent events on ${label(r)}`">
+            <li v-for="e in camEvents" :key="e.id || e.at">
+              <button type="button" class="lk" @click="ui.openCameraEvent(r.id, e.id || undefined)">
+                {{ (e.label || 'Detection') + (e.score ? ` ${Math.round(e.score * 100)}%` : '') }}
+              </button>
+              <small>{{ shortDate(e.at) }}, {{ hhmm(e.at) }}</small>
+            </li>
+          </ul>
+        </template>
+        <template v-if="members.length">
+          <h3 class="rs-h3">Containers · {{ members.length }}</h3>
+          <ul class="rs-members" :aria-label="`Containers of ${label(r)}`">
+            <li v-for="x in members" :key="x.r.id">
+              <Glyph v-if="x.status !== 'ok'" :kind="glyphFor(x.status)" :label="x.word" />
+              <span v-else class="rs-dot" aria-hidden="true"></span>
+              <button type="button" class="lk" :aria-label="rowName(x)" @click="ui.openSheet(x.r.id)">{{ label(x.r) }}</button>
+              <small v-if="x.word">{{ x.word }}</small>
+            </li>
+          </ul>
+        </template>
+        <div v-if="stackLink || nodeLink" class="rs-acts">
+          <UiButton v-if="stackLink" size="sm" :href="stackLink" @click.prevent="navigate(stackLink)">Open in Settings → Stacks</UiButton>
+          <UiButton v-if="nodeLink" size="sm" :href="settingsPath('nodes')" @click.prevent="ui.openSettings('nodes')">Its node in Settings → Nodes</UiButton>
+        </div>
+        <ul v-if="links.length" class="rs-links">
+          <li v-for="l in links" :key="l.url"><a :href="l.url" target="_blank" rel="noopener noreferrer">{{ l.title }}</a></li>
+        </ul>
+        <details v-if="labels.length" class="rs-labels">
+          <summary>Labels · {{ labels.length }}</summary>
+          <dl class="rs-facts mono">
+            <template v-for="[k, v] in labels" :key="k">
+              <dt>{{ k }}</dt>
+              <dd>{{ v }}</dd>
+            </template>
+          </dl>
+        </details>
+        <p v-if="live.demo.value" class="rs-hint">In the Demo Home, Docker is read-only: nothing here has actions or logs.</p>
+      </section>
+
+      <section
+        v-if="tabs.some((t) => t.id === 'actions')"
+        v-show="tab === 'actions'"
+        :id="`${uid}-panel-actions`"
+        class="rs-panel"
+        role="tabpanel"
+        :aria-labelledby="`${uid}-tab-actions`"
+      >
+        <div v-if="working" class="rs-working">
+          <span>{{ working.label }} · {{ stepOf(working) }}{{ pct(working) }}</span>
+          <UiButton v-if="working.cancellable" variant="ghost" size="sm" :disabled="live.stale.value || ui.cancelling[working.id]" :aria-label="`Cancel ${working.label}`" @click="ui.cancelTask(working)">
+            Cancel
+          </UiButton>
+        </div>
+        <div v-for="g in byTier" :key="g.tier" class="rs-tier">
+          <h3>{{ g.tier }}</h3>
+          <ul>
+            <li v-for="o in g.list" :key="o.params ? `${o.id} ${JSON.stringify(o.params)}` : o.id">
+              <UiButton :aria-disabled="!o.available || live.stale.value || !!working || undefined" :aria-describedby="!o.available ? `${uid}-why-${whyOf.get(o.id) ?? o.id}` : undefined" @click="!working && run(o)">
+                {{ o.label }}<span class="tier">{{ o.tier }}</span>
+              </UiButton>
+              <label v-if="o.id === REMOVE && o.available" class="rs-check">
+                <input v-model="deleteVolumes" type="checkbox" />
+                Also delete its anonymous volumes (named volumes always stay)
+              </label>
+              <p v-if="!o.available && (whyOf.get(o.id) ?? o.id) === o.id" :id="`${uid}-why-${o.id}`" class="rs-why">
+                {{ o.unavailable ?? 'Cha Dash can’t run this here yet.' }}
+                <a v-if="o.instead && safeUrl(o.instead.url)" class="lk under" :href="safeUrl(o.instead.url)" target="_blank" rel="noopener">{{ o.instead.title }}</a>
+                <button
+                  v-if="o.recipe && ui.can.value.integrations"
+                  type="button"
+                  class="lk under"
+                  @click="ui.openSettings('integrations', o.recipe, { section: 'control' })"
+                >
+                  Open its settings
+                </button>
+              </p>
+            </li>
+          </ul>
+        </div>
+        <p v-if="live.stale.value" class="rs-hint">Actions come back when the hub does.</p>
+      </section>
+
+      <section
+        v-if="logOffer"
+        v-show="tab === 'logs'"
+        :id="`${uid}-panel-logs`"
+        class="rs-panel"
+        role="tabpanel"
+        :aria-labelledby="`${uid}-tab-logs`"
+      >
+        <p class="rs-hint top">The last 50 lines when you ask, newest at the bottom. Cha Dash doesn’t keep them: they go when you close this. Live logs come with v0.3.</p>
+        <p v-if="!logOffer.available" class="rs-why">{{ logOffer.unavailable ?? 'Cha Dash can’t read these logs here yet.' }}</p>
+        <div class="rs-acts">
+          <UiButton :aria-disabled="!logOffer.available || live.stale.value || logBusy || undefined" :aria-busy="logBusy || undefined" @click="!logBusy && showLogs()">
+            {{ logBusy ? 'Reading…' : logLines ? 'Show again' : 'Show the last 50 lines' }}
+          </UiButton>
+          <UiButton v-if="logLines?.lines.length" variant="ghost" @click="copyLogs">{{ logCopied ? 'Copied' : 'Copy' }}</UiButton>
+        </div>
+        <p class="sr" aria-live="polite">{{ logCopied ? 'Copied to the clipboard.' : logLines ? `${logLines.lines.length} lines.` : '' }}</p>
+        <pre v-if="logLines?.lines.length" class="rs-log" tabindex="0" :aria-label="`Last lines of ${label(r)}’s log`">{{ logLines.lines.join('\n') }}</pre>
+        <p v-else-if="logLines" class="rs-hint">No lines came back.</p>
+      </section>
+
+      <section
+        v-if="metricRows.length"
+        v-show="tab === 'metrics'"
+        :id="`${uid}-panel-metrics`"
+        class="rs-panel"
+        role="tabpanel"
+        :aria-labelledby="`${uid}-tab-metrics`"
+      >
+        <p class="rs-hint top">
+          Read while this is open, every few seconds.<template v-if="historyLevel"> {{ keepWords(historyLevel) }}</template>
+        </p>
+        <div v-if="historyLevel && historyLevel !== 'off'" class="rs-span-row">
+          <div class="rs-span" role="group" aria-label="Time range">
+            <button type="button" :aria-pressed="span === 'now'" @click="span = 'now'">Now</button>
+            <button v-for="s in SPANS" :key="s.id" type="button" :aria-pressed="span === s.id" @click="span = s.id">{{ s.name }}</button>
+          </div>
+          <UiButton v-if="pastShown" variant="ghost" size="sm" @click="downloadCsv">Download CSV</UiButton>
+        </div>
+        <p v-if="span !== 'now' && past.state === 'error'" class="rs-hint">Couldn’t load the history. Try again in a moment.</p>
+        <ul class="rs-metrics" :aria-busy="span !== 'now' && past.state === 'loading'">
+          <li v-for="m in metricRows" :key="m.key">
+            <span class="rs-mt">{{ m.name }}</span>
+            <span class="rs-mv">
+              <b>{{ m.shown }}</b>{{ m.of ? ' ' : '' }}<small v-if="m.of">{{ m.of }}</small>{{ span !== 'now' && m.peak ? ' ' : '' }}<small v-if="span !== 'now' && m.peak">· {{ m.peak }}</small>
+            </span>
+            <MiniGraph
+              :values="m.values"
+              :band="m.sr.band"
+              :height="span === 'now' ? 28 : 56"
+              :stale="span === 'now' && (m.sr.stale || live.stale.value)"
+              :label="m.graphLabel"
+              :format="m.fmt"
+              :at="m.at"
+            />
+          </li>
+        </ul>
+        <p v-if="span !== 'now' && past.state === 'idle'" class="rs-hint">Containers are read only while their sheet is open, so their history has gaps.</p>
+      </section>
+
+      <section
+        v-show="tab === 'history'"
+        :id="`${uid}-panel-history`"
+        class="rs-panel"
+        role="tabpanel"
+        :aria-labelledby="`${uid}-tab-history`"
+      >
+        <template v-if="healthShown">
+          <h3 class="rs-h3">Health · the last 7 days</h3>
+          <p class="rs-up">{{ healthSummary }}</p>
+          <template v-if="healthBar.length">
+            <div class="rs-health" role="img" :aria-label="`Health over the last 7 days. ${healthSummary}`">
+              <span
+                v-for="s in healthBar"
+                :key="s.from"
+                :class="['seg', `st-${s.status}`]"
+                :style="{ left: `${s.left}%`, width: `${s.width}%` }"
+                :title="`${stateWords(s.status)} · ${absolute(s.from)}`"
+              ></span>
+            </div>
+            <div class="rs-health-axis" aria-hidden="true"><span>7 days ago</span><span>Now</span></div>
+            <ul class="rs-hist" aria-label="Health changes, newest first">
+              <li v-for="c in healthChanges" :key="c.from">
+                <span class="t">{{ stateWords(c.status) }}</span>
+                <small>{{ shortDate(c.from) }} {{ hhmm(c.from) }} · {{ c.length }}</small>
+              </li>
+            </ul>
+          </template>
+        </template>
+        <p v-else-if="health.state === 'error' && health.target === id" class="rs-why">
+          Its health history couldn’t be read. <button type="button" class="lk under" @click="loadHealth()">Try again</button>
+        </p>
+        <h3 class="rs-h3">Tasks · the last 24 hours</h3>
+        <ul v-if="tasksHere.length" class="rs-hist">
+          <li v-for="t in tasksHere" :key="t.id">
+            <span class="t">{{ t.label }}</span>
+            <small>{{ t.actor?.name ?? t.actor?.kind ?? '' }}{{ t.started_at ? ` · ${hhmm(t.started_at)}` : '' }} · <span :class="['w', t.state]">{{ taskWord(t) }}</span></small>
+          </li>
+        </ul>
+        <p v-else class="rs-hint">No tasks on it in the last 24 hours.</p>
+        <template v-if="ui.can.value.audit">
+          <h3 class="rs-h3">Audit log</h3>
+          <p v-if="audit.state === 'error'" class="rs-why">The audit log couldn’t be read. <button type="button" class="lk under" @click="loadAudit()">Try again</button></p>
+          <ul v-else-if="audit.events.length" class="rs-hist">
+            <li v-for="e in audit.events" :key="e.id">
+              <span class="t mono">{{ e.action }}</span>
+              <small>{{ e.actor?.name ?? e.actor?.kind ?? '' }} · {{ hhmm(e.at) }} · <span :class="['w', e.result]">{{ resultWord(e) }}</span></small>
+            </li>
+          </ul>
+          <p v-else-if="audit.state === 'idle' && audit.target === id" class="rs-hint">Nothing in the audit log for it yet.</p>
+          <div class="rs-acts">
+            <UiButton v-if="audit.next" size="sm" :aria-busy="audit.state === 'loading' || undefined" @click="loadAudit(true)">Older</UiButton>
+            <UiButton variant="ghost" size="sm" @click="openAudit">Open in Settings → Audit</UiButton>
+          </div>
+        </template>
+        <p v-else class="rs-hint">Older history is in the audit log, for admins and the owner.</p>
+      </section>
+
+      <section
+        v-if="related.length"
+        v-show="tab === 'related'"
+        :id="`${uid}-panel-related`"
+        class="rs-panel"
+        role="tabpanel"
+        :aria-labelledby="`${uid}-tab-related`"
+      >
+        <div v-for="g in related" :key="g.name" class="rs-group">
+          <h3>{{ g.name }}</h3>
+          <ul>
+            <li v-for="x in g.items" :key="x.id">
+              <button type="button" class="lk" @click="go(x)">{{ label(x) }}</button>
+              <small>{{ x.kind }}</small>
+            </li>
+          </ul>
+        </div>
+      </section>
+    </template>
+  </UiSheet>
 </template>
 
 <style>
 .rsheet {
-  position: absolute;
-  right: max(16px, calc((100% - var(--board-max)) / 2));
-  top: 84px;
-  width: min(520px, calc(100% - 32px));
-  max-height: min(84vh, 880px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: var(--space-2) var(--space-4) var(--space-4);
-  border-radius: var(--radius-lg);
-  transform-origin: top right;
-}
-.rsheet.compact {
-  left: 0;
-  right: 0;
-  top: auto;
-  bottom: 0;
-  width: auto;
-  max-height: 92%;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
-  border-bottom: 0;
-  transform-origin: bottom center;
-}
-.rsheet.compact .grab {
-  display: block;
-  height: 18px;
-  position: relative;
+  --sheet-pad: var(--space-2) var(--space-4) var(--space-4);
 }
 .rs-head {
   display: flex;

@@ -6,12 +6,11 @@
  * that wait for an admin or the owner), suggestions (the hub's correlator
  * asking whether two things are one), being fixed (a fix is running, or
  * it's recovering by itself), and resolved. Real and demo hubs fill it the
- * same way, from the `inbox` topic. A glass panel on desktop; a bottom sheet on a
- * phone that a flick dismisses. An item that resolves while you watch shows
+ * same way, from the `inbox` topic. A UiSheet: a glass panel on desktop, a
+ * bottom sheet on a phone that a flick dismisses. An item that resolves while you watch shows
  * its done row in place for a moment, then moves to Resolved.
  */
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { AnimatePresence, motion } from 'motion-v';
+import { computed, defineAsyncComponent, onMounted, reactive, watch } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import DiscoveryItem from './DiscoveryItem.vue';
 import LeadsItem from './LeadsItem.vue';
@@ -20,8 +19,6 @@ import SuggestionItem from './SuggestionItem.vue';
 // Approvals are rare and only for owners and admins: their own chunk.
 const ApprovalItem = defineAsyncComponent(() => import('./ApprovalItem.vue'));
 import { hhmm } from '../lib/format';
-import { transition, useReducedMotion } from '../lib/motion';
-import { layerAbove } from '../lib/trap';
 import { groupInbox, hintsHeading, incidents, isApproval, isSuggestion, type InboxGroups } from '../model/inbox';
 import { useDiscovery } from '../stores/discovery';
 import { loadLeads, useLeads } from '../stores/leads';
@@ -29,6 +26,7 @@ import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 import type { Incident } from '../model/types';
 import UiCloseButton from '../ui/CloseButton.vue';
+import UiSheet from '../ui/Sheet.vue';
 
 const live = useLive();
 const ui = useUi();
@@ -38,12 +36,8 @@ const labels = computed(() => discovery.suggestions.value.length > 0);
 const leads = useLeads(live);
 const leadsShown = computed(() => ui.can.value.panes.includes('import') && leads.value.length > 0);
 const discovered = computed(() => labels.value || leadsShown.value);
-const reduced = useReducedMotion();
-const panel = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 const expanded = reactive(new Set<string>());
 const lingering = reactive(new Map<string, number>());
-const compact = ref(typeof window !== 'undefined' && window.innerWidth < 640);
-let lastFocus: Element | null = null;
 
 const LINGER_MS = 2600;
 
@@ -113,147 +107,78 @@ function toggle(id: string) {
   else expanded.add(id);
 }
 
-function onKey(e: KeyboardEvent) {
-  // A confirm, the step-up or another modal <dialog> above the Inbox takes its own Esc.
-  if (e.key === 'Escape' && ui.state.inboxOpen && !e.defaultPrevented && !layerAbove(ui.state)) ui.closeInbox();
-}
-function onResize() {
-  compact.value = window.innerWidth < 640;
-}
-
-// Mounted once, on first open, so AnimatePresence can play the exit.
+// Lists re-sort each time it opens.
 watch(
   () => ui.state.inboxOpen,
-  async (open) => {
-    if (!open) {
-      if (lastFocus instanceof HTMLElement && lastFocus.isConnected) lastFocus.focus();
-      return;
-    }
-    lastFocus = document.activeElement;
-    place(groups.value, true);
-    onResize();
-    await nextTick();
-    const el = panel.value instanceof HTMLElement ? panel.value : panel.value?.$el;
-    const id = ui.state.inboxFocus;
-    const focus = id ? el?.querySelector<HTMLElement>(`[aria-controls="ib-${CSS.escape(id)}"]`) : null;
-    (focus ?? el)?.focus();
-  },
+  (open) => open && place(groups.value, true),
   { immediate: true },
 );
+/** On open, focus the item it was opened for, if any; UiSheet focuses the panel otherwise. */
+function focusItem(panel: HTMLElement): void {
+  const id = ui.state.inboxFocus;
+  if (id) panel.querySelector<HTMLElement>(`[aria-controls="ib-${CSS.escape(id)}"]`)?.focus();
+}
 onMounted(() => {
   if (ui.can.value.panes.includes('import')) void loadLeads();
-  document.addEventListener('keydown', onKey);
-  window.addEventListener('resize', onResize);
 });
-onBeforeUnmount(() => {
-  document.removeEventListener('keydown', onKey);
-  window.removeEventListener('resize', onResize);
-});
-
-/** A flick or a long drag down dismisses the sheet (momentum projects the release). */
-function onDragEnd(_e: PointerEvent, info: { offset: { y: number }; velocity: { y: number } }) {
-  const projected = info.offset.y + info.velocity.y * 0.2;
-  if (projected > 140) ui.closeInbox();
-}
-
-const enter = computed(() =>
-  reduced.value ? { opacity: 0 } : compact.value ? { y: '100%' } : { opacity: 0, scale: 0.96, y: -8 },
-);
-const exit = computed(() => (reduced.value ? { opacity: 0 } : compact.value ? { y: '100%' } : { opacity: 0, scale: 0.97, y: -6 }));
 </script>
 
 <template>
-  <Teleport to="body">
-    <div :class="['layer', { inert: !ui.state.inboxOpen }]">
-      <AnimatePresence>
-        <motion.div
-          v-if="ui.state.inboxOpen"
-          key="scrim"
-          :class="['scrim', { clear: !compact }]"
-          :initial="{ opacity: 0 }"
-          :animate="{ opacity: 1 }"
-          :exit="{ opacity: 0 }"
-          :transition="transition('sheet', reduced)"
-          @click="ui.closeInbox()"
-        />
-      </AnimatePresence>
-      <AnimatePresence>
-        <motion.div
-          v-if="ui.state.inboxOpen"
-          key="panel"
-          ref="panel"
-          :class="['inbox', 'glass', { compact }]"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="inbox-h"
-          tabindex="-1"
-          :initial="enter"
-          :animate="{ opacity: 1, scale: 1, y: 0 }"
-          :exit="exit"
-          :transition="transition('sheet', reduced)"
-          :drag="compact ? 'y' : false"
-          :drag-constraints="{ top: 0, bottom: 0 }"
-          :drag-elastic="{ top: 0, bottom: 0.9 }"
-          @drag-end="onDragEnd"
-        >
-          <div class="grab" aria-hidden="true"></div>
-          <div class="ib-head">
-            <h2 id="inbox-h">Inbox</h2>
-            <span class="n">{{ openCount ? `${openCount} need${openCount === 1 ? 's' : ''} you` : 'nothing open' }}</span>
-            <UiCloseButton label="Close Inbox" @click="ui.closeInbox()" />
-          </div>
-
-          <div v-if="live.stale.value" class="ib">
-            <Glyph kind="down" label="unreachable" />
-            <div>
-              <div class="ib-title">The hub is unreachable</div>
-              <div class="m">This is the Inbox as of {{ hhmm(live.offlineAt.value) }}. Actions come back when the hub does.</div>
-            </div>
-          </div>
-
-          <template v-if="open.length">
-            <h3 class="ib-grp">Open · {{ openNow(open) }}</h3>
-            <IncidentItem v-for="i in open" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
-          </template>
-
-          <template v-if="approvals.length">
-            <h3 class="ib-grp">Waiting for approval · {{ approvals.length }}</h3>
-            <ApprovalItem v-for="i in approvals" :key="i.id" :incident="i" />
-          </template>
-
-          <template v-if="discovered">
-            <h3 class="ib-grp">Discovered</h3>
-            <DiscoveryItem v-if="labels" />
-            <LeadsItem v-if="leadsShown" :leads="leads" />
-          </template>
-
-          <template v-if="suggestions.length">
-            <h3 class="ib-grp">Suggestions · {{ suggestions.length }}</h3>
-            <SuggestionItem v-for="i in suggestions" :key="i.id" :incident="i" />
-          </template>
-
-          <template v-if="fixing.length">
-            <h3 class="ib-grp">Being fixed · {{ openNow(fixing) }}</h3>
-            <IncidentItem v-for="i in fixing" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
-          </template>
-
-          <template v-if="hints.length">
-            <h3 class="ib-grp">{{ hintsHeading(hints) }}</h3>
-            <IncidentItem v-for="i in hints" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
-          </template>
-
-          <div v-if="!open.length && !fixing.length && !discovered && !suggestions.length && !approvals.length" class="ib-empty">
-            <Glyph kind="check" />
-            <div class="t">Nothing needs you</div>
-            <div class="m">Every integration is reading normally.{{ done[0] ? ` The last fix was “${done[0].title}”, at ${hhmm(done[0].resolved_at)}.` : '' }}</div>
-          </div>
-
-          <template v-if="done.length">
-            <h3 class="ib-grp">Resolved · {{ done.length }}</h3>
-            <IncidentItem v-for="i in done" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
-          </template>
-        </motion.div>
-      </AnimatePresence>
+  <UiSheet :open="ui.state.inboxOpen" class="inbox" aria-labelledby="inbox-h" @close="ui.closeInbox()" @open="focusItem">
+    <div class="ib-head">
+      <h2 id="inbox-h">Inbox</h2>
+      <span class="n">{{ openCount ? `${openCount} need${openCount === 1 ? 's' : ''} you` : 'nothing open' }}</span>
+      <UiCloseButton label="Close Inbox" @click="ui.closeInbox()" />
     </div>
-  </Teleport>
+
+    <div v-if="live.stale.value" class="ib">
+      <Glyph kind="down" label="unreachable" />
+      <div>
+        <div class="ib-title">The hub is unreachable</div>
+        <div class="m">This is the Inbox as of {{ hhmm(live.offlineAt.value) }}. Actions come back when the hub does.</div>
+      </div>
+    </div>
+
+    <template v-if="open.length">
+      <h3 class="ib-grp">Open · {{ openNow(open) }}</h3>
+      <IncidentItem v-for="i in open" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
+    </template>
+
+    <template v-if="approvals.length">
+      <h3 class="ib-grp">Waiting for approval · {{ approvals.length }}</h3>
+      <ApprovalItem v-for="i in approvals" :key="i.id" :incident="i" />
+    </template>
+
+    <template v-if="discovered">
+      <h3 class="ib-grp">Discovered</h3>
+      <DiscoveryItem v-if="labels" />
+      <LeadsItem v-if="leadsShown" :leads="leads" />
+    </template>
+
+    <template v-if="suggestions.length">
+      <h3 class="ib-grp">Suggestions · {{ suggestions.length }}</h3>
+      <SuggestionItem v-for="i in suggestions" :key="i.id" :incident="i" />
+    </template>
+
+    <template v-if="fixing.length">
+      <h3 class="ib-grp">Being fixed · {{ openNow(fixing) }}</h3>
+      <IncidentItem v-for="i in fixing" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
+    </template>
+
+    <template v-if="hints.length">
+      <h3 class="ib-grp">{{ hintsHeading(hints) }}</h3>
+      <IncidentItem v-for="i in hints" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
+    </template>
+
+    <div v-if="!open.length && !fixing.length && !discovered && !suggestions.length && !approvals.length" class="ib-empty">
+      <Glyph kind="check" />
+      <div class="t">Nothing needs you</div>
+      <div class="m">Every integration is reading normally.{{ done[0] ? ` The last fix was “${done[0].title}”, at ${hhmm(done[0].resolved_at)}.` : '' }}</div>
+    </div>
+
+    <template v-if="done.length">
+      <h3 class="ib-grp">Resolved · {{ done.length }}</h3>
+      <IncidentItem v-for="i in done" :key="i.id" :incident="i" :expanded="expanded.has(i.id)" @toggle="toggle(i.id)" />
+    </template>
+  </UiSheet>
 </template>

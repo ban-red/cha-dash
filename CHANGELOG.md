@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Discovery offers only what you don't read yet.** The Inbox's Discovery item and Bring in → Discover offered services already connected under another address (a container's port, or https where the connection uses http), a reverse proxy's own dashboard routes, and one service several times. Leads now follow what the hub already knows links a route, its container and a connected app, and use a route's address whenever a route goes to the container.
 - **Fewer "which container?" questions.** When several containers published the port a route, an app or a check points at, the Inbox asked about each one. A stopped container can't hold the port, and a container published on that exact IP beats one published on every address, so Cha Dash now links the right one itself and asks only when two running containers tie.
+- **Tab stays in the Inbox.** Tab could leave the open Inbox for the page behind it; it now cycles inside, as in a resource's sheet. Tab in the command bar opened over a resource's sheet no longer jumps into the sheet.
+- **Every menu works the same way.** The settings menu now opens like the widget and section menus: in front of everything, with the same compact items, arrow keys and Escape. Leaving a submenu puts you back on the item that opened it.
 
 ## [0.3.0-beta.2] - 2026-10-31
 

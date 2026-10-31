@@ -402,7 +402,7 @@ describe('Home Assistant panel', () => {
     const { w, hs } = mountPanel(controlled(), 'people');
     await flushPromises();
     expect(w.findAll('.ha-row .ha-main').map((r) => r.text().replace(/since.*/, ''))).toEqual(['Jo', 'Sam', 'Robin']);
-    await w.find('.act-dlg-head .x').trigger('click');
+    await w.find('.dlg-head .x').trigger('click');
     expect(hs.ui.state.homePanel).toBeUndefined();
   });
 });

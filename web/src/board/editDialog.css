@@ -9,31 +9,72 @@
   font-size: var(--type-small);
   color: var(--text-3);
 }
-.edit-dlg select,
-.edit-dlg .field:not(.check) input {
-  width: 100%;
-  min-height: var(--target-min);
-  padding: 8px 10px;
+.edit-dlg select {
   border: var(--hairline) solid var(--line-2);
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
 }
+
+/* The tile editor: fields two to a row, checks and pick lists full width,
+   one column on a phone. Controls keep UiField's compact pointer size. */
+.editor .dlg-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+.editor .dlg-body > :is(.dlg-head, .dlg-foot, .field.check, .picks) {
+  grid-column: 1 / -1;
+}
+@media (max-width: 600px) {
+  .editor .dlg-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .edit-dlg fieldset.picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0 var(--space-4);
   margin: 0;
   padding: 0;
   border: 0;
   min-width: 0;
 }
+/* Rows with a size or move buttons need the room. */
+.edit-dlg fieldset.picks:has(.pick-size, .pick-mv) {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
 .edit-dlg fieldset.picks legend {
   padding: 0;
   margin-bottom: var(--space-1);
+  font: var(--weight-medium) var(--type-small) / 1.2 var(--font-ui);
+  color: var(--text-2);
+}
+/* Beside the legend, not in it, so the group's name stays the label. */
+.edit-dlg fieldset.picks {
+  position: relative;
+}
+.edit-dlg fieldset.picks legend {
+  min-height: 28px;
+  line-height: 28px;
+}
+.edit-dlg .picks-all {
+  position: absolute;
+  /* A fieldset's padding box starts under its legend. */
+  top: calc(-28px - var(--space-1));
+  right: 0;
+}
+.edit-dlg fieldset.picks > .help {
+  grid-column: 1 / -1;
+  margin-top: var(--space-1);
 }
 .edit-dlg .pick {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--target-min);
+  min-height: var(--control-h);
+  min-width: 0;
   color: var(--text);
 }
 .edit-dlg .pick-name {
@@ -42,6 +83,15 @@
   gap: var(--space-2);
   flex: 1;
   min-width: 0;
+  min-height: var(--control-h);
+}
+.edit-dlg .pick-name > input {
+  flex: none;
+}
+.edit-dlg .pick-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .edit-dlg .pick select.pick-size {
   width: auto;

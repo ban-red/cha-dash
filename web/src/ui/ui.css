@@ -1,8 +1,8 @@
 /*
  * The primitives' styles (ADR-0032): UiButton (.btn), UiCloseButton (.x),
- * UiField (.field) and the marks (.g, .meter). Loaded by main.ts straight
- * after base.css, so every feature stylesheet comes later in the cascade and
- * can lay these out. Features place primitives; they don't restyle them.
+ * UiField (.field), UiMenu (.menu-pop, .menu-item) and the marks (.g,
+ * .meter). Loaded by main.ts straight after base.css, so every feature
+ * stylesheet comes later in the cascade and can lay these out. Features place primitives; they don't restyle them.
  * UiDialog's shell is in dialog.css, which loads with the first dialog.
  */
 
@@ -305,4 +305,81 @@
 }
 .meter.unknown {
   background: repeating-linear-gradient(90deg, var(--line-2) 0 4px, transparent 4px 8px);
+}
+
+/* ───────────── Menus (UiMenu) ───────────── */
+.menu-pop {
+  position: fixed;
+  inset: auto;
+  z-index: 60;
+  width: 196px;
+  margin: 0;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  color: var(--text);
+}
+.menu-item {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: var(--weight-regular) var(--type-small) / 1.2 var(--font-ui);
+  text-align: left;
+  text-decoration: none;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--surface-hover);
+}
+.menu-item svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--text-3);
+}
+.menu-item.danger,
+.menu-item.danger svg {
+  color: var(--down);
+}
+.menu-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--type-caption);
+}
+.menu-val svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 1.6;
+}
+.menu-sep {
+  height: var(--hairline);
+  margin: 3px 4px;
+  background: var(--line);
+}
+.menu-confirm p {
+  margin: 0 0 var(--space-2);
+  padding: 4px 6px 0;
+  font-size: var(--type-small);
+  line-height: 1.4;
+  color: var(--text-2);
+}
+.menu-confirm-acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }

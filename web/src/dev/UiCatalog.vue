@@ -10,6 +10,8 @@ import UiButton, { type ButtonSize, type ButtonVariant } from '../ui/Button.vue'
 import UiCloseButton from '../ui/CloseButton.vue';
 import UiDialog from '../ui/Dialog.vue';
 import UiField from '../ui/Field.vue';
+import UiMenu from '../ui/Menu.vue';
+import UiSheet from '../ui/Sheet.vue';
 import Glyph, { type GlyphKind } from '../ui/marks/Glyph.vue';
 import Meter from '../ui/marks/Meter.vue';
 import MiniGraph from '../ui/marks/MiniGraph.vue';
@@ -25,6 +27,8 @@ const kind = ref('docker');
 const notes = ref('');
 const agree = ref(true);
 const dialog = ref<'' | 'plain' | 'form'>('');
+const size = ref('Medium');
+const sheet = ref<'' | 'top' | 'right'>('');
 
 function pick(id: string): void {
   if (isThemeId(id)) applyTheme(id);
@@ -116,6 +120,58 @@ function pick(id: string): void {
           <UiButton variant="danger-solid" type="submit">Delete<span class="tier">T3</span></UiButton>
         </template>
       </UiDialog>
+    </section>
+
+    <section aria-labelledby="cat-menu">
+      <h2 id="cat-menu" class="caps">UiMenu</h2>
+      <div class="cat-row">
+        <UiMenu class="tool" label="Example menu" v-slot="{ view, goto, close }">
+          <div v-if="view === 'menu'" role="menu" aria-label="Example menu">
+            <button type="button" role="menuitem" class="menu-item" tabindex="-1" @click="close(true)">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h1.4M7.1 4.5h6.4M2.5 11.5h6.4M12.1 11.5h1.4" /><circle cx="5.5" cy="4.5" r="1.6" /><circle cx="10.5" cy="11.5" r="1.6" /></svg>
+              <span>An item</span>
+            </button>
+            <button type="button" role="menuitem" aria-haspopup="menu" class="menu-item" tabindex="-1" @click="goto('size')">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" /></svg>
+              <span>A submenu</span>
+              <span class="menu-val">{{ size }}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg></span>
+            </button>
+            <div class="menu-sep" role="separator"></div>
+            <button type="button" role="menuitem" class="menu-item danger" tabindex="-1" @click="goto('remove')">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8M7 7v3.5M9 7v3.5" /></svg>
+              <span>Remove, after asking</span>
+            </button>
+          </div>
+          <div v-else-if="view === 'size'" role="menu" aria-label="Size">
+            <button v-for="s in ['Small', 'Medium', 'Large']" :key="s" type="button" role="menuitemradio" class="menu-item" tabindex="-1" :aria-checked="s === size" @click="(size = s), close(true)">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path v-if="s === size" d="m3.5 8.5 3 3 6-7" /></svg>
+              <span>{{ s }}</span>
+            </button>
+          </div>
+          <div v-else role="alertdialog" aria-label="Remove it?" class="menu-confirm">
+            <p>A confirm in the same panel. Escape steps back.</p>
+            <div class="menu-confirm-acts">
+              <UiButton size="sm" data-confirm @click="goto('menu')">Cancel</UiButton>
+              <UiButton variant="danger" size="sm" data-confirm @click="close(true)">Remove</UiButton>
+            </div>
+          </div>
+        </UiMenu>
+      </div>
+    </section>
+
+    <section aria-labelledby="cat-sheet">
+      <h2 id="cat-sheet" class="caps">UiSheet</h2>
+      <div class="cat-row">
+        <UiButton @click="sheet = 'top'">Open from the top (md)</UiButton>
+        <UiButton @click="sheet = 'right'">Open from the right (lg)</UiButton>
+      </div>
+      <UiSheet :open="sheet !== ''" :from="sheet === 'right' ? 'right' : 'top'" :size="sheet === 'right' ? 'lg' : 'md'" aria-labelledby="cat-sheet-h" @close="sheet = ''">
+        <div class="cat-row">
+          <h3 id="cat-sheet-h">A sheet</h3>
+          <UiCloseButton label="Close the sheet" @click="sheet = ''" />
+        </div>
+        <p class="muted">Esc, the scrim or the × closes it. Narrower than 640 px, it's a bottom card you can drag down.</p>
+      </UiSheet>
     </section>
 
     <section aria-labelledby="cat-marks">

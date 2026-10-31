@@ -5,6 +5,7 @@ import UiButton from '../src/ui/Button.vue';
 import UiCloseButton from '../src/ui/CloseButton.vue';
 import UiDialog from '../src/ui/Dialog.vue';
 import UiField from '../src/ui/Field.vue';
+import UiMenu from '../src/ui/Menu.vue';
 import UiCatalog from '../src/dev/UiCatalog.vue';
 import { axeViolations } from './axe';
 
@@ -135,6 +136,93 @@ describe('UiDialog', () => {
     show.value = false;
     await nextTick();
     expect(d.open).toBe(false);
+  });
+});
+
+describe('UiMenu', () => {
+  /** A menu with an item, a submenu of two radios and a confirm, like the tile menu. */
+  const Host = defineComponent({
+    setup() {
+      const picked = ref('');
+      return () =>
+        h('div', [
+          h('span', { id: 'picked' }, picked.value),
+          h(
+            UiMenu,
+            { label: 'Tile menu', class: 'cog' },
+            {
+              default: ({ view, goto, close }: { view: string; goto: (v: string) => void; close: (refocus?: boolean) => void }) =>
+                view === 'menu'
+                  ? h('div', { role: 'menu', 'aria-label': 'Tile menu' }, [
+                      h('button', { type: 'button', role: 'menuitem', class: 'menu-item', tabindex: -1, onClick: () => ((picked.value = 'one'), close(true)) }, 'One'),
+                      h('button', { type: 'button', role: 'menuitem', class: 'menu-item', tabindex: -1, onClick: () => goto('size') }, 'Size'),
+                      h('button', { type: 'button', role: 'menuitem', class: 'menu-item', tabindex: -1 }, 'Three'),
+                    ])
+                  : h('div', { role: 'menu', 'aria-label': 'Size' }, [
+                      h('button', { type: 'button', role: 'menuitemradio', class: 'menu-item', tabindex: -1, 'aria-checked': false }, 'S'),
+                      h('button', { type: 'button', role: 'menuitemradio', class: 'menu-item', tabindex: -1, 'aria-checked': true }, 'M'),
+                    ]),
+            },
+          ),
+        ]);
+    },
+  });
+  const pop = () => document.querySelector<HTMLElement>('.menu-pop');
+  const items = () => [...document.querySelectorAll<HTMLElement>('.menu-pop [role^="menuitem"]')];
+  const key = (k: string) => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+
+  it('opens from its trigger in <body>, focused on the first item, and arrows wrap', async () => {
+    const w = mount(Host, { attachTo: document.body });
+    const trigger = w.get('button.cog');
+    expect(trigger.attributes()).toMatchObject({ 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Tile menu' });
+    await trigger.trigger('click');
+    await flushPromises();
+    expect(pop()?.parentElement).toBe(document.body);
+    expect(trigger.attributes('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(items()[0]);
+    expect(await axeViolations(document.body, ['region'])).toEqual([]);
+    key('ArrowUp');
+    expect(document.activeElement).toBe(items()[2]);
+    key('Home');
+    expect(document.activeElement).toBe(items()[0]);
+    key('End');
+    expect(document.activeElement).toBe(items()[2]);
+    items()[0]!.click();
+    await flushPromises();
+    expect(pop()).toBeNull();
+    expect(w.get('#picked').text()).toBe('one');
+    expect(document.activeElement).toBe(trigger.element);
+  });
+
+  it('goes to a view on the checked item, and Escape steps back to the item that opened it, then closes', async () => {
+    const w = mount(Host, { attachTo: document.body });
+    await w.get('button.cog').trigger('click');
+    await flushPromises();
+    items()[1]!.click();
+    await flushPromises();
+    expect(items().map((e) => e.textContent)).toEqual(['S', 'M']);
+    expect(document.activeElement).toBe(items()[1]);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await flushPromises();
+    expect(document.activeElement?.textContent).toBe('Size');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await flushPromises();
+    expect(pop()).toBeNull();
+  });
+
+  it('closes on a click outside and on Tab', async () => {
+    const w = mount(Host, { attachTo: document.body });
+    const trigger = w.get('button.cog');
+    await trigger.trigger('click');
+    await flushPromises();
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    await flushPromises();
+    expect(pop()).toBeNull();
+    await trigger.trigger('click');
+    await flushPromises();
+    key('Tab');
+    await flushPromises();
+    expect(pop()).toBeNull();
   });
 });
 

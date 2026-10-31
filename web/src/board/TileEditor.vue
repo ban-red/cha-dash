@@ -87,6 +87,16 @@ function togglePick(key: string, id: string, on: boolean): void {
   const cur = (values.value[key] as string[] | undefined) ?? [];
   values.value = { ...values.value, [key]: on ? [...cur.filter((x) => x !== id), id] : cur.filter((x) => x !== id) };
 }
+function allPicked(o: WidgetOption & { kind: 'resources' }): boolean {
+  const cur = values.value[o.key] as string[];
+  return pickable(o).every((r) => cur.includes(r.id));
+}
+/** Ticks every listed pick, or unticks them all when they're all ticked. */
+function pickAll(o: WidgetOption & { kind: 'resources' }): void {
+  const cur = values.value[o.key] as string[];
+  const ids = pickable(o).map((r) => r.id);
+  values.value = { ...values.value, [o.key]: allPicked(o) ? cur.filter((x) => !ids.includes(x)) : [...cur, ...ids.filter((x) => !cur.includes(x))] };
+}
 /** Stored only when it differs from the default. */
 function isDefault(o: WidgetOption, v: OptionValue): boolean {
   return o.kind === 'resources' ? !(v as string[]).length : v === o.default;
@@ -163,7 +173,7 @@ function submit(): void {
 </script>
 
 <template>
-  <UiDialog as="form" class="edit-dlg editor" size="sm" :title="`Edit ${config?.name || placeholder}`" @close="emit('close')" @submit="submit">
+  <UiDialog as="form" class="edit-dlg editor" size="lg" :title="`Edit ${config?.name || placeholder}`" @close="emit('close')" @submit="submit">
     <template #head><span class="edit-dlg-kind">{{ spec?.name ?? item.type }}</span></template>
 
     <UiField label="Name" :help="boundName !== undefined ? 'Named after its integration. Rename that in Settings → Integrations.' : 'Empty uses the widget’s own name.'" v-slot="{ control }">
@@ -206,10 +216,11 @@ function submit(): void {
       </UiField>
       <fieldset v-else-if="o.kind === 'resources' && pickable(o).length" class="field picks">
         <legend>{{ o.label }}</legend>
+        <UiButton variant="ghost" size="sm" class="picks-all" @click="pickAll(o)">{{ allPicked(o) ? 'Deselect all' : 'Select all' }}</UiButton>
         <div v-for="r in pickable(o)" :key="r.id" class="pick">
           <label class="pick-name">
             <input type="checkbox" :checked="(values[o.key] as string[]).includes(r.id)" @change="togglePick(o.key, r.id, ($event.target as HTMLInputElement).checked)" />
-            {{ label(r) }}
+            <span class="pick-label" :title="label(r)">{{ label(r) }}</span>
           </label>
           <select
             v-if="o.sizes"

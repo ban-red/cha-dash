@@ -61,44 +61,50 @@ describe('front page with today’s incidents', () => {
     expect(w.find('.sentence-2').text()).toContain('Next: Starling Point at 04:00. Three integrations need reconnecting in the Inbox.');
   });
 
-  it('keeps Theme, Settings and Sign out behind the settings button', async () => {
+  it('keeps Theme, Add integration, Settings and Sign out behind the settings button', async () => {
     const { mountIn } = harness(docs(withIncidents));
     const w = mountIn(Briefing);
     const trigger = w.find('.settings-menu > button[aria-label="Settings"]');
     await trigger.trigger('click');
     await flushPromises();
-    const items = () => w.findAll('[role="menuitem"]');
-    expect(items().map((i) => i.text())).toEqual(['ThemeInstrument Dark', 'Settings', 'Sign out']);
-    expect(document.activeElement).toBe(items()[0]!.element);
+    // The menu is in the top layer, teleported to <body>.
+    const items = () => [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')];
+    const click = async (el: HTMLElement) => {
+      el.click();
+      await flushPromises();
+    };
+    const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+    expect(items().map((i) => i.textContent?.trim())).toEqual(['ThemeInstrument Dark', 'Add integration', 'Settings', 'Sign out']);
+    expect(document.activeElement).toBe(items()[0]);
     // Arrows move through the menu and wrap.
-    await w.find('[role="menu"]').trigger('keydown', { key: 'ArrowUp' });
-    expect(document.activeElement).toBe(items()[2]!.element);
+    key(items()[0]!, 'ArrowUp');
+    expect(document.activeElement).toBe(items()[3]);
 
     // Theme opens the grid in the same popover, focused on the current theme.
-    await items()[0]!.trigger('click');
+    await click(items()[0]!);
+    expect(document.querySelector('.menu-pop [role="menu"]')).toBeNull();
+    const current = document.querySelector<HTMLElement>('.menu-pop [role="radio"][aria-checked="true"]')!;
+    expect(current.textContent).toContain('Instrument Dark');
+    expect(document.activeElement).toBe(current);
+    key(current, 'ArrowRight');
     await flushPromises();
-    expect(w.find('[role="menu"]').exists()).toBe(false);
-    const current = w.find('[role="radio"][aria-checked="true"]');
-    expect(current.text()).toContain('Instrument Dark');
-    expect(document.activeElement).toBe(current.element);
-    await current.trigger('keydown', { key: 'ArrowRight' });
-    expect(w.find('[role="radio"][aria-checked="true"]').text()).toContain('Instrument Light');
+    expect(document.querySelector('.menu-pop [role="radio"][aria-checked="true"]')!.textContent).toContain('Instrument Light');
 
     // Escape steps back to the menu first, then closes it.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
-    expect(items()[0]!.text()).toBe('ThemeInstrument Light');
-    expect(document.activeElement).toBe(items()[0]!.element);
+    expect(items()[0]!.textContent?.trim()).toBe('ThemeInstrument Light');
+    expect(document.activeElement).toBe(items()[0]);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
-    expect(w.find('.settings-pop').exists()).toBe(false);
+    expect(document.querySelector('.menu-pop')).toBeNull();
     expect(document.activeElement).toBe(trigger.element);
 
     await trigger.trigger('click');
     await flushPromises();
-    await items()[2]!.trigger('click');
+    await click(items()[3]!);
     expect(w.findComponent(Briefing).emitted('signOut')).toHaveLength(1);
-    expect(w.find('.settings-pop').exists()).toBe(false);
+    expect(document.querySelector('.menu-pop')).toBeNull();
   });
 
   it('mirrors problems into Needs attention with the suggested action and its tier', async () => {

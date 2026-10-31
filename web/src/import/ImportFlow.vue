@@ -575,7 +575,21 @@ onBeforeUnmount(() => timer && clearTimeout(timer));
   gap: 4px;
 }
 .imp-role textarea {
+  width: 100%;
   min-height: 6rem;
+  padding: 6px 10px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font: var(--weight-regular) var(--type-small) / 1.5 var(--font-num);
+  resize: vertical;
+}
+.imp-role textarea::placeholder {
+  color: var(--text-3);
+}
+.imp-role textarea:hover:not(:disabled, :focus) {
+  border-color: color-mix(in oklch, var(--text) 22%, transparent);
 }
 .imp-summary {
   margin: 0;

@@ -11,6 +11,12 @@ import axe from 'axe-core';
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa', 'best-practice'];
 
+/*
+ * A UiMenu's panel (.menu-pop) is a popup that belongs to its trigger, in <body> and the top layer, like a dialog.
+ * axe already counts dialogs as regions; count menus too, so region still checks the page itself.
+ */
+axe.configure({ checks: [{ id: 'region', options: { regionMatcher: 'dialog, [role=dialog], [role=alertdialog], svg, .menu-pop' } }] });
+
 /** What index.html gives every page. */
 function documentBasics(): void {
   document.documentElement.lang = 'en';

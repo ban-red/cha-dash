@@ -19,7 +19,7 @@ afterEach(() => {
 
 describe('a tile’s menu', () => {
   afterEach(() => navigate('/', { replace: true }));
-  const items = () => [...document.querySelectorAll<HTMLElement>('.tile-pop [role^="menuitem"]')];
+  const items = () => [...document.querySelectorAll<HTMLElement>('.menu-pop [role^="menuitem"]')];
   const item = (text: string) => items().find((e) => e.textContent?.trim().startsWith(text))!;
 
   it('opens the settings of the integration that feeds the tile', async () => {
@@ -74,13 +74,13 @@ describe('a tile’s menu', () => {
     await settle();
     item('Resize').click();
     await settle();
-    const before = [...document.querySelectorAll('.tile-pop [aria-checked="true"]')].length;
+    const before = [...document.querySelectorAll('.menu-pop [aria-checked="true"]')].length;
     expect(before).toBe(1);
     const other = items().find((e) => e.getAttribute('aria-checked') === 'false')!;
     other.click();
     await settle();
     expect(store.save).toHaveBeenCalled();
-    expect(document.querySelector('.tile-pop')).toBeNull();
+    expect(document.querySelector('.menu-pop')).toBeNull();
   });
 
   it('reorders the tile within its section and saves the layout', async () => {
@@ -111,14 +111,14 @@ describe('a tile’s menu', () => {
     await settle();
     item('Remove').click();
     await settle();
-    expect(document.querySelector('.tile-pop [role="alertdialog"]')).not.toBeNull();
+    expect(document.querySelector('.menu-pop [role="alertdialog"]')).not.toBeNull();
     expect(store.save).not.toHaveBeenCalled();
-    document.querySelector<HTMLElement>('.tile-pop [data-confirm]')!.click(); // Cancel
+    document.querySelector<HTMLElement>('.menu-pop [data-confirm]')!.click(); // Cancel
     await settle();
     expect(store.save).not.toHaveBeenCalled();
     item('Remove').click();
     await settle();
-    [...document.querySelectorAll<HTMLElement>('.tile-pop [data-confirm]')].find((b) => b.textContent === 'Remove')!.click();
+    [...document.querySelectorAll<HTMLElement>('.menu-pop [data-confirm]')].find((b) => b.textContent === 'Remove')!.click();
     await settle();
     expect(store.save).toHaveBeenCalledTimes(1);
     expect(w.ui.state.toasts.at(-1)?.action?.label).toBe('Undo');
@@ -161,16 +161,16 @@ describe('a section header’s menu', () => {
     expect(btn.attributes('aria-label')).toMatch(/section menu$/);
     await btn.trigger('click');
     await settle();
-    const resize = [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Resize'))!;
+    const resize = [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Resize'))!;
     resize.click();
     await settle();
-    const radios = [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitemradio"]')];
+    const radios = [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitemradio"]')];
     expect(radios.length).toBeGreaterThan(1);
     expect(radios.filter((r) => r.getAttribute('aria-checked') === 'true')).toHaveLength(1);
     radios.find((r) => r.getAttribute('aria-checked') === 'false')!.click();
     await settle();
     expect(store.save).toHaveBeenCalled();
-    expect(document.querySelector('.tile-pop')).toBeNull();
+    expect(document.querySelector('.menu-pop')).toBeNull();
   });
 
   it('moves the section from its Reorder item and saves the layout', async () => {
@@ -181,9 +181,9 @@ describe('a section header’s menu', () => {
     const header = w.findAll('.sh-live')[1]!; // a middle section can move both ways
     await header.find('.sh-menu').trigger('click');
     await settle();
-    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Reorder'))!.click();
+    [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Reorder'))!.click();
     await settle();
-    const moves = [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')];
+    const moves = [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')];
     expect(moves.map((e) => e.textContent?.trim())).toEqual(['Move to top', 'Move up', 'Move down', 'Move to bottom']);
     moves.find((e) => e.textContent?.trim() === 'Move up')!.click();
     await settle();
@@ -198,15 +198,15 @@ describe('a section header’s menu', () => {
     await settle();
     await w.findAll('.sh-live')[1]!.find('.sh-menu').trigger('click');
     await settle();
-    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Section settings'))!.click();
+    [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Section settings'))!.click();
     await settle();
-    const input = document.querySelector<HTMLInputElement>('.tile-pop input[data-focus]')!;
+    const input = document.querySelector<HTMLInputElement>('.menu-pop input[data-focus]')!;
     input.value = '  Media  ';
     input.dispatchEvent(new Event('input'));
-    document.querySelector<HTMLFormElement>('.tile-pop form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    document.querySelector<HTMLFormElement>('.menu-pop form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await settle();
     expect(store.board.value!.sections[1]!.title).toBe('Media');
-    expect(document.querySelector('.tile-pop')).toBeNull();
+    expect(document.querySelector('.menu-pop')).toBeNull();
   });
 
   it('adds an empty section before or after from its menu', async () => {
@@ -217,7 +217,7 @@ describe('a section header’s menu', () => {
     for (const [label, at] of [['before', 1], ['after', 2]] as const) {
       await w.findAll('.sh-live')[1]!.find('.sh-menu').trigger('click');
       await settle();
-      [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes(`Add new section ${label}`))!.click();
+      [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')].find((e) => e.textContent?.includes(`Add new section ${label}`))!.click();
       await settle();
       const secs = store.board.value!.sections;
       expect(secs[at]!.items).toHaveLength(0);
@@ -235,17 +235,17 @@ describe('a section header’s menu', () => {
     const header = w.findAll('.sh-live')[1]!;
     await header.find('.sh-menu').trigger('click');
     await settle();
-    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Remove section'))!.click();
+    [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Remove section'))!.click();
     await settle();
-    expect(document.querySelector('.tile-pop [role="alertdialog"]')).not.toBeNull();
+    expect(document.querySelector('.menu-pop [role="alertdialog"]')).not.toBeNull();
     expect(store.board.value!.sections).toHaveLength(before.length);
-    [...document.querySelectorAll<HTMLElement>('.tile-pop [data-confirm]')].find((e) => e.textContent?.trim() === 'Cancel')!.click();
+    [...document.querySelectorAll<HTMLElement>('.menu-pop [data-confirm]')].find((e) => e.textContent?.trim() === 'Cancel')!.click();
     await settle();
-    expect(document.querySelector('.tile-pop [role="alertdialog"]')).toBeNull();
+    expect(document.querySelector('.menu-pop [role="alertdialog"]')).toBeNull();
     expect(store.board.value!.sections).toHaveLength(before.length);
-    [...document.querySelectorAll<HTMLElement>('.tile-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Remove section'))!.click();
+    [...document.querySelectorAll<HTMLElement>('.menu-pop [role="menuitem"]')].find((e) => e.textContent?.includes('Remove section'))!.click();
     await settle();
-    [...document.querySelectorAll<HTMLElement>('.tile-pop [data-confirm]')].find((e) => e.textContent?.trim() === 'Remove')!.click();
+    [...document.querySelectorAll<HTMLElement>('.menu-pop [data-confirm]')].find((e) => e.textContent?.trim() === 'Remove')!.click();
     await settle();
     const after = store.board.value!.sections.map((s) => s.id);
     expect(after).toHaveLength(before.length - 1);
