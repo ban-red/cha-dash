@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0-beta.2] - 2026-10-31
+
+A fix for Update Cha Dash, and the first published beta of v0.3. 0.3.0-beta.1 was tagged but never published: its last live check found that a hub crashing at start passed self-update's health gate and stayed down. Both fixes are below.
+
+**Coming from 0.2,** everything in [0.3.0-beta.1's notes](https://github.com/ban-red/cha-dash/blob/main/CHANGELOG.md#030-beta1---2026-10-31) is new to you, and its upgrade steps apply: point both images at `beta`, as the [install steps](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md) show, or pin `0.3.0-beta.2`; take the new [`compose.yaml`](https://github.com/ban-red/cha-dash/blob/main/deploy/compose.yaml) for self-update; rename a node called `hooks` or `secrets`. Update the node too: the fixes are in the node image.
+
 ### Fixed
 
 - **Update Cha Dash rolls back a hub that crashes at start.** The health gate read health from compose's container list, which is empty while a container restarts, so a hub that crashed at once passed the gate and stayed down. It now reads Docker's own health state, and a crashing hub is put back on its previous image.
@@ -369,7 +375,8 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0-beta.1...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0-beta.2...HEAD
+[0.3.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.2
 [0.3.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.1
 [0.2.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.1
