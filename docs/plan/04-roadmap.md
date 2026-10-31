@@ -204,7 +204,7 @@ Compare it for one day against a gridstack 14 prototype.
 
 ## v0.3: Fleet (remote nodes everywhere)
 
-> The detailed plan is in [09 · v0.3](09-v0.3.md): git sync, webhooks, OIDC, remote nodes and fleet stacks are built; Graph v2 and the Atlas are planned; the Update Center and the spec format still need a pass.
+> The detailed plan is in [09 · v0.3](09-v0.3.md): git sync, webhooks, OIDC, remote nodes and fleet stacks are built; Graph v2 and the Atlas are planned; the Update Center and the spec format are planned.
 
 **Remote nodes**
 - Enrollment: "Add node" generates a compose snippet with a single-use token; keys are pinned; an admin approves in the Inbox.
