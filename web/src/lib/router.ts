@@ -16,6 +16,7 @@
  *   /settings/stacks/new               a new stack (saved as a draft)
  *   /settings/stacks/{node}/{name}     one stack: editor, plan, deploy, history
  *   /settings/nodes                    chadash-node on each host: state, policy, revoke, pairing (owner, admin)
+ *   /settings/updates                  newer images for containers, by host: update, hold, snooze (viewer and up)
  *   /settings/import                   Bring in → Import: drop or paste a config, review, apply
  *   /settings/import/discover          Bring in → Discover: this host, leads, places you name
  *   /settings/import/history           Bring in → History: applied imports, Import again, Revert
@@ -36,9 +37,9 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'stacks' | 'nodes' | 'import' | 'backup' | 'history' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security';
+export type SettingsPane = 'integrations' | 'stacks' | 'nodes' | 'updates' | 'import' | 'backup' | 'history' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security';
 
-const PANES: readonly string[] = ['stacks', 'nodes', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security'];
+const PANES: readonly string[] = ['stacks', 'nodes', 'updates', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security'];
 
 export type View =
   | { name: 'front'; board?: string }

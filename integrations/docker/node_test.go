@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
 	"io"
@@ -42,6 +43,9 @@ type fakeNode struct {
 	offline   bool
 	callsSeen chan string
 	hubID     string // what engine.self names as the hub's container
+	images    string // image.check's answer; "" is no containers checked
+	fresh     int    // image.check asks with fresh
+	outcome   string // container.update's outcome; "" is deployed
 }
 
 func newFakeNode(t *testing.T, f *fakeDocker) *fakeNode {
@@ -201,6 +205,32 @@ func (n *fakeNode) Call(ctx context.Context, node, verb string, req any, progres
 			return json.RawMessage(`{"image":"x:1","changed":true}`), nil
 		}
 		return json.RawMessage(`{}`), nil
+	}
+	if verb == "container.update" {
+		_, name := n.idOf(ctx, p.ID)
+		n.mu.Lock()
+		defer n.mu.Unlock()
+		progress(json.RawMessage(`{"step":"Pull lscr.io/linuxserver/sonarr:latest"}`))
+		out := map[string]string{"outcome": cmp.Or(n.outcome, "deployed"), "name": name, "image": "lscr.io/linuxserver/sonarr:latest", "current": "lscr.io/linuxserver/sonarr:latest@sha256:bb"}
+		if n.outcome == "rolled_back" {
+			out["reason"] = name + " is restarting. Rolled back to lscr.io/linuxserver/sonarr:latest@sha256:aa on its own, and it's healthy again."
+		}
+		n.state[name] = "running"
+		return json.Marshal(out)
+	}
+	if verb == "image.check" {
+		n.mu.Lock()
+		defer n.mu.Unlock()
+		if f, _ := req.(map[string]bool); f["fresh"] {
+			n.fresh++
+		}
+		if code, ok := n.deny["images.check"]; ok {
+			return nil, &nodeErr{code, "refused"}
+		}
+		if n.images == "" {
+			return json.RawMessage(`{"images":[]}`), nil
+		}
+		return json.RawMessage(n.images), nil
 	}
 	return nil, &nodeErr{"not_found", "no verb " + verb}
 }

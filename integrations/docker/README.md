@@ -229,6 +229,7 @@ With `node://<name>`, requests never leave the hub as HTTP: a small transport (`
 - **A refusal** keeps the integration's meaning: the node's `forbidden` is a proxy's 403 (a feature off, or a Repair when listing is refused, naming the policy), `not_found` is Docker's 404, and a node that isn't connected is a 503 the runtime backs off from.
 - **Inspect** leaves the node with environment values redacted (the default `redact_env`), so a socket proxy's write switches read as unknown.
 - **Compose `depends_on`** (the `com.docker.compose.depends_on` label) is published as `depends_on` relations between containers of one project, for every endpoint.
+- **Image updates** (`updates.go`): every 15 minutes, at once for a running container it hasn't heard about, and on Check now (`Interest.Refresh`, which asks the node to ask again), the instance asks the node `image.check` and publishes each running container's answer as `attrs.update` (`integration.ImageUpdate`: `state` `current`, `available` or `cant_check`, `current`, `latest`, `checked_at`, `reason`). The node asks each registry at most every 6 hours. A node whose policy refuses `images.check`, or that predates the verb, gives every running container `cant_check` with that reason. Other failures keep the last answers. Only instances through a node check: the Docker API alone can't ask a registry without pulling.
 
 ## Cha Dash's own container
 
@@ -250,6 +251,7 @@ Only `node://` instances implement them (`actions.go`, the `integration.Actor` i
 | `docker.container.restart` | T2 | — | `container.restart` | `docker.lifecycle` |
 | `docker.container.recreate` | T2 | — | `container.recreate` | `docker.update` |
 | `docker.container.pull` | T2 | — | `container.pull` | `docker.update` |
+| `docker.container.update` | T2 | — | `container.update` | `docker.update` |
 | `docker.container.remove` | T3 | — | `container.remove` | `docker.remove` |
 | `docker.container.logs` | T0 | — | `container.logs` (last 50 lines into the task log) | `docker.logs` |
 
@@ -260,4 +262,5 @@ Only `node://` instances implement them (`actions.go`, the `integration.Actor` i
 - **Blast radius** is the engine's walk of the Home Graph: compose `depends_on`, Traefik's `routes_to`, `part_of` and `runs_on`.
 - **Remove** lists the volumes it keeps (named ones always) and the anonymous ones it keeps or deletes (`{"volumes": true}`).
 - **Verify** reads the container back through the node until it reports the promised state (by name, so it finds a recreated container).
+- **Update** is the Update Center's: the node pulls the tag, recreates the container on the digest it pulled, waits up to 2 minutes for it to report healthy (or, with no healthcheck, to keep running for 10 seconds without a restart), and puts the previous image back if it doesn't. A rollback fails the task with code `rolled_back` and the node's sentence; a rollback that fails too is `update_stuck`. The same tag already current logs "already runs the newest" and succeeds.
 - **Pull** pulls the container's tag without registry credentials (private images fail with the registry's message); the container runs the old image until it's recreated. Recreate keeps the name, labels, networks and every volume, anonymous ones included, and rolls back if the new container can't be created or started.

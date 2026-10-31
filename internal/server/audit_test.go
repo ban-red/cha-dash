@@ -114,6 +114,8 @@ var provenElsewhere = map[string]string{
 	"POST /api/correlate/suggestions/{id}/reject":  "correlate.TestAPI (the confirm path; reject is the same handler with the other verdict)",
 	"POST /api/correlate/decisions":                "correlate.TestAPI",
 	"DELETE /api/correlate/decisions/{id}":         "correlate.TestAPI",
+	"POST /api/updates/{resource}/hold":            "updates.TestRoutes",
+	"DELETE /api/updates/{resource}/hold":          "updates.TestRoutes",
 	"PUT /api/settings/security":                   "TestChangesAreAudited",
 	"PUT /api/settings/history":                    "TestHistorySettings",
 	"POST /api/settings/history/clear":             "TestHistorySettings",

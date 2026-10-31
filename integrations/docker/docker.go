@@ -217,6 +217,10 @@ type instance struct {
 	refreshedAt time.Time            // when the last Sync refreshed the list
 	samples     map[string]cpuSample // previous CPU readings, by container ID
 	statsOn     bool                 // series are published under statsScope
+
+	updates   map[string]integration.ImageUpdate // node:// only: image.check's answers, by container ID
+	updatesAt time.Time                          // when the node was last asked
+	recheck   bool                               // this sync is a Check now: ask the registries again
 }
 
 // rid is a resource ID of this instance.
@@ -273,7 +277,8 @@ func (in *instance) Test(ctx context.Context) integration.TestResult {
 func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	if fast := in.acc.stats && len(in.watched(want)) > 0; !fast || in.refreshDue() {
+	if fast := in.acc.stats && len(in.watched(want)) > 0; !fast || in.refreshDue() || want.Refresh {
+		in.recheck = want.Refresh
 		if err := in.refresh(ctx, nil); err != nil {
 			return err
 		}
@@ -308,6 +313,8 @@ func (in *instance) refresh(ctx context.Context, force map[string]bool) error {
 		in.hubID != "" && !slices.ContainsFunc(list, func(s summary) bool { return s.ID == in.hubID })) {
 		in.hubID, in.selfAt = in.nodeSelf(ctx), in.d.Now()
 	}
+	in.checkImages(ctx, list, in.recheck)
+	in.recheck = false
 	in.listed = list
 	return in.publish(list)
 }

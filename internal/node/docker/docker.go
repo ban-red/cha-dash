@@ -18,7 +18,9 @@
 //	container.restart    docker.lifecycle   {id, timeout?}                  {id, name, state}
 //	container.pull       docker.update      {id}                            items {status, id?, progress?}; reply {image, before, after, changed}
 //	container.recreate   docker.update      {id, timeout?}                  items {step}; reply {id, name, state, old_id}
+//	container.update     docker.update      {id}                            items {step}; reply {outcome, reason, id, name, image, previous, current}: pull the tag, recreate on its digest, the health gate, a rollback on failure
 //	container.remove     docker.remove      {id, volumes?, force?}          {id, name, kept, removed}
+//	image.check          images.check       {ids?}                          {images: [{id, image, state, current?, latest?, checked_at?, reason?}]}: has each tag moved in its registry? (all running containers without ids)
 //
 // IDs may be a container ID or name. Errors are the node's codes:
 // not_found (no such container), conflict (already started, say),
@@ -69,6 +71,11 @@ type Module struct {
 	policy node.Policy
 	self   string
 	log    *slog.Logger
+	now    func() time.Time
+	tags   tagCache // image.check's registry answers
+	// poll and sleep pace container.update's gate (tests shorten them).
+	poll  time.Duration
+	sleep func(context.Context, time.Duration) error
 }
 
 // shortID is what a container's default hostname looks like.
@@ -97,7 +104,7 @@ func New(o Options) (*Module, error) {
 			self = h
 		}
 	}
-	return &Module{cli: cli, policy: o.Policy, self: self, log: o.Log}, nil
+	return &Module{cli: cli, policy: o.Policy, self: self, log: o.Log, now: time.Now, poll: time.Second, sleep: sleepCtx}, nil
 }
 
 // SelfProject is the compose project the node's own container belongs to
@@ -242,7 +249,9 @@ func (m *Module) Verbs() []node.Verb {
 		{Name: "container.restart", Policy: "docker.lifecycle", Handle: m.restart},
 		{Name: "container.pull", Policy: "docker.update", Handle: m.pull},
 		{Name: "container.recreate", Policy: "docker.update", Handle: m.recreate},
+		{Name: "container.update", Policy: "docker.update", Handle: m.update},
 		{Name: "container.remove", Policy: "docker.remove", Handle: m.remove},
+		{Name: "image.check", Policy: "images.check", Handle: m.imageCheck},
 	}
 }
 

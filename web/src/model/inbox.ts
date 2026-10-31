@@ -119,6 +119,13 @@ const CLASS_RANK: Record<string, number> = { problem: 0, repair: 1 };
  */
 export const NODE_REVIEW = 'node.review';
 
+/**
+ * The one quiet item counting updates available (`updates.available`, an
+ * info hint, never in Needs attention) suggests this: it opens Settings →
+ * Updates. The hub resolves the item when nothing is left to update.
+ */
+export const UPDATE_REVIEW = 'update.review';
+
 export const isSuggestion = (i: Incident) => i.class === 'suggestion';
 export const isApproval = (i: Incident) => i.class === 'approval';
 

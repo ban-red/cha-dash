@@ -2,7 +2,7 @@
 /**
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
- * /settings/integrations, /settings/stacks, /settings/nodes, /settings/import, /settings/backup, /settings/history,
+ * /settings/integrations, /settings/stacks, /settings/nodes, /settings/updates, /settings/import, /settings/backup, /settings/history,
  * /settings/users, /settings/audit, /settings/notifications, /settings/tokens,
  * /settings/security. The board, the
  * socket and the Inbox stay live underneath; Esc or the scrim goes back.
@@ -24,6 +24,7 @@ import UiCloseButton from '../ui/CloseButton.vue';
 // Rarely opened: each its own chunk, loaded with the pane.
 const StacksPane = defineAsyncComponent(() => import('./StacksPane.vue'));
 const NodesPane = defineAsyncComponent(() => import('./NodesPane.vue'));
+const UpdatesPane = defineAsyncComponent(() => import('./UpdatesPane.vue'));
 const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
 const HistoryPane = defineAsyncComponent(() => import('./HistoryPane.vue'));
 const BringInPane = defineAsyncComponent(() => import('../import/BringInPane.vue'));
@@ -41,6 +42,7 @@ const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'integrations', label: 'Integrations', note: 'what Cha Dash reads' },
   { id: 'stacks', label: 'Stacks', note: 'compose, deploy, roll back' },
   { id: 'nodes', label: 'Nodes', note: 'hosts Cha Dash acts on' },
+  { id: 'updates', label: 'Updates', note: 'newer images, hold, snooze' },
   { id: 'import', label: 'Bring in', note: 'import and discover' },
   { id: 'backup', label: 'Backup', note: 'export and restore' },
   { id: 'history', label: 'History', note: 'what Cha Dash keeps' },
@@ -57,7 +59,7 @@ const PANES = computed(() =>
 );
 /** The nav in three groups, so eleven panes read as three decisions. A group with no pane for this role is left out. */
 const GROUPS: { label: string; ids: SettingsPane[] }[] = [
-  { label: 'Connect', ids: ['integrations', 'stacks', 'nodes', 'import'] },
+  { label: 'Connect', ids: ['integrations', 'stacks', 'nodes', 'updates', 'import'] },
   { label: 'Keep', ids: ['backup', 'history'] },
   { label: 'People & access', ids: ['users', 'tokens', 'security', 'notifications', 'audit'] },
 ];
@@ -74,6 +76,7 @@ const TITLES: Record<SettingsPane, string> = {
   integrations: 'Integrations',
   stacks: 'Stacks',
   nodes: 'Nodes',
+  updates: 'Updates',
   import: 'Bring in',
   backup: 'Backup',
   history: 'History',
@@ -148,6 +151,7 @@ onBeforeUnmount(() => {
             <IntegrationsPane v-if="pane === 'integrations'" />
             <StacksPane v-else-if="pane === 'stacks'" />
             <NodesPane v-else-if="pane === 'nodes'" />
+            <UpdatesPane v-else-if="pane === 'updates'" />
             <BringInPane v-else-if="pane === 'import'" />
             <BackupPane v-else-if="pane === 'backup'" />
             <HistoryPane v-else-if="pane === 'history'" />

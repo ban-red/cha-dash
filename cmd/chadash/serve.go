@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -40,6 +41,7 @@ import (
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
+	"dash.cha.sh/internal/updates"
 	"dash.cha.sh/internal/vault"
 	"dash.cha.sh/internal/webui"
 )
@@ -396,6 +398,28 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		}
 	}
 
+	// The Update Center (wave 22): the updates the Docker instances through
+	// a node publish, holds and snoozes, and one quiet Inbox item. Not in
+	// demo mode, which has no nodes.
+	var upd *updates.Service
+	if !cfg.Demo {
+		upd, err = updates.New(updates.Options{Store: st, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "updates"),
+			// Check now: every Docker instance through a node syncs at once
+			// and asks its node to ask the registries again.
+			Refresh: func() int {
+				n := 0
+				for _, in := range mgr.List() {
+					if ep, _ := in.Config["endpoint"].(string); in.Enabled && in.Integration == "docker" && strings.HasPrefix(ep, "node://") && mgr.Refresh(in.ID) == nil {
+						n++
+					}
+				}
+				return n
+			}})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// The action engine and its audit log. In demo mode the Demo Home's
 	// incident fixes are its actions.
 	if drv != nil {
@@ -499,6 +523,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Audit:          auditLog,
 		Nodes:          nodeHub,
 		Stacks:         stk,
+		Updates:        upd,
 		Notify:         nt,
 		Topics:         tp,
 		Icons:          icn,
@@ -530,6 +555,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	a.bg.Go(func() { eng.Run(bg) })
 	a.bg.Go(func() { nt.Run(bg) })
 	a.bg.Go(func() { icn.Run(bg) })
+	if upd != nil {
+		a.bg.Go(func() { upd.Run(bg) })
+	}
 	if syncer != nil {
 		a.bg.Go(func() { syncer.Run(bg) })
 	}

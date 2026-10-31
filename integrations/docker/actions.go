@@ -27,6 +27,7 @@ import (
 //	docker.container.restart    T2    —      container.restart    docker.lifecycle
 //	docker.container.recreate   T2    —      container.recreate   docker.update
 //	docker.container.pull       T2    —      container.pull       docker.update
+//	docker.container.update     T2    —      container.update     docker.update
 //	docker.container.remove     T3    —      container.remove     docker.remove
 //	docker.container.logs       T0    —      container.logs       docker.logs
 //
@@ -50,6 +51,7 @@ var actionSpecs = []struct {
 	{"restart", "Restart", action.T2, "docker.lifecycle", false},
 	{"recreate", "Recreate", action.T2, "docker.update", true},
 	{"pull", "Pull the image of", action.T2, "docker.update", true},
+	{"update", "Update", action.T2, "docker.update", true},
 	{"remove", "Remove", action.T3, "docker.remove", false},
 	{"logs", "Show the logs of", action.T0, "docker.logs", false},
 }
@@ -73,7 +75,7 @@ func (in *instance) Actions() []action.Def {
 			// hub or the router takes them down: the runtime raises these
 			// to T4 then (self-aware T4). Node verbs don't stop cleanly
 			// mid-way, so none is Cancellable.
-			Disrupts: s.verb == "stop" || s.verb == "restart" || s.verb == "recreate" || s.verb == "remove",
+			Disrupts: s.verb == "stop" || s.verb == "restart" || s.verb == "recreate" || s.verb == "update" || s.verb == "remove",
 			// Logs read data back, and container logs often hold secrets
 			// (tokens printed at start-up, connection strings): Operator
 			// and up only, though the action is T0.
@@ -94,6 +96,14 @@ func (in *instance) Actions() []action.Def {
 		case "pull":
 			d.Timeout = 20 * time.Minute
 			d.Steps = in.steps("Ask chadash-node %[2]s to pull the image of %[1]s", "It keeps running the old image until it's recreated")
+		case "update":
+			// The node pulls, recreates and holds it to the gate for up to
+			// 2 minutes, then may roll back and gate again.
+			d.Timeout = 20 * time.Minute
+			d.Steps = in.steps("Pull the tag of %[1]s through chadash-node %[2]s",
+				"If it points at a newer image, recreate %[1]s on it",
+				"Wait up to 2 minutes for %[1]s to report healthy, or to keep running",
+				"If it doesn't, put the previous image back")
 		case "remove":
 			d.Params = integration.Params(integration.Object(
 				integration.Prop("volumes", integration.Boolean("Also delete its anonymous volumes").Describe("Named volumes always stay.")),
@@ -320,7 +330,7 @@ func (in *instance) Execute(ctx context.Context, req action.Request, run *action
 				run.Logf("%s %s", p.Status, p.ID)
 			}
 		}
-	case "recreate":
+	case "recreate", "update":
 		progress = func(b json.RawMessage) {
 			var s struct{ Step string }
 			if json.Unmarshal(b, &s) == nil && s.Step != "" {
@@ -344,6 +354,19 @@ func (in *instance) Execute(ctx context.Context, req action.Request, run *action
 			run.Logf("Pulled a newer %s. Recreate %s to run it.", r.Image, req.Target.Name)
 		} else {
 			run.Logf("%s is already up to date.", r.Image)
+		}
+	case "update":
+		var r struct{ Outcome, Reason, Image, Current string }
+		_ = json.Unmarshal(res, &r)
+		switch r.Outcome {
+		case "unchanged":
+			run.Logf("%s already runs the newest %s.", req.Target.Name, r.Image)
+		case "deployed":
+			run.Logf("%s runs %s now.", req.Target.Name, r.Current)
+		case "rolled_back":
+			return action.Fail("rolled_back", r.Reason)
+		default: // stuck
+			return action.Fail("update_stuck", r.Reason)
 		}
 	case "remove":
 		var r struct{ Kept, Removed []string }
@@ -371,7 +394,7 @@ func nodeFailure(node string, err error) error {
 // verify reads the container back through the node until it's in the
 // state the verb promised.
 func (in *instance) verify(verb string) func(context.Context, action.Request, *action.TaskRun) error {
-	want := map[string]string{"start": "running", "restart": "running", "recreate": "running", "stop": "exited"}[verb]
+	want := map[string]string{"start": "running", "restart": "running", "recreate": "running", "update": "running", "stop": "exited"}[verb]
 	if verb == "remove" {
 		return func(ctx context.Context, req action.Request, _ *action.TaskRun) error {
 			_, err := in.inspectNode(ctx, refOf(req).ID)

@@ -62,6 +62,7 @@ var IntegrationVerbs = []string{
 	"container.list", "container.inspect", "container.stats", "container.can", "container.logs",
 	"container.start", "container.stop", "container.restart",
 	"container.pull", "container.recreate", "container.remove",
+	"container.update", "image.check",
 }
 
 type allowed struct {

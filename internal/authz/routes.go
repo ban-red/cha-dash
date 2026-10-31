@@ -320,6 +320,13 @@ var Routes = []Route{
 	{Pattern: "POST /api/stacks/hooks/{id}/rotate", Access: Admin},
 	{Pattern: "DELETE /api/stacks/hooks/{id}", Access: Admin},
 	{Pattern: "POST /api/hooks/{id}", Access: Signature},
+	// The Update Center (wave 22). Reading is viewer+; Check now and holds
+	// are operator+, like the T2 update they put off. Updating one is an
+	// action.
+	{Pattern: "GET /api/updates", Access: Viewer},
+	{Pattern: "POST /api/updates/check", Access: Operator},
+	{Pattern: "POST /api/updates/{resource}/hold", Access: Operator},
+	{Pattern: "DELETE /api/updates/{resource}/hold", Access: Operator},
 	// Fleet stacks (wave 14). Previewing a move reads a compose file
 	// (credentials in plain text, often) and saves nothing; the move itself
 	// is the stack.move action. A node's self-update status is admin+, like

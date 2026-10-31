@@ -31,6 +31,7 @@ import (
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
+	"dash.cha.sh/internal/updates"
 	"dash.cha.sh/internal/vault"
 )
 
@@ -99,6 +100,11 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 			t.Fatal(err)
 		}
 		d.Stacks = stk
+		upd, err := updates.New(updates.Options{Store: d.Store, Graph: graph.New(), Log: d.Log})
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Updates = upd
 		nt, err := notify.New(t.Context(), notify.Options{Store: d.Store, Vault: v, Log: d.Log})
 		if err != nil {
 			t.Fatal(err)

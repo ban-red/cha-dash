@@ -535,13 +535,14 @@ describe('roles', () => {
     // Below admin, Settings is your passkeys only; integrations, the wizard and decisions are admin.
     for (const r of ['operator', 'viewer', 'household']) {
       expect(p(r).settings).toBe(true);
-      expect(p(r).panes).toEqual(['security', 'notifications', 'tokens']);
+      // Updates is viewer and up: reading it is viewer+, holding operator+.
+      expect(p(r).panes).toEqual(r === 'household' ? ['security', 'notifications', 'tokens'] : ['updates', 'security', 'notifications', 'tokens']);
       expect(p(r).integrations).toBe(false);
       expect(p(r).editBoards).toBe(false);
       expect(p(r).decide).toBe(false);
     }
     expect(p('admin').integrations && p('admin').decide).toBe(true);
-    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security']);
+    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'updates', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security']);
     expect(p('admin').securitySettings).toBe(false);
     expect(p('owner').securitySettings).toBe(true);
     expect(p('someone-new').role).toBe('viewer');

@@ -68,6 +68,8 @@ var Audited = map[string]string{
 	"POST /api/stacks/hooks":                       "settings.stacks.hook.create",
 	"POST /api/stacks/hooks/{id}/rotate":           "settings.stacks.hook.rotate",
 	"DELETE /api/stacks/hooks/{id}":                "settings.stacks.hook.delete",
+	"POST /api/updates/{resource}/hold":            "update.hold",
+	"DELETE /api/updates/{resource}/hold":          "update.release",
 	"POST /api/notify/channels":                    "settings.notify.channel.create",
 	"PUT /api/notify/channels/{id}":                "settings.notify.channel.update",
 	"DELETE /api/notify/channels/{id}":             "settings.notify.channel.delete",
@@ -107,6 +109,7 @@ var AuditExempt = map[string]string{
 	"POST /api/stacks/{node}/{stack}/validate":       "Validates a draft on the node and saves nothing.",
 	"POST /api/stacks/{node}/{stack}/sync/check":     "Tests a remote from the node and saves nothing. The saved credential goes only to the remote it was saved for; another URL brings its own. Following it is audited.",
 	"POST /api/stacks/{node}/{stack}/sync/now":       "Asks the sync to check now, as a poll would; a new commit it fetches is audited as stack.sync.fetch.",
+	"POST /api/updates/check":                        "Asks the Docker instances to check for image updates now, as their schedule would; it changes nothing.",
 	"POST /api/hooks/{id}": "A webhook only pokes the syncs on its remote, as a poll would. A new commit is audited as stack.sync.fetch, " +
 		"and the first refused request of a hook in each 10 minutes as stack.hook.refused.",
 	"POST /api/notify/push/subscriptions":        "The caller's own device subscribing to its own notifications.",

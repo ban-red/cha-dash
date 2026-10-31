@@ -247,6 +247,9 @@ func (in *instance) container(s summary, c *inspected) (integration.Resource, []
 	hs := s.Health
 	if ins != nil {
 		r.Attrs["restart_count"] = ins.RestartCount
+		if u, ok := in.updates[s.ID]; ok {
+			r.Attrs[integration.AttrUpdate] = u
+		}
 		r.Attrs["restart_policy"] = cmpStr(ins.HostConfig.RestartPolicy.Name, "no")
 		if ins.HostConfig.Memory > 0 {
 			r.Attrs["mem_limit_mib"] = ins.HostConfig.Memory >> 20

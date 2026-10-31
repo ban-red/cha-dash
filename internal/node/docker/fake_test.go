@@ -20,16 +20,20 @@ import (
 // verbs, with containers held in memory. It listens on a Unix socket, as
 // the real socket does.
 type fakeDocker struct {
-	mu         sync.Mutex
-	containers map[string]*fakeContainer
-	images     map[string]string         // tag → image ID
-	imageCfg   map[string]map[string]any // image ID → its Config, as inspect gives it
-	nextID     int
-	calls      []string // "POST /containers/x/start", for asserting what the module did
-	failCreate bool
-	busyVols   []string // volumes DELETE /volumes refuses as in use
-	logs       []fakeLog
-	tty        bool
+	mu          sync.Mutex
+	containers  map[string]*fakeContainer
+	images      map[string]string         // tag → image ID
+	imageCfg    map[string]map[string]any // image ID → its Config, as inspect gives it
+	repoDigests map[string][]string       // image ID → its RepoDigests
+	registry    map[string]string         // tag → its digest, "401" (needs a login) or "" (no such tag)
+	asked       []string                  // the tags /distribution was asked about
+	crash       map[string]bool           // images whose containers restart at once on start
+	nextID      int
+	calls       []string // "POST /containers/x/start", for asserting what the module did
+	failCreate  bool
+	busyVols    []string // volumes DELETE /volumes refuses as in use
+	logs        []fakeLog
+	tty         bool
 }
 
 type fakeLog struct {
@@ -48,21 +52,45 @@ type fakeContainer struct {
 	Tty                      bool
 	Cmd                      []string
 	Healthcheck              map[string]any
+	Health                   string // healthy, unhealthy, starting; "" without a healthcheck
+	RestartCount             int
 }
 
 func (c *fakeContainer) inspect() map[string]any {
 	return map[string]any{
 		"Id": c.ID, "Name": "/" + c.Name, "Image": c.ImageID,
-		"State":      map[string]any{"Status": c.State, "Running": c.State == "running"},
-		"Config":     map[string]any{"Image": c.Image, "Env": c.Env, "Labels": c.Labels, "Hostname": c.Hostname, "Tty": c.Tty, "Cmd": c.Cmd, "Healthcheck": c.Healthcheck},
-		"HostConfig": map[string]any{"NetworkMode": "bridge", "RestartPolicy": map[string]any{"Name": "unless-stopped"}},
-		"Mounts":     c.Mounts, "NetworkSettings": map[string]any{"Networks": c.Networks},
+		"State":        c.state(),
+		"RestartCount": c.RestartCount,
+		"Config":       map[string]any{"Image": c.Image, "Env": c.Env, "Labels": c.Labels, "Hostname": c.Hostname, "Tty": c.Tty, "Cmd": c.Cmd, "Healthcheck": c.Healthcheck},
+		"HostConfig":   map[string]any{"NetworkMode": "bridge", "RestartPolicy": map[string]any{"Name": "unless-stopped"}},
+		"Mounts":       c.Mounts, "NetworkSettings": map[string]any{"Networks": c.Networks},
 	}
+}
+
+// imageID is the image a reference names: by tag, or by tag@digest as
+// Docker resolves a pinned reference to the image pulled for it.
+func (f *fakeDocker) imageID(ref string) string {
+	if id, ok := f.images[ref]; ok {
+		return id
+	}
+	if tag, _, ok := strings.Cut(ref, "@"); ok {
+		return f.images[tag]
+	}
+	return ""
+}
+
+func (c *fakeContainer) state() map[string]any {
+	// Docker reports a restarting container as running too.
+	st := map[string]any{"Status": c.State, "Running": c.State == "running" || c.State == "restarting", "Restarting": c.State == "restarting"}
+	if c.Health != "" {
+		st["Health"] = map[string]any{"Status": c.Health}
+	}
+	return st
 }
 
 func newFakeDocker(t *testing.T) (*fakeDocker, string) {
 	t.Helper()
-	f := &fakeDocker{containers: map[string]*fakeContainer{}, images: map[string]string{}, imageCfg: map[string]map[string]any{}}
+	f := &fakeDocker{containers: map[string]*fakeContainer{}, images: map[string]string{}, imageCfg: map[string]map[string]any{}, repoDigests: map[string][]string{}, registry: map[string]string{}, crash: map[string]bool{}}
 	// Unix socket paths are short on macOS: keep it out of the long TempDir.
 	dir, err := os.MkdirTemp("", "cdd")
 	if err != nil {
@@ -179,7 +207,7 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		f.nextID++
-		c := &fakeContainer{ID: fmt.Sprintf("%064x", f.nextID+0xdef000), Name: name, Image: body.Image, ImageID: f.images[body.Image], State: "created", Env: body.Env, Labels: body.Labels, Hostname: body.Hostname, Cmd: body.Cmd, Healthcheck: body.Healthcheck}
+		c := &fakeContainer{ID: fmt.Sprintf("%064x", f.nextID+0xdef000), Name: name, Image: body.Image, ImageID: f.imageID(body.Image), State: "created", Env: body.Env, Labels: body.Labels, Hostname: body.Hostname, Cmd: body.Cmd, Healthcheck: body.Healthcheck}
 		for _, m := range body.HostConfig.Mounts {
 			c.Mounts = append(c.Mounts, map[string]any{"Type": "volume", "Name": m.Source, "Destination": m.Target, "RW": true})
 		}
@@ -204,6 +232,9 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			c.State = "running"
+			if f.crash[c.Image] {
+				c.State, c.RestartCount = "restarting", c.RestartCount+1
+			}
 			w.WriteHeader(204)
 		case verb == "stop":
 			c.State = "exited"
@@ -259,18 +290,31 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 		enc.Encode(map[string]any{"status": "Pulling from library/" + ref, "id": "latest"})
 		enc.Encode(map[string]any{"status": "Downloading", "id": "abc", "progressDetail": map[string]int{"current": 5, "total": 10}})
 		enc.Encode(map[string]any{"status": "Status: Downloaded newer image for " + ref})
-		f.images[strings.TrimPrefix(ref, "docker.io/library/")] = "sha256:" + strings.Repeat("2", 64)
+		f.images[strings.TrimPrefix(strings.TrimPrefix(ref, "docker.io/library/"), "docker.io/")] = "sha256:" + strings.Repeat("2", 64)
 	case len(parts) >= 3 && parts[0] == "images" && parts[len(parts)-1] == "json":
 		ref := strings.Join(parts[1:len(parts)-1], "/")
 		id, ok := f.images[ref]
-		if _, known := f.imageCfg[ref]; !ok && known {
+		_, hasCfg := f.imageCfg[ref]
+		_, hasDigests := f.repoDigests[ref]
+		if !ok && (hasCfg || hasDigests) {
 			id, ok = ref, true // by ID, as a container's Image names it
 		}
 		if !ok {
 			jsonOut(w, 404, map[string]string{"message": "No such image: " + ref})
 			return
 		}
-		jsonOut(w, 200, map[string]any{"Id": id, "Config": f.imageCfg[id]})
+		jsonOut(w, 200, map[string]any{"Id": id, "Config": f.imageCfg[id], "RepoDigests": f.repoDigests[id]})
+	case strings.HasPrefix(path, "/distribution/") && strings.HasSuffix(path, "/json"):
+		ref := strings.TrimSuffix(strings.TrimPrefix(path, "/distribution/"), "/json")
+		f.asked = append(f.asked, ref)
+		switch d := f.registry[ref]; d {
+		case "":
+			jsonOut(w, 404, map[string]string{"message": "manifest unknown"})
+		case "401":
+			jsonOut(w, 401, map[string]string{"message": "unauthorized: authentication required"})
+		default:
+			jsonOut(w, 200, map[string]any{"Descriptor": map[string]any{"mediaType": "application/vnd.oci.image.index.v1+json", "digest": d, "size": 1}, "Platforms": []any{}})
+		}
 	case path == "/events":
 		w.Header().Set("Content-Type", "application/json")
 		enc := json.NewEncoder(w)

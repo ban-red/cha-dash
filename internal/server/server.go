@@ -105,6 +105,7 @@ import (
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
+	"dash.cha.sh/internal/updates"
 	"dash.cha.sh/internal/vault"
 	"dash.cha.sh/internal/webui"
 )
@@ -160,6 +161,8 @@ type Deps struct {
 	// /api/stacks unmounted. Its actions are registered with the engine by
 	// the caller (stacks.Service.Actions).
 	Stacks *stacks.Service
+	// Updates is the Update Center. Nil leaves /api/updates unmounted.
+	Updates *updates.Service
 	// Notify is notifications (channels, rules, devices, the delivery
 	// log). Nil leaves /api/notify unmounted.
 	Notify *notify.Service
@@ -310,6 +313,10 @@ func New(d Deps) (http.Handler, error) {
 	if d.Stacks != nil {
 		d.Stacks.Audit = rec
 		d.Stacks.Register(mux, session)
+	}
+	if d.Updates != nil {
+		d.Updates.Audit = rec
+		d.Updates.Register(mux, session)
 	}
 	if d.Notify != nil {
 		d.Notify.Audit = rec
