@@ -64,6 +64,8 @@ type env struct {
 	// holds each one's grant, as auth's conditional update would.
 	consumed []string
 	spent    map[string]time.Time
+	// ended lists the approvals OnApprovalEnded heard of, as "state id".
+	ended []string
 }
 
 var (
@@ -123,6 +125,7 @@ func (e *env) start() {
 	e.t.Helper()
 	eng, err := New(e.t.Context(), Options{Store: e.st, Audit: e.audit, Registry: e.reg, Policy: e.policy, Graph: e.g,
 		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now, Inbox: e.inbox,
+		OnApprovalEnded: func(a Approval) { e.ended = append(e.ended, a.State+" "+a.ID) },
 		ConsumeStepUp: func(_ context.Context, _ *sql.Tx, session string, until time.Time) (bool, error) {
 			if e.spent == nil {
 				e.spent = map[string]time.Time{}

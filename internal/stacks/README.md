@@ -93,7 +93,7 @@ A stack can follow a branch and a path on a git remote ([ADR-0021](../../docs/ad
 - URLs are compared normalized: lowercase scheme and host, no default port, no trailing `/` or `.git`. Stored URLs keep their spelling.
 - The credential is a vault entry, `stacksync/<id>/credential` (`{username, secret}`), read for one call and never answered. URLs with userinfo are refused.
 - The saved credential goes only to the remote it was saved for (compared normalized). Testing another URL takes its own secret (`422` otherwise), and saving another URL with the secret left out is refused rather than carrying it to the new host. A token (`https` kind) is never sent over `http://`, in a test or a save.
-- One Inbox item per sync (`stack.<node>.<stack>.sync`, class `problem`, scenario `stack-sync`): a rejected or blocked commit and a paused sync need attention; a held sync and a remote failing for more than 3 polls in a row are hints.
+- One Inbox item per sync (`stack.<node>.<stack>.sync`, class `problem`, scenario `stack-sync`): a rejected or blocked commit, a paused sync and a commit deploy on push asked about need attention; a held sync and a remote failing for more than 3 polls in a row are hints. The asked-about item closes when its approval is denied or expires (`Service.ApprovalEnded`, the engine's `OnApprovalEnded`), or when a deploy succeeds.
 
 ## Deploy webhooks
 

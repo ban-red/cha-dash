@@ -286,6 +286,9 @@ func TestApprovalDenyExpireWithdraw(t *testing.T) {
 	if it := e.item(a.ID); it["status"] != "resolved" || it["resolved_by"] != ApprovalDenied {
 		t.Fatalf("denied item %v", it)
 	}
+	if want := []string{"denied " + a.ID}; !slices.Equal(e.ended, want) {
+		t.Fatalf("OnApprovalEnded heard %v, want %v", e.ended, want)
+	}
 
 	// Expiry: an hour, then it's gone.
 	b := submit(token)
@@ -340,6 +343,11 @@ func TestApprovalDenyExpireWithdraw(t *testing.T) {
 	e.start()
 	if got, _ := e.e.Approval(t.Context(), owner, g.ID); got.State != ApprovalExpired {
 		t.Fatalf("after a long restart: %+v", got)
+	}
+	// Every way an approval ends without running is heard, once.
+	want := []string{"denied " + a.ID, "expired " + b.ID, "expired " + c.ID, "expired " + d2.ID, "expired " + f.ID, "expired " + g.ID}
+	if !slices.Equal(e.ended, want) {
+		t.Fatalf("OnApprovalEnded heard %v, want %v", e.ended, want)
 	}
 	if len(calls) != 0 {
 		t.Fatalf("something ran: %v", calls)

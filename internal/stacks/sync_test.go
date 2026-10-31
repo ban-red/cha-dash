@@ -318,6 +318,21 @@ func TestSyncAsks(t *testing.T) {
 	if got := e2.approvals(); len(got) != 1 || !strings.HasPrefix(got[0], action.ApprovalAwaiting) {
 		t.Fatalf("a secret outside the allowlist must ask: %q", got)
 	}
+	s2 := e2.sync(y2.ID)
+	if in, ok := e2.item(s2); !ok || in.Status != "open" || !strings.Contains(in.Title, "waits for approval") {
+		t.Fatalf("asks item %+v", in)
+	}
+	// Denying it closes the item: nothing waits any more.
+	var id string
+	if err := e2.st.Reader().QueryRowContext(ctx, `SELECT id FROM approvals`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e2.eng.Deny(ctx, action.Actor{Kind: action.KindUser, ID: "u_sam", Name: "sam"}, id, action.DenyRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if in, _ := e2.item(s2); in.Status != "resolved" {
+		t.Fatalf("after a denial the asks item is %q", in.Status)
+	}
 }
 
 // The gate: drift waits (and retries), a held sync doesn't check, and an

@@ -59,6 +59,11 @@ type Options struct {
 	// the admins about every T4). It runs on the task's goroutine, so it
 	// must return quickly. Nil skips it.
 	OnTaskDone func(TaskDone)
+	// OnApprovalEnded is told about every approval that ends without
+	// running: denied, or expired (its time ran out, or Withdraw). It runs
+	// after the approval's audit record and Inbox item, on the caller's
+	// goroutine, so it must return quickly. Nil skips it.
+	OnApprovalEnded func(Approval)
 	// Inbox receives an item (class "approval") for each plan waiting for a
 	// person, kept current as it's decided. Nil: approvals work, but only
 	// the API lists them.
@@ -80,6 +85,7 @@ type Engine struct {
 	sessions Sessions
 	consume  func(ctx context.Context, tx *sql.Tx, session string, until time.Time) (bool, error)
 	onDone   func(TaskDone)
+	onEnded  func(Approval)
 	inbox    *livedoc.Doc
 	// approvalTTL is how long a plan waits for a person.
 	approvalTTL time.Duration
@@ -130,7 +136,7 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 		return nil, errors.New("action: Store, Audit, Registry and Policy are required")
 	}
 	e := &Engine{
-		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, onDone: o.OnTaskDone, log: o.Log, now: o.Now,
+		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, onDone: o.OnTaskDone, onEnded: o.OnApprovalEnded, log: o.Log, now: o.Now,
 		inbox: o.Inbox, approvalTTL: o.ApprovalTTL,
 		tasks:         livedoc.New(tasksColl),
 		live:          map[string]*liveTask{},

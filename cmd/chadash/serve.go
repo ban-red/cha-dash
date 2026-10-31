@@ -423,7 +423,13 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		// A T4 spends the grant that allowed it, and tells the admins.
 		ConsumeStepUp: authSvc.SpendStepUp,
 		OnTaskDone:    nt.TaskDone,
-		Log:           log,
+		// A git sync's denied or expired approval closes its Inbox item.
+		OnApprovalEnded: func(a action.Approval) {
+			if stk != nil {
+				stk.ApprovalEnded(a)
+			}
+		},
+		Log: log,
 	})
 	if err != nil {
 		return nil, err

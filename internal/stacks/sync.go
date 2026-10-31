@@ -303,6 +303,20 @@ func (s *Service) syncItem(y *Sync, kind, severity, title, summary string) {
 	})
 }
 
+// ApprovalEnded is the action engine's OnApprovalEnded: a sync's approval
+// that was denied or expired takes its "waits for approval" item with it.
+// A newer commit's withdraw ends the old one before the new one asks.
+func (s *Service) ApprovalEnded(apv action.Approval) {
+	if apv.Originator.Kind != action.KindSync || apv.Originator.ID == "" {
+		return
+	}
+	y, err := s.syncByID(context.Background(), apv.Originator.ID)
+	if err != nil || y == nil {
+		return
+	}
+	s.clearSyncItem(y, itemAsks)
+}
+
 // clearSyncItem resolves the sync's Inbox item, if one is open. With kinds,
 // only an item of one of those kinds.
 func (s *Service) clearSyncItem(y *Sync, kinds ...string) {

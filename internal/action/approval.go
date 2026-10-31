@@ -396,6 +396,7 @@ func (e *Engine) Deny(ctx context.Context, a Actor, id string, req DenyRequest) 
 	e.recordApproval(ctx, a, ActionApprovalDeny, &apv.Approval, apv.plan, audit.OK, nil, "")
 	e.unschedule(apv.ID)
 	e.publishApproval(apv.Approval, apv.plan.target)
+	e.ended(apv.Approval)
 	return apv.Approval, nil
 }
 
@@ -456,6 +457,14 @@ func (e *Engine) expire(ctx context.Context, a *storedApproval, reason string) {
 	e.recordApproval(ctx, system, ActionApprovalExpire, &a.Approval, a.plan, audit.OK, nil, "")
 	e.unschedule(a.ID)
 	e.publishApproval(a.Approval, a.plan.target)
+	e.ended(a.Approval)
+}
+
+// ended tells Options.OnApprovalEnded about an approval that won't run.
+func (e *Engine) ended(apv Approval) {
+	if e.onEnded != nil {
+		e.onEnded(apv)
+	}
 }
 
 // recordApproval audits one step of an approval. Params name the approval,

@@ -147,7 +147,8 @@ func newHub(t *testing.T) *hubEnv {
 	if err := reg.Register(ActionSource, h.svc.Actions()...); err != nil {
 		t.Fatal(err)
 	}
-	h.eng, err = action.New(t.Context(), action.Options{Store: st, Audit: audit.New(st), Registry: reg, Policy: action.AllowAll{}, Graph: h.g})
+	h.eng, err = action.New(t.Context(), action.Options{Store: st, Audit: audit.New(st), Registry: reg, Policy: action.AllowAll{}, Graph: h.g,
+		OnApprovalEnded: h.svc.ApprovalEnded})
 	if err != nil {
 		t.Fatal(err)
 	}
