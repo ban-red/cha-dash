@@ -84,5 +84,8 @@ export default defineConfig({
     include: ['test/**/*.test.ts'],
     setupFiles: ['test/setup.ts'],
     restoreMocks: true,
+    // axe and the bigger mounts take seconds when bun run check runs the Go
+    // tests alongside; 5 s (the default) failed them on a busy machine.
+    testTimeout: 30_000,
   },
 });
