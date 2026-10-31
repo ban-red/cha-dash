@@ -167,6 +167,23 @@ func (e *syncEnv) waitSync(id string, what string, cond func(*Sync) bool) *Sync 
 	return nil
 }
 
+// waitDetail reads a stack until cond holds: the sync can record a deploy
+// a moment before the task that ran it clears the draft.
+func (e *syncEnv) waitDetail(path, what string, cond func(StackDetail) bool) StackDetail {
+	e.t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		d := decode[StackDetail](e.t, e.do("GET", path, nil))
+		if cond(d) || time.Now().After(deadline) {
+			if !cond(d) {
+				e.t.Fatalf("%s: %s never happened: history %+v draft %+v", path, what, d.History, d.Draft)
+			}
+			return d
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+}
+
 // approvals lists the approvals by state, oldest first.
 func (e *syncEnv) approvals() []string {
 	e.t.Helper()
@@ -211,8 +228,8 @@ func TestSyncDeploysOnPushAndRejectsARollback(t *testing.T) {
 	if got.LastSeen != sha1 || len(got.Rejected) != 0 || got.LastError != "" {
 		t.Fatalf("after c1: %+v", got)
 	}
-	d := decode[StackDetail](t, e.do("GET", "/api/stacks/local/media", nil))
-	if d.Draft != nil || len(d.History) != 1 || !strings.Contains(d.History[0].Subject, "by git sync for sam via sync") {
+	d := e.waitDetail("/api/stacks/local/media", "the deploy's history", func(d StackDetail) bool { return d.Draft == nil && len(d.History) == 1 })
+	if !strings.Contains(d.History[0].Subject, "by git sync for sam via sync") {
 		t.Fatalf("history %+v draft %+v", d.History, d.Draft)
 	}
 	if d.Sync == nil || d.Sync.LastDeployed != sha1 || d.Sync.Owner == nil || d.Sync.Owner.Username != "sam" {
