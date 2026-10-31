@@ -85,7 +85,8 @@ export interface Permissions {
 export function permissions(role: string | undefined): Permissions {
   const r = asRole(role);
   const admin = r === 'owner' || r === 'admin';
-  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'nodes', 'updates', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security'] : r === 'household' ? ['security', 'notifications', 'tokens'] : ['updates', 'security', 'notifications', 'tokens'];
+  // Below admin, Updates comes last: a path the role can't open falls back to the first pane, Security.
+  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'nodes', 'updates', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security'] : r === 'household' ? ['security', 'notifications', 'tokens'] : ['security', 'notifications', 'tokens', 'updates'];
   return {
     role: r,
     inbox: r !== 'household',

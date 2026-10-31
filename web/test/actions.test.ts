@@ -536,7 +536,7 @@ describe('roles', () => {
     for (const r of ['operator', 'viewer', 'household']) {
       expect(p(r).settings).toBe(true);
       // Updates is viewer and up: reading it is viewer+, holding operator+.
-      expect(p(r).panes).toEqual(r === 'household' ? ['security', 'notifications', 'tokens'] : ['updates', 'security', 'notifications', 'tokens']);
+      expect(p(r).panes).toEqual(r === 'household' ? ['security', 'notifications', 'tokens'] : ['security', 'notifications', 'tokens', 'updates']);
       expect(p(r).integrations).toBe(false);
       expect(p(r).editBoards).toBe(false);
       expect(p(r).decide).toBe(false);
