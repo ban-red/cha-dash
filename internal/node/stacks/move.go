@@ -222,7 +222,7 @@ func (m *Module) moveSource(ctx context.Context, s stackRef) (file, why string, 
 		}
 		return f, "", nil
 	}
-	ps, err := m.docker.Projects(ctx)
+	ps, err := m.projects(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("list compose projects: %w", err)
 	}

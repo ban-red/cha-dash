@@ -526,7 +526,7 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 		isManaged[s.name] = true
 	}
 	seen := map[string]bool{}
-	projects, err := m.docker.Projects(ctx)
+	projects, err := m.projects(ctx)
 	if err != nil {
 		return out, fmt.Errorf("list compose projects: %w", err)
 	}
@@ -581,6 +581,42 @@ func (m *Module) detect(ctx context.Context, _ stackproto.ListRequest, _ emitter
 	return out, nil
 }
 
+// stdinConfig is the compose file Docker records for a project started
+// from stdin (docker compose -f -), as Dockhand's agent Hawser starts them.
+const stdinConfig = "-"
+
+// projects lists the compose projects. A project started from stdin gets
+// the compose file in its working directory instead, when there's exactly
+// one: Hawser keeps its copy there. The plan of the first deploy still
+// shows whether that file matches what runs.
+func (m *Module) projects(ctx context.Context) ([]Project, error) {
+	ps, err := m.docker.Projects(ctx)
+	for i, p := range ps {
+		if len(p.ConfigFiles) == 1 && p.ConfigFiles[0] == stdinConfig && p.WorkingDir != "" {
+			if f := onlyComposeFile(p.WorkingDir); f != "" {
+				ps[i].ConfigFiles = []string{f}
+			}
+		}
+	}
+	return ps, err
+}
+
+// onlyComposeFile is the one regular compose file in dir, or "" when
+// there's none or more than one.
+func onlyComposeFile(dir string) string {
+	var found []string
+	for _, name := range composeNames {
+		f := filepath.Join(dir, name)
+		if st, err := os.Lstat(f); err == nil && st.Mode().IsRegular() {
+			found = append(found, f)
+		}
+	}
+	if len(found) != 1 {
+		return ""
+	}
+	return found[0]
+}
+
 // unadoptable says why a running project can't be adopted in place, or "".
 func (m *Module) unadoptable(p Project) string {
 	switch {
@@ -590,6 +626,11 @@ func (m *Module) unadoptable(p Project) string {
 		return "Docker doesn't say which compose file started it."
 	case len(p.ConfigFiles) > 1:
 		return fmt.Sprintf("It uses %d compose files (overrides); the node manages stacks with exactly one.", len(p.ConfigFiles))
+	case p.ConfigFiles[0] == stdinConfig:
+		if p.WorkingDir == "" {
+			return "It was started from a compose file on stdin, and Docker doesn't say where."
+		}
+		return fmt.Sprintf("It was started from a compose file on stdin, and the node can't find exactly one compose file in %s to use instead. Mount that directory into chadash-node, or keep one compose file there.", p.WorkingDir)
 	}
 	f := p.ConfigFiles[0]
 	if !m.readableExternal(f) {
@@ -719,7 +760,7 @@ func (m *Module) protectedRunning(ctx context.Context, name string) (stackproto.
 
 // detectedExternal finds an unadopted running project outside the root.
 func (m *Module) detectedExternal(ctx context.Context, name string) (stackRef, bool) {
-	ps, err := m.docker.Projects(ctx)
+	ps, err := m.projects(ctx)
 	if err != nil {
 		return stackRef{}, false
 	}
@@ -856,7 +897,7 @@ func (m *Module) adopt(ctx context.Context, req stackproto.AdoptRequest, _ emitt
 	}
 	// A running project elsewhere: register its path and start a shadow
 	// history. Nothing moves and nothing restarts.
-	ps, err := m.docker.Projects(ctx)
+	ps, err := m.projects(ctx)
 	if err != nil {
 		return stackproto.AdoptResult{}, fmt.Errorf("list compose projects: %w", err)
 	}

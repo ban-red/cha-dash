@@ -159,6 +159,41 @@ func TestMoveFromAnotherTool(t *testing.T) {
 	}
 }
 
+// A project started from stdin, as Dockhand's Hawser starts them, moves
+// from the compose file in its working directory when there's exactly one.
+// With none or two there, it says why.
+func TestMoveFromStdin(t *testing.T) {
+	n := newTestNode(t)
+	dir, file := otherTool(t, n, "syslog", movedApp)
+	n.docker.SetConfigFiles("syslog", "-")
+	before := n.docker.Running("syslog")
+	d := detectedNamed(t, n, "syslog")
+	if !d.Moveable || !d.Adoptable || len(d.ConfigFiles) != 1 || d.ConfigFiles[0] != file {
+		t.Fatalf("detected %+v", d)
+	}
+	var res stackproto.MoveResult
+	n.must("stack.move", stackproto.MoveRequest{Stack: "syslog", FromPath: file, By: "sam", Via: "web"}, &res)
+	if res.Commit == "" || len(res.Rewrites) != 5 || res.Rewrites[0].To != dir+"/data:/data" {
+		t.Fatalf("move %+v", res)
+	}
+	if env, err := os.ReadFile(filepath.Join(n.root, "syslog", ".env")); err != nil || string(env) != "TZ=Europe/Example\n" {
+		t.Errorf(".env %q %v", env, err)
+	}
+	if !maps.Equal(n.docker.Running("syslog"), before) {
+		t.Error("moving must not restart anything")
+	}
+
+	// Two compose files: it can't tell which, so it says so.
+	dir2, _ := otherTool(t, n, "twice", movedApp)
+	if err := os.WriteFile(filepath.Join(dir2, "compose.yaml"), []byte(movedApp), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	n.docker.SetConfigFiles("twice", "-")
+	if d := detectedNamed(t, n, "twice"); d.Moveable || d.Adoptable || !strings.Contains(d.Reason, "on stdin") || !strings.Contains(d.Reason, dir2) {
+		t.Fatalf("two files: %+v", d)
+	}
+}
+
 // A stack adopted in place moves into the root: its registration and its
 // shadow copy go, and the old file stays where it is.
 func TestMoveFromInPlace(t *testing.T) {

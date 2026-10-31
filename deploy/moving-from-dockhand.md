@@ -42,7 +42,7 @@ Dockhand's own settings don't come along: update schedules, registries and templ
 docker ps -a --format '{{.Label "com.docker.compose.project"}}  {{.Label "com.docker.compose.project.config_files"}}' | sort -u
 ```
 
-Stacks Hawser deployed usually name a path **inside Hawser's container**, such as `/data/stacks/<stack>/compose.yaml`, or `-` when the file came in on standard input. Neither exists on the host. That's why the next steps copy the files over instead of adopting from the labels.
+Stacks Hawser deployed usually name a path **inside Hawser's container**, such as `/data/stacks/<stack>/compose.yaml`, or `-` when the file came in on standard input. A path inside Hawser doesn't exist on the host, so the next steps copy those files over. For `-`, the node looks in the project's working directory (`com.docker.compose.project.working_dir`): when it holds exactly one compose file the node can see, Move works as for any other project.
 
 ## 2 · Run a node on each Docker host
 
@@ -64,7 +64,7 @@ Hawser can keep running. Nothing reads from both.
 
 > **Adopt, never "New stack", for a project that's already running.** If a brand-new stack's first deploy fails, Cha Dash takes it down again, and here that would take down your running containers. An adopted stack whose deploy fails rolls back to the adopted version instead.
 
-**When the node can read the file, Move does it for you.** A project whose labels name a file on the host (one you ran with `docker compose`, or one already adopted in place) shows Move in Settings → Stacks. It copies the file and its `.env` into the root, keeps the project name, and rewrites relative paths such as `./data` to the absolute paths they meant. The review shows each rewritten line and what the first deploy will recreate before anything is saved. Nothing restarts, and the old file stays where it is. Hawser's copies live inside its container, so for those, copy the file by hand as below.
+**When the node can read the file, Move does it for you.** A project whose labels name a file on the host (one you ran with `docker compose`, or one already adopted in place) shows Move in Settings → Stacks. It copies the file and its `.env` into the root, keeps the project name, and rewrites relative paths such as `./data` to the absolute paths they meant. The review shows each rewritten line and what the first deploy will recreate before anything is saved. Nothing restarts, and the old file stays where it is. That includes a project Hawser started from standard input whose working directory on the host holds its compose file. Hawser's copies inside its container can't be read, so for those, copy the file by hand as below.
 
 For each stack, starting with the ones you'd lose least by restarting:
 

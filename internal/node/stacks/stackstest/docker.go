@@ -338,6 +338,16 @@ func (f *Docker) LastEnv() map[string]map[string]string {
 	return f.envs[len(f.envs)-1]
 }
 
+// SetConfigFiles changes the compose files Docker says started a project,
+// such as "-" for one started from stdin.
+func (f *Docker) SetConfigFiles(name string, files ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if p := f.projects[name]; p != nil {
+		p.files = files
+	}
+}
+
 // Reset forgets the calls so far (after setting a scene up).
 func (f *Docker) Reset() {
 	f.mu.Lock()
