@@ -37,7 +37,7 @@ async function dismiss(): Promise<void> {
       <ul class="disc-list">
         <li v-for="l in leads.slice(0, 6)" :key="l.key">
           <span class="disc-name">{{ l.name }}</span>
-          <span class="disc-where">{{ kindName(l.integration) }}<template v-if="l.url"> · {{ l.url.replace(/^https?:\/\//, '') }}</template></span>
+          <span class="disc-where">{{ [kindName(l.integration) === l.name ? '' : kindName(l.integration), l.url?.replace(/^https?:\/\//, '')].filter(Boolean).join(' · ') }}</span>
         </li>
         <li v-if="leads.length > 6"><span class="disc-where">and {{ leads.length - 6 }} more</span></li>
       </ul>

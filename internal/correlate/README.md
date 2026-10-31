@@ -52,7 +52,7 @@ Every link carries its `rule`, a `confidence` and a sentence of `evidence` (`GET
 | `confirmed` | the owner said so | yes |
 | `weak` | names alike: an app and a container (or its Compose service, or its image) with the app's name; the only two apps of a type on the same version; an engine reporting a host's name without the same cores and memory, or one several hosts or guests share; a PBS datastore name only one PBS has | no: an Inbox suggestion |
 
-Relations that can only have one answer (what an app runs on, which container a route goes to, which datastore a storage writes to) are **slots**: the strongest candidate wins, and a tie between different targets is ambiguous, so up to three of them become suggestions instead of a link (Docker's default bridge gives every engine a `172.17.0.2`).
+Relations that can only have one answer (what an app runs on, which container a route goes to, which datastore a storage writes to) are **slots**: the strongest candidate wins, and a tie between different targets is ambiguous, so up to three of them become suggestions instead of a link (Docker's default bridge gives every engine a `172.17.0.2`). Only one container can hold a host port, so among containers publishing the same `host:port`, one published on that very IP outranks one published on every address, and a stopped container (exited, dead or created) ranks below both: a route to a port that a running container holds isn't a question because stopped containers once published it too.
 
 ## Suggestions and decisions
 

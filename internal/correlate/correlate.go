@@ -163,6 +163,7 @@ type world struct {
 
 	place       map[graph.RID]graph.RID // engine → the host or guest it runs on
 	hostAddrs   map[string][]graph.RID  // "host:port" → containers publishing it
+	boundAddrs  map[string]bool         // "host:port\x00container": published on that very IP, not every address
 	bridgeAddrs map[string][]graph.RID  // "bridge ip:port" → containers
 	href        map[string][]graph.RID  // homepage.href URL key → containers
 	widget      map[string][]graph.RID  // homepage.widget.url URL key → containers
@@ -184,7 +185,7 @@ func newWorld(doc graph.Doc, decisions []Decision) *world {
 		res: map[graph.RID]*graph.Resource{}, kinds: map[graph.Kind][]*graph.Resource{},
 		out: map[graph.RID][]*graph.Relation{}, in: map[graph.RID][]*graph.Relation{},
 		dec: map[pairKey]Decision{}, joined: map[graph.RID]Link{}, primary: map[graph.RID]graph.RID{},
-		place: map[graph.RID]graph.RID{}, hostAddrs: map[string][]graph.RID{}, bridgeAddrs: map[string][]graph.RID{},
+		place: map[graph.RID]graph.RID{}, hostAddrs: map[string][]graph.RID{}, boundAddrs: map[string]bool{}, bridgeAddrs: map[string][]graph.RID{},
 		href: map[string][]graph.RID{}, widget: map[string][]graph.RID{}, ips: map[string][]graph.RID{},
 		appURLs: map[graph.RID][]webURL{}, routeURL: map[graph.RID]webURL{},
 		routeCont: map[graph.RID]graph.RID{}, routeApp: map[graph.RID]graph.RID{},

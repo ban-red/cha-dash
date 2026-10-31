@@ -248,6 +248,39 @@ func TestAmbiguousBackendIsSuggested(t *testing.T) {
 	}
 }
 
+// Only one container can hold a host port: a backend that a running
+// container publishes on that very IP isn't a question because stopped
+// containers once published the same port on every address.
+func TestBackendPrefersRunningAndBoundContainers(t *testing.T) {
+	h := jupiter(t)
+	box := func(name, id, state string, published string) {
+		h.add("docker:i_d/container/"+name, "container", name, "container_id", id+fullID[2:12], "published", []string{published}).
+			rel("docker:i_d/container/"+name, "runs_on", "docker:i_d/engine")
+		h.doc.Resources[graph.RID("docker:i_d/container/"+name)].State = state
+	}
+	box("rustfs", "c1", "running", "10.0.11.120:9000->9000/tcp")
+	box("nut", "c2", "exited", "9000->9000/tcp")
+	box("subgen", "c3", "exited", "9000->9000/tcp")
+	h.add("traefik:i_t/route/s3", "route", "s3", "url", "https://s3.lab.example", "upstream_addr", "10.0.11.120:9000")
+	r := h.run()
+	mustLink(t, r, "traefik:i_t/route/s3", RoutesTo, "docker:i_d/container/rustfs", Strong, "backend")
+	if len(r.Suggestions) != 0 {
+		t.Fatalf("suggestions:\n%s", dump(r.Suggestions))
+	}
+
+	// Published on every address, a running container still beats a stopped one.
+	h.doc.Resources["docker:i_d/container/rustfs"].Attrs["published"] = []any{"9000->9000/tcp"}
+	mustLink(t, h.run(), "traefik:i_t/route/s3", RoutesTo, "docker:i_d/container/rustfs", Strong, "backend")
+
+	// Two running on every address is still a question.
+	h.doc.Resources["docker:i_d/container/nut"].State = "running"
+	r = h.run()
+	noLink(t, r, "traefik:i_t/route/s3", RoutesTo, "docker:i_d/container/rustfs")
+	if !hasSuggestion(r, "traefik:i_t/route/s3", RoutesTo, "docker:i_d/container/rustfs") || !hasSuggestion(r, "traefik:i_t/route/s3", RoutesTo, "docker:i_d/container/nut") || len(r.Suggestions) != 2 {
+		t.Fatalf("suggestions:\n%s", dump(r.Suggestions))
+	}
+}
+
 // Rejecting a merge keeps the pair apart, even when the IDs match exactly
 // and even through a third member.
 func TestRejectedMergeHolds(t *testing.T) {

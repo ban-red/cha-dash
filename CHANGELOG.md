@@ -14,6 +14,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Install a spec from Settings.** The owner can add an integration from a spec file in Settings → Integrations → Installed specs. Cha Dash first lists every request it makes and every action it adds, with each action's method, path and tier. Its reads start at once; its actions stay off until the owner turns them on. Installed specs are kept in the database, so a backup carries them.
 - **`chadash spec lint` and `chadash spec test`.** Spec authors can check a spec against the schema and the hub's load rules, and run it against recorded answers to see what it publishes, without a running hub. The format, `chadash/v1alpha1`, is now public; [docs/specs.md](docs/specs.md) is the guide.
 
+### Fixed
+
+- **Discovery offers only what you don't read yet.** The Inbox's Discovery item and Bring in → Discover offered services already connected under another address (a container's port, or https where the connection uses http), a reverse proxy's own dashboard routes, and one service several times. Leads now follow what the hub already knows links a route, its container and a connected app, and use a route's address whenever a route goes to the container.
+- **Fewer "which container?" questions.** When several containers published the port a route, an app or a check points at, the Inbox asked about each one. A stopped container can't hold the port, and a container published on that exact IP beats one published on every address, so Cha Dash now links the right one itself and asks only when two running containers tie.
+
 ## [0.3.0-beta.2] - 2026-10-31
 
 A fix for Update Cha Dash, and the first published beta of v0.3. 0.3.0-beta.1 was tagged but never published: its last live check found that a hub crashing at start passed self-update's health gate and stayed down. Both fixes are below.

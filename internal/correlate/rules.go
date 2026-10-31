@@ -435,6 +435,7 @@ func (w *world) addresses() {
 				}
 			case routable(b.hostIP):
 				put(w.hostAddrs, joinAddr(b.hostIP, b.hostPort), id)
+				w.boundAddrs[joinAddr(b.hostIP, b.hostPort)+"\x00"+string(id)] = true
 			}
 		}
 		var ports []int
@@ -477,6 +478,24 @@ func (w *world) addresses() {
 	}
 }
 
+// hostScore ranks the containers answering at one host address. Only one
+// can hold a host port at a time, so a container published on that very IP
+// outranks one published on every address, and a stopped container, which
+// can't be listening, ranks below both. Each still outranks a bridge match.
+func (w *world) hostScore(c graph.RID, addr string) int {
+	s := scoreAddress
+	if w.boundAddrs[addr+"\x00"+string(c)] {
+		s++
+	}
+	if r := w.res[w.canon(c)]; r != nil && stoppedStates[r.State] {
+		s -= 2
+	}
+	return s
+}
+
+// stoppedStates are the container states that hold no port.
+var stoppedStates = map[string]bool{"exited": true, "dead": true, "created": true, "stopped": true}
+
 // routesToContainers: a route's backend is a port a container publishes,
 // or the container's bridge address (Traefik's Docker provider), or the
 // container's homepage.href is the route's URL.
@@ -486,7 +505,7 @@ func (w *world) routesToContainers() {
 		cs := w.confirmedKind(r.ID, RoutesTo, slot, "container")
 		if ua, ok := parseAddr(str(r, "upstream_addr")); ok {
 			for _, c := range w.hostAddrs[ua] {
-				cs = append(cs, w.rel(r.ID, RoutesTo, c, "backend", Strong, slot, scoreAddress,
+				cs = append(cs, w.rel(r.ID, RoutesTo, c, "backend", Strong, slot, w.hostScore(c, ua),
 					"The route's backend "+ua+" is a port "+w.name(c)+" publishes."))
 			}
 			for _, c := range w.bridgeAddrs[ua] {
@@ -596,7 +615,7 @@ func (w *world) appsToContainers() {
 				continue // a path means a proxy in front, more often than not
 			}
 			for _, c := range w.hostAddrs[u.addr()] {
-				cs = append(cs, w.rel(a.ID, RunsOn, c, "address", Strong, slot, scoreAddress, w.name(a.ID)+"'s URL reaches "+u.addr()+", which "+w.name(c)+" publishes."))
+				cs = append(cs, w.rel(a.ID, RunsOn, c, "address", Strong, slot, w.hostScore(c, u.addr()), w.name(a.ID)+"'s URL reaches "+u.addr()+", which "+w.name(c)+" publishes."))
 			}
 			for _, c := range w.bridgeAddrs[u.addr()] {
 				cs = append(cs, w.rel(a.ID, RunsOn, c, "address", Strong, slot, scoreBridge, w.name(a.ID)+"'s URL reaches "+w.name(c)+"'s address on its Docker network."))
@@ -728,7 +747,7 @@ func (w *world) checks() {
 		}
 		if addr != "" {
 			for _, c := range w.hostAddrs[addr] {
-				cs = append(cs, w.rel(k.ID, Monitors, c, "address", Strong, contSlot, scoreAddress, "The check's target "+addr+" is a port "+w.name(c)+" publishes."))
+				cs = append(cs, w.rel(k.ID, Monitors, c, "address", Strong, contSlot, w.hostScore(c, addr), "The check's target "+addr+" is a port "+w.name(c)+" publishes."))
 			}
 		}
 	}

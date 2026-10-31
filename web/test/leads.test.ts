@@ -61,6 +61,40 @@ describe('leads from the graph', () => {
     expect(leads.map((l) => [l.key, l.url])).toEqual([['radarr|docker:i_d/container/radarr', undefined]]);
   });
 
+  it('skips a container an app already runs on, its route and its other sources’ copies', () => {
+    const box = container('bazarr', 'bazarr', { attrs: { image: 'bazarr', published: ['6767->6767/tcp'] } });
+    const copy: Resource = { ...box, id: 'unraid:i_u/container/bazarr' };
+    const app: Resource = { id: 'bazarr:i_b/app', kind: 'app' };
+    const rt: Resource = { id: 'traefik:i_t/route/bazarr', kind: 'route', attrs: { url: 'https://bazarr.home.example' } };
+    const g = graph(box, copy, app, rt);
+    g.relations = {
+      a: { from: copy.id, to: box.id, type: 'same_as' },
+      b: { from: rt.id, to: box.id, type: 'routes_to' },
+    };
+    expect(leadsOf(g, [docker]).map((l) => [l.url, l.ways.length])).toEqual([['https://bazarr.home.example', 3]]);
+    g.relations['c'] = { from: app.id, to: box.id, type: 'runs_on' };
+    expect(leadsOf(g, [docker])).toEqual([]);
+  });
+
+  it('takes a route to a known container whose host doesn’t name it', () => {
+    const box = container('paperless', 'ghcr.io/paperless-ngx/paperless-ngx');
+    const rt: Resource = { id: 'traefik:i_t/route/docs', kind: 'route', attrs: { url: 'https://docs.home.example' } };
+    const g = graph(box, rt);
+    g.relations = { a: { from: rt.id, to: box.id, type: 'routes_to' } };
+    expect(leadsOf(g, [docker]).map((l) => [l.integration, l.url])).toEqual([['paperlessngx', 'https://docs.home.example']]);
+  });
+
+  it('skips a proxy’s routes to itself, and counts http and https as one address', () => {
+    const own = (name: string, url: string): Resource => ({ id: `traefik:i_t/route/${name}`, kind: 'route', attrs: { url } });
+    const g = graph(own('api', 'http://traefik.lab.example/api'), own('api-tls', 'https://traefik.lab.example/api'), own('dash', 'https://traefik.lab.example'));
+    const traefik = { id: 'i_t', integration: 'traefik', config: { url: 'http://proxy.lab.example' } };
+    expect(leadsOf(g, [traefik])).toEqual([]);
+    // Seen by another proxy, they're one lead; an instance at its http address reads it.
+    const other = { ...traefik, id: 'i_o', integration: 'caddy' };
+    expect(leadsOf(g, [other]).map((l) => l.url)).toEqual(['https://traefik.lab.example']);
+    expect(leadsOf(g, [other, { ...traefik, id: 'i_x', config: { url: 'http://traefik.lab.example' } }])).toEqual([]);
+  });
+
   it('writes what the discovery import takes', () => {
     const leads = leadsOf(graph(container('sonarr', 'sonarr')), [docker]);
     expect(JSON.parse(leadsJSON(leads))).toEqual([{ integration: 'sonarr', name: 'Sonarr', url: 'http://nas.lab.example:8989' }]);
