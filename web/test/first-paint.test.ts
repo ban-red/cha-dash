@@ -125,6 +125,10 @@ describe('seeding the board', () => {
 
 describe('the first paint', () => {
   it('renders the front page from the snapshot, then the socket supersedes it with no change on screen', async () => {
+    // The clock stands still, or a slow run sees a minute turn over between
+    // the two renders compared below. The live store reads Date.now from
+    // the moment it starts, so this comes before the mount.
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
     const f = fakeFetch({ 'GET /api/demo': { status: 200, body: { enabled: true, now: withIncidents.now, seed: 1 } } });
     const s = snapshot();
     inlineIntoPage(s);
@@ -144,16 +148,13 @@ describe('the first paint', () => {
     // Demo times are UTC from the first paint.
     expect(page().textContent).toMatch(/\d\d:\d\d/);
 
-    // The hub answers: the same documents arrive as snapshots. The clock
-    // stands still meanwhile, or a slow run sees a minute turn over.
+    // The hub answers: the same documents arrive as snapshots.
     await flushPromises();
-    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
     const before = page().innerHTML;
     const ws = FakeSocket.last;
     ws.handshake({ graph: s.graph, metrics: s.metrics, inbox: s.inbox });
     await flushPromises();
     expect(page().innerHTML).toBe(before);
-    vi.useRealTimers();
     // No connection banner, only the standing demo note.
     expect(document.querySelector('.banner:not(.demo)')).toBeNull();
     expect(document.querySelector('.banner.demo')?.textContent).toContain('Demo Home');
