@@ -50,7 +50,7 @@
 | [0022](0022-oidc-and-forward-auth.md) | OIDC links to local users; the owner keeps a local way in | accepted | 2026-10-22 |
 | 0023 | MCP timing: `mcp/v0` in v0.4 instead of after 1.0 ([09 · D1](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
 | 0024 | A replacement for the archived CLA Assistant action ([09 · D2](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
-| 0025 | The spec format public as `v1alpha1` before 1.0 ([09 · D3](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
+| [0025](0025-spec-format-public-as-v1alpha1.md) | The spec format public as `v1alpha1` before 1.0, changed only by a new `apiVersion` | accepted | 2026-10-31 |
 | 0026 | "No enterprise tier" in the Pact ([09 · D4](../plan/09-roadmap-2026.md#7-decisions-this-needs)) | open | — |
 | [0027](0027-demo-home-is-fictional.md) | The Demo Home is a fictional home, not a copy of the dogfood lab (replaces one consequence of 0004) | accepted | 2026-10-28 |
 | [0028](0028-first-run-without-a-setup-token.md) | First run without a setup token: the first visitor creates the owner, named `admin` by default (replaces the setup token in 0005 and 0007) | accepted | 2026-10-29 |

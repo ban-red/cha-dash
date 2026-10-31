@@ -42,6 +42,8 @@ export interface CatalogEntry {
   recipe?: Recipe;
   /** Where its actions get their credential: a control group or a mode (model/control.ts). */
   control?: ControlSpec;
+  /** A spec the owner installed in Settings, not one built in (settings/InstalledSpecs.vue). */
+  installed?: boolean;
 }
 
 /** The Add list's groups, in order. The hub sends the id; the words live here. */

@@ -28,6 +28,7 @@ import (
 	"dash.cha.sh/internal/onboarding"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
+	"dash.cha.sh/internal/specstore"
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -105,6 +106,7 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 			t.Fatal(err)
 		}
 		d.Updates = upd
+		d.Specs = specstore.New(specstore.Options{Store: d.Store, Registry: integration.NewRegistry(), Log: d.Log})
 		nt, err := notify.New(t.Context(), notify.Options{Store: d.Store, Vault: v, Log: d.Log})
 		if err != nil {
 			t.Fatal(err)
@@ -695,6 +697,8 @@ func TestStepUpRoutes(t *testing.T) {
 		{owner, "PUT", "/api/settings/sign-in", map[string]any{}},
 		{owner, "PUT", "/api/settings/security", map[string]string{"step_up": "passkey_only"}},
 		{owner, "POST", "/api/users/" + adminID + "/transfer-ownership", nil},
+		{owner, "POST", "/api/specs/installed", map[string]any{"yaml": "apiVersion: chadash/v1alpha1"}},
+		{owner, "PUT", "/api/specs/installed/linkding/actions", map[string]any{"on": true}},
 	} {
 		status, code, b := e.call(t, c.who, c.method, c.path, c.body)
 		if status != http.StatusForbidden || code != "step_up_required" {

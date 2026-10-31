@@ -218,3 +218,27 @@ func TestHistoryIsRecordedOutsideDemoMode(t *testing.T) {
 		})
 	}
 }
+
+// chadash spec lint and spec test, with no hub (internal/spec/spectest has
+// the details).
+func TestSpecCommand(t *testing.T) {
+	if code, stdout, _ := runCmd(t, nil, "spec", "lint", "../../specs/linkding.yaml", "../../specs/seerr.yaml"); code != 0 || stdout != "../../specs/linkding.yaml: ok\n../../specs/seerr.yaml: ok\n" {
+		t.Fatalf("lint: %d %q", code, stdout)
+	}
+	bad := filepath.Join(t.TempDir(), "bad.yaml")
+	if err := os.WriteFile(bad, []byte("apiVersion: chadash/v1\nkind: Integration\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, stdout, _ := runCmd(t, nil, "spec", "lint", bad); code != 1 || !strings.Contains(stdout, "apiVersion") {
+		t.Fatalf("lint a bad spec: %d %q", code, stdout)
+	}
+	if code, stdout, _ := runCmd(t, nil, "spec", "test", "../../specs/linkding.yaml", "../../specs/testdata/linkding"); code != 0 || !strings.HasSuffix(stdout, "PASS\n") {
+		t.Fatalf("test: %d %q", code, stdout)
+	}
+	if code, _, stderr := runCmd(t, nil, "spec", "test", "../../specs/linkding.yaml"); code != 2 || !strings.Contains(stderr, "Usage: chadash spec") {
+		t.Fatalf("test without fixtures: %d %q", code, stderr)
+	}
+	if code, stdout, _ := runCmd(t, nil, "help"); code != 0 || !strings.Contains(stdout, "spec test") {
+		t.Fatalf("help: %d %q", code, stdout)
+	}
+}

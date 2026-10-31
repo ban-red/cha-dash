@@ -1,0 +1,8 @@
+# The answers chadash spec test serves for linkding.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/linkding.yaml specs/testdata/linkding
+secrets: { token: fake-linkding-token }
+answers:
+  server: health.json
+  bookmarks: bookmarks.json
+  archived: bookmarks_archived.json
+  tags: tags.json

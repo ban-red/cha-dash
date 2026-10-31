@@ -151,6 +151,14 @@ var Routes = []Route{
 	{Pattern: "GET /api/auth/oidc/callback", Access: Public},
 	// The spec format's JSON Schema: the same for every hub of a version.
 	{Pattern: "GET /api/specs/schema/v1alpha1.json", Access: Public},
+	// Installed specs are the owner's: a spec runs code paths the hub
+	// trusts. Installing one and turning its actions on need a step-up
+	// (the handlers ask; internal/server's TestStepUpRoutes checks them).
+	{Pattern: "GET /api/specs/installed", Access: Owner},
+	{Pattern: "POST /api/specs/installed/preview", Access: Owner},
+	{Pattern: "POST /api/specs/installed", Access: Owner},
+	{Pattern: "DELETE /api/specs/installed/{id}", Access: Owner},
+	{Pattern: "PUT /api/specs/installed/{id}/actions", Access: Owner},
 
 	// chadash-node's channel: authenticated by the node's pinned key inside
 	// mutual TLS, never by a session (internal/nodes).

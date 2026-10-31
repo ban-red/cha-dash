@@ -199,6 +199,9 @@ type Manifest struct {
 	// Control says where an Actor's actions get their credential: a
 	// control group of fields, or a mode (see Control). Optional.
 	Control *Control `json:"control,omitempty"`
+	// Installed marks a spec the owner added in Settings
+	// (internal/specstore), not one built into the hub.
+	Installed bool `json:"installed,omitempty"`
 
 	Engine Engine `json:"-"` // EngineGo when empty
 	Poll   Poll   `json:"-"`

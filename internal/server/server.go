@@ -102,6 +102,7 @@ import (
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/spec"
+	"dash.cha.sh/internal/specstore"
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -163,6 +164,9 @@ type Deps struct {
 	Stacks *stacks.Service
 	// Updates is the Update Center. Nil leaves /api/updates unmounted.
 	Updates *updates.Service
+	// Specs are the specs the owner installs. Nil leaves
+	// /api/specs/installed unmounted.
+	Specs *specstore.Service
 	// Notify is notifications (channels, rules, devices, the delivery
 	// log). Nil leaves /api/notify unmounted.
 	Notify *notify.Service
@@ -317,6 +321,10 @@ func New(d Deps) (http.Handler, error) {
 	if d.Updates != nil {
 		d.Updates.Audit = rec
 		d.Updates.Register(mux, session)
+	}
+	if d.Specs != nil {
+		d.Specs.Audit = rec
+		d.Specs.Register(mux, session)
 	}
 	if d.Notify != nil {
 		d.Notify.Audit = rec

@@ -38,6 +38,7 @@ import (
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/server"
+	"dash.cha.sh/internal/specstore"
 	"dash.cha.sh/internal/stacks"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -326,6 +327,16 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// a private graph the engine never sees, and the Demo Home's fixes are
 	// the actions.
 	actions := action.NewRegistry()
+	// Specs the owner installed in Settings, registered beside the bundled
+	// ones before any instance starts. Not in demo mode, which runs the
+	// Demo Home's integrations only.
+	var specs *specstore.Service
+	if !cfg.Demo {
+		specs = specstore.New(specstore.Options{Store: st, Log: log.With("component", "specs")})
+		if err := specs.Load(ctx); err != nil {
+			return nil, err
+		}
+	}
 	instanceActions := actions
 	if cfg.Demo {
 		instanceActions = nil
@@ -340,6 +351,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 	sec.OnChange(mgr.SetPosture)
+	if specs != nil {
+		specs.SetRuntime(mgr.Instances, mgr.Rebind)
+	}
 	onApproved = dockerOnApprove(mgr, auditLog, log.With("component", "nodes"))
 	// A node that connects is read at once by the instances that reach it,
 	// not at their next poll: a hub that started before its node shows the
@@ -524,6 +538,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Nodes:          nodeHub,
 		Stacks:         stk,
 		Updates:        upd,
+		Specs:          specs,
 		Notify:         nt,
 		Topics:         tp,
 		Icons:          icn,

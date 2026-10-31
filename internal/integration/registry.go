@@ -68,6 +68,17 @@ func (r *Registry) Register(i Integration) error {
 	return nil
 }
 
+// Unregister removes an integration, reporting whether it was there. Only
+// installed specs come and go (internal/specstore); the rest stay for the
+// hub's life.
+func (r *Registry) Unregister(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.m[id]
+	delete(r.m, id)
+	return ok
+}
+
 // Get returns the integration registered under id and its manifest, as
 // checked at registration. Use this manifest, not i.Manifest(), to validate.
 func (r *Registry) Get(id string) (Integration, Manifest, bool) {

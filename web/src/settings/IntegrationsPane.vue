@@ -8,7 +8,7 @@
  *   /settings/integrations/new/{type}  the add form
  *   /settings/integrations/{id}        the edit form (?field=… focuses a field)
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import IntegrationEditor from './IntegrationEditor.vue';
 import { ago, monogram } from '../lib/format';
@@ -20,6 +20,12 @@ import { accessOf } from './recipe';
 import { openWizard } from '../onboarding/state';
 import UiButton from '../ui/Button.vue';
 import UiField from '../ui/Field.vue';
+import { useUi } from '../stores/ui';
+
+// The owner's only, and rarely opened: its own chunk.
+const InstalledSpecs = defineAsyncComponent(() => import('./InstalledSpecs.vue'));
+const ui = useUi();
+const owner = computed(() => ui.can.value.securitySettings);
 
 /** Focus the filter when the catalog opens. */
 const vFocus = { mounted: (el: HTMLElement) => el.focus({ preventScroll: true }) };
@@ -111,7 +117,7 @@ onMounted(() => {
           <li v-for="c in g.items" :key="c.id">
             <a class="cat-card" :href="addPath(c.id)" @click.prevent="navigate(addPath(c.id))">
               <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
-              <span class="t">{{ c.name }}</span>
+              <span class="t">{{ c.name }}<span v-if="c.installed" class="chip">installed</span></span>
               <span class="m">
                 <span v-if="connected.get(c.id)" class="cat-on"><Glyph kind="ok" />{{ connected.get(c.id) }} connected</span>
                 <template v-else>{{ accessOf(c.recipe)?.label ?? 'Add' }}</template>
@@ -124,7 +130,7 @@ onMounted(() => {
         <li v-for="c in catalogShown" :key="c.id">
           <a class="cat-card" :href="addPath(c.id)" @click.prevent="navigate(addPath(c.id))">
             <span class="mono-badge" aria-hidden="true">{{ monogram(c.name) }}</span>
-            <span class="t">{{ c.name }}</span>
+            <span class="t">{{ c.name }}<span v-if="c.installed" class="chip">installed</span></span>
             <span class="m">
               <span v-if="connected.get(c.id)" class="cat-on"><Glyph kind="ok" />{{ connected.get(c.id) }} connected</span>
               <template v-else>{{ accessOf(c.recipe)?.label ?? 'Add' }}</template>
@@ -187,6 +193,7 @@ onMounted(() => {
       </ul>
       </template>
     </section>
+    <InstalledSpecs v-if="owner" />
   </template>
 </template>
 

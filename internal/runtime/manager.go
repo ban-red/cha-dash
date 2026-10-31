@@ -343,6 +343,38 @@ func (m *Manager) add(r row) *managed {
 	return mi
 }
 
+// Rebind looks the integration id up in the registry again and restarts
+// its instances on what's registered now: an installed spec replaced
+// (internal/specstore). It returns how many it restarted.
+func (m *Manager) Rebind(id string) int {
+	n := 0
+	for _, mi := range m.all() {
+		if r, _ := mi.snapshotRow(); r.Integration != id {
+			continue
+		}
+		mi.life.Lock()
+		mi.integ, mi.man = nil, integration.Manifest{}
+		if integ, man, ok := m.reg.Get(id); ok {
+			mi.integ, mi.man = integ, man
+		}
+		m.restartLocked(mi)
+		mi.life.Unlock()
+		n++
+	}
+	return n
+}
+
+// Instances counts the instances of integration id.
+func (m *Manager) Instances(id string) int {
+	n := 0
+	for _, mi := range m.all() {
+		if r, _ := mi.snapshotRow(); r.Integration == id {
+			n++
+		}
+	}
+	return n
+}
+
 // retire stops an instance and removes its facts.
 func (m *Manager) retire(mi *managed) {
 	mi.life.Lock()

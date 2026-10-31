@@ -328,7 +328,7 @@ func writePrivate(path string, data []byte) error {
 }
 
 func readLimited(path string, limit int64) ([]byte, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // G703: a path the operator named on the command line
 	if err != nil {
 		return nil, err
 	}
