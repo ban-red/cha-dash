@@ -5,6 +5,7 @@
 //	metrics   {"series": {"<resource id>#<metric key>": series}}
 //	inbox     {"now": RFC 3339, "incidents": {id: incident}}
 //	causes    {"causes": {resource id: [Cause]}} (causes.go)
+//	backups   {"items": {resource id: coverage item}} (backups.go)
 //
 // graph also answers graph:kind/<kind>[,<kind>…] (see realtime.GraphSource).
 // The action engine adds tasks ({"tasks": {id: task}}, filtered per viewer)
@@ -36,11 +37,10 @@ const (
 	// Causes is the cause hints' topic, and its collection keyed by
 	// resource ID.
 	Causes = "causes"
-	// Backups will be backup coverage's topic: each protectable resource,
-	// what covers it and how fresh its newest good backup is
-	// (docs/plan/14-v0.4.md, "The coverage map"). Named in wave 25 so the
-	// web can be typed against it; Set doesn't hold it and the realtime
-	// server doesn't serve it until wave 27.
+	// Backups is backup coverage's topic: each protectable resource, what
+	// covers it and how fresh its newest good backup is
+	// (docs/plan/14-v0.4.md, "The coverage map"). internal/backups writes
+	// it; BackupsSource serves it per viewer.
 	Backups = "backups"
 )
 
@@ -63,12 +63,14 @@ type Set struct {
 	Metrics *livedoc.Doc
 	Inbox   *livedoc.Doc
 	Causes  *CauseSet
+	// Backups is the coverage map, {"items": {resource id: item}}.
+	Backups *livedoc.Doc
 }
 
 // New returns a set around g with empty metrics, no causes and an empty
 // inbox whose clock reads now.
 func New(g *graph.Graph, now time.Time) *Set {
-	s := &Set{Graph: g, Metrics: livedoc.New(Series), Inbox: livedoc.New(Incidents), Causes: NewCauseSet()}
+	s := &Set{Graph: g, Metrics: livedoc.New(Series), Inbox: livedoc.New(Incidents), Causes: NewCauseSet(), Backups: livedoc.New(BackupItems)}
 	_, _ = s.Inbox.Update(func(tx *livedoc.Tx) error {
 		SetNow(tx, now)
 		return nil
@@ -83,6 +85,7 @@ func (s *Set) Source() realtime.Source {
 		Metrics: metricsSource{doc: s.Metrics},
 		Inbox:   realtime.DocSource{Doc: s.Inbox, Topic: Inbox},
 		Causes:  realtime.DocSource{Doc: s.Causes.Doc, Topic: Causes},
+		Backups: realtime.DocSource{Doc: s.Backups, Topic: Backups},
 	}
 }
 

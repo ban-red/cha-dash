@@ -78,6 +78,7 @@ IDs follow the wave 5 convention, `docker:<instance id>/<path>`.
 | `ports` | container ports, `"8989/tcp"`, from the inspect (covers stopped containers) or else the list |
 | `published` | host bindings, `"18989->8989/tcp"`, with the host IP when it isn't a wildcard (`"127.0.0.1:8080->80/tcp"`): the natural key routes and checks match on |
 | `network_mode`, `networks`, `ips` | `ips` are the container's addresses: Traefik's Docker provider routes to bridge IPs |
+| `mounts` | its volumes and bind mounts from the list, `[{"type","source","target"}]`, at most 32: the host path (a volume's `_data` directory, or its name), never the Docker socket or the host's clock files. Backup coverage reads it: a container with mounts is protectable, and a backup tool's path covers it when every mount is under it. Household's graph leaves it out |
 | `restart_count`, `restart_policy`, `mem_limit_mib` | from the inspect |
 | `started_at` (running), `exit_code`, `oom_killed`, `finished_at` (exited) | from the inspect; `exit_code` falls back to the list's `Status` |
 | `health_check`, `failing_streak` | Docker's own health check, **only while running**: an exited container keeps a stale status |

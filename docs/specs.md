@@ -72,6 +72,34 @@ repairs:
 
 Targets and actions, fan-out resources and every key's limits are in [`internal/README.md`](../internal/README.md#integrations), "Tier 1 specs", with the whole annotated sample.
 
+### Backup targets
+
+A backup tool (Backrest, Kopia, Duplicati, borg-ui, Zerobyte and the like) can put what it backs up on Cha Dash's coverage map. Declare `backups.targets` in `meta.capabilities`, and publish one resource per backup plan or repository, usually with `each`, with `caps: [backups.targets]` and kind `backup_target`. Cha Dash reads these attributes:
+
+| Attribute | What | Example |
+|---|---|---|
+| `backup.covers` | What the target backs up: a list, each `{host, path}` or `{resource}`, or a string meaning a host. At most 32 | `[{host: "10.20.30.40", path: "/mnt/user/appdata"}]` |
+| `backup.last_ok` | When its newest good run ended, RFC 3339 | `2026-10-31T03:12:00Z` |
+| `backup.last_at`, `backup.last_status` | When its newest run ended, and `ok` or `failed` | `failed` |
+| `backup.last_error` | Why that run failed, one line | `repository is locked` |
+| `backup.schedule` | How often it runs: `hourly`, `daily`, `weekly`, `monthly`, a Proxmox calendar event (`mon..fri 02:00`) or cron's five fields | `0 3 * * *` |
+
+How `backup.covers` joins: `{resource}` names a resource by its ID. `host` is an address or a name; a name counts only when exactly one host or guest has it. Without a path, or with `/`, the host or guest itself is covered. A path on an Unraid host covers its shares (`/mnt/user`, or `/mnt/user/<share>`) and its flash drive (`/boot`), and on any host the containers whose every mount is under it. The objective follows `backup.schedule` (26 hours for daily, 8 days for weekly) unless someone sets one in Settings → Backups. A target that reports a failed run with an error says so on the things it covers.
+
+```yaml
+resources:
+  - id: plan
+    each: plans.list
+    key: item.id
+    kind: backup_target
+    name: item.id
+    caps: [backups.targets]
+    attrs:
+      backup.covers: 'map(item.paths, {host: config.host, path: #})'
+      backup.last_ok: item.lastSuccess
+      backup.schedule: item.schedule
+```
+
 ### Rules the engine enforces
 
 - Requests go only under the instance's URL: an absolute path, no `..`, no other host. Responses must be JSON and at most 1 MiB.

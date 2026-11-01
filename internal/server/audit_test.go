@@ -116,6 +116,8 @@ var provenElsewhere = map[string]string{
 	"DELETE /api/correlate/decisions/{id}":         "correlate.TestAPI",
 	"POST /api/updates/{resource}/hold":            "updates.TestRoutes",
 	"DELETE /api/updates/{resource}/hold":          "updates.TestRoutes",
+	"PUT /api/backups/objectives/{resource}":       "backups.TestObjectiveRoutes",
+	"DELETE /api/backups/objectives/{resource}":    "backups.TestObjectiveRoutes",
 	"POST /api/specs/installed":                    "specstore.TestRoutes",
 	"DELETE /api/specs/installed/{id}":             "specstore.TestRoutes",
 	"PUT /api/specs/installed/{id}/actions":        "specstore.TestRoutes",

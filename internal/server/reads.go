@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"dash.cha.sh/internal/auth"
@@ -18,7 +19,9 @@ import (
 //	GET /api/inbox   → 200 {"now", "incidents"}: the Inbox as the caller's role sees it
 //	GET /api/causes?resource=<id> → 200 {"resource", "causes": [Cause with path]}: one resource's cause hints;
 //	                 household gets none for what its graph leaves out
-func registerReads(mux *http.ServeMux, session func(http.Handler) http.Handler, tp *topics.Set, view func(ctx context.Context, role string) topics.InboxView) {
+//	GET /api/backups → 200 {"items": {id: item}}: the backup coverage map as the caller's role sees it
+func registerReads(mux *http.ServeMux, session func(http.Handler) http.Handler, tp *topics.Set, view func(ctx context.Context, role string) topics.InboxView,
+	backups func(ctx context.Context, role string) topics.BackupsView) {
 	mux.Handle("GET /api/graph", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, _ := auth.FromContext(r.Context())
 		v, doc := tp.Graph.Snapshot(nil)
@@ -44,5 +47,11 @@ func registerReads(mux *http.ServeMux, session func(http.Handler) http.Handler, 
 			cs = append(cs, tp.Causes.Of(res)...)
 		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"resource": res, "causes": cs})
+	})))
+	mux.Handle("GET /api/backups", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, _ := auth.FromContext(r.Context())
+		_, doc := tp.Backups.Snapshot()
+		items, _ := doc[topics.BackupItems].(map[string]json.RawMessage)
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": backups(r.Context(), id.User.Role).Project(items)})
 	})))
 }

@@ -20,7 +20,7 @@ A widget that lists containers shows the primaries and, for each, merges what it
 
 **The primary** is chosen by source: Docker for a container (Unraid folds `created` into `exited`), the built-in checks for a check, then Proxmox and Unraid, then anything; ties go to the smaller ID. It's stable while the members are. Every relation the correlator publishes points at primaries, so a route goes to Docker's container, never to Unraid's view of it.
 
-All the correlator's relations carry `source: "correlator"`. It ignores them as input, so its output never feeds back. It only adds relation kinds no integration publishes (below), and never takes over or removes a relation a source published.
+All the correlator's relations carry `source: "correlator"`. It ignores them as input, so its output never feeds back. It adds relation kinds no integration publishes (below), plus `backed_up_by` between pairs no integration relates, and never takes over or removes a relation a source published.
 
 ## What it publishes
 
@@ -36,11 +36,12 @@ All the correlator's relations carry `source: "correlator"`. It ignores them as 
 | `stores_on` | PVE storage → PBS datastore | the storage's `pbs.server` is a host of the PBS instance's URL and `pbs.datastore` is the datastore's `store` |
 | `depends_on` | container → container | the Compose label `com.docker.compose.depends_on`, within one project on one engine |
 | `depends_on` | engine → Unraid array | an Unraid-managed engine on an Unraid host: Unraid runs Docker only while the array is started |
+| `backed_up_by` | guest, container, share or flash → backup target | rule `covers`: an entry of the `backup.covers` attr of a resource with capability `backups.targets` (a spec's target; [docs/specs.md](../../docs/specs.md#backup-targets)). `{resource}` names one (exact); `{host, path}` finds the host or guest by address, or by a name only one of them has (strong; a name two share joins nothing, and coverage is never a suggestion). No path or `/` covers the host or guest; `/mnt/user` or `/mnt/user0` (or a share under them) its Unraid shares; `/boot` its flash drive; a container on it whose every mount is under the path. Proxmox publishes guest → backup job itself |
 | `depends_on` | app → app, route or container | rule `uses`: an entry of the app's `uses` attr (`integration.Use`: `{role, url, name}`, never credentials), joined by its URL to the app at that URL; else to the most specific route covering it (the app behind the route when the correlator joined one); else to the container publishing its `host:port`, or its bridge address (the one app in that container, when there's one). A URL that isn't http(s) (`mqtt://broker:1883`) joins by host and port only. Strong; a name alone, matching one other app's name or type, is a suggestion. Each entry is its own slot, so two matches for one entry are asked about |
 
 **Addresses.** A container answers at `host:port` for each published port, where `host` is a binding's own IP, or else each of the engine's addresses: its endpoint's IP or DNS name, plus the address of the host or guest the engine runs on. That's why placing the engine comes first: on the dogfood home the engine is reached through `tcp://dockerproxy:2375`, and Unraid's container IDs place it on jupiter, whose address then makes Traefik's `10.0.11.120:6767` the bazarr container. Loopback, unspecified and link-local addresses never match anything: `127.0.0.1` is every machine.
 
-**`backed_up_by`** isn't published across sources: no v0.1 integration reports which PBS snapshots belong to which guest. Proxmox's own `guest backed_up_by job` and `job stores_on storage`, with the correlator's `storage stores_on datastore`, already lead from a guest to its datastore.
+**`backed_up_by`** from Proxmox (`guest backed_up_by job`, with `job stores_on storage` and the correlator's `storage stores_on datastore`) leads from a guest to its datastore; the correlator adds only what backup tools report (rule `covers`). `internal/backups` reads both into the coverage map. PBS's own snapshot groups aren't read, so a PBS datastore covers nothing by itself.
 
 ## Confidence
 

@@ -244,6 +244,9 @@ func (in *instance) container(s summary, c *inspected) (integration.Resource, []
 	if len(ips) > 0 {
 		r.Attrs["ips"] = ips
 	}
+	if ms := mounts(s.Mounts); len(ms) > 0 {
+		r.Attrs["mounts"] = ms
+	}
 	hs := s.Health
 	if ins != nil {
 		r.Attrs["restart_count"] = ins.RestartCount
@@ -731,4 +734,34 @@ func joinNames(names []string) string {
 		return strings.Join(names, "")
 	}
 	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+}
+
+// maxMounts bounds the mounts attr of one container.
+const maxMounts = 32
+
+// mounts is what a container keeps on its host, for backup coverage: its
+// volumes and bind mounts as {type, source, target}, sources being host
+// paths (a volume's _data directory, or its name when Docker gives no
+// path). The Docker socket and the host's clock files are left out: they
+// hold nothing to back up.
+func mounts(in []mountSummary) []map[string]any {
+	var out []map[string]any
+	for _, m := range in {
+		if m.Type != "bind" && m.Type != "volume" {
+			continue
+		}
+		src := m.Source
+		if src == "" {
+			src = m.Name
+		}
+		switch strings.TrimSuffix(src, "/") {
+		case "", "/var/run/docker.sock", "/run/docker.sock", "/etc/localtime", "/etc/timezone":
+			continue
+		}
+		out = append(out, map[string]any{"type": m.Type, "source": src, "target": m.Destination})
+		if len(out) == maxMounts {
+			break
+		}
+	}
+	return out
 }

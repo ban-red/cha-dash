@@ -68,4 +68,15 @@ func TestScope(t *testing.T) {
 			t.Errorf("%s: %+v", typ, sc)
 		}
 	}
+
+	// The backup coverage widget shows the whole coverage map, and no
+	// resource's incidents.
+	doc := `{"sections":[{"items":[{"id":"coverage","type":"coverage"}]}]}`
+	l, _ := s.Layout(ctx, list[0].ID)
+	if _, err := s.SaveLayout(ctx, list[0].ID, l.Revision, 1, json.RawMessage(doc), nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	if sc, _ := s.Scope(ctx); sc.All || !sc.Backups || len(sc.Kinds) != 0 {
+		t.Errorf("coverage: %+v", sc)
+	}
 }

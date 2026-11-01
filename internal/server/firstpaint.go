@@ -76,6 +76,53 @@ func InboxView(b *boards.Service, g *graph.Graph, log *slog.Logger) func(ctx con
 	}
 }
 
+// BackupsView is how each role sees the backup coverage map (the backups
+// topic and GET /api/backups): viewer and up whole; household whole when a
+// board shows the coverage widget or everything, else only the items about
+// what its boards show (boards.Scope, read once per call): the resource,
+// what covers it or the guest it inherits from. Anyone else sees nothing.
+func BackupsView(b *boards.Service, g *graph.Graph, log *slog.Logger) func(ctx context.Context, role string) topics.BackupsView {
+	if log == nil {
+		log = slog.New(slog.DiscardHandler)
+	}
+	return func(ctx context.Context, role string) topics.BackupsView {
+		if authz.SeesWholeGraph(role) {
+			return topics.BackupsView{Whole: true}
+		}
+		if !authz.SignedIn.Allows(role) {
+			return topics.BackupsView{}
+		}
+		sc, err := b.Scope(ctx)
+		if err != nil {
+			log.Warn("reading what the boards show failed; the household backups map is empty", "err", err)
+			return topics.BackupsView{}
+		}
+		if sc.All || sc.Backups {
+			return topics.BackupsView{Whole: true}
+		}
+		return topics.BackupsView{Relevant: func(id string) bool {
+			if sc.IDs[id] {
+				return true
+			}
+			r, ok := g.Get(graph.RID(id))
+			return ok && sc.Shows(id, string(r.Kind))
+		}}
+	}
+}
+
+// BackupsViewer is BackupsView for a realtime connection: the role of the
+// identity auth.Require attached to its context.
+func BackupsViewer(b *boards.Service, g *graph.Graph, log *slog.Logger) func(ctx context.Context) topics.BackupsView {
+	view := BackupsView(b, g, log)
+	return func(ctx context.Context) topics.BackupsView {
+		id, ok := auth.FromContext(ctx)
+		if !ok {
+			return topics.BackupsView{}
+		}
+		return view(ctx, id.User.Role)
+	}
+}
+
 // GraphViewer says whether a realtime connection sees the whole graph
 // (authz.SeesWholeGraph for the role of the identity on its context); the
 // graph topic gives the others household's view (topics.Set.GraphSource).

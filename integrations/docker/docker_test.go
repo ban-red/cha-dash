@@ -716,3 +716,26 @@ func TestStatsWhileWatched(t *testing.T) {
 		t.Fatal("the series go when the watch ends")
 	}
 }
+
+// Mounts are published for backup coverage, without the socket or the
+// host's clock files.
+func TestMountsAttr(t *testing.T) {
+	got := mounts([]mountSummary{
+		{Type: "bind", Source: "/mnt/user/appdata/paperless", Destination: "/data"},
+		{Type: "volume", Name: "pgdata", Source: "/var/lib/docker/volumes/pgdata/_data", Destination: "/var/lib/postgresql/data"},
+		{Type: "volume", Name: "cache", Destination: "/cache"},
+		{Type: "bind", Source: "/var/run/docker.sock", Destination: "/var/run/docker.sock"},
+		{Type: "bind", Source: "/etc/localtime", Destination: "/etc/localtime"},
+		{Type: "tmpfs", Destination: "/tmp"},
+	})
+	b, _ := json.Marshal(got)
+	want := `[{"source":"/mnt/user/appdata/paperless","target":"/data","type":"bind"},` +
+		`{"source":"/var/lib/docker/volumes/pgdata/_data","target":"/var/lib/postgresql/data","type":"volume"},` +
+		`{"source":"cache","target":"/cache","type":"volume"}]`
+	if string(b) != want {
+		t.Fatalf("mounts = %s", b)
+	}
+	if mounts([]mountSummary{{Type: "bind", Source: "/run/docker.sock"}}) != nil {
+		t.Fatal("the socket alone isn't a volume")
+	}
+}

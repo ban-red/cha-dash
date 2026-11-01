@@ -20,6 +20,7 @@ import (
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/backups"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/causes"
@@ -402,6 +403,16 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		causeOpts.Now, causeOpts.Clock = drv.Now, drv.Clock
 	}
 	hints := causes.New(causeOpts)
+	// Backup coverage, like the cause hints, over the topics the page
+	// reads; the objectives are the hub's own.
+	backupOpts := backups.Options{Topics: tp, Store: st, Log: log.With("component", "backups")}
+	if drv != nil {
+		backupOpts.Now = drv.Now
+	}
+	cover, err := backups.New(ctx, backupOpts)
+	if err != nil {
+		return nil, err
+	}
 
 	// With local node pairing on (the compose file's default), the hub's own
 	// Docker is read through the node, not a socket proxy.
@@ -564,6 +575,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		topics.Graph: tp.GraphSource(server.GraphViewer()),
 		// Household gets the causes of what its graph shows.
 		topics.Causes: tp.CausesSource(server.GraphViewer()),
+		// Household gets the coverage of what its boards show.
+		topics.Backups: tp.BackupsSource(server.BackupsViewer(bs, g, log)),
 	})), realtime.Options{
 		OriginPatterns: cfg.AllowedOrigins,
 		Server:         "chadash/" + buildinfo.Version,
@@ -596,6 +609,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Nodes:          nodeHub,
 		Stacks:         stk,
 		Updates:        upd,
+		Backups:        cover,
 		Specs:          specs,
 		Notify:         nt,
 		Topics:         tp,
@@ -626,6 +640,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	a.bg.Go(func() { corr.Run(bg) })
 	a.bg.Go(func() { hints.Run(bg) })
+	a.bg.Go(func() { cover.Run(bg) })
 	a.bg.Go(func() { eng.Run(bg) })
 	a.bg.Go(func() { nt.Run(bg) })
 	a.bg.Go(func() { icn.Run(bg) })

@@ -18,6 +18,7 @@ import (
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/backups"
 	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/graph"
@@ -106,6 +107,11 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 			t.Fatal(err)
 		}
 		d.Updates = upd
+		cover, err := backups.New(t.Context(), backups.Options{Topics: tp, Store: d.Store, Log: d.Log})
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Backups = cover
 		d.Specs = specstore.New(specstore.Options{Store: d.Store, Registry: integration.NewRegistry(), Log: d.Log})
 		nt, err := notify.New(t.Context(), notify.Options{Store: d.Store, Vault: v, Log: d.Log})
 		if err != nil {

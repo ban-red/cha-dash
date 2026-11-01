@@ -54,6 +54,15 @@ type summary struct {
 			IPAddress string `json:"IPAddress"`
 		} `json:"Networks"`
 	} `json:"NetworkSettings"`
+	Mounts []mountSummary `json:"Mounts"`
+}
+
+// mountSummary is one of a container's mounts in the list.
+type mountSummary struct {
+	Type        string `json:"Type"` // bind, volume, tmpfs, npipe, cluster, image
+	Name        string `json:"Name"` // a volume's name
+	Source      string `json:"Source"`
+	Destination string `json:"Destination"`
 }
 
 type healthSummary struct {

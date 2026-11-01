@@ -85,6 +85,7 @@ import (
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/backups"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/correlate"
@@ -169,6 +170,9 @@ type Deps struct {
 	Stacks *stacks.Service
 	// Updates is the Update Center. Nil leaves /api/updates unmounted.
 	Updates *updates.Service
+	// Backups holds the backup objectives. Nil leaves their routes
+	// unmounted; the coverage map is the backups topic and GET /api/backups.
+	Backups *backups.Service
 	// Specs are the specs the owner installs. Nil leaves
 	// /api/specs/installed unmounted.
 	Specs *specstore.Service
@@ -264,7 +268,7 @@ func New(d Deps) (http.Handler, error) {
 	}
 	tokens.Register(mux, session)
 	if d.Topics != nil {
-		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
+		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log), BackupsView(boards.New(d.Store), d.Topics.Graph, d.Log))
 		registerHistory(mux, session, d.History, d.Topics.Graph)
 	}
 	registerHistorySettings(mux, session, d.History, d.Store, d.Demo != nil, rec)
@@ -339,6 +343,10 @@ func New(d Deps) (http.Handler, error) {
 	if d.Updates != nil {
 		d.Updates.Audit = rec
 		d.Updates.Register(mux, session)
+	}
+	if d.Backups != nil {
+		d.Backups.Audit = rec
+		d.Backups.Register(mux, session)
 	}
 	if d.Specs != nil {
 		d.Specs.Audit = rec

@@ -389,6 +389,12 @@ var Routes = []Route{
 	// Cause hints, as the causes topic: household's only for what its
 	// graph shows (server/reads.go).
 	{Pattern: "GET /api/causes", Access: SignedIn, Token: ScopeGraphRead},
+	// Backup coverage (wave 27), as the backups topic: household's only
+	// what its boards show (server.BackupsView). Objectives are admin+,
+	// session only, audited.
+	{Pattern: "GET /api/backups", Access: SignedIn, Token: ScopeGraphRead},
+	{Pattern: "PUT /api/backups/objectives/{resource}", Access: Admin},
+	{Pattern: "DELETE /api/backups/objectives/{resource}", Access: Admin},
 	// Metrics history, as the metrics topic: household reads the series of
 	// what its graph shows (server/history.go).
 	{Pattern: "GET /api/history", Access: SignedIn, Token: ScopeGraphRead},

@@ -20,6 +20,9 @@ type Scope struct {
 	IDs map[string]bool
 	// Kinds are resource kinds a target-less widget shows.
 	Kinds map[string]bool
+	// Backups: a board shows the backup coverage map (the coverage
+	// widget), so the backups topic is whole for its viewers.
+	Backups bool
 }
 
 // Shows reports whether a resource with id and kind is on a board.
@@ -42,6 +45,7 @@ var widgetKinds = map[string][]string{
 	"unraid":        {"array", "disk", "pool", "host"},
 	"storage":       {"storage", "pool", "array", "datastore", "disk"},
 	"backups":       {"datastore", "backup_job"},
+	"coverage":      nil, // the backup coverage map: Scope.Backups, no incidents
 	"opnsense":      {"router", "interface"},
 	"cameras":       {"camera"},
 	"check":         {"check"},
@@ -111,6 +115,9 @@ func addBoard(sc *Scope, l Layout) {
 			}
 			if named {
 				continue
+			}
+			if it.Type == "coverage" {
+				sc.Backups = true
 			}
 			kinds, known := widgetKinds[it.Type]
 			if !known {

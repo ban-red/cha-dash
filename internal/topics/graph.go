@@ -31,6 +31,8 @@ var householdHiddenAttrs = []string{
 	"mac", "macs", "mac_address", "fingerprint", "public_key", "verbs",
 	// Where things point: an app's uses, a route's upstreams.
 	"uses", "upstream", "upstream_addr", "servers",
+	// The host paths a container mounts, and what a backup tool covers.
+	"mounts", "backup.covers",
 }
 
 // HouseholdFilter keeps every resource household may see.
