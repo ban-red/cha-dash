@@ -254,7 +254,7 @@ Compare it for one day against a gridstack 14 prototype.
 
 ## v0.4: Care
 
-> Planned in detail in [14 · v0.4](14-v0.4.md) (proposed), with MCP from the [2026 review](09-roadmap-2026.md#v04--care-plus-agents).
+> Planned in detail in [14 · v0.4](14-v0.4.md) (agreed 2026-11-01), with MCP from the [2026 review](09-roadmap-2026.md#v04--care-plus-agents).
 
 **Update Center**
 - One list covering image digests (via nodes), Unraid, PVE apt, TrueNAS apps and node host packages.

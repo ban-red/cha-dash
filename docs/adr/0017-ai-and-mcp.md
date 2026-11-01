@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-10-03 · **Roadmap:** [decision 17](../plan/04-roadmap.md#decisions)
 
+> **Amended 2026-11-01:** MCP ships in **v0.4**, not after 1.0, as `mcp/v0` ([D1](../plan/09-roadmap-2026.md#7-decisions-this-needs), [14 · v0.4](../plan/14-v0.4.md#agents-mcp-read-and-propose)). Only the timing changes. Versioning the adapter as `mcp/v0`, generated from the OpenAPI document, means it doesn't freeze the API, which was the reason to wait. Every rule below stands: agents read and propose, a person approves every write with a passkey for T2 and up, nothing is auto-approved, and it's off by default. The transport is streamable HTTP on the hub only.
+
 ## Context
 
 The vision promises an MCP server after 1.0, where "agents read the graph and *propose* actions; humans approve them from their phone" ([01 · Vision](../plan/01-vision.md), principle 9 and signature experience 12). People already point LLM agents at their homelabs, usually with an admin token and no brakes. Cha Dash holds every credential in the house, and one of its actions can take the router down. If agents talk to it at all, the rules have to be ours, and they have to live in the [action engine](../plan/03-architecture.md#action-engine), the one place every surface already goes through.
@@ -55,7 +57,7 @@ POST   /api/v1/proposals/{id}/reject
 
 Proposal state also arrives on the realtime socket as `task` frames. The same API serves non-AI callers: a script, an Uptime Kuma webhook or a Home Assistant automation can ask a person before restarting something.
 
-**MCP ships after 1.0**, as a thin adapter over this API: graph and incidents as resources, and `search`, `get_resource`, `plan` and `propose` as tools. Not earlier, because it depends on the action engine, roles, scoped tokens, passkeys and Web Push all being stable, and on the API being frozen at 1.0, so an MCP surface doesn't pin an unstable one. Designing the propose path now costs one originator field and one approval state.
+**MCP ships after 1.0** (amended: in v0.4, as `mcp/v0`), as a thin adapter over this API: graph and incidents as resources, and `search`, `get_resource`, `plan` and `propose` as tools. Not earlier, because it depends on the action engine, roles, scoped tokens, passkeys and Web Push all being stable, and on the API being frozen at 1.0, so an MCP surface doesn't pin an unstable one. Designing the propose path now costs one originator field and one approval state.
 
 **Off by default.** No agent token can be minted until the owner turns on "Agents" in settings, and the MCP endpoint won't answer until then. Cha Dash ships no model and calls no model provider. Bring-your-own-LLM "Explain this" is a separate post-1.0 decision, also off by default.
 
