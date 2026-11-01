@@ -100,7 +100,8 @@ describe('below admin', () => {
         await settle();
         const nav = [...document.querySelectorAll('.settings nav a, .settings nav button')].map((a) => a.textContent?.trim() ?? '');
         expect(nav.some((t) => t.startsWith('Security'))).toBe(true);
-        expect(nav.some((t) => /Integrations|Users|Audit|Backup|Import/.test(t))).toBe(false);
+        // Backups (coverage, read-only below admin) is theirs; Backup (export) isn't.
+        expect(nav.some((t) => /Integrations|Users|Audit|Backup(?!s)|Import/.test(t))).toBe(false);
         expect(document.querySelector('.settings')?.textContent).toContain('Passkeys');
         expect(await axeViolations()).toEqual([]);
         w.unmount();

@@ -93,6 +93,7 @@ export const WIDGETS: Record<string, WidgetSpec> = {
     accepts: { kinds: ['storage', 'pool', 'share', 'backup_target', 'array', 'disk'] },
   }),
   backups: spec('backups', 'Backups', 'small', ['strip', 'small', 'wide', 'large'], { accepts: { kinds: ['backup_target'] }, group: 'servers', about: 'A backup datastore’s fill and how the nightly runs went.' }),
+  coverage: spec('coverage', 'Backup coverage', 'small', ['glyph', 'strip', 'small', 'wide', 'tall', 'large'], { group: 'servers', about: 'What in the house is backed up, and what’s stale or not covered.' }),
   cameras: spec('cameras', 'Cameras', 'large', ['small', 'wide', 'panel', 'large', 'hero'], {
     accepts: { kinds: ['app', 'camera'], types: ['frigate'] }, group: 'home', about: 'Frigate’s cameras: their pictures, last detections and controls.', icon: 'frigate',
     options: [

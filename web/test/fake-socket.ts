@@ -65,11 +65,11 @@ export class FakeSocket implements WebSocketLike {
 
   /**
    * Answer the handshake and every subscription with a snapshot. A v0.2 hub
-   * always serves `tasks`, and a v0.3 one `causes`, so it answers with none
-   * unless `data` has some.
+   * always serves `tasks`, a v0.3 one `causes` and a v0.4 one `backups`, so
+   * it answers with none unless `data` has some.
    */
   handshake(data: Record<string, unknown>, ping = 30): void {
-    const all: Record<string, unknown> = { tasks: { tasks: {} }, causes: { causes: {} }, ...data };
+    const all: Record<string, unknown> = { tasks: { tasks: {} }, causes: { causes: {} }, backups: { items: {} }, ...data };
     this.open();
     this.push({ op: 'hello', v: 1, epoch: 'e1', server: 'test', ping });
     for (const sub of this.ops('sub')) {

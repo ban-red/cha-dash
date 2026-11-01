@@ -55,6 +55,7 @@ export const WIDGET_COMPONENTS: Record<string, Component> = {
   atlas: lazy(() => import('./AtlasWidget.vue')),
   bookmarks: lazy(() => import('./BookmarksWidget.vue')),
   check: lazy(() => import('./CheckWidget.vue')),
+  coverage: lazy(() => import('./CoverageWidget.vue')),
   guests: lazy(() => import('./GuestsWidget.vue')),
   metric: lazy(() => import('./MetricWidget.vue')),
   storage: lazy(() => import('./StorageWidget.vue')),

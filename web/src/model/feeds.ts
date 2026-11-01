@@ -82,6 +82,7 @@ const RULES: Record<string, Rule> = {
   cameras: { available: kind('camera') },
   opnsense: { available: (g) => kind('router')(g) || app('opnsense')(g) },
   backups: { available: kind('backup_target') },
+  coverage: { available: anyOf(kind('vm'), kind('lxc'), kind('share'), kind('container')) },
   containers: { available: anyOf(kind('container'), kind('engine')) },
   guests: { available: anyOf(kind('vm'), kind('lxc')) },
   unraid: { available: kind('array') },

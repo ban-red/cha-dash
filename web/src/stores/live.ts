@@ -1,6 +1,6 @@
 /**
  * Live state: the realtime client feeding one reactive document with the
- * `graph`, `metrics`, `inbox`, `tasks` and `causes` topics, plus connection status and
+ * `graph`, `metrics`, `inbox`, `tasks`, `causes` and `backups` topics, plus connection status and
  * the hub's clock. `fixes` is the per-incident state of actions run on the
  * engine (stores/actions.ts).
  *
@@ -19,12 +19,12 @@
 import { computed, inject, provide, reactive, ref, type InjectionKey } from 'vue';
 import { RealtimeClient, sameOriginWs, type ConnectionInfo, type WebSocketFactory } from '../realtime/client';
 import type { BackoffOptions } from '../realtime/backoff';
-import type { CauseHint, CausesDoc, GraphDoc, InboxDoc, LiveDoc, MetricsDoc } from '../model/types';
+import type { BackupItem, BackupsDoc, CauseHint, CausesDoc, GraphDoc, InboxDoc, LiveDoc, MetricsDoc } from '../model/types';
 import { openProblems, openRepairs } from '../model/inbox';
 import { rewind } from '../model/history';
 import { cursor } from './cursor';
 
-export const TOPICS = ['graph', 'metrics', 'inbox', 'tasks', 'causes'] as const;
+export const TOPICS = ['graph', 'metrics', 'inbox', 'tasks', 'causes', 'backups'] as const;
 
 export type FixState = 'sending' | 'accepted' | 'failed';
 
@@ -186,6 +186,10 @@ export function createLive(opts: LiveOptions = {}) {
   const causes = computed<CausesDoc | undefined>(() => doc.causes);
   /** One resource's cause hints, the first cause first. */
   const causesOf = (id: string | undefined): CauseHint[] => (id ? (doc.causes?.causes?.[id] ?? []) : []);
+  /** The backup coverage map (`backups` topic), as this viewer may see it. Undefined until it arrives. */
+  const backups = computed<BackupsDoc | undefined>(() => doc.backups);
+  /** One resource's place on the coverage map. */
+  const backupOf = (id: string | undefined): BackupItem | undefined => (id ? doc.backups?.items?.[id] : undefined);
 
   /** Values on screen are last-known (hub unreachable or silent). */
   const stale = computed(() => {
@@ -245,6 +249,8 @@ export function createLive(opts: LiveOptions = {}) {
     repairs,
     causes,
     causesOf,
+    backups,
+    backupOf,
     stale,
     loading,
     start,

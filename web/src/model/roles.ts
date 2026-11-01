@@ -72,6 +72,8 @@ export interface Permissions {
   users: boolean;
   /** Settings → Audit. */
   audit: boolean;
+  /** Set and clear backup freshness objectives (Settings → Backups): admin and up. */
+  objectives: boolean;
   /** Approve or deny plans an API token left waiting for a person; see and revoke everyone's tokens. */
   approve: boolean;
   /** Run actions that read data back, such as a container's logs (`Def.ReadsData`): Operator and up. */
@@ -85,8 +87,12 @@ export interface Permissions {
 export function permissions(role: string | undefined): Permissions {
   const r = asRole(role);
   const admin = r === 'owner' || r === 'admin';
-  // Below admin, Updates comes last: a path the role can't open falls back to the first pane, Security.
-  const panes: SettingsPane[] = admin ? ['integrations', 'stacks', 'nodes', 'updates', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security', 'general'] : r === 'household' ? ['security', 'notifications', 'tokens', 'general'] : ['security', 'notifications', 'tokens', 'general', 'updates'];
+  // Below admin, Updates and Backups come last: a path the role can't open falls back to the first pane, Security.
+  const panes: SettingsPane[] = admin
+    ? ['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security', 'general']
+    : r === 'household'
+      ? ['security', 'notifications', 'tokens', 'general']
+      : ['security', 'notifications', 'tokens', 'general', 'updates', 'backups'];
   return {
     role: r,
     inbox: r !== 'household',
@@ -98,6 +104,7 @@ export function permissions(role: string | undefined): Permissions {
     users: admin,
     audit: admin,
     approve: admin,
+    objectives: admin,
     readData: admin || r === 'operator',
     act: (tier, household) => {
       const n = tierN(tier);

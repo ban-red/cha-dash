@@ -299,6 +299,8 @@ export interface LiveDoc {
   tasks?: TasksDoc;
   /** The `causes` topic: cause hints for the resources that have any. */
   causes?: CausesDoc;
+  /** The `backups` topic: backup coverage per protectable resource. */
+  backups?: BackupsDoc;
   [topic: string]: unknown;
 }
 
@@ -378,9 +380,8 @@ export function imageUpdate(r: Resource | undefined): ImageUpdate | undefined {
 }
 
 /*
- * REST shapes of v0.4's contracts (wave 25), mirroring the Go JSON. Nothing
- * serves the rollouts, windows, objectives or incident events yet: waves
- * 26–28 add their routes and the `backups` topic.
+ * REST shapes of v0.4's contracts (wave 25), mirroring the Go JSON. Waves
+ * 26–28 add their routes; backup coverage (wave 27) is below.
  */
 
 /** What an API token is for, fixed at minting (internal/auth `TokenKind`). */
@@ -444,6 +445,58 @@ export interface BackupObjective {
   max_age_ms: number;
   set_by?: string;
   set_at: string;
+}
+
+/** internal/backups `State`: where a protectable resource stands. */
+export type BackupState = 'fresh' | 'stale' | 'uncovered' | 'unknown';
+
+/** internal/backups `Cover`: one thing that backs a resource up, with its newest good run. */
+export interface BackupCover {
+  /** A backup job (`backup_job`) or a target a backup tool reports (`backup_target`). */
+  id: string;
+  kind: string;
+  name: string;
+  schedule?: string;
+  last_ok?: string;
+  last_at?: string;
+  last_status?: string;
+  last_error?: string;
+  disabled?: boolean;
+  /** Where its backups land: a PBS datastore, when the graph knows it. */
+  target?: string;
+  target_name?: string;
+}
+
+/** internal/backups `Hint`: why it's stale, when something on the way isn't ok. */
+export interface BackupHint {
+  text: string;
+  resource: string;
+  message: string;
+  args?: Record<string, unknown>;
+}
+
+/** internal/backups `Item`: one entry of the coverage map. */
+export interface BackupItem {
+  resource: string;
+  kind: string;
+  name: string;
+  state: BackupState;
+  by: BackupCover[];
+  /** The guest whose backup a container inherits. */
+  through?: string;
+  through_name?: string;
+  last_ok?: string;
+  max_age_ms: number;
+  objective: 'override' | 'schedule' | 'default';
+  text: string;
+  message: string;
+  args?: Record<string, unknown>;
+  cause?: BackupHint;
+}
+
+/** The `backups` topic, and `GET /api/backups`. */
+export interface BackupsDoc {
+  items: Record<string, BackupItem>;
 }
 
 /** internal/incidents `EventKind`. */
