@@ -130,6 +130,9 @@ var migrated = []string{
 	"internal/boards",
 	"internal/correlate",
 	"internal/audit",
+	// Wave 31.
+	"internal/notify",
+	"internal/action",
 }
 
 // TestMigratedPackagesSay fails when a migrated package writes an error

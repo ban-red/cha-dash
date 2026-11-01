@@ -7,6 +7,7 @@ import (
 
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // maxIdempotencyKey bounds the Idempotency-Key header.
@@ -35,7 +36,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 	actorOf := func(w http.ResponseWriter, r *http.Request) (Actor, bool) {
 		a, ok := sessions.FromRequest(r)
 		if !ok {
-			httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "sign in required")
+			httpx.Say(w, http.StatusUnauthorized, "unauthenticated", msg.New("auth.signin_required"))
 		}
 		return a, ok
 	}
@@ -45,7 +46,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 			return
 		}
 		log.Error("action: request failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 	}
 
 	mux.Handle("POST /api/actions/plan", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +72,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 		}
 		key := r.Header.Get("Idempotency-Key")
 		if len(key) > maxIdempotencyKey {
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "The Idempotency-Key header is too long.")
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("actions.key_too_long"))
 			return
 		}
 		var req ApproveRequest
@@ -109,7 +110,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 		}
 		apv, err := e.Approval(r.Context(), a, r.PathValue("id"))
 		if errors.Is(err, ErrNotFound) {
-			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such approval.")
+			httpx.Say(w, http.StatusNotFound, "not_found", msg.New("actions.no_approval"))
 			return
 		} else if err != nil {
 			fail(w, err)
@@ -156,7 +157,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 		}
 		t, err := e.Task(r.Context(), a, r.PathValue("id"))
 		if errors.Is(err, ErrNotFound) {
-			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such task.")
+			httpx.Say(w, http.StatusNotFound, "not_found", msg.New("actions.no_task"))
 			return
 		} else if err != nil {
 			fail(w, err)
@@ -173,7 +174,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 		id := r.PathValue("id")
 		err := e.Cancel(r.Context(), a, id)
 		if errors.Is(err, ErrNotFound) {
-			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such task.")
+			httpx.Say(w, http.StatusNotFound, "not_found", msg.New("actions.no_task"))
 			return
 		} else if err != nil {
 			fail(w, err)
@@ -193,7 +194,7 @@ func (e *Engine) Register(mux *http.ServeMux, session func(http.Handler) http.Ha
 		}
 		target := r.URL.Query().Get("target")
 		if target == "" || len(target) > 500 {
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "Name a target: ?target=<resource id>.")
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("actions.no_target"))
 			return
 		}
 		offers, err := e.ActionsFor(r.Context(), a, target)
@@ -214,7 +215,7 @@ func (e *Engine) Guard(scope string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			a, ok := e.sessions.FromRequest(r)
 			if !ok {
-				httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "sign in required")
+				httpx.Say(w, http.StatusUnauthorized, "unauthenticated", msg.New("auth.signin_required"))
 				return
 			}
 			if err := e.policy.Authorize(r.Context(), a, scope, "", T0); err != nil {

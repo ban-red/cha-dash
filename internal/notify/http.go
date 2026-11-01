@@ -12,6 +12,7 @@ import (
 
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Register mounts the notifications API. Who may call each route is
@@ -53,15 +54,40 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 	mux.Handle("POST /api/notify/push/unsubscribe", session(http.HandlerFunc(s.handleUnsubscribe)))
 }
 
-// fail writes err as the API's error.
-func (s *Service) fail(w http.ResponseWriter, err error, notFound string) {
+// missing names what a 404 is about, for fail's sentence.
+type missing string
+
+const (
+	noChannel     missing = "channel"
+	noRule        missing = "rule"
+	noDevice      missing = "device"
+	notSubscribed missing = "subscription"
+)
+
+func (m missing) say() msg.M {
+	switch m {
+	case noChannel:
+		return msg.New("notify.no_channel")
+	case noRule:
+		return msg.New("notify.no_rule")
+	case noDevice:
+		return msg.New("notify.no_device")
+	case notSubscribed:
+		return msg.New("notify.not_subscribed")
+	}
+	return msg.M{}
+}
+
+// fail writes err as the API's error. notFound says what errNotFound is
+// about.
+func (s *Service) fail(w http.ResponseWriter, err error, notFound missing) {
 	var inv *invalidError
 	var sen sentence
 	switch {
 	case errors.As(err, &inv):
 		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": httpx.ErrorDetail{Code: "invalid", Message: inv.Error()}, "fields": inv.fields})
 	case errors.Is(err, errNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", notFound)
+		httpx.Say(w, http.StatusNotFound, "not_found", notFound.say())
 	case errors.Is(err, errNameTaken), errors.Is(err, errEndpointTaken):
 		httpx.Error(w, http.StatusConflict, "conflict", err.Error())
 	case errors.Is(err, errBuiltin):
@@ -73,12 +99,12 @@ func (s *Service) fail(w http.ResponseWriter, err error, notFound string) {
 	case errors.Is(err, errUnknownRule):
 		httpx.Error(w, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, errNoVault):
-		httpx.Error(w, http.StatusServiceUnavailable, "unavailable", "The hub has no vault, so it can't keep a channel's secrets or a Web Push key.")
+		httpx.Say(w, http.StatusServiceUnavailable, "unavailable", msg.New("notify.no_vault"))
 	case errors.As(err, &sen):
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", sen.Error())
 	default:
 		s.log.Error("notify: request failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 	}
 }
 
@@ -143,7 +169,7 @@ func (s *Service) handleUpdateChannel(w http.ResponseWriter, r *http.Request) {
 	}
 	c, changed, err := s.UpdateChannel(r.Context(), r.PathValue("id"), in)
 	if err != nil {
-		s.fail(w, err, "There's no such channel.")
+		s.fail(w, err, noChannel)
 		return
 	}
 	s.Audit.Change(r, "settings.notify.channel.update", "notify:channel/"+c.ID, auditParams(c, changed), authz.T1, nil)
@@ -153,7 +179,7 @@ func (s *Service) handleUpdateChannel(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleDeleteChannel(w http.ResponseWriter, r *http.Request) {
 	c, err := s.DeleteChannel(r.Context(), r.PathValue("id"))
 	if err != nil {
-		s.fail(w, err, "There's no such channel.")
+		s.fail(w, err, noChannel)
 		return
 	}
 	s.Audit.Change(r, "settings.notify.channel.delete", "notify:channel/"+c.ID, auditParams(c, nil), authz.T1, nil)
@@ -164,7 +190,7 @@ func (s *Service) handleTest(w http.ResponseWriter, r *http.Request) {
 	a := s.actorOf(r)
 	res, err := s.Test(r.Context(), r.PathValue("id"), a.ID, a.Name)
 	if err != nil {
-		s.fail(w, err, "There's no such channel.")
+		s.fail(w, err, noChannel)
 		return
 	}
 	s.Audit.Change(r, "settings.notify.channel.test", "notify:channel/"+r.PathValue("id"), map[string]any{"ok": res.OK}, authz.T0, nil)
@@ -185,7 +211,7 @@ func (s *Service) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 	a := s.actorOf(r)
 	rule, err := s.UpdateRule(r.Context(), r.PathValue("id"), in, a.Name)
 	if err != nil {
-		s.fail(w, err, "There's no such rule.")
+		s.fail(w, err, noRule)
 		return
 	}
 	s.Audit.Change(r, "settings.notify.rule.update", "notify:rule/"+rule.ID, rule.RuleSettings, authz.T1, nil)
@@ -196,14 +222,14 @@ func (s *Service) handleDeliveries(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	state := q.Get("state")
 	if state != "" && !deliveryStates[state] {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "state is pending, sent, failed or dropped.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("notify.bad_state"))
 		return
 	}
 	limit := 50
 	if v := q.Get("limit"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 || n > 200 {
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "limit is 1 to 200.")
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("notify.bad_limit"))
 			return
 		}
 		limit = n
@@ -257,7 +283,7 @@ func (s *Service) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleRemoveDevice(w http.ResponseWriter, r *http.Request) {
 	a := s.actorOf(r)
 	if err := s.RemoveDevice(r.Context(), a.ID, r.PathValue("id")); err != nil {
-		s.fail(w, err, "There's no such device on your account.")
+		s.fail(w, err, noDevice)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -272,7 +298,7 @@ func (s *Service) handleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	a := s.actorOf(r)
 	if err := s.Unsubscribe(r.Context(), a.ID, in.Endpoint); err != nil {
-		s.fail(w, err, "That device isn't subscribed on your account.")
+		s.fail(w, err, notSubscribed)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
