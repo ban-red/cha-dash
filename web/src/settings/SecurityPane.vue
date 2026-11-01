@@ -7,7 +7,8 @@
  * longer have. Admins see only their passkeys here. The owner also sets how
  * people sign in (SignInPane.vue: OIDC, forward-auth, roles from groups);
  * everyone sees their linked sign-ins (LinkedIdentities.vue). Last, where
- * Cha Dash itself runs (HubPlace.vue).
+ * Cha Dash itself runs (HubPlace.vue). The owner also decides whether AI
+ * agents may connect (AgentsSetting.vue).
  *
  * Passkeys need a secure context (HTTPS, or localhost). On a plain LAN
  * address the page explains that instead of offering a button that can't
@@ -15,6 +16,7 @@
  */
 import { nextTick, onMounted, ref } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
+import AgentsSetting from './AgentsSetting.vue';
 import HubPlace from './HubPlace.vue';
 import LinkedIdentities from './LinkedIdentities.vue';
 import SignInPane from './SignInPane.vue';
@@ -125,6 +127,7 @@ onMounted(load);
     <SecurityLevel />
     <StepUpSetting :has-passkey="status === 'ready' ? keys.length > 0 : undefined" />
     <SignInPane />
+    <AgentsSetting />
   </template>
   <section class="st-section" aria-labelledby="pk-h">
     <header>

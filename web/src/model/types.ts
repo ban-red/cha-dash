@@ -234,6 +234,9 @@ export interface Approval {
     expires_at?: string;
     /** A line for whoever approves it: "Commit 1761175: Quiet the logs" from a git sync. */
     note?: string;
+    /** An agent's reason for proposing it: its words, untrusted, shown as a quote. */
+    rationale?: string;
+    params?: Record<string, unknown>;
   };
   originator: Originator;
   requested_at: string;
@@ -242,6 +245,8 @@ export interface Approval {
   decided_by?: { kind: string; name: string } | null;
   reason?: string;
   task?: string | null;
+  /** An agent's proposal: how many it made in the 24 hours up to this one. */
+  nth_today?: number;
 }
 
 export interface InboxDoc {
@@ -390,6 +395,10 @@ export type TokenKind = 'api' | 'agent';
 /** `GET`/`PUT /api/settings/agents` (internal/security `AgentSettings`). Off by default. */
 export interface AgentSettings {
   enabled: boolean;
+  /** Proposals one agent token may have waiting at once (3 by default, 1–20). */
+  max_pending: number;
+  /** Proposals one agent token may make an hour (20 by default, 1–200). */
+  max_per_hour: number;
 }
 
 /** internal/updates `RolloutState`. */

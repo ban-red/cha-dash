@@ -4,14 +4,20 @@
  * admins see everyone's and can revoke any.
  *
  *   GET    /api/tokens          → {tokens: [{id, user_id, username, name, kind, scopes, created_at, expires_at, last_used_at, last_used_ip?, revoked_at}]}
- *   GET    /api/tokens/scopes   → the scope picker: {reads, families, actions, all, default_days, max_days, approval}
- *   POST   /api/tokens          {name, scopes, expires_in_days} → {token, secret}: the secret, once
+ *   GET    /api/tokens/scopes   → the scope picker: {reads, families, actions, all, default_days, max_days, approval, agent}
+ *   POST   /api/tokens          {name, kind, scopes, expires_in_days} → {token, secret}: the secret, once
  *   DELETE /api/tokens/{id}     → {token}, revoked at once
  *
  * A token acts as its user, never above the user's role, narrowed by its
  * scopes. T0 and T1 actions run when the token approves its own plan; T2
  * waits in the Inbox for an admin or the owner; T3 and T4 never. The secret
  * is shown once, right after it's made, with Copy; the hub keeps only a hash.
+ *
+ * While the owner has Agents on (`agent.on`), a token can be an agent token
+ * instead (ADR-0017): it works only on POST /mcp, reads what its read
+ * scopes allow (narrowable to a host, tag or lens; logs off unless picked)
+ * and proposes the actions picked here (`propose:<action>`); every proposal
+ * waits for a person, at every tier.
  *
  * Its own chunk, loaded with the pane.
  */
@@ -34,7 +40,7 @@ export interface HubToken {
   user_id: string;
   username: string;
   name: string;
-  /** api or agent; the pane doesn't show it yet. */
+  /** api, or agent: reads and proposes through MCP, never acts. */
   kind: TokenKind;
   scopes: string[];
   created_at: string;
@@ -53,6 +59,18 @@ interface Offer {
   unavailable?: string;
 }
 
+/** The picker's agent section (authz `agentOffers`). */
+interface AgentCatalog {
+  /** Agents is on: agent tokens can be made. */
+  on: boolean;
+  reads: Offer[];
+  propose: Offer[];
+  families: Offer[];
+  /** The qualifiers a read may carry: host, tag, lens. */
+  narrow: string[];
+  limits: string;
+}
+
 interface ScopeCatalog {
   reads: Offer[];
   families: Offer[];
@@ -61,6 +79,7 @@ interface ScopeCatalog {
   default_days: number;
   max_days: number;
   approval?: string;
+  agent?: AgentCatalog;
 }
 
 const ui = useUi();
@@ -110,11 +129,19 @@ const createError = ref('');
 const draft = reactive({
   name: '',
   days: 90,
+  kind: 'api' as TokenKind,
   reads: [] as string[],
   run: 'none' as 'none' | 'all' | 'pick',
   actions: [] as string[],
   extra: '',
+  /** An agent token's reads, proposals and narrowing. */
+  agentReads: ['graph.read'] as string[],
+  propose: [] as string[],
+  narrow: '' as '' | 'host' | 'tag' | 'lens',
+  narrowTo: '',
 });
+const agentCatalog = computed(() => (catalog.value?.agent?.on ? catalog.value.agent : undefined));
+const NARROW_WORDS: Record<string, string> = { host: 'A host', tag: 'A tag', lens: 'A board (lens)' };
 const nameError = ref('');
 const DAY_CHOICES = [30, 90, 180, 365];
 /** The secret just made: shown once, until Done. */
@@ -123,7 +150,7 @@ const copied = ref(false);
 
 async function startCreate(): Promise<void> {
   creating.value = true;
-  Object.assign(draft, { name: '', days: 90, reads: [], run: 'none', actions: [], extra: '' });
+  Object.assign(draft, { name: '', days: 90, kind: 'api', reads: [], run: 'none', actions: [], extra: '', agentReads: ['graph.read'], propose: [], narrow: '', narrowTo: '' });
   nameError.value = '';
   createError.value = '';
   await loadCatalog();
@@ -134,6 +161,11 @@ async function startCreate(): Promise<void> {
 
 /** The scopes the form adds up to, in the order the hub will keep them. */
 const chosen = computed<string[]>(() => {
+  if (draft.kind === 'agent') {
+    const to = draft.narrowTo.trim();
+    const narrowed = (s: string) => (draft.narrow && to && s !== 'logs.read' ? `${s}:${draft.narrow}=${to}` : s);
+    return [...new Set([...draft.agentReads.map(narrowed), ...draft.propose])];
+  }
   const out = [...draft.reads];
   if (draft.run === 'all') out.push('*');
   if (draft.run === 'pick') out.push(...draft.actions);
@@ -146,6 +178,10 @@ async function create(): Promise<void> {
   nameError.value = draft.name.trim() ? '' : 'Name it after what will use it, such as “backup script”.';
   createError.value = '';
   if (nameError.value) return;
+  if (draft.kind === 'agent' && draft.narrow && !draft.narrowTo.trim()) {
+    createError.value = `Name the ${draft.narrow} to narrow its reads to, or read everything your role sees.`;
+    return;
+  }
   if (!chosen.value.length) {
     createError.value = 'Pick at least one thing the token may read or run.';
     return;
@@ -154,7 +190,7 @@ async function create(): Promise<void> {
   try {
     const res = await api<{ token: HubToken; secret: string }>('/api/tokens', {
       method: 'POST',
-      body: { name: draft.name.trim(), scopes: chosen.value, expires_in_days: draft.days },
+      body: { name: draft.name.trim(), ...(draft.kind === 'agent' ? { kind: 'agent' } : {}), scopes: chosen.value, expires_in_days: draft.days },
     });
     fresh.value = res;
     copied.value = false;
@@ -266,7 +302,54 @@ onMounted(load);
       </UiField>
 
       <div v-if="!catalog" class="st-skel" aria-busy="true"><span class="skel"></span><span class="skel"></span></div>
-      <template v-else>
+      <fieldset v-if="agentCatalog" class="st-fieldset">
+        <legend>What it’s for</legend>
+        <div class="choice-row" role="radiogroup" aria-label="Kind of token">
+          <label><input v-model="draft.kind" type="radio" :name="`${uid}-kind`" value="api" />A script or automation</label>
+          <label><input v-model="draft.kind" type="radio" :name="`${uid}-kind`" value="agent" />An AI agent, through MCP</label>
+        </div>
+        <p v-if="draft.kind === 'agent'" class="help">An agent token reads and proposes, and never acts: every proposal waits for you or another admin, at every tier. It works only on <code>POST /mcp</code>.</p>
+      </fieldset>
+      <template v-if="catalog && draft.kind === 'agent' && agentCatalog">
+        <fieldset class="st-fieldset">
+          <legend>What the agent may read</legend>
+          <label v-for="r in agentCatalog.reads" :key="r.scope" class="check-row tk-opt">
+            <input v-model="draft.agentReads" type="checkbox" :value="r.scope" :disabled="!r.available" :aria-describedby="`${uid}-ar-${r.scope}`" />
+            <span>
+              <span class="t">{{ r.label }}</span> <span class="st-mono tk-scope">{{ r.scope }}</span>
+              <small :id="`${uid}-ar-${r.scope}`">{{ r.available ? r.description : r.unavailable }}</small>
+            </span>
+          </label>
+          <div class="tk-narrow">
+            <UiField label="Narrow its reads to" v-slot="{ control }">
+              <select v-bind="control" v-model="draft.narrow">
+                <option value="">Everything your role sees</option>
+                <option v-for="n in agentCatalog.narrow" :key="n" :value="n">{{ NARROW_WORDS[n] ?? n }}</option>
+              </select>
+            </UiField>
+            <UiField v-if="draft.narrow" :label="draft.narrow === 'lens' ? 'Board ID' : draft.narrow === 'host' ? 'Host name or ID' : 'Tag'" v-slot="{ control }">
+              <input v-bind="control" v-model="draft.narrowTo" type="text" maxlength="200" autocomplete="off" spellcheck="false" />
+            </UiField>
+          </div>
+        </fieldset>
+        <fieldset class="st-fieldset">
+          <legend>What it may propose</legend>
+          <p v-if="!agentCatalog.propose.length" class="help">No integration offers actions yet.</p>
+          <label v-for="f in agentCatalog.families" :key="f.scope" class="check-row tk-opt">
+            <input v-model="draft.propose" type="checkbox" :value="f.scope" />
+            <span><span class="t">{{ f.label }}</span> <span class="st-mono tk-scope">{{ f.scope }}</span></span>
+          </label>
+          <label v-for="a in agentCatalog.propose" :key="a.scope" class="check-row tk-opt">
+            <input v-model="draft.propose" type="checkbox" :value="a.scope" :disabled="!a.available" :aria-describedby="a.available && !a.description ? undefined : `${uid}-ap-${a.scope}`" />
+            <span>
+              <span class="t">{{ a.label }}</span> <span class="st-mono tk-scope">{{ a.scope }}</span> <span class="chip">{{ a.tier }}</span>
+              <small v-if="!a.available || a.description" :id="`${uid}-ap-${a.scope}`">{{ a.available ? a.description : a.unavailable }}</small>
+            </span>
+          </label>
+        </fieldset>
+        <p class="st-note"><Glyph kind="attn" /><span>{{ agentCatalog.limits }}</span></p>
+      </template>
+      <template v-else-if="catalog">
         <fieldset class="st-fieldset">
           <legend>What it may read</legend>
           <label v-for="r in catalog.reads" :key="r.scope" class="check-row tk-opt">
@@ -333,6 +416,7 @@ onMounted(load);
             <span class="t">
               {{ t.name }}
               <span v-if="seesAll && t.user_id !== meId" class="chip">{{ t.username }}</span>
+              <span v-if="t.kind === 'agent'" class="chip">agent</span>
               <span v-if="stateOf(t).word" class="chip">{{ stateOf(t).word }}</span>
             </span>
             <span class="m">{{ t.scopes.map(scopeWords).join(', ') }}</span>
@@ -408,5 +492,11 @@ onMounted(load);
 }
 .tk-revoke {
   margin: 0 var(--space-2) var(--space-3);
+}
+.tk-narrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
 }
 </style>

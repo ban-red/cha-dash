@@ -10,6 +10,11 @@
  * it will do (the plan's steps), what it touches (the plan's impact), and
  * when the request expires.
  *
+ * An agent's proposal (ADR-0017) adds its rationale, as a quote marked as
+ * the agent's words and never as the hub's, and how many it has proposed
+ * today, so a chatty agent shows. Every tier waits: T1 is a tap, T2 the
+ * hold, T3 the typed name; T2 and up then a fresh step-up.
+ *
  *   POST /api/approvals/{id}/approve  {hash}  → 202 {task}; needs a step-up made after the request
  *   POST /api/approvals/{id}/deny     {reason?} → 200 {approval}
  *
@@ -49,15 +54,28 @@ const via = computed(() => {
     case 'sync':
       return o.user_name ? `, a git sync acting for ${o.user_name}` : ', a git sync';
     case 'agent':
-      return o.user_name ? `, an agent of ${o.user_name}’s, through the API` : ', an agent, through the API';
+      return o.user_name ? `, an AI agent of ${o.user_name}’s, through MCP` : ', an AI agent, through MCP';
     case 'user':
       return '';
   }
   return o?.user_name ? `, a token of ${o.user_name}’s, through the API` : ', through the API';
 });
 const tier = computed(() => plan.value?.tier ?? 'T2');
-/** T2 holds; anything higher would be typed (tokens never get there). */
+/** T2 holds; T3 (an agent's proposal; tokens never get there) is typed. */
 const holds = computed(() => tier.value === 'T2');
+const typed = computed(() => tier.value === 'T3' || tier.value === 'T4');
+const confirmText = ref('');
+const isAgent = computed(() => who.value?.kind === 'agent');
+/** "3rd proposal from this agent today". */
+const nthWords = computed(() => {
+  const n = apv.value?.nth_today ?? 0;
+  if (!isAgent.value || n < 1) return '';
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+  return `${n}${suffix} proposal from this agent today`;
+});
+/** The plan's params, as "key: value" lines: what will change. */
+const paramLines = computed(() => Object.entries(plan.value?.params ?? {}).map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`));
 const busy = ref<'' | 'approve' | 'deny'>('');
 const error = ref('');
 const progress = ref(0);
@@ -90,8 +108,16 @@ async function approve(): Promise<void> {
   error.value = '';
   try {
     // Every approval asks again: the hub wants a step-up made after the request.
-    if (!(await ui.stepUp(`Approve “${a.plan.label}” for ${a.originator.name}`, true))) return;
-    await api<{ task?: Task }>(`/api/approvals/${encodeURIComponent(a.id)}/approve`, { method: 'POST', body: { hash: a.plan.hash } });
+    if (typed.value && confirmText.value.trim() !== (a.plan.confirm_text ?? '')) {
+      error.value = `Type “${a.plan.confirm_text ?? ''}” to confirm.`;
+      return;
+    }
+    // T1 is a tap; from T2 every approval asks again: the hub wants a
+    // step-up made after the request.
+    if (tier.value !== 'T1' && tier.value !== 'T0' && !(await ui.stepUp(`Approve “${a.plan.label}” for ${a.originator.name}`, true))) return;
+    const body: { hash: string; typed?: string } = { hash: a.plan.hash };
+    if (typed.value) body.typed = confirmText.value.trim();
+    await api<{ task?: Task }>(`/api/approvals/${encodeURIComponent(a.id)}/approve`, { method: 'POST', body });
     ui.toast(`Approved: ${a.plan.label}. It runs as ${a.originator.name}.`);
   } catch (err) {
     error.value = needsStepUp(err) ? 'The confirmation didn’t count for this request. Approve again to confirm it’s you.' : hubWords(err, 'It wasn’t approved.');
@@ -134,8 +160,14 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
         It runs only if you approve it.
       </div>
       <div v-if="plan?.note" class="m apv-note">{{ plan.note }}</div>
+      <figure v-if="isAgent && plan?.rationale" class="apv-why">
+        <figcaption>The agent says <span class="opt-word">its words, not checked by Cha Dash</span></figcaption>
+        <blockquote>{{ plan.rationale }}</blockquote>
+      </figure>
+      <p v-if="nthWords" class="m apv-nth"><Glyph kind="attn" /> {{ nthWords }}</p>
       <dl class="apv-meta">
         <div><dt>Action</dt><dd>{{ plan?.label }} <span class="chip">{{ tier }}</span></dd></div>
+        <div><dt>Target</dt><dd class="st-mono">{{ plan?.target }}</dd></div>
         <div><dt>Asked</dt><dd>{{ hhmm(apv?.requested_at ?? incident.opened_at) }}</dd></div>
         <div><dt>Expires</dt><dd>{{ hhmm(apv?.expires_at) }}</dd></div>
       </dl>
@@ -143,6 +175,12 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
       <ol v-if="steps.length" class="apv-steps">
         <li v-for="(s, i) in steps" :key="i">{{ s.label }}</li>
       </ol>
+      <template v-if="paramLines.length">
+        <h4 class="apv-h">With</h4>
+        <ul class="apv-steps apv-params">
+          <li v-for="(l, i) in paramLines" :key="i" class="st-mono">{{ l }}</li>
+        </ul>
+      </template>
       <h4 class="apv-h">What this affects</h4>
       <ul class="blast apv-blast">
         <li v-for="(x, i) in impact" :key="x.resource" :class="{ on: lit(i) }">
@@ -160,7 +198,15 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
             <HoldToConfirm :key="attempt" label="approve" :hint="`${uid}-hint`" @progress="progress = $event" @confirm="approve" />
             <span :id="`${uid}-hint`" class="hint">hold to approve · then confirm it’s you</span>
           </template>
-          <UiButton v-else variant="primary" class="apv-approve" :disabled="!!busy || live.stale.value" @click="approve">Approve<span class="tier">{{ tier }}</span></UiButton>
+          <template v-else>
+            <UiField v-if="typed" class="apv-typed">
+              <template #label>Type <b>{{ plan?.confirm_text }}</b> to confirm</template>
+              <template #default="{ control }">
+                <input v-bind="control" v-model="confirmText" type="text" autocomplete="off" spellcheck="false" />
+              </template>
+            </UiField>
+            <UiButton variant="primary" class="apv-approve" :disabled="!!busy || live.stale.value" @click="approve">Approve<span class="tier">{{ tier }}</span></UiButton>
+          </template>
           <UiButton variant="ghost" size="sm" class="apv-deny-btn" :disabled="!!busy || live.stale.value" @click="startDeny">Deny</UiButton>
         </div>
         <form v-else class="apv-deny" novalidate @submit.prevent="deny">
@@ -225,6 +271,38 @@ const lit = (i: number) => progress.value >= ((i + 0.5) / Math.max(1, impact.val
   align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-3);
+}
+.apv-why {
+  margin: var(--space-3) 0 0;
+}
+.apv-why figcaption {
+  font-size: var(--type-small);
+  color: var(--text-3);
+}
+.apv-why blockquote {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--line-2);
+  font-size: var(--type-small);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.apv-why blockquote::before {
+  content: '“';
+}
+.apv-why blockquote::after {
+  content: '”';
+}
+.apv-nth {
+  margin-top: var(--space-2);
+}
+.apv-params {
+  list-style: none;
+  padding-left: 0;
+}
+.apv-typed {
+  flex: 1 1 14rem;
 }
 .apv-deny {
   display: flex;
