@@ -51,7 +51,7 @@ If you also want the **Docker** integration, for containers Unraid doesn't manag
 - put it and chadash on one custom Docker network (`docker network create chadash`, then set both containers' *Network Type* to it), and allow only `-allowfrom=chadash`;
 - add Docker in Cha Dash with the endpoint `tcp://socket-proxy:2375`. **Test connection** says what kind of endpoint it found.
 
-[Docker access](../README.md#docker-access) explains what the allowlist permits and what it refuses.
+[Docker access](../README.md#docker-on-another-host) explains what the allowlist permits and what it refuses.
 
 ## For the maintainer: listing it in CA
 

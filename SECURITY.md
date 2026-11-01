@@ -59,7 +59,7 @@ These are tracked as requirements in [docs/plan/03-architecture.md](docs/plan/03
   - A token can't step up, so T3 and T4 actions are out of its reach. Its T2 plans wait for a person, who approves them in a session with a fresh step-up, bound to the plan's hash. Revoking a token takes effect on its next request and withdraws what it left waiting.
   - Every token expires (a year at most) and shows when and from where it was last used. Bad tokens are rate-limited per client address.
   - Admins see and revoke everyone's tokens except the owner's, which only the owner sees. A token's actions name the user it acts for in the audit log (`on_behalf_of`).
-- No unauthenticated network listeners.
+- No unauthenticated network listeners, with two exceptions you control: setup answers until the owner exists (above), and the opt-in metrics listener (`CHADASH_METRICS_LISTEN`) asks for a token only when `CHADASH_METRICS_TOKEN` is set.
 - No third-party JavaScript in the Cha Dash origin.
 - **Tile icons are fetched by the hub, under strict rules** ([`internal/icons`](internal/icons/icons.go)). The CSP keeps the browser from loading images from other origins, so the hub fetches each icon and serves it from its own origin. It's an outbound request the hub makes on the owner's behalf, so:
   - It fetches only what the owner configured: a tile's icon when it's an http(s) URL, else the favicon of a tile's link or an integration instance's URL (`/favicon.ico`, `/favicon.svg`, `/apple-touch-icon.png`, `/favicon.png`). No request can name a URL; `GET /api/icons/{id}` serves only what's stored.
@@ -67,7 +67,7 @@ These are tracked as requirements in [docs/plan/03-architecture.md](docs/plan/03
   - At most one redirect, to the same host. 5 seconds to connect, 10 in all. Certificates are verified, so a service with a self-signed certificate keeps its monogram.
   - The answer must be a 200 of at most 256 KiB whose bytes are a PNG, ICO, WebP or SVG, with a declared type that agrees (or a generic one). An SVG is parsed as XML and checked against an allowlist of elements and attributes, and refused rather than cleaned when anything falls outside it: scripts, event handlers, `foreignObject`, links, animation (`animate`, `set` and the rest), `feImage`, DOCTYPE and entity declarations, and `javascript:` even when written with character references. Every `href` and CSS `url()` must point inside the file (`#id`); the one exception is an embedded PNG, JPEG, GIF or WebP on `<image>`.
   - Icons are served with the checked type, `nosniff`, a private cache and `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`, behind the session. The web shows them only in `<img>`, where scripts never run. Demo mode fetches nothing.
-- Releases will be signed and ship with an SBOM.
+- Releases are signed with cosign (keyless, by the release workflow) and ship with an SBOM and build provenance.
 
 ## Threat model
 
