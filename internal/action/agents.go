@@ -246,5 +246,8 @@ func (e *Engine) changedSince(ctx context.Context, d *Def, p *storedPlan, t Targ
 	if d.TierFor != nil {
 		tier = max(tier, d.TierFor(t))
 	}
+	if d.TierOf != nil {
+		tier = max(tier, d.TierOf(ctx, r))
+	}
 	return planHash(d.ID, t.ID, p.params, tier, e.impactOf(ctx, d, r), t.State) != p.hash
 }

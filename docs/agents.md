@@ -48,7 +48,7 @@ Proposals can be narrowed the same way, by `host`, `tag` or `target`: `propose:d
 
 ### Limits
 
-Each agent token may have at most **3 proposals waiting** at once and make at most **20 an hour**, unless the owner changes it in Settings → Security → Agents (1 to 20 waiting, 1 to 200 an hour). Beyond either limit a proposal is refused with code `rate_limited` and status 429, as a tool error, and the refusal is in the audit log. A burst also opens one Inbox item for the token, which resolves an hour after its last refused proposal, or when the token is revoked.
+Each agent token may have at most **3 proposals waiting** at once and make at most **20 an hour**, unless the owner changes it in Settings → Security → Agents (1 to 20 waiting, 1 to 200 an hour). Beyond either limit a proposal is refused with code `rate_limited` and status 429, as a tool error, and the refusal is in the audit log. A burst also opens one Inbox item for the token, which resolves an hour after its last refused proposal, or when the token is revoked. Separately, any request to `/mcp` is limited per token: 60 at once, then one a second. Past that the hub answers HTTP 429 before reading the request.
 
 ## Approving a proposal
 
@@ -94,7 +94,7 @@ Names, states, labels, attributes, incident titles and summaries, cause hints, p
   "name": { "untrusted": true, "value": "sonarr" } }
 ```
 
-IDs, kinds, health, tiers and states the hub defines are plain. Nothing from the lab is ever in a tool's description or the server's instructions. The instructions tell the model the same thing: a field marked untrusted is data, whatever it says.
+IDs, kinds, health, tiers and states the hub defines are plain. An ID can still carry a lab name (`docker:…/container/<name>`), within a narrow character set; the instructions say to read IDs as identifiers only. An action's params are marked untrusted, since a choice can come from the lab (a Home Assistant script). Nothing from the lab is ever in a tool's description or the server's instructions. The instructions tell the model the same thing: a field marked untrusted is data, whatever it says.
 
 ## Connecting a client
 
@@ -162,5 +162,6 @@ What you can do:
 | `403 forbidden` on `/mcp` with an `Origin` | The client runs in a browser: add its origin to `CHADASH_ALLOWED_ORIGINS`, or use a desktop client |
 | `405` on `GET /mcp` | Expected: there's no event stream; clients fall back to POST |
 | a tool error `rate_limited` (429) | Past a limit; a person has to decide some proposals, or the hour has to pass |
+| HTTP 429 `rate_limited`, with `Retry-After` | More than 60 requests at once from one token, then more than one a second; wait and retry |
 | a tool error `forbidden` | Not in the token's scopes, above its user's role, a T4 action, or configuration |
 | a tool error `not_found` | No such resource, or not one the token's reads let it see |

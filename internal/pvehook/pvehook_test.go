@@ -3,6 +3,7 @@ package pvehook
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -224,6 +225,29 @@ func TestHookRefusesAndAudits(t *testing.T) {
 	// Too large.
 	if w := e.call("POST", "/api/hooks/pve/proxmox-wren", secret, bytes.Repeat([]byte("a"), maxBody+1)); w.Code != 413 {
 		t.Fatalf("too large = %d", w.Code)
+	}
+	// A made-up instance answers a large body the same: no telling which exist.
+	if w := e.call("POST", "/api/hooks/pve/proxmox-nope", secret, bytes.Repeat([]byte("a"), maxBody+1)); w.Code != 413 {
+		t.Fatalf("too large, unknown instance = %d", w.Code)
+	}
+}
+
+// Wrong secrets from many addresses don't use up what PVE may send.
+func TestWrongSecretsDontUseUpTheInstance(t *testing.T) {
+	e := newEnv(t)
+	secret := e.rotate("proxmox-wren")
+	for i := range 40 {
+		r := httptest.NewRequest("POST", "/api/hooks/pve/proxmox-wren", nil)
+		r.RemoteAddr = fmt.Sprintf("10.20.31.%d:40000", i+1)
+		r.Header.Set(Header, "wrong")
+		w := httptest.NewRecorder()
+		e.mux.ServeHTTP(w, r)
+		if w.Code != 401 {
+			t.Fatalf("wrong secret %d = %d", i, w.Code)
+		}
+	}
+	if w := e.call("POST", "/api/hooks/pve/proxmox-wren", secret, nil); w.Code != 202 {
+		t.Fatalf("PVE itself = %d", w.Code)
 	}
 }
 

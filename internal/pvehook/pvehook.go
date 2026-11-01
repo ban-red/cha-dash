@@ -156,6 +156,16 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 		tooMany(w, wait)
 		return
 	}
+	// The body first, whatever the instance: a real one and a made-up one
+	// answer alike until the secret is checked.
+	if _, err := io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, maxBody)); err != nil {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			httpx.Say(w, http.StatusRequestEntityTooLarge, "too_large", msg.New("pvehook.too_large"))
+			return
+		}
+		httpx.Say(w, http.StatusBadRequest, "bad_request", msg.New("pvehook.bad_body"))
+		return
+	}
 	id := r.PathValue("instance")
 	if !instanceRE.MatchString(id) || s.inst == nil || s.vault == nil {
 		unauthorized(w)
@@ -166,18 +176,6 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 		// Unknown, or not Proxmox: the same answer as a wrong secret, and
 		// not audited (made-up IDs would fill the log).
 		unauthorized(w)
-		return
-	}
-	if ok, wait := s.perInst.Allow(id); !ok {
-		tooMany(w, wait)
-		return
-	}
-	if _, err := io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, maxBody)); err != nil {
-		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
-			httpx.Say(w, http.StatusRequestEntityTooLarge, "too_large", msg.New("pvehook.too_large"))
-			return
-		}
-		httpx.Say(w, http.StatusBadRequest, "bad_request", msg.New("pvehook.bad_body"))
 		return
 	}
 	ctx := r.Context()
@@ -203,6 +201,12 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 	if subtle.ConstantTimeCompare(a[:], b[:]) != 1 {
 		s.refused(r, id, ip.String(), "the secret is wrong")
 		unauthorized(w)
+		return
+	}
+	// Per instance only once the secret matched, so wrong guesses can't use
+	// up what PVE itself may send.
+	if ok, wait := s.perInst.Allow(id); !ok {
+		tooMany(w, wait)
 		return
 	}
 	s.touch(context.WithoutCancel(ctx), id)

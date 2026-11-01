@@ -152,3 +152,9 @@ func TestPolicyAgents(t *testing.T) {
 	bare := NewPolicy(st, nil, WithTokens(func(_ context.Context, id string) (auth.TokenAccess, error) { return access[id], nil }))
 	want(t, "no switch", bare.Authorize(ctx, ag, "docker.container.restart", "", T1), ErrForbidden)
 }
+
+func TestAgentReadsLogsNeedsTheRoleStill(t *testing.T) {
+	if !AgentReadsLogs([]string{ScopeLogsRead}, auth.RoleOperator) || AgentReadsLogs([]string{ScopeLogsRead}, auth.RoleViewer) || AgentReadsLogs([]string{ScopeGraphRead}, auth.RoleOwner) {
+		t.Fatal("logs.read needs the scope and operator or above")
+	}
+}

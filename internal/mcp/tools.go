@@ -286,7 +286,7 @@ func (s *Server) getResource(ctx context.Context, v viewer, raw json.RawMessage)
 	out := map[string]any{
 		"resource":  resourceOut(r, true),
 		"relations": gv.relations(a.Resource),
-		"causes":    causesOut(s.topics.Causes.Of(a.Resource)),
+		"causes":    causesOut(s.topics.Causes.Of(a.Resource), gv),
 	}
 	type offer struct {
 		Action      string     `json:"action"`
@@ -294,7 +294,7 @@ func (s *Server) getResource(ctx context.Context, v viewer, raw json.RawMessage)
 		Available   bool       `json:"available"`
 		Label       *Untrusted `json:"label,omitempty"`
 		Unavailable *Untrusted `json:"unavailable,omitempty"`
-		Params      any        `json:"params,omitempty"`
+		Params      *Untrusted `json:"params,omitempty"`
 	}
 	offers := []offer{}
 	if s.engine != nil {
@@ -302,7 +302,7 @@ func (s *Server) getResource(ctx context.Context, v viewer, raw json.RawMessage)
 			for _, o := range list {
 				x := offer{Action: o.ID, Tier: o.Tier.String(), Available: o.Available, Label: untrusted(o.Label), Unavailable: untrusted(o.Unavailable)}
 				if len(o.Params) > 0 {
-					x.Params = o.Params
+					x.Params = untrusted(o.Params) // a choice can come from the lab (a Home Assistant script)
 				}
 				offers = append(offers, x)
 			}
@@ -496,7 +496,7 @@ func (s *Server) readResource(ctx context.Context, v viewer, params json.RawMess
 			if !gv.sees(arg) {
 				err = refusal("not_found", 404, msg.New("agents.mcp_not_visible"))
 			} else {
-				body = map[string]any{"resource": arg, "causes": causesOut(s.topics.Causes.Of(arg))}
+				body = map[string]any{"resource": arg, "causes": causesOut(s.topics.Causes.Of(arg), gv)}
 			}
 		}
 	case kind == "proposals" && arg != "":

@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/topics"
 )
 
 func TestScrub(t *testing.T) {
@@ -92,5 +94,19 @@ func TestOriginOK(t *testing.T) {
 		if got := s.originOK(r, c.origin); got != c.ok {
 			t.Errorf("Host %s, Origin %s: %v", c.host, c.origin, got)
 		}
+	}
+}
+
+// A cause on, or through, something the token can't see is left out: its
+// text names what's on the path.
+func TestCausesOnlyWhatTheTokenSees(t *testing.T) {
+	gv := &view{doc: graph.Doc{Resources: map[graph.RID]*graph.Resource{"a": {ID: "a"}, "b": {ID: "b"}}}, reads: []authz.Scope{{Action: "graph.read"}}}
+	got := causesOut([]topics.Cause{
+		{Resource: "b", Text: "B is down.", Path: []topics.Step{{From: "a", Type: "runs_on", To: "b"}}},
+		{Resource: "hidden", Text: "Hidden is down."},
+		{Resource: "b", Text: "Through hidden.", Path: []topics.Step{{From: "a", Type: "runs_on", To: "hidden"}, {From: "hidden", Type: "runs_on", To: "b"}}},
+	}, gv)
+	if len(got) != 1 || got[0].Text.Value != "B is down." {
+		t.Fatalf("%+v", got)
 	}
 }

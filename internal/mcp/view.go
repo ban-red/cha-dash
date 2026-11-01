@@ -146,7 +146,7 @@ type viewer struct {
 
 func (v viewer) graphReads() []authz.Scope { return authz.AgentReads(v.scopes, authz.ScopeGraphRead) }
 func (v viewer) inboxReads() []authz.Scope { return authz.AgentReads(v.scopes, authz.ScopeInboxRead) }
-func (v viewer) logs() bool                { return authz.HasScope(v.scopes, authz.ScopeLogsRead) }
+func (v viewer) logs() bool                { return authz.AgentReadsLogs(v.scopes, v.role) }
 
 // view is the graph one viewer may read, with what narrowing needs.
 type view struct {
@@ -421,9 +421,14 @@ type Cause struct {
 	Path     []Relation `json:"path,omitempty"`
 }
 
-func causesOut(cs []topics.Cause) []Cause {
+// causesOut is cs as gv may see them. A cause on a resource gv doesn't
+// see, or through one, is left out: its text names what's on the path.
+func causesOut(cs []topics.Cause, gv *view) []Cause {
 	out := make([]Cause, 0, len(cs))
 	for _, c := range cs {
+		if !gv.sees(c.Resource) || slices.ContainsFunc(c.Path, func(p topics.Step) bool { return !gv.sees(p.From) || !gv.sees(p.To) }) {
+			continue
+		}
 		x := Cause{Resource: c.Resource, Rule: c.Rule, Text: untrusted(c.Text)}
 		if !c.At.IsZero() {
 			at := c.At

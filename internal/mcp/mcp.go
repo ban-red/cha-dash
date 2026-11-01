@@ -34,7 +34,9 @@ import (
 	"net/netip"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/auth"
@@ -80,12 +82,23 @@ type Server struct {
 	agentsOn  func(ctx context.Context) (bool, error)
 	origins   []string
 	log       *slog.Logger
-	tools     []tool
+	// perToken bounds requests per agent token: every call can plan,
+	// audit a refusal and ask the lab, whatever the propose limits say.
+	perToken *httpx.Limiter
+	tools    []tool
 }
+
+// An agent token may send RequestBurst requests at once, then one per
+// RequestEvery.
+const (
+	RequestBurst = 60
+	RequestEvery = time.Second
+)
 
 // New returns a Server.
 func New(o Options) *Server {
-	s := &Server{engine: o.Engine, topics: o.Topics, boards: o.Boards, inboxView: o.InboxView, agentsOn: o.AgentsOn, log: o.Log}
+	s := &Server{engine: o.Engine, topics: o.Topics, boards: o.Boards, inboxView: o.InboxView, agentsOn: o.AgentsOn, log: o.Log,
+		perToken: httpx.NewLimiter(RequestBurst, RequestEvery)}
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
 	}
@@ -163,6 +176,11 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	id, ok := auth.FromContext(ctx)
 	if !ok || id.Token == nil || id.Token.Kind != auth.KindAgent {
 		httpx.Say(w, http.StatusForbidden, "agent_token_only", msg.New("agents.not_agent_token"))
+		return
+	}
+	if ok, wait := s.perToken.Allow(id.Token.ID); !ok {
+		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+		httpx.Say(w, http.StatusTooManyRequests, "rate_limited", msg.New("agents.mcp_rate_limited"))
 		return
 	}
 	if origin := r.Header.Get("Origin"); origin != "" && !s.originOK(r, origin) {

@@ -210,3 +210,10 @@ func WithTargetFacts(f func(ctx context.Context, target string) TargetFacts) Pol
 
 // refuse is a Refusal with a catalog sentence.
 func refuse(err error, m msg.M) *Refusal { return &Refusal{Err: err, Msg: m.Text()} }
+
+// AgentReadsLogs reports whether an agent token with scopes, held by a
+// user whose role is now role, may read task logs: logs.read, and still
+// the role it needs. A user demoted since minting loses it.
+func AgentReadsLogs(scopes []string, role string) bool {
+	return HasScope(scopes, ScopeLogsRead) && rank(role) >= rank(auth.RoleOperator)
+}

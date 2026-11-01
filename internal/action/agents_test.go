@@ -315,3 +315,29 @@ func TestCleanRationale(t *testing.T) {
 		}
 	}
 }
+
+// TierOf counts at approval too: unchanged, the approval fits; raised since
+// the proposal, it's void.
+func TestAgentApprovalRechecksTierOf(t *testing.T) {
+	var ran []string
+	tier := T1
+	def := restartDef(&ran)
+	def.TierOf = func(context.Context, Request) Tier { return tier }
+	e, _ := newAgentEnv(t, nil, def)
+	p, apv, err := e.propose(agent, "proxmox.guest.restart", "proxmox:i_x/qemu/201", "Stuck.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tier = T3
+	if _, err := e.e.Grant(t.Context(), owner, apv.ID, ApproveRequest{Hash: p.Hash}); refusal(t, err, "plan_changed") == nil {
+		t.Fatal("approved after TierOf raised the tier")
+	}
+	tier = T1
+	p, apv, err = e.propose(agent, "proxmox.guest.restart", "proxmox:i_x/qemu/201", "Stuck again.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.e.Grant(t.Context(), owner, apv.ID, ApproveRequest{Hash: p.Hash}); err != nil {
+		t.Fatalf("unchanged TierOf: %v", err)
+	}
+}

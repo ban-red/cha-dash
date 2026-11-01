@@ -13,6 +13,7 @@ import (
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/mcp"
 	"dash.cha.sh/internal/topics"
 )
 
@@ -584,5 +585,29 @@ func TestAgentTokenMinting(t *testing.T) {
 		if status, code, _ := e.call(t, withToken(nil, secret), "GET", path, nil); status != http.StatusForbidden || code != "agent_mcp_only" {
 			t.Errorf("GET %s with an agent token: %d %s", path, status, code)
 		}
+	}
+}
+
+// An agent token sending too fast gets 429 before anything is planned or
+// audited; another token isn't affected.
+func TestMCPRateLimitsPerToken(t *testing.T) {
+	e, _ := fullEnv(t)
+	owner := signIn(t, e)
+	agentsOn(t, e, owner, true)
+	_, s1 := mintAgent(t, e, owner, "fast", "graph.read")
+	_, s2 := mintAgent(t, e, owner, "calm", "graph.read")
+	fast, calm := withToken(nil, s1), withToken(nil, s2)
+	limited := false
+	for range mcp.RequestBurst + 5 {
+		if status, _, _ := mcpCall(t, e, fast, "tools/list", nil); status == http.StatusTooManyRequests {
+			limited = true
+			break
+		}
+	}
+	if !limited {
+		t.Fatal("a burst past the limit wasn't refused")
+	}
+	if status, _, raw := mcpCall(t, e, calm, "tools/list", nil); status != http.StatusOK {
+		t.Fatalf("another token: %d %s", status, raw)
 	}
 }
