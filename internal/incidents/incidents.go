@@ -5,7 +5,8 @@
 //
 // The Recorder watches the inbox topic and writes an event whenever an
 // incident opens, changes severity or phase, gains a cause, opens inside a
-// maintenance window (Expectations) or resolves. The Store reads them back
+// maintenance window (Expectations) or resolves. Acks records an
+// acknowledgement as a person makes it (ack.go). The Store reads them back
 // for the timeline (GET /api/timeline) and the morning digest, and prunes
 // them by age.
 package incidents

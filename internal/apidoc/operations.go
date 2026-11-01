@@ -1,6 +1,7 @@
 package apidoc
 
 import (
+	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/pvehook"
 	"dash.cha.sh/internal/timeline"
@@ -34,6 +35,10 @@ func init() {
 			Resp: pvehook.View{}, Errors: []string{"not_found", "not_proxmox", "unavailable"}},
 		"DELETE /api/integrations/instances/{id}/pve-hook": {Summary: "Remove a Proxmox instance's webhook secret; the webhook refuses everything until a new one.",
 			Errors: []string{"not_found", "not_proxmox", "not_set"}},
+		"POST /api/inbox/{id}/acknowledge": {Summary: "Acknowledge an open problem in the Inbox: it shows who is on it, and stops notifying while it stays open. Operator and up.",
+			Body: incidents.AckRequest{}, Resp: incidents.AckResponse{}, Errors: []string{"not_found", "not_acknowledgeable", "resolved", "already_acknowledged", "invalid"}},
+		"DELETE /api/inbox/{id}/acknowledge": {Summary: "Take back an incident's acknowledgement; notifications follow their rules again.",
+			Resp: incidents.AckResponse{}, Errors: []string{"not_found", "not_acknowledged"}},
 		"GET /api/notify/digest": {Summary: "The morning digest: its time in the hub's time zone, all quiet, and when it last went and goes next.", Resp: notify.DigestView{}},
 		"PUT /api/notify/digest": {Summary: "Change the digest's time or all quiet. Its rule, digest, turns it on and routes it.",
 			Body: notify.DigestUpdate{}, Resp: notify.DigestView{}, Errors: []string{"bad_time", "nothing_to_change"}},

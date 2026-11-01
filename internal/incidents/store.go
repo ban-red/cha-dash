@@ -228,6 +228,11 @@ type Data struct {
 	Window string `json:"window,omitempty"`
 	// Resolved: "action" or "auto", as the incident says.
 	By string `json:"by,omitempty"`
+	// Acknowledged: the username of who acknowledged it (or, with
+	// Cleared, who took the acknowledgement back), and their note.
+	Who     string `json:"who,omitempty"`
+	Note    string `json:"note,omitempty"`
+	Cleared bool   `json:"cleared,omitempty"`
 }
 
 // DataOf decodes an event's data; a malformed one reads as empty.

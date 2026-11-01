@@ -15,9 +15,18 @@
  * step and progress, and Cancel while it runs when its action allows it. It
  * isn't a live region: TaskPresence announces step changes once, for every view. The
  * resolution arrives live from the `inbox` topic.
+ *
+ * An open problem can be acknowledged (operator and up): "I'm on it", with an
+ * optional note. The item then says who and when, notifications stop
+ * repeating it, and Take back undoes it. Resolving clears it.
+ *
+ *   POST   /api/inbox/{id}/acknowledge  {note?}
+ *   DELETE /api/inbox/{id}/acknowledge
  */
-import { computed } from 'vue';
+import { computed, nextTick, ref, useTemplateRef } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
+import { api } from '../lib/api';
+import { hubWords } from '../lib/actions';
 import { hhmm, since } from '../lib/format';
 import { label } from '../model/graph';
 import { glyphFor } from '../model/status';
@@ -27,6 +36,7 @@ import { useLive } from '../stores/live';
 import { canMute, isMarked, mute, unmute } from '../stores/muted';
 import { useUi } from '../stores/ui';
 import UiButton from '../ui/Button.vue';
+import UiField from '../ui/Field.vue';
 
 const { incident, expanded = false } = defineProps<{ incident: Incident; expanded?: boolean }>();
 const emit = defineEmits<{ toggle: [] }>();
@@ -91,14 +101,77 @@ const demoRepairAction = computed(() => (isRepair.value && live.demo.value && ac
 const runnable = (a: Action) => ui.canRun(incident, a);
 const whenText = computed(() => (isResolved.value ? hhmm(incident.resolved_at ?? incident.updated_at) : hhmm(incident.opened_at)));
 const id = computed(() => `ib-${incident.id}`);
+
+/** Someone is on it: who, when, and their note. */
+const ack = computed(() => (!isResolved.value && incident.class === 'problem' ? (incident.acknowledged ?? undefined) : undefined));
+const ackWords = computed(() => (ack.value ? `Acknowledged by ${ack.value.by} at ${hhmm(ack.value.at)}` : ''));
+const canAck = computed(() => ui.can.value.acknowledge && !isResolved.value && incident.class === 'problem');
+const acking = ref(false);
+const ackNote = ref('');
+const ackBusy = ref(false);
+const ackError = ref('');
+const root = useTemplateRef<HTMLElement>('root');
+const ackPath = computed(() => `/api/inbox/${encodeURIComponent(incident.id)}/acknowledge`);
+
+async function focusIn(selector: string): Promise<void> {
+  await nextTick();
+  root.value?.querySelector<HTMLElement>(selector)?.focus();
+}
+
+function startAck(): void {
+  acking.value = true;
+  ackError.value = '';
+  void focusIn('.ib-ack-form input');
+}
+
+function cancelAck(): void {
+  acking.value = false;
+  void focusIn('.ib-ack-btn');
+}
+
+async function acknowledge(): Promise<void> {
+  if (ackBusy.value) return;
+  ackBusy.value = true;
+  ackError.value = '';
+  try {
+    const note = ackNote.value.trim();
+    await api(ackPath.value, { method: 'POST', body: note ? { note } : {} });
+    ui.toast(`Acknowledged: ${incident.title}. It won’t notify again while it stays open.`);
+    acking.value = false;
+    ackNote.value = '';
+    void focusIn('.ib-unack-btn');
+  } catch (err) {
+    ackError.value = hubWords(err, 'It wasn’t acknowledged.');
+  } finally {
+    ackBusy.value = false;
+  }
+}
+
+async function takeBack(): Promise<void> {
+  if (ackBusy.value) return;
+  ackBusy.value = true;
+  ackError.value = '';
+  try {
+    await api(ackPath.value, { method: 'DELETE' });
+    ui.toast(`No longer acknowledged: ${incident.title}.`);
+    void focusIn('.ib-ack-btn');
+  } catch (err) {
+    ackError.value = hubWords(err, 'The acknowledgement wasn’t taken back.');
+  } finally {
+    ackBusy.value = false;
+  }
+}
 </script>
 
 <template>
-  <div :class="['ib', { open: expanded, repair: isRepair }]">
+  <div ref="root" :class="['ib', { open: expanded, repair: isRepair }]">
     <Glyph :kind="glyph" :label="glyphLabel" />
     <div>
       <button type="button" class="ib-title" :aria-expanded="expanded" :aria-controls="id" @click="emit('toggle')">{{ incident.title }}</button>
       <div class="m">{{ isResolved && incident.resolution ? incident.resolution : incident.summary }}</div>
+      <div v-if="ack" class="m ib-ack">
+        <Glyph kind="ok" /> {{ ackWords }}<template v-if="ack.note">: <q>{{ ack.note }}</q></template>
+      </div>
     </div>
     <span class="when" :title="isResolved ? 'resolved' : 'opened'"><span v-if="isRepair && !isResolved" class="ib-kind">Repair · </span>{{ whenText }}</span>
 
@@ -159,6 +232,26 @@ const id = computed(() => `ib-${incident.id}`);
         <UiButton v-if="recipe && ui.can.value.integrations" size="sm" @click="ui.openSettings('integrations', recipe, { section: 'control' })">Open its settings</UiButton>
       </div>
 
+      <div v-if="canAck" class="ib-ack-acts">
+        <template v-if="ack">
+          <UiButton variant="ghost" size="sm" class="ib-unack-btn" :disabled="ackBusy || live.stale.value" @click="takeBack">Take back the acknowledgement</UiButton>
+        </template>
+        <UiButton v-else-if="!acking" size="sm" class="ib-ack-btn" :disabled="live.stale.value" @click="startAck">Acknowledge</UiButton>
+        <form v-else class="ib-ack-form" novalidate @submit.prevent="acknowledge">
+          <UiField>
+            <template #label>Note <span class="opt-word">optional, shown in the Inbox and the timeline</span></template>
+            <template #default="{ control }">
+              <input v-bind="control" v-model="ackNote" type="text" maxlength="300" autocomplete="off" />
+            </template>
+          </UiField>
+          <div class="st-acts">
+            <UiButton size="sm" type="submit" variant="primary" :disabled="ackBusy">Acknowledge</UiButton>
+            <UiButton variant="ghost" size="sm" @click="cancelAck">Cancel</UiButton>
+          </div>
+        </form>
+        <p v-if="ackError" class="err" role="alert">{{ ackError }}</p>
+      </div>
+
       <p v-if="sheetName || hideable" class="sheet-link">
         <UiButton v-if="sheetName" size="sm" @click="ui.openSheet(incident.target)">Open {{ sheetName }}</UiButton>
         <UiButton v-if="hideable" variant="ghost" size="sm" :aria-pressed="marked" @click="toggleHidden">
@@ -206,3 +299,26 @@ const id = computed(() => `ib-${incident.id}`);
     </div>
   </div>
 </template>
+
+<style>
+.ib-ack {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  color: var(--text-2);
+}
+.ib-ack q {
+  overflow-wrap: anywhere;
+}
+.ib-ack-acts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ib-ack-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+</style>

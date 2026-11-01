@@ -43,6 +43,8 @@ type Doc struct {
 	colls    map[string]map[string]json.RawMessage
 	watchers map[*Watcher]struct{}
 	diff     differ // scratch space for Update
+	// keep holds each collection's Keep function, if any.
+	keep map[string]func(cur, next json.RawMessage) json.RawMessage
 }
 
 // New returns an empty document at version 0. The named collections are
@@ -53,6 +55,25 @@ func New(collections ...string) *Doc {
 		d.colls[c] = map[string]json.RawMessage{}
 	}
 	return d
+}
+
+// Keep installs f for coll: every Put to coll stores f(cur, next) instead
+// of next, where cur is the item as the batch sees it (or, after a Clear
+// in the same batch, as the document has it), nil when there's none. It
+// lets one writer own a field of an item that other writers replace whole:
+// f carries the field over. f runs under the document's lock and must not
+// call back into it. Nil removes it.
+func (d *Doc) Keep(coll string, f func(cur, next json.RawMessage) json.RawMessage) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if f == nil {
+		delete(d.keep, coll)
+		return
+	}
+	if d.keep == nil {
+		d.keep = map[string]func(cur, next json.RawMessage) json.RawMessage{}
+	}
+	d.keep[coll] = f
 }
 
 // Version returns the current version.
@@ -203,6 +224,13 @@ func (tx *Tx) Put(coll, key string, v any) {
 	if err != nil {
 		tx.fail(fmt.Errorf("livedoc: %s/%s: %w", coll, key, err))
 		return
+	}
+	if f := tx.d.keep[coll]; f != nil {
+		cur := tx.Item(coll, key)
+		if cur == nil {
+			cur = tx.d.colls[coll][key] // cleared earlier in this batch
+		}
+		b = f(cur, b)
 	}
 	tx.items[itemKey{coll, key}] = b
 }

@@ -356,6 +356,9 @@ type Incident struct {
 	Summary      *Untrusted `json:"summary,omitempty"`
 	ResolvesWhen *Untrusted `json:"resolves_when,omitempty"`
 	BlastRadius  []string   `json:"blast_radius,omitempty"`
+	// Acknowledged: a person said they're on it. Who, and their note, stay
+	// with people.
+	Acknowledged bool `json:"acknowledged"`
 }
 
 // incidents are the open incidents v may read: the inbox as its role sees
@@ -376,8 +379,9 @@ func (s *Server) incidents(ctx context.Context, v viewer) []Incident {
 	for _, raw := range items {
 		var in struct {
 			ID, Class, Severity, Status, Category, Target, Title, Summary string
-			OpenedAt                                                      string `json:"opened_at"`
-			ResolvesWhen                                                  string `json:"resolves_when"`
+			OpenedAt                                                      string          `json:"opened_at"`
+			ResolvesWhen                                                  string          `json:"resolves_when"`
+			Acknowledged                                                  json.RawMessage `json:"acknowledged"`
 			BlastRadius                                                   []struct {
 				Resource string `json:"resource"`
 			} `json:"blast_radius"`
@@ -389,7 +393,8 @@ func (s *Server) incidents(ctx context.Context, v viewer) []Incident {
 			continue
 		}
 		it := Incident{ID: in.ID, Class: in.Class, Severity: in.Severity, Status: in.Status, Category: in.Category, Target: in.Target,
-			OpenedAt: in.OpenedAt, Title: untrusted(in.Title), Summary: untrusted(in.Summary), ResolvesWhen: untrusted(in.ResolvesWhen)}
+			OpenedAt: in.OpenedAt, Title: untrusted(in.Title), Summary: untrusted(in.Summary), ResolvesWhen: untrusted(in.ResolvesWhen),
+			Acknowledged: len(in.Acknowledged) > 0 && string(in.Acknowledged) != "null"}
 		for _, b := range in.BlastRadius {
 			if gv.sees(b.Resource) || unqualified(reads) {
 				it.BlastRadius = append(it.BlastRadius, b.Resource)

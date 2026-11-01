@@ -78,6 +78,8 @@ export interface Permissions {
   approve: boolean;
   /** Run actions that read data back, such as a container's logs (`Def.ReadsData`): Operator and up. */
   readData: boolean;
+  /** Acknowledge an open problem in the Inbox, or take that back: Operator and up. */
+  acknowledge: boolean;
   /** Can this role run an action of this tier (household: only actions marked for it)? */
   act(tier: Tier | string, household?: boolean): boolean;
   /** Which settings panes to list. */
@@ -106,6 +108,7 @@ export function permissions(role: string | undefined): Permissions {
     approve: admin,
     objectives: admin,
     readData: admin || r === 'operator',
+    acknowledge: admin || r === 'operator',
     act: (tier, household) => {
       const n = tierN(tier);
       if (r === 'household') return n === 0 || household === true;

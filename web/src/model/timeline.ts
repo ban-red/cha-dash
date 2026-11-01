@@ -14,7 +14,7 @@ export type TimelineKind = 'incident' | 'cause' | 'action' | 'state' | 'window';
 export interface TimelineEntry {
   at: string;
   kind: TimelineKind;
-  /** incident: opened, changed, caused, acknowledged, expected, resolved; action: ok, failed; window: start, end. */
+  /** incident: opened, changed, caused, acknowledged, unacknowledged, expected, resolved; action: ok, failed; window: start, end. */
   event?: string;
   resource?: string;
   incident?: string;
@@ -91,6 +91,7 @@ export function markWord(e: TimelineEntry): string {
     case 'state':
       return 'health';
     default:
+      if (e.event === 'acknowledged' || e.event === 'unacknowledged') return 'acknowledged';
       return e.event === 'resolved' ? 'resolved' : 'incident';
   }
 }

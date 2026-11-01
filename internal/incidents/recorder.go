@@ -28,8 +28,11 @@ type RecorderOptions struct {
 	// Expect says whether an incident opened inside a maintenance window.
 	// Nil expects nothing.
 	Expect *Expectations
-	Log    *slog.Logger
-	Now    func() time.Time
+	// Acks, when set, gets back the acknowledgements still in force after
+	// a restart, and puts them on their incidents as they reappear.
+	Acks *Acks
+	Log  *slog.Logger
+	Now  func() time.Time
 }
 
 // Recorder watches the inbox and writes each incident's lifecycle to the
@@ -38,12 +41,12 @@ type RecorderOptions struct {
 // (a snapshot whenever its version moves), so it sees every source without
 // any of them knowing about it.
 //
-// Nothing records "acknowledged" yet: the hub has no acknowledgement. The
-// kind is in the table for when it does.
+// Acknowledgements are recorded by Acks as people make them, not here.
 type Recorder struct {
 	store  *Store
 	inbox  *livedoc.Doc
 	expect *Expectations
+	acks   *Acks
 	log    *slog.Logger
 	now    func() time.Time
 
@@ -63,7 +66,7 @@ type known struct {
 
 // NewRecorder returns a recorder; Run starts it.
 func NewRecorder(o RecorderOptions) *Recorder {
-	r := &Recorder{store: o.Store, inbox: o.Inbox, expect: o.Expect, log: o.Log, now: o.Now, seen: map[string]*known{}}
+	r := &Recorder{store: o.Store, inbox: o.Inbox, expect: o.Expect, acks: o.Acks, log: o.Log, now: o.Now, seen: map[string]*known{}}
 	if r.log == nil {
 		r.log = slog.New(slog.DiscardHandler)
 	}
@@ -101,11 +104,15 @@ func (r *Recorder) Step(ctx context.Context) {
 	if r.inbox != nil {
 		if v := r.inbox.Version(); v != r.lastVersion {
 			_, doc := r.inbox.Snapshot()
-			evs := r.observe(now, parse(doc["incidents"]))
+			incs := parse(doc[inboxColl])
+			evs := r.observe(now, incs)
 			if err := r.store.Append(ctx, evs...); err != nil {
 				r.log.Error("incidents: recording events failed", "err", err)
 			} else {
 				r.lastVersion = v
+			}
+			if r.acks != nil {
+				r.acks.reconcile(incs, r.store.Keep())
 			}
 		}
 	}
@@ -150,6 +157,15 @@ func (r *Recorder) prime(ctx context.Context, now time.Time) error {
 		}
 	}
 	r.seen = seen
+	if r.acks != nil {
+		acks := openAcks(evs)
+		for id := range acks {
+			if k := seen[id]; k == nil || !k.open {
+				delete(acks, id)
+			}
+		}
+		r.acks.restore(acks)
+	}
 	return nil
 }
 

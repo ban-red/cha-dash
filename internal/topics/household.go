@@ -45,8 +45,8 @@ var householdFields = []string{"id", "scenario", "class", "severity", "status", 
 // integration's credentials, nor the correlator's suggestions), never a
 // security finding, and only when the incident's target or a resource in
 // its blast radius is relevant. The projection keeps householdFields; facts,
-// causes, the blast radius, the summary, what resolves it and the
-// resolution are left out (causes and blast_radius as empty lists, summary
+// causes, the blast radius, the summary, what resolves it, the resolution
+// and an acknowledgement's note are left out (causes and blast_radius as empty lists, summary
 // and resolves_when as "", so the shape still parses as an incident).
 // Actions are kept only when marked household: true, without their detail
 // or impact.
@@ -85,6 +85,10 @@ func ProjectIncident(raw json.RawMessage, relevant func(resource string) bool) (
 			out[k] = v
 		}
 	}
+	// Who is on it, and since when, but not their note.
+	if ack, ok := householdAck(in["acknowledged"]); ok {
+		out["acknowledged"] = ack
+	}
 	out["summary"] = json.RawMessage(`""`)
 	out["resolves_when"] = json.RawMessage(`""`)
 	out["causes"] = json.RawMessage(`[]`)
@@ -105,6 +109,19 @@ func ProjectIncident(raw json.RawMessage, relevant func(resource string) bool) (
 		}
 	}
 	b, err := json.Marshal(out)
+	return b, err == nil
+}
+
+// householdAck keeps an acknowledgement's who and when.
+func householdAck(raw json.RawMessage) (json.RawMessage, bool) {
+	var a struct {
+		By string `json:"by"`
+		At string `json:"at"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &a) != nil || a.By == "" {
+		return nil, false
+	}
+	b, err := json.Marshal(a)
 	return b, err == nil
 }
 

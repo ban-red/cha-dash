@@ -16,6 +16,7 @@ Cha Dash ships no model and calls no model provider. Whatever an agent reads goe
 **It can't:**
 
 - run anything without a person's approval, at any tier, T1 included. There is no auto-approve;
+- acknowledge an incident. Incidents it reads say `"acknowledged": true` when a person is on one, never who or their note;
 - approve or deny a proposal, its own or anyone's. Only a person signed in to Cha Dash can;
 - propose a T4 action, change configuration (users, roles, tokens, integrations, settings, owned stacks) or update Cha Dash itself;
 - do more than the user who made its token, whose current role counts (a demotion applies at once);

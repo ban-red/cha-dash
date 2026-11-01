@@ -128,6 +128,7 @@ func fullEnvTopics(t *testing.T) (*env, *store.Store, *topics.Set) {
 			t.Fatal(err)
 		}
 		d.Backups = cover
+		d.Acks = incidents.NewAcks(incidents.AcksOptions{Store: incidents.NewStore(d.Store), Inbox: tp.Inbox, Log: d.Log})
 		d.Specs = specstore.New(specstore.Options{Store: d.Store, Registry: integration.NewRegistry(), Log: d.Log})
 		nt, err := notify.New(t.Context(), notify.Options{Store: d.Store, Vault: v, Log: d.Log})
 		if err != nil {

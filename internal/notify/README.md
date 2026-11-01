@@ -22,6 +22,8 @@ Symptoms, not causes ([02 · Experience → Voice and copy](../../docs/plan/02-e
 
 **Maintenance windows.** With `Options.Expected` (an `incidents.Expectations` the rollouts track fills), an incident that opens while its target is expected doesn't notify, and no grace runs; once it stops being expected the rules apply as usual, so one still open after the window notifies then.
 
+**Acknowledged** (`internal/incidents`): an open problem someone acknowledged proposes nothing while it stays acknowledged: no attention notice after the grace, no escalation to down. Taking the acknowledgement back lets the rules apply again (an attention grace that ran out notifies then); its resolution is still sent when its opening was. The digest lists acknowledged problems apart, as "Acknowledged, someone is on it" with who, not under "Open now".
+
 **Never:** hints (an open `info` problem nothing is working on; `web/src/model/inbox.ts` `isHint`), anything at `info` (settling incidents included), the correlator's suggestions, or an incident that was already resolved when first seen. The security posture already decides a security finding's severity: under Relaxed every finding is `info`, a hint, so it never notifies; under Standard or Strict an `attention` finding follows the attention rule like any other problem.
 
 **One message per incident per transition.** Each decision is a row in `notify_events`. A transition isn't sent again for the same incident within 24 hours unless it resolved in between, which is also what stops a restart from repeating every open problem. A resolution is only sent when the opening was.

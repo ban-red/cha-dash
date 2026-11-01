@@ -447,6 +447,10 @@ var Routes = []Route{
 	// call them too; the web app uses the socket.
 	{Pattern: "GET /api/graph", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /api/inbox", Access: SignedIn, Token: ScopeInboxRead},
+	// Acknowledging an incident (wave 31): operator and up, in a session,
+	// audited. Never a token or an agent (internal/incidents/http.go).
+	{Pattern: "POST /api/inbox/{id}/acknowledge", Access: Operator},
+	{Pattern: "DELETE /api/inbox/{id}/acknowledge", Access: Operator},
 	// Cause hints, as the causes topic: household's only for what its
 	// graph shows (server/reads.go).
 	{Pattern: "GET /api/causes", Access: SignedIn, Token: ScopeGraphRead},

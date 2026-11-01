@@ -535,7 +535,10 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if upd != nil {
 		expect.Set(incidents.ExpecterFunc(upd.Expected))
 	}
-	incRec := incidents.NewRecorder(incidents.RecorderOptions{Store: inc, Inbox: tp.Inbox, Expect: expect, Log: log.With("component", "incidents")})
+	// Acknowledgements ride on the inbox's items; the recorder puts them
+	// back after a restart.
+	acks := incidents.NewAcks(incidents.AcksOptions{Store: inc, Inbox: tp.Inbox, Log: log.With("component", "incidents")})
+	incRec := incidents.NewRecorder(incidents.RecorderOptions{Store: inc, Inbox: tp.Inbox, Expect: expect, Acks: acks, Log: log.With("component", "incidents")})
 	// Notifications: the inbox's transitions (each device hears what its
 	// user's role sees) and every T4 action, from the engine below.
 	nt, err := notify.New(ctx, notify.Options{Store: st, Vault: v, Inbox: tp.Inbox, InboxView: server.InboxView(bs, g, log),
@@ -663,6 +666,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Icons:          icn,
 		History:        rec,
 		Incidents:      inc,
+		Acks:           acks,
 		PVEHooks:       pveHooks(cfg, st, v, mgr, proxies, log),
 	})
 	if err != nil {

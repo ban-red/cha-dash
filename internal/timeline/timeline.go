@@ -44,7 +44,7 @@ type Entry struct {
 	At   time.Time `json:"at"`
 	Kind string    `json:"kind"`
 	// Event is what happened, by kind: an incident event's kind (opened,
-	// changed, caused, acknowledged, expected, resolved); an action's
+	// changed, caused, acknowledged, unacknowledged, expected, resolved); an action's
 	// result (ok, failed); a window's start or end. Empty for a state.
 	Event    string `json:"event,omitempty"`
 	Resource string `json:"resource,omitempty"`
@@ -234,7 +234,16 @@ func (b *builder) incident(e incidents.Event) {
 		}
 		b.add(en, msg.New("timeline.caused", "title", title, "cause", cmp.Or(d.Text, b.name(d.Resource))))
 	case incidents.Acknowledged:
-		b.add(en, msg.New("timeline.acknowledged", "title", title))
+		en.Actor = d.Who
+		switch {
+		case d.Cleared:
+			en.Event = "unacknowledged"
+			b.add(en, msg.New("timeline.unacknowledged", "title", title, "who", cmp.Or(d.Who, "someone")))
+		case d.Note != "" && b.v.Whole:
+			b.add(en, msg.New("timeline.ack_note", "title", title, "who", cmp.Or(d.Who, "someone"), "note", d.Note))
+		default:
+			b.add(en, msg.New("timeline.acknowledged", "title", title, "who", cmp.Or(d.Who, "someone")))
+		}
 	case incidents.Expected:
 		en.Window = d.Window
 		b.add(en, msg.New("timeline.expected", "title", title))

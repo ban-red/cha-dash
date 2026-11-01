@@ -201,6 +201,9 @@ type Deps struct {
 	// timeline reads it and Settings → History sets its retention. Nil
 	// leaves incidents out of the timeline.
 	Incidents *incidents.Store
+	// Acks acknowledges incidents (POST and DELETE
+	// /api/inbox/{id}/acknowledge). Nil leaves them unmounted.
+	Acks *incidents.Acks
 	// PVEHooks receives Proxmox VE's notifications (internal/pvehook). Nil
 	// leaves /api/hooks/pve and the instances' pve-hook routes unmounted.
 	PVEHooks *pvehook.Service
@@ -387,6 +390,10 @@ func New(d Deps) (http.Handler, error) {
 	if d.Backups != nil {
 		d.Backups.Audit = rec
 		d.Backups.Register(mux, session)
+	}
+	if d.Acks != nil {
+		d.Acks.Audit = rec
+		d.Acks.Register(mux, session)
 	}
 	if d.Specs != nil {
 		d.Specs.Audit = rec

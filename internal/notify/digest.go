@@ -170,7 +170,8 @@ func (s *Service) digestStep(ctx context.Context, now time.Time) {
 		s.log.Error("notify: recording the digest failed", "err", err)
 		return
 	}
-	in := digestInput{since: since, now: now, loc: s.loc, open: openProblems(s.incs)}
+	open, acked := openProblems(s.incs)
+	in := digestInput{since: since, now: now, loc: s.loc, open: open, acked: acked}
 	if src.Overnight != nil {
 		list, err := src.Overnight(ctx, since, now)
 		if err != nil {
@@ -209,16 +210,20 @@ const timelinePath = "/settings/timeline"
 
 // openProblems are the open incidents worth naming: problems and repairs
 // at attention or down (not hints, not the correlator's suggestions or
-// approvals).
-func openProblems(incs map[string]incident) []incident {
-	var out []incident
+// approvals). Those someone acknowledged come apart: they're named as
+// being looked after, not as needing attention.
+func openProblems(incs map[string]incident) (open, acked []incident) {
 	for _, id := range sortedIDs(incs) {
 		in := incs[id]
 		if in.Status == "open" && (in.Class == "problem" || in.Class == "repair") && (in.Severity == "down" || in.Severity == "attention") {
-			out = append(out, in)
+			if in.Class == "problem" && in.Acknowledged != nil {
+				acked = append(acked, in)
+			} else {
+				open = append(open, in)
+			}
 		}
 	}
-	return out
+	return open, acked
 }
 
 type digestInput struct {
@@ -226,6 +231,7 @@ type digestInput struct {
 	loc        *time.Location
 	overnight  []DigestIncident
 	open       []incident
+	acked      []incident // open, but someone is on them
 	updates    int
 	stale      []string
 }
@@ -234,7 +240,7 @@ type digestInput struct {
 // send: something opened, something is open, an update waits or a backup
 // is stale; or nothing, and allQuiet asks for that too.
 func composeDigest(in digestInput, allQuiet bool) (Event, bool) {
-	quiet := len(in.overnight) == 0 && len(in.open) == 0 && in.updates == 0 && len(in.stale) == 0
+	quiet := len(in.overnight) == 0 && len(in.open) == 0 && len(in.acked) == 0 && in.updates == 0 && len(in.stale) == 0
 	if quiet {
 		if !allQuiet {
 			return Event{}, false
@@ -262,9 +268,12 @@ func composeDigest(in digestInput, allQuiet bool) (Event, bool) {
 			lines = append(lines, msg.New("digest.overnight_item", "title", clip(o.Title, 120)).Text())
 		}
 	}
-	if len(in.open) == 0 {
+	switch {
+	case len(in.open) == 0 && len(in.acked) > 0:
+		lines = append(lines, msg.New("digest.open_none_unacked").Text())
+	case len(in.open) == 0:
 		lines = append(lines, msg.New("digest.open_none").Text())
-	} else {
+	default:
 		lines = append(lines, msg.New("digest.open", "count", len(in.open)).Text())
 		for i, o := range in.open {
 			if rank(o.Severity) < rank(worst) {
@@ -275,6 +284,16 @@ func composeDigest(in digestInput, allQuiet bool) (Event, bool) {
 				break
 			}
 			lines = append(lines, msg.New("digest.overnight_item", "title", clip(o.Title, 120)).Text())
+		}
+	}
+	if len(in.acked) > 0 {
+		lines = append(lines, msg.New("digest.acked", "count", len(in.acked)).Text())
+		for i, o := range in.acked {
+			if i == digestItems {
+				lines = append(lines, msg.New("digest.more", "count", len(in.acked)-digestItems).Text())
+				break
+			}
+			lines = append(lines, msg.New("digest.acked_item", "title", clip(o.Title, 120), "who", o.Acknowledged.By).Text())
 		}
 	}
 	if in.updates > 0 {

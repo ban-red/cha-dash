@@ -22,6 +22,9 @@ import (
 //     (default 5 minutes), or that something is already fixing, so flaps
 //     don't page. Dropping back to info restarts the grace period.
 //
+// An acknowledged problem (someone is on it) proposes nothing until the
+// acknowledgement is taken back.
+//
 // A down problem notifies at once (also when an attention one escalates);
 // a repair (an integration to reconnect) once per opening; a stuck stack
 // (internal/stacks' "stack-stuck") under its own rule; a plan an API token
@@ -43,6 +46,11 @@ type incident struct {
 	Summary  string `json:"summary"`
 	Target   string `json:"target"`
 	OpenedAt string `json:"opened_at"`
+	// Acknowledged: someone is on it (internal/incidents). Nothing repeats
+	// or escalates while it stays acknowledged.
+	Acknowledged *struct {
+		By string `json:"by"`
+	} `json:"acknowledged"`
 
 	raw json.RawMessage
 }
@@ -81,6 +89,7 @@ type tracked struct {
 	attnSince time.Time       // when it was last seen reach attention; zero below it
 	done      map[string]bool // transitions already proposed since it opened
 	held      bool            // expected (a maintenance window) when last seen: look again each turn
+	acked     bool            // acknowledged when last seen: nothing to propose until it isn't
 }
 
 // detector turns successive inbox snapshots into candidates. It isn't
@@ -123,6 +132,14 @@ func (d *detector) observe(now time.Time, incs map[string]incident, grace time.D
 		switch in.Status {
 		case "open":
 			tr.open = true
+			tr.acked = in.Class == "problem" && in.Acknowledged != nil
+			if tr.acked {
+				// Someone is on it: no opening, escalation or reminder
+				// while it stays acknowledged. Taking the acknowledgement
+				// back lets the rules apply again; its resolution still
+				// follows the opening, if that was sent.
+				continue
+			}
 			if d.expected != nil && in.Class != topics.ApprovalClass && d.expected(in.Target, now) {
 				tr.attnSince, tr.held = time.Time{}, true
 				continue
@@ -173,7 +190,7 @@ func (d *detector) observe(now time.Time, incs map[string]incident, grace time.D
 // so the loop knows to look again even when the inbox is quiet.
 func (d *detector) pendingGrace() bool {
 	for _, tr := range d.seen {
-		if tr.open && (tr.held || !tr.attnSince.IsZero() && !tr.done[trAttention] && !tr.done[trDown]) {
+		if tr.open && !tr.acked && (tr.held || !tr.attnSince.IsZero() && !tr.done[trAttention] && !tr.done[trDown]) {
 			return true
 		}
 	}

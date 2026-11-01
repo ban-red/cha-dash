@@ -199,6 +199,19 @@ export interface Incident {
   resolution?: string;
   /** Class `approval` only: the plan waiting for a person, as the hub shows it. */
   approval?: Approval;
+  /**
+   * An open problem someone said they're on (operator and up): who, when, and
+   * their note (household gets who and when). Notifications stop repeating it
+   * while it stays; un-acknowledging or resolving clears it.
+   */
+  acknowledged?: Acknowledgement | null;
+}
+
+/** An incident's acknowledgement (`POST /api/inbox/{id}/acknowledge`). */
+export interface Acknowledgement {
+  by: string;
+  at: string;
+  note?: string;
 }
 
 /** Who made a plan that waits for a person: an API token, a git sync or an agent, and the user it acts for. */
