@@ -71,9 +71,9 @@ const (
 	KindAPI TokenKind = "api"
 	// KindAgent is for an AI agent (ADR-0017), which reads and proposes and
 	// never acts. Minting one needs Agents turned on; internal/authz checks
-	// that. Today an agent token is otherwise an API token: its narrower
-	// scopes, its limits and the rule that every write it asks for waits
-	// for a person come in v0.4's wave 29.
+	// that, and decides what it may do: only POST /mcp, its own scopes
+	// (reads narrowable to a host, tag or lens; propose:<action>), and
+	// every plan it makes waits for a person.
 	KindAgent TokenKind = "agent"
 )
 
@@ -109,6 +109,7 @@ type APIToken struct {
 type TokenRef struct {
 	ID     string
 	Name   string
+	Kind   TokenKind
 	Scopes []string
 }
 
@@ -120,6 +121,7 @@ type TokenAccess struct {
 	UserID   string
 	Username string
 	Role     string
+	Kind     TokenKind
 	Scopes   []string
 }
 
@@ -271,11 +273,11 @@ func (s *Service) RevokeToken(ctx context.Context, id, by string) (APIToken, boo
 // user applies at once, also to plans waiting for approval.
 func (s *Service) TokenAccess(ctx context.Context, id string) (TokenAccess, error) {
 	var a TokenAccess
-	var scopes string
+	var scopes, kind string
 	var expires, revoked, disabled sql.NullInt64
-	err := s.st.Reader().QueryRowContext(ctx, `SELECT u.id, u.username, u.role, u.disabled_at, t.scopes, t.expires_at, t.revoked_at
+	err := s.st.Reader().QueryRowContext(ctx, `SELECT u.id, u.username, u.role, u.disabled_at, t.kind, t.scopes, t.expires_at, t.revoked_at
 		FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.id = ?`, id).
-		Scan(&a.UserID, &a.Username, &a.Role, &disabled, &scopes, &expires, &revoked)
+		Scan(&a.UserID, &a.Username, &a.Role, &disabled, &kind, &scopes, &expires, &revoked)
 	if errors.Is(err, sql.ErrNoRows) {
 		return TokenAccess{}, nil
 	}
@@ -285,6 +287,7 @@ func (s *Service) TokenAccess(ctx context.Context, id string) (TokenAccess, erro
 	if json.Unmarshal([]byte(scopes), &a.Scopes) != nil || a.Scopes == nil {
 		a.Scopes = []string{}
 	}
+	a.Kind = TokenKind(kind)
 	now := s.now().UnixMilli()
 	a.OK = !disabled.Valid && !revoked.Valid && expires.Valid && expires.Int64 > now
 	return a, nil
@@ -305,14 +308,14 @@ func (s *Service) AuthenticateToken(ctx context.Context, presented, ip string) (
 	}
 	var (
 		stored                 []byte
-		name, scopes           string
+		name, kind, scopes     string
 		u                      User
 		expires, used, revoked sql.NullInt64
 		disabled               sql.NullInt64
 	)
-	err := s.st.Reader().QueryRowContext(ctx, `SELECT t.token_hash, t.name, t.scopes, t.expires_at, t.last_used_at, t.revoked_at, u.id, u.username, u.role, u.disabled_at
+	err := s.st.Reader().QueryRowContext(ctx, `SELECT t.token_hash, t.name, t.kind, t.scopes, t.expires_at, t.last_used_at, t.revoked_at, u.id, u.username, u.role, u.disabled_at
 		FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.id = ?`, tokenIDPrefix+m[1]).
-		Scan(&stored, &name, &scopes, &expires, &used, &revoked, &u.ID, &u.Username, &u.Role, &disabled)
+		Scan(&stored, &name, &kind, &scopes, &expires, &used, &revoked, &u.ID, &u.Username, &u.Role, &disabled)
 	if errors.Is(err, sql.ErrNoRows) {
 		subtle.ConstantTimeCompare(tokenHash(presented), dummyTokenHash)
 		return Identity{}, ErrBadToken
@@ -330,7 +333,7 @@ func (s *Service) AuthenticateToken(ctx context.Context, presented, ip string) (
 	case !expires.Valid || expires.Int64 <= now.UnixMilli():
 		return Identity{}, ErrTokenExpired
 	}
-	ref := &TokenRef{ID: tokenIDPrefix + m[1], Name: name}
+	ref := &TokenRef{ID: tokenIDPrefix + m[1], Name: name, Kind: TokenKind(kind)}
 	if json.Unmarshal([]byte(scopes), &ref.Scopes) != nil || ref.Scopes == nil {
 		ref.Scopes = []string{}
 	}

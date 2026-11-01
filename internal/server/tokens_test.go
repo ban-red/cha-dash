@@ -375,7 +375,7 @@ func TestAgentTokens(t *testing.T) {
 	_, ada := addUser(t, e, owner, "ada", auth.RoleAdmin)
 	agent := map[string]any{"name": "assistant", "kind": "agent", "scopes": []string{"graph.read"}}
 
-	if status, _, b := e.call(t, owner, "GET", "/api/settings/agents", nil); status != http.StatusOK || string(b) != `{"enabled":false}`+"\n" {
+	if status, _, b := e.call(t, owner, "GET", "/api/settings/agents", nil); status != http.StatusOK || string(b) != `{"enabled":false,"max_pending":3,"max_per_hour":20}`+"\n" {
 		t.Fatalf("GET before: %d %s", status, b)
 	}
 	if status, code, b := e.call(t, owner, "POST", "/api/tokens", agent); status != http.StatusForbidden || code != "agents_off" {

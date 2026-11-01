@@ -54,10 +54,12 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -110,7 +112,7 @@ type Actor struct {
 const (
 	KindUser  = "user"
 	KindToken = "token" // an API token (wave 10); it can't step up
-	KindAgent = "agent" // an agent's token (ADR-0017, later); every plan waits for a person
+	KindAgent = "agent" // an agent token (ADR-0017): proposes only; every plan waits for a person
 	// KindSync is a git sync (v0.3): ID is the sync's, User its owner. It
 	// acts with the owner's current role and can't step up.
 	KindSync = "sync"
@@ -309,7 +311,11 @@ func ParseScope(s string) (Scope, error) {
 
 // Covers reports whether grant g allows the requested scope on target. A
 // request's own action can't be a pattern.
-func (g Scope) Covers(req Scope, target string) bool {
+func (g Scope) Covers(req Scope, target string) bool { return g.covers(req, target, nil) }
+
+// covers is Covers, with host= and tag= qualifiers matched against the
+// target's facts when the request doesn't carry them itself.
+func (g Scope) covers(req Scope, target string, facts *TargetFacts) bool {
 	if strings.Contains(req.Action, "*") {
 		return false
 	}
@@ -324,8 +330,18 @@ func (g Scope) Covers(req Scope, target string) bool {
 	}
 	for k, v := range g.Quals {
 		got, ok := req.Quals[k]
-		if k == "target" && !ok {
+		switch {
+		case ok:
+		case k == "target":
 			got, ok = target, target != ""
+		case k == "host" && facts != nil:
+			if slices.Contains(facts.Hosts, v) {
+				continue
+			}
+		case k == "tag" && facts != nil:
+			if slices.Contains(facts.Tags, v) {
+				continue
+			}
 		}
 		if !ok || got != v {
 			return false
@@ -336,8 +352,13 @@ func (g Scope) Covers(req Scope, target string) bool {
 
 // covered reports whether any of grants covers req; unparsable grants cover nothing.
 func covered(grants []string, req Scope, target string) bool {
+	return coveredFacts(grants, req, target, nil)
+}
+
+// coveredFacts is covered with the target's facts for host= and tag=.
+func coveredFacts(grants []string, req Scope, target string, facts *TargetFacts) bool {
 	for _, g := range grants {
-		if gs, err := ParseScope(g); err == nil && gs.Covers(req, target) {
+		if gs, err := ParseScope(g); err == nil && gs.covers(req, target, facts) {
 			return true
 		}
 	}
@@ -369,6 +390,12 @@ type Env struct {
 	// Grants narrows the actor to these scopes (an API token's). Nil: no
 	// narrowing, the role alone decides; empty: nothing is granted.
 	Grants []string
+	// Facts are the target's hosts and tags, for host= and tag= qualifiers
+	// on Grants. Nil: they match nothing.
+	Facts *TargetFacts
+	// Logs: an agent's token holds logs.read, so it may propose an action
+	// that reads data back.
+	Logs bool
 }
 
 // Decide returns nil when a may run req, or a *Refusal unwrapping to
@@ -386,6 +413,17 @@ func Decide(a Actor, req Request, env Env) error {
 	if rank(a.Role) < 0 {
 		return forbid("Your account has no role that allows this.")
 	}
+	if a.Kind == KindAgent {
+		// What an agent may never propose, whatever its role and scopes.
+		switch {
+		case AgentForbiddenAction(sc.Action):
+			return refuse(ErrForbidden, msg.New("agents.never_config", "action", sc.Action))
+		case tr >= T4.rank():
+			return refuse(ErrForbidden, msg.New("agents.never_t4"))
+		case req.ReadsData && !env.Logs:
+			return refuse(ErrForbidden, msg.New("agents.needs_logs", "action", sc.Action))
+		}
+	}
 	if settingsAction(sc.Action) && rank(a.Role) < rank(auth.RoleAdmin) {
 		return forbid("Only an admin or the owner can change stacks: they're settings, whatever the tier.")
 	}
@@ -401,7 +439,10 @@ func Decide(a Actor, req Request, env Env) error {
 	if req.ReadsData && !req.Household && rank(a.Role) < rank(auth.RoleOperator) {
 		return forbid("Only operators, admins and the owner can run %s: what it reads back can hold secrets.", sc.Action)
 	}
-	if env.Grants != nil && !covered(env.Grants, sc, req.Target) {
+	if env.Grants != nil && !coveredFacts(env.Grants, sc, req.Target, env.Facts) {
+		if a.Kind == KindAgent {
+			return refuse(ErrForbidden, msg.New("agents.not_scoped", "action", sc.Action))
+		}
 		return forbid("This token isn't allowed to run %s.", sc.Action)
 	}
 	if tr >= T3.rank() && a.Kind == KindToken {
@@ -410,8 +451,12 @@ func Decide(a Actor, req Request, env Env) error {
 	if tr >= T3.rank() && a.Kind == KindSync {
 		return forbid("A git sync can't run %s actions; they need a person to confirm.", req.Tier)
 	}
-	if tr >= T4.rank() && a.Kind == KindAgent {
-		return forbid("Agents can never propose %s actions.", req.Tier)
+	if a.Kind == KindAgent {
+		// An agent only proposes: it never runs the plan, so it never steps
+		// up. Every plan it makes waits for a person (NeedsApproval), who
+		// approves it in a session with a step-up from T2 (DecideApproval),
+		// and the engine asks Decide again for that person.
+		return nil
 	}
 	switch req.Tier {
 	case T4:
@@ -454,6 +499,8 @@ func NeedsApproval(kind string, tier Tier) bool {
 // itself.
 func DecideApproval(a Actor, tier Tier, now time.Time) error {
 	switch {
+	case a.Kind == KindAgent:
+		return refuse(ErrForbidden, msg.New("agents.only_people"))
 	case a.Kind != KindUser || a.Session == "":
 		return forbid("Only a person signed in to Cha Dash can approve or deny this, never a token.")
 	case rank(a.Role) < rank(auth.RoleAdmin):
@@ -479,6 +526,9 @@ type Policy struct {
 	grants func(context.Context, Actor) ([]string, error)
 	tokens func(context.Context, string) (auth.TokenAccess, error)
 	users  func(context.Context, string) (auth.UserInfo, error)
+	// agentsOn is the Agents switch; facts a target's hosts and tags.
+	agentsOn func(context.Context) (bool, error)
+	facts    func(context.Context, string) TargetFacts
 }
 
 // PolicyOption adjusts NewPolicy.
@@ -546,6 +596,12 @@ func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 		if a, env.Grants, err = p.token(ctx, a); err != nil {
 			return err
 		}
+	case KindAgent:
+		resolved, scopes, err := p.agent(ctx, a)
+		if err != nil {
+			return err
+		}
+		a, env.Grants, env.Logs = resolved, ProposeGrants(scopes), HasScope(scopes, ScopeLogsRead)
 	case KindSync:
 		var err error
 		if a, err = p.syncOwner(ctx, a); err != nil {
@@ -560,7 +616,11 @@ func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 		}
 		env.T4 = t4
 	}
-	if p.grants != nil && a.Kind != KindToken {
+	if p.facts != nil && req.Target != "" && env.Grants != nil {
+		f := p.facts(ctx, req.Target)
+		env.Facts = &f
+	}
+	if p.grants != nil && a.Kind != KindToken && a.Kind != KindAgent {
 		g, err := p.grants(ctx, a)
 		if err != nil {
 			p.log.Error("authz: reading the actor's grants failed; refusing", "err", err, "actor", a.ID)
@@ -597,6 +657,10 @@ func (p *Policy) token(ctx context.Context, a Actor) (Actor, []string, error) {
 	if !acc.OK {
 		return a, nil, forbid("This API token has been revoked or has expired.")
 	}
+	if acc.Kind == auth.KindAgent {
+		// An agent token is never a plain token, whatever the actor says.
+		return a, nil, refuse(ErrForbidden, msg.New("agents.not_an_agent"))
+	}
 	a.Role, a.StepUpUntil = acc.Role, time.Time{}
 	return a, acc.Scopes, nil
 }
@@ -626,8 +690,11 @@ func (p *Policy) syncOwner(ctx context.Context, a Actor) (Actor, error) {
 // Admin and Owner, and for a token, one whose scopes include it. A sync
 // reads only its own tasks, so never these.
 func (p *Policy) ReadScope(ctx context.Context, a Actor, scope string) error {
-	if a.Kind == KindSync {
+	switch a.Kind {
+	case KindSync:
 		return forbid("A git sync can't read %s.", scope)
+	case KindAgent:
+		return refuse(ErrForbidden, msg.New("agents.no_reads", "scope", scope))
 	}
 	var grants []string
 	if a.Kind == KindToken {

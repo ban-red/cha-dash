@@ -132,7 +132,7 @@ func Document() map[string]any {
 			"version": buildinfo.Version,
 			"summary": "The hub's HTTP API.",
 			"description": "Every route the hub serves, generated from its route table. " +
-				"x-chadash-access is the least a caller needs (a role, or public, node_key, signature); " +
+				"x-chadash-access is the least a caller needs (a role, or public, node_key, signature, agent_token); " +
 				"x-chadash-scope is what an API token needs, and empty means session only. " +
 				"Errors answer {\"error\":{\"code\",\"message\"}}.",
 			"license": map[string]any{"name": "AGPL-3.0-or-later", "identifier": "AGPL-3.0-or-later"},
@@ -245,6 +245,10 @@ func operation(s *schemas, route authz.Route, op Op, method, path string) map[st
 	switch route.Access {
 	case authz.Public, authz.NodeKey, authz.Signature:
 		o["security"] = []any{}
+	case authz.AgentToken:
+		// An agent token, never a session or a plain API token.
+		o["x-chadash-scope"] = "agent"
+		o["security"] = []any{map[string]any{"token": []string{}}}
 	default:
 		o["x-chadash-scope"] = route.Token
 		sec := []any{map[string]any{"session": []string{}}}
@@ -278,6 +282,8 @@ func access(a authz.Access) string {
 		return "node_key"
 	case authz.Signature:
 		return "signature"
+	case authz.AgentToken:
+		return "agent_token"
 	}
 	panic(fmt.Sprintf("apidoc: unknown access %d", a))
 }

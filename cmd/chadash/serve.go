@@ -34,6 +34,7 @@ import (
 	"dash.cha.sh/internal/icons"
 	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/mcp"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
@@ -549,9 +550,14 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Store: st, Audit: auditLog, Registry: actions, Graph: g,
 		// API tokens act as their user, narrowed to their scopes; their T2
 		// plans wait in the Inbox for a person (tp.Inbox).
-		Policy:   authz.NewPolicy(st, log, authz.WithTokens(authSvc.TokenAccess), authz.WithUsers(authSvc.GetUser)).ForEngine(),
-		Inbox:    tp.Inbox,
-		Sessions: action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
+		// Agent tokens propose only, while Agents is on; host= and tag= on
+		// their scopes read the target's place in the graph.
+		Policy: authz.NewPolicy(st, log, authz.WithTokens(authSvc.TokenAccess), authz.WithUsers(authSvc.GetUser),
+			authz.WithAgentsSwitch(sec.AgentsOn), authz.WithTargetFacts(mcp.Facts(g))).ForEngine(),
+		// An agent token's proposals: at most 3 waiting and 20 an hour by default.
+		AgentLimits: sec.AgentLimits,
+		Inbox:       tp.Inbox,
+		Sessions:    action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
 		// A T4 spends the grant that allowed it, and tells the admins.
 		ConsumeStepUp: authSvc.SpendStepUp,
 		OnTaskDone:    nt.TaskDone,
@@ -630,6 +636,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Proxies:        proxies,
 		ProxyCheck:     proxyCheck,
 		AllowedOrigins: cfg.AllowedOrigins,
+		PublicURL:      cfg.PublicURL,
 		Demo:           drv,
 		Vault:          v,
 		Integrations:   mgr,

@@ -149,6 +149,7 @@ var provenElsewhere = map[string]string{
 	"PUT /api/notify/digest":                           "notify.TestDigestRoutes",
 	"POST /api/integrations/instances/{id}/pve-hook":   "pvehook.TestSecretRoutes",
 	"DELETE /api/integrations/instances/{id}/pve-hook": "pvehook.TestSecretRoutes",
+	"POST /mcp": "TestMCPPropose (approval.request with the rationale and hash, approval.approve with both sides)",
 
 	// Sign-in (wave 13): signin_test.go.
 	"PUT /api/settings/sign-in":                      "TestSignInSettingsAPI",

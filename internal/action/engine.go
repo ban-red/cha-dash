@@ -74,8 +74,11 @@ type Options struct {
 	// the API lists them.
 	Inbox *livedoc.Doc
 	// ApprovalTTL is how long a plan waits for a person; zero means
-	// ApprovalTTL.
+	// ApprovalTTL. An agent's waits AgentApprovalTTL, whatever this says.
 	ApprovalTTL time.Duration
+	// AgentLimits reads the limits on an agent token's proposals (the
+	// Agents settings); nil, or a zero field, means DefaultAgentLimits.
+	AgentLimits func(context.Context) (AgentLimits, error)
 	Log         *slog.Logger
 	Now         func() time.Time // nil means time.Now
 }
@@ -95,8 +98,12 @@ type Engine struct {
 	inbox    *livedoc.Doc
 	// approvalTTL is how long a plan waits for a person.
 	approvalTTL time.Duration
-	log         *slog.Logger
-	now         func() time.Time
+	limits      func(context.Context) (AgentLimits, error)
+	// agentMu serializes agents' proposals, so a limit can't be slipped
+	// under by two at once.
+	agentMu sync.Mutex
+	log     *slog.Logger
+	now     func() time.Time
 
 	// tasks is the tasks topic's document: {"tasks": {id: Task}}.
 	tasks *livedoc.Doc
@@ -113,6 +120,8 @@ type Engine struct {
 	// items and when they were decided, pruned after RecentTasks.
 	timers        map[string]*time.Timer
 	resolvedItems map[string]time.Time
+	// bursts are agent tokens pushing past their limits, by token ID.
+	bursts map[string]*burst
 }
 
 // TaskDone is a task that has ended, for Options.OnTaskDone.
@@ -143,7 +152,8 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 	}
 	e := &Engine{
 		st: o.Store, audit: o.Audit, reg: o.Registry, policy: o.Policy, graph: o.Graph, sessions: o.Sessions, consume: o.ConsumeStepUp, onDone: o.OnTaskDone, onEnded: o.OnApprovalEnded, guard: o.Guard, log: o.Log, now: o.Now,
-		inbox: o.Inbox, approvalTTL: o.ApprovalTTL,
+		inbox: o.Inbox, approvalTTL: o.ApprovalTTL, limits: o.AgentLimits,
+		bursts:        map[string]*burst{},
 		tasks:         livedoc.New(tasksColl),
 		live:          map[string]*liveTask{},
 		locks:         map[string]string{},

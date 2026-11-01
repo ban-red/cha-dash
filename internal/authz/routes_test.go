@@ -156,7 +156,7 @@ func TestEveryRouteHasARow(t *testing.T) {
 		if _, ok := found[r.Pattern]; !ok && !r.Optional {
 			t.Errorf("routes.go lists %q, but nothing registers it: remove the row, or mark it Optional if another track adds it", r.Pattern)
 		}
-		if r.Access < Public || r.Access > Signature {
+		if r.Access < Public || r.Access > AgentToken {
 			t.Errorf("%q: access %d", r.Pattern, r.Access)
 		}
 	}
@@ -195,6 +195,34 @@ var signatureRoutes = []string{
 	// sync, at most every 15 s; refusals answer one 401 and the first per
 	// instance in 10 minutes is audited; limits per address and instance.
 	"POST /api/hooks/pve/{instance}",
+}
+
+// TestAgentTokenRoutes: no role admits an AgentToken route, a plain token
+// can't take one, and the only one is the MCP endpoint.
+func TestAgentTokenRoutes(t *testing.T) {
+	for _, role := range []string{"", "household", "viewer", "operator", "admin", "owner"} {
+		if AgentToken.Allows(role) {
+			t.Errorf("AgentToken allows role %q", role)
+		}
+	}
+	if AgentToken.String() != "agent token" {
+		t.Fatal(AgentToken.String())
+	}
+	var rows []string
+	for _, r := range Routes {
+		if r.Access == AgentToken {
+			rows = append(rows, r.Pattern)
+			if r.Token != "" {
+				t.Errorf("%s: an AgentToken row takes no plain token scope", r.Pattern)
+			}
+		}
+	}
+	if len(rows) != 1 || rows[0] != "POST /mcp" {
+		t.Fatalf("AgentToken routes = %q, want only POST /mcp: an agent reads and proposes there and nowhere else", rows)
+	}
+	if err := TokenRoute(Route{Access: AgentToken}, "owner", []string{"*"}); !errors.Is(err, ErrSessionOnly) {
+		t.Fatalf("a plain token on an AgentToken route = %v", err)
+	}
 }
 
 // TestSignatureRoutes: no role admits a Signature route, and the table's

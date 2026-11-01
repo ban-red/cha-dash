@@ -25,6 +25,7 @@ import (
 	"dash.cha.sh/internal/icons"
 	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/mcp"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
@@ -43,7 +44,16 @@ import (
 // on the router. No integration is registered: nothing reaches the network.
 func fullEnv(t *testing.T) (*env, *store.Store) {
 	t.Helper()
+	e, st, _ := fullEnvTopics(t)
+	return e, st
+}
+
+// fullEnvTopics is fullEnv, with the topics the server reads (the Home
+// Graph, the Inbox, the causes).
+func fullEnvTopics(t *testing.T) (*env, *store.Store, *topics.Set) {
+	t.Helper()
 	var st *store.Store
+	var tps *topics.Set
 	e := newEnvWith(t, func(d *Deps) {
 		st = d.Store
 		v, err := vault.New(d.Store, make([]byte, 32))
@@ -83,9 +93,11 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		}
 		eng, err := action.New(t.Context(), action.Options{
 			Store: d.Store, Audit: audit.New(d.Store), Registry: reg2, Graph: tp.Graph, Inbox: tp.Inbox,
-			Policy:   authz.NewPolicy(d.Store, d.Log, authz.WithTokens(d.Auth.TokenAccess)).ForEngine(),
-			Sessions: action.Sessions{StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
-			Log:      d.Log,
+			Policy: authz.NewPolicy(d.Store, d.Log, authz.WithTokens(d.Auth.TokenAccess),
+				authz.WithAgentsSwitch(sec.AgentsOn), authz.WithTargetFacts(mcp.Facts(tp.Graph))).ForEngine(),
+			AgentLimits: sec.AgentLimits,
+			Sessions:    action.Sessions{StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
+			Log:         d.Log,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -93,7 +105,7 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		t.Cleanup(eng.Close)
 		d.Actions = eng
 		d.Audit = audit.New(d.Store)
-		d.Topics = tp
+		d.Topics, tps = tp, tp
 		hub, err := nodes.New(t.Context(), nodes.Options{Store: d.Store, Vault: v, Log: d.Log})
 		if err != nil {
 			t.Fatal(err)
@@ -124,7 +136,7 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 		d.Notify = nt
 		d.Icons = icons.New(icons.Options{Store: d.Store, Log: d.Log})
 	})
-	return e, st
+	return e, st, tps
 }
 
 // raw sends body as is (JSON content type when non-nil) and returns the
@@ -280,6 +292,25 @@ func TestRouteMatrix(t *testing.T) {
 			for who, c := range probes {
 				if status, _, b := hit(c); status < 400 || status >= 500 {
 					t.Errorf("%s as %s: %d %s, want a 4xx without a valid signature", row.Pattern, who, status, b)
+				}
+			}
+			continue
+		}
+		if row.Access == authz.AgentToken {
+			// Agent tokens only (TestAgentTokenMatrix calls it with them):
+			// no credential is 401, every session 403, every plain token
+			// 403 agent_token_only.
+			if status, code, b := hit(anon); status != http.StatusUnauthorized || code != "unauthenticated" {
+				t.Errorf("%s anonymously: %d %s", row.Pattern, status, b)
+			}
+			for role, c := range clients {
+				if status, code, b := hit(c); status != http.StatusForbidden || code != "forbidden" {
+					t.Errorf("%s as %s: %d %s", row.Pattern, role, status, b)
+				}
+			}
+			for role, c := range tokens {
+				if status, code, b := hit(c); status != http.StatusForbidden || code != "agent_token_only" {
+					t.Errorf("%s with %s's token: %d %s", row.Pattern, role, status, b)
 				}
 			}
 			continue

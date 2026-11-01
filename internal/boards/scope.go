@@ -75,6 +75,24 @@ func (s *Service) Scope(ctx context.Context) (Scope, error) {
 	return sc, nil
 }
 
+// BoardScope reads what one board shows, by its ID or slug: an agent
+// token's lens= reads (until lenses arrive, a lens is a board). False when
+// there's no such board.
+func (s *Service) BoardScope(ctx context.Context, board string) (Scope, bool, error) {
+	all, err := ReadAll(ctx, s.st.Reader())
+	if err != nil {
+		return Scope{}, false, err
+	}
+	for _, d := range all {
+		if d.ID == board || (d.Slug != "" && d.Slug == board) {
+			sc := Scope{IDs: map[string]bool{}, Kinds: map[string]bool{}}
+			addBoard(&sc, d.Layout)
+			return sc, true, nil
+		}
+	}
+	return Scope{}, false, nil
+}
+
 // layoutDoc is the part of a layout document Scope reads: its items.
 type layoutDoc struct {
 	Sections []struct {

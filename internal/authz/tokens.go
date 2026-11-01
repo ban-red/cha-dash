@@ -167,9 +167,8 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if kind == auth.KindAgent {
-		// An agent token needs Agents on (ADR-0017). That is all this
-		// checks for now: the agent kind's narrower scopes, its limits and
-		// every write it asks for waiting for a person come in wave 29.
+		// An agent token needs Agents on (ADR-0017), and holds the agent
+		// vocabulary (agents.go): reads, narrowable, and propose:<action>.
 		on := false
 		if t.AgentsOn != nil {
 			var err error
@@ -187,7 +186,13 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 		say(http.StatusUnprocessableEntity, "invalid", msg.New("authz.token_days"))
 		return
 	}
-	scopes, err := cleanScopes(req.Scopes, a.Role)
+	var scopes []string
+	var err error
+	if kind == auth.KindAgent {
+		scopes, err = cleanAgentScopes(req.Scopes, a.Role, t.tierOf)
+	} else {
+		scopes, err = cleanScopes(req.Scopes, a.Role)
+	}
 	if err != nil {
 		refuse(err.Error())
 		return
@@ -268,6 +273,33 @@ func (t *Tokens) revoke(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]auth.APIToken{"token": tok})
 }
 
+// tierOf is a registered action's tier, for checking an agent's propose
+// scopes when it names one action.
+func (t *Tokens) tierOf(id string) (Tier, bool) {
+	if t.Actions == nil {
+		return "", false
+	}
+	for _, act := range t.Actions() {
+		if act.ID == id {
+			return act.Tier, true
+		}
+	}
+	return "", false
+}
+
+// agentOffers is the picker's agent section: the reads an agent token may
+// hold and the actions it may propose, each available or not with why.
+type agentOffers struct {
+	// On is the Agents switch: agent tokens can be made only while it's on.
+	On       bool         `json:"on"`
+	Reads    []scopeOffer `json:"reads"`
+	Propose  []scopeOffer `json:"propose"`
+	Families []scopeOffer `json:"families"`
+	// Narrow names the qualifiers a read may carry: host, tag, lens.
+	Narrow []string `json:"narrow"`
+	Limits string   `json:"limits"`
+}
+
 // scopeOffer is one entry of the picker: available says whether the
 // caller's role lets a token use it, and why not when it doesn't.
 type scopeOffer struct {
@@ -303,9 +335,9 @@ func (t *Tokens) scopes(w http.ResponseWriter, r *http.Request) {
 			case a.Role == auth.RoleHousehold && (!act.Household || act.Tier.rank() > HouseholdCap.rank()):
 				o.Available, o.Unavailable = false, "Household tokens run only actions meant for the household."
 			case a.Role != auth.RoleHousehold && act.Tier.rank() > tierCap(a.Role).rank():
-				o.Available, o.Unavailable = false, "Your role ("+a.Role+") can't run "+string(act.Tier)+" actions."
+				o.Available, o.Unavailable = false, msg.New("agents.offer_role", "role", a.Role, "tier", string(act.Tier)).Text()
 			case act.ReadsData && !act.Household && rank(a.Role) < rank(auth.RoleOperator):
-				o.Available, o.Unavailable = false, "Only operators, admins and the owner can run this: what it reads back can hold secrets."
+				o.Available, o.Unavailable = false, msg.New("agents.offer_reads_data").Text()
 			}
 			actions = append(actions, o)
 			if fam, _, ok := strings.Cut(act.ID, "."); ok && !seen[fam] {
@@ -314,7 +346,50 @@ func (t *Tokens) scopes(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	agent := agentOffers{Reads: []scopeOffer{}, Propose: []scopeOffer{}, Families: []scopeOffer{}, Narrow: agentNarrowing,
+		Limits: msg.New("agents.offer_limits").Text()}
+	if t.AgentsOn != nil {
+		if on, err := t.AgentsOn(r.Context()); err == nil {
+			agent.On = on
+		}
+	}
+	for _, rs := range AgentReadScopes {
+		o := scopeOffer{Scope: rs.Scope, Label: rs.Label, Description: rs.Description, Available: rank(a.Role) >= rank(rs.MinRole)}
+		if !o.Available {
+			o.Unavailable = msg.New("agents.offer_read_role").Text()
+		}
+		agent.Reads = append(agent.Reads, o)
+	}
+	fams := map[string]bool{}
+	if t.Actions != nil {
+		for _, act := range t.Actions() {
+			o := scopeOffer{Scope: ProposePrefix + act.ID, Label: act.Title, Tier: act.Tier, Available: true}
+			if o.Label == "" {
+				o.Label = act.ID
+			}
+			switch {
+			case AgentForbiddenAction(act.ID):
+				o.Available, o.Unavailable = false, msg.New("agents.offer_config").Text()
+			case act.Tier.rank() >= T4.rank():
+				o.Available, o.Unavailable = false, msg.New("agents.never_t4").Text()
+			case a.Role == auth.RoleHousehold && (!act.Household || act.Tier.rank() > HouseholdCap.rank()):
+				o.Available, o.Unavailable = false, msg.New("agents.offer_household").Text()
+			case a.Role != auth.RoleHousehold && act.Tier.rank() > tierCap(a.Role).rank():
+				o.Available, o.Unavailable = false, "Your role ("+a.Role+") can't run "+string(act.Tier)+" actions."
+			case act.ReadsData && !act.Household && rank(a.Role) < rank(auth.RoleOperator):
+				o.Available, o.Unavailable = false, "Only operators, admins and the owner can run this: what it reads back can hold secrets."
+			case act.ReadsData:
+				o.Description = msg.New("agents.offer_needs_logs").Text()
+			}
+			agent.Propose = append(agent.Propose, o)
+			if fam, _, ok := strings.Cut(act.ID, "."); ok && !fams[fam] && !AgentForbiddenAction(fam+".") {
+				fams[fam] = true
+				agent.Families = append(agent.Families, scopeOffer{Scope: ProposePrefix + fam + ".*", Label: msg.New("agents.offer_family", "family", fam).Text(), Available: true})
+			}
+		}
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"agent": agent,
 		"reads": reads, "families": families, "actions": actions,
 		"all":          scopeOffer{Scope: "*", Label: "Everything your role allows", Description: "Every read scope your role may use and every action up to T2. T2 actions still wait for a person to approve them.", Available: true},
 		"default_days": DefaultTokenDays, "max_days": MaxTokenDays,

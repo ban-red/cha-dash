@@ -39,6 +39,12 @@ const (
 	// role ever satisfies one, so a session gains nothing. Every Signature
 	// row is in TestSignatureRoutes' reviewed list.
 	Signature
+	// AgentToken routes answer agent tokens only (ADR-0017): POST /mcp.
+	// Guard admits a Bearer agent token, never a session or a plain API
+	// token, and an agent token is refused on every other route. No
+	// person's role satisfies one. What the agent may read and propose
+	// there is the policy's, per call.
+	AgentToken
 )
 
 func (a Access) String() string {
@@ -59,6 +65,8 @@ func (a Access) String() string {
 		return "node key"
 	case Signature:
 		return "signature"
+	case AgentToken:
+		return "agent token"
 	}
 	return "unknown"
 }
@@ -80,7 +88,7 @@ func (a Access) Allows(role string) bool {
 	case Owner:
 		return r >= rank(auth.RoleOwner)
 	}
-	return false // NodeKey, Signature: never a person
+	return false // NodeKey, Signature, AgentToken: never a person
 }
 
 func (a Access) refusal() msg.M {
@@ -291,6 +299,12 @@ var Routes = []Route{
 	// setting it is admin+, like the integrations.
 	{Pattern: "GET /api/settings/dozzle", Access: Viewer},
 	{Pattern: "PUT /api/settings/dozzle", Access: Admin},
+	// The MCP endpoint (wave 29, internal/mcp): agent tokens only, and only
+	// while Agents is on (the handler answers 404 otherwise). An agent
+	// reads and proposes there; it can call nothing else.
+	{Pattern: "POST /mcp", Access: AgentToken},
+	// Its other methods answer 405 to anyone: no stream, no session.
+	{Pattern: "/mcp", Access: Public},
 
 	// Settings → Users. An admin manages everyone but the owner (users.go);
 	// handing over ownership is the owner's, and T3.
@@ -529,6 +543,10 @@ func GuardWith(mux *http.ServeMux, a *auth.Service, log *slog.Logger, opts Guard
 			mux.ServeHTTP(w, r)
 			return
 		}
+		if route.Access == AgentToken {
+			agentRoute(mux, a, w, r)
+			return
+		}
 		if _, ok := auth.BearerToken(r); ok {
 			// An API token: it alone is the credential, whatever cookie
 			// came with it, and only on /api/ routes.
@@ -538,6 +556,11 @@ func GuardWith(mux *http.ServeMux, a *auth.Service, log *slog.Logger, opts Guard
 			}
 			a.RequireToken(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				id, _ := auth.FromContext(r.Context())
+				if id.Token.Kind == auth.KindAgent {
+					// An agent reads and proposes through MCP, and nowhere else.
+					httpx.Say(w, http.StatusForbidden, "agent_mcp_only", msg.New("agents.mcp_only"))
+					return
+				}
 				if err := TokenRoute(route, id.User.Role, id.Token.Scopes); err != nil {
 					var ref *Refusal
 					code, text := "forbidden", err.Error()
@@ -585,6 +608,26 @@ func DemoRefuses(route Route, method string) bool {
 	return !route.PublicDemo
 }
 
+// agentRoute serves an AgentToken route: a Bearer agent token, never a
+// session (403) or a plain API token (403 agent_token_only); no credential
+// at all is 401. Off /api/ too: the MCP endpoint is /mcp.
+func agentRoute(mux *http.ServeMux, a *auth.Service, w http.ResponseWriter, r *http.Request) {
+	if _, ok := auth.BearerToken(r); !ok {
+		a.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			httpx.Say(w, http.StatusForbidden, "forbidden", msg.New("agents.token_only"))
+		})).ServeHTTP(w, r)
+		return
+	}
+	a.RequireToken(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id, _ := auth.FromContext(r.Context())
+		if id.Token.Kind != auth.KindAgent {
+			httpx.Say(w, http.StatusForbidden, "agent_token_only", msg.New("agents.not_agent_token"))
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})).ServeHTTP(w, r)
+}
+
 // TokenRoute decides whether an API token whose user has role and whose
 // scopes are scopes may call route: nil, or a *Refusal unwrapping to
 // ErrSessionOnly (the route never takes a token) or ErrForbidden (the role
@@ -593,7 +636,7 @@ func TokenRoute(route Route, role string, scopes []string) error {
 	switch {
 	case route.Access == Public:
 		return nil
-	case route.Token == "" || route.Access == NodeKey || route.Access == Signature:
+	case route.Token == "" || route.Access == NodeKey || route.Access == Signature || route.Access == AgentToken:
 		return &Refusal{Err: ErrSessionOnly, Msg: "API tokens can't use this; sign in to Cha Dash instead."}
 	case !route.Access.Allows(role):
 		return forbid("%s This token acts as its user, so it can't either.", route.Access.refusal().Text())
@@ -607,16 +650,21 @@ func TokenRoute(route Route, role string, scopes []string) error {
 	return nil
 }
 
-// TokenActor is the actor an API token's identity acts as: kind token, the
-// token's ID, named after the token and its user ("backup script (sam)"),
-// with the user's current role. It can't step up.
+// TokenActor is the actor an API token's identity acts as: kind token (or
+// agent, for an agent token), the token's ID, named after the token and its
+// user ("backup script (sam)"), with the user's current role. It can't step
+// up.
 func TokenActor(id auth.Identity) Actor {
+	kind, via := KindToken, "api"
+	if id.Token.Kind == auth.KindAgent {
+		kind, via = KindAgent, "mcp"
+	}
 	return Actor{
-		Kind:     KindToken,
+		Kind:     kind,
 		ID:       id.Token.ID,
 		Name:     TokenActorName(id.Token.Name, id.User.Username),
 		Role:     id.User.Role,
-		Via:      "api",
+		Via:      via,
 		IP:       id.IP,
 		User:     id.User.ID,
 		UserName: id.User.Username,

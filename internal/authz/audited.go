@@ -94,6 +94,7 @@ var Audited = map[string]string{
 	"PUT /api/notify/digest":                           "settings.notify.digest.update",
 	"POST /api/integrations/instances/{id}/pve-hook":   "settings.integration.pve_hook.rotate",
 	"DELETE /api/integrations/instances/{id}/pve-hook": "settings.integration.pve_hook.delete",
+	"POST /mcp": "approval.request",
 
 	// Sign-in settings and linked sign-ins (wave 13). Sign-ins through the
 	// provider or a proxy are auth events, audited by the server

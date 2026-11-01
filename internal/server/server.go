@@ -31,8 +31,9 @@
 //	PUT  /api/settings/security    {posture?, step_up?}; step_up needs a step-up (owner)
 //	GET|PUT /api/settings/sign-in, POST …/test   OIDC, forward-auth, group mappings (owner;
 //	                               PUT needs a step-up; security.Service.RegisterSignIn)
-//	GET|PUT /api/settings/agents   the Agents switch, off by default (owner; security.Service.RegisterAgents)
+//	GET|PUT /api/settings/agents   the Agents switch and limits, off by default (owner; security.Service.RegisterAgents)
 //	GET|PUT /api/settings/dozzle   Dozzle's address, for links to a container's logs (viewer reads, admin sets; dozzle.go)
+//	POST /mcp                  the MCP endpoint: agent tokens only, while Agents is on (internal/mcp)
 //	GET|DELETE /api/auth/identities…, POST …/forward-auth   your linked sign-ins (authz.Identities)
 //	GET  /api/demo             demo clock and seed; demo mode only (session)
 //	POST /api/actions/plan, POST /api/plans/{id}/approve, GET /api/tasks/{id},
@@ -77,6 +78,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -102,6 +104,8 @@ import (
 	"dash.cha.sh/internal/importer/leads"
 	"dash.cha.sh/internal/importer/yamlboard"
 	"dash.cha.sh/internal/incidents"
+	"dash.cha.sh/internal/mcp"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
@@ -135,6 +139,9 @@ type Deps struct {
 	// Nil skips the check.
 	ProxyCheck     *httpx.ProxyCheck
 	AllowedOrigins []string // extra trusted origins, scheme://host[:port]
+	// PublicURL is CHADASH_PUBLIC_URL, trusted as an origin (the MCP
+	// endpoint's Origin check). Empty: none.
+	PublicURL string
 	// Demo is the Demo Home driver in demo mode, nil otherwise. Without it
 	// the /api/demo endpoints answer 404.
 	Demo *demo.Driver
@@ -340,6 +347,28 @@ func New(d Deps) (http.Handler, error) {
 	}
 	if d.Actions != nil {
 		d.Actions.Register(mux, d.Auth.Require, d.Log)
+	}
+	if d.Actions != nil && d.Topics != nil {
+		// The MCP endpoint (ADR-0017): agent tokens read and propose there,
+		// and only there; it answers 404 while Agents is off.
+		var agentsOn func(context.Context) (bool, error)
+		if d.Security != nil {
+			agentsOn = d.Security.AgentsOn
+			// Turning Agents off withdraws what agents left waiting.
+			eng := d.Actions
+			d.Security.OnAgentsOff = func(ctx context.Context) {
+				eng.WithdrawKind(ctx, action.KindAgent, msg.T("agents.withdrawn_off", nil))
+			}
+		}
+		origins := slices.Clone(d.AllowedOrigins)
+		if d.PublicURL != "" {
+			origins = append(origins, d.PublicURL)
+		}
+		mcp.New(mcp.Options{
+			Engine: d.Actions, Topics: d.Topics, Boards: bs,
+			InboxView: InboxView(boards.New(d.Store), d.Topics.Graph, d.Log),
+			AgentsOn:  agentsOn, Origins: origins, Log: d.Log.With("component", "mcp"),
+		}).Register(mux, session)
 	}
 	if d.Nodes != nil {
 		d.Nodes.Register(mux, session, nodeApproveStepUp(rec), func(r *http.Request) audit.Actor {

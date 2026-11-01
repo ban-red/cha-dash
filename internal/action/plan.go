@@ -32,6 +32,10 @@ type PlanRequest struct {
 	// Note is a line for whoever approves the plan, such as the commit a
 	// git sync found. Set by callers in the hub, not by the HTTP body.
 	Note string `json:"-"`
+	// Rationale is an agent's reason for proposing it (CleanRationale),
+	// shown to whoever approves it as a quote: the agent's words, never
+	// the hub's. Set by internal/mcp, not by the HTTP body.
+	Rationale string `json:"-"`
 }
 
 // Plan is what the engine will do, as POST /api/actions/plan returns it.
@@ -57,6 +61,9 @@ type Plan struct {
 	// Note is PlanRequest.Note, shown with an approval. Not part of the
 	// hash.
 	Note string `json:"note,omitempty"`
+	// Rationale is PlanRequest.Rationale: untrusted text from an agent.
+	// Not part of the hash.
+	Rationale string `json:"rationale,omitempty"`
 }
 
 // confirmFor is the confirmation UX a tier gets.
@@ -124,6 +131,7 @@ func (e *Engine) Plan(ctx context.Context, a Actor, req PlanRequest) (*Plan, err
 
 		RequireApproval: req.RequireApproval,
 		Note:            req.Note,
+		Rationale:       CleanRationale(req.Rationale),
 	}
 	if p.Confirm == "type" {
 		p.ConfirmText = t.Name
@@ -439,7 +447,7 @@ func (e *Engine) ApproveOrSubmit(ctx context.Context, a Actor, planID string, re
 	}
 	now := e.now()
 	if p.session == "" || p.session != a.binding() || p.actorID != a.ID {
-		if a.Kind == KindToken {
+		if a.Kind == KindToken || a.Kind == KindAgent {
 			return refuse(&Refusal{Status: http.StatusForbidden, Code: "forbidden", Message: "Only the token that made this plan can approve it. A person approves it from the Inbox."})
 		}
 		return refuse(&Refusal{Status: http.StatusForbidden, Code: "forbidden", Message: "Only the session that made this plan can approve it."})
@@ -476,6 +484,17 @@ func (e *Engine) ApproveOrSubmit(ctx context.Context, a Actor, planID string, re
 	// T4 always asks again: the grant must have begun after the plan.
 	if p.tier == T4 && !a.StepUpUntil.Add(-StepUpTTL).After(p.created) {
 		return refuse(forbidden(ErrStepUpRequired))
+	}
+	if a.Kind == KindAgent {
+		// An agent's plan always waits for a person, whatever the policy
+		// says, within its token's limits.
+		e.agentMu.Lock()
+		defer e.agentMu.Unlock()
+		if r := e.overLimit(ctx, a); r != nil {
+			return refuse(r)
+		}
+		apv, err := e.submit(ctx, a, p, t)
+		return Task{}, apv, err
 	}
 	if e.needsApproval(a, p) {
 		apv, err := e.submit(ctx, a, p, t)

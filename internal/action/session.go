@@ -37,8 +37,13 @@ func (s Sessions) FromContext(ctx context.Context) (Actor, bool) {
 	}
 	if id.Token != nil {
 		// An API token acts for its user, can't step up, and binds its
-		// plans to itself (authz.TokenActor names it the same way).
-		return Actor{Kind: KindToken, ID: id.Token.ID, Name: id.Token.Name + " (" + id.User.Username + ")", Role: id.User.Role, Via: "api",
+		// plans to itself (authz.TokenActor names it the same way). An
+		// agent token is an agent: every plan it makes waits for a person.
+		kind, via := KindToken, "api"
+		if id.Token.Kind == auth.KindAgent {
+			kind, via = KindAgent, "mcp"
+		}
+		return Actor{Kind: kind, ID: id.Token.ID, Name: id.Token.Name + " (" + id.User.Username + ")", Role: id.User.Role, Via: via,
 			IP: id.IP, User: id.User.ID, UserName: id.User.Username}, true
 	}
 	a := Actor{Kind: KindUser, ID: id.User.ID, Name: id.User.Username, Role: id.User.Role, Via: "web", Session: id.Session.ID}

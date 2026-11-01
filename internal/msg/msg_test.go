@@ -114,6 +114,7 @@ var migrated = []string{
 	"internal/incidents",
 	"internal/timeline",
 	"internal/pvehook",
+	"internal/mcp",
 }
 
 // TestMigratedPackagesSay fails when a migrated package writes an error

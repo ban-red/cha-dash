@@ -68,6 +68,8 @@ type env struct {
 	ended []string
 	// guard is Options.Guard, read when it runs.
 	guard func(context.Context, Request) error
+	// limits is Options.AgentLimits.
+	limits func(context.Context) (AgentLimits, error)
 }
 
 var (
@@ -126,7 +128,7 @@ func newEnv(t *testing.T, policy Policy, defs ...Def) *env {
 func (e *env) start() {
 	e.t.Helper()
 	eng, err := New(e.t.Context(), Options{Store: e.st, Audit: e.audit, Registry: e.reg, Policy: e.policy, Graph: e.g,
-		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now, Inbox: e.inbox,
+		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now, Inbox: e.inbox, AgentLimits: e.limits,
 		Guard: func(ctx context.Context, r Request) error {
 			if e.guard == nil {
 				return nil

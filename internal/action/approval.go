@@ -27,6 +27,7 @@ import (
 
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/livedoc"
+	"dash.cha.sh/internal/msg"
 )
 
 // ApprovalTTL is how long a plan waits for a person by default.
@@ -80,6 +81,10 @@ type Approval struct {
 	// Reason says why it was denied or expired.
 	Reason string  `json:"reason,omitempty"`
 	Task   *string `json:"task"` // the task an approval started
+	// NthToday is, for an agent's proposal, how many it made in the 24
+	// hours up to and including this one: "3rd proposal from this agent
+	// today". Zero for anyone else's.
+	NthToday int `json:"nth_today,omitempty"`
 }
 
 // DenyRequest is the body of POST /api/approvals/{id}/deny.
@@ -130,6 +135,9 @@ func (e *Engine) scanApproval(ctx context.Context, row interface{ Scan(...any) e
 	if task.Valid && task.String != "" {
 		a.Task = &task.String
 	}
+	if a.originator.Kind == KindAgent {
+		a.NthToday = e.nthToday(ctx, a.originator.ID, a.RequestedAt)
+	}
 	return &a, nil
 }
 
@@ -167,9 +175,13 @@ func (e *Engine) freshApproval(ctx context.Context, id string) (*storedApproval,
 // person: stored, audited, in the Inbox, and timed to expire.
 func (e *Engine) submit(ctx context.Context, a Actor, p *storedPlan, t Target) (*Approval, error) {
 	now := e.now().UTC().Truncate(time.Millisecond)
+	ttl := e.approvalTTL
+	if a.Kind == KindAgent {
+		ttl = AgentApprovalTTL
+	}
 	apv := Approval{
 		ID: "apv_" + strings.ToLower(rand.Text()), State: ApprovalAwaiting, Plan: p.doc,
-		Originator: originatorOf(a), RequestedAt: now, ExpiresAt: now.Add(e.approvalTTL),
+		Originator: originatorOf(a), RequestedAt: now, ExpiresAt: now.Add(ttl),
 	}
 	apv.Plan.ExpiresAt = apv.ExpiresAt
 	orig, _ := json.Marshal(a)
@@ -188,6 +200,9 @@ func (e *Engine) submit(ctx context.Context, a Actor, p *storedPlan, t Target) (
 			return &other, nil
 		}
 		return nil, fmt.Errorf("action: submit plan for approval: %w", err)
+	}
+	if a.Kind == KindAgent {
+		apv.NthToday = e.nthToday(ctx, a.ID, now)
 	}
 	e.recordApproval(ctx, a, ActionApprovalRequest, &apv, p, audit.OK, nil, "")
 	e.publishApproval(apv, t.ID)
@@ -291,6 +306,11 @@ func (e *Engine) Grant(ctx context.Context, a Actor, id string, req ApproveReque
 		return void(&Refusal{Status: http.StatusConflict, Code: "plan_changed", Message: "The target changed since this was planned, so the approval no longer fits. It has to be planned again."})
 	}
 	r := Request{Action: d.ID, Target: t, Params: p.params, Actor: apv.originator, Plan: p.id}
+	if apv.originator.Kind == KindAgent && e.changedSince(ctx, d, p, t, r) {
+		// ADR-0017: the approval binds to the plan's hash, and a graph that
+		// changed what the plan would affect (or its tier) voids it.
+		return void(&Refusal{Status: http.StatusConflict, Code: "plan_changed", Message: msg.T("agents.plan_changed", nil)})
+	}
 	if err := e.preconditions(ctx, d, r); err != nil {
 		return void(refusalOf(err, ""))
 	}
@@ -402,6 +422,7 @@ func (e *Engine) Deny(ctx context.Context, a Actor, id string, req DenyRequest) 
 // expired with reason: revoking a token takes back what it asked for.
 func (e *Engine) Withdraw(ctx context.Context, originatorID, reason string) {
 	e.endAwaiting(ctx, `SELECT id FROM approvals WHERE state = ? AND originator_id = ?`, []any{ApprovalAwaiting, originatorID}, reason)
+	e.resolveBursts(originatorID)
 }
 
 // ExpireApprovals ends the approvals whose time is up. A timer runs it at
@@ -473,6 +494,15 @@ func (e *Engine) recordApproval(ctx context.Context, actor Actor, action string,
 	if p != nil {
 		params["plan"], params["action"], params["originator"] = p.id, p.action, apv.Originator.Name
 		entry.Target, entry.Tier = p.target, p.tier.String()
+		// Both sides, in one record (ADR-0017): who asked, for whom, and the
+		// hash it binds to; the approver is the record's actor.
+		params["hash"], params["originator_kind"], params["originator_id"] = p.hash, apv.Originator.Kind, apv.Originator.ID
+		if apv.Originator.User != "" {
+			params["on_behalf_of"] = apv.Originator.User
+		}
+		if p.doc.Rationale != "" && action == ActionApprovalRequest {
+			params["rationale"] = p.doc.Rationale
+		}
 	}
 	if apv.Reason != "" && result == audit.OK {
 		params["reason"] = apv.Reason
@@ -528,17 +558,21 @@ func (e *Engine) publishApproval(apv Approval, target string) {
 	by := "Planned through the API by a token"
 	switch apv.Originator.Kind {
 	case KindAgent:
-		by = "Planned through the API by an agent"
+		by = ""
 	case KindSync:
 		by = "Planned by a git sync"
 	case KindUser:
 		by = "Planned by " + who
 	}
+	summary := fmt.Sprintf("%s, a %s action. It runs only if an admin or the owner approves it here.", by, apv.Plan.Tier)
+	if apv.Originator.Kind == KindAgent {
+		summary = msg.New("agents.proposal_summary", "tier", apv.Plan.Tier.String()).Text()
+	}
 	item := approvalItem{
 		ID: ApprovalItemID(apv.ID), Scenario: "approval", Class: ApprovalClass, Severity: "attention",
 		Status: "open", Phase: apv.State,
 		Title:   who + " asks to run: " + apv.Plan.Label,
-		Summary: fmt.Sprintf("%s, a %s action. It runs only if an admin or the owner approves it here.", by, apv.Plan.Tier),
+		Summary: summary,
 		Target:  target, OpenedAt: apv.RequestedAt, UpdatedAt: apv.RequestedAt,
 		Facts:  map[string]string{"approval": apv.ID, "plan": apv.Plan.ID, "action": apv.Plan.Action, "tier": apv.Plan.Tier.String(), "originator": apv.Originator.ID},
 		Causes: []any{}, BlastRadius: apv.Plan.Impact,

@@ -115,6 +115,9 @@ type Service struct {
 	now func() time.Time
 	// Audit records every change to these settings (nil: none, for tests).
 	Audit *authz.Recorder
+	// OnAgentsOff runs after the owner turns Agents off: the engine
+	// withdraws the proposals agents left waiting. Nil does nothing.
+	OnAgentsOff func(context.Context)
 	// ProxyNotes reports reverse-proxy problems the hub has noticed
 	// (httpx.ProxyCheck). Nil reports none.
 	ProxyNotes func() []httpx.ProxyNote
