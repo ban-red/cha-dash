@@ -341,7 +341,7 @@ func (s *Service) grantStepUp(w http.ResponseWriter, r *http.Request, id Identit
 // storeStepUp records a grant on id's session and emits EventStepUp.
 func (s *Service) storeStepUp(r *http.Request, id Identity, method string) (time.Time, error) {
 	until := s.now().Add(StepUpTTL)
-	res, err := s.st.Writer().ExecContext(r.Context(), `UPDATE sessions SET step_up_until = ? WHERE id = ?`, until.UnixMilli(), id.Session.ID)
+	res, err := s.st.Writer().ExecContext(r.Context(), `UPDATE sessions SET step_up_until = ?, step_up_method = ? WHERE id = ?`, until.UnixMilli(), method, id.Session.ID)
 	if err == nil {
 		if n, _ := res.RowsAffected(); n == 0 {
 			err = ErrNoSession // signed out in the meantime
@@ -373,7 +373,7 @@ func (s *Service) recordStepUp(r *http.Request, id Identity, method string) stri
 // that starts the task, so two approvals racing on one grant can't both
 // run. False means the grant had already been spent or replaced.
 func (s *Service) SpendStepUp(ctx context.Context, tx *sql.Tx, sessionID string, until time.Time) (bool, error) {
-	res, err := tx.ExecContext(ctx, `UPDATE sessions SET step_up_until = NULL WHERE id = ? AND step_up_until = ?`, sessionID, until.UnixMilli())
+	res, err := tx.ExecContext(ctx, `UPDATE sessions SET step_up_until = NULL, step_up_method = NULL WHERE id = ? AND step_up_until = ?`, sessionID, until.UnixMilli())
 	if err != nil {
 		return false, err
 	}
@@ -383,6 +383,6 @@ func (s *Service) SpendStepUp(ctx context.Context, tx *sql.Tx, sessionID string,
 
 // ClearStepUp ends a session's step-up grant, whatever it is.
 func (s *Service) ClearStepUp(ctx context.Context, sessionID string) error {
-	_, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET step_up_until = NULL WHERE id = ?`, sessionID)
+	_, err := s.st.Writer().ExecContext(ctx, `UPDATE sessions SET step_up_until = NULL, step_up_method = NULL WHERE id = ?`, sessionID)
 	return err
 }

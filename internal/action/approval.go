@@ -129,7 +129,7 @@ func (e *Engine) scanApproval(ctx context.Context, row interface{ Scan(...any) e
 	if by.Valid {
 		var who Actor
 		if json.Unmarshal([]byte(by.String), &who) == nil {
-			a.DecidedBy = &TaskActor{Kind: who.Kind, Name: who.Name}
+			a.DecidedBy = &TaskActor{Kind: who.Kind, Name: who.Name, StepUp: who.StepUpMethod}
 		}
 	}
 	if task.Valid && task.String != "" {
@@ -330,8 +330,14 @@ func (e *Engine) Grant(ctx context.Context, a Actor, id string, req ApproveReque
 		return refuse(&Refusal{Status: http.StatusForbidden, Code: "step_up_required", Message: "Confirm it's you first: approving this needs a check made after it was asked."})
 	}
 	now := e.now().UTC().Truncate(time.Millisecond)
-	by, _ := json.Marshal(a)
-	task, ref, err := e.launch(ctx, apv.originator, p, d, t, "", &a, func(tx *sql.Tx, task Task) error {
+	// The approver as the decision keeps them: with how they stepped up,
+	// when the tier needed it (ADR-0017's approved_by method).
+	approver := a
+	if p.tier < T2 {
+		approver.StepUpMethod = ""
+	}
+	by, _ := json.Marshal(approver)
+	task, ref, err := e.launch(ctx, apv.originator, p, d, t, "", &approver, func(tx *sql.Tx, task Task) error {
 		res, err := tx.ExecContext(ctx, `UPDATE approvals SET state = ?, decided_at = ?, decided_by = ?, task_id = ? WHERE id = ? AND state = ?`,
 			ApprovalApproved, now.UnixMilli(), string(by), task.ID, apv.ID, ApprovalAwaiting)
 		if err != nil {
@@ -342,8 +348,8 @@ func (e *Engine) Grant(ctx context.Context, a Actor, id string, req ApproveReque
 		}
 		return nil
 	}, func(task Task) {
-		apv.State, apv.DecidedAt, apv.DecidedBy, apv.Task = ApprovalApproved, &now, &TaskActor{Kind: a.Kind, Name: a.Name}, &task.ID
-		e.recordApproval(ctx, a, ActionApprovalApprove, &apv.Approval, p, audit.OK, nil, task.ID)
+		apv.State, apv.DecidedAt, apv.DecidedBy, apv.Task = ApprovalApproved, &now, &TaskActor{Kind: a.Kind, Name: a.Name, StepUp: approver.StepUpMethod}, &task.ID
+		e.recordApproval(ctx, approver, ActionApprovalApprove, &apv.Approval, p, audit.OK, nil, task.ID)
 	})
 	if ref != nil {
 		return refuse(ref)
@@ -401,7 +407,9 @@ func (e *Engine) Deny(ctx context.Context, a Actor, id string, req DenyRequest) 
 		reason = "Denied by " + a.Name + "."
 	}
 	now := e.now().UTC().Truncate(time.Millisecond)
-	by, _ := json.Marshal(a)
+	denier := a
+	denier.StepUpMethod = "" // saying no needs no step-up
+	by, _ := json.Marshal(denier)
 	res, err := e.st.Writer().ExecContext(ctx, `UPDATE approvals SET state = ?, reason = ?, decided_at = ?, decided_by = ? WHERE id = ? AND state = ?`,
 		ApprovalDenied, reason, now.UnixMilli(), string(by), apv.ID, ApprovalAwaiting)
 	if err != nil {
@@ -507,6 +515,10 @@ func (e *Engine) recordApproval(ctx context.Context, actor Actor, action string,
 	if apv.Reason != "" && result == audit.OK {
 		params["reason"] = apv.Reason
 	}
+	if action == ActionApprovalApprove && result == audit.OK && actor.StepUpMethod != "" {
+		// How the approver confirmed it was them: passkey, password or oidc.
+		params["step_up"] = actor.StepUpMethod
+	}
 	entry.Params, _ = json.Marshal(params)
 	if r != nil {
 		entry.Error = &audit.Error{Code: r.Code, Message: r.Message}
@@ -586,7 +598,7 @@ func (e *Engine) publishApproval(apv Approval, target string) {
 		item.Status, item.Severity, item.UpdatedAt, item.ResolvedAt, item.ResolvedBy = "resolved", "info", *apv.DecidedAt, apv.DecidedAt, apv.State
 		switch apv.State {
 		case ApprovalApproved:
-			item.Resolution = "Approved by " + apv.DecidedBy.Name + "."
+			item.Resolution = approvedBy(apv.DecidedBy)
 		default:
 			item.Resolution = apv.Reason
 		}
@@ -598,6 +610,20 @@ func (e *Engine) publishApproval(apv Approval, target string) {
 		tx.Put(incidentsColl, item.ID, item)
 		return nil
 	})
+}
+
+// approvedBy is an approved item's resolution: who approved it, and how
+// they confirmed it was them when the tier asked for a step-up.
+func approvedBy(by *TaskActor) string {
+	switch by.StepUp {
+	case "passkey":
+		return msg.New("actions.approved_by_passkey", "name", by.Name).Text()
+	case "password":
+		return msg.New("actions.approved_by_password", "name", by.Name).Text()
+	case "oidc":
+		return msg.New("actions.approved_by_oidc", "name", by.Name).Text()
+	}
+	return msg.New("actions.approved_by", "name", by.Name).Text()
 }
 
 // pruneApprovalItems drops resolved approval items older than RecentTasks

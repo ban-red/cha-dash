@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestV04Tables: the wave 25 contracts (00023–00025) take a row each, read
+// TestV04Tables: the v0.4 migrations (00023–00027) take a row each, read
 // it back as written, and refuse what their CHECKs rule out.
 func TestV04Tables(t *testing.T) {
 	s, _ := openTemp(t)
@@ -92,4 +92,9 @@ func TestV04Tables(t *testing.T) {
 		}
 	}
 	mustFail("token kind", `INSERT INTO api_tokens (id, user_id, name, token_hash, kind, created_at) VALUES ('tok_c', 'u_1', 'x', x'03', 'robot', 0)`)
+
+	// 00027: sessions.step_up_method.
+	mustExec(`INSERT INTO sessions (id, token_hash, user_id, method, created_at, expires_at, last_seen_at) VALUES ('s_1', x'01', 'u_1', 'password', 0, 1, 0)`)
+	mustExec(`UPDATE sessions SET step_up_until = 1, step_up_method = 'passkey' WHERE id = 's_1'`)
+	mustFail("step-up method", `UPDATE sessions SET step_up_method = 'sms' WHERE id = 's_1'`)
 }

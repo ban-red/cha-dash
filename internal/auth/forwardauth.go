@@ -231,10 +231,11 @@ func (s *Service) liveForwardSession(ctx context.Context, userID, ip, userAgent 
 	sess := Session{UserID: userID, Method: MethodForwardAuth}
 	var created, expires, seen int64
 	var stepUp sql.NullInt64
-	err := s.st.Reader().QueryRowContext(ctx, `SELECT id, created_at, expires_at, last_seen_at, step_up_until FROM sessions
+	var stepUpMethod sql.NullString
+	err := s.st.Reader().QueryRowContext(ctx, `SELECT id, created_at, expires_at, last_seen_at, step_up_until, step_up_method FROM sessions
 		WHERE user_id = ? AND method = ? AND ip = ? AND user_agent = ? AND expires_at > ?
 		ORDER BY last_seen_at DESC LIMIT 1`, userID, MethodForwardAuth, ip, userAgent, s.now().UnixMilli()).
-		Scan(&sess.ID, &created, &expires, &seen, &stepUp)
+		Scan(&sess.ID, &created, &expires, &seen, &stepUp, &stepUpMethod)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Session{}, false, nil
 	}
@@ -243,7 +244,7 @@ func (s *Service) liveForwardSession(ctx context.Context, userID, ip, userAgent 
 	}
 	sess.CreatedAt, sess.ExpiresAt, sess.lastSeen = time.UnixMilli(created), time.UnixMilli(expires), time.UnixMilli(seen)
 	if stepUp.Valid {
-		sess.StepUpUntil = time.UnixMilli(stepUp.Int64)
+		sess.StepUpUntil, sess.StepUpMethod = time.UnixMilli(stepUp.Int64), stepUpMethod.String
 	}
 	return sess, true, nil
 }

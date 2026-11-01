@@ -93,6 +93,9 @@ type Actor struct {
 	UserName string `json:"user_name,omitempty"`
 	// StepUpUntil is when the session's step-up grant ends; zero for none.
 	StepUpUntil time.Time `json:"-"`
+	// StepUpMethod is how that grant was made (passkey, password, oidc).
+	// An approver's is kept with the decision and in its audit record.
+	StepUpMethod string `json:"step_up,omitempty"`
 }
 
 // Actor kinds.

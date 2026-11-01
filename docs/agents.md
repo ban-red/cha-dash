@@ -57,7 +57,7 @@ A proposal is an approval in the Inbox, for admins and the owner, and a notifica
 - **T1** takes a tap. **T2** the hold, and **T3** the target's name typed; from T2, a fresh passkey or password check made after the proposal arrived.
 - The approval binds to the plan's hash. If the graph changes what the plan would affect, or its tier, before it runs, the approval is void and the agent has to propose again.
 - A proposal expires after **15 minutes**. Revoking the token, turning Agents off, or the token's user losing the role all withdraw it.
-- The task runs as the agent, for its user. The audit log has both sides: `approval.request` by the agent (with its token, the user it acts for, the plan's hash and the rationale), `approval.approve` or `approval.deny` by the person (with the agent as originator), and the action itself by the agent.
+- The task runs as the agent, for its user. The audit log has both sides: `approval.request` by the agent (with its token, the user it acts for, the plan's hash and the rationale), `approval.approve` or `approval.deny` by the person (with the agent as originator and, from T2, how they confirmed it was them: `step_up` is `passkey`, `password` or `oidc`), and the action itself by the agent. The Inbox item says it too once decided: "Approved by sam, confirmed with a passkey."
 
 ## The endpoint
 

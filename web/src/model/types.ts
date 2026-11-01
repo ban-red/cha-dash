@@ -242,7 +242,8 @@ export interface Approval {
   requested_at: string;
   expires_at: string;
   decided_at?: string | null;
-  decided_by?: { kind: string; name: string } | null;
+  /** `step_up`: how an approver confirmed it was them (passkey, password, oidc), when the tier asked. */
+  decided_by?: { kind: string; name: string; step_up?: 'passkey' | 'password' | 'oidc' | (string & {}) } | null;
   reason?: string;
   task?: string | null;
   /** An agent's proposal: how many it made in the 24 hours up to this one. */

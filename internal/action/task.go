@@ -27,6 +27,9 @@ const (
 type TaskActor struct {
 	Kind string `json:"kind"`
 	Name string `json:"name"`
+	// StepUp is how an approver confirmed it was them (passkey, password,
+	// oidc), when the approval needed a step-up.
+	StepUp string `json:"step_up,omitempty"`
 }
 
 // Task is one approved plan running, or finished: the API's and the tasks

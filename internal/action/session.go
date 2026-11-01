@@ -49,6 +49,9 @@ func (s Sessions) FromContext(ctx context.Context) (Actor, bool) {
 	a := Actor{Kind: KindUser, ID: id.User.ID, Name: id.User.Username, Role: id.User.Role, Via: "web", Session: id.Session.ID}
 	if s.StepUpUntil != nil {
 		a.StepUpUntil = s.StepUpUntil(id)
+		if !a.StepUpUntil.IsZero() {
+			a.StepUpMethod = id.Session.StepUpMethod
+		}
 	}
 	return a, true
 }

@@ -112,7 +112,10 @@ type Session struct {
 	// StepUpUntil is when the session's step-up grant lapses (zero: none).
 	// GET /api/auth/session reports it beside the session; see stepup.go.
 	StepUpUntil time.Time `json:"-"`
-	lastSeen    time.Time
+	// StepUpMethod is how that grant was made: passkey, password or oidc
+	// (StepUpMethod*), "" without one or for a grant from before 00026.
+	StepUpMethod string `json:"-"`
+	lastSeen     time.Time
 }
 
 // Service is the auth subsystem.
@@ -362,14 +365,15 @@ func (s *Service) lookupSession(ctx context.Context, token string) (Session, Use
 	var u User
 	var created, expires, seen int64
 	var stepUp sql.NullInt64
+	var stepUpMethod sql.NullString
 	// The role comes from the users row on every lookup, so a role change
 	// takes effect on the user's next request.
 	err := s.st.Reader().QueryRowContext(ctx, `
-		SELECT s.id, s.method, s.created_at, s.expires_at, s.last_seen_at, s.step_up_until, u.id, u.username, u.role
+		SELECT s.id, s.method, s.created_at, s.expires_at, s.last_seen_at, s.step_up_until, s.step_up_method, u.id, u.username, u.role
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = ? AND s.expires_at > ? AND u.disabled_at IS NULL`,
 		tokenHash(token), s.now().UnixMilli()).
-		Scan(&sess.ID, &sess.Method, &created, &expires, &seen, &stepUp, &u.ID, &u.Username, &u.Role)
+		Scan(&sess.ID, &sess.Method, &created, &expires, &seen, &stepUp, &stepUpMethod, &u.ID, &u.Username, &u.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Session{}, User{}, ErrNoSession
 	}
@@ -381,7 +385,7 @@ func (s *Service) lookupSession(ctx context.Context, token string) (Session, Use
 	sess.ExpiresAt = time.UnixMilli(expires)
 	sess.lastSeen = time.UnixMilli(seen)
 	if stepUp.Valid {
-		sess.StepUpUntil = time.UnixMilli(stepUp.Int64)
+		sess.StepUpUntil, sess.StepUpMethod = time.UnixMilli(stepUp.Int64), stepUpMethod.String
 	}
 	return sess, u, nil
 }

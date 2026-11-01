@@ -544,7 +544,7 @@ func (e *Engine) launch(ctx context.Context, actor Actor, p *storedPlan, d *Def,
 		ReadsData: d.ReadsData,
 	}
 	if approvedBy != nil {
-		task.ApprovedBy = &TaskActor{Kind: approvedBy.Kind, Name: approvedBy.Name}
+		task.ApprovedBy = &TaskActor{Kind: approvedBy.Kind, Name: approvedBy.Name, StepUp: approvedBy.StepUpMethod}
 	}
 	r.Task = task.ID
 	if !e.lock(t.ID, task.ID) {

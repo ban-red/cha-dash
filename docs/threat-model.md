@@ -133,7 +133,7 @@ Container names, labels, compose files, log lines, Homepage descriptions, Traefi
 Cha Dash's answer, from [ADR-0017](adr/0017-ai-and-mcp.md):
 
 1. **An agent can't act.** The worst an injected agent can do is propose. That holds whatever the agent believes, so it's the defence that matters.
-2. **The person approving sees the engine's plan, not the agent's words.** The approval sheet is built from the action, target, blast radius and diff the engine computed. The agent's rationale is shown as quoted, untrusted text. T2 and up take a fresh step-up, made after the proposal.
+2. **The person approving sees the engine's plan, not the agent's words.** The approval sheet is built from the action, target, blast radius and diff the engine computed. The agent's rationale is shown as quoted, untrusted text. T2 and up take a fresh step-up, made after the proposal, and the audit record names its method (passkey, password or a fresh sign-in at the provider).
 3. **Approvals bind to the plan's hash.** If the plan changes before it runs, the approval is void.
 4. **Graph text is data.** Names, states, labels, attributes, incident text, causes, plan steps and log lines come back as `{"untrusted": true, "value": …}`, never in a tool's description or the server's instructions, which are fixed sentences.
 5. **Logs need their own scope** (`logs.read`), off unless picked, because logs are the easiest place to plant text.
