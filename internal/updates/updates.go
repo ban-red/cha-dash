@@ -19,16 +19,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"dash.cha.sh/internal/action"
+	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/livedoc"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -60,6 +63,28 @@ type Options struct {
 	Refresh func() int
 	Now     func() time.Time
 	Log     *slog.Logger
+
+	// Registry is the action engine's: a rollout's steps take their tiers
+	// from their Defs, and updates.rollout runs them. Nil plans every
+	// step at T2.
+	Registry *action.Registry
+	// OwnedStack says whether a node's compose project is a stack Cha Dash
+	// owns in the node's root (its files are versioned): a rollout's
+	// snapshot for its containers is that commit. Nil: none is.
+	OwnedStack func(ctx context.Context, node, project string) bool
+	// CanAct says whether an action can be planned on a target now (an
+	// instance with the control credential offers it): a PVE snapshot
+	// before a step. Nil: none can.
+	CanAct func(actionID, target string) bool
+	// Users looks up the person a scheduled rollout runs as
+	// (auth.Service.GetUser). Nil: scheduled rollouts wait for a person.
+	Users func(ctx context.Context, id string) (auth.UserInfo, error)
+	// GitHub is the base URL of GitHub's API, for release notes; empty
+	// means https://api.github.com. Tests point it elsewhere.
+	GitHub string
+	// HTTP fetches release notes; nil makes one with the hub's outbound
+	// limits (notesClient).
+	HTTP *http.Client
 }
 
 // Service is the Update Center.
@@ -73,6 +98,18 @@ type Service struct {
 
 	// Audit records holds and releases. Set by the server.
 	Audit *authz.Recorder
+	// Engine runs scheduled rollouts, as the person who scheduled them.
+	// Set once the engine exists; nil leaves them waiting.
+	Engine Scheduler
+
+	reg        *action.Registry
+	ownedStack func(ctx context.Context, node, project string) bool
+	canAct     func(actionID, target string) bool
+	users      func(ctx context.Context, id string) (auth.UserInfo, error)
+	notes      *notesCache
+	winMu      sync.RWMutex
+	windows    []MaintenanceWindow // as stored, for Expected
+	launched   map[string]time.Time
 
 	poke chan struct{} // a hold changed: recount the Inbox item now
 	mu   sync.Mutex
@@ -84,7 +121,9 @@ func New(o Options) (*Service, error) {
 	if o.Store == nil || o.Graph == nil {
 		return nil, errors.New("updates: needs a store and a graph")
 	}
-	s := &Service{st: o.Store, g: o.Graph, inbox: o.Inbox, refresh: o.Refresh, now: o.Now, log: o.Log, poke: make(chan struct{}, 1)}
+	s := &Service{st: o.Store, g: o.Graph, inbox: o.Inbox, refresh: o.Refresh, now: o.Now, log: o.Log, poke: make(chan struct{}, 1),
+		reg: o.Registry, ownedStack: o.OwnedStack, canAct: o.CanAct, users: o.Users, launched: map[string]time.Time{}}
+	s.notes = newNotesCache(o.GitHub, o.HTTP)
 	if s.now == nil {
 		s.now = time.Now
 	}
@@ -94,6 +133,10 @@ func New(o Options) (*Service, error) {
 	if s.refresh == nil {
 		s.refresh = func() int { return 0 }
 	}
+	if s.notes.now == nil {
+		s.notes.now = s.now
+	}
+	s.loadWindows(context.Background())
 	return s, nil
 }
 
@@ -113,10 +156,47 @@ type Action struct {
 	Target string `json:"target"`
 }
 
-// Row is one container whose image the integrations checked.
+// The kinds of row.
+const (
+	KindImage = "image" // a container's image
+	KindApt   = "apt"   // a PVE host's pending packages
+	KindOS    = "os"    // Unraid's OS
+)
+
+// The risks of an update, from its version numbers only.
+const (
+	RiskPatch   = "patch"
+	RiskMinor   = "minor"
+	RiskMajor   = "major"
+	RiskUnknown = "unknown"
+)
+
+// Package is one of a host's pending packages.
+type Package struct {
+	Name string `json:"name"`
+	From string `json:"from,omitempty"`
+	To   string `json:"to,omitempty"`
+	Risk string `json:"risk"`
+}
+
+// Link opens something elsewhere: where to update what Cha Dash can't.
+type Link struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// Row is one container whose image the integrations checked, or one host's
+// packages or OS.
 type Row struct {
 	Resource string `json:"resource"`
 	Name     string `json:"name"`
+	// Kind is image (a container), apt (a PVE host's pending packages) or
+	// os (Unraid's version).
+	Kind string `json:"kind"`
+	// Risk is patch, minor, major or unknown, from version numbers only:
+	// an image's when its running version and the newest release are both
+	// known (release notes on), the highest of a host's packages.
+	Risk string `json:"risk"`
 	// Engine is what the container runs on (a Docker instance's engine
 	// resource), and Host its name: rows are grouped by it.
 	Engine string `json:"engine"`
@@ -134,6 +214,16 @@ type Row struct {
 	// would make it updatable.
 	Update *Action `json:"update,omitempty"`
 	Why    string  `json:"why,omitempty"`
+	// Link is where to update it when Cha Dash can't: Proxmox's or
+	// Unraid's own page.
+	Link *Link `json:"link,omitempty"`
+	// Packages are an apt row's pending packages, at most MaxPackages.
+	Packages []Package `json:"packages,omitempty"`
+	// Source is the GitHub repository an image says it's built from
+	// (org.opencontainers.image.source), and Version the version it says
+	// it is: release notes read the releases since.
+	Source  string `json:"source,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 // List is every container with an update attribute, available ones first,
@@ -164,8 +254,9 @@ func (s *Service) List(ctx context.Context) ([]Row, error) {
 			continue
 		}
 		row := Row{
-			Resource: string(id), Name: cmp.Or(r.Name, string(id)), Engine: string(runsOn[id]),
+			Resource: string(id), Name: cmp.Or(r.Name, string(id)), Kind: KindImage, Risk: RiskUnknown, Engine: string(runsOn[id]),
 			Image: stringAttr(r.Attrs, "image"), State: u.State, Current: u.Current, Latest: u.Latest, CheckedAt: u.CheckedAt, Reason: u.Reason,
+			Source: githubRepo(r.Labels[LabelSource]), Version: r.Labels[LabelVersion],
 		}
 		if e, ok := doc.Resources[runsOn[id]]; ok {
 			row.Host = cmp.Or(e.Name, string(e.ID))
@@ -182,8 +273,12 @@ func (s *Service) List(ctx context.Context) ([]Row, error) {
 			}
 		}
 		row.Update, row.Why = updater(row)
+		if row.Source != "" && row.State == integration.UpdateAvailable {
+			row.Risk = s.notes.risk(row.Source, row.Version)
+		}
 		rows = append(rows, row)
 	}
+	rows = append(rows, hostRows(doc)...)
 	order := map[string]int{integration.UpdateAvailable: 0, integration.UpdateHeld: 1, integration.UpdateCantCheck: 2, integration.UpdateCurrent: 3}
 	slices.SortFunc(rows, func(a, b Row) int {
 		return cmp.Or(cmp.Compare(order[a.State], order[b.State]), strings.Compare(a.Host, b.Host), strings.Compare(a.Name, b.Name), strings.Compare(a.Resource, b.Resource))
@@ -216,7 +311,7 @@ func updater(r Row) (*Action, string) {
 	case strings.HasPrefix(r.Resource, "unraid:"):
 		return &Action{ID: "unraid.container.update", Target: r.Resource}, ""
 	}
-	return nil, "Cha Dash can update a container through chadash-node or Unraid. Add a node on its host to update it from here."
+	return nil, msg.New("updates.no_updater").Text()
 }
 
 // attrUpdate reads attrs.update as the graph holds it (a map once it's
@@ -284,11 +379,10 @@ func (s *Service) Guard(ctx context.Context, req action.Request) error {
 		}
 		name := cmp.Or(r.Name, string(r.ID))
 		if h, ok := holds[holdKey(string(rel.To), name)]; ok && h.Kind == KindHold {
-			by := ""
 			if h.CreatedBy != "" {
-				by = " by " + h.CreatedBy
+				return action.Precondition(msg.New("updates.held_by", "name", name, "by", h.CreatedBy).Text())
 			}
-			return action.Precondition(fmt.Sprintf("%s is held on its image%s. Release it in Settings → Updates to update it.", name, by))
+			return action.Precondition(msg.New("updates.held", "name", name).Text())
 		}
 	}
 	return nil
@@ -432,16 +526,18 @@ func (s *Service) Check() int { return s.refresh() }
 
 // ── the Inbox item ────────────────────────────────────────────────────
 
-// Run keeps the Inbox item current until ctx ends: every 30 seconds, and
-// at once when a hold changes.
+// Run keeps the Inbox items current and starts scheduled rollouts until
+// ctx ends: every 30 seconds, and at once when a hold changes. First it
+// ends the rollouts a stopped hub left running.
 func (s *Service) Run(ctx context.Context) {
-	if s.inbox == nil {
-		return
-	}
+	s.loadWindows(ctx)
+	s.RecoverRollouts(ctx)
 	t := time.NewTicker(30 * time.Second)
 	defer t.Stop()
 	for {
 		s.Recount(ctx)
+		s.RunDue(ctx)
+		s.settleItems(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -521,23 +617,23 @@ func (s *Service) Recount(ctx context.Context) {
 			}
 			return nil
 		}
-		title := "1 update available"
+		title := msg.New("updates.item_title_one").Text()
 		if len(names) > 1 {
-			title = fmt.Sprintf("%d updates available", len(names))
+			title = msg.New("updates.item_title", "count", len(names)).Text()
 		}
 		shown := names
 		if len(shown) > 5 {
-			shown = append(slices.Clone(shown[:5]), fmt.Sprintf("%d more", len(names)-5))
+			shown = append(slices.Clone(shown[:5]), msg.New("updates.item_more", "count", len(names)-5).Text())
 		}
 		in := item{
 			ID: ItemID, Scenario: "updates-available", Class: "problem", Severity: "info", Status: "open", Phase: "open",
 			Title:   title,
-			Summary: "New images are out for " + joinNames(shown) + ". Update, hold or snooze them in Settings → Updates.",
+			Summary: msg.New("updates.item_summary", "names", joinNames(shown)).Text(),
 			Target:  integration.HubResource, OpenedAt: now, UpdatedAt: now,
 			Facts:  map[string]any{"count": len(names), "containers": names},
 			Causes: []any{}, BlastRadius: []any{},
-			Suggested:    map[string]any{"id": ReviewAction, "label": "Review in Settings → Updates", "tier": "T0", "target": integration.HubResource},
-			ResolvesWhen: "Resolves when every update is applied, held or snoozed.",
+			Suggested:    map[string]any{"id": ReviewAction, "label": msg.New("updates.review").Text(), "tier": "T0", "target": integration.HubResource},
+			ResolvesWhen: msg.New("updates.item_resolves").Text(),
 		}
 		if open {
 			in.OpenedAt = cur.OpenedAt

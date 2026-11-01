@@ -19,6 +19,12 @@ import (
 // carry maintainers' emails) is never copied.
 var labelPrefixes = []string{"homepage.", "chadash.", "com.docker.compose.", "net.unraid.docker."}
 
+// labelKeys are single labels allowed besides the prefixes: where an image
+// is built from and its version, for the Update Center's release notes.
+// The rest of org.opencontainers.image.* (authors, often an email) stays
+// out.
+var labelKeys = []string{"org.opencontainers.image.source", "org.opencontainers.image.version"}
+
 // secretLabel matches the last segment of a label that holds a credential
 // (homepage.widget.key, homepage.widget.password). Those are dropped even
 // under an allowed prefix.
@@ -30,7 +36,7 @@ func publicLabels(all map[string]string) (map[string]string, []string) {
 	var out map[string]string
 	var secret []string
 	for k, v := range all {
-		if !slices.ContainsFunc(labelPrefixes, func(p string) bool { return strings.HasPrefix(k, p) }) {
+		if !slices.Contains(labelKeys, k) && !slices.ContainsFunc(labelPrefixes, func(p string) bool { return strings.HasPrefix(k, p) }) {
 			continue
 		}
 		last := k[strings.LastIndexByte(k, '.')+1:]

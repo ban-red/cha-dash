@@ -524,3 +524,30 @@ func (s *Service) held(ctx context.Context, node, stack string) []string {
 	}
 	return out
 }
+
+// Owned reports whether a node's compose project is a stack Cha Dash
+// manages in the node's root, so its files are versioned: the Update
+// Center's rollouts take that commit as the snapshot before updating its
+// containers. node is the node's ID or name, as a Docker engine names it.
+// Anything it can't read (an offline node, an unknown stack) is false.
+func (s *Service) Owned(ctx context.Context, node, project string) bool {
+	ns, err := s.nodes(ctx)
+	if err != nil {
+		return false
+	}
+	id := ""
+	for _, n := range ns {
+		if n.ID == node || n.Name == node {
+			id = n.ID
+			break
+		}
+	}
+	if id == "" {
+		return false
+	}
+	var st stackproto.Stack
+	if err := s.call(ctx, id, stackproto.VerbGet, stackproto.GetRequest{Stack: project}, &st, s.timeout, nil); err != nil {
+		return false
+	}
+	return st.Managed && st.Head != nil
+}

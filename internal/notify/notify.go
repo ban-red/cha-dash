@@ -79,8 +79,14 @@ type Options struct {
 	// Version goes into the User-Agent.
 	Version     string
 	GroupWindow time.Duration // 0 means DefaultGroupWindow; negative sends at once
-	Log         *slog.Logger
-	Now         func() time.Time
+	// Expected says whether a problem on target, open at the time given, is
+	// expected: a maintenance window is open on its host
+	// (updates.Service.ExpectedNow). An expected problem doesn't notify
+	// while the window lasts; one still open when it ends notifies then, as
+	// if it had just opened. Nil: nothing is expected.
+	Expected func(target string, at time.Time) bool
+	Log      *slog.Logger
+	Now      func() time.Time
 }
 
 // Service is notifications: channels, rules, devices, delivery.
@@ -133,6 +139,7 @@ func New(ctx context.Context, o Options) (*Service, error) {
 		lanClient: newClient(policyLAN), pushClient: newClient(policyPublic),
 		det: newDetector(), incs: map[string]incident{}, limits: map[string]*bucket{},
 	}
+	s.det.expected = o.Expected
 	if s.window == 0 {
 		s.window = DefaultGroupWindow
 	}
@@ -181,7 +188,7 @@ func (s *Service) step(ctx context.Context) {
 	now := s.now()
 	if s.inbox != nil {
 		v := s.inbox.Version()
-		if v != s.lastVersion || s.det.pendingGrace() {
+		if v != s.lastVersion || s.det.pendingGrace() || s.det.pendingWindow(now) {
 			if v != s.lastVersion {
 				_, doc := s.inbox.Snapshot()
 				s.incs = parseIncidents(doc[topics.Incidents])

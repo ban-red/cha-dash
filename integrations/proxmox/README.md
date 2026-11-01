@@ -73,7 +73,7 @@ IDs are `proxmox:<instance id>/<local path>`.
 | Resource | ID | Kind | Attrs |
 |---|---|---|---|
 | The cluster (only when clustered) | `…/cluster` | `cluster` | `cluster`, `nodes`, `quorate`, `platform: pve` |
-| Each node | `…/node/<node>` | `host` | `platform: pve`, `node`, `ip`, `cores`, `mem_gb`, `boot_at`, `pve_version`, `kernel`, `cpu_model`, `swap_gb`, `cluster`, `updates` (only when the token can read them) |
+| Each node | `…/node/<node>` | `host` | `platform: pve`, `node`, `ip`, `cores`, `mem_gb`, `boot_at`, `pve_version`, `kernel`, `cpu_model`, `swap_gb`, `cluster`, `updates` (a count) and `apt` (`[{package, from, to}]`, at most 100, by name), only when the token can read them (`Sys.Modify`): the Update Center lists them |
 | Each guest | `…/qemu/<vmid>`, `…/lxc/<vmid>` (the VMID is cluster-wide, so a migration keeps the ID) | `vm`, `lxc` | `vmid`, `node`, `type`, `cores`, `mem_gb`, `onboot`, `os`, `ip`, `mac`, `tags`, `hastate`, `lock`, `hostpci`, `started_at`, `cluster`, `backup.last_at`, `backup.last_ok`, `backup.last_status`, `backup.last_error`, `backup.covered` |
 | Shared storage | `…/storage/<id>` (once, though `/cluster/resources` lists it per node) | `storage` | `storage`, `type`, `shared`, `content`, `size_tb`, `nodes`, `pbs.server`, `pbs.datastore`, `pbs.fingerprint`, `nfs.server`, `nfs.export` |
 | Local storage | `…/node/<node>/storage/<id>` | `storage` | as above, with `node` |

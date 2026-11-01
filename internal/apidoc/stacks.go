@@ -4,11 +4,10 @@ import (
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/stacks"
-	"dash.cha.sh/internal/updates"
 )
 
-// Mirrors of what internal/nodes', internal/stacks' and internal/updates'
-// handlers read and write.
+// Mirrors of what internal/nodes' and internal/stacks' handlers read and
+// write.
 type (
 	nodeList struct {
 		Nodes   []nodes.Status `json:"nodes"`
@@ -114,16 +113,6 @@ type (
 		FromPath string `json:"from_path"`
 		Content  string `json:"content"`
 	}
-
-	updateList struct {
-		Updates []updates.Row `json:"updates"`
-	}
-	askedBody struct {
-		Asked int `json:"asked"`
-	}
-	holdRequest struct {
-		Kind string `json:"kind"`
-	}
 )
 
 func init() {
@@ -159,11 +148,5 @@ func init() {
 		"POST /api/hooks/{id}": {Summary: "A forge's push webhook, verified by its signature; the body is the forge's own.", BodyMedia: "*/*", Status: 202, Resp: hookStatus{},
 			Errors: []string{"too_large"}},
 		"POST /api/stacks/{node}/{stack}/move/preview": {Summary: "Preview moving a stack to this node: the path rewrites, saving nothing.", Body: moveRequest{}, Resp: stacks.MovePreview{}},
-	})
-	add("updates", map[string]Op{
-		"GET /api/updates":                    {Summary: "The Update Center: containers with update checks.", Resp: updateList{}},
-		"POST /api/updates/check":             {Summary: "Check for updates now.", Resp: askedBody{}},
-		"POST /api/updates/{resource}/hold":   {Summary: "Hold or snooze a container's update.", Body: holdRequest{}, Resp: updates.Row{}},
-		"DELETE /api/updates/{resource}/hold": {Summary: "Release a hold or snooze.", Resp: updates.Row{}, Errors: []string{"not_held"}},
 	})
 }

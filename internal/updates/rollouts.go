@@ -1,17 +1,16 @@
 package updates
 
 // Rollouts and maintenance windows (docs/plan/14-v0.4.md, "Rollouts" and
-// "Maintenance windows"): the shapes wave 25 fixes, kept in rollouts and
-// maintenance_windows (migration 00024). The planner, the scheduler and
-// their routes come in wave 26; nothing reads or writes these yet.
+// "Maintenance windows"): the shapes wave 25 fixed, kept in rollouts and
+// maintenance_windows (migration 00024). The planner is plan.go, the
+// action rollout.go, windows and the scheduler windows.go.
 
 import "time"
 
 // ActRollout is the action that runs a rollout: "Update all", or a
 // selection, as one plan whose steps each update one container or stack, in
 // depends_on order, with a snapshot first where one is possible. Its tier is
-// the highest of its steps'. Not registered yet: the engine needs its
-// Resolve and Execute, which come with the planner in wave 26.
+// the highest of its steps'; its target is RolloutTarget.
 const ActRollout = "updates.rollout"
 
 // RolloutState is where a rollout is.
@@ -61,6 +60,16 @@ type RolloutStep struct {
 	Snapshot string    `json:"snapshot,omitempty"` // SnapshotGit, SnapshotPVE or none
 	State    StepState `json:"state"`
 	Reason   string    `json:"reason,omitempty"` // why it was skipped or failed, a sentence
+
+	// Name and Host are what the list calls the container and its host.
+	Name string `json:"name,omitempty"`
+	Host string `json:"host,omitempty"`
+	// Guest is the PVE guest a SnapshotPVE step snapshots first, once per
+	// rollout, before the first step on it.
+	Guest string `json:"guest,omitempty"`
+	// To is the image digest it updates to, as planned: a newer one
+	// changes the plan's hash.
+	To string `json:"to,omitempty"`
 }
 
 // Rollout is one row of rollouts.

@@ -65,5 +65,5 @@ pveum acl modify / --tokens '{{user}}!{{token}}' --roles {{role}}
 ## Notes
 
 - The built-in **PVEAuditor** role works too; it also holds `Pool.Audit`, `SDN.Audit` and `Mapping.Audit`, which Cha Dash doesn't read.
-- A read-only token can't see pending updates (they need `Sys.Modify`) or list backup volumes. Backup results come from the backup tasks instead; add Proxmox Backup Server to see the backups themselves.
+- A read-only token can't see pending updates (they need `Sys.Modify`, which also allows changes) or list backup volumes. Without it, Settings → Updates shows no package rows for this host. Backup results come from the backup tasks instead; add Proxmox Backup Server to see the backups themselves.
 - Don't use a token of `root@pam`: without privilege separation it can do anything on the host.

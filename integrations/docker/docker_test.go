@@ -140,8 +140,10 @@ func TestSyncThroughTecnativa(t *testing.T) {
 	if ips := strs(sonarr.Attrs["ips"]); !slices.Equal(ips, []string{"10.101.0.24"}) {
 		t.Fatalf("ips = %v", ips)
 	}
-	// Only allowlisted labels; the image's OCI labels stay behind.
-	if sonarr.Labels["net.unraid.docker.managed"] != "dockerman" || len(sonarr.Labels) != 3 {
+	// Only allowlisted labels; of the image's OCI labels, only its source
+	// and version (release notes) come along.
+	if sonarr.Labels["net.unraid.docker.managed"] != "dockerman" || len(sonarr.Labels) != 5 ||
+		sonarr.Labels["org.opencontainers.image.source"] != "https://github.com/binhex/arch-sonarr" || sonarr.Labels["org.opencontainers.image.version"] == "" {
 		t.Fatalf("labels = %v", sonarr.Labels)
 	}
 	// Unraid's web UI template, filled with the engine's address and the
@@ -242,10 +244,10 @@ func TestSyncThroughTecnativa(t *testing.T) {
 	}
 
 	// Nothing secret reaches the graph or the inbox: no environment, no
-	// label secrets, no other labels.
+	// label secrets, no other labels (an image's source and version are the only OCI labels).
 	all, _ := json.Marshal(g)
 	inbox, _ := json.Marshal([]any{hint, ls})
-	for _, s := range []string{"REDACTED", "OSzeOQuaiQ90iky2dyVGvWyAMhc7DvsZ2WtKiWAgc", "16303553-5814-2fe9", "pyNzdTqzPiZMCdA8", "org.opencontainers", "maintainer", "redacted@example.com"} {
+	for _, s := range []string{"REDACTED", "OSzeOQuaiQ90iky2dyVGvWyAMhc7DvsZ2WtKiWAgc", "16303553-5814-2fe9", "pyNzdTqzPiZMCdA8", "org.opencontainers.image.authors", "maintainer", "redacted@example.com"} {
 		if strings.Contains(string(all), s) || strings.Contains(string(inbox), s) {
 			t.Errorf("%q was published", s)
 		}

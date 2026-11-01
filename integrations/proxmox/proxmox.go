@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -115,7 +116,7 @@ func (Integration) Connect(_ context.Context, cfg integration.Config, d integrat
 		d: d, key: key, base: base, auth: "PVEAPIToken=" + c.TokenID + "=" + c.TokenSecret,
 		user: user, token: token, hubVMID: c.HubVMID,
 		guestCfg: map[string]*guestConfig{}, addrs: map[string]addr{}, nodeStat: map[string]nodeSample{},
-		logs: map[string]*runLog{}, updates: map[string]int{}, hidden: map[string]string{},
+		logs: map[string]*runLog{}, updates: map[string][]aptPackage{}, hidden: map[string]string{},
 		raised: map[string]bool{}, at: map[string]time.Time{},
 	}, nil
 }
@@ -145,8 +146,8 @@ type instance struct {
 	jobs     []backupJob
 	haveJobs bool
 	notBkp   []notBackedUp
-	logs     map[string]*runLog // UPID → the parsed log of a finished, failed run
-	updates  map[string]int     // node → pending updates, when the token may read them
+	logs     map[string]*runLog      // UPID → the parsed log of a finished, failed run
+	updates  map[string][]aptPackage // node → pending updates, when the token may read them
 
 	hidden map[string]string // part → why it's hidden (a 403 the token can't get past)
 	notes  []integration.Warning
@@ -348,6 +349,34 @@ func (in *instance) refreshRecent(ctx context.Context, now time.Time) error {
 	return nil
 }
 
+// aptPackage is one pending update, as /nodes/{n}/apt/update lists it.
+type aptPackage struct {
+	Package    string `json:"Package"`
+	OldVersion string `json:"OldVersion"`
+	Version    string `json:"Version"`
+}
+
+// maxAptListed is how many pending packages a host publishes by name
+// (attrs.apt); attrs.updates counts them all.
+const maxAptListed = 100
+
+// aptAttr is attrs.apt: [{"package","from","to"}], at most maxAptListed,
+// by name.
+func aptAttr(pkgs []aptPackage) []map[string]string {
+	sorted := slices.Clone(pkgs)
+	slices.SortFunc(sorted, func(a, b aptPackage) int { return strings.Compare(a.Package, b.Package) })
+	out := make([]map[string]string, 0, min(len(pkgs), maxAptListed))
+	for _, pk := range sorted {
+		if len(out) == maxAptListed {
+			break
+		}
+		if pk.Package != "" {
+			out = append(out, map[string]string{"package": pk.Package, "from": pk.OldVersion, "to": pk.Version})
+		}
+	}
+	return out
+}
+
 // refreshNodes reads each online node's status, and hourly its pending
 // updates when the token may read them (Sys.Modify; a read-only token
 // can't, and nothing is requested then).
@@ -355,7 +384,7 @@ func (in *instance) refreshNodes(ctx context.Context, res []resource, now time.T
 	retry := false
 	updates := in.perms.has("/nodes", "Sys.Modify") && in.due("updates", rareEvery, now)
 	if !in.perms.has("/nodes", "Sys.Modify") {
-		in.updates = map[string]int{}
+		in.updates = map[string][]aptPackage{}
 	}
 	for _, n := range in.nodeNames(res) {
 		if !in.nodeOnline(n, res) {
@@ -372,14 +401,12 @@ func (in *instance) refreshNodes(ctx context.Context, res []resource, now time.T
 		}
 		retry = retry || r
 		if updates {
-			var pkgs []struct {
-				Package string `json:"Package"`
-			}
+			var pkgs []aptPackage
 			err := in.get(ctx, p("nodes", n, "apt", "update"), nil, &pkgs)
 			if ok, _, fatal := in.soft(ctx, "updates", "the pending updates of "+n, err); fatal != nil {
 				return fatal
 			} else if ok {
-				in.updates[n] = len(pkgs)
+				in.updates[n] = pkgs
 			}
 		}
 	}

@@ -340,6 +340,23 @@ func TestWriteGrant(t *testing.T) {
 	}
 }
 
+// TestPendingUpdates: with Sys.Modify the hourly read lists the pending
+// packages, counted in attrs.updates and named, with their versions, in
+// attrs.apt (decision 2: the Update Center's apt rows).
+func TestPendingUpdates(t *testing.T) {
+	srv, h, in := connect(t, "pluto")
+	srv.set("/access/permissions", 200, `{"data":{"/":{"Sys.Audit":1,"VM.Audit":1,"Datastore.Audit":1},"/nodes":{"Sys.Modify":1}}}`)
+	srv.set("/nodes/pluto/apt/update", 200, `{"data":[
+		{"Package":"pve-manager","OldVersion":"8.4.1","Version":"8.4.5","Title":"<b>ignored</b>"},
+		{"Package":"libc6","OldVersion":"2.36-9+deb12u7","Version":"2.36-9+deb12u9"}]}`)
+	syncOK(t, in, integrationtest.Watched)
+	n := res(t, h, "node/pluto")
+	apt, _ := json.Marshal(n.Attrs["apt"])
+	if n.Attrs["updates"] != 2.0 || string(apt) != `[{"from":"2.36-9+deb12u7","package":"libc6","to":"2.36-9+deb12u9"},{"from":"8.4.1","package":"pve-manager","to":"8.4.5"}]` {
+		t.Fatalf("updates = %v, apt = %s", n.Attrs["updates"], apt)
+	}
+}
+
 func TestAuthRejected(t *testing.T) {
 	srv := newReplay(t, "pluto")
 	h := integrationtest.New(t)

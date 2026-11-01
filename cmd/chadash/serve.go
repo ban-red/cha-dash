@@ -462,6 +462,13 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	var upd *updates.Service
 	if !cfg.Demo {
 		upd, err = updates.New(updates.Options{Store: st, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "updates"),
+			// Rollouts (wave 26): steps take their tiers from the registry,
+			// an owned stack's commit or a PVE snapshot comes first, and a
+			// scheduled one runs as the person who scheduled it.
+			Registry:   actions,
+			CanAct:     func(id, target string) bool { return mgr.Actions().Availability(id, target).PlanReady },
+			Users:      authSvc.GetUser,
+			OwnedStack: ownedOf(stk),
 			// Check now: each node behind a Docker instance asks its
 			// registries again (image.check with fresh, which the node
 			// limits to once a minute per tag), then those instances sync
@@ -497,6 +504,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		if stk != nil {
 			stk.Held = upd.HeldServices
 		}
+		if err := actions.Register(updates.ActionSource, upd.Actions()...); err != nil {
+			return nil, err
+		}
 	}
 
 	// The action engine and its audit log. In demo mode the Demo Home's
@@ -512,7 +522,10 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// Notifications: the inbox's transitions (each device hears what its
 	// user's role sees) and every T4 action, from the engine below.
 	nt, err := notify.New(ctx, notify.Options{Store: st, Vault: v, Inbox: tp.Inbox, InboxView: server.InboxView(bs, g, log),
-		PublicURL: cfg.PublicURL, Version: buildinfo.Version, Log: log.With("component", "notify")})
+		PublicURL: cfg.PublicURL, Version: buildinfo.Version, Log: log.With("component", "notify"),
+		// Incidents on a host in an open maintenance window don't notify
+		// until it closes.
+		Expected: expectedOf(upd)})
 	if err != nil {
 		return nil, err
 	}
@@ -538,6 +551,10 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	})
 	if err != nil {
 		return nil, err
+	}
+	if upd != nil {
+		// Scheduled rollouts run through the engine, as their person.
+		upd.Engine = eng
 	}
 	// Git sync (wave 12): the syncer polls and runs the syncs as their
 	// owners' sync actors through the engine; a sync whose owner is demoted
@@ -669,6 +686,24 @@ func (a *app) close() error {
 		errs = append(errs, a.history.Close(context.Background()), a.historyStore.Close())
 	}
 	return errors.Join(append(errs, a.store.Close())...)
+}
+
+// ownedOf says which compose projects are owned stacks, or none without
+// the stacks service.
+func ownedOf(stk *stacks.Service) func(context.Context, string, string) bool {
+	if stk == nil {
+		return nil
+	}
+	return stk.Owned
+}
+
+// expectedOf is notify's Options.Expected: maintenance windows, or none in
+// demo mode.
+func expectedOf(upd *updates.Service) func(string, time.Time) bool {
+	if upd == nil {
+		return nil
+	}
+	return upd.ExpectedNow
 }
 
 // guardOf is the action engine's Guard: the Update Center's holds, or none

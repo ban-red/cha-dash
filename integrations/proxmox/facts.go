@@ -271,7 +271,8 @@ func (b *builder) hosts(res []resource) {
 			}
 		}
 		if u, ok := b.in.updates[n]; ok {
-			r.Attrs["updates"] = u
+			r.Attrs["updates"] = len(u)
+			r.Attrs["apt"] = aptAttr(u)
 		}
 		ns, haveNS := b.in.nodeStat[n]
 		fresh := haveNS && b.now.Sub(ns.at) <= nodeStatusMaxAge

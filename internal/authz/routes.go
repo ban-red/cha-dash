@@ -357,6 +357,22 @@ var Routes = []Route{
 	{Pattern: "POST /api/updates/check", Access: Operator},
 	{Pattern: "POST /api/updates/{resource}/hold", Access: Operator},
 	{Pattern: "DELETE /api/updates/{resource}/hold", Access: Operator},
+	// Rollouts, release notes and maintenance windows (wave 26). Reading
+	// them is viewer+, like the list. A rollout itself is the
+	// updates.rollout action; previewing its plan changes nothing, and
+	// cancelling one that hasn't started is operator+, like starting one.
+	// Release notes call GitHub, so turning them on is a setting (admin+).
+	// Windows decide when incidents don't notify, so they're settings too.
+	{Pattern: "GET /api/updates/{resource}/notes", Access: Viewer},
+	{Pattern: "GET /api/updates/settings", Access: Viewer},
+	{Pattern: "PUT /api/updates/settings", Access: Admin},
+	{Pattern: "POST /api/updates/rollouts/preview", Access: Operator},
+	{Pattern: "GET /api/updates/rollouts", Access: Viewer},
+	{Pattern: "POST /api/updates/rollouts/{id}/cancel", Access: Operator},
+	{Pattern: "GET /api/windows", Access: Viewer},
+	{Pattern: "POST /api/windows", Access: Admin},
+	{Pattern: "PUT /api/windows/{id}", Access: Admin},
+	{Pattern: "DELETE /api/windows/{id}", Access: Admin},
 	// Fleet stacks (wave 14). Previewing a move reads a compose file
 	// (credentials in plain text, often) and saves nothing; the move itself
 	// is the stack.move action. A node's self-update status is admin+, like

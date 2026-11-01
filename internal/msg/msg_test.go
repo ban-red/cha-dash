@@ -109,6 +109,7 @@ var migrated = []string{
 	"internal/httpx",
 	"internal/authz",
 	"internal/auth",
+	"internal/updates",
 }
 
 // TestMigratedPackagesSay fails when a migrated package writes an error
