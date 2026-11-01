@@ -155,6 +155,21 @@ func (s *Service) Item(id string) (Item, bool) {
 	return it, ok
 }
 
+// Stale names what's backed up but stale, sorted: the morning digest's
+// list.
+func (s *Service) Stale() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var names []string
+	for _, it := range s.items {
+		if it.State == Stale {
+			names = append(names, cmp.Or(it.Name, it.Resource))
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
 // Objectives returns the objectives set, by resource.
 func (s *Service) Objectives() []Objective {
 	s.mu.Lock()

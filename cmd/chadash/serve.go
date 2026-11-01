@@ -545,7 +545,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	// The morning digest reads the timeline, the Update Center and (once
 	// the backups track wires it) stale backups; each may say nothing.
-	nt.SetDigestSources(digestSources(inc, upd))
+	nt.SetDigestSources(digestSources(inc, upd, cover))
 	eng, err := action.New(ctx, action.Options{
 		Store: st, Audit: auditLog, Registry: actions, Graph: g,
 		// API tokens act as their user, narrowed to their scopes; their T2
@@ -733,9 +733,9 @@ func pveHooks(cfg config.Config, st *store.Store, v *vault.Vault, mgr *runtime.M
 }
 
 // digestSources are the morning digest's: incidents that opened from the
-// timeline, updates waiting from the Update Center (none in demo mode).
-// Stale backups stay nil until the backups track provides them.
-func digestSources(inc *incidents.Store, upd *updates.Service) notify.DigestSources {
+// timeline, updates waiting from the Update Center (none in demo mode),
+// and stale backups from the coverage map.
+func digestSources(inc *incidents.Store, upd *updates.Service, cover *backups.Service) notify.DigestSources {
 	src := notify.DigestSources{
 		Overnight: func(ctx context.Context, since, until time.Time) ([]notify.DigestIncident, error) {
 			evs, err := inc.Events(ctx, incidents.Query{From: since, To: until, Kinds: []incidents.EventKind{incidents.Opened, incidents.Resolved}})
@@ -757,6 +757,9 @@ func digestSources(inc *incidents.Store, upd *updates.Service) notify.DigestSour
 			}
 			return out, nil
 		},
+	}
+	if cover != nil {
+		src.StaleBackups = func(context.Context) ([]string, error) { return cover.Stale(), nil }
 	}
 	if upd != nil {
 		src.Updates = func(ctx context.Context) (int, error) {

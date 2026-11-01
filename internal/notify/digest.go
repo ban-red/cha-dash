@@ -81,7 +81,7 @@ type DigestIncident struct {
 }
 
 // DigestSources are where the digest reads from. Each may be nil, and
-// each may return nothing: the backups track fills StaleBackups in wave 27.
+// each may return nothing.
 type DigestSources struct {
 	// Overnight lists the incidents that opened over [since, until).
 	Overnight func(ctx context.Context, since, until time.Time) ([]DigestIncident, error)

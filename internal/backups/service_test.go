@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -180,5 +181,19 @@ func TestObjectiveRoutes(t *testing.T) {
 	if len(got) != 2 || !strings.HasPrefix(got[0], "backups.objective.clear "+guest) || !strings.HasPrefix(got[1], "backups.objective.set "+guest) ||
 		!strings.Contains(got[1], `"max_age_ms":172800000`) || !strings.Contains(got[1], `"name":"pvedocker"`) {
 		t.Fatalf("audit %q", got)
+	}
+}
+
+// Stale lists what the digest names: stale items only, by name (the
+// resource when it has none), sorted.
+func TestStale(t *testing.T) {
+	s := &Service{items: map[string]Item{
+		"a": {Resource: "a", Name: "sonarr", State: Stale},
+		"b": {Resource: "b", Name: "radarr", State: Fresh},
+		"c": {Resource: "pve:x/qemu/100", State: Stale},
+		"d": {Resource: "d", Name: "plex", State: Uncovered},
+	}}
+	if got := s.Stale(); !slices.Equal(got, []string{"pve:x/qemu/100", "sonarr"}) {
+		t.Errorf("Stale() = %v", got)
 	}
 }
