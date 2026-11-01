@@ -15,10 +15,13 @@ import (
 // Probe is one of a spec's requests as the engine sends it for some config:
 // what a fake upstream matches to answer it (chadash spec test).
 type Probe struct {
-	Name     string
-	Method   string
-	Path     string     // under the instance's URL, templates filled
-	Query    url.Values // the path's query and the request's, filled
+	Name   string
+	Method string
+	Path   string     // under the instance's URL, templates filled
+	Query  url.Values // the path's query and the request's, filled
+	// Body is a POST's body, templates filled; "" for a GET. Requests that
+	// share a path (Komodo's POST /read) differ by it.
+	Body     string
 	Optional bool
 }
 
@@ -44,7 +47,11 @@ func (s *Spec) Probes(cfg integration.Config) []Probe {
 		for k, v := range r.Query {
 			q.Set(k, in.expand(v))
 		}
-		out = append(out, Probe{Name: r.Name, Method: cmp(strings.ToUpper(r.Method), "GET"), Path: p, Query: q, Optional: r.Optional})
+		body := ""
+		if r.Body != "" {
+			body = in.expand(r.Body)
+		}
+		out = append(out, Probe{Name: r.Name, Method: cmp(strings.ToUpper(r.Method), "GET"), Path: p, Query: q, Body: body, Optional: r.Optional})
 	}
 	return out
 }

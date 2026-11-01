@@ -1,0 +1,5 @@
+# The answers chadash spec test serves for beszel.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/beszel.yaml specs/testdata/beszel
+answers:
+  systems: systems.json
+  hub: getkey.json

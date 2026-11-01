@@ -76,6 +76,37 @@ func TestRunLinkding(t *testing.T) {
 	}
 }
 
+// v0.4's Reach sources pass spec test on their fixtures folders, as the
+// plan's done-when asks (docs/plan/14-v0.4.md).
+func TestRunReachSources(t *testing.T) {
+	for id, want := range map[string][]string{
+		"beszel":   {"beszel:i_spec/app#systems = 3 count"},
+		"komodo":   {"Test: ok, version 1.19.5", "komodo:i_spec/app#stacks = 3 count"},
+		"gatus":    {"gatus:i_spec/app  app \"Test\"  running"},
+		"arcane":   {"Test: ok, version 2.17.2", "arcane:i_spec/app#stacks = 3 count", "arcane:i_spec/app#updates = 1 count"},
+		"dockhand": {"dockhand:i_spec/app#stacks = 4 count", "dockhand:i_spec/app#updates = 1 count"},
+	} {
+		b, err := fs.ReadFile(specs.FS, id+".yaml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out strings.Builder
+		ok, err := Run(t.Context(), b, "../../../specs/testdata/"+id, &out)
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		got := out.String()
+		for _, w := range append(want, "\nPASS\n") {
+			if !strings.Contains(got, w) {
+				t.Errorf("%s: no %q in\n%s", id, w, got)
+			}
+		}
+		if !ok {
+			t.Errorf("%s failed:\n%s", id, got)
+		}
+	}
+}
+
 // A required request without an answer fails; an answer for a request the
 // spec doesn't make is an error.
 func TestRunFailures(t *testing.T) {

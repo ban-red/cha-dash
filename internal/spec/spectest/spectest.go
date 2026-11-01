@@ -378,7 +378,7 @@ func query(q url.Values) string {
 }
 
 // upstream answers the spec's requests from the fixtures, matching method,
-// path and query as the engine sends them.
+// path, query and (for a POST) body as the engine sends them.
 type upstream struct {
 	dir     string
 	answers map[string]answer
@@ -390,9 +390,13 @@ type upstream struct {
 }
 
 func (u *upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var body []byte
+	if r.Body != nil {
+		body, _ = io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	}
 	name := ""
 	for _, p := range u.probes {
-		if p.Method == r.Method && p.Path == r.URL.Path && sameQuery(p.Query, r.URL.Query()) {
+		if p.Method == r.Method && p.Path == r.URL.Path && sameQuery(p.Query, r.URL.Query()) && (p.Body == "" || p.Body == string(body)) {
 			name = p.Name
 			break
 		}
