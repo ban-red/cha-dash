@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 const devLoginBuilt = true
@@ -44,22 +45,22 @@ func (s *Service) registerDevLogin(mux *http.ServeMux) {
 func (s *Service) handleDevLogin(w http.ResponseWriter, r *http.Request) {
 	// RemoteAddr, not the forwarded client IP: a trusted proxy could vouch for anyone.
 	if !fromLoopback(r) || !localHost(r) {
-		httpx.Error(w, http.StatusForbidden, "forbidden", "dev login only answers on this machine, at localhost or 127.0.0.1")
+		httpx.Say(w, http.StatusForbidden, "forbidden", msg.New("auth.devlogin_local_only"))
 		return
 	}
 	u, err := s.devOwner(r.Context())
 	if errors.Is(err, errOwnerDisabled) {
-		httpx.Error(w, http.StatusForbidden, "forbidden", "the owner account is disabled")
+		httpx.Say(w, http.StatusForbidden, "forbidden", msg.New("auth.owner_disabled"))
 		return
 	}
 	if err != nil {
 		s.log.Error("dev login failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	if _, err := s.StartSession(w, r, u, MethodDev); err != nil {
 		s.log.Error("could not start session after dev login", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]User{"user": u})

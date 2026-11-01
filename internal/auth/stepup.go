@@ -24,6 +24,7 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // StepUpTTL is how long a step-up grant lasts.
@@ -162,9 +163,9 @@ func (s *Service) refuseStepUp(w http.ResponseWriter, c stepUpChoice) {
 	case c.anyPK && errors.As(c.rpErr, &unavailable):
 		httpx.Error(w, http.StatusConflict, "passkeys_unavailable", unavailable.msg)
 	case c.mode == StepUpPasskeyOnly:
-		httpx.Error(w, http.StatusForbidden, "passkey_required", "This hub asks for a passkey to confirm destructive actions. Add one to your account first.")
+		httpx.Say(w, http.StatusForbidden, "passkey_required", msg.New("auth.stepup_passkey_policy"))
 	default:
-		httpx.Error(w, http.StatusForbidden, "step_up_unavailable", "Your account has no password or passkey that works here, so it can't confirm destructive actions.")
+		httpx.Say(w, http.StatusForbidden, "step_up_unavailable", msg.New("auth.stepup_unavailable"))
 	}
 }
 
@@ -224,7 +225,7 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 	}
 	var probe map[string]json.RawMessage
 	if err := json.Unmarshal(body, &probe); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "bad_json", "request body must be a JSON object")
+		httpx.Say(w, http.StatusBadRequest, "bad_json", msg.New("request.not_object"))
 		return
 	}
 	c, err := s.stepUpOptions(r, id.User.ID)
@@ -236,12 +237,12 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 	fail := func(reason string, err error) {
 		s.log.Info("step-up failed", "user", id.User.Username, "client", client, "reason", reason, "err", err)
 		s.emit(Event{Kind: EventStepUpFailed, UserID: id.User.ID, SessionID: id.Session.ID, Reason: reason, Request: r})
-		httpx.Error(w, http.StatusForbidden, "step_up_failed", "That didn't confirm it's you. Try again.")
+		httpx.Say(w, http.StatusForbidden, "step_up_failed", msg.New("auth.stepup_failed"))
 	}
 	if raw, isPassword := probe["password"]; isPassword {
 		if !c.password {
 			if len(c.creds) > 0 {
-				httpx.Error(w, http.StatusForbidden, "passkey_required", "Use your passkey to confirm it's you.")
+				httpx.Say(w, http.StatusForbidden, "passkey_required", msg.New("auth.stepup_use_passkey"))
 				return
 			}
 			s.refuseStepUp(w, c)
@@ -249,7 +250,7 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 		}
 		var password string
 		if len(probe) != 1 || json.Unmarshal(raw, &password) != nil {
-			httpx.Error(w, http.StatusBadRequest, "bad_json", `send {"password"} or a passkey assertion`)
+			httpx.Say(w, http.StatusBadRequest, "bad_json", msg.New("auth.stepup_bad_body"))
 			return
 		}
 		// Wrong passwords here draw on the same per-account budget as sign-in.

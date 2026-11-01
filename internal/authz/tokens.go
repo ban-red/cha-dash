@@ -11,6 +11,7 @@ import (
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Token lifetimes: every token expires, 90 days unless the person picks
@@ -144,12 +145,18 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 	}
 	// Refusals are audited too: asking for a scope your role can't hand
 	// out is worth seeing. Only the name and the scopes asked for.
-	refuse := func(msg string) {
-		t.Audit.Refuse(r, "tokens.create", "", map[string]any{"name": clipString(req.Name, 100), "scopes": clipScopes(req.Scopes)}, T1, "invalid", msg)
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", msg)
+	audit := func(text string) {
+		t.Audit.Refuse(r, "tokens.create", "", map[string]any{"name": clipString(req.Name, 100), "scopes": clipScopes(req.Scopes)}, T1, "invalid", text)
+	}
+	// Scope and validation sentences aren't in the catalog yet.
+	refuse := func(text string) {
+		audit(text)
+		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", text)
 	}
 	if days < 1 || days > MaxTokenDays {
-		refuse("A token must expire within 1 to 365 days.")
+		m := msg.New("authz.token_days")
+		audit(m.Text())
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", m)
 		return
 	}
 	scopes, err := cleanScopes(req.Scopes, a.Role)
@@ -211,7 +218,7 @@ func (t *Tokens) revoke(w http.ResponseWriter, r *http.Request) {
 		// Someone else's token you may not touch reads as missing, so IDs
 		// don't leak; the attempt is audited.
 		t.Audit.Refuse(r, "tokens.revoke", "token:"+clipString(id, 100), nil, T1, "not_found", "There's no such token.")
-		httpx.Error(w, http.StatusNotFound, "not_found", "There's no such token.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("authz.token_not_found"))
 		return
 	} else if err != nil {
 		t.internal(w, "reading an API token failed", err)
@@ -223,7 +230,7 @@ func (t *Tokens) revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !changed {
-		httpx.Error(w, http.StatusConflict, "already_revoked", "This token was already revoked.")
+		httpx.Say(w, http.StatusConflict, "already_revoked", msg.New("authz.token_already_revoked"))
 		return
 	}
 	t.Audit.Change(r, "tokens.revoke", "token:"+tok.ID, map[string]string{"name": tok.Name, "user": tok.Username}, T1, nil)
@@ -307,7 +314,7 @@ func clipScopes(in []string) []string {
 	return out
 }
 
-func (t *Tokens) internal(w http.ResponseWriter, msg string, err error) {
-	t.log.Error("tokens: "+msg, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+func (t *Tokens) internal(w http.ResponseWriter, what string, err error) {
+	t.log.Error("tokens: "+what, "err", err)
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }

@@ -10,6 +10,8 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+
+	"dash.cha.sh/internal/msg"
 )
 
 func TestClientIP(t *testing.T) {
@@ -96,6 +98,15 @@ func TestDecodeJSON(t *testing.T) {
 		})
 	}
 
+	// The error carries the English sentence, its ID and no args.
+	r := httptest.NewRequest("POST", "/", strings.NewReader(`{"name":"x"}{}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	DecodeJSON(w, r, &body{})
+	if want := `{"error":{"code":"bad_json","message":"request body must be a single JSON object","id":"request.not_single_object"}}` + "\n"; w.Body.String() != want {
+		t.Fatalf("got %s", w.Body)
+	}
+
 	// A larger limit admits what the default refuses, and still has a bound.
 	big := `{"name":"` + strings.Repeat("a", MaxBodyBytes) + `"}`
 	for limit, want := range map[int64]int{1 << 20: http.StatusOK, MaxBodyBytes: http.StatusRequestEntityTooLarge} {
@@ -106,6 +117,21 @@ func TestDecodeJSON(t *testing.T) {
 		if ok := DecodeJSONLimit(w, r, &b, limit); ok != (want == http.StatusOK) || (!ok && w.Code != want) {
 			t.Fatalf("limit %d: ok=%v status=%d", limit, ok, w.Code)
 		}
+	}
+}
+
+func TestSay(t *testing.T) {
+	w := httptest.NewRecorder()
+	Say(w, http.StatusForbidden, "unknown_host", msg.New("auth.unknown_host", "host", "nas.example"))
+	want := `{"error":{"code":"unknown_host","message":"Cha Dash doesn't know the name nas.example. Open it at its IP address, or set CHADASH_PUBLIC_URL to the address you use, then create the owner.","id":"auth.unknown_host","args":{"host":"nas.example"}}}` + "\n"
+	if w.Code != http.StatusForbidden || w.Body.String() != want {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	// Error, for sentences not in the catalog yet, leaves id and args out.
+	w = httptest.NewRecorder()
+	Error(w, http.StatusConflict, "conflict", "That's taken.")
+	if got := w.Body.String(); got != `{"error":{"code":"conflict","message":"That's taken."}}`+"\n" {
+		t.Fatalf("got %s", got)
 	}
 }
 

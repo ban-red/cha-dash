@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Identity is the signed-in user attached to a request by Require, or the
@@ -68,17 +69,17 @@ func (s *Service) Require(next http.Handler) http.Handler {
 		}
 		c, err := r.Cookie(CookieName)
 		if err != nil {
-			httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "sign in required")
+			httpx.Say(w, http.StatusUnauthorized, "unauthenticated", msg.New("auth.signin_required"))
 			return
 		}
 		sess, u, err := s.lookupSession(r.Context(), c.Value)
 		if err != nil {
 			if !errors.Is(err, ErrNoSession) {
 				s.log.Error("session lookup failed", "err", err)
-				httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+				httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 				return
 			}
-			httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "sign in required")
+			httpx.Say(w, http.StatusUnauthorized, "unauthenticated", msg.New("auth.signin_required"))
 			return
 		}
 		if s.touchSession(r.Context(), &sess) {
@@ -166,12 +167,12 @@ func (s *Service) banned(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func ipBanned(w http.ResponseWriter) {
-	httpx.Error(w, http.StatusForbidden, "ip_banned", "this address is banned after too many wrong passwords; an admin can clear it")
+	httpx.Say(w, http.StatusForbidden, "ip_banned", msg.New("auth.ip_banned"))
 }
 
 func tooManyAttempts(w http.ResponseWriter, wait time.Duration) {
 	w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
-	httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "too many attempts; try again later")
+	httpx.Say(w, http.StatusTooManyRequests, "rate_limited", msg.New("auth.rate_limited"))
 }
 
 func (s *Service) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
@@ -192,8 +193,7 @@ func (s *Service) handleSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.rebindSafe(r) {
-		httpx.Error(w, http.StatusForbidden, "unknown_host",
-			"Cha Dash doesn't know the name "+requestHost(r)+". Open it at its IP address, or set CHADASH_PUBLIC_URL to the address you use, then create the owner.")
+		httpx.Say(w, http.StatusForbidden, "unknown_host", msg.New("auth.unknown_host", "host", requestHost(r)))
 		return
 	}
 	var req setupRequest
@@ -204,19 +204,19 @@ func (s *Service) handleSetup(w http.ResponseWriter, r *http.Request) {
 	var verr *ValidationError
 	switch {
 	case errors.Is(err, ErrSetupComplete):
-		httpx.Error(w, http.StatusConflict, "setup_complete", "setup has already been completed")
+		httpx.Say(w, http.StatusConflict, "setup_complete", msg.New("auth.setup_complete"))
 		return
 	case errors.As(err, &verr):
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
 		return
 	case err != nil:
 		s.log.Error("setup failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	if _, err := s.StartSession(w, r, u, MethodPassword); err != nil {
 		s.log.Error("could not start session after setup", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "account created, but signing in failed; sign in again")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("auth.setup_signin_failed"))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, map[string]User{"user": u})
@@ -253,18 +253,18 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 			ipBanned(w)
 			return
 		}
-		httpx.Error(w, http.StatusUnauthorized, "bad_credentials", "invalid username or password")
+		httpx.Say(w, http.StatusUnauthorized, "bad_credentials", msg.New("auth.bad_credentials"))
 		return
 	}
 	if err != nil {
 		s.log.Error("sign-in error", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	s.forgive(s.proxies.ClientIP(r), req.Username)
 	if _, err := s.StartSession(w, r, u, MethodPassword); err != nil {
 		s.log.Error("could not start session", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]User{"user": u})
@@ -275,7 +275,7 @@ func (s *Service) handleLogout(w http.ResponseWriter, r *http.Request) {
 		id, user, err := s.deleteSession(r.Context(), c.Value)
 		if err != nil {
 			s.log.Error("could not delete session", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 		if id != "" {

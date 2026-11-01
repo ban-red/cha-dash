@@ -8,6 +8,7 @@ import (
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // DecideIdentityChange decides whether a may change their own linked
@@ -108,7 +109,7 @@ func (h *Identities) list(w http.ResponseWriter, r *http.Request) {
 
 func (h *Identities) listFor(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.auth.GetUser(r.Context(), r.PathValue("id")); errors.Is(err, auth.ErrUserNotFound) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "There's no such user.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("authz.user_not_found"))
 		return
 	} else if err != nil {
 		h.internal(w, "reading the user failed", err)
@@ -139,11 +140,11 @@ func (h *Identities) unlink(w http.ResponseWriter, r *http.Request) {
 	err := h.auth.UnlinkIdentity(r.Context(), actor.ID, issuer, subject)
 	switch {
 	case errors.Is(err, auth.ErrIdentityNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", "That sign-in isn't linked to your account.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("authz.identity_not_linked"))
 	case auth.IsLastSignInMethod(err):
-		const msg = "That's the only way into your account. Add a passkey or link another sign-in first."
-		h.Audit.Refuse(r, action, target, params, T3, "last_sign_in_method", msg)
-		httpx.Error(w, http.StatusConflict, "last_sign_in_method", msg)
+		m := msg.New("authz.last_sign_in_method")
+		h.Audit.Refuse(r, action, target, params, T3, "last_sign_in_method", m.Text())
+		httpx.Say(w, http.StatusConflict, "last_sign_in_method", m)
 	case err != nil:
 		h.internal(w, "unlinking failed", err)
 	default:
@@ -163,9 +164,9 @@ func (h *Identities) linkForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if name == "" {
-		const msg = "No trusted proxy named a user on this request. Open Cha Dash through your proxy, with forward-auth on in Settings → Security."
-		h.Audit.Refuse(r, "auth.forward.link", target, params, T3, "no_forward_auth", msg)
-		httpx.Error(w, http.StatusConflict, "no_forward_auth", msg)
+		m := msg.New("authz.no_forward_auth")
+		h.Audit.Refuse(r, "auth.forward.link", target, params, T3, "no_forward_auth", m.Text())
+		httpx.Say(w, http.StatusConflict, "no_forward_auth", m)
 		return
 	}
 	created, err := h.auth.LinkForwardAuth(r.Context(), actor.ID, name)
@@ -174,9 +175,9 @@ func (h *Identities) linkForward(w http.ResponseWriter, r *http.Request) {
 	case errors.As(err, &verr):
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
 	case errors.Is(err, auth.ErrIdentityTaken):
-		const msg = "That proxy username is linked to another account."
-		h.Audit.Refuse(r, "auth.forward.link", target, params, T3, "already_linked", msg)
-		httpx.Error(w, http.StatusConflict, "already_linked", msg)
+		m := msg.New("authz.proxy_name_taken")
+		h.Audit.Refuse(r, "auth.forward.link", target, params, T3, "already_linked", m.Text())
+		httpx.Say(w, http.StatusConflict, "already_linked", m)
 	case err != nil:
 		h.internal(w, "linking failed", err)
 	default:
@@ -187,7 +188,7 @@ func (h *Identities) linkForward(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Identities) internal(w http.ResponseWriter, msg string, err error) {
-	h.log.Error(msg, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+func (h *Identities) internal(w http.ResponseWriter, what string, err error) {
+	h.log.Error(what, "err", err)
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }

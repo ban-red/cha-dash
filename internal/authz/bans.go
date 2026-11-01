@@ -7,6 +7,7 @@ import (
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Bans serves the banned-address list in Settings → Users (admin+; Guard
@@ -42,7 +43,7 @@ func (b *Bans) list(w http.ResponseWriter, r *http.Request) {
 	list, err := b.auth.ListBans(r.Context())
 	if err != nil {
 		b.log.Error("listing bans failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, list)
@@ -59,12 +60,12 @@ func (b *Bans) clear(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	case errors.As(err, &verr):
 		b.Audit.Refuse(r, "security.ban.clear", target, nil, T1, "invalid", "That isn't an IP address.")
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "That isn't an IP address.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("authz.not_an_ip"))
 	case errors.Is(err, auth.ErrBanNotFound):
 		b.Audit.Refuse(r, "security.ban.clear", target, nil, T1, "not_found", "That address isn't banned.")
-		httpx.Error(w, http.StatusNotFound, "not_found", "That address isn't banned.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("authz.not_banned"))
 	default:
 		b.log.Error("clearing a ban failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 	}
 }

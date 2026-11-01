@@ -38,6 +38,7 @@ import (
 	"unicode/utf8"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // TokenPrefix starts every API token's secret.
@@ -337,14 +338,14 @@ func (s *Service) RequireToken(next http.Handler) http.Handler {
 		}
 		presented, ok := BearerToken(r)
 		if !ok {
-			httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "sign in required")
+			httpx.Say(w, http.StatusUnauthorized, "unauthenticated", msg.New("auth.signin_required"))
 			return
 		}
 		ip := s.proxies.ClientIP(r)
 		key := "token|" + httpx.ClientKey(ip)
 		if wait := s.tokenFailures.Wait(key); wait > 0 {
 			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
-			httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many bad API tokens from this address; try again later.")
+			httpx.Say(w, http.StatusTooManyRequests, "rate_limited", msg.New("auth.token_rate_limited"))
 			return
 		}
 		id, err := s.AuthenticateToken(r.Context(), presented, ip.String())
@@ -352,14 +353,14 @@ func (s *Service) RequireToken(next http.Handler) http.Handler {
 			s.tokenFailures.Allow(key)
 			switch {
 			case errors.Is(err, ErrTokenExpired):
-				httpx.Error(w, http.StatusUnauthorized, "token_expired", "This API token has expired. Make a new one in Settings → API tokens.")
+				httpx.Say(w, http.StatusUnauthorized, "token_expired", msg.New("auth.token_expired"))
 			case errors.Is(err, ErrTokenRevoked):
-				httpx.Error(w, http.StatusUnauthorized, "token_revoked", "This API token has been revoked.")
+				httpx.Say(w, http.StatusUnauthorized, "token_revoked", msg.New("auth.token_revoked"))
 			case errors.Is(err, ErrBadToken):
-				httpx.Error(w, http.StatusUnauthorized, "invalid_token", "This API token isn't valid.")
+				httpx.Say(w, http.StatusUnauthorized, "invalid_token", msg.New("auth.token_invalid"))
 			default:
 				s.log.Error("API token lookup failed", "err", err)
-				httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+				httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			}
 			return
 		}

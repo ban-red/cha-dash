@@ -8,6 +8,7 @@ import (
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Access is what a route needs from the caller.
@@ -82,18 +83,18 @@ func (a Access) Allows(role string) bool {
 	return false // NodeKey, Signature: never a person
 }
 
-func (a Access) refusal() string {
+func (a Access) refusal() msg.M {
 	switch a {
 	case Viewer:
-		return "Household accounts can't open this."
+		return msg.New("authz.viewer_refused")
 	case Operator:
-		return "Only operators, admins and the owner can do this."
+		return msg.New("authz.operator_only")
 	case Admin:
-		return "Only an admin or the owner can do this."
+		return msg.New("authz.admin_only")
 	case Owner:
-		return "Only the owner can do this."
+		return msg.New("authz.owner_only")
 	}
-	return "You can't do this."
+	return msg.New("authz.refused")
 }
 
 // Route is one row of the table.
@@ -441,7 +442,7 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 		route, ok := Lookup(pattern)
 		if !ok {
 			log.Error("authz: route has no row in internal/authz/routes.go; refusing", "pattern", pattern)
-			httpx.Error(w, http.StatusInternalServerError, "no_authz_rule", "This route has no authorization rule yet, so it's refused.")
+			httpx.Say(w, http.StatusInternalServerError, "no_authz_rule", msg.New("authz.no_rule"))
 			return
 		}
 		if route.Access == Public || route.Access == NodeKey || route.Access == Signature {
@@ -454,18 +455,18 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 			// An API token: it alone is the credential, whatever cookie
 			// came with it, and only on /api/ routes.
 			if !strings.HasPrefix(r.URL.Path, "/api/") {
-				httpx.Error(w, http.StatusUnauthorized, "unauthenticated", "API tokens work only on /api/ routes.")
+				httpx.Say(w, http.StatusUnauthorized, "unauthenticated", msg.New("authz.token_api_only"))
 				return
 			}
 			a.RequireToken(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				id, _ := auth.FromContext(r.Context())
 				if err := TokenRoute(route, id.User.Role, id.Token.Scopes); err != nil {
 					var ref *Refusal
-					code, msg := "forbidden", err.Error()
+					code, text := "forbidden", err.Error()
 					if errors.As(err, &ref) && errors.Is(ref.Err, ErrSessionOnly) {
 						code = "session_only"
 					}
-					httpx.Error(w, http.StatusForbidden, code, msg)
+					httpx.Error(w, http.StatusForbidden, code, text)
 					return
 				}
 				mux.ServeHTTP(w, r)
@@ -475,7 +476,7 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 		a.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			id, _ := auth.FromContext(r.Context())
 			if !route.Access.Allows(id.User.Role) {
-				httpx.Error(w, http.StatusForbidden, "forbidden", route.Access.refusal())
+				httpx.Say(w, http.StatusForbidden, "forbidden", route.Access.refusal())
 				return
 			}
 			mux.ServeHTTP(w, r)
@@ -494,7 +495,7 @@ func TokenRoute(route Route, role string, scopes []string) error {
 	case route.Token == "" || route.Access == NodeKey || route.Access == Signature:
 		return &Refusal{Err: ErrSessionOnly, Msg: "API tokens can't use this; sign in to Cha Dash instead."}
 	case !route.Access.Allows(role):
-		return forbid("%s This token acts as its user, so it can't either.", route.Access.refusal())
+		return forbid("%s This token acts as its user, so it can't either.", route.Access.refusal().Text())
 	case route.Token == TokenAny:
 		return nil
 	}

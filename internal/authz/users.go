@@ -8,6 +8,7 @@ import (
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Users serves Settings → Users. Guard has already admitted admin+ (owner
@@ -88,9 +89,9 @@ func (u *Users) update(w http.ResponseWriter, r *http.Request) {
 	}
 	// An admin manages every account but the owner's.
 	if cur.Role == auth.RoleOwner && actor.Role != auth.RoleOwner {
-		const msg = "Only the owner can change the owner's account."
-		u.Audit.Refuse(r, "users.update", target, req, T1, "forbidden", msg)
-		httpx.Error(w, http.StatusForbidden, "forbidden", msg)
+		m := msg.New("authz.owner_account")
+		u.Audit.Refuse(r, "users.update", target, req, T1, "forbidden", m.Text())
+		httpx.Say(w, http.StatusForbidden, "forbidden", m)
 		return
 	}
 	user, err := u.auth.UpdateUser(r.Context(), cur.ID, req.Role, req.Disabled)
@@ -124,20 +125,22 @@ func (u *Users) transfer(w http.ResponseWriter, r *http.Request) {
 // refusals and aren't audited.
 func (u *Users) refused(w http.ResponseWriter, r *http.Request, err error, action, target string, params any) bool {
 	var verr *auth.ValidationError
-	status, code, msg := 0, "", ""
+	status, code, text := 0, "", ""
+	var m msg.M
 	switch {
 	case err == nil:
 		return false
 	case errors.As(err, &verr):
-		status, code, msg = http.StatusUnprocessableEntity, "invalid", verr.Msg
+		// Validation sentences aren't in the catalog yet.
+		status, code, text = http.StatusUnprocessableEntity, "invalid", verr.Msg
 	case errors.Is(err, auth.ErrUserNotFound):
-		status, code, msg = http.StatusNotFound, "not_found", "There's no such user."
+		status, code, m = http.StatusNotFound, "not_found", msg.New("authz.user_not_found")
 	case errors.Is(err, auth.ErrUserExists):
-		status, code, msg = http.StatusConflict, "conflict", "That username is taken."
+		status, code, m = http.StatusConflict, "conflict", msg.New("authz.username_taken")
 	case errors.Is(err, auth.ErrOwnerProtected):
-		status, code, msg = http.StatusConflict, "owner_protected", "The owner can't be demoted or disabled. Hand over ownership first."
+		status, code, m = http.StatusConflict, "owner_protected", msg.New("authz.owner_protected")
 	case errors.Is(err, auth.ErrNotOwner):
-		status, code, msg = http.StatusConflict, "conflict", "You're no longer the owner."
+		status, code, m = http.StatusConflict, "conflict", msg.New("authz.not_owner")
 	default:
 		u.internal(w, "users: request failed", err)
 		return true
@@ -146,14 +149,21 @@ func (u *Users) refused(w http.ResponseWriter, r *http.Request, err error, actio
 	if action == "users.transfer-ownership" {
 		tier = T3
 	}
-	u.Audit.Refuse(r, action, target, params, tier, code, msg)
-	httpx.Error(w, status, code, msg)
+	if m.ID != "" {
+		text = m.Text()
+	}
+	u.Audit.Refuse(r, action, target, params, tier, code, text)
+	if m.ID != "" {
+		httpx.Say(w, status, code, m)
+	} else {
+		httpx.Error(w, status, code, text)
+	}
 	return true
 }
 
-func (u *Users) internal(w http.ResponseWriter, msg string, err error) {
-	u.log.Error(msg, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+func (u *Users) internal(w http.ResponseWriter, what string, err error) {
+	u.log.Error(what, "err", err)
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }
 
 // WriteRefusal answers a Decide or Policy refusal: 403 step_up_required when

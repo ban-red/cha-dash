@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"dash.cha.sh/internal/msg"
 )
 
 // SecurityHeaders sets the hardening headers every response carries. The CSP
@@ -38,7 +40,7 @@ func Recover(log *slog.Logger) func(http.Handler) http.Handler {
 						panic(v)
 					}
 					log.Error("handler panic", "method", r.Method, "path", r.URL.Path, "panic", v)
-					Error(w, http.StatusInternalServerError, "internal", "internal error")
+					Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 				}
 			}()
 			next.ServeHTTP(w, r)

@@ -9,6 +9,7 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // registerPasskeys mounts the passkey endpoints. Options and credentials are
@@ -85,7 +86,7 @@ func (s *Service) handleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	reject := func(err error) {
 		s.log.Info("passkey registration failed", "user", id.User.Username, "reason", describe(err))
-		httpx.Error(w, http.StatusBadRequest, "passkey_rejected", "the passkey could not be verified; try again")
+		httpx.Say(w, http.StatusBadRequest, "passkey_rejected", msg.New("auth.passkey_rejected"))
 	}
 	parsed, err := protocol.ParseCredentialCreationResponseBytes(body)
 	if err != nil {
@@ -109,7 +110,7 @@ func (s *Service) handleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	p, err := s.savePasskey(ctx, id.User.ID, c.rp.ID, cred)
 	if errors.Is(err, errPasskeyExists) {
-		httpx.Error(w, http.StatusConflict, "passkey_exists", "this passkey is already registered")
+		httpx.Say(w, http.StatusConflict, "passkey_exists", msg.New("auth.passkey_exists"))
 		return
 	}
 	if err != nil {
@@ -169,7 +170,7 @@ func (s *Service) handlePasskeyLoginFinish(w http.ResponseWriter, r *http.Reques
 	client := s.proxies.ClientIP(r).String()
 	reject := func(passkey string, err error) {
 		s.log.Info("passkey sign-in failed", "client", client, "passkey", passkey, "reason", describe(err))
-		httpx.Error(w, http.StatusUnauthorized, "passkey_rejected", "that passkey didn't work; try again")
+		httpx.Say(w, http.StatusUnauthorized, "passkey_rejected", msg.New("auth.passkey_failed"))
 	}
 	parsed, err := protocol.ParseCredentialRequestResponseBytes(body)
 	if err != nil {
@@ -202,7 +203,7 @@ func (s *Service) handlePasskeyLoginFinish(w http.ResponseWriter, r *http.Reques
 			httpx.ErrorBody
 			Signal passkeySignal `json:"signal"`
 		}{
-			httpx.ErrorBody{Error: httpx.ErrorDetail{Code: "unknown_passkey", Message: "this passkey isn't registered with Cha Dash"}},
+			httpx.ErrorBody{Error: httpx.Detail("unknown_passkey", msg.New("auth.passkey_unknown"))},
 			passkeySignal{RPID: c.rp.ID, CredentialID: parsed.ID},
 		})
 		return
@@ -262,7 +263,7 @@ func (s *Service) handleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 	case errors.As(err, &verr):
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
 	case errors.Is(err, ErrPasskeyNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such passkey")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("auth.passkey_not_found"))
 	case err != nil:
 		s.internalError(w, "could not rename passkey", err)
 	default:
@@ -277,9 +278,9 @@ func (s *Service) handleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 	err := s.DeletePasskey(r.Context(), id.User.ID, pk)
 	switch {
 	case errors.Is(err, ErrPasskeyNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such passkey")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("auth.passkey_not_found"))
 	case errors.Is(err, errLastSignInMethod):
-		httpx.Error(w, http.StatusConflict, "last_sign_in_method", "this passkey is the only way to sign in to this account; add another passkey first")
+		httpx.Say(w, http.StatusConflict, "last_sign_in_method", msg.New("auth.passkey_last_method"))
 	case err != nil:
 		s.internalError(w, "could not delete passkey", err)
 	default:
@@ -300,7 +301,7 @@ func (s *Service) passkeyRP(w http.ResponseWriter, r *http.Request) (relyingPart
 }
 
 func ceremonyGone(w http.ResponseWriter) {
-	httpx.Error(w, http.StatusBadRequest, "ceremony_expired", "that passkey request expired or was already used; start again")
+	httpx.Say(w, http.StatusBadRequest, "ceremony_expired", msg.New("auth.passkey_ceremony_gone"))
 }
 
 // readCredential reads a finish body: one JSON object, parsed by the library.
@@ -312,9 +313,9 @@ func readCredential(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 	return raw, true
 }
 
-func (s *Service) internalError(w http.ResponseWriter, msg string, err error) {
-	s.log.Error(msg, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+func (s *Service) internalError(w http.ResponseWriter, what string, err error) {
+	s.log.Error(what, "err", err)
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }
 
 // describe renders a WebAuthn failure for the logs, with the library's detail.

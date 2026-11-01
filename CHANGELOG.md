@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Errors name their sentence.** Beside the English `message`, an API error now carries a stable `id` for the sentence and its parameters in `args`, so it can be translated later. Signing in, setup, tokens, passkeys and the user and access settings use them first.
+
 ## [0.3.0] - 2026-10-31
 
 The first stable release of Cha Dash, and the end of v0.3. Since 0.2, Cha Dash reaches every host: a node joins with a token and waits for your approval, stacks follow a git branch and deploy on push, and you can sign in with your own OIDC provider. It knows what your apps use and says why something isn't fine, draws the whole home on the Atlas, lists the containers whose image has a newer version and updates one through a health gate that rolls back on its own, and installs integrations from spec files, such as those in the [community repository](https://github.com/ban-red/cha-dash-specs). The details are in the three betas below. This release adds two fixes that the last live checks found.
