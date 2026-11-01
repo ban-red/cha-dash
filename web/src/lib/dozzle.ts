@@ -6,8 +6,15 @@
  *
  * Dozzle's routes put a container at `<base>/container/<id>`, by its short
  * (12-character) Docker ID, which the Docker integration publishes as
- * `attrs.container_id`. A Dozzle that watches several hosts through its
- * agents finds the container by that ID too.
+ * `attrs.container_id`. Checked against Dozzle v11.4.0's source
+ * (github.com/amir20/dozzle): the page is `assets/pages/container/[id].vue`
+ * (file-based routes), the backend serves the SPA for any path under
+ * `--base` (`internal/web/routes.go`), and a container's `id` is
+ * `c.ID[:12]` (`internal/container/docker/client.go`). The page looks the ID
+ * up in one map of every host's containers (`assets/stores/container.ts`,
+ * `currentContainer`), so the same link works for a container on a remote
+ * host or an agent: no host goes in the URL. (`/show?name=&host=` also
+ * exists, by name, but a name can match a newer container.)
  */
 import { ref } from 'vue';
 import { api } from './api';

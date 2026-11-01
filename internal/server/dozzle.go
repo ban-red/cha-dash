@@ -5,7 +5,9 @@ package server
 // there. Cha Dash never talks to Dozzle: the browser follows the link, and
 // Dozzle asks for its own sign-in if it has one. Dozzle's routes put a
 // container at <base>/container/<id>, by its short (12-character) ID, which
-// the Docker integration publishes as attrs.container_id.
+// the Docker integration publishes as attrs.container_id. Checked against
+// Dozzle v11.4.0's source; the link needs no host, since Dozzle looks the ID
+// up across every host and agent (web/src/lib/dozzle.ts has the files).
 //
 // It's the settings row DozzleKey, {"url": "…"}; missing is off.
 //

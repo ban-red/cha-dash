@@ -6,9 +6,15 @@ afterEach(() => vi.unstubAllGlobals());
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 describe('Dozzle links', () => {
-  it('links a container by its short ID', () => {
+  // Dozzle v11.4.0 (github.com/amir20/dozzle): assets/pages/container/[id].vue
+  // under --base, with id = the Docker ID's first 12 characters
+  // (internal/container/docker/client.go), looked up across every host and
+  // agent (assets/stores/container.ts), so the URL never names a host.
+  it('links a container by its short ID, under Dozzle\'s base path', () => {
     expect(dozzleLink('https://logs.home.example', '3f1a2b3c4d5e')).toBe('https://logs.home.example/container/3f1a2b3c4d5e');
     expect(dozzleLink('http://10.20.30.5:8080/dozzle/', '3f1a2b3c4d5e6f7a8b9c')).toBe('http://10.20.30.5:8080/dozzle/container/3f1a2b3c4d5e');
+    // A full 64-character ID, as Docker reports it, is cut to Dozzle's 12.
+    expect(dozzleLink('https://logs.home.example', '3f1a2b3c4d5e'.padEnd(64, '0'))).toBe('https://logs.home.example/container/3f1a2b3c4d5e');
   });
 
   it('links nothing without an address or a container ID', () => {
