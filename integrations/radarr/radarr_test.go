@@ -21,6 +21,7 @@ func upstream(t *testing.T) *fixture.Server {
 		"GET /radarr/api/v3/wanted/missing": {File: "wanted_missing.json"},
 		"GET /radarr/api/v3/wanted/cutoff":  {File: "wanted_cutoff.json"},
 		"GET /radarr/api/v3/calendar":       {File: "calendar.json"},
+		"GET /radarr/api/v3/downloadclient": {File: "downloadclient.json"},
 	})
 }
 
@@ -49,6 +50,10 @@ func TestSync(t *testing.T) {
 	r, ok := h.Resource(rid)
 	if !ok || r.Kind != "app" || r.Health != integration.HealthOK || r.Attrs["type"] != "radarr" || r.Attrs["version"] != "5.26.2.10099" {
 		t.Fatalf("app = %+v", r)
+	}
+	// Its download client, by address only: the fixture's password stays out.
+	if got := r.Attrs[integration.AttrUses]; !reflect.DeepEqual(got, []any{map[string]any{"role": "download client", "url": "http://qbittorrent.lab.example:8080", "name": "qBittorrent"}}) {
+		t.Fatalf("uses = %#v", got)
 	}
 	// One entry per release date inside the window.
 	want := []any{

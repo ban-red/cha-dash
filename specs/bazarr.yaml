@@ -49,6 +49,22 @@ requests:
     extract:
       items: data
     optional: true
+  # Where its Sonarr and Radarr are, for uses. The settings carry their
+  # API keys too; only these paths are read. Optional.
+  settings:
+    path: /api/system/settings
+    extract:
+      use_sonarr: general.use_sonarr
+      sonarr_ip: sonarr.ip
+      sonarr_port: sonarr.port
+      sonarr_base: sonarr.base_url
+      sonarr_ssl: sonarr.ssl
+      use_radarr: general.use_radarr
+      radarr_ip: radarr.ip
+      radarr_port: radarr.port
+      radarr_base: radarr.base_url
+      radarr_ssl: radarr.ssl
+    optional: true
 
 version: 'status.version == nil ? nil : trimPrefix(status.version, "v")'
 
@@ -71,6 +87,14 @@ resources:
       radarr_signalr: badges.radarr_signalr
       health_issues: badges.issues
       throttled_providers: badges.providers
+      # The Sonarr and Radarr it's set up with, by address (integration.Use).
+      uses: |
+        filter([
+          settings.use_sonarr == true && settings.sonarr_ip != nil ? {role: "series manager", name: "Sonarr",
+            url: (settings.sonarr_ssl == true ? "https" : "http") + "://" + settings.sonarr_ip + ":" + string(settings.sonarr_port ?? 8989) + (settings.sonarr_base ?? "")} : nil,
+          settings.use_radarr == true && settings.radarr_ip != nil ? {role: "movie manager", name: "Radarr",
+            url: (settings.radarr_ssl == true ? "https" : "http") + "://" + settings.radarr_ip + ":" + string(settings.radarr_port ?? 7878) + (settings.radarr_base ?? "")} : nil
+        ], # != nil)
       # Where Bazarr shows why: the tile's note links here.
       health.url: '(badges.issues ?? 0) > 0 ? trimSuffix(config.url, "/") + "/system/status" : (badges.providers ?? 0) > 0 ? trimSuffix(config.url, "/") + "/system/providers" : nil'
     caps: [media.library]

@@ -10,4 +10,5 @@ Every command is `GET /api/v2?apikey=<key>&cmd=<command>` and answers inside `{"
 | `get_activity.json` | `get_activity` | Two sessions, one transcoding. `stream_count` is a **string** (`"2"`), the per-decision counts are numbers, bandwidths are kbps |
 | `get_history.json` | `get_history` | Three plays, newest first: `date` is Unix seconds, `watched_status` 1 once watched through, `percent_complete` how far it got |
 | `server_status.json` | `server_status` | Tautulli's connection to Plex: `connected` |
+| `get_server_info.json` | `get_server_info` | The Plex server Tautulli watches: name, address, port, TLS (for `uses`) |
 | `unauthorized.json` | any, with a wrong `apikey` | Sent with HTTP 401 |

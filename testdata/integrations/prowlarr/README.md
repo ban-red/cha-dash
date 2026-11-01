@@ -12,3 +12,4 @@ The numbers match the Demo Home at 2026-10-03 14:05 UTC (grabs 1100, queries in 
 | `indexerstatus.json` | `GET /api/v1/indexerstatus` | Archive Tracker (enabled) and Retired Tracker (switched off) are backing off after failures |
 | `indexerstats.json` | `GET /api/v1/indexerstats` | All time: 1100 grabs across the three |
 | `indexerstats_24h.json` | `GET /api/v1/indexerstats?startDate=…&endDate=…` | The last day: 54 queries (searches and RSS), 5 failures, all but one at Archive Tracker |
+| `applications.json` | `GET /api/v1/applications` | The apps it syncs to: Sonarr (full sync, fake API key) and a disabled Radarr 4K. Only Sonarr's address is published (`uses`) |

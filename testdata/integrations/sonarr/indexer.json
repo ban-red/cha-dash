@@ -1,0 +1,37 @@
+[
+  {
+    "enableRss": true,
+    "enableAutomaticSearch": true,
+    "enableInteractiveSearch": true,
+    "protocol": "usenet",
+    "priority": 25,
+    "name": "NZBgeek (Prowlarr)",
+    "fields": [
+      {"order": 0, "name": "baseUrl", "value": "http://prowlarr.lab.example:9696/1/", "type": "textbox"},
+      {"order": 1, "name": "apiPath", "value": "/api", "type": "textbox"},
+      {"order": 2, "name": "apiKey", "value": "fedcba9876543210fedcba9876543210", "type": "textbox"},
+      {"order": 3, "name": "categories", "value": [5030, 5040], "type": "select"}
+    ],
+    "implementationName": "Newznab",
+    "implementation": "Newznab",
+    "configContract": "NewznabSettings",
+    "tags": [],
+    "id": 1
+  },
+  {
+    "enableRss": false,
+    "enableAutomaticSearch": false,
+    "enableInteractiveSearch": true,
+    "protocol": "torrent",
+    "priority": 25,
+    "name": "Manual only",
+    "fields": [
+      {"order": 0, "name": "baseUrl", "value": "http://prowlarr.lab.example:9696/2/", "type": "textbox"}
+    ],
+    "implementationName": "Torznab",
+    "implementation": "Torznab",
+    "configContract": "TorznabSettings",
+    "tags": [],
+    "id": 2
+  }
+]

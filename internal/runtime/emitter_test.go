@@ -455,3 +455,24 @@ func TestEmitterRecordsHealthAndKeepsItsSinceAcrossARestart(t *testing.T) {
 		t.Fatalf("recorded\n%q\nwant\n%q", h.recorded, want)
 	}
 }
+
+// An app's uses reach the graph with role, url and name only, whatever the
+// integration put in them.
+func TestEmitterCleansUses(t *testing.T) {
+	e, set, _ := newTestEmitter()
+	uses := []map[string]any{{"role": "download client", "url": "http://admin:hunter2@10.0.11.120:8080/?apikey=abc", "name": "qBittorrent", "password": "hunter2"}}
+	if err := e.Replace("", integration.Facts{Resources: []integration.Resource{
+		{ID: "app:a", Kind: "app", Name: "A", Attrs: map[string]any{integration.AttrUses: uses}},
+		{ID: "app:b", Kind: "app", Name: "B", Attrs: map[string]any{integration.AttrUses: []map[string]any{{"role": "nothing"}}}},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := set.Graph.Get("app:a")
+	b, _ := json.Marshal(a.Attrs[integration.AttrUses])
+	if want := `[{"name":"qBittorrent","role":"download client","url":"http://10.0.11.120:8080"}]`; string(b) != want {
+		t.Fatalf("uses = %s, want %s", b, want)
+	}
+	if r, _ := set.Graph.Get("app:b"); r.Attrs[integration.AttrUses] != nil {
+		t.Fatalf("an empty uses stayed: %v", r.Attrs[integration.AttrUses])
+	}
+}

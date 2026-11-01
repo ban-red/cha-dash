@@ -22,6 +22,7 @@ func upstream(t *testing.T) *fixture.Server {
 		"GET /lidarr/api/v1/wanted/missing": {File: "wanted_missing.json"},
 		"GET /lidarr/api/v1/wanted/cutoff":  {File: "wanted_cutoff.json"},
 		"GET /lidarr/api/v1/calendar":       {File: "calendar.json"},
+		"GET /lidarr/api/v1/downloadclient": {File: "downloadclient.json"},
 	})
 }
 
@@ -54,6 +55,10 @@ func TestSync(t *testing.T) {
 	if !ok || r.Kind != "app" || r.Name != "Test" || r.Health != integration.HealthOK || r.Attrs["type"] != "lidarr" ||
 		r.Attrs["version"] != "2.13.3.4711" || r.Attrs["url"] != up.URL+"/lidarr" {
 		t.Fatalf("app = %+v", r)
+	}
+	// Its download client, by address only: the fixture's password stays out.
+	if got := r.Attrs[integration.AttrUses]; !reflect.DeepEqual(got, []any{map[string]any{"role": "download client", "url": "http://qbittorrent.lab.example:8080", "name": "qBittorrent"}}) {
+		t.Fatalf("uses = %#v", got)
 	}
 	if caps, _ := r.Attrs["caps"].([]any); len(caps) != 1 || caps[0] != "media.calendar" {
 		t.Fatalf("caps = %v", r.Attrs["caps"])

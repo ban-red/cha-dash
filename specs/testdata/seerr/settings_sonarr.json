@@ -1,0 +1,3 @@
+[
+  { "id": 0, "name": "Sonarr", "hostname": "sonarr.lab.example", "port": 8989, "apiKey": "fake-sonarr-key", "useSsl": false, "baseUrl": "/sonarr", "activeProfileId": 1, "is4k": false, "isDefault": true }
+]

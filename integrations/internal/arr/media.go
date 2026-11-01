@@ -57,6 +57,7 @@ type media struct {
 	haveCutoff      bool
 	calendar        []CalendarItem
 	wanted          []WantedItem
+	uses            []integration.Use
 }
 
 func (in *media) Test(ctx context.Context) integration.TestResult { return in.c.Test(ctx) }
@@ -97,6 +98,9 @@ func (in *media) Sync(ctx context.Context, want integration.Interest) error {
 	if len(in.wanted) > 0 {
 		res.Attrs["wanted_items"] = in.wanted
 	}
+	if len(in.uses) > 0 {
+		res.Attrs[integration.AttrUses] = in.uses
+	}
 	wanted := integration.Unknown()
 	if in.haveMissing {
 		wanted = float64(in.missing)
@@ -115,9 +119,10 @@ func (in *media) Sync(ctx context.Context, want integration.Interest) error {
 	})
 }
 
-// readSlow refreshes the version, the wanted counts and the calendar. The
-// wanted endpoints are optional (Radarr has them from v5): without them the
-// counts are unknown.
+// readSlow refreshes the version, the wanted counts, the calendar and what
+// the app uses (its download clients and indexers). The wanted endpoints
+// are optional (Radarr has them from v5): without them the counts are
+// unknown.
 func (in *media) readSlow(ctx context.Context, now time.Time) error {
 	st, err := in.c.Status(ctx)
 	if err != nil {
@@ -137,5 +142,8 @@ func (in *media) readSlow(ctx context.Context, now time.Time) error {
 		return err
 	}
 	in.calendar = cal
+	if in.uses, err = in.c.UsesFrom(ctx, MediaUses...); err != nil {
+		return err
+	}
 	return nil
 }

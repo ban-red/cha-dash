@@ -26,6 +26,7 @@ All `GET`, under `<url>/api/v1`:
 | `/health` | every sync | Prowlarr's health checks |
 | `/indexer` | every sync | the indexers and whether they're enabled |
 | `/indexerstatus` | every sync | the indexers Prowlarr has seen failing, and until when it disabled them |
+| `/applications` | slow | the apps it syncs indexers to, for `uses` (role `sync target`): each one's `baseUrl` only, never its API key; disabled ones left out |
 
 **Poll plan:** every 60 s while watched, every 5 minutes otherwise, 30 s per sync. The slow reads run on the first sync, then at most every 10 minutes while watched. A 404 from `/indexerstats` (an old version) leaves its metrics unknown.
 

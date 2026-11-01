@@ -319,6 +319,14 @@ func (e *Emitter) toGraph(r integration.Resource, source string, now time.Time) 
 			return graph.Resource{}, healthMark{}, fmt.Errorf("runtime: %s attrs: %w", r.ID, err)
 		}
 	}
+	// What an app uses never carries a credential, whoever wrote it.
+	if v, ok := attrs[integration.AttrUses]; ok {
+		if us := integration.CleanUses(v); len(us) > 0 {
+			attrs[integration.AttrUses] = us
+		} else {
+			delete(attrs, integration.AttrUses)
+		}
+	}
 	status := r.Health.Status
 	if status == "" {
 		status = integration.HealthUnknown

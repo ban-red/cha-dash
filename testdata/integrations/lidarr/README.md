@@ -12,3 +12,4 @@ The release dates sit around 2026-10-03 14:05 UTC, the `integrationtest` harness
 | `wanted_missing.json` | `GET /api/v1/wanted/missing?page=1&pageSize=25&monitored=true` | `totalRecords` 14 |
 | `wanted_cutoff.json` | `GET /api/v1/wanted/cutoff?page=1&pageSize=1&monitored=true` | `totalRecords` 2 |
 | `calendar.json` | `GET /api/v1/calendar?start=…&end=…&includeArtist=true` | 3 albums: a single the day before the window (outside it), an EP and an album inside it |
+| `downloadclient.json` | `GET /api/v1/downloadclient` | One qBittorrent client, with a fake username and password: the integration publishes only its address (`uses`) |

@@ -1,0 +1,53 @@
+[
+  {
+    "id": 1,
+    "created_on": "2026-03-01 10:00:00",
+    "modified_on": "2026-09-12 08:30:00",
+    "owner_user_id": 1,
+    "domain_names": ["sonarr.lab.example"],
+    "forward_host": "10.20.30.42",
+    "forward_port": 8989,
+    "access_list_id": 0,
+    "certificate_id": 3,
+    "ssl_forced": 1,
+    "caching_enabled": 0,
+    "block_exploits": 1,
+    "advanced_config": "proxy_set_header X-Fake-Secret fake-value-not-real;",
+    "meta": { "letsencrypt_agree": true, "dns_challenge": false },
+    "allow_websocket_upgrade": 1,
+    "http2_support": 1,
+    "forward_scheme": "http",
+    "enabled": 1,
+    "locations": [
+      { "path": "/api/", "advanced_config": "", "forward_scheme": "http", "forward_host": "10.20.30.43", "forward_port": 8990 }
+    ],
+    "hsts_enabled": 0,
+    "hsts_subdomains": 0
+  },
+  {
+    "id": 2,
+    "domain_names": ["nas.lab.example", "files.lab.example"],
+    "forward_host": "nas",
+    "forward_port": 5001,
+    "access_list_id": 2,
+    "certificate_id": 0,
+    "ssl_forced": 0,
+    "forward_scheme": "https",
+    "enabled": true,
+    "locations": [],
+    "advanced_config": ""
+  },
+  {
+    "id": 3,
+    "domain_names": ["old.lab.example"],
+    "forward_host": "10.20.30.99",
+    "forward_port": 8080,
+    "access_list_id": 0,
+    "certificate_id": 0,
+    "ssl_forced": false,
+    "forward_scheme": "http",
+    "enabled": 0,
+    "locations": null,
+    "advanced_config": ""
+  }
+]

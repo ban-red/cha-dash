@@ -1,0 +1,69 @@
+[
+  {
+    "enable": true,
+    "protocol": "torrent",
+    "priority": 1,
+    "name": "qBittorrent",
+    "fields": [
+      {"order": 0, "name": "host", "label": "Host", "value": "qbittorrent.lab.example", "type": "textbox"},
+      {"order": 1, "name": "port", "label": "Port", "value": 8080, "type": "textbox"},
+      {"order": 2, "name": "useSsl", "label": "Use SSL", "value": false, "type": "checkbox"},
+      {"order": 3, "name": "urlBase", "label": "URL Base", "type": "textbox"},
+      {"order": 4, "name": "username", "label": "Username", "value": "admin", "type": "textbox"},
+      {"order": 5, "name": "password", "label": "Password", "value": "fake-password-not-real", "type": "password"},
+      {"order": 6, "name": "tvCategory", "label": "Category", "value": "tv-sonarr", "type": "textbox"}
+    ],
+    "implementationName": "qBittorrent",
+    "implementation": "QBittorrent",
+    "configContract": "QBittorrentSettings",
+    "tags": [],
+    "id": 1
+  },
+  {
+    "enable": true,
+    "protocol": "usenet",
+    "priority": 1,
+    "name": "SABnzbd",
+    "fields": [
+      {"order": 0, "name": "host", "value": "sabnzbd.lab.example", "type": "textbox"},
+      {"order": 1, "name": "port", "value": 443, "type": "textbox"},
+      {"order": 2, "name": "useSsl", "value": true, "type": "checkbox"},
+      {"order": 3, "name": "urlBase", "value": "/sabnzbd/", "type": "textbox"},
+      {"order": 4, "name": "apiKey", "value": "0123456789abcdef0123456789abcdef", "type": "textbox"}
+    ],
+    "implementationName": "SABnzbd",
+    "implementation": "Sabnzbd",
+    "configContract": "SabnzbdSettings",
+    "tags": [],
+    "id": 2
+  },
+  {
+    "enable": false,
+    "protocol": "torrent",
+    "priority": 2,
+    "name": "Old Transmission",
+    "fields": [
+      {"order": 0, "name": "host", "value": "transmission.lab.example", "type": "textbox"},
+      {"order": 1, "name": "port", "value": 9091, "type": "textbox"}
+    ],
+    "implementationName": "Transmission",
+    "implementation": "Transmission",
+    "configContract": "TransmissionSettings",
+    "tags": [],
+    "id": 3
+  },
+  {
+    "enable": true,
+    "protocol": "torrent",
+    "priority": 3,
+    "name": "Blackhole",
+    "fields": [
+      {"order": 0, "name": "torrentFolder", "value": "/downloads/watch", "type": "path"}
+    ],
+    "implementationName": "Torrent Blackhole",
+    "implementation": "TorrentBlackhole",
+    "configContract": "TorrentBlackholeSettings",
+    "tags": [],
+    "id": 4
+  }
+]

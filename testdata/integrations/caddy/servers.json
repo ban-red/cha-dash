@@ -1,0 +1,71 @@
+{
+  "srv0": {
+    "listen": [":443"],
+    "routes": [
+      {
+        "match": [{ "host": ["sonarr.lab.example"] }],
+        "handle": [
+          {
+            "handler": "subroute",
+            "routes": [
+              {
+                "handle": [
+                  { "handler": "headers", "response": { "set": { "X-Frame-Options": ["DENY"] } } },
+                  { "handler": "reverse_proxy", "upstreams": [{ "dial": "10.20.30.42:8989" }] }
+                ]
+              }
+            ]
+          }
+        ],
+        "terminal": true
+      },
+      {
+        "match": [{ "host": ["home.lab.example"] }],
+        "handle": [
+          {
+            "handler": "subroute",
+            "routes": [
+              {
+                "match": [{ "path": ["/bazarr*"] }],
+                "handle": [
+                  { "handler": "authentication", "providers": { "http_basic": { "accounts": [{ "username": "admin", "password": "fake-bcrypt-hash-not-real" }] } } },
+                  { "handler": "reverse_proxy", "upstreams": [{ "dial": "bazarr:6767" }] }
+                ]
+              },
+              { "handle": [{ "handler": "file_server", "root": "/srv/home" }] }
+            ]
+          }
+        ],
+        "terminal": true
+      },
+      {
+        "match": [{ "host": ["nas.lab.example", "files.lab.example"] }],
+        "handle": [
+          {
+            "handler": "subroute",
+            "routes": [
+              {
+                "handle": [
+                  {
+                    "handler": "reverse_proxy",
+                    "transport": { "protocol": "http", "tls": { "insecure_skip_verify": true } },
+                    "upstreams": [{ "dial": "10.20.30.10:5001" }]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "terminal": true
+      },
+      {
+        "match": [{ "host": ["*.apps.lab.example"] }],
+        "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "{http.request.host.labels.3}:80" }] }]
+      }
+    ]
+  },
+  "srv1": {
+    "listen": [":8080"],
+    "routes": [{ "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:3000" }, { "dial": "localhost:3001" }] }] }]
+  }
+}

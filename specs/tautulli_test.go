@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -29,6 +30,7 @@ func tautulli(t *testing.T) *app {
 			"get_activity":      "get_activity.json",
 			"server_status":     "server_status.json",
 			"get_history":       "get_history.json",
+			"get_server_info":   "get_server_info.json",
 		}}
 	return a
 }
@@ -54,6 +56,9 @@ func TestTautulli(t *testing.T) {
 	}
 	if attrs["version"] != "2.15.3" || attrs["branch"] != "master" || attrs["install_type"] != "docker" || attrs["plex_connected"] != true {
 		t.Fatalf("attrs = %v", attrs)
+	}
+	if got := attrs[integration.AttrUses]; !reflect.DeepEqual(got, []any{map[string]any{"role": "media server", "name": "Living Room Plex", "url": "http://plex.lab.example:32400"}}) {
+		t.Fatalf("uses = %#v", got)
 	}
 	// stream_count arrives as the string "2".
 	checkSeries(t, h, "tautulli", map[string]any{"streams": 2.0, "streams.transcode": 1.0, "bandwidth.mbps": 18.45},

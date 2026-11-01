@@ -1,0 +1,29 @@
+[
+  {
+    "syncLevel": "fullSync",
+    "name": "Sonarr",
+    "fields": [
+      {"order": 0, "name": "prowlarrUrl", "value": "http://prowlarr.lab.example:9696", "type": "textbox"},
+      {"order": 1, "name": "baseUrl", "value": "http://sonarr.lab.example:8989", "type": "textbox"},
+      {"order": 2, "name": "apiKey", "value": "0123456789abcdef0123456789abcdef", "type": "textbox"},
+      {"order": 3, "name": "syncCategories", "value": [5000, 5030], "type": "select"}
+    ],
+    "implementationName": "Sonarr",
+    "implementation": "Sonarr",
+    "configContract": "SonarrSettings",
+    "tags": [],
+    "id": 1
+  },
+  {
+    "syncLevel": "disabled",
+    "name": "Radarr 4K",
+    "fields": [
+      {"order": 1, "name": "baseUrl", "value": "http://radarr4k.lab.example:7878", "type": "textbox"}
+    ],
+    "implementationName": "Radarr",
+    "implementation": "Radarr",
+    "configContract": "RadarrSettings",
+    "tags": [],
+    "id": 2
+  }
+]

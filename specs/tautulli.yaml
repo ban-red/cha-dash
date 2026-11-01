@@ -59,6 +59,16 @@ requests:
     optional: true
     extract:
       connected: response.data.connected
+  # Where its Plex server is, for uses. Optional.
+  server:
+    path: /api/v2
+    query: { apikey: "{{ secret.api_key }}", cmd: get_server_info }
+    optional: true
+    extract:
+      name: response.data.pms_name
+      ip: response.data.pms_ip
+      port: response.data.pms_port
+      ssl: response.data.pms_ssl
 
 version: 'info.version == nil ? nil : trimPrefix(info.version, "v")'
 
@@ -75,6 +85,10 @@ resources:
       branch: info.branch
       install_type: info.install_type
       plex_connected: plex.connected
+      # The Plex server it watches, by address (integration.Use).
+      uses: |
+        server.ip == nil || server.ip == "" ? nil : [{role: "media server", name: server.name ?? "Plex",
+          url: (server.ssl == 1 || server.ssl == true ? "https" : "http") + "://" + server.ip + ":" + string(server.port ?? 32400)}]
       # What's playing, at most 8 sessions. No player addresses: the tile shows
       # the title, who watches it and how far along.
       now_playing: |

@@ -1,0 +1,1 @@
+{ "name": "Living Room Plex", "machineId": "0000000000000000000000000000000000000000", "ip": "plex.lab.example", "port": 32400, "useSsl": false, "libraries": [], "webAppUrl": "https://app.plex.tv/desktop" }

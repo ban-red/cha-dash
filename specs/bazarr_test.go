@@ -2,6 +2,7 @@ package specs
 
 import (
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -16,9 +17,10 @@ func bazarr(t *testing.T) *app {
 	return &app{t: t, dir: "testdata/bazarr", base: "/bazarr",
 		auth: func(r *http.Request) bool { return r.Header.Get("X-API-KEY") == bazarrKey },
 		routes: map[string]string{
-			"/api/system/status": "system_status.json",
-			"/api/badges":        "badges.json",
-			"/api/system/health": "system_health.json",
+			"/api/system/status":   "system_status.json",
+			"/api/badges":          "badges.json",
+			"/api/system/health":   "system_health.json",
+			"/api/system/settings": "system_settings.json",
 		}}
 }
 
@@ -45,6 +47,14 @@ func TestBazarr(t *testing.T) {
 		t.Fatalf("attrs = %v", attrs)
 	}
 	checkSeries(t, h, "bazarr", map[string]any{"wanted": 804.0, "missing.episodes": 798.0, "missing.movies": 6.0}, nil)
+	// Its Sonarr and Radarr by address; the settings' API keys and password stay out.
+	wantUses := []any{
+		map[string]any{"role": "series manager", "name": "Sonarr", "url": "http://sonarr.lab.example:8989/sonarr"},
+		map[string]any{"role": "movie manager", "name": "Radarr", "url": "http://radarr.lab.example:7878"},
+	}
+	if got := attrs[integration.AttrUses]; !reflect.DeepEqual(got, wantUses) {
+		t.Fatalf("uses = %#v", got)
+	}
 
 	// Health issues come first in the reason; throttled providers otherwise.
 	up.set("/api/badges", `{"episodes":798,"movies":6,"providers":2,"status":1}`)

@@ -1,0 +1,20 @@
+[
+  {
+    "enable": true,
+    "protocol": "torrent",
+    "priority": 1,
+    "name": "qBittorrent",
+    "fields": [
+      {"order": 0, "name": "host", "value": "qbittorrent.lab.example", "type": "textbox"},
+      {"order": 1, "name": "port", "value": 8080, "type": "textbox"},
+      {"order": 2, "name": "useSsl", "value": false, "type": "checkbox"},
+      {"order": 4, "name": "username", "value": "admin", "type": "textbox"},
+      {"order": 5, "name": "password", "value": "fake-password-not-real", "type": "password"}
+    ],
+    "implementationName": "qBittorrent",
+    "implementation": "QBittorrent",
+    "configContract": "QBittorrentSettings",
+    "tags": [],
+    "id": 1
+  }
+]

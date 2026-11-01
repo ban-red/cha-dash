@@ -1,6 +1,7 @@
 package frigate
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -40,6 +41,7 @@ type instance struct {
 	startedAt    time.Time
 	detector     string
 	statsEvery   time.Duration
+	broker       string // the MQTT broker's URL, for uses
 	haveConfig   bool
 	configAt     time.Time
 	configStale  bool
@@ -153,7 +155,12 @@ type frigateConfig struct {
 	Detectors map[string]struct {
 		Type string `json:"type"`
 	} `json:"detectors"`
+	// MQTT: the broker's address only (its user and password are never
+	// read), for uses.
 	MQTT struct {
+		Enabled       *bool   `json:"enabled"`
+		Host          string  `json:"host"`
+		Port          int     `json:"port"`
 		StatsInterval float64 `json:"stats_interval"`
 	} `json:"mqtt"`
 	Go2RTC struct {
@@ -279,6 +286,10 @@ func (in *instance) applyConfig(cfg frigateConfig, now time.Time) {
 		}
 	}
 	in.detector = strings.Join(kinds, ", ")
+	in.broker = ""
+	if boolOr(cfg.MQTT.Enabled, true) && cfg.MQTT.Host != "" {
+		in.broker = integration.UseURL("mqtt", cfg.MQTT.Host, cmp.Or(cfg.MQTT.Port, 1883), "")
+	}
 	in.statsEvery = defaultStatsEvery
 	if cfg.MQTT.StatsInterval > 0 {
 		in.statsEvery = time.Duration(cfg.MQTT.StatsInterval * float64(time.Second))
@@ -491,6 +502,9 @@ func (in *instance) graphFacts() integration.Facts {
 	}
 	if !in.startedAt.IsZero() {
 		attrs["started_at"] = in.startedAt.Format(time.RFC3339)
+	}
+	if in.broker != "" {
+		attrs[integration.AttrUses] = []integration.Use{{Role: "MQTT broker", URL: in.broker, Name: "MQTT"}}
 	}
 	app := integration.Resource{
 		ID: in.appID, Kind: "app", Name: in.name, State: "running", Desired: "running",

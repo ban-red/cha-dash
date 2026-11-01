@@ -1,0 +1,6 @@
+{
+  "general": { "use_sonarr": true, "use_radarr": true, "port": 6767, "base_url": "/bazarr" },
+  "auth": { "type": "form", "username": "admin", "password": "fake-hash-not-real", "apikey": "fake-bazarr-key" },
+  "sonarr": { "ip": "sonarr.lab.example", "port": 8989, "base_url": "/sonarr", "ssl": false, "apikey": "fake-sonarr-key" },
+  "radarr": { "ip": "radarr.lab.example", "port": 7878, "base_url": "", "ssl": false, "apikey": "fake-radarr-key" }
+}

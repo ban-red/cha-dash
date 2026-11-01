@@ -32,6 +32,7 @@ All `GET`, under `<url>/api/v3`:
 | `/calendar?start=…&end=…&includeSeries=true` | slow | the next 7 days (and the last 12 hours), monitored episodes only |
 | `/health` | every sync | Sonarr's health checks |
 | `/queue/status` | every sync | `totalCount`, and whether any download has an error |
+| `/downloadclient`, `/indexer` | slow | what it uses, for `attrs.uses`: each enabled client's host, port, TLS and URL base, each enabled indexer's `baseUrl`. Usernames, passwords and API keys in the same fields are never kept |
 
 **Poll plan:** every 60 s while someone watches, every 5 minutes while nobody does. The slow reads run on the first sync, then at most every 10 minutes and only while watched; in between their last values are published again. Idle syncs read only `/health` and `/queue/status`. Each sync is bounded at 30 s.
 

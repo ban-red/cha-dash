@@ -16,7 +16,7 @@ It is the same instance as [Sonarr](../sonarr/README.md), from [`integrations/in
 
 ## What it reads
 
-Under `<url>/api/v3`, all `GET`: `/system/status`, `/wanted/missing` and `/wanted/cutoff` (one-record pages, `monitored=true`), and `/calendar?start=…&end=…` on the slow cadence (the first sync, then at most every 10 minutes while watched); `/health` and `/queue/status` on every sync. **Poll plan:** every 60 s while watched, every 5 minutes otherwise, 30 s per sync.
+Under `<url>/api/v3`, all `GET`: `/system/status`, `/wanted/missing` and `/wanted/cutoff` (one-record pages, `monitored=true`), and `/calendar?start=…&end=…` and `/downloadclient` and `/indexer` on the slow cadence (the first sync, then at most every 10 minutes while watched); `/health` and `/queue/status` on every sync. **Poll plan:** every 60 s while watched, every 5 minutes otherwise, 30 s per sync.
 
 **Radarr 3 and 4** have no `/wanted` endpoints. A 404 there leaves `wanted` and `missing.movies` unknown (shown as `—`) instead of failing the sync. Everything else works.
 
@@ -24,6 +24,7 @@ Under `<url>/api/v3`, all `GET`: `/system/status`, `/wanted/missing` and `/wante
 
 - **`radarr:<instance id>/app`**, kind `app`, `attrs.type = "radarr"`, `attrs.url`, `attrs.version`, a link, `caps: ["media.calendar"]`, monitored by `integration:<instance id>`. Health as Sonarr's: `attention` on a health check error, else on a download error in the queue.
 - **`attrs.calendar`:** `[{"at", "title", "detail"}]`, soonest first, at most 30, from 12 hours ago to 7 days ahead. Radarr's calendar returns movies with any release date in the window; each date inside it becomes an entry, with the movie as the title and `in cinemas`, `digital release` or `physical release` as the detail. Radarr gives these as dates at midnight UTC, so `at` is midnight.
+- **`attrs.uses`:** what it's set up to use, from `/downloadclient` and `/indexer` on the slow cadence: each enabled download client's host, port, TLS and URL base, and each enabled indexer's `baseUrl`, as `{role, url, name}`. Usernames, passwords and API keys in the same fields are never kept. The correlator turns them into `depends_on`.
 - **`attrs.queue_items`** (only while the queue isn't empty) and **`attrs.wanted_items`**, for the tile's Queue and Wanted views. A queue item is `{title, detail?, status, progress, left_s?, client?, protocol?, error?}`: the movie as the title, its year as the detail, `status` as the app says it (`downloading`, `queued`, `paused`, `warning`, `error`…), and the reason in `error` when an import is blocked or a download failed. Up to 25 come from `GET /queue?includeSeries…`. A wanted item is `{title, detail?, at?}` (`at` in Unix seconds, left out when unknown), alphabetical, each with the latest release that has happened, from the same `GET /wanted/missing` request that counts them (25 per read, every 10 minutes). The titles are your library's, so they're as visible as the tile is.
 
 | Metric | Unit | Scale | Band | Value |

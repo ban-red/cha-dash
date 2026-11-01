@@ -548,3 +548,19 @@ func TestKeys(t *testing.T) {
 		t.Error("under should respect path segments")
 	}
 }
+
+// Caddy's and Nginx Proxy Manager's routes have Traefik's shape, so they
+// join containers and apps the same way.
+func TestCaddyAndNPMRoutes(t *testing.T) {
+	h := jupiter(t).
+		add("caddy:i_c/route/sonarr.lab.example", "route", "sonarr.lab.example", "url", "https://sonarr.lab.example",
+			"upstream", "http://10.0.11.120:18989", "upstream_addr", "10.0.11.120:18989", "entrypoint", "srv0").
+		add("npm:i_n/route/2", "route", "radarr.lab.example", "url", "https://radarr.lab.example",
+			"upstream", "http://10.0.11.120:17878", "upstream_addr", "10.0.11.120:17878", "entrypoint", "proxy host").
+		add("radarr:i_r/app", "app", "Radarr", "type", "radarr", "url", "https://radarr.lab.example")
+	r := h.run()
+	mustLink(t, r, "caddy:i_c/route/sonarr.lab.example", RoutesTo, "docker:i_d/container/sonarr", Strong, "backend")
+	mustLink(t, r, "npm:i_n/route/2", RoutesTo, "docker:i_d/container/radarr", Strong, "backend")
+	mustLink(t, r, "npm:i_n/route/2", RoutesTo, "radarr:i_r/app", Strong, "url")
+	mustLink(t, r, "radarr:i_r/app", RunsOn, "docker:i_d/container/radarr", Strong, "route")
+}

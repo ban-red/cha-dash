@@ -52,6 +52,7 @@ type instance struct {
 	grabs              int
 	queries, failures  int
 	haveStats, haveDay bool
+	uses               []integration.Use
 }
 
 // Test implements integration.Instance.
@@ -121,6 +122,9 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	}
 	res := in.c.AppResource(in.cfg, in.version, h, "downloads.indexers")
 	res.Attrs["indexers"] = enabled
+	if len(in.uses) > 0 {
+		res.Attrs[integration.AttrUses] = in.uses
+	}
 	if len(failing) > 0 {
 		res.Attrs["indexers_failing"] = failing
 	}
@@ -175,8 +179,8 @@ func failingReason(failing []string, enabled int) string {
 	return fmt.Sprintf("%s%s %s failing (%d of %d indexers)", strings.Join(names, ", "), more, verb, len(failing), enabled)
 }
 
-// readSlow refreshes the version, the all-time grabs and the last day's
-// queries and failures.
+// readSlow refreshes the version, the all-time grabs, the last day's
+// queries and failures, and the apps it syncs indexers to (its uses).
 func (in *instance) readSlow(ctx context.Context, now time.Time) error {
 	st, err := in.c.Status(ctx)
 	if err != nil {
@@ -206,5 +210,6 @@ func (in *instance) readSlow(ctx context.Context, now time.Time) error {
 		in.queries += s.NumberOfQueries + s.NumberOfRssQueries
 		in.failures += s.NumberOfFailedQueries + s.NumberOfFailedRssQueries + s.NumberOfFailedGrabs + s.NumberOfFailedAuthQueries
 	}
-	return nil
+	in.uses, err = in.c.UsesFrom(ctx, [2]string{"/applications", "sync target"})
+	return err
 }

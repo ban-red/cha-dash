@@ -83,7 +83,7 @@ func TestInstall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pv.Summary.ID != "myseerr" || len(pv.Summary.Requests) != 3 || len(pv.Summary.Actions) != 2 || pv.Replacing != nil {
+	if pv.Summary.ID != "myseerr" || len(pv.Summary.Requests) != 7 || len(pv.Summary.Actions) != 2 || pv.Replacing != nil {
 		t.Fatalf("preview %+v", pv)
 	}
 	if a := pv.Summary.Actions[0]; a.ID != "myseerr.request.approve" || a.Tier != "T1" || a.Method != "POST" || !strings.Contains(a.Path, "/approve") {

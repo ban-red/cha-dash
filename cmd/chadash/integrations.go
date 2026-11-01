@@ -5,6 +5,7 @@ package main
 import (
 	_ "dash.cha.sh/integrations/adguard"        // AdGuard Home: queries, blocked, blocklist
 	_ "dash.cha.sh/integrations/audiobookshelf" // Audiobookshelf: books, podcasts, sessions
+	_ "dash.cha.sh/integrations/caddy"          // Caddy: reverse_proxy routes from the admin API
 	_ "dash.cha.sh/integrations/checks"         // built-in HTTP and TCP checks
 	_ "dash.cha.sh/integrations/docker"         // Docker engines through a socket proxy
 	_ "dash.cha.sh/integrations/frigate"        // Frigate NVR: cameras, detections
@@ -14,6 +15,7 @@ import (
 	_ "dash.cha.sh/integrations/jellyfin"       // Jellyfin: streams, libraries
 	_ "dash.cha.sh/integrations/lidarr"         // Lidarr: queue, wanted, calendar
 	_ "dash.cha.sh/integrations/nextcloud"      // Nextcloud: users, files, free space
+	_ "dash.cha.sh/integrations/npm"            // Nginx Proxy Manager: proxy hosts
 	_ "dash.cha.sh/integrations/nzbget"         // NZBGet: speed, queue
 	_ "dash.cha.sh/integrations/opnsense"       // OPNsense WAN traffic (counters + SSE)
 	_ "dash.cha.sh/integrations/pbs"            // Proxmox Backup Server

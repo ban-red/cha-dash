@@ -1,0 +1,4 @@
+[
+  { "id": 0, "name": "Radarr", "hostname": "radarr.lab.example", "port": 7878, "apiKey": "fake-radarr-key", "useSsl": false, "baseUrl": "", "activeProfileId": 1, "is4k": false, "isDefault": true },
+  { "id": 1, "name": "Radarr 4K", "hostname": "radarr4k.lab.example", "port": 443, "apiKey": "fake-radarr4k-key", "useSsl": true, "baseUrl": "/radarr4k", "activeProfileId": 4, "is4k": true, "isDefault": true }
+]

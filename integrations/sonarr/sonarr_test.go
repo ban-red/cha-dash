@@ -26,6 +26,8 @@ func upstream(t *testing.T) *fixture.Server {
 		"GET /sonarr/api/v3/wanted/missing": {File: "wanted_missing.json"},
 		"GET /sonarr/api/v3/wanted/cutoff":  {File: "wanted_cutoff.json"},
 		"GET /sonarr/api/v3/calendar":       {File: "calendar.json"},
+		"GET /sonarr/api/v3/downloadclient": {File: "downloadclient.json"},
+		"GET /sonarr/api/v3/indexer":        {File: "indexer.json"},
 	})
 }
 
@@ -103,6 +105,23 @@ func TestSync(t *testing.T) {
 	}
 	if got := r.Attrs["wanted_items"]; !reflect.DeepEqual(got, wantWanted) {
 		t.Fatalf("wanted_items = %#v", got)
+	}
+	// What it uses: enabled clients and indexers with an address, by
+	// address only. The fixtures' passwords and keys never get out.
+	wantUses := []any{
+		map[string]any{"role": "download client", "url": "http://qbittorrent.lab.example:8080", "name": "qBittorrent"},
+		map[string]any{"role": "download client", "url": "https://sabnzbd.lab.example:443/sabnzbd", "name": "SABnzbd"},
+		map[string]any{"role": "indexer", "url": "http://prowlarr.lab.example:9696/1", "name": "NZBgeek (Prowlarr)"},
+	}
+	if got := r.Attrs[integration.AttrUses]; !reflect.DeepEqual(got, wantUses) {
+		t.Fatalf("uses = %#v", got)
+	}
+	for _, u := range r.Attrs[integration.AttrUses].([]any) {
+		for k := range u.(map[string]any) {
+			if k != "role" && k != "url" && k != "name" {
+				t.Fatalf("a uses entry carries %q", k)
+			}
+		}
 	}
 	if h.Graph().Relations["integration:i_test monitors "+rid] == nil {
 		t.Fatal("the instance should monitor its app")

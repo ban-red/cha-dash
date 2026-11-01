@@ -9,3 +9,4 @@ The key goes in the `X-API-KEY` header; a wrong one gets a bare 401.
 | `system_status.json` | `GET /api/system/status` | Wrapped in `{"data": …}`: `bazarr_version`, the Sonarr and Radarr versions, platform |
 | `system_health.json` | `GET /api/system/health` | Wrapped in `{"data": […]}`: one `{object, issue}` per health issue, as System → Status lists them; empty here (the test sets some) |
 | `badges.json` | `GET /api/badges` | What the sidebar badges count: `episodes` and `movies` (missing subtitles, the "Wanted" pages), `providers` (throttled), `status` (health issues), and the Sonarr/Radarr SignalR state (`LIVE` or `DOWN`) |
+| `system_settings.json` | `GET /api/system/settings` | Trimmed to the sections read: `general.use_sonarr`/`use_radarr` and Sonarr's and Radarr's address. Fake API keys and password hash, which the spec never reads (`uses` carries addresses only) |

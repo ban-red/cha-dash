@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -21,8 +22,11 @@ func seerr(t *testing.T, base string) (*httptest.Server, *atomic.Value) {
 	t.Helper()
 	files := &atomic.Value{}
 	files.Store(map[string]string{
-		"/api/v1/status":        "testdata/seerr/status.json",
-		"/api/v1/request/count": "testdata/seerr/request_count.json",
+		"/api/v1/status":          "testdata/seerr/status.json",
+		"/api/v1/request/count":   "testdata/seerr/request_count.json",
+		"/api/v1/settings/sonarr": "testdata/seerr/settings_sonarr.json",
+		"/api/v1/settings/radarr": "testdata/seerr/settings_radarr.json",
+		"/api/v1/settings/plex":   "testdata/seerr/settings_plex.json",
 	})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Api-Key") != key {
@@ -72,6 +76,17 @@ func TestSeerr(t *testing.T) {
 	}
 	if links := r.Attrs["links"].([]any); links[0].(map[string]any)["url"] != srv.URL+"/seerr/" {
 		t.Fatalf("links = %v", links)
+	}
+	// Its servers by address: the fixtures' API keys stay out, and the
+	// media server is Plex (Jellyfin's settings answer 404).
+	wantUses := []any{
+		map[string]any{"role": "series manager", "name": "Sonarr", "url": "http://sonarr.lab.example:8989/sonarr"},
+		map[string]any{"role": "movie manager", "name": "Radarr", "url": "http://radarr.lab.example:7878"},
+		map[string]any{"role": "movie manager", "name": "Radarr 4K", "url": "https://radarr4k.lab.example:443/radarr4k"},
+		map[string]any{"role": "media server", "name": "Living Room Plex", "url": "http://plex.lab.example:32400"},
+	}
+	if got := r.Attrs[integration.AttrUses]; !reflect.DeepEqual(got, wantUses) {
+		t.Fatalf("uses = %#v", got)
 	}
 	for metric, want := range map[string]float64{"requests.pending": 3, "requests.processing": 2, "requests.available": 389} {
 		if se := h.Series("seerr:i_test/app", metric); se == nil || se["value"] != want || se["unit"] != "count" {

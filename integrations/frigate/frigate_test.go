@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -495,6 +496,10 @@ func TestInternalPort(t *testing.T) {
 	}
 	if _, ok := app.Attrs["latest_version"]; ok {
 		t.Error("latest_version is only shown when it's newer")
+	}
+	// Its MQTT broker by address: the config's user and password stay out.
+	if got := app.Attrs[integration.AttrUses]; !reflect.DeepEqual(got, []any{map[string]any{"role": "MQTT broker", "url": "mqtt://10.0.11.20:1883", "name": "MQTT"}}) {
+		t.Errorf("uses = %#v", got)
 	}
 
 	drive, ok := h.Resource("frigate:i_test/camera/driveway")

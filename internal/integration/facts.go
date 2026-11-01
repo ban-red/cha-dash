@@ -281,6 +281,56 @@ func UseURL(scheme, host string, port int, path string) string {
 	return u.String()
 }
 
+// MaxUses is how many entries a uses attr keeps.
+const MaxUses = 32
+
+// CleanUses is a uses attr as the hub publishes it, whatever an integration
+// or a spec sent: each entry only role, url and name, the URL rebuilt by
+// UseURL (no user, password, query or fragment), at most MaxUses entries,
+// no repeats. Entries with neither a URL nor a name are dropped. v is the
+// attr after a JSON round trip ([]any of map[string]any).
+func CleanUses(v any) []any {
+	list, _ := v.([]any)
+	var out []any
+	seen := map[Use]bool{}
+	for _, x := range list {
+		m, _ := x.(map[string]any)
+		if m == nil {
+			continue
+		}
+		str := func(k string, n int) string {
+			s, _ := m[k].(string)
+			s = strings.Join(strings.Fields(s), " ")
+			if r := []rune(s); len(r) > n {
+				s = string(r[:n])
+			}
+			return s
+		}
+		u := Use{Role: str("role", 48), Name: str("name", 80)}
+		if raw, _ := m["url"].(string); raw != "" {
+			if p, err := url.Parse(strings.TrimSpace(raw)); err == nil {
+				port, _ := strconv.Atoi(p.Port())
+				u.URL = UseURL(p.Scheme, p.Hostname(), port, p.Path)
+			}
+		}
+		if u.URL == "" && u.Name == "" || seen[u] {
+			continue
+		}
+		seen[u] = true
+		e := map[string]any{"role": u.Role}
+		if u.URL != "" {
+			e["url"] = u.URL
+		}
+		if u.Name != "" {
+			e["name"] = u.Name
+		}
+		if out = append(out, e); len(out) == MaxUses {
+			break
+		}
+	}
+	return out
+}
+
 // AttrUpdate is a container's image update, an ImageUpdate. The Docker
 // integration publishes it from the node's image.check verb, and Unraid's
 // integration from Unraid's own update status. An app that updates itself

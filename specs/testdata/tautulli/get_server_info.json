@@ -1,0 +1,19 @@
+{
+  "response": {
+    "result": "success",
+    "message": null,
+    "data": {
+      "pms_identifier": "0000000000000000000000000000000000000000",
+      "pms_ip": "plex.lab.example",
+      "pms_is_remote": 0,
+      "pms_name": "Living Room Plex",
+      "pms_platform": "Linux",
+      "pms_plexpass": 1,
+      "pms_port": 32400,
+      "pms_ssl": 0,
+      "pms_url": "http://plex.lab.example:32400",
+      "pms_url_manual": 0,
+      "pms_version": "1.42.1.10060-4e8b05daf"
+    }
+  }
+}

@@ -21,6 +21,7 @@ func upstream(t *testing.T) *fixture.Server {
 		"GET /prowlarr/api/v1/indexerstatus":          {File: "indexerstatus.json"},
 		"GET /prowlarr/api/v1/indexerstats":           {File: "indexerstats.json"},
 		"GET /prowlarr/api/v1/indexerstats?startDate": {File: "indexerstats_24h.json"},
+		"GET /prowlarr/api/v1/applications":           {File: "applications.json"},
 	})
 }
 
@@ -53,6 +54,11 @@ func TestSync(t *testing.T) {
 		r.Health != integration.HealthAttention || r.Attrs["health.reason"] != "Archive Tracker is failing (1 of 3 indexers)" ||
 		r.Attrs["indexers"] != 3.0 || !reflect.DeepEqual(r.Attrs["indexers_failing"], []any{"Archive Tracker"}) {
 		t.Fatalf("app = %+v", r)
+	}
+	// The apps it syncs indexers to, the disabled one left out; their API
+	// keys stay out.
+	if got := r.Attrs[integration.AttrUses]; !reflect.DeepEqual(got, []any{map[string]any{"role": "sync target", "url": "http://sonarr.lab.example:8989", "name": "Sonarr"}}) {
+		t.Fatalf("uses = %#v", got)
 	}
 	for metric, v := range map[string]float64{"grabs": 1100, "queries.24h": 54, "failures.24h": 5, "indexers": 3, "indexers.failing": 1} {
 		if se := h.Series(rid, metric); se == nil || se["value"] != v {

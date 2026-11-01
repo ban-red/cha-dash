@@ -60,6 +60,27 @@ requests:
     extract:
       items: results
     optional: true
+  # Where its Sonarr, Radarr and media server are, for uses. The settings
+  # carry their API keys too; only these paths are read. Optional, and
+  # Plex's and Jellyfin's only answer when that's the media server.
+  sonarr:
+    path: /api/v1/settings/sonarr
+    extract:
+      servers: '@this.#.{name,hostname,port,useSsl,baseUrl}'
+    optional: true
+  radarr:
+    path: /api/v1/settings/radarr
+    extract:
+      servers: '@this.#.{name,hostname,port,useSsl,baseUrl}'
+    optional: true
+  plex:
+    path: /api/v1/settings/plex
+    extract: { name: name, ip: ip, port: port, ssl: useSsl }
+    optional: true
+  jellyfin:
+    path: /api/v1/settings/jellyfin
+    extract: { name: name, ip: ip, port: port, ssl: useSsl, base: urlBase }
+    optional: true
 
 version: status.version
 
@@ -74,6 +95,19 @@ resources:
       type: '"seerr"'
       version: status.version
       update_available: status.update_available
+      # Its Sonarr and Radarr servers and its media server, by address
+      # (integration.Use).
+      uses: |
+        concat(
+          map(sonarr.servers ?? [], {{role: "series manager", name: #.name,
+            url: (#.useSsl == true ? "https" : "http") + "://" + #.hostname + ":" + string(#.port ?? 8989) + (#.baseUrl ?? "")}}),
+          map(radarr.servers ?? [], {{role: "movie manager", name: #.name,
+            url: (#.useSsl == true ? "https" : "http") + "://" + #.hostname + ":" + string(#.port ?? 7878) + (#.baseUrl ?? "")}}),
+          plex.ip == nil || plex.ip == "" ? [] : [{role: "media server", name: plex.name ?? "Plex",
+            url: (plex.ssl == true ? "https" : "http") + "://" + plex.ip + ":" + string(plex.port ?? 32400)}],
+          jellyfin.ip == nil || jellyfin.ip == "" ? [] : [{role: "media server", name: jellyfin.name ?? "Jellyfin",
+            url: (jellyfin.ssl == true ? "https" : "http") + "://" + jellyfin.ip + ":" + string(jellyfin.port ?? 8096) + (jellyfin.base ?? "")}]
+        )
     caps: [media.requests]
     links:
       - { title: Seerr, url: config.url }
