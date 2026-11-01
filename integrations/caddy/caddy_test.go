@@ -123,7 +123,7 @@ func TestRouteIDsAreUnique(t *testing.T) {
 	ids := map[string]int{}
 	seen := map[string]bool{}
 	for _, p := range []proxy{{server: "s", hosts: []string{"a.example"}}, {server: "s", hosts: []string{"a.example"}}, {server: "s", hosts: []string{"a.example"}, path: "/2"}} {
-		id := string(in.route(p, ids).ID)
+		id := in.route(p, ids).ID
 		if seen[id] {
 			t.Fatalf("%s twice", id)
 		}

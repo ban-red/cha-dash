@@ -29,6 +29,9 @@ linters:
         - (*bufio.Writer).WriteString
         - (*database/sql.Tx).Rollback # deferred after Commit, or on a path already failing
         - (*github.com/coder/websocket.Conn).CloseNow # best effort on the way out
+    misspell:
+      ignore-rules:
+        - mosquitto # Eclipse Mosquitto, the MQTT broker, not the insect
     errorlint:
       errorf: false # wrapping with %w makes an error part of the API, so it's a choice
     staticcheck:

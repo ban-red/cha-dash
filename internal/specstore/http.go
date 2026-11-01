@@ -79,8 +79,7 @@ func (s *Service) handleInstall(w http.ResponseWriter, r *http.Request) {
 	}
 	v, replaced, err := s.Install(r.Context(), b.YAML, b.Source, s.userOf(r), b.Replace)
 	if err != nil {
-		var p *Problem
-		if errors.As(err, &p) {
+		if p, ok := errors.AsType[*Problem](err); ok {
 			s.Audit.Refuse(r, action, "spec", params, authz.T3, p.Code, p.Message)
 		}
 		s.fail(w, err, Preview{})

@@ -76,8 +76,7 @@ func Lint(b []byte) []string {
 		if uerr != nil {
 			err = uerr
 		} else if verr := schema.Validate(inst); verr != nil {
-			var ve *jsonschema.ValidationError
-			if errors.As(verr, &ve) {
+			if ve, ok := errors.AsType[*jsonschema.ValidationError](verr); ok {
 				problems = append(problems, leaves(ve)...)
 			} else {
 				problems = append(problems, verr.Error())
