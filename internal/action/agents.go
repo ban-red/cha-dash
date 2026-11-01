@@ -19,11 +19,15 @@ package action
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 	"unicode"
 
+	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/msg"
 )
@@ -236,6 +240,60 @@ func (e *Engine) nthToday(ctx context.Context, originator string, created time.T
 // agents asked for.
 func (e *Engine) WithdrawKind(ctx context.Context, kind, reason string) {
 	e.endAwaiting(ctx, `SELECT id FROM approvals WHERE state = ? AND json_extract(originator, '$.kind') = ?`, []any{ApprovalAwaiting, kind}, reason)
+}
+
+// MaxWithdrawReason bounds an agent's reason for withdrawing, in characters.
+const MaxWithdrawReason = 300
+
+// WithdrawOwn ends one of an agent's own proposals while it still waits:
+// expired, with the hub's sentence as its reason, audited as
+// approval.withdraw by the agent (with why, the agent's own words, in the
+// record's params only, never shown as the hub's). It isn't a proposal, so
+// it counts toward no limit; the proposal it ends stops counting as
+// waiting, and still counts toward the hour's, since it was made.
+//
+// Only the agent that proposed it may (ErrNotFound for anyone else's, so
+// IDs don't leak); a proposal already decided or expired is refused.
+func (e *Engine) WithdrawOwn(ctx context.Context, a Actor, id, why string) (Approval, error) {
+	apv, err := e.freshApproval(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Approval{}, ErrNotFound
+	} else if err != nil {
+		return Approval{}, err
+	}
+	if a.Kind != KindAgent || apv.originator.Kind != KindAgent || apv.originator.ID != a.ID {
+		return Approval{}, ErrNotFound
+	}
+	why = CleanRationale(why)
+	if r := []rune(why); len(r) > MaxWithdrawReason {
+		why = string(r[:MaxWithdrawReason])
+	}
+	var extra []string
+	if why != "" {
+		extra = []string{"agent_reason", why}
+	}
+	if r := decided(apv); r != nil {
+		e.recordApproval(ctx, a, ActionApprovalWithdraw, &apv.Approval, apv.plan, audit.Refused, r, "", extra...)
+		return Approval{}, r
+	}
+	reason := msg.T("agents.withdrawn_by_agent", nil)
+	now := e.now().UTC().Truncate(time.Millisecond)
+	res, err := e.st.Writer().ExecContext(ctx, `UPDATE approvals SET state = ?, reason = ?, decided_at = ? WHERE id = ? AND state = ?`,
+		ApprovalExpired, reason, now.UnixMilli(), apv.ID, ApprovalAwaiting)
+	if err != nil {
+		return Approval{}, fmt.Errorf("action: withdraw: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		r := &Refusal{Status: http.StatusConflict, Code: "already_decided", Message: msg.T("agents.withdraw_too_late", nil)}
+		e.recordApproval(ctx, a, ActionApprovalWithdraw, &apv.Approval, apv.plan, audit.Refused, r, "", extra...)
+		return Approval{}, r
+	}
+	apv.State, apv.Reason, apv.DecidedAt = ApprovalExpired, reason, &now
+	e.recordApproval(ctx, a, ActionApprovalWithdraw, &apv.Approval, apv.plan, audit.OK, nil, "", extra...)
+	e.unschedule(apv.ID)
+	e.publishApproval(apv.Approval, apv.plan.target)
+	e.ended(apv.Approval)
+	return apv.Approval, nil
 }
 
 // changedSince reports whether p, approved now for an agent, would no

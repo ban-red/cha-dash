@@ -12,7 +12,7 @@
 //
 // Methods: initialize, ping, tools/list, tools/call, resources/list,
 // resources/templates/list, resources/read; notifications are accepted and
-// ignored. Tools: search, get_resource, plan, propose, get_proposal. The
+// ignored. Tools: search, get_resource, plan, propose, get_proposal, withdraw. The
 // input schemas of plan, propose and get_resource are generated from the
 // routes they stand for (internal/apidoc.InputSchema), so they can't drift.
 //

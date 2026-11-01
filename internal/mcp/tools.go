@@ -82,6 +82,13 @@ func (s *Server) toolSet() []tool {
 				"proposal": map[string]any{"type": "string", "maxLength": 100, "description": msg.T("agents.field_proposal", nil)},
 			}},
 			call: s.getProposal},
+		{Name: "withdraw", Title: msg.T("agents.title_withdraw", nil), Description: msg.T("agents.tool_withdraw", nil),
+			Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+			InputSchema: map[string]any{"type": "object", "required": []string{"proposal"}, "properties": map[string]any{
+				"proposal": map[string]any{"type": "string", "maxLength": 100, "description": msg.T("agents.field_proposal", nil)},
+				"reason":   map[string]any{"type": "string", "maxLength": action.MaxWithdrawReason, "description": msg.T("agents.field_withdraw_why", nil)},
+			}},
+			call: s.withdraw},
 	}
 }
 
@@ -411,6 +418,27 @@ func (s *Server) getProposal(ctx context.Context, v viewer, raw json.RawMessage)
 		return nil, err
 	}
 	return s.proposal(ctx, v, a.Proposal)
+}
+
+// withdraw takes back one of v's own waiting proposals.
+func (s *Server) withdraw(ctx context.Context, v viewer, raw json.RawMessage) (any, error) {
+	var a struct {
+		Proposal string `json:"proposal"`
+		Reason   string `json:"reason"`
+	}
+	if err := args(raw, "withdraw", &a); err != nil {
+		return nil, err
+	}
+	if n := len([]rune(a.Reason)); n > action.MaxWithdrawReason {
+		return nil, refusal("invalid", 422, msg.New("agents.rationale_long", "max", action.MaxWithdrawReason))
+	}
+	apv, err := s.engine.WithdrawOwn(ctx, v.actor, clip(a.Proposal, 100), a.Reason)
+	if errors.Is(err, action.ErrNotFound) {
+		return nil, refusal("not_found", 404, msg.New("agents.mcp_no_proposal"))
+	} else if err != nil {
+		return nil, err
+	}
+	return proposalOut(apv), nil
 }
 
 // proposal is one of v's own proposals, with its task once it runs.

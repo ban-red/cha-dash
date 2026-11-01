@@ -198,7 +198,7 @@ func TestMCPOffAndProtocol(t *testing.T) {
 		t.Fatalf("a session: %d %s", status, code)
 	}
 
-	// tools/list: five tools; plan's and propose's input from the route.
+	// tools/list: six tools; plan's and propose's input from the route.
 	_, r, raw = mcpCall(t, e, agent, "tools/list", nil)
 	var tl struct {
 		Tools []struct {
@@ -208,7 +208,7 @@ func TestMCPOffAndProtocol(t *testing.T) {
 			Annotations map[string]any
 		}
 	}
-	if json.Unmarshal(r.Result, &tl) != nil || len(tl.Tools) != 5 {
+	if json.Unmarshal(r.Result, &tl) != nil || len(tl.Tools) != 6 {
 		t.Fatalf("tools/list: %s", raw)
 	}
 	byName := map[string]map[string]any{}

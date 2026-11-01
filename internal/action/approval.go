@@ -12,7 +12,8 @@ package action
 // The task that an approval starts runs as the originator, with ApprovedBy
 // naming the person. Every step is audited: approval.request (by the
 // originator), approval.approve and approval.deny (by the person, refusals
-// included) and approval.expire (by the hub).
+// included), approval.expire (by the hub) and approval.withdraw (by an
+// agent taking back its own proposal, agents.go).
 
 import (
 	"context"
@@ -47,6 +48,8 @@ const (
 	ActionApprovalApprove = "approval.approve"
 	ActionApprovalDeny    = "approval.deny"
 	ActionApprovalExpire  = "approval.expire"
+	// ActionApprovalWithdraw: an agent took back its own waiting proposal.
+	ActionApprovalWithdraw = "approval.withdraw"
 )
 
 // ApprovalClass is the Inbox item's class for a plan awaiting a person.
@@ -496,7 +499,7 @@ func (e *Engine) ended(apv Approval) {
 
 // recordApproval audits one step of an approval. Params name the approval,
 // the plan and the action, never the action's params.
-func (e *Engine) recordApproval(ctx context.Context, actor Actor, action string, apv *Approval, p *storedPlan, result string, r *Refusal, task string) {
+func (e *Engine) recordApproval(ctx context.Context, actor Actor, action string, apv *Approval, p *storedPlan, result string, r *Refusal, task string, extra ...string) {
 	params := map[string]string{"approval": apv.ID}
 	entry := audit.Entry{Actor: auditActor(actor), Action: action, Result: result, Task: task}
 	if p != nil {
@@ -514,6 +517,9 @@ func (e *Engine) recordApproval(ctx context.Context, actor Actor, action string,
 	}
 	if apv.Reason != "" && result == audit.OK {
 		params["reason"] = apv.Reason
+	}
+	for i := 0; i+1 < len(extra); i += 2 {
+		params[extra[i]] = extra[i+1]
 	}
 	if action == ActionApprovalApprove && result == audit.OK && actor.StepUpMethod != "" {
 		// How the approver confirmed it was them: passkey, password or oidc.

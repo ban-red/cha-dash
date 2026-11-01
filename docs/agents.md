@@ -10,7 +10,8 @@ Cha Dash ships no model and calls no model provider. Whatever an agent reads goe
 
 - read the Home Graph, open incidents and a resource's cause hints, as the user who made its token sees them, narrowed to what the token's read scopes allow;
 - plan an action without proposing it, to see its tier, its steps and what it would affect (its blast radius);
-- propose an action from the token's propose scopes, with a short rationale, and follow it until a person decides and it runs.
+- propose an action from the token's propose scopes, with a short rationale, and follow it until a person decides and it runs;
+- withdraw one of its own proposals while it still waits, when it's no longer needed.
 
 **It can't:**
 
@@ -56,7 +57,7 @@ A proposal is an approval in the Inbox, for admins and the owner, and a notifica
 
 - **T1** takes a tap. **T2** the hold, and **T3** the target's name typed; from T2, a fresh passkey or password check made after the proposal arrived.
 - The approval binds to the plan's hash. If the graph changes what the plan would affect, or its tier, before it runs, the approval is void and the agent has to propose again.
-- A proposal expires after **15 minutes**. Revoking the token, turning Agents off, or the token's user losing the role all withdraw it.
+- A proposal expires after **15 minutes**. Revoking the token, turning Agents off, or the token's user losing the role all withdraw it, and so can the agent itself (`withdraw`).
 - The task runs as the agent, for its user. The audit log has both sides: `approval.request` by the agent (with its token, the user it acts for, the plan's hash and the rationale), `approval.approve` or `approval.deny` by the person (with the agent as originator and, from T2, how they confirmed it was them: `step_up` is `passkey`, `password` or `oidc`), and the action itself by the agent. The Inbox item says it too once decided: "Approved by sam, confirmed with a passkey."
 
 ## The endpoint
@@ -78,6 +79,7 @@ A proposal is an approval in the Inbox, for admins and the owner, and a notifica
 | `plan` | A dry run: tier, steps, blast radius. Nothing waits | `action`, `target`, `params`, from `POST /api/actions/plan` |
 | `propose` | A plan that waits for a person. Returns the proposal's ID and state | as `plan`, plus `rationale` (required, at most 500 characters) |
 | `get_proposal` | A proposal's state and, once approved, its task | `proposal` |
+| `withdraw` | Takes back one of the token's own proposals while it waits. It ends as `expired` ("The agent that proposed it withdrew it."), audited as `approval.withdraw` with the agent's reason in the record only. Not a proposal: it counts toward no limit, and frees the waiting slot (the hour's count keeps the proposal) | `proposal`, `reason` (optional, at most 300 characters) |
 
 `plan`, `propose` and `get_resource` take their input schemas from the routes they stand for, through the hub's OpenAPI document, so they can't drift from the API.
 
