@@ -48,8 +48,13 @@ const HEALTH_RANK: Record<string, number> = { down: 0, attention: 1, repair: 2, 
 
 /** A thing's health across its sources: the worst one, with its reason. */
 export function mergedHealth(g: GraphDoc | undefined, id: string): Health {
+  return worstHealth(members(g, id));
+}
+
+/** The worst health of these resources (what each source says about one thing). */
+export function worstHealth(rs: readonly Resource[]): Health {
   let best: Health | undefined;
-  for (const m of members(g, id)) {
+  for (const m of rs) {
     const h = normalizeHealth(m);
     if (!best || (HEALTH_RANK[h.status] ?? 9) < (HEALTH_RANK[best.status] ?? 9)) best = h;
   }

@@ -33,5 +33,22 @@
     "configContract": "TorznabSettings",
     "tags": [],
     "id": 2
+  },
+  {
+    "enableRss": true,
+    "enableAutomaticSearch": false,
+    "enableInteractiveSearch": false,
+    "protocol": "torrent",
+    "priority": 25,
+    "name": "Tracker feed",
+    "fields": [
+      {"order": 0, "name": "baseUrl", "value": "https://tracker.example/rss/0123456789abcdef0123456789abcdef", "type": "textbox"},
+      {"order": 1, "name": "cookie", "value": "uid=1; pass=fakefakefake", "type": "textbox"}
+    ],
+    "implementationName": "Torrent RSS Feed",
+    "implementation": "TorrentRssIndexer",
+    "configContract": "TorrentRssIndexerSettings",
+    "tags": [],
+    "id": 3
   }
 ]

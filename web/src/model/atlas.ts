@@ -7,19 +7,21 @@
  *   its health is the worst of its members', as tiles merge it. Relations
  *   between aliases are drawn between their primaries.
  * - **Rows.** The router and the WAN at the top, then hosts, guests and
- *   storage, engines, containers, apps, and routes at the edge. Empty rows
- *   close up.
+ *   storage, engines, containers, apps, and routes at the edge.
  * - **Columns.** A tidy tree: each node's parent is what it runs on (or is
  *   part of, stores on, or routes to) on a row above it. A parent sits over
  *   its children; roots go left to right, those with children first.
- * - **Folds.** An engine with more than FOLD healthy containers draws them
- *   as one group node ("18 more containers"), with the apps in them. A
- *   container or app that isn't ok is never folded away.
+ * - **Bands.** The root trees wrap like lines of text into bands stacked
+ *   down the page, so a home of many hosts is about as wide as a screen
+ *   rather than a ribbon. Each band closes up its own empty rows.
+ * - **Folds.** A parent with more than FOLD children draws the healthy ones
+ *   as one group node ("18 more containers", "38 more routes"), with what
+ *   hangs under them. Anything that isn't ok is never folded away.
  * - **The list** is the same forest in the same order (`order`), so the
  *   list view and the canvas always hold the same nodes.
  */
-import { aliases, label, mergedHealth } from './graph';
-import type { CauseStep, GraphDoc, HealthStatus } from './types';
+import { label, worstHealth } from './graph';
+import type { CauseStep, GraphDoc, HealthStatus, Resource } from './types';
 
 export type Layer = 'compute' | 'network' | 'storage' | 'backups' | 'dependencies';
 
@@ -33,7 +35,7 @@ export const LAYERS: readonly { id: Layer; name: string; about: string }[] = [
 
 export const DEFAULT_LAYERS: readonly Layer[] = ['compute', 'network', 'dependencies'];
 
-/** Healthy containers on one engine above this fold into a group. */
+/** A parent with more children than this folds the healthy ones into a group. */
 export const FOLD = 12;
 
 /** Geometry, in CSS pixels. */
@@ -42,6 +44,9 @@ export const ROW_H = 96;
 export const NODE_W = 120;
 export const NODE_H = 40;
 export const PAD = 24;
+/** The space between bands, and the shape bands aim for (width over height). */
+export const BAND_GAP = 48;
+const ASPECT = 1.6;
 
 /** Each kind's layer and row. Kinds not here (integrations, checks, cameras) aren't drawn. */
 const KINDS: Record<string, { layer: Layer; row: number }> = {
@@ -63,6 +68,9 @@ const KINDS: Record<string, { layer: Layer; row: number }> = {
   app: { layer: 'compute', row: 5 },
   route: { layer: 'network', row: 6 },
 };
+
+/** What a fold of one kind is called: "38 more routes". */
+const PLURALS: Record<string, string> = { container: 'containers', route: 'routes', app: 'apps', vm: 'VMs', lxc: 'LXCs', host: 'hosts', disk: 'disks', share: 'shares', backup_job: 'backup jobs' };
 
 /** The relations a parent comes from, most telling first: a route hangs under where it goes, not its proxy. */
 const PARENT_TYPES: readonly string[] = ['runs_on', 'part_of', 'stores_on'];
@@ -103,6 +111,8 @@ export interface Atlas {
   height: number;
   /** Where each folded resource is drawn: its group's id. */
   foldedInto: Map<string, string>;
+  /** Each alias's primary. */
+  primaryOf: Map<string, string>;
 }
 
 export interface AtlasOptions {
@@ -143,16 +153,29 @@ export function buildAtlas(g: GraphDoc | undefined, opts: AtlasOptions): Atlas {
   const fold = opts.fold ?? FOLD;
   const nodes = new Map<string, AtlasNode>();
   const foldedInto = new Map<string, string>();
-  const empty: Atlas = { nodes, order: [], roots: [], edges: [], width: PAD * 2, height: PAD * 2, foldedInto };
+  const primaryOf = new Map<string, string>();
+  const empty: Atlas = { nodes, order: [], roots: [], edges: [], width: PAD * 2, height: PAD * 2, foldedInto, primaryOf };
   if (!g) return empty;
 
-  // Primaries, and every resource's primary.
-  const alias = aliases(g);
+  // Primaries, and every resource's primary, from one pass over the relations
+  // (this runs on every graph diff, so nothing below scans them per node).
+  const sameAs = new Map<string, string>();
+  for (const r of Object.values(g.relations)) if (r.type === 'same_as' && !(sameAs.get(r.from)! <= r.to)) sameAs.set(r.from, r.to);
   const primary = (id: string): string => {
-    if (!alias.has(id)) return id;
-    for (const r of Object.values(g.relations)) if (r.type === 'same_as' && r.from === id) return r.to;
+    const seen = new Set<string>();
+    while (sameAs.has(id) && !seen.has(id)) {
+      seen.add(id);
+      id = sameAs.get(id)!;
+    }
     return id;
   };
+  const alias = new Set(sameAs.keys());
+  for (const a of alias) primaryOf.set(a, primary(a));
+  const members = new Map<string, Resource[]>();
+  for (const a of [...alias].sort()) {
+    const p = primary(a);
+    if (g.resources[a] && p !== a) members.set(p, [...(members.get(p) ?? []), g.resources[a]]);
+  }
   const kindOf = (id: string) => g.resources[id]?.kind ?? '';
 
   // Relations between primaries, once each, sorted.
@@ -186,7 +209,7 @@ export function buildAtlas(g: GraphDoc | undefined, opts: AtlasOptions): Atlas {
 
   const make = (id: string): AtlasNode => {
     const r = g.resources[id]!;
-    const h = mergedHealth(g, id);
+    const h = worstHealth([r, ...(members.get(id) ?? [])]);
     const n: AtlasNode = { id, kind: r.kind, label: label(r), layer: KINDS[r.kind]!.layer, x: 0, y: 0, row: KINDS[r.kind]!.row, health: h.status, children: [] };
     if (h.reason) n.reason = h.reason;
     return n;
@@ -211,27 +234,29 @@ export function buildAtlas(g: GraphDoc | undefined, opts: AtlasOptions): Atlas {
     if (c && p && p.row < c.row) parentOf.set(r.to, r.from);
   }
 
-  // Folds: an engine's containers whose whole subtree (apps, routes) is healthy.
-  const containersOn = new Map<string, string[]>();
-  for (const [child, parent] of parentOf) {
-    if (nodes.get(child)?.kind === 'container' && nodes.get(parent)?.kind === 'engine') {
-      containersOn.set(parent, [...(containersOn.get(parent) ?? []), child]);
-    }
-  }
-  for (const [engine, cts] of [...containersOn].sort(([a], [b]) => a.localeCompare(b))) {
-    if (opts.expanded?.has(engine)) continue;
-    const subtree = (id: string): string[] => [id, ...[...parentOf].filter(([, p]) => p === id).flatMap(([c]) => subtree(c))];
-    const quiet = cts.map(subtree).filter((ids) => ids.every((id) => OK(nodes.get(id)!.health)));
-    if (cts.length <= fold || quiet.length < 2) continue;
-    const gid = `group:${engine}`;
-    const members = quiet.flat().sort();
+  // Folds: a parent's children whose whole subtree is healthy, ancestors first.
+  const childrenOf = new Map<string, string[]>();
+  for (const [child, parent] of parentOf) childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), child]);
+  const subtree = (id: string): string[] => [id, ...(childrenOf.get(id) ?? []).flatMap(subtree)];
+  const parents = [...childrenOf.keys()].sort((a, b) => nodes.get(a)!.row - nodes.get(b)!.row || a.localeCompare(b));
+  for (const parent of parents) {
+    const kids = (childrenOf.get(parent) ?? []).filter((c) => nodes.has(c)).sort();
+    if (!nodes.has(parent) || opts.expanded?.has(parent) || kids.length <= fold) continue;
+    const quiet = kids.filter((c) => subtree(c).every((id) => OK(nodes.get(id)!.health)));
+    if (quiet.length < 2) continue;
+    const gid = `group:${parent}`;
+    const members = quiet.flatMap(subtree).sort();
+    const kinds = new Set(quiet.map((c) => nodes.get(c)!.kind));
+    const kind = kinds.size === 1 ? [...kinds][0]! : '';
+    const row = Math.min(...quiet.map((c) => nodes.get(c)!.row));
     for (const m of members) {
       nodes.delete(m);
       parentOf.delete(m);
       foldedInto.set(m, gid);
     }
-    nodes.set(gid, { id: gid, kind: 'group', label: `${quiet.length} more containers`, layer: 'compute', x: 0, y: 0, row: KINDS['group']!.row, health: 'ok', children: [], folded: members });
-    parentOf.set(gid, engine);
+    const what = PLURALS[kind];
+    nodes.set(gid, { id: gid, kind: 'group', label: what ? `${quiet.length} more ${what}` : `${quiet.length} more`, layer: nodes.get(parent)!.layer, x: 0, y: 0, row, health: 'ok', children: [], folded: members });
+    parentOf.set(gid, parent);
   }
 
   // The forest.
@@ -242,12 +267,7 @@ export function buildAtlas(g: GraphDoc | undefined, opts: AtlasOptions): Atlas {
   const roots = sortIds([...nodes.values()].filter((n) => !n.parent).map((n) => n.id));
   roots.sort((a, b) => Number(nodes.get(b)!.children.length > 0) - Number(nodes.get(a)!.children.length > 0));
 
-  // Rows close up.
-  const rows = [...new Set([...nodes.values()].map((n) => n.row))].sort((a, b) => a - b);
-  const rowIndex = new Map(rows.map((r, i) => [r, i]));
-
   // Tidy columns: a subtree is as wide as its leaves; a parent sits over its children.
-  const order: string[] = [];
   const width = new Map<string, number>();
   const measure = (id: string): number => {
     const kids = nodes.get(id)!.children;
@@ -255,23 +275,52 @@ export function buildAtlas(g: GraphDoc | undefined, opts: AtlasOptions): Atlas {
     width.set(id, w);
     return w;
   };
-  const place = (id: string, left: number) => {
-    const n = nodes.get(id)!;
-    order.push(id);
-    n.x = PAD + (left + width.get(id)! / 2) * SLOT_W;
-    n.y = PAD + (rowIndex.get(n.row)! + 0.5) * ROW_H;
-    let at = left;
-    for (const k of n.children) {
-      place(k, at);
-      at += width.get(k)!;
-    }
-  };
-  let left = 0;
+  const rowsUnder = (id: string): number[] => [nodes.get(id)!.row, ...nodes.get(id)!.children.flatMap(rowsUnder)];
+  for (const r of roots) measure(r);
+
+  // Bands: the root trees wrap like lines of text, so the map is about as wide as a screen.
+  const total = roots.reduce((s, r) => s + width.get(r)!, 0);
+  const allRows = new Set([...nodes.values()].map((n) => n.row)).size;
+  const target = Math.max(...roots.map((r) => width.get(r)!), Math.ceil(Math.sqrt((ASPECT * total * allRows * ROW_H) / SLOT_W)));
+  const bands: string[][] = [];
+  let used = Infinity;
   for (const r of roots) {
-    measure(r);
-    place(r, left);
-    left += width.get(r)!;
+    const w = width.get(r)!;
+    if (used + w > target) {
+      bands.push([]);
+      used = 0;
+    }
+    bands.at(-1)!.push(r);
+    used += w;
   }
+
+  const order: string[] = [];
+  let top = 0;
+  let widest = 1;
+  for (const band of bands) {
+    // Rows close up within a band.
+    const rows = [...new Set(band.flatMap(rowsUnder))].sort((a, b) => a - b);
+    const rowIndex = new Map(rows.map((r, i) => [r, i]));
+    const place = (id: string, left: number) => {
+      const n = nodes.get(id)!;
+      order.push(id);
+      n.x = PAD + (left + width.get(id)! / 2) * SLOT_W;
+      n.y = PAD + top + (rowIndex.get(n.row)! + 0.5) * ROW_H;
+      let at = left;
+      for (const k of n.children) {
+        place(k, at);
+        at += width.get(k)!;
+      }
+    };
+    let left = 0;
+    for (const r of band) {
+      place(r, left);
+      left += width.get(r)!;
+    }
+    widest = Math.max(widest, left);
+    top += rows.length * ROW_H + BAND_GAP;
+  }
+  const height = Math.max(ROW_H, top - (bands.length ? BAND_GAP : 0));
 
   // Edges whose layer is on, between drawn nodes (a folded end draws at its group).
   const drawnAt = (id: string) => (nodes.has(id) ? id : foldedInto.get(id));
@@ -288,12 +337,18 @@ export function buildAtlas(g: GraphDoc | undefined, opts: AtlasOptions): Atlas {
     edges.push({ key, from, to, type: r.type, layer });
   }
 
-  return { nodes, order, roots, edges, width: PAD * 2 + Math.max(1, left) * SLOT_W, height: PAD * 2 + Math.max(1, rows.length) * ROW_H, foldedInto };
+  return { nodes, order, roots, edges, width: PAD * 2 + widest * SLOT_W, height: PAD * 2 + height, foldedInto, primaryOf };
 }
 
 /** The nodes and edges a cause's path lights, as drawn (a folded end lights its group). */
+/** Where a resource is drawn: itself, its primary, or the fold it's in; undefined when it isn't. */
+export function drawnAt(atlas: Atlas, id: string): string | undefined {
+  const p = atlas.primaryOf.get(id) ?? id;
+  return atlas.nodes.has(p) ? p : atlas.foldedInto.get(p);
+}
+
 export function lit(atlas: Atlas, symptom: string, path: readonly CauseStep[] | undefined): { nodes: Set<string>; edges: Set<string> } {
-  const at = (id: string) => (atlas.nodes.has(id) ? id : atlas.foldedInto.get(id));
+  const at = (id: string) => drawnAt(atlas, id);
   const nodes = new Set<string>();
   const edges = new Set<string>();
   const s = at(symptom);

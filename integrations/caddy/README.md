@@ -22,11 +22,11 @@ Reads Caddy's admin API. Each `reverse_proxy` in the HTTP servers' routes become
 ## What it publishes
 
 - **`caddy:<instance>/app`**, kind `app`, `attrs.type = "caddy"`, `servers`, `routes`, `poll_url`. It's monitored by the instance. Caddy has no version endpoint, so there's no version.
-- **A route per `reverse_proxy` upstream:** `caddy:<instance>/route/<first host and path>`, kind `route`, `part_of` the app. A second upstream of the same match gets `-2`, and so on.
+- **A route per `reverse_proxy`:** `caddy:<instance>/route/<first host and path>`, kind `route`, `part_of` the app. One that balances several upstreams is still one route. A second route with the same host and path gets `-2`, and so on, never an ID another route has.
   - The match: a route's own `host` and `path` matchers narrow the enclosing routes' (a Caddyfile site block is a route with a `subroute`).
   - `attrs`: `rule` ("host a b, path /x*"), `hosts`, `path`, `entrypoint` (the server's name, `srv0`), `position` (where in the config), `tls`.
   - `url`: https on a server that listens on 443, http on 80, else http on the server's first port. Left out for a wildcard host or no host match.
-  - `upstream` and `upstream_addr`: from the upstream's `dial`, https when the transport has TLS. A placeholder (`{http.request.host}`) or a unix socket is shown in `upstream` and never joined.
+  - `upstream` and `upstream_addr`: from the first upstream's `dial`, https when the transport has TLS; with more than one, `servers` lists them all, as Traefik's routes do. A placeholder (`{http.request.host}`) or a unix socket is shown and never joined.
 - At most 500 routes. Headers, auth handlers (and their password hashes), TLS settings and every other handler are never kept.
 
 ## Security finding

@@ -107,11 +107,13 @@ func TestSync(t *testing.T) {
 		t.Fatalf("wanted_items = %#v", got)
 	}
 	// What it uses: enabled clients and indexers with an address, by
-	// address only. The fixtures' passwords and keys never get out.
+	// address only. The fixtures' passwords and keys never get out, and an
+	// indexer's URL keeps no path: a feed's can hold the tracker's passkey.
 	wantUses := []any{
 		map[string]any{"role": "download client", "url": "http://qbittorrent.lab.example:8080", "name": "qBittorrent"},
 		map[string]any{"role": "download client", "url": "https://sabnzbd.lab.example:443/sabnzbd", "name": "SABnzbd"},
-		map[string]any{"role": "indexer", "url": "http://prowlarr.lab.example:9696/1", "name": "NZBgeek (Prowlarr)"},
+		map[string]any{"role": "indexer", "url": "http://prowlarr.lab.example:9696", "name": "NZBgeek (Prowlarr)"},
+		map[string]any{"role": "indexer", "url": "https://tracker.example", "name": "Tracker feed"},
 	}
 	if got := r.Attrs[integration.AttrUses]; !reflect.DeepEqual(got, wantUses) {
 		t.Fatalf("uses = %#v", got)

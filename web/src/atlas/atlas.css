@@ -16,6 +16,10 @@
   cursor: grab;
   user-select: none;
 }
+/* On a tile, a vertical swipe still scrolls the page. */
+.atlas-canvas.page-scrolls {
+  touch-action: pan-y;
+}
 .atlas-canvas:active {
   cursor: grabbing;
 }
@@ -133,8 +137,17 @@
 .atlas-node.lit {
   box-shadow: 0 0 0 4px color-mix(in oklch, var(--text) 14%, transparent);
 }
+/* Dimmed, but still readable (WCAG 1.4.3): quieter colours, not opacity. */
 .atlas-node.dim {
-  opacity: 0.35;
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.atlas-node.dim .g {
+  opacity: 0.5;
+}
+.atlas-node.dim .atlas-kind {
+  color: var(--text-2);
 }
 
 .atlas-tools {
@@ -193,6 +206,11 @@
 .atlas-item:hover,
 .atlas-item[aria-current='true'] {
   background: var(--surface-hover);
+}
+/* The selection is more than a hover: a bar and weight, not just a tint. */
+.atlas-item[aria-current='true'] {
+  box-shadow: inset 2px 0 0 var(--text);
+  font-weight: var(--weight-medium);
 }
 .atlas-item .g {
   width: 10px;

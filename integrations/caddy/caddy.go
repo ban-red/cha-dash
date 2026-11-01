@@ -197,7 +197,7 @@ type proxy struct {
 	port     int    // the server's port when it isn't the scheme's
 	hosts    []string
 	path     string
-	dial     string
+	dials    []string // its upstreams; the first is the one joined
 	upTLS    bool
 	position string // where in the config: srv0/2/0
 }
@@ -243,10 +243,15 @@ func proxies(name string, s server) []proxy {
 				case "subroute":
 					walk(hd.Routes, h, p, pos+"/"+strconv.Itoa(j))
 				case "reverse_proxy":
+					// One route however many upstreams balance it: one site, one route.
+					var dials []string
 					for _, u := range hd.Upstreams {
-						out = append(out, proxy{server: name, scheme: scheme, port: port, hosts: h, path: p, dial: u.Dial,
-							upTLS: hd.Transport.TLS != nil, position: pos})
+						if u.Dial != "" {
+							dials = append(dials, u.Dial)
+						}
 					}
+					out = append(out, proxy{server: name, scheme: scheme, port: port, hosts: h, path: p, dials: dials,
+						upTLS: hd.Transport.TLS != nil, position: pos})
 				}
 			}
 		}
@@ -291,9 +296,12 @@ func (in *instance) route(p proxy, ids map[string]int) integration.Resource {
 	}
 	label += path
 	key := slug(label)
-	if ids[key]++; ids[key] > 1 {
-		key += "-" + strconv.Itoa(ids[key])
+	for n := 2; ids[key] > 0; n++ {
+		if k := slug(label) + "-" + strconv.Itoa(n); ids[k] == 0 {
+			key = k
+		}
 	}
+	ids[key]++
 	rule := ruleOf(p.hosts, p.path)
 	attrs := map[string]any{"rule": rule, "entrypoint": p.server, "position": p.position, "tls": p.scheme == "https"}
 	if len(p.hosts) > 0 {
@@ -313,15 +321,26 @@ func (in *instance) route(p proxy, ids map[string]int) integration.Resource {
 		attrs["url"] = u
 		res.Links = []integration.Link{{Title: label, URL: u}}
 	}
-	if h, port, err := net.SplitHostPort(p.dial); err == nil && h != "" && !strings.Contains(p.dial, "{") {
-		scheme := "http"
-		if p.upTLS {
-			scheme = "https"
+	scheme := "http"
+	if p.upTLS {
+		scheme = "https"
+	}
+	var ups []any
+	for i, d := range p.dials {
+		up := d // a placeholder or a unix socket: shown, never joined
+		if h, port, err := net.SplitHostPort(d); err == nil && h != "" && !strings.Contains(d, "{") {
+			up = scheme + "://" + net.JoinHostPort(h, port)
+			if i == 0 {
+				attrs["upstream_addr"] = net.JoinHostPort(h, port)
+			}
 		}
-		attrs["upstream_addr"] = net.JoinHostPort(h, port)
-		attrs["upstream"] = scheme + "://" + net.JoinHostPort(h, port)
-	} else if p.dial != "" {
-		attrs["upstream"] = p.dial // a placeholder or a unix socket: shown, never joined
+		ups = append(ups, up)
+	}
+	if len(ups) > 0 {
+		attrs["upstream"] = ups[0]
+	}
+	if len(ups) > 1 {
+		attrs["servers"] = ups
 	}
 	return res
 }

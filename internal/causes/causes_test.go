@@ -81,6 +81,22 @@ func TestOOMIsTheRoot(t *testing.T) {
 	}
 }
 
+// A compose stack is its containers' worst health: never why one of them,
+// or what runs in it, is in trouble.
+func TestStackIsNoCause(t *testing.T) {
+	h := arr(t).
+		add("stack:media", "stack", "media", graph.HealthAttention, integration.AttrHealthSince, since(t0),
+			integration.AttrHealthReason, "qbittorrent: OOM-killed").
+		rel("ct:qbit", "part_of", "stack:media")
+	got := h.find()
+	if c := got["app:sonarr"]; len(c) != 1 || c[0].Resource != "ct:qbit" {
+		t.Fatalf("Sonarr's causes: %+v", c)
+	}
+	if c := got["ct:qbit"]; len(c) != 0 {
+		t.Fatalf("the container blamed on its own stack: %+v", c)
+	}
+}
+
 // Each relation the walk follows, and provides_network_for backwards.
 func TestEachRelation(t *testing.T) {
 	for _, c := range []struct{ rel, from, to, want string }{

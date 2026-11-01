@@ -60,9 +60,10 @@ func TestSync(t *testing.T) {
 		// A placeholder upstream is shown, never joined; a wildcard host has
 		// no URL to open.
 		"apps.lab.example": {"upstream": "{http.request.host.labels.3}:80", "url": nil, "upstream_addr": nil},
-		// No host match: no URL; each upstream a route.
-		"srv1":   {"upstream_addr": "localhost:3000", "url": nil, "rule": "all requests", "entrypoint": "srv1"},
-		"srv1-2": {"upstream_addr": "localhost:3001"},
+		// No host match: no URL. Two upstreams are one route: one site,
+		// joined by the first, with both listed.
+		"srv1": {"upstream_addr": "localhost:3000", "url": nil, "rule": "all requests", "entrypoint": "srv1",
+			"servers": []any{"http://localhost:3000", "http://localhost:3001"}},
 	} {
 		attrs := route(key)
 		for k, v := range want {
@@ -72,7 +73,7 @@ func TestSync(t *testing.T) {
 		}
 	}
 	app, ok := h.Resource("caddy:i_test/app")
-	if !ok || app.Kind != "app" || app.Attrs["type"] != "caddy" || app.Attrs["routes"] != 6.0 || app.Attrs["servers"] != 2.0 {
+	if !ok || app.Kind != "app" || app.Attrs["type"] != "caddy" || app.Attrs["routes"] != 5.0 || app.Attrs["servers"] != 2.0 {
 		t.Fatalf("app = %+v", app)
 	}
 	// Nothing of the handlers but the upstreams: not the basic-auth hash.
@@ -87,6 +88,9 @@ func TestSync(t *testing.T) {
 	inc, ok := h.Incident(hintAdmin)
 	if !ok || inc.Category != integration.CategorySecurity || inc.Severity != integration.SeverityAttention || inc.Target != "caddy:i_test/app" {
 		t.Fatalf("finding = %+v", inc)
+	}
+	if _, ok := h.Resource("caddy:i_test/route/srv1-2"); ok {
+		t.Fatal("a second upstream became a second route")
 	}
 	if reqs := up.Requests(""); len(reqs) == 0 || reqs[0].Method != http.MethodGet {
 		t.Fatalf("requests = %v", reqs)
@@ -110,5 +114,19 @@ func TestFailures(t *testing.T) {
 	}
 	if app, _ := h.Resource("caddy:i_test/app"); app.Attrs["routes"] != 0.0 {
 		t.Fatalf("app = %+v", app)
+	}
+}
+
+// Route IDs never repeat, even when a label slugs to another's suffix.
+func TestRouteIDsAreUnique(t *testing.T) {
+	in := &instance{key: "i_test"}
+	ids := map[string]int{}
+	seen := map[string]bool{}
+	for _, p := range []proxy{{server: "s", hosts: []string{"a.example"}}, {server: "s", hosts: []string{"a.example"}}, {server: "s", hosts: []string{"a.example"}, path: "/2"}} {
+		id := string(in.route(p, ids).ID)
+		if seen[id] {
+			t.Fatalf("%s twice", id)
+		}
+		seen[id] = true
 	}
 }

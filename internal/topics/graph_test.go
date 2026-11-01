@@ -65,7 +65,8 @@ func TestHouseholdGraphTopic(t *testing.T) {
 
 	// Diffs: an address changes, the node changes, a new node appears.
 	if _, err := s.Graph.Update(func(tx *graph.Tx) error {
-		if err := tx.Upsert(graph.Resource{ID: "host:pve", Kind: "host", Name: "pve", Attrs: map[string]any{"ip": "192.0.2.11", "mac": "02:00:00:00:00:01", "cpu": 16}}); err != nil {
+		if err := tx.Upsert(graph.Resource{ID: "host:pve", Kind: "host", Name: "pve", Attrs: map[string]any{"ip": "192.0.2.11", "mac": "02:00:00:00:00:01", "cpu": 16,
+			"uses": []any{map[string]any{"role": "MQTT broker", "url": "mqtt://192.0.2.20:1883"}}, "upstream_addr": "192.0.2.21:80"}}); err != nil {
 			return err
 		}
 		if err := tx.Upsert(graph.Resource{ID: "node:n1", Kind: "node", Name: "local", State: "connected"}); err != nil {

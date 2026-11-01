@@ -4,16 +4,24 @@
  * Atlas"): the whole home as a map, full screen, with the same nodes as a
  * list beside it. Layers toggle what's drawn; each viewer's choice is
  * remembered on this device. Selecting a node that isn't ok lights the
- * path to its first cause (the causes topic) and dims the rest, and the
- * bar under the map says why in words. Lazy: its own chunk, reading the
+ * path to its first cause and dims the rest, and the bar under the map
+ * says why in words. The causes topic leaves paths out, so the lens asks
+ * `GET /api/causes` for the selection's. Lazy: its own chunk, reading the
  * graph and causes the page already has.
+ *
+ * "Open its sheet" leaves the lens for the sheet (`sheetPath` drops
+ * `?atlas=`): the lens is a modal dialog, so a sheet under it couldn't be
+ * reached. Back comes back to the lens.
  */
 import { computed, ref, watch } from 'vue';
 import UiDialog from '../ui/Dialog.vue';
 import UiButton from '../ui/Button.vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import { glyphFor } from '../model/status';
-import { buildAtlas, DEFAULT_LAYERS, KIND_WORDS, LAYERS, lit, type Layer } from '../model/atlas';
+import { api } from '../lib/api';
+import { atlasPath, navigate, route } from '../lib/router';
+import { buildAtlas, DEFAULT_LAYERS, drawnAt, KIND_WORDS, LAYERS, lit, type Layer } from '../model/atlas';
+import type { CausesResponse, CauseStep } from '../model/types';
 import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 import AtlasCanvas from './AtlasCanvas.vue';
@@ -53,22 +61,55 @@ function expand(group: string): void {
 
 /** The node selected: the route's focus at first (a folded one shows its group). */
 const selected = ref<string | undefined>();
+// Again when the graph arrives: a link opened cold has no nodes yet.
 watch(
-  () => ui.atlas.value,
-  (focus) => {
-    if (!focus) return;
-    selected.value = atlas.value.nodes.has(focus) ? focus : atlas.value.foldedInto.get(focus);
+  () => [ui.atlas.value, atlas.value.nodes.size > 0] as const,
+  ([focus], old) => {
+    if (focus && (focus !== old?.[0] || !selected.value)) selected.value = drawnAt(atlas.value, focus);
   },
   { immediate: true },
 );
 const node = computed(() => (selected.value ? atlas.value.nodes.get(selected.value) : undefined));
 const hints = computed(() => (node.value && node.value.health !== 'ok' ? live.causesOf(node.value.id) : []));
-const path = computed(() => (node.value && hints.value.length ? lit(atlas.value, node.value.id, hints.value[0]!.path) : undefined));
+
+/** The first cause's path, from the hint when it has one, else asked of the hub. */
+const fetched = ref<{ id: string; key: string; path: CauseStep[] } | undefined>();
+const hintKey = computed(() => {
+  const h = hints.value[0];
+  return h ? `${h.rule} ${h.resource}` : '';
+});
+watch(
+  () => [node.value?.id, hintKey.value] as const,
+  async ([id, key]) => {
+    if (!id || !key || hints.value[0]!.path || (fetched.value?.id === id && fetched.value.key === key)) return;
+    try {
+      const r = await api<CausesResponse>(`/api/causes?resource=${encodeURIComponent(id)}`);
+      fetched.value = { id, key, path: r.causes[0]?.path ?? [] };
+    } catch {
+      // no path: the selection stays unlit, its causes still in words
+    }
+  },
+  { immediate: true },
+);
+const firstPath = computed(() => {
+  const h = hints.value[0];
+  if (!h) return undefined;
+  if (h.path) return h.path;
+  const f = fetched.value;
+  return f && f.id === node.value?.id && f.key === hintKey.value ? f.path : undefined;
+});
+const path = computed(() => (node.value && firstPath.value ? lit(atlas.value, node.value.id, firstPath.value) : undefined));
 
 const WORDS: Record<string, string> = { ok: 'ok', attention: 'needs attention', down: 'down', maintenance: 'in maintenance', repair: 'needs repair', unknown: 'no reading yet' };
 
 function select(id: string): void {
   selected.value = id;
+}
+
+/** Leave for the sheet, keeping the selection in this entry so Back returns to it. */
+function openSheet(id: string): void {
+  navigate(atlasPath(route.value, id), { replace: true });
+  ui.openSheet(id);
 }
 </script>
 
@@ -104,7 +145,7 @@ function select(id: string): void {
                 <li v-for="c in hints" :key="`${c.rule} ${c.resource}`">Because {{ c.text.charAt(0).toLowerCase() + c.text.slice(1) }}</li>
               </ul>
             </div>
-            <UiButton v-if="ui.hasSheet(node.id)" size="sm" @click="ui.openSheet(node.id)">Open its sheet</UiButton>
+            <UiButton v-if="ui.hasSheet(node.id)" size="sm" @click="openSheet(node.id)">Open its sheet</UiButton>
           </template>
           <span v-else class="muted">Select something to see what it needs and why it isn’t fine.</span>
         </div>

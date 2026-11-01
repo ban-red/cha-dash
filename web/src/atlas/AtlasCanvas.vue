@@ -110,8 +110,10 @@ function start(): void {
 }
 
 onMounted(start);
+/** The layout's shape: which nodes, where. A health change keeps the view; a new layer or fold refits. */
+const shape = computed(() => `${atlas.width}x${atlas.height} ${atlas.order.join(' ')}`);
 watch(
-  () => [atlas, zoom] as const,
+  () => [shape.value, zoom] as const,
   () => void nextTick(start),
 );
 
@@ -134,7 +136,9 @@ function onWheel(e: WheelEvent): void {
   if (!wheel && !e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
   const r = view.value!.getBoundingClientRect();
-  zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top);
+  // In proportion to the wheel, so a trackpad's many small steps don't race.
+  const lines = e.deltaMode === 1 ? 16 : 1;
+  zoomBy(Math.exp(-Math.max(-50, Math.min(50, e.deltaY * lines)) * 0.004), e.clientX - r.left, e.clientY - r.top);
 }
 
 const ARROWS: Record<string, Direction> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
@@ -160,8 +164,14 @@ function key(e: KeyboardEvent, n: AtlasNode): void {
 
 function activate(n: AtlasNode): void {
   focusId.value = n.id;
-  if (n.folded) emit('expand', n.id);
-  else emit('open', n.id);
+  if (!n.folded) return void emit('open', n.id);
+  // The fold's button goes with it: focus moves to what it hung under.
+  const to = n.parent;
+  emit('expand', n.id);
+  if (to) {
+    focusId.value = to;
+    void nextTick(() => view.value?.querySelector<HTMLElement>(`[data-id="${CSS.escape(to)}"]`)?.focus());
+  }
 }
 
 /** A relation as a curve from one node's edge to the other's, leaving and arriving vertically. */
@@ -207,7 +217,7 @@ defineExpose({ fit, centreOn, zoomBy });
 <template>
   <div
     ref="view"
-    class="atlas-canvas"
+    :class="['atlas-canvas', { 'page-scrolls': !wheel }]"
     role="group"
     :aria-label="label"
     @pointerdown="down"

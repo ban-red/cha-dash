@@ -8,7 +8,7 @@
  *   /boards/{id}                       the front page on that board
  *   …?r={resource id}                  a resource's sheet over the front page (10 · The resource sheet)
  *   …?atlas=1, …?atlas={resource id}   the Atlas lens over the front page, centred on that resource;
- *                                      a sheet opened from it keeps it (`?atlas=…&r=…`)
+ *                                      a sheet opened from it takes its place, and Back returns to it
  *   /settings                          → /settings/integrations
  *   /settings/integrations             instances and the catalog
  *   /settings/integrations/new         pick an integration to add
@@ -123,9 +123,9 @@ export function sheetOf(r: Route): string | undefined {
   return r.query['r'] || undefined;
 }
 
-/** The current front-page path with a resource's sheet open, or with none. The Atlas stays open under it. */
+/** The current front-page path with a resource's sheet open, or with none. The Atlas closes: it's modal. */
 export function sheetPath(r: Route, id: string | undefined): string {
-  return frontPath(r.path, r.query['atlas'], id);
+  return frontPath(r.path, undefined, id);
 }
 
 /** The Atlas lens: open (`''`, or the resource it centres on), or undefined. */

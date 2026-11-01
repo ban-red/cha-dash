@@ -59,6 +59,11 @@ const (
 	providesNetworkFor graph.RelType = "provides_network_for"
 )
 
+// summaries are kinds whose health is only their members' worst (a compose
+// stack): the walk never goes up part_of into one, or a container would be
+// blamed on its own stack.
+var summaries = map[graph.Kind]bool{"stack": true}
+
 // Event is something that happened to a resource, which the Service
 // remembers past the graph: a container that was OOM-killed and restarted
 // no longer says so.
@@ -148,7 +153,12 @@ func newHome(in Input) *home {
 			continue
 		}
 		switch r.Type {
-		case runsOn, partOf, dependsOn, storesOn, routesTo, monitors:
+		case partOf:
+			// A summary is its members' worst health: never their cause.
+			if t := h.res[to]; t != nil && summaries[t.Kind] {
+				continue
+			}
+		case runsOn, dependsOn, storesOn, routesTo, monitors:
 		case providesNetworkFor:
 			from, to = to, from
 		default:

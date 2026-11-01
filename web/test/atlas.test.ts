@@ -19,6 +19,7 @@ import { setDisplayTimeZone } from '../src/lib/format';
 import type { CauseHint, GraphDoc } from '../src/model/types';
 import { axeViolations } from './axe';
 import { docs, withIncidents } from './fixtures';
+import { fakeFetch } from './fake-fetch';
 import { harness } from './harness';
 
 beforeAll(() => preloadWidgets());
@@ -54,14 +55,21 @@ describe('the layout', () => {
   it('puts the router on top, then hosts, guests, engines, containers, apps and routes, each under what it runs on', () => {
     const a = buildAtlas(g, { layers: DEFAULT_LAYERS });
     expect(rows(a)).toEqual([
+      // The first band: the router and what hangs under it.
       ['OPNsense'],
-      ['WAN', 'egret', 'heron', 'magpie', 'owl', 'stork', 'wren'],
-      ['rook', 'frigate', 'homeassistant', 'array', 'homework', 'studio', 'win-games', 'files', 'sandbox', 'adguard', 'opnsense', 'tailscale'],
+      ['WAN', 'egret', 'heron', 'magpie'],
+      ['rook', 'frigate', 'homeassistant', 'array'],
       ['rook', 'magpie'],
       ['13 more containers', 'nextcloud', 'speedtest-tracker', '11 more containers', 'qbittorrent', 'radarr', 'sonarr'],
-      ['Nextcloud', 'Speedtest Tracker', 'Frigate', 'Home Assistant', 'qBittorrent', 'Radarr', 'Sonarr', 'Cockpit', 'AdGuard Home'],
-      ['cloud', 'speed', 'ha', 'torrents', 'radarr', 'sonarr', 'adguard'],
+      ['Nextcloud', 'Speedtest Tracker', 'Frigate', 'Home Assistant', 'qBittorrent', 'Radarr', 'Sonarr'],
+      ['cloud', 'speed', 'ha', 'torrents', 'radarr', 'sonarr'],
+      // The second: the other hosts, its empty rows closed up.
+      ['owl', 'stork', 'wren'],
+      ['homework', 'studio', 'win-games', 'files', 'sandbox', 'adguard', 'opnsense', 'tailscale'],
+      ['Cockpit', 'AdGuard Home'],
+      ['adguard'],
     ]);
+    expect([a.width, a.height]).toEqual([1544, 1152]);
     // A parent sits over its children.
     const sonarr = a.nodes.get('app:sonarr')!;
     expect(sonarr.parent).toBe('docker:magpie/sonarr');
@@ -114,6 +122,38 @@ describe('the layout', () => {
     expect([...a.nodes.keys()].sort()).toEqual(['docker:ct', 'docker:engine', 'host:a']);
     expect(a.nodes.get('docker:ct')!.health).toBe('down'); // the worst of its members
     expect(a.edges.map((e) => e.key)).toContain('docker:ct runs_on host:a');
+    // A path that names the alias lights the primary.
+    expect([...lit(a, 'unraid:ct', [{ from: 'unraid:ct', type: 'runs_on', to: 'host:a' }]).edges]).toEqual(['docker:ct runs_on host:a']);
+  });
+
+  it('folds any parent’s many healthy children, routes under a proxy too', () => {
+    const h: GraphDoc = { resources: { 'traefik:app': { id: 'traefik:app', kind: 'app', name: 'Traefik', health: 'ok' } }, relations: {} };
+    for (let i = 0; i < 20; i++) {
+      const id = `traefik:route/${String(i).padStart(2, '0')}`;
+      h.resources[id] = { id, kind: 'route', name: `r${i}`, health: i === 7 ? 'down' : 'ok' };
+      h.relations[`p${i}`] = { from: id, type: 'part_of', to: 'traefik:app' };
+    }
+    const a = buildAtlas(h, { layers: DEFAULT_LAYERS });
+    const fold = a.nodes.get('group:traefik:app')!;
+    expect(fold.label).toBe('19 more routes');
+    expect(fold.row).toBe(a.nodes.get('traefik:route/07')!.row); // on the routes' row, beside the one that's down
+    expect(buildAtlas(h, { layers: DEFAULT_LAYERS, expanded: new Set(['traefik:app']) }).nodes.size).toBe(21);
+  });
+
+  it('wraps many hosts into bands about as wide as a screen', () => {
+    const h: GraphDoc = { resources: {}, relations: {} };
+    for (let i = 0; i < 30; i++) {
+      const host = `host:${String(i).padStart(2, '0')}`;
+      h.resources[host] = { id: host, kind: 'host', name: host, health: 'ok' };
+      for (const v of ['a', 'b']) {
+        h.resources[`${host}/${v}`] = { id: `${host}/${v}`, kind: 'vm', name: v, health: 'ok' };
+        h.relations[`${host}${v}`] = { from: `${host}/${v}`, type: 'runs_on', to: host };
+      }
+    }
+    const a = buildAtlas(h, { layers: DEFAULT_LAYERS });
+    expect(a.width / a.height).toBeGreaterThan(1);
+    expect(a.width / a.height).toBeLessThan(3);
+    expect(new Set([...a.nodes.values()].filter((n) => n.kind === 'host').map((n) => n.y)).size).toBeGreaterThan(1);
   });
 
   it('lights a cause’s path, a folded end lighting its group', () => {
@@ -149,16 +189,17 @@ const hint: CauseHint = {
   ],
 };
 
-async function lens(focus: string) {
+async function lens(focus: string, h0: CauseHint = hint) {
   navigate(`/?atlas=${encodeURIComponent(focus)}`);
-  const h = harness({ ...docs(withIncidents), causes: { causes: { 'app:sonarr': [hint] } } });
+  const h = harness({ ...docs(withIncidents), causes: { causes: { 'app:sonarr': [h0] } } });
   await flushPromises();
   h.mountIn(AtlasLens);
   await flushPromises();
   const dlg = () => document.querySelector<HTMLElement>('.atlas-lens')!;
   const canvasIds = () => [...dlg().querySelectorAll<HTMLElement>('.atlas-canvas [data-id]')].map((e) => e.dataset['id']!);
   const listIds = () => [...dlg().querySelectorAll<HTMLElement>('.atlas-list [data-id]')].map((e) => e.dataset['id']!);
-  return { ...h, dlg, canvasIds, listIds };
+  const atlasOf = () => buildAtlas(h.live.graph.value, { layers: DEFAULT_LAYERS });
+  return { ...h, dlg, canvasIds, listIds, atlasOf };
 }
 
 describe('the lens', () => {
@@ -191,6 +232,44 @@ describe('the lens', () => {
     expect(await axeViolations(l.dlg())).toEqual([]);
   });
 
+  it('asks the hub for the path when the topic has none (it never does)', async () => {
+    const { path, ...bare } = hint;
+    const net = fakeFetch({ 'GET /api/causes': { status: 200, body: { resource: 'app:sonarr', causes: [{ ...bare, path }] } } });
+    const l = await lens('app:sonarr', bare);
+    await flushPromises();
+    expect(net.calls.map((c) => c.path)).toContain('/api/causes?resource=app%3Asonarr');
+    const node = (id: string) => l.dlg().querySelector<HTMLElement>(`.atlas-canvas [data-id="${id}"]`)!;
+    expect(node('docker:magpie/qbittorrent').classList).toContain('lit');
+    expect(node('app:radarr').classList).toContain('dim');
+  });
+
+  it('keeps focus on the map when a fold opens', async () => {
+    const l = await lens('1');
+    const fold = l.dlg().querySelector<HTMLButtonElement>('.atlas-canvas .atlas-node.fold')!;
+    const parent = l.atlasOf().nodes.get(fold.dataset['id']!)!.parent!;
+    fold.focus();
+    fold.click();
+    await nextTick();
+    await nextTick();
+    expect(l.canvasIds()).not.toContain(fold.dataset['id']);
+    expect(document.activeElement?.getAttribute('data-id')).toBe(parent);
+  });
+
+  it('keeps the view when only health changes, and refits on a new layer', async () => {
+    const l = await lens('1');
+    const world = () => l.dlg().querySelector<HTMLElement>('.atlas-world')!.style.transform;
+    l.dlg().querySelector<HTMLButtonElement>('.atlas-tools button')!.click(); // zoom in
+    await nextTick();
+    const zoomed = world();
+    l.live.graph.value!.resources['app:radarr']!.health = 'down';
+    await flushPromises();
+    expect(l.dlg().querySelector('.atlas-canvas [data-id="app:radarr"]')!.classList).toContain('h-down');
+    expect(world()).toBe(zoomed);
+    l.dlg().querySelectorAll<HTMLInputElement>('.atlas-layers input')[2]!.click();
+    await flushPromises();
+    expect(world()).not.toBe(zoomed);
+  });
+
   it('moves the selection with the arrows, and the list follows', async () => {
     const l = await lens('app:sonarr');
     const sonarr = l.dlg().querySelector<HTMLElement>('.atlas-canvas [data-id="app:sonarr"]')!;
@@ -204,6 +283,20 @@ describe('the lens', () => {
     expect(l.dlg().querySelector('.atlas-bar')!.textContent).toContain('sonarr');
   });
 
+  it('leaves for a sheet, and Back returns to the lens on the same node', async () => {
+    const l = await lens('1');
+    l.dlg().querySelector<HTMLButtonElement>('.atlas-list [data-id="docker:magpie/qbittorrent"]')!.click();
+    await nextTick();
+    const replace = vi.spyOn(history, 'replaceState');
+    const push = vi.spyOn(history, 'pushState');
+    [...l.dlg().querySelectorAll<HTMLButtonElement>('.atlas-bar button')].find((b) => b.textContent!.includes('Open its sheet'))!.click();
+    expect(route.value.query).toEqual({ r: 'docker:magpie/qbittorrent' });
+    // The lens's entry now names the node, so Back opens the lens on it.
+    expect(replace.mock.calls.map((c) => c[2])).toEqual(['/?atlas=docker%3Amagpie%2Fqbittorrent']);
+    expect(push.mock.calls.map((c) => c[2])).toEqual(['/?r=docker%3Amagpie%2Fqbittorrent']);
+    vi.restoreAllMocks();
+  });
+
   it('closes to the page it was opened over', async () => {
     const l = await lens('1');
     l.dlg().querySelector<HTMLButtonElement>('.dlg-head .x')!.click();
@@ -214,7 +307,7 @@ describe('the lens', () => {
 });
 
 describe('getting there', () => {
-  it('is a ⌘K command, and a sheet over the lens keeps it', () => {
+  it('is a ⌘K command, and a sheet opened from it takes its place', () => {
     const opened: (string | undefined)[] = [];
     const cmds = buildCommands({
       do: {
@@ -227,10 +320,11 @@ describe('getting there', () => {
     const h = harness(docs(withIncidents));
     h.ui.openAtlas('app:sonarr');
     expect(route.value.query).toEqual({ atlas: 'app:sonarr' });
+    // The lens is modal: a sheet can't sit under it, so it replaces it (Back returns).
     h.ui.openSheet('docker:magpie/sonarr');
-    expect(route.value.query).toEqual({ atlas: 'app:sonarr', r: 'docker:magpie/sonarr' });
+    expect(route.value.query).toEqual({ r: 'docker:magpie/sonarr' });
     h.ui.closeSheet();
-    expect(route.value.query).toEqual({ atlas: 'app:sonarr' });
+    expect(route.value.query).toEqual({});
   });
 });
 

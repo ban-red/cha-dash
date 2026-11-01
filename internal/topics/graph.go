@@ -29,6 +29,8 @@ var HouseholdHiddenKinds = []graph.Kind{"node"}
 var householdHiddenAttrs = []string{
 	"address", "addresses", "ip", "ips", "ipv4", "ipv6", "ip_address", "ip_addresses",
 	"mac", "macs", "mac_address", "fingerprint", "public_key", "verbs",
+	// Where things point: an app's uses, a route's upstreams.
+	"uses", "upstream", "upstream_addr", "servers",
 }
 
 // HouseholdFilter keeps every resource household may see.

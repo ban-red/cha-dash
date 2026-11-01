@@ -48,14 +48,19 @@ func (p provider) off() bool {
 
 // address is the provider's URL, from a baseUrl field (indexers, Prowlarr's
 // applications) or from host, port, useSsl and urlBase (download clients).
-// "" when it has none (a blackhole client).
-func (p provider) address() string {
+// "" when it has none (a blackhole client). Without path, a baseUrl keeps
+// only scheme, host and port: an indexer's can be a whole feed URL, and
+// private trackers put the passkey in its path.
+func (p provider) address(path bool) string {
 	if s, _ := p.field("baseUrl").(string); s != "" {
 		u, err := url.Parse(strings.TrimSpace(s))
 		if err != nil {
 			return ""
 		}
 		port, _ := strconv.Atoi(u.Port())
+		if !path {
+			u.Path = ""
+		}
 		return integration.UseURL(u.Scheme, u.Hostname(), port, u.Path)
 	}
 	host, _ := p.field("host").(string)
@@ -91,7 +96,7 @@ func (c *Client) UsesFrom(ctx context.Context, lists ...[2]string) ([]integratio
 			if p.off() {
 				continue
 			}
-			if u := p.address(); u != "" {
+			if u := p.address(l[1] != RoleIndexer); u != "" {
 				out = append(out, integration.Use{Role: l[1], URL: u, Name: strings.TrimSpace(p.Name)})
 			}
 		}
@@ -101,4 +106,7 @@ func (c *Client) UsesFrom(ctx context.Context, lists ...[2]string) ([]integratio
 
 // MediaUses are what Sonarr, Radarr and Lidarr use: download clients and
 // indexers.
-var MediaUses = [][2]string{{"/downloadclient", "download client"}, {"/indexer", "indexer"}}
+var MediaUses = [][2]string{{"/downloadclient", "download client"}, {"/indexer", RoleIndexer}}
+
+// RoleIndexer is an indexer's role. Its URL keeps no path (see address).
+const RoleIndexer = "indexer"
