@@ -4,6 +4,8 @@
 package deploy
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,8 +76,11 @@ func (s *sandbox) calls() string {
 const (
 	dockerOK = `case "$1 $2" in "compose version") echo "Docker Compose version v2.40.0";; esac; exit 0`
 	curlOK   = `while [ $# -gt 0 ]; do if [ "$1" = -o ]; then echo "name: chadash" > "$2"; fi; shift; done`
-	cosignOK = `exit 0`
-	hostOK   = `[ "$1" = -I ] && echo "10.20.30.4 fd00::4"`
+	// cosign verify prints what it verified, digest included.
+	cosignOK   = `case "$2" in *chadash-node*) d=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;; *) d=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;; esac; printf '[{"critical":{"image":{"docker-manifest-digest":"sha256:%s"}}}]\n' "$d"`
+	hubDigest  = "@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	nodeDigest = "@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	hostOK     = `[ "$1" = -I ] && echo "10.20.30.4 fd00::4"`
 )
 
 func TestInstallDryRun(t *testing.T) {
@@ -91,7 +96,8 @@ func TestInstallDryRun(t *testing.T) {
 				"+ mkdir -p /srv/chadash",
 				// The release's tag, never main.
 				"https://raw.githubusercontent.com/ban-red/cha-dash/v0.4.0/deploy/compose.yaml",
-				"+ cosign verify ghcr.io/ban-red/chadash:0.4.0 --certificate-identity-regexp ^https://github\\.com/ban-red/cha-dash/\\.github/workflows/release\\.yml@refs/tags/v --certificate-oidc-issuer https://token.actions.githubusercontent.com",
+				// Signed by the release workflow at this tag exactly.
+				"+ cosign verify ghcr.io/ban-red/chadash:0.4.0 --certificate-identity-regexp ^https://github\\.com/ban-red/cha-dash/\\.github/workflows/release\\.yml@refs/tags/v0\\.4\\.0$ --certificate-oidc-issuer https://token.actions.githubusercontent.com",
 				"+ cosign verify ghcr.io/ban-red/chadash-node:0.4.0",
 				"image: ghcr.io/ban-red/chadash:0.4.0",
 				"image: ghcr.io/ban-red/chadash-node:0.4.0",
@@ -143,7 +149,8 @@ func TestInstallRuns(t *testing.T) {
 				at += i + len(want)
 			}
 			b, err := os.ReadFile(filepath.Join(dir, "compose.override.yaml"))
-			if err != nil || !strings.Contains(string(b), "image: ghcr.io/ban-red/chadash:0.4.0-beta.1\n") || !strings.HasPrefix(string(b), "# Written by Cha Dash install.sh") {
+			if err != nil || !strings.Contains(string(b), "image: ghcr.io/ban-red/chadash:0.4.0-beta.1"+hubDigest+"\n") ||
+				!strings.Contains(string(b), "image: ghcr.io/ban-red/chadash-node:0.4.0-beta.1"+nodeDigest+"\n") || !strings.HasPrefix(string(b), "# Written by Cha Dash install.sh") {
 				t.Fatalf("override: %v\n%s", err, b)
 			}
 			if !strings.Contains(out, "Both images are signed") || !strings.Contains(out, "<this host>:3696") {
@@ -154,7 +161,7 @@ func TestInstallRuns(t *testing.T) {
 			if out, err := s.run(sh, []string{"CHADASH_DIR=" + dir}, "--tag=v0.4.1", "--no-start"); err != nil || !strings.Contains(out, "Not started") {
 				t.Fatalf("%v\n%s", err, out)
 			}
-			if b, _ := os.ReadFile(filepath.Join(dir, "compose.override.yaml")); !strings.Contains(string(b), "chadash:0.4.1\n") {
+			if b, _ := os.ReadFile(filepath.Join(dir, "compose.override.yaml")); !strings.Contains(string(b), "chadash:0.4.1"+hubDigest+"\n") {
 				t.Fatalf("its own override wasn't updated:\n%s", b)
 			}
 			// One the owner wrote is left alone.
@@ -190,6 +197,7 @@ func TestInstallRefuses(t *testing.T) {
 		{"docker not answering", map[string]string{"docker": `[ "$1" = info ] && exit 1; exit 0`, "curl": curlOK}, []string{"--tag", "v0.4.0"}, "Docker isn't answering"},
 		{"no curl or wget", map[string]string{"docker": dockerOK}, []string{"--tag", "v0.4.0"}, "neither curl nor wget"},
 		{"a bad signature", map[string]string{"docker": dockerOK, "curl": curlOK, "cosign": `exit 1`}, []string{"--tag", "v0.4.0"}, "nothing was started"},
+		{"a signature without a digest", map[string]string{"docker": dockerOK, "curl": curlOK, "cosign": `echo '[]'`}, []string{"--tag", "v0.4.0"}, "didn't name its digest"},
 		{"not from a release", map[string]string{"docker": dockerOK, "curl": curlOK}, nil, "isn't from a release"},
 		{"not a tag", map[string]string{"docker": dockerOK, "curl": curlOK}, []string{"--tag", "main"}, "main isn't a release tag"},
 		{"an injected tag", map[string]string{"docker": dockerOK, "curl": curlOK}, []string{"--tag", "v1.0.0;id"}, "isn't a release tag"},
@@ -242,12 +250,71 @@ func TestReleaseAttachesTheInstaller(t *testing.T) {
 	}
 	wf := string(b)
 	for _, want := range []string{
-		`sed "s/__CHADASH_RELEASE_TAG__/$TAG/" ../deploy/install.sh > install.sh`,
+		`sed -e "s/__CHADASH_RELEASE_TAG__/$TAG/" -e "s/__CHADASH_COMPOSE_SHA256__/$compose_sha/" ../deploy/install.sh > install.sh`,
+		`compose_sha=$(sha256sum ../deploy/compose.yaml | cut -d' ' -f1)`,
 		"sha256sum chadash-* install.sh > SHA256SUMS",
 		`"chadash-node-$VERSION-linux-armv7" install.sh; do`,
 	} {
 		if !strings.Contains(wf, want) {
 			t.Errorf("release.yml doesn't have %q", want)
 		}
+	}
+}
+
+// A stamped installer checks compose.yaml against the hash release.yml
+// stamped: a file that differs is removed and nothing starts.
+func TestInstallChecksTheComposeFile(t *testing.T) {
+	src, err := os.ReadFile("install.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(src), "__CHADASH_COMPOSE_SHA256__") != 1 {
+		t.Fatal("install.sh should hold the compose placeholder exactly once: release.yml replaces it")
+	}
+	// curlOK writes "name: chadash\n".
+	sum := sha256.Sum256([]byte("name: chadash\n"))
+	stamp := func(sha string) string {
+		p := filepath.Join(t.TempDir(), "install.sh")
+		b := strings.Replace(strings.Replace(string(src), "__CHADASH_RELEASE_TAG__", "v0.4.0", 1), "__CHADASH_COMPOSE_SHA256__", sha, 1)
+		if err := os.WriteFile(p, []byte(b), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	shasum, err := exec.LookPath("shasum")
+	if err != nil {
+		t.Skip("no shasum here")
+	}
+	for _, c := range []struct {
+		name, sha string
+		ok        bool
+	}{{"the same", hex.EncodeToString(sum[:]), true}, {"another", strings.Repeat("0", 64), false}} {
+		t.Run(c.name, func(t *testing.T) {
+			s := newSandbox(t, map[string]string{"docker": dockerOK, "curl": curlOK, "cosign": cosignOK})
+			if err := os.Symlink(shasum, filepath.Join(s.path, "shasum")); err != nil {
+				t.Fatal(err)
+			}
+			for _, tool := range []string{"perl", "rm"} {
+				if p, err := exec.LookPath(tool); err == nil {
+					_ = os.Symlink(p, filepath.Join(s.path, tool))
+				}
+			}
+			dir := filepath.Join(t.TempDir(), "chadash")
+			cmd := exec.Command("/bin/sh", stamp(c.sha), "--dir", dir)
+			cmd.Env = []string{"PATH=" + s.path, "HOME=" + t.TempDir()}
+			out, err := cmd.CombinedOutput()
+			started := strings.Contains(s.calls(), "up -d")
+			if c.ok && (err != nil || !started) {
+				t.Fatalf("%v\n%s", err, out)
+			}
+			if !c.ok {
+				if err == nil || started || !strings.Contains(string(out), "isn't the one v0.4.0 was released with") {
+					t.Fatalf("%v, started %v\n%s", err, started, out)
+				}
+				if _, err := os.Stat(filepath.Join(dir, "compose.yaml")); err == nil {
+					t.Fatal("the wrong compose.yaml was left behind")
+				}
+			}
+		})
 	}
 }

@@ -8,11 +8,13 @@
 # then run it (deploy/README.md, "Install"). What it does, in order:
 #   1. checks Docker and its Compose plugin are here and answering;
 #   2. makes the folder (./chadash, or --dir);
-#   3. fetches deploy/compose.yaml from this release's tag, never from main;
+#   3. fetches deploy/compose.yaml from this release's tag, never from main,
+#      and checks it against the hash the release stamped in this script;
 #   4. checks the images' signatures with cosign, when cosign is installed,
-#      and says so when it isn't;
-#   5. pins the release in compose.override.yaml (one it wrote before is
-#      updated; one you wrote is left alone);
+#      and says so when it isn't: signed by this release's workflow run;
+#   5. pins the release in compose.override.yaml, by the digest cosign
+#      verified when it could (one it wrote before is updated; one you wrote
+#      is left alone);
 #   6. starts it (docker compose up -d) and prints the address.
 #
 # Options: --dir DIR, --tag vX.Y.Z (a release built this script with its own
@@ -25,13 +27,21 @@ set -eu
 # The release workflow writes its tag here (release.yml, "Check and name the
 # binaries"); in a checkout it stays a placeholder and --tag is required.
 STAMPED_TAG='__CHADASH_RELEASE_TAG__'
+# And deploy/compose.yaml's SHA-256 at that tag, so the file fetched from
+# GitHub is the one the release was built with. This script is in the
+# release's signed SHA256SUMS, so the signature covers the hash.
+STAMPED_COMPOSE_SHA256='__CHADASH_COMPOSE_SHA256__'
 
 REPO='ban-red/cha-dash'
 IMAGE='ghcr.io/ban-red/chadash'
 NODE_IMAGE='ghcr.io/ban-red/chadash-node'
-# What the release workflow's signatures name: that workflow, at a v tag,
-# through GitHub's OIDC issuer. The same as deploy/README.md shows.
-IDENTITY_RE='^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/v'
+# What the release workflow's signatures name: that workflow, at a tag,
+# through GitHub's OIDC issuer. The same as deploy/README.md shows;
+# identity_re anchors it to the one tag being installed, so an older
+# release's signed image under a moved tag doesn't pass.
+IDENTITY_PREFIX='^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/'
+HUB_DIGEST=''
+NODE_DIGEST=''
 ISSUER='https://token.actions.githubusercontent.com'
 PORT=3696
 MARK='# Written by Cha Dash install.sh'
@@ -61,22 +71,35 @@ valid_tag() {
 	printf '%s\n' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
 }
 
+# identity_re is the signer cosign must see for tag $1, exactly.
+identity_re() { printf '%s%s$\n' "$IDENTITY_PREFIX" "$(printf '%s' "$1" | sed 's/\./\\./g')"; }
+
+# sha256_of prints file $1's SHA-256, or nothing without a tool for it.
+sha256_of() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	elif command -v shasum >/dev/null 2>&1; then
+		shasum -a 256 "$1" | awk '{print $1}'
+	fi
+}
+
 # version_of is a tag without its v: the image tag.
 version_of() { printf '%s\n' "${1#v}"; }
 
 # compose_url is deploy/compose.yaml at the tag.
 compose_url() { printf 'https://raw.githubusercontent.com/%s/%s/deploy/compose.yaml\n' "$REPO" "$1"; }
 
-# override_for prints compose.override.yaml pinning both images to version $1.
+# override_for prints compose.override.yaml pinning both images to version
+# $1, and to the digests cosign verified when it ran.
 override_for() {
 	cat <<EOF
 $MARK for $1. It updates this file when you run it
 # again; delete this first line to keep your own changes from it.
 services:
   chadash:
-    image: $IMAGE:$1
+    image: $IMAGE:$1$HUB_DIGEST
   chadash-node:
-    image: $NODE_IMAGE:$1
+    image: $NODE_IMAGE:$1$NODE_DIGEST
 EOF
 }
 
@@ -85,7 +108,12 @@ fetch() {
 	if command -v curl >/dev/null 2>&1; then
 		run curl -fsSL --proto '=https' --tlsv1.2 -o "$2" "$1"
 	elif command -v wget >/dev/null 2>&1; then
-		run wget -q -O "$2" "$1"
+		# GNU wget can refuse a redirect to plain HTTP; busybox's has no flag.
+		if wget --help 2>&1 | grep -q -- '--https-only'; then
+			run wget -q --https-only -O "$2" "$1"
+		else
+			run wget -q -O "$2" "$1"
+		fi
 	else
 		die "neither curl nor wget is installed, so the compose file can't be fetched."
 	fi
@@ -105,15 +133,48 @@ verify_images() {
 		say "cosign isn't installed, so the images' signatures weren't checked. To check them: https://github.com/$REPO/blob/$TAG/deploy/README.md#checking-an-image"
 		return 0
 	fi
+	re=$(identity_re "$TAG")
 	for img in "$IMAGE:$VERSION" "$NODE_IMAGE:$VERSION"; do
 		say "Checking the signature of $img with cosign"
 		if [ "$DRY_RUN" = 1 ]; then
-			run cosign verify "$img" --certificate-identity-regexp "$IDENTITY_RE" --certificate-oidc-issuer "$ISSUER"
-		elif ! cosign verify "$img" --certificate-identity-regexp "$IDENTITY_RE" --certificate-oidc-issuer "$ISSUER" >/dev/null; then
+			run cosign verify "$img" --certificate-identity-regexp "$re" --certificate-oidc-issuer "$ISSUER"
+			continue
+		fi
+		if ! out=$(cosign verify "$img" --certificate-identity-regexp "$re" --certificate-oidc-issuer "$ISSUER" 2>/dev/null); then
 			die "cosign couldn't verify $img: nothing was started. Don't run an image whose signature doesn't check out."
 		fi
+		# Pin what was verified: Compose then pulls that digest, not
+		# whatever the tag points to by then.
+		digest=$(printf '%s\n' "$out" | grep -o '"docker-manifest-digest": *"sha256:[0-9a-f]\{64\}"' | head -n 1 | grep -o 'sha256:[0-9a-f]*') || digest=''
+		[ -n "$digest" ] || die "cosign verified $img but didn't name its digest, so it can't be pinned: nothing was started."
+		case $img in
+		"$IMAGE:"*) HUB_DIGEST="@$digest" ;;
+		*) NODE_DIGEST="@$digest" ;;
+		esac
 	done
-	say "Both images are signed by Cha Dash's release workflow."
+	say "Both images are signed by Cha Dash's release workflow for $TAG, and pinned by digest."
+}
+
+# check_compose compares the fetched compose.yaml with the stamped hash,
+# when this script is the release's own and installs that release.
+check_compose() {
+	case $STAMPED_COMPOSE_SHA256 in
+	__*) return 0 ;;
+	esac
+	if [ "$TAG" != "$STAMPED_TAG" ]; then
+		say "compose.yaml wasn't checked against a hash: this installer is from $STAMPED_TAG, installing $TAG."
+		return 0
+	fi
+	if [ "$DRY_RUN" = 1 ]; then
+		say "+ check $DIR/compose.yaml has SHA-256 $STAMPED_COMPOSE_SHA256"
+		return 0
+	fi
+	got=$(sha256_of "$DIR/compose.yaml")
+	[ -n "$got" ] || die "neither sha256sum nor shasum is installed, so compose.yaml can't be checked: nothing was started."
+	if [ "$got" != "$STAMPED_COMPOSE_SHA256" ]; then
+		rm -f "$DIR/compose.yaml"
+		die "compose.yaml from GitHub isn't the one $TAG was released with (SHA-256 $got): nothing was started."
+	fi
 }
 
 # write_override pins the release, unless the owner wrote the file.
@@ -196,6 +257,7 @@ main() {
 	check_docker
 	run mkdir -p "$DIR"
 	fetch "$(compose_url "$TAG")" "$DIR/compose.yaml"
+	check_compose
 	verify_images
 	write_override
 	if [ "$START" = 1 ]; then

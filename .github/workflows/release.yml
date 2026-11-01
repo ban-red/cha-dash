@@ -228,8 +228,11 @@ jobs:
           cd dist
           # The one-line installer (deploy/install.sh), stamped with this
           # release's tag. It's in SHA256SUMS, so the signed checksums cover it.
-          sed "s/__CHADASH_RELEASE_TAG__/$TAG/" ../deploy/install.sh > install.sh
+          # And deploy/compose.yaml's hash, which it checks the fetched file against.
+          compose_sha=$(sha256sum ../deploy/compose.yaml | cut -d' ' -f1)
+          sed -e "s/__CHADASH_RELEASE_TAG__/$TAG/" -e "s/__CHADASH_COMPOSE_SHA256__/$compose_sha/" ../deploy/install.sh > install.sh
           grep -qxF "STAMPED_TAG='$TAG'" install.sh || fail "install.sh isn't stamped with $TAG"
+          grep -qxF "STAMPED_COMPOSE_SHA256='$compose_sha'" install.sh || fail "install.sh isn't stamped with compose.yaml's hash"
           chmod 0755 install.sh
           sha256sum chadash-* install.sh > SHA256SUMS
           cat SHA256SUMS

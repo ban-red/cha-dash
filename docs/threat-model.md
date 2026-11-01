@@ -166,7 +166,7 @@ The Demo Home on a public host: visitors are signed in as a passwordless Operato
 |---|---|---|
 | **T** A poisoned dependency | Few dependencies, exact versions, lockfiles; Bun waits three days before installing a new npm release; Renovate holds updates as long | `bunfig.toml`, `go.mod`, `renovate.json5` |
 | **T** A poisoned workflow action | Every action pinned by commit SHA; read-only tokens by default; zizmor and OpenSSF Scorecard | `.github/workflows` |
-| **T** A tampered image or binary | Images and `SHA256SUMS` signed with cosign (keyless, GitHub OIDC), with build provenance and an SBOM | `.github/workflows/release.yml`, [deploy/README.md](../deploy/README.md#checking-an-image) |
+| **T** A tampered image or binary | Images and `SHA256SUMS` signed with cosign (keyless, GitHub OIDC), with build provenance and an SBOM. `install.sh` is in `SHA256SUMS`; it checks `compose.yaml` against a hash stamped at release, accepts only a signature from the workflow at that exact tag, and pins the digest it verified | `.github/workflows/release.yml`, [deploy/README.md](../deploy/README.md#checking-an-image) |
 
 ## Out of scope
 

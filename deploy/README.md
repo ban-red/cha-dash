@@ -39,7 +39,7 @@ You need Docker with the Compose plugin, on amd64 or arm64.
 curl -fsSL https://github.com/ban-red/cha-dash/releases/latest/download/install.sh | sh
 ```
 
-[`install.sh`](install.sh) checks that Docker and its Compose plugin answer, makes a `chadash` folder, fetches `compose.yaml` from the release's tag (never from `main`), checks both images' signatures with [cosign](https://docs.sigstore.dev/) when cosign is installed (and says so when it isn't), pins the release in `compose.override.yaml`, starts it and prints the address. Then create the owner account straight away (step 3 below). `--dir <folder>` puts it elsewhere, `--no-start` stops before starting, and `--dry-run` prints every step and changes nothing. Running a newer release's `install.sh` in the same folder updates the pin, unless you've edited `compose.override.yaml` yourself (then it says what to change).
+[`install.sh`](install.sh) checks that Docker and its Compose plugin answer, makes a `chadash` folder, fetches `compose.yaml` from the release's tag (never from `main`) and checks it against the hash the release stamped into the script, checks both images' signatures with [cosign](https://docs.sigstore.dev/) when cosign is installed (signed by the release workflow at that exact tag; it says so when cosign isn't there), pins the release in `compose.override.yaml` (by the digest cosign verified, so a tag moved later doesn't change what runs), starts it and prints the address. Then create the owner account straight away (step 3 below). `--dir <folder>` puts it elsewhere, `--no-start` stops before starting, and `--dry-run` prints every step and changes nothing. Running a newer release's `install.sh` in the same folder updates the pin, unless you've edited `compose.override.yaml` yourself (then it says what to change).
 
 **The safer way** is to check the script before it runs. Each release's `install.sh` is listed in its `SHA256SUMS`, which the release workflow signs:
 
@@ -470,10 +470,12 @@ Every published image is signed by the release workflow with [cosign](https://do
 
 ```sh
 cosign verify ghcr.io/ban-red/chadash:0.2.0-beta.1 \
-  --certificate-identity-regexp '^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-identity-regexp '^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/v0\.2\.0-beta\.1$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 docker buildx imagetools inspect ghcr.io/ban-red/chadash:0.2.0-beta.1 --format '{{ json .SBOM }}'
 ```
+
+Name the tag exactly, as above: a pattern ending in `refs/tags/v` would also accept an older release's signed image pushed under a newer tag. The output names the image's digest (`docker-manifest-digest`); pin `image: ghcr.io/ban-red/chadash:<tag>@sha256:<digest>` to run exactly what you checked.
 
 ## Backing up
 
