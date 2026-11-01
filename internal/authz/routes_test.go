@@ -188,6 +188,13 @@ func TestNodeKeyRoutes(t *testing.T) {
 // of a session. Adding one is a reviewed change: add it here too.
 var signatureRoutes = []string{
 	"POST /api/hooks/{id}", // stacks: a deploy webhook (GitHub, Gitea, Forgejo, GitLab or Cha Dash signature)
+	// pvehook: PVE's notifications. PVE's webhook target can't sign a body,
+	// so a per-instance secret in a header (generated, vault-kept, shown
+	// once, compared in constant time) is the proof. Reviewed: the body is
+	// never parsed or shown; an accepted request only makes that instance
+	// sync, at most every 15 s; refusals answer one 401 and the first per
+	// instance in 10 minutes is audited; limits per address and instance.
+	"POST /api/hooks/pve/{instance}",
 }
 
 // TestSignatureRoutes: no role admits a Signature route, and the table's

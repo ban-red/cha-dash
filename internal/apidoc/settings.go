@@ -43,6 +43,10 @@ type (
 		Excluded    []string                `json:"excluded"`
 		ExcludeKeys []historyPattern        `json:"exclude_keys"`
 		Estimates   map[history.Level]int64 `json:"estimates"`
+		// Incidents' retention for the timeline (wave 28).
+		IncidentKeepMs        int64   `json:"incident_keep_ms"`
+		IncidentDefaultKeepMs int64   `json:"incident_default_keep_ms"`
+		IncidentChoicesMs     []int64 `json:"incident_choices_ms"`
 	}
 	historyPattern struct {
 		Pattern string `json:"pattern"`
@@ -70,6 +74,8 @@ type (
 		Exclude     *[]string          `json:"exclude"`
 		ExcludeKeys *[]string          `json:"exclude_keys"`
 		Keep        *map[string]*int64 `json:"keep"`
+		// IncidentKeep is how long incident events are kept (wave 28).
+		IncidentKeep *int64 `json:"incident_keep_ms"`
 	}
 )
 
@@ -85,7 +91,7 @@ func init() {
 		"PUT /api/settings/sign-in":        {Summary: "Change OIDC, forward-auth or the group mappings. Needs a step-up.", Body: signInUpdate{}, Resp: security.SignInView{}, Errors: []string{"step_up_required"}},
 		"POST /api/settings/sign-in/test":  {Summary: "Check the OIDC provider's discovery and offer a test sign-in.", Resp: security.TestView{}},
 		"GET /api/settings/history":        {Summary: "The history level, what history.db holds and the retention choices.", Resp: historySettings{}},
-		"PUT /api/settings/history":        {Summary: "Change the history level, size limit, exclusions or retention.", Body: historyUpdate{}, Resp: historySettings{}, Errors: []string{"history_locked"}},
+		"PUT /api/settings/history":        {Summary: "Change the history level, size limit, exclusions or retention.", Body: historyUpdate{}, Resp: historySettings{}, Errors: []string{"history_locked", "bad_incident_keep"}},
 		"POST /api/settings/history/clear": {Summary: "Clear the history, or one integration's.", Query: []Param{{Name: "instance", Desc: "Only this integration instance's series."}}, Resp: historySettings{}, Errors: []string{"history_locked"}},
 	})
 }

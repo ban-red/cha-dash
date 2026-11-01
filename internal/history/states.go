@@ -180,6 +180,54 @@ func (r *Recorder) States(ctx context.Context, resource string, from, to time.Ti
 	return out, nil
 }
 
+// Change is one status change of one resource, for the timeline: From is
+// the status before it, "" when history had none.
+type Change struct {
+	Resource string
+	At       time.Time
+	From     string
+	Status   string
+}
+
+// Changes lists status changes over [from, to), oldest first: one
+// resource's, or every resource's when resource is "". Rows written at a
+// clean shutdown (stopped) and the first row after one aren't changes of
+// the resource, so they're left out, as are rows not yet written (they're
+// flushed within the minute). At most limit, the newest kept.
+func (r *Recorder) Changes(ctx context.Context, resource string, from, to time.Time, limit int) ([]Change, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	where, args := `at < ?`, []any{to.UnixMilli()}
+	if resource != "" {
+		where += ` AND resource = ?`
+		args = append(args, resource)
+	}
+	args = append(args, from.UnixMilli(), StatusStopped, StatusStopped, limit)
+	rows, err := r.st.Reader().QueryContext(ctx, `SELECT resource, at, coalesce(prev, ''), status FROM (
+		SELECT resource, at, status, lag(status) OVER (PARTITION BY resource ORDER BY at) AS prev FROM states WHERE `+where+`
+	) WHERE at >= ? AND status <> ? AND coalesce(prev, '') <> ? ORDER BY at DESC LIMIT ?`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("history: %w", err)
+	}
+	defer rows.Close()
+	var out []Change
+	for rows.Next() {
+		var c Change
+		var at int64
+		if err := rows.Scan(&c.Resource, &at, &c.From, &c.Status); err != nil {
+			return nil, fmt.Errorf("history: %w", err)
+		}
+		c.At = time.UnixMilli(at).UTC()
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("history: %w", err)
+	}
+	slices.Reverse(out)
+	return out, nil
+}
+
 // Summary is how long a resource spent in each status over a range, and
 // the share of the time it was watched that it was up (ok or attention).
 // Time before the first row, stopped, gone, unknown and maintenance count

@@ -1,9 +1,13 @@
-// Package incidents will keep the incident timeline (docs/plan/14-v0.4.md,
+// Package incidents keeps the incident timeline (docs/plan/14-v0.4.md,
 // "The incident timeline"): each incident's lifecycle as rows of
-// incident_events (migration 00023), kept 90 days by default.
+// incident_events (migration 00023), kept 90 days by default (decision 10,
+// Settings → History).
 //
-// Wave 25 fixes the shape only. The store that writes events as incidents
-// change, its retention and the timeline's routes come in wave 28.
+// The Recorder watches the inbox topic and writes an event whenever an
+// incident opens, changes severity or phase, gains a cause, opens inside a
+// maintenance window (Expectations) or resolves. The Store reads them back
+// for the timeline (GET /api/timeline) and the morning digest, and prunes
+// them by age.
 package incidents
 
 import (

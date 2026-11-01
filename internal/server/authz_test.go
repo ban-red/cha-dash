@@ -23,10 +23,12 @@ import (
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/icons"
+	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
+	"dash.cha.sh/internal/pvehook"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/specstore"
@@ -72,6 +74,8 @@ func fullEnv(t *testing.T) (*env, *store.Store) {
 			t.Fatal(err)
 		}
 		d.Vault, d.Integrations, d.Onboarding, d.Security, d.Demo = v, m, ob, sec, drv
+		d.Incidents = incidents.NewStore(d.Store)
+		d.PVEHooks = pvehook.New(pvehook.Options{Store: d.Store, Vault: v, Instances: m, Log: d.Log})
 		d.Correlator = correlate.New(correlate.Options{Topics: tp, Store: d.Store, Log: d.Log})
 		reg2 := action.NewRegistry()
 		if err := reg2.Register("test", testActions()...); err != nil {

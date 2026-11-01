@@ -1299,7 +1299,7 @@ func TestHTTPShapes(t *testing.T) {
 	var rules struct {
 		Rules []Rule `json:"rules"`
 	}
-	if json.Unmarshal(w.Body.Bytes(), &rules) != nil || len(rules.Rules) != 6 || rules.Rules[0].ID != RuleDown || !rules.Rules[5].Locked {
+	if json.Unmarshal(w.Body.Bytes(), &rules) != nil || len(rules.Rules) != 7 || rules.Rules[0].ID != RuleDown || rules.Rules[5].ID != RuleDigest || rules.Rules[5].Enabled || !rules.Rules[6].Locked {
 		t.Fatalf("rules = %s", w.Body)
 	}
 	w = call("GET", "/api/notify/channels", "")

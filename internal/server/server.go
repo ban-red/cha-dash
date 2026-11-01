@@ -101,9 +101,11 @@ import (
 	"dash.cha.sh/internal/importer/importhttp"
 	"dash.cha.sh/internal/importer/leads"
 	"dash.cha.sh/internal/importer/yamlboard"
+	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
+	"dash.cha.sh/internal/pvehook"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
@@ -188,6 +190,13 @@ type Deps struct {
 	// History is the metrics history (internal/history). Nil answers
 	// /api/history with level "off". It needs Topics for household's view.
 	History *history.Recorder
+	// Incidents is the incident timeline's store (internal/incidents): the
+	// timeline reads it and Settings → History sets its retention. Nil
+	// leaves incidents out of the timeline.
+	Incidents *incidents.Store
+	// PVEHooks receives Proxmox VE's notifications (internal/pvehook). Nil
+	// leaves /api/hooks/pve and the instances' pve-hook routes unmounted.
+	PVEHooks *pvehook.Service
 }
 
 // New builds the root handler.
@@ -270,8 +279,10 @@ func New(d Deps) (http.Handler, error) {
 	if d.Topics != nil {
 		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log), BackupsView(boards.New(d.Store), d.Topics.Graph, d.Log))
 		registerHistory(mux, session, d.History, d.Topics.Graph)
+		registerTimeline(mux, session, timelineSources(d.Incidents, d.Audit, d.History, d.Store, d.Topics.Graph, d.Actions),
+			d.Topics.Graph, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
 	}
-	registerHistorySettings(mux, session, d.History, d.Store, d.Demo != nil, rec)
+	registerHistorySettings(mux, session, d.History, d.Store, d.Demo != nil, rec, d.Incidents)
 	// Dozzle deep links: where a container's sheet links its logs.
 	registerDozzle(mux, session, d.Store, rec, d.Log)
 	if d.Integrations != nil {
@@ -358,6 +369,10 @@ func New(d Deps) (http.Handler, error) {
 	}
 	if d.Icons != nil {
 		d.Icons.Register(mux, session, d.Log)
+	}
+	if d.PVEHooks != nil {
+		d.PVEHooks.Audit = rec
+		d.PVEHooks.Register(mux, session)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")
@@ -457,6 +472,10 @@ var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authoriz
 	// A deploy webhook's secret, shown once when it's made or rotated.
 	"/api/stacks/hooks"}
 
+// noCompressSuffix are API paths ending so that carry a secret: an
+// instance's PVE webhook secret, shown once when it's made or rotated.
+var noCompressSuffix = []string{"/pve-hook"}
+
 // compressible reports whether GzipJSON may handle a request for path.
 func compressible(path string) bool {
 	if !strings.HasPrefix(path, "/api/") {
@@ -464,6 +483,11 @@ func compressible(path string) bool {
 	}
 	for _, p := range noCompress {
 		if path == p || strings.HasPrefix(path, p+"/") {
+			return false
+		}
+	}
+	for _, p := range noCompressSuffix {
+		if strings.HasSuffix(path, p) {
 			return false
 		}
 	}

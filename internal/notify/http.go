@@ -28,6 +28,8 @@ import (
 //	GET    /api/notify/rules                     {rules}
 //	PUT    /api/notify/rules/{id}                {enabled?, resolved?, grace_minutes?, channels?} → rule
 //	GET    /api/notify/deliveries?state=&limit=  {deliveries}, newest first
+//	GET    /api/notify/digest                    the morning digest: {time, all_quiet, enabled, zone, last_sent_at, next_at}
+//	PUT    /api/notify/digest                    {time?, all_quiet?} → the same
 //	GET    /api/notify/push/key                  {public_key}: the VAPID key, base64url
 //	GET    /api/notify/push/subscriptions        your devices
 //	POST   /api/notify/push/subscriptions        PushSubscription.toJSON() + label → 201 device
@@ -42,6 +44,8 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 	mux.Handle("GET /api/notify/rules", session(http.HandlerFunc(s.handleRules)))
 	mux.Handle("PUT /api/notify/rules/{id}", session(http.HandlerFunc(s.handleUpdateRule)))
 	mux.Handle("GET /api/notify/deliveries", session(http.HandlerFunc(s.handleDeliveries)))
+	mux.Handle("GET /api/notify/digest", session(http.HandlerFunc(s.handleDigest)))
+	mux.Handle("PUT /api/notify/digest", session(http.HandlerFunc(s.handleUpdateDigest)))
 	mux.Handle("GET /api/notify/push/key", session(http.HandlerFunc(s.handleKey)))
 	mux.Handle("GET /api/notify/push/subscriptions", session(http.HandlerFunc(s.handleDevices)))
 	mux.Handle("POST /api/notify/push/subscriptions", session(http.HandlerFunc(s.handleSubscribe)))

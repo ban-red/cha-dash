@@ -32,10 +32,12 @@ import (
 	"dash.cha.sh/internal/history"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/icons"
+	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/notify"
 	"dash.cha.sh/internal/onboarding"
+	"dash.cha.sh/internal/pvehook"
 	"dash.cha.sh/internal/realtime"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/security"
@@ -519,16 +521,30 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// The inbox per role: whole for viewers and up, the household's
 	// projection of what its boards show otherwise (server.InboxView).
 	bs := boards.New(st)
+	// The incident timeline (wave 28): every incident's lifecycle, read off
+	// the inbox the page shows, kept 90 days unless Settings → History says
+	// otherwise. An incident is expected while a maintenance window is open
+	// on its host (the Update Center's windows); the timeline records it and
+	// notify holds it back until the window ends.
+	inc := incidents.NewStore(st)
+	if err := inc.Load(ctx); err != nil {
+		return nil, err
+	}
+	expect := &incidents.Expectations{}
+	if upd != nil {
+		expect.Set(incidents.ExpecterFunc(upd.Expected))
+	}
+	incRec := incidents.NewRecorder(incidents.RecorderOptions{Store: inc, Inbox: tp.Inbox, Expect: expect, Log: log.With("component", "incidents")})
 	// Notifications: the inbox's transitions (each device hears what its
 	// user's role sees) and every T4 action, from the engine below.
 	nt, err := notify.New(ctx, notify.Options{Store: st, Vault: v, Inbox: tp.Inbox, InboxView: server.InboxView(bs, g, log),
-		PublicURL: cfg.PublicURL, Version: buildinfo.Version, Log: log.With("component", "notify"),
-		// Incidents on a host in an open maintenance window don't notify
-		// until it closes.
-		Expected: expectedOf(upd)})
+		PublicURL: cfg.PublicURL, Version: buildinfo.Version, Log: log.With("component", "notify"), Expected: expect})
 	if err != nil {
 		return nil, err
 	}
+	// The morning digest reads the timeline, the Update Center and (once
+	// the backups track wires it) stale backups; each may say nothing.
+	nt.SetDigestSources(digestSources(inc, upd))
 	eng, err := action.New(ctx, action.Options{
 		Store: st, Audit: auditLog, Registry: actions, Graph: g,
 		// API tokens act as their user, narrowed to their scopes; their T2
@@ -632,6 +648,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Topics:         tp,
 		Icons:          icn,
 		History:        rec,
+		Incidents:      inc,
+		PVEHooks:       pveHooks(cfg, st, v, mgr, proxies, log),
 	})
 	if err != nil {
 		eng.Close()
@@ -660,6 +678,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	a.bg.Go(func() { cover.Run(bg) })
 	a.bg.Go(func() { eng.Run(bg) })
 	a.bg.Go(func() { nt.Run(bg) })
+	a.bg.Go(func() { incRec.Run(bg) })
 	a.bg.Go(func() { icn.Run(bg) })
 	if upd != nil {
 		a.bg.Go(func() { upd.Run(bg) })
@@ -697,13 +716,54 @@ func ownedOf(stk *stacks.Service) func(context.Context, string, string) bool {
 	return stk.Owned
 }
 
-// expectedOf is notify's Options.Expected: maintenance windows, or none in
-// demo mode.
-func expectedOf(upd *updates.Service) func(string, time.Time) bool {
-	if upd == nil {
+// pveHooks receives Proxmox VE's notifications; not in demo mode, which
+// reads nothing real.
+func pveHooks(cfg config.Config, st *store.Store, v *vault.Vault, mgr *runtime.Manager, proxies httpx.Proxies, log *slog.Logger) *pvehook.Service {
+	if cfg.Demo {
 		return nil
 	}
-	return upd.ExpectedNow
+	return pvehook.New(pvehook.Options{Store: st, Vault: v, Instances: mgr, Proxies: proxies, Log: log.With("component", "pvehook")})
+}
+
+// digestSources are the morning digest's: incidents that opened from the
+// timeline, updates waiting from the Update Center (none in demo mode).
+// Stale backups stay nil until the backups track provides them.
+func digestSources(inc *incidents.Store, upd *updates.Service) notify.DigestSources {
+	src := notify.DigestSources{
+		Overnight: func(ctx context.Context, since, until time.Time) ([]notify.DigestIncident, error) {
+			evs, err := inc.Events(ctx, incidents.Query{From: since, To: until, Kinds: []incidents.EventKind{incidents.Opened, incidents.Resolved}})
+			if err != nil {
+				return nil, err
+			}
+			var out []notify.DigestIncident
+			index := map[string]int{}
+			for _, e := range evs {
+				d := incidents.DataOf(e)
+				if e.Kind == incidents.Resolved {
+					if i, ok := index[e.IncidentID]; ok {
+						out[i].Resolved = true
+					}
+					continue
+				}
+				index[e.IncidentID] = len(out)
+				out = append(out, notify.DigestIncident{ID: e.IncidentID, Title: d.Title, Severity: d.Severity})
+			}
+			return out, nil
+		},
+	}
+	if upd != nil {
+		src.Updates = func(ctx context.Context) (int, error) {
+			rows, err := upd.List(ctx)
+			n := 0
+			for _, r := range rows {
+				if r.State == integration.UpdateAvailable {
+					n++
+				}
+			}
+			return n, err
+		}
+	}
+	return src
 }
 
 // guardOf is the action engine's Guard: the Update Center's holds, or none

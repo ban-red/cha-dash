@@ -110,6 +110,10 @@ var migrated = []string{
 	"internal/authz",
 	"internal/auth",
 	"internal/updates",
+	// Wave 28: new packages, every sentence from the start.
+	"internal/incidents",
+	"internal/timeline",
+	"internal/pvehook",
 }
 
 // TestMigratedPackagesSay fails when a migrated package writes an error

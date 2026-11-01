@@ -267,8 +267,8 @@ func (s *Service) Expected(target string, t time.Time) (string, bool) {
 	return "", false
 }
 
-// ExpectedNow is Expected at t, without the window: internal/notify's
-// Options.Expected.
+// ExpectedNow is Expected at t, without the window. Notify and the
+// incident timeline ask Expected through incidents.Expectations.
 func (s *Service) ExpectedNow(target string, t time.Time) bool {
 	_, ok := s.Expected(target, t)
 	return ok

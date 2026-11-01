@@ -68,12 +68,6 @@ const (
 // stuckScenario is internal/stacks' stuck-stack incident.
 const stuckScenario = "stack-stuck"
 
-// A problem that opens while a maintenance window is open on its host is
-// expected (Options.Expected): nothing is proposed for it until the window
-// ends. If it's still open then, it's treated as it would have been all
-// along (a down one notifies at once, an attention one once its grace has
-// passed, counted from when it opened).
-
 // candidate is a transition the service may notify.
 type candidate struct {
 	rule       string
@@ -86,20 +80,17 @@ type tracked struct {
 	open      bool
 	attnSince time.Time       // when it was last seen reach attention; zero below it
 	done      map[string]bool // transitions already proposed since it opened
-	// expected: last seen open in a maintenance window, so nothing was
-	// proposed; the loop looks again until the window ends.
-	expected bool
+	held      bool            // expected (a maintenance window) when last seen: look again each turn
 }
 
 // detector turns successive inbox snapshots into candidates. It isn't
 // safe for concurrent use; the service's loop owns it.
 type detector struct {
 	seen map[string]*tracked
-	// expected says whether a problem on target is in a maintenance window
-	// at the time given (Options.Expected); nil: none is.
-	expected func(target string, at time.Time) bool
-	// lastWindowCheck paces looking again at expected problems.
-	lastWindowCheck time.Time
+	// expected says whether an incident on target is expected now (a
+	// maintenance window): its opening isn't proposed while it is, and the
+	// attention grace starts when it stops being expected. Nil: never.
+	expected func(target string, now time.Time) bool
 }
 
 func newDetector() *detector { return &detector{seen: map[string]*tracked{}} }
@@ -132,16 +123,12 @@ func (d *detector) observe(now time.Time, incs map[string]incident, grace time.D
 		switch in.Status {
 		case "open":
 			tr.open = true
-			fixing := fixingPhases[in.Phase]
-			tr.expected = in.Class == "problem" && d.expected != nil && in.Target != "" && d.expected(in.Target, now)
-			if tr.expected {
-				// Still counting the attention grace, so it notifies at once
-				// when the window ends, if it's still open by then.
-				if in.Severity == "attention" && tr.attnSince.IsZero() {
-					tr.attnSince = now
-				}
+			if d.expected != nil && in.Class != topics.ApprovalClass && d.expected(in.Target, now) {
+				tr.attnSince, tr.held = time.Time{}, true
 				continue
 			}
+			tr.held = false
+			fixing := fixingPhases[in.Phase]
 			switch {
 			case in.Class == "repair":
 				if !fixing {
@@ -175,34 +162,18 @@ func (d *detector) observe(now time.Time, incs map[string]incident, grace time.D
 			if tr.open {
 				out = append(out, candidate{transition: trResolved, inc: in})
 			}
-			tr.open, tr.attnSince, tr.done, tr.expected = false, time.Time{}, map[string]bool{}, false
+			tr.open, tr.attnSince, tr.done = false, time.Time{}, map[string]bool{}
 		}
 	}
 	return out
 }
 
 // pendingGrace reports whether an attention problem is waiting out its
-// grace period, so the loop knows to look again even when the inbox is
-// quiet.
+// grace period, or an open incident is held back by a maintenance window,
+// so the loop knows to look again even when the inbox is quiet.
 func (d *detector) pendingGrace() bool {
 	for _, tr := range d.seen {
-		if tr.open && !tr.attnSince.IsZero() && !tr.done[trAttention] && !tr.done[trDown] {
-			return true
-		}
-	}
-	return false
-}
-
-// pendingWindow reports whether an open problem is held back by a
-// maintenance window, so the loop looks again (every 15 seconds) to notice
-// the window ending.
-func (d *detector) pendingWindow(now time.Time) bool {
-	if now.Sub(d.lastWindowCheck) < 15*time.Second {
-		return false
-	}
-	for _, tr := range d.seen {
-		if tr.open && tr.expected {
-			d.lastWindowCheck = now
+		if tr.open && (tr.held || !tr.attnSince.IsZero() && !tr.done[trAttention] && !tr.done[trDown]) {
 			return true
 		}
 	}

@@ -350,6 +350,14 @@ var Routes = []Route{
 	{Pattern: "POST /api/stacks/hooks/{id}/rotate", Access: Admin},
 	{Pattern: "DELETE /api/stacks/hooks/{id}", Access: Admin},
 	{Pattern: "POST /api/hooks/{id}", Access: Signature},
+	// PVE's notifications (wave 28, decision 11): the webhook answers to a
+	// per-instance secret in a header, never a session, and only makes that
+	// Proxmox instance sync now. The secret is the instance's, so admin+;
+	// it's shown once when it's made or rotated.
+	{Pattern: "POST /api/hooks/pve/{instance}", Access: Signature},
+	{Pattern: "GET /api/integrations/instances/{id}/pve-hook", Access: Admin},
+	{Pattern: "POST /api/integrations/instances/{id}/pve-hook", Access: Admin},
+	{Pattern: "DELETE /api/integrations/instances/{id}/pve-hook", Access: Admin},
 	// The Update Center (wave 22). Reading is viewer+; Check now and holds
 	// are operator+, like the T2 update they put off. Updating one is an
 	// action.
@@ -392,6 +400,10 @@ var Routes = []Route{
 	{Pattern: "GET /api/notify/rules", Access: Admin},
 	{Pattern: "PUT /api/notify/rules/{id}", Access: Admin},
 	{Pattern: "GET /api/notify/deliveries", Access: Admin},
+	// The morning digest (wave 28): its time and "all quiet", beside the
+	// rules (its rule, "digest", routes it and turns it on).
+	{Pattern: "GET /api/notify/digest", Access: Admin},
+	{Pattern: "PUT /api/notify/digest", Access: Admin},
 	{Pattern: "GET /api/notify/push/key", Access: SignedIn},
 	{Pattern: "GET /api/notify/push/subscriptions", Access: SignedIn},
 	{Pattern: "POST /api/notify/push/subscriptions", Access: SignedIn},
@@ -416,6 +428,11 @@ var Routes = []Route{
 	{Pattern: "GET /api/history", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /api/history/states", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /api/history/pulse", Access: SignedIn, Token: ScopeGraphRead},
+	// The timeline (wave 28): incidents, actions, health and maintenance
+	// windows on one axis. Household gets its inbox's projection, the
+	// health of what its graph shows and only its own actions
+	// (server/timeline.go).
+	{Pattern: "GET /api/timeline", Access: SignedIn, Token: ScopeInboxRead},
 
 	// Settings → API tokens: every role manages its own; admins and the
 	// owner see and revoke everyone's (tokens.go). Session only: a token

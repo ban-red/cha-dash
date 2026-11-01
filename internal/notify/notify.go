@@ -29,6 +29,7 @@ import (
 
 	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -79,12 +80,13 @@ type Options struct {
 	// Version goes into the User-Agent.
 	Version     string
 	GroupWindow time.Duration // 0 means DefaultGroupWindow; negative sends at once
-	// Expected says whether a problem on target, open at the time given, is
-	// expected: a maintenance window is open on its host
-	// (updates.Service.ExpectedNow). An expected problem doesn't notify
-	// while the window lasts; one still open when it ends notifies then, as
-	// if it had just opened. Nil: nothing is expected.
-	Expected func(target string, at time.Time) bool
+	// Expected says whether an incident opened inside a maintenance window
+	// (internal/incidents): while it is, its opening doesn't notify; one
+	// still open when the window ends notifies then. Nil expects nothing.
+	Expected *incidents.Expectations
+	// Location is the hub's time zone, which the digest's time is in. Nil
+	// is time.Local (TZ).
+	Location *time.Location
 	Log      *slog.Logger
 	Now      func() time.Time
 }
@@ -126,6 +128,11 @@ type Service struct {
 	pending      []Event
 	pendingSince time.Time
 	lastPrune    time.Time
+
+	// The morning digest (digest.go): its settings, sources and zone.
+	digest    storedDigest
+	digestSrc DigestSources
+	loc       *time.Location
 }
 
 // New returns the service, with the built-in Web Push channel in place.
@@ -137,9 +144,8 @@ func New(ctx context.Context, o Options) (*Service, error) {
 		st: o.Store, vault: o.Vault, inbox: o.Inbox, inboxView: o.InboxView, publicURL: strings.TrimSuffix(o.PublicURL, "/"),
 		window: o.GroupWindow, log: o.Log, now: o.Now,
 		lanClient: newClient(policyLAN), pushClient: newClient(policyPublic),
-		det: newDetector(), incs: map[string]incident{}, limits: map[string]*bucket{},
+		det: newDetector(), incs: map[string]incident{}, limits: map[string]*bucket{}, loc: o.Location,
 	}
-	s.det.expected = o.Expected
 	if s.window == 0 {
 		s.window = DefaultGroupWindow
 	}
@@ -160,6 +166,19 @@ func New(ctx context.Context, o Options) (*Service, error) {
 	}
 	s.userAgent = "chadash/" + v + " (+https://dash.cha.sh)"
 	if err := s.ensureWebPush(ctx); err != nil {
+		return nil, fmt.Errorf("notify: %w", err)
+	}
+	if s.loc == nil {
+		s.loc = time.Local
+	}
+	if o.Expected != nil {
+		exp := o.Expected
+		s.det.expected = func(target string, at time.Time) bool {
+			_, ok := exp.Expected(target, at)
+			return ok
+		}
+	}
+	if err := s.loadDigest(ctx); err != nil {
 		return nil, fmt.Errorf("notify: %w", err)
 	}
 	if err := s.loadRules(ctx); err != nil {
@@ -188,7 +207,7 @@ func (s *Service) step(ctx context.Context) {
 	now := s.now()
 	if s.inbox != nil {
 		v := s.inbox.Version()
-		if v != s.lastVersion || s.det.pendingGrace() || s.det.pendingWindow(now) {
+		if v != s.lastVersion || s.det.pendingGrace() {
 			if v != s.lastVersion {
 				_, doc := s.inbox.Snapshot()
 				s.incs = parseIncidents(doc[topics.Incidents])
@@ -197,6 +216,7 @@ func (s *Service) step(ctx context.Context) {
 			s.handle(ctx, now, s.det.observe(now, s.incs, s.grace()))
 		}
 	}
+	s.digestStep(ctx, now)
 	s.mu.Lock()
 	done := s.taskQueue
 	s.taskQueue = nil

@@ -1,0 +1,2 @@
+FENCE: Try to fence node 'mars-2'
+The node 'mars-2' failed and needs manual intervention. The HA manager tries to fence it and recover its services on mars-1.

@@ -13,6 +13,8 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/history"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/incidents"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
 )
@@ -264,6 +266,12 @@ type historySettings struct {
 	// each matches.
 	ExcludeKeys []historyPatternJSON    `json:"exclude_keys"`
 	Estimates   map[history.Level]int64 `json:"estimates"`
+	// Incidents' retention (internal/incidents): how long the timeline
+	// keeps incident events, its default and the choices. It's in the hub's
+	// database, so it can change while history is locked.
+	IncidentKeepMs        int64   `json:"incident_keep_ms"`
+	IncidentDefaultKeepMs int64   `json:"incident_default_keep_ms"`
+	IncidentChoicesMs     []int64 `json:"incident_choices_ms"`
 }
 
 type historyPatternJSON struct {
@@ -320,10 +328,22 @@ const historyEstimateFloor = 300
 // milliseconds (0: forever), within each tier's choices; a tier left out or
 // null keeps its level's. Estimates are how big history.db grows at each
 // level with the series recorded so far (at least 300).
-func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http.Handler, rec *history.Recorder, st *store.Store, demo bool, audit *authz.Recorder) {
+//
+// incident_keep_ms is how long incident events are kept for the timeline
+// (incidents.KeepChoices: 7, 30, 90, 180 or 365 days; 90 by default),
+// applied at the next hourly prune. It changes even while history is
+// locked; the other fields answer 409 history_locked then.
+func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http.Handler, rec *history.Recorder, st *store.Store, demo bool, audit *authz.Recorder, inc *incidents.Store) {
 	view := func(w http.ResponseWriter, r *http.Request) {
 		out := historySettings{Level: history.Off, Locked: rec == nil, Demo: demo, Tiers: []historyTierJSON{}, Estimates: map[history.Level]int64{},
-			Instances: []historyInstanceJSON{}, Excluded: []string{}, ExcludeKeys: []historyPatternJSON{}}
+			Instances: []historyInstanceJSON{}, Excluded: []string{}, ExcludeKeys: []historyPatternJSON{},
+			IncidentDefaultKeepMs: incidents.DefaultKeep.Milliseconds(), IncidentKeepMs: incidents.DefaultKeep.Milliseconds(), IncidentChoicesMs: []int64{}}
+		for _, c := range incidents.KeepChoices {
+			out.IncidentChoicesMs = append(out.IncidentChoicesMs, c.Milliseconds())
+		}
+		if inc != nil {
+			out.IncidentKeepMs = inc.Keep().Milliseconds()
+		}
 		if rec != nil {
 			s, err := rec.Stats(r.Context())
 			if err != nil {
@@ -373,18 +393,32 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 	mux.Handle("GET /api/settings/history", session(http.HandlerFunc(view)))
 	mux.Handle("PUT /api/settings/history", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Level       *string            `json:"level"`
-			MaxBytes    *int64             `json:"max_bytes"`
-			Exclude     *[]string          `json:"exclude"`
-			ExcludeKeys *[]string          `json:"exclude_keys"`
-			Keep        *map[string]*int64 `json:"keep"`
+			Level        *string            `json:"level"`
+			MaxBytes     *int64             `json:"max_bytes"`
+			Exclude      *[]string          `json:"exclude"`
+			ExcludeKeys  *[]string          `json:"exclude_keys"`
+			Keep         *map[string]*int64 `json:"keep"`
+			IncidentKeep *int64             `json:"incident_keep_ms"`
 		}
-		if !httpx.DecodeJSON(w, r, &body) || locked(w) {
+		if !httpx.DecodeJSON(w, r, &body) {
 			return
 		}
-		if body.Level == nil && body.MaxBytes == nil && body.Exclude == nil && body.ExcludeKeys == nil && body.Keep == nil {
-			httpx.Error(w, http.StatusUnprocessableEntity, "nothing_to_change", "send level, max_bytes, exclude, exclude_keys or keep")
+		historyParts := body.Level != nil || body.MaxBytes != nil || body.Exclude != nil || body.ExcludeKeys != nil || body.Keep != nil
+		if !historyParts && body.IncidentKeep == nil {
+			httpx.Say(w, http.StatusUnprocessableEntity, "nothing_to_change", msg.New("history.nothing"))
 			return
+		}
+		if historyParts && rec == nil {
+			httpx.Say(w, http.StatusConflict, "history_locked", msg.New("history.locked_parts"))
+			return
+		}
+		var incidentKeep time.Duration
+		if body.IncidentKeep != nil {
+			incidentKeep = time.Duration(*body.IncidentKeep) * time.Millisecond
+			if inc == nil || incidents.CheckKeep(incidentKeep) != nil {
+				httpx.Say(w, http.StatusUnprocessableEntity, "bad_incident_keep", msg.New("incidents.bad_keep"))
+				return
+			}
 		}
 		if body.Exclude != nil && len(*body.Exclude) > historyExcludeMax {
 			httpx.Error(w, http.StatusUnprocessableEntity, "bad_exclude", "exclude lists at most 500 instances")
@@ -440,6 +474,13 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 		}
 		params := map[string]any{}
 		now := time.Now()
+		if body.IncidentKeep != nil {
+			params["incident_keep_from"], params["incident_keep_to"] = inc.Keep().Milliseconds(), incidentKeep.Milliseconds()
+			if err := inc.SetKeep(r.Context(), incidentKeep, now); err != nil {
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("incidents.failed"))
+				return
+			}
+		}
 		if body.Level != nil {
 			params["level_from"], params["level_to"] = rec.Level(), l
 			if err := rec.SetLevel(r.Context(), l); err != nil {

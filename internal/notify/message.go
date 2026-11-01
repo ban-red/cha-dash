@@ -22,6 +22,7 @@ const (
 	KindApproval  = "approval"
 	KindGroup     = "group"
 	KindTest      = "test"
+	// KindDigest (digest.go) is the morning digest.
 )
 
 // PayloadVersion is the webhook payload's "version".
@@ -111,7 +112,7 @@ func compose(evs []Event, groupID func() string) []Message {
 	var opens, resolved, alone []Event
 	for _, e := range evs {
 		switch e.Kind {
-		case KindAction, KindTest:
+		case KindAction, KindTest, KindDigest:
 			alone = append(alone, e)
 		case KindResolved:
 			resolved = append(resolved, e)
