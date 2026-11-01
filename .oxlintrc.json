@@ -21,5 +21,5 @@
       "rules": { "unicorn/no-thenable": "off" }
     }
   ],
-  "ignorePatterns": ["**/dist/**", "**/coverage/**", "internal/webui/dist/**", "spikes/**", "design/prototypes/**"]
+  "ignorePatterns": ["**/dist/**", "**/coverage/**", "internal/webui/dist/**", "spikes/**", "design/prototypes/**", "docs-site/.vitepress/cache/**"]
 }

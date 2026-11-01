@@ -35,7 +35,7 @@ The hub is one Go binary with the Vue SPA embedded. The node (`cmd/chadash-node`
 **Install, test and typecheck**
 
 ```sh
-bun install          # every JavaScript workspace: web/, packages/*, design/tokens
+bun install          # every JavaScript workspace: web/, packages/*, design/tokens, docs-site
 bun run typecheck
 bun run typecheck:next   # TypeScript 7.1 with Vue's content mapper, on trial: tools/typecheck/README.md (needs Node)
 bun run test
@@ -114,12 +114,34 @@ docker build --target node -t chadash-node:dev .                      # its imag
 | End-to-end | the hub with the SPA embedded, in Chromium: first run, the front page on desktop and phone, **axe (WCAG 2.2 AA) in all six themes**, the command bar, a T1 action and a T2 confirmation |
 | Image | amd64 and arm64 builds of the hub and the node (no push), a smoke run of each, **hub image ≤ 40 MB compressed**, **node binary ≤ 40 MB** |
 | Footprint (non-blocking) | the hub's RSS budgets, and the node binary's size |
+| Docs ([`docs.yml`](.github/workflows/docs.yml)) | the OpenAPI document, the docs generators' tests, and the docs site's build; on `main` it also deploys to GitHub Pages |
 
 CodeQL ([`codeql.yml`](.github/workflows/codeql.yml): Go, TypeScript and the workflows) runs on every pull request too, and OpenSSF Scorecard ([`scorecard.yml`](.github/workflows/scorecard.yml)) runs on `main`.
 
 **Dependencies** are updated by [Renovate](renovate.json5), in weekly grouped pull requests. A new release waits three days before Renovate proposes it, and `bun install` won't take it either ([`bunfig.toml`](bunfig.toml)). Go tools are `tool` directives in [`tools/go.mod`](tools/go.mod); run `go mod tidy` in that directory after changing them.
 
 The budgets come from [03 · Architecture](docs/plan/03-architecture.md#performance-budgets-enforced-in-ci-where-possible). Raising one takes a reason in the pull request.
+
+**The docs site** ([`docs-site/`](docs-site/), VitePress) is published to GitHub Pages from `main` by [`docs.yml`](.github/workflows/docs.yml), which builds it on every pull request too. Almost every page is generated from the repository before each build, so the site moves with the code:
+
+| Page | From |
+|---|---|
+| Install; Upgrade and back up | [`deploy/README.md`](deploy/README.md), split at its `##` sections (`UPGRADE_SECTIONS` in `docs-site/scripts/pages.ts`) |
+| Unraid, User guide, Writing specs | [`deploy/unraid/README.md`](deploy/unraid/README.md), [`docs/beta.md`](docs/beta.md), [`docs/specs.md`](docs/specs.md) |
+| Security model, Threat model, Agents | [`SECURITY.md`](SECURITY.md), [`docs/threat-model.md`](docs/threat-model.md), `docs/agents.md` (a placeholder until it exists) |
+| One page per integration | `integrations/<id>/README.md`, `recipe.md` and `recipe.control.md`; `specs/<id>.yaml`, `specs/recipes/<id>.md` and the spec's notes in `specs/README.md` |
+| API | The OpenAPI document from `internal/apidoc`, a page per tag and one for the schemas |
+
+Only `docs-site/index.md` and `docs-site/.vitepress/config.ts` are written by hand; the generated pages are git-ignored. Links to a file the site shows go to its page, other relative links to the file on GitHub. To work on it locally:
+
+```sh
+CHADASH_WRITE_OPENAPI=$PWD/docs-site/public/openapi.json go test ./internal/apidoc/ -run TestWriteOpenAPI
+bun run docs:dev       # generates the pages, then serves the site with hot reload
+bun run docs:build     # generates, then builds into docs-site/.vitepress/dist/; a dead link fails it
+(cd docs-site && bun test)   # the generators' tests
+```
+
+The site is static: no analytics, and no API renderer. GitHub Pages serves it at `/cha-dash/`; `DOCS_BASE` changes that for a custom domain.
 
 ## Releasing
 

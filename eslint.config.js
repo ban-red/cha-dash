@@ -1,4 +1,4 @@
-// Linting for every JavaScript workspace (web/, packages/*, design/tokens),
+// Linting for every JavaScript workspace (web/, packages/*, design/tokens, docs-site),
 // as create-vue sets it up: oxlint runs first and fast (.oxlintrc.json), then
 // ESLint for what only it can read, chiefly Vue templates. eslint-plugin-oxlint
 // turns off the ESLint rules oxlint already covers.
@@ -15,7 +15,7 @@ export default defineConfigWithVueTs(
     files: ['**/*.{vue,ts,mts,tsx}'],
   },
 
-  globalIgnores(['**/dist/**', '**/coverage/**', 'internal/webui/dist/**', 'spikes/**', 'design/prototypes/**']),
+  globalIgnores(['**/dist/**', '**/coverage/**', 'internal/webui/dist/**', 'spikes/**', 'design/prototypes/**', 'docs-site/.vitepress/cache/**']),
 
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,

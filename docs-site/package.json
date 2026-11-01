@@ -1,0 +1,19 @@
+{
+  "name": "@chadash/docs-site",
+  "private": true,
+  "description": "Cha Dash's documentation site: VitePress, generated from the repository's READMEs, recipes, specs and OpenAPI document.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "gen": "bun scripts/gen.ts",
+    "dev": "bun scripts/gen.ts && bun --bun vitepress dev",
+    "build": "bun scripts/gen.ts && bun --bun vitepress build",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "typescript": "7.0.2",
+    "vitepress": "1.6.4"
+  }
+}
