@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -85,22 +86,32 @@ func TTL(minutes int) (time.Duration, error) {
 	case minutes == 0:
 		return DefaultTokenTTL, nil
 	case minutes < 0 || time.Duration(minutes)*time.Minute > MaxTokenTTL:
-		return 0, fmt.Errorf("a join token lives 1 minute to %d hours", int(MaxTokenTTL.Hours()))
+		return 0, tokenError{msg.New("nodes.token_ttl", "hours", int(MaxTokenTTL.Hours()))}
 	}
 	return time.Duration(minutes) * time.Minute, nil
 }
 
+// tokenError refuses a join token's name or lifetime. Its error text is
+// the sentence in lowercase, without the full stop.
+type tokenError struct{ M msg.M }
+
+func (e tokenError) Error() string {
+	t := strings.TrimSuffix(e.M.Text(), ".")
+	return strings.ToLower(t[:1]) + t[1:]
+}
+
 // validTokenName checks a token's name: empty, or a name a node may have.
+// The name matches nameRE before it's quoted in a sentence.
 func validTokenName(name string) error {
 	switch {
 	case name == "":
 		return nil
 	case !nameRE.MatchString(name):
-		return errors.New("a node name is 1–63 letters, digits, dots, dashes or underscores, starting with a letter or digit")
+		return tokenError{msg.New("nodes.bad_name")}
 	case reservedName(name):
-		return fmt.Errorf("a node can't be called %q: the hub uses that name", name)
+		return tokenError{msg.New("nodes.name_reserved", "name", name)}
 	case localName(name):
-		return fmt.Errorf("a node can't join as %q: that's the hub's own node, which pairs locally", name)
+		return tokenError{msg.New("nodes.name_local", "name", name)}
 	}
 	return nil
 }

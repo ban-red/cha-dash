@@ -7,6 +7,7 @@ import (
 
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Register mounts the node endpoint and the nodes API on mux:
@@ -32,7 +33,7 @@ func (h *Hub) Register(mux *http.ServeMux, session, fresh func(http.Handler) htt
 		list, err := h.List(r.Context())
 		if err != nil {
 			h.log.Error("listing nodes failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "The nodes couldn't be listed.")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("nodes.list_failed"))
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"nodes": list, "hub_pin": h.Pin(), "pairing": h.pairing != nil})
@@ -41,12 +42,12 @@ func (h *Hub) Register(mux *http.ServeMux, session, fresh func(http.Handler) htt
 		rec, err := h.Revoke(r.Context(), r.PathValue("id"), actor(r))
 		switch {
 		case errors.Is(err, ErrNotFound):
-			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such node.")
+			httpx.Say(w, http.StatusNotFound, "not_found", msg.New("nodes.no_node"))
 		case errors.Is(err, errAlreadyRevoked):
-			httpx.Error(w, http.StatusConflict, "already_revoked", "That node is already revoked.")
+			httpx.Say(w, http.StatusConflict, "already_revoked", msg.New("nodes.already_revoked"))
 		case err != nil:
 			h.log.Error("revoking a node failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "The node couldn't be revoked.")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("nodes.revoke_failed"))
 		default:
 			httpx.WriteJSON(w, http.StatusOK, rec)
 		}
@@ -55,12 +56,12 @@ func (h *Hub) Register(mux *http.ServeMux, session, fresh func(http.Handler) htt
 		rec, err := h.Approve(r.Context(), r.PathValue("id"), actor(r))
 		switch {
 		case errors.Is(err, ErrNotFound):
-			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such node.")
+			httpx.Say(w, http.StatusNotFound, "not_found", msg.New("nodes.no_node"))
 		case errors.Is(err, errNotPending):
-			httpx.Error(w, http.StatusConflict, "not_pending", "That node isn't waiting for approval.")
+			httpx.Say(w, http.StatusConflict, "not_pending", msg.New("nodes.not_pending"))
 		case err != nil:
 			h.log.Error("approving a node failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "The node couldn't be approved.")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("nodes.approve_failed"))
 		default:
 			httpx.WriteJSON(w, http.StatusOK, rec)
 		}
@@ -69,10 +70,10 @@ func (h *Hub) Register(mux *http.ServeMux, session, fresh func(http.Handler) htt
 		err := h.RegeneratePairing(r.Context(), actor(r))
 		switch {
 		case errors.Is(err, ErrPairingOff):
-			httpx.Error(w, http.StatusConflict, "pairing_off", "Local pairing is off on this hub (CHADASH_NODE_PAIRING_FILE).")
+			httpx.Say(w, http.StatusConflict, "pairing_off", msg.New("nodes.pairing_off"))
 		case err != nil:
 			h.log.Error("regenerating the pairing secret failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "The pairing secret couldn't be regenerated.")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("nodes.pairing_failed"))
 		default:
 			w.WriteHeader(http.StatusNoContent)
 		}
@@ -84,7 +85,7 @@ func (h *Hub) Register(mux *http.ServeMux, session, fresh func(http.Handler) htt
 		list, err := h.tokens.List(r.Context())
 		if err != nil {
 			h.log.Error("listing join tokens failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "The join tokens couldn't be listed.")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("nodes.tokens_list_failed"))
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"tokens": list})
@@ -103,15 +104,20 @@ func (h *Hub) Register(mux *http.ServeMux, session, fresh func(http.Handler) htt
 		if err == nil {
 			err = validTokenName(req.Name)
 		}
+		if te, ok := errors.AsType[tokenError](err); ok {
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", te.M)
+			return
+		}
 		if err != nil {
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", upper(err.Error())+".")
+			h.log.Error("checking a join token failed", "err", err)
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 		addDocker := req.AddDocker == nil || *req.AddDocker // on by default (decisions 7)
 		t, token, err := h.CreateJoinToken(r.Context(), actor(r), req.Name, ttl, addDocker)
 		if err != nil {
 			h.log.Error("making a join token failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "The join token couldn't be made.")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("nodes.token_failed"))
 			return
 		}
 		hub := HubURL(h.o.PublicURL, r.Host)
@@ -130,12 +136,12 @@ func (h *Hub) Register(mux *http.ServeMux, session, fresh func(http.Handler) htt
 		t, err := h.RevokeJoinToken(r.Context(), actor(r), r.PathValue("id"))
 		switch {
 		case errors.Is(err, ErrTokenNotFound):
-			httpx.Error(w, http.StatusNotFound, "not_found", "There's no such join token.")
+			httpx.Say(w, http.StatusNotFound, "not_found", msg.New("nodes.no_token"))
 		case errors.Is(err, ErrTokenSpent):
-			httpx.Error(w, http.StatusConflict, "token_spent", "That join token is already used, expired or revoked.")
+			httpx.Say(w, http.StatusConflict, "token_spent", msg.New("nodes.token_spent"))
 		case err != nil:
 			h.log.Error("revoking a join token failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "The join token couldn't be revoked.")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("nodes.token_revoke_failed"))
 		default:
 			httpx.WriteJSON(w, http.StatusOK, t)
 		}
@@ -148,11 +154,4 @@ const NodeCommand = "docker compose -f compose.node.yaml up -d"
 // EnvBlock is the .env a node on another host needs, for compose.node.yaml.
 func EnvBlock(hubURL, name, token string) string {
 	return "CHADASH_HUB=" + hubURL + "\nCHADASH_NODE_NAME=" + name + "\nCHADASH_NODE_TOKEN=" + token + "\n"
-}
-
-func upper(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }

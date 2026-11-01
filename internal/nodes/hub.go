@@ -29,6 +29,7 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/livedoc"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/nodeproto"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
@@ -261,7 +262,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Until the node is admitted it holds a handshake slot: a few per
 	// address, a few dozen in all, each for at most HandshakeTimeout twice.
 	if !h.gate.enter(addr) {
-		httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many node handshakes in progress; try again shortly.")
+		httpx.Say(w, http.StatusTooManyRequests, "rate_limited", msg.New("nodes.handshakes_busy"))
 		return
 	}
 	inGate := true
@@ -275,7 +276,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	if h.closed {
 		h.mu.Unlock()
-		httpx.Error(w, http.StatusServiceUnavailable, "shutting_down", "The hub is shutting down.")
+		httpx.Say(w, http.StatusServiceUnavailable, "shutting_down", msg.New("nodes.shutting_down"))
 		return
 	}
 	h.wg.Add(1)

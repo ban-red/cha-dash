@@ -7,6 +7,7 @@ import (
 
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Register mounts the installed specs' API, the owner's only
@@ -65,7 +66,7 @@ func (s *Service) handleInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(b.Source) > 512 {
-		httpx.Error(w, http.StatusBadRequest, "invalid", "source can be at most 512 characters.")
+		httpx.Say(w, http.StatusBadRequest, "invalid", msg.New("specs.source_too_long"))
 		return
 	}
 	action := "settings.specs.install"
@@ -97,7 +98,7 @@ func (s *Service) handleInstall(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleRemove(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !idRE.MatchString(id) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "No spec with that ID is installed.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("specs.not_installed"))
 		return
 	}
 	v, err := s.Remove(r.Context(), id)
@@ -112,7 +113,7 @@ func (s *Service) handleRemove(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleActions(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !idRE.MatchString(id) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "No spec with that ID is installed.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("specs.not_installed"))
 		return
 	}
 	var b struct {
@@ -123,7 +124,7 @@ func (s *Service) handleActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if b.On == nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid", "on must be true or false.")
+		httpx.Say(w, http.StatusBadRequest, "invalid", msg.New("specs.on_not_bool"))
 		return
 	}
 	params := map[string]any{"spec": id, "on": *b.On}
@@ -181,7 +182,7 @@ func (s *Service) fail(w http.ResponseWriter, err error, pv Preview) {
 	var p *Problem
 	switch {
 	case errors.Is(err, ErrNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", "No spec with that ID is installed.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("specs.not_installed"))
 	case errors.As(err, &p):
 		status := http.StatusBadRequest
 		if p.Code == "exists" || p.Code == "bundled" || p.Code == "in_use" || p.Code == "changed" {
@@ -199,5 +200,5 @@ func (s *Service) fail(w http.ResponseWriter, err error, pv Preview) {
 
 func (s *Service) internal(w http.ResponseWriter, what string, err error) {
 	s.log.Error(what, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }

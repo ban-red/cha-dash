@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/stackproto"
 )
 
@@ -44,11 +45,11 @@ func (s *Service) handleMovePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.Content) > 256<<10 {
-		httpx.Error(w, http.StatusRequestEntityTooLarge, "too_large", "A compose file can be at most 256 KiB.")
+		httpx.Say(w, http.StatusRequestEntityTooLarge, "too_large", msg.New("stacks.compose_too_large"))
 		return
 	}
 	if (req.FromPath == "") == (strings.TrimSpace(req.Content) == "") {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "Send exactly one of from_path and content.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("stacks.move_one_source"))
 		return
 	}
 	var res stackproto.MoveResult
@@ -89,7 +90,7 @@ type SelfUpdateStatus struct {
 func (s *Service) handleSelfUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !nodeIDRE.MatchString(id) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "There's no such node.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("stacks.no_node"))
 		return
 	}
 	res, allowed, err := s.selfUpdateStatus(r.Context(), id)

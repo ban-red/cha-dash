@@ -24,6 +24,7 @@ import (
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/vault"
 )
 
@@ -344,7 +345,7 @@ func (g *hookGuard) forget(hook string) {
 
 // unauthorized is the one answer to an unknown hook and a bad signature.
 func unauthorized(w http.ResponseWriter) {
-	httpx.Error(w, http.StatusUnauthorized, "unauthorized", "unauthorized")
+	httpx.Say(w, http.StatusUnauthorized, "unauthorized", msg.New("stacks.hook_unauthorized"))
 }
 
 func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
@@ -362,7 +363,7 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 	h, err := s.hookByID(ctx, id)
 	if err != nil {
 		s.log.Error("stacks: read hook", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	if h == nil || s.vault == nil {
@@ -378,10 +379,10 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxHookBody))
 	if err != nil {
 		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
-			httpx.Error(w, http.StatusRequestEntityTooLarge, "too_large", "A webhook's body can be at most 1 MiB; the next poll will catch up.")
+			httpx.Say(w, http.StatusRequestEntityTooLarge, "too_large", msg.New("stacks.hook_too_large"))
 			return
 		}
-		httpx.Error(w, http.StatusBadRequest, "bad_request", "The body couldn't be read.")
+		httpx.Say(w, http.StatusBadRequest, "bad_request", msg.New("stacks.hook_unreadable"))
 		return
 	}
 	secret, err := s.vault.Get(ctx, hookSecretName(id))
@@ -413,7 +414,7 @@ func (s *Service) handleHook(w http.ResponseWriter, r *http.Request) {
 
 func tooMany(w http.ResponseWriter, wait time.Duration) {
 	w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
-	httpx.Error(w, http.StatusTooManyRequests, "rate_limited", "Too many requests; try again shortly.")
+	httpx.Say(w, http.StatusTooManyRequests, "rate_limited", msg.New("stacks.hook_rate_limited"))
 }
 
 // hookRefused counts a refused request and audits the first in each
@@ -513,9 +514,9 @@ func (s *Service) handleListHooks(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"hooks": out})
 }
 
-func (s *Service) internal(w http.ResponseWriter, msg string, err error) {
-	s.log.Error(msg, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+func (s *Service) internal(w http.ResponseWriter, what string, err error) {
+	s.log.Error(what, "err", err)
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }
 
 func (s *Service) handleCreateHook(w http.ResponseWriter, r *http.Request) {
@@ -540,7 +541,7 @@ func (s *Service) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.vault == nil {
-		httpx.Error(w, http.StatusServiceUnavailable, "unavailable", "The vault isn't available.")
+		httpx.Say(w, http.StatusServiceUnavailable, "unavailable", msg.New("stacks.vault_unavailable"))
 		return
 	}
 	url := normalizeURL(raw)
@@ -552,7 +553,7 @@ func (s *Service) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 		s.internal(w, "stacks: read hook", err)
 		return
 	} else if h != nil {
-		httpx.Error(w, http.StatusConflict, "exists", "There's already a hook for "+req.Branch+" on that remote. Rotate its secret instead.")
+		httpx.Say(w, http.StatusConflict, "exists", msg.New("stacks.hook_exists", "branch", req.Branch))
 		return
 	}
 	h := &Hook{ID: newID("whk_"), URL: url, Branch: req.Branch, Sender: req.Sender, CreatedAt: s.now().UTC().Truncate(time.Millisecond)}
@@ -568,7 +569,7 @@ func (s *Service) handleCreateHook(w http.ResponseWriter, r *http.Request) {
 		h.ID, h.URL, h.Branch, h.Sender, nullable(h.CreatedBy), h.CreatedAt.UnixMilli()); err != nil {
 		_ = s.vault.Delete(context.WithoutCancel(r.Context()), hookSecretName(h.ID))
 		if strings.Contains(err.Error(), "UNIQUE") {
-			httpx.Error(w, http.StatusConflict, "exists", "There's already a hook for "+req.Branch+" on that remote. Rotate its secret instead.")
+			httpx.Say(w, http.StatusConflict, "exists", msg.New("stacks.hook_exists", "branch", req.Branch))
 			return
 		}
 		s.internal(w, "stacks: save hook", err)
@@ -625,7 +626,7 @@ func (s *Service) pathHook(w http.ResponseWriter, r *http.Request) (*Hook, bool)
 		return nil, false
 	}
 	if h == nil {
-		httpx.Error(w, http.StatusNotFound, "not_found", "There's no such hook.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("stacks.no_hook"))
 		return nil, false
 	}
 	return h, true
@@ -637,7 +638,7 @@ func (s *Service) handleRotateHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.vault == nil {
-		httpx.Error(w, http.StatusServiceUnavailable, "unavailable", "The vault isn't available.")
+		httpx.Say(w, http.StatusServiceUnavailable, "unavailable", msg.New("stacks.vault_unavailable"))
 		return
 	}
 	secret := newHookSecret()

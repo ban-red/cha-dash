@@ -11,6 +11,7 @@ import (
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -102,7 +103,7 @@ func (s *Service) handleDismissed(w http.ResponseWriter, r *http.Request) {
 	keys, err := s.Dismissed(r.Context())
 	if err != nil {
 		s.o.Log.Error("onboarding: reading dismissals failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string][]string{"dismissed": keys})
@@ -134,7 +135,7 @@ func (s *Service) handleDismissal(dismiss bool) http.HandlerFunc {
 		}
 		if err != nil {
 			s.o.Log.Error("onboarding: "+action+" failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 		s.Audit.Change(r, action, "settings:discovery", map[string]any{"keys": len(req.Keys)}, authz.T0, nil)

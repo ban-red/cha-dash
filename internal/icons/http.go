@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Map is GET /api/icons: for each thing a tile can name, the path of its
@@ -31,7 +32,7 @@ func (s *Service) Register(mux *http.ServeMux, wrap func(http.Handler) http.Hand
 		m, err := s.Map(r.Context())
 		if err != nil {
 			log.Error("icons: listing failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 		s.Kick()
@@ -94,25 +95,25 @@ var extOf = map[string]string{TypePNG: "png", TypeSVG: "svg", TypeICO: "ico", Ty
 func (s *Service) serve(w http.ResponseWriter, r *http.Request, log *slog.Logger) {
 	id := r.PathValue("id")
 	if !idRE.MatchString(id) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such icon")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("icons.not_found"))
 		return
 	}
 	var ctype, etag string
 	var body []byte
 	err := s.st.Reader().QueryRowContext(r.Context(), `SELECT content_type, body, etag FROM icons WHERE id = ? AND body IS NOT NULL`, id).Scan(&ctype, &body, &etag)
 	if errors.Is(err, sql.ErrNoRows) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such icon")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("icons.not_found"))
 		return
 	}
 	if err != nil {
 		log.Error("icons: reading an icon failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	ext, ok := extOf[ctype]
 	if !ok {
 		// Never serve a type the checks didn't produce.
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such icon")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("icons.not_found"))
 		return
 	}
 	h := w.Header()

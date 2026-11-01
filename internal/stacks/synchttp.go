@@ -12,6 +12,7 @@ import (
 
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/stackproto"
 	"dash.cha.sh/internal/vault"
 )
@@ -108,8 +109,8 @@ func (s *Service) syncView(ctx context.Context, y *Sync) (*SyncView, error) {
 
 // syncedSentence is what the editor and the draft routes say about a
 // synced stack: where to edit it instead.
-func syncedSentence(y *Sync) string {
-	return "Edit " + y.Path + " on " + y.Branch + " in " + y.URL + "."
+func syncedSentence(y *Sync) msg.M {
+	return msg.New("stacks.synced", "path", y.Path, "branch", y.Branch, "url", y.URL)
 }
 
 // refuseSynced answers 409 synced when the stack follows git.
@@ -122,7 +123,7 @@ func (s *Service) refuseSynced(w http.ResponseWriter, r *http.Request, node, sta
 	if y == nil {
 		return false
 	}
-	httpx.Error(w, http.StatusConflict, "synced", syncedSentence(y))
+	httpx.Say(w, http.StatusConflict, "synced", syncedSentence(y))
 	return true
 }
 
@@ -297,7 +298,7 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.vault == nil && req.Auth.Kind != stackproto.AuthNone {
-		httpx.Error(w, http.StatusServiceUnavailable, "unavailable", "The vault isn't available.")
+		httpx.Say(w, http.StatusServiceUnavailable, "unavailable", msg.New("stacks.vault_unavailable"))
 		return
 	}
 	actor, _ := s.actor(r)
@@ -345,7 +346,7 @@ func (s *Service) handlePutSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if st.Protected {
-		httpx.Error(w, http.StatusConflict, "protected", "Cha Dash's own stack, and any stack the node protects, can't follow git.")
+		httpx.Say(w, http.StatusConflict, "protected", msg.New("stacks.protected_sync"))
 		return
 	}
 	y := &Sync{ID: newID("syn_"), Node: node, Stack: stack, State: StateActive}
@@ -475,7 +476,7 @@ func (s *Service) pathSync(w http.ResponseWriter, r *http.Request) (*Sync, bool)
 		return nil, false
 	}
 	if y == nil {
-		httpx.Error(w, http.StatusNotFound, "not_found", "This stack doesn't follow git.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("stacks.not_synced"))
 		return nil, false
 	}
 	return y, true
@@ -546,7 +547,7 @@ func (s *Service) handleCheckSync(w http.ResponseWriter, r *http.Request) {
 	// The saved credential goes only to the remote it was saved for: testing
 	// another URL takes its own.
 	if ra.Kind != stackproto.AuthNone && ra.Secret == "" && cur != nil && cur.AuthKind == ra.Kind && normalizeURL(rawURL) != normalizeURL(cur.URL) {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "The saved credential is only sent to "+remoteHost(cur.URL)+". Give it again to test another remote.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("stacks.credential_elsewhere", "host", remoteHost(cur.URL)))
 		return
 	}
 	if ra.Kind != stackproto.AuthNone && ra.Secret == "" && cur != nil && cur.AuthKind == ra.Kind {
@@ -578,11 +579,11 @@ func (s *Service) handleSyncNow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if y.State != StateActive {
-		httpx.Error(w, http.StatusConflict, "not_active", "The sync is "+y.State+"; resume it first.")
+		httpx.Say(w, http.StatusConflict, "not_active", msg.New("stacks.sync_not_active", "state", y.State))
 		return
 	}
 	if !s.syncer.Trigger(y.ID) {
-		httpx.Error(w, http.StatusServiceUnavailable, "unavailable", "The syncer isn't running.")
+		httpx.Say(w, http.StatusServiceUnavailable, "unavailable", msg.New("stacks.syncer_down"))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{"queued": true})

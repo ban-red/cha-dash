@@ -34,6 +34,7 @@ import (
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/runtime"
 	"dash.cha.sh/internal/store"
 )
@@ -198,7 +199,7 @@ func (s *Service) handleGet(w http.ResponseWriter, r *http.Request) {
 	st, err := s.State(r.Context())
 	if err != nil {
 		s.o.Log.Error("onboarding: reading the state failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, st)
@@ -215,7 +216,7 @@ func (s *Service) handlePut(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", err.Error())
 	case err != nil:
 		s.o.Log.Error("onboarding: saving the state failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 	default:
 		s.Audit.Change(r, "settings.onboarding.update", "settings:onboarding", u, authz.T1, nil)
 		httpx.WriteJSON(w, http.StatusOK, st)
@@ -234,7 +235,7 @@ func (s *Service) handleDiscover(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		s.o.Log.Error("onboarding: discovery failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	// The hub probed the network on someone's behalf: what it was asked to.

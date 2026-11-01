@@ -28,6 +28,7 @@ import (
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/livedoc"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/stackproto"
 	"dash.cha.sh/internal/store"
@@ -397,9 +398,10 @@ func (s *Service) secretStates(ctx context.Context, names []string) ([]SecretSta
 // errSecretMissing names a referenced secret the vault doesn't have.
 type errSecretMissing struct{ name string }
 
-func (e errSecretMissing) Error() string {
-	return fmt.Sprintf("The secret %q isn't set. Set it under Settings → Stacks → Secrets first.", e.name)
-}
+func (e errSecretMissing) Error() string { return e.M().Text() }
+
+// M is the sentence for the missing secret.
+func (e errSecretMissing) M() msg.M { return msg.New("stacks.secret_missing", "name", e.name) }
 
 // resolveSecrets reads names from the vault, for one request to a node.
 // The values live only in the returned map, which the caller drops after

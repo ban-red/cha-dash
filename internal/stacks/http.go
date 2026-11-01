@@ -12,6 +12,7 @@ import (
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/stackproto"
 	"dash.cha.sh/internal/vault"
 )
@@ -77,11 +78,11 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 func pathStack(w http.ResponseWriter, r *http.Request) (string, string, bool) {
 	node, stack := r.PathValue("node"), r.PathValue("stack")
 	if !nodeIDRE.MatchString(node) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "There's no such node.")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("stacks.no_node"))
 		return "", "", false
 	}
 	if !stackNameRE.MatchString(stack) {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "A stack name uses lowercase letters, digits, - and _, starting with a letter or digit.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("stacks.bad_stack_name"))
 		return "", "", false
 	}
 	return node, stack, true
@@ -89,14 +90,14 @@ func pathStack(w http.ResponseWriter, r *http.Request) (string, string, bool) {
 
 func (s *Service) fail(w http.ResponseWriter, err error) {
 	if miss, ok := errors.AsType[errSecretMissing](err); ok {
-		httpx.Error(w, http.StatusConflict, "secret_missing", miss.Error())
+		httpx.Say(w, http.StatusConflict, "secret_missing", miss.M())
 		return
 	}
-	status, code, msg := statusOf(err)
+	status, code, text := statusOf(err)
 	if status == http.StatusBadGateway {
 		s.log.Warn("stacks: node call failed", "err", err)
 	}
-	httpx.Error(w, status, code, msg)
+	httpx.Error(w, status, code, text)
 }
 
 // ── list ─────────────────────────────────────────────────────────────────
@@ -128,7 +129,7 @@ func (s *Service) handleList(w http.ResponseWriter, r *http.Request) {
 	ns, err := s.nodes(r.Context())
 	if err != nil {
 		s.log.Error("stacks: list nodes", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	out := make([]NodeView, len(ns))
@@ -320,11 +321,11 @@ func (s *Service) handlePutDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.Content) > 256<<10 {
-		httpx.Error(w, http.StatusRequestEntityTooLarge, "too_large", "A compose file can be at most 256 KiB.")
+		httpx.Say(w, http.StatusRequestEntityTooLarge, "too_large", msg.New("stacks.compose_too_large"))
 		return
 	}
 	if strings.TrimSpace(req.Content) == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "The draft is empty.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("stacks.draft_empty"))
 		return
 	}
 	// A synced stack is edited in git.
@@ -356,7 +357,7 @@ func (s *Service) handlePutDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		s.log.Error("stacks: save draft", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	// Never the content: compose files often hold credentials.
@@ -374,7 +375,7 @@ func (s *Service) handleDeleteDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.deleteDraft(r.Context(), node, name, 0); err != nil {
 		s.log.Error("stacks: delete draft", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	s.Audit.Change(r, "settings.stacks.draft.delete", "stack:"+node+"/"+name, nil, authz.T1, nil)
@@ -404,7 +405,7 @@ func (s *Service) handleValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.Content) > 256<<10 {
-		httpx.Error(w, http.StatusRequestEntityTooLarge, "too_large", "A compose file can be at most 256 KiB.")
+		httpx.Say(w, http.StatusRequestEntityTooLarge, "too_large", msg.New("stacks.compose_too_large"))
 		return
 	}
 	v, err := s.validate(r.Context(), node, name, req.Content)
@@ -481,7 +482,7 @@ func (s *Service) handleSecrets(w http.ResponseWriter, r *http.Request) {
 	have, err := s.secretNames(r.Context())
 	if err != nil {
 		s.log.Error("stacks: list secrets", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	out := []item{}
@@ -494,11 +495,11 @@ func (s *Service) handleSecrets(w http.ResponseWriter, r *http.Request) {
 func (s *Service) secretName(w http.ResponseWriter, r *http.Request) (string, bool) {
 	name := r.PathValue("name")
 	if !secretNameRE.MatchString(name) {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "A secret name uses letters, digits, '.', '_' and '-', up to 64, starting with a letter or digit.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("stacks.bad_secret_name"))
 		return "", false
 	}
 	if s.vault == nil {
-		httpx.Error(w, http.StatusServiceUnavailable, "unavailable", "The vault isn't available.")
+		httpx.Say(w, http.StatusServiceUnavailable, "unavailable", msg.New("stacks.vault_unavailable"))
 		return "", false
 	}
 	return name, true
@@ -516,16 +517,16 @@ func (s *Service) handlePutSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Value == nil || *req.Value == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "Send the secret's value.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("stacks.secret_value_missing"))
 		return
 	}
 	if err := s.vault.Put(r.Context(), secretPrefix+name, []byte(*req.Value)); err != nil {
 		if errors.Is(err, vault.ErrTooLarge) {
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "A secret can be at most 64 KiB.")
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("stacks.secret_too_large"))
 			return
 		}
 		s.log.Error("stacks: save secret", "name", name, "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	s.Audit.Change(r, "settings.stacks.secret.update", "secret:"+secretPrefix+name, map[string]string{"name": name}, authz.T1, nil)
@@ -539,7 +540,7 @@ func (s *Service) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.vault.Delete(r.Context(), secretPrefix+name); err != nil && !errors.Is(err, vault.ErrNotFound) {
 		s.log.Error("stacks: delete secret", "name", name, "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	s.Audit.Change(r, "settings.stacks.secret.delete", "secret:"+secretPrefix+name, map[string]string{"name": name}, authz.T1, nil)

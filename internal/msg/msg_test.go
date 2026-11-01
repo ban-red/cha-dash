@@ -115,6 +115,12 @@ var migrated = []string{
 	"internal/timeline",
 	"internal/pvehook",
 	"internal/mcp",
+	// Wave 25, finished: stacks, nodes, specs, onboarding and icons.
+	"internal/stacks",
+	"internal/nodes",
+	"internal/specstore",
+	"internal/onboarding",
+	"internal/icons",
 }
 
 // TestMigratedPackagesSay fails when a migrated package writes an error
