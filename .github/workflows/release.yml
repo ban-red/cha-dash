@@ -226,7 +226,12 @@ jobs:
           [[ "$got" == "chadash-node $TAG (commit $GITHUB_SHA, "* ]] || fail "the node's version printed '$got'"
 
           cd dist
-          sha256sum chadash-* > SHA256SUMS
+          # The one-line installer (deploy/install.sh), stamped with this
+          # release's tag. It's in SHA256SUMS, so the signed checksums cover it.
+          sed "s/__CHADASH_RELEASE_TAG__/$TAG/" ../deploy/install.sh > install.sh
+          grep -qxF "STAMPED_TAG='$TAG'" install.sh || fail "install.sh isn't stamped with $TAG"
+          chmod 0755 install.sh
+          sha256sum chadash-* install.sh > SHA256SUMS
           cat SHA256SUMS
           { echo "### Binaries"; echo; echo '```'; cat SHA256SUMS; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -468,7 +473,7 @@ jobs:
           cd "$RUNNER_TEMP/assets"
           for want in SHA256SUMS SHA256SUMS.cosign.bundle "chadash-$VERSION-linux-amd64" "chadash-$VERSION-linux-arm64" \
               "chadash-$VERSION-linux-armv7" "chadash-$VERSION-darwin-amd64" "chadash-$VERSION-darwin-arm64" \
-              "chadash-node-$VERSION-linux-amd64" "chadash-node-$VERSION-linux-arm64" "chadash-node-$VERSION-linux-armv7"; do
+              "chadash-node-$VERSION-linux-amd64" "chadash-node-$VERSION-linux-arm64" "chadash-node-$VERSION-linux-armv7" install.sh; do
             [ -f "$want" ] || { echo "::error::$want is missing"; exit 1; }
           done
           sha256sum -c SHA256SUMS
@@ -485,6 +490,7 @@ jobs:
             echo
             echo "- **Image:** \`$IMAGE:$VERSION\`${also:+ (also $also)}, for linux/amd64, linux/arm64 and linux/arm/v7 (best-effort). Index digest \`$DIGEST\`."
             echo "- **Node image:** \`$NODE_IMAGE:$VERSION\` with the same tags, for the same platforms. Index digest \`$NODE_DIGEST\`."
+            echo "- **One line:** \`curl -fsSL https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/install.sh | sh\` installs this release with Docker Compose. \`install.sh\` is in the signed \`SHA256SUMS\`: check it first with the commands under Verify ([how]($base/deploy/README.md#install))."
             echo "- **Docker Compose:** [deploy/README.md]($base/deploy/README.md). Trying the beta? Start with [docs/beta.md]($base/docs/beta.md)."
             echo "- **Unraid:** the template in [deploy/unraid]($base/deploy/unraid/README.md)."
             echo "- **Binaries** (below): static Linux builds for amd64, arm64 and armv7, and macOS builds for development. \`chadash-node-*\` are the node, Linux only."

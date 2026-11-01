@@ -8,6 +8,8 @@ Docker Compose is the main way to run Cha Dash ([ADR-0007](../docs/adr/0007-dock
 | [`compose.socket-proxy.yaml`](compose.socket-proxy.yaml) | An override that swaps the node for a read-only Docker socket proxy (reads only) |
 | [`compose.node.yaml`](compose.node.yaml) | chadash-node alone, for another Docker host ([Nodes on other hosts](#nodes-on-other-hosts)) |
 | [`compose.demo.yaml`](compose.demo.yaml) | An override that runs the built-in Demo Home simulator |
+| [`install.sh`](install.sh) | The one-line installer, attached to each release ([Install](#in-one-line)) |
+| [`lxc/`](lxc/README.md) | A draft Proxmox LXC script in the community-scripts style |
 | [`moving-from-dockhand.md`](moving-from-dockhand.md) | Moving stacks from Dockhand and Hawser, one host and one stack at a time |
 | [`unraid/`](unraid/README.md) | A Community Applications template for Unraid |
 
@@ -30,6 +32,33 @@ Which platforms get images, and how far they're tested ([ADR-0016](../docs/adr/0
 ## Install
 
 You need Docker with the Compose plugin, on amd64 or arm64.
+
+### In one line
+
+```sh
+curl -fsSL https://github.com/ban-red/cha-dash/releases/latest/download/install.sh | sh
+```
+
+[`install.sh`](install.sh) checks that Docker and its Compose plugin answer, makes a `chadash` folder, fetches `compose.yaml` from the release's tag (never from `main`), checks both images' signatures with [cosign](https://docs.sigstore.dev/) when cosign is installed (and says so when it isn't), pins the release in `compose.override.yaml`, starts it and prints the address. Then create the owner account straight away (step 3 below). `--dir <folder>` puts it elsewhere, `--no-start` stops before starting, and `--dry-run` prints every step and changes nothing. Running a newer release's `install.sh` in the same folder updates the pin, unless you've edited `compose.override.yaml` yourself (then it says what to change).
+
+**The safer way** is to check the script before it runs. Each release's `install.sh` is listed in its `SHA256SUMS`, which the release workflow signs:
+
+```sh
+base=https://github.com/ban-red/cha-dash/releases/latest/download
+curl -fsSLO "$base/install.sh"
+curl -fsSLO "$base/SHA256SUMS"
+curl -fsSLO "$base/SHA256SUMS.cosign.bundle"
+cosign verify-blob SHA256SUMS --bundle SHA256SUMS.cosign.bundle \
+  --certificate-identity-regexp '^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+sha256sum --ignore-missing -c SHA256SUMS   # install.sh: OK
+less install.sh                            # read what it does
+sh install.sh
+```
+
+On macOS, `shasum -a 256 --ignore-missing -c SHA256SUMS` does the same as `sha256sum`.
+
+### By hand
 
 1. **Fetch the compose file** into a folder of its own:
    ```sh
