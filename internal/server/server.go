@@ -32,6 +32,7 @@
 //	GET|PUT /api/settings/sign-in, POST …/test   OIDC, forward-auth, group mappings (owner;
 //	                               PUT needs a step-up; security.Service.RegisterSignIn)
 //	GET|PUT /api/settings/agents   the Agents switch, off by default (owner; security.Service.RegisterAgents)
+//	GET|PUT /api/settings/dozzle   Dozzle's address, for links to a container's logs (viewer reads, admin sets; dozzle.go)
 //	GET|DELETE /api/auth/identities…, POST …/forward-auth   your linked sign-ins (authz.Identities)
 //	GET  /api/demo             demo clock and seed; demo mode only (session)
 //	POST /api/actions/plan, POST /api/plans/{id}/approve, GET /api/tasks/{id},
@@ -267,6 +268,8 @@ func New(d Deps) (http.Handler, error) {
 		registerHistory(mux, session, d.History, d.Topics.Graph)
 	}
 	registerHistorySettings(mux, session, d.History, d.Store, d.Demo != nil, rec)
+	// Dozzle deep links: where a container's sheet links its logs.
+	registerDozzle(mux, session, d.Store, rec, d.Log)
 	if d.Integrations != nil {
 		d.Integrations.Audit = rec
 		d.Integrations.Register(mux, session)
@@ -381,7 +384,9 @@ func New(d Deps) (http.Handler, error) {
 		httpx.Error(w, http.StatusForbidden, "cross_origin", "cross-origin request refused")
 	}))
 
-	var h http.Handler = authz.Guard(mux, d.Auth, d.Log)
+	// The public demo (CHADASH_DEMO_PUBLIC) is enforced here, in Guard, for
+	// every route at once (authz.DemoRefuses).
+	var h http.Handler = authz.GuardWith(mux, d.Auth, d.Log, authz.GuardOptions{PublicDemo: d.Auth.PublicDemo()})
 	h = compressAPI(h)
 	// Forward-auth headers: honoured from trusted proxies, stripped from
 	// everyone else, before any handler.

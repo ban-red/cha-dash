@@ -253,6 +253,23 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if err != nil {
 		return nil, err
 	}
+	if cfg.DemoPublic {
+		// The public demo (config refuses it without demo mode): visitors
+		// become one operator, and authz.Guard refuses everything but the
+		// Demo Home's actions. A data directory that already holds
+		// integrations isn't a demo's: they'd run, sandboxed, on a public
+		// host, so the hub refuses to start.
+		var n int
+		if err := st.Reader().QueryRowContext(ctx, `SELECT count(*) FROM integration_instances`).Scan(&n); err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			return nil, fmt.Errorf("public demo: the data directory holds %d integration instances; start the public demo with an empty data directory", n)
+		}
+		if err := authSvc.EnablePublicDemo(ctx); err != nil {
+			return nil, err
+		}
+	}
 
 	// The security posture decides the severity security findings reach the
 	// inbox at, for real instances and the Demo Home alike.
@@ -269,7 +286,12 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if cfg.Demo {
 		// The Demo Home owns the graph; its app:chadash (self: true) stands
 		// for the hub.
-		drv, err = demo.New(tp, demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, Local: cfg.DemoLocal, At: cfg.DemoAt, Log: log, Posture: sec.Posture()})
+		opts := demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, Local: cfg.DemoLocal, At: cfg.DemoAt, Log: log, Posture: sec.Posture()}
+		if cfg.DemoPublic {
+			// Every visitor finds the incidents open, whatever the last one fixed.
+			opts.RestartEvery = demo.PublicRestart
+		}
+		drv, err = demo.New(tp, opts)
 		if err != nil {
 			return nil, err
 		}

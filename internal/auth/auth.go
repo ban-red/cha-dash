@@ -143,6 +143,10 @@ type Service struct {
 
 	mu        sync.Mutex
 	setupOpen bool // true until an owner exists
+	// demoUser is the public demo's operator (EnablePublicDemo), and
+	// demoLimit its per-address budget of new sessions. Zero outside it.
+	demoUser  User
+	demoLimit *httpx.Limiter
 
 	// strikes counts wrong passwords per client address, then per username (bans.go).
 	banMu   sync.Mutex

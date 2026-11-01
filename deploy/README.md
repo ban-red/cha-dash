@@ -370,6 +370,51 @@ docker compose -f compose.yaml -f compose.demo.yaml logs chadash | grep setup
 - **The clock shows your local time and date**, with the scripted day starting at its busiest moment (every incident open) when the hub starts; incident times are shifted to match. Set `TZ` (for example `TZ: Europe/London`) so the container knows your zone; without it, that's UTC. The day replays every 24 hours, so the demo never goes quiet. `CHADASH_DEMO_AT: now` plays the script at its own hours in UTC instead.
 - **Remove it** with `docker compose -f compose.yaml -f compose.demo.yaml down -v`. That deletes the demo volume only.
 
+### The public demo
+
+To host the Demo Home for anyone, add `CHADASH_DEMO_PUBLIC: "true"`. Then:
+- **Visitors are signed in automatically** as one operator account, `visitor`, which has no password. There's no owner and no setup page.
+- **Only the Demo Home's actions run**, against the simulator. Everything else is refused with a sentence: integrations, imports, specs, nodes, API tokens, users, settings, stacks, notifications, passkeys and board edits.
+- **The simulated day restarts every hour**, so every visitor finds the incidents open.
+- **New sessions are limited per address.** Behind a reverse proxy, set `CHADASH_TRUSTED_PROXIES` so the hub sees each visitor's address, not the proxy's.
+- **The hub refuses to start** with `CHADASH_DEMO_PUBLIC` but without `CHADASH_DEMO`, or on a data directory that already holds integrations. Give it a volume of its own.
+
+A compose file for a small public host, behind a proxy on the same machine:
+
+```yaml
+# compose.yaml on the demo host
+name: chadash-public-demo
+
+services:
+  chadash:
+    image: ghcr.io/ban-red/chadash:0.4.0   # pin a release
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3696:3696"     # only the proxy reaches it
+    volumes:
+      - demo:/data
+    environment:
+      CHADASH_DEMO: "true"
+      CHADASH_DEMO_PUBLIC: "true"
+      CHADASH_PUBLIC_URL: https://demo.example
+      # Where the proxy's requests come from. A proxy on the host reaches a
+      # published port from the project network's gateway, such as 172.30.0.1.
+      CHADASH_TRUSTED_PROXIES: 172.30.0.0/16
+      CHADASH_HISTORY: "off"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+
+volumes:
+  demo:
+```
+
+No node, and no Docker socket: the demo reads nothing real. To start it afresh, `docker compose down -v` and `up -d`.
+
 ## Upgrading
 
 ```sh

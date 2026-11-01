@@ -114,6 +114,12 @@ type Route struct {
 	// Signing in, step-up, passkeys, users, tokens and every setting are
 	// session only, so a token can never mint a token or raise itself.
 	Token string
+	// PublicDemo marks an unsafe route (POST, PUT, PATCH, DELETE) the
+	// public demo (CHADASH_DEMO_PUBLIC) still serves: signing a visitor in
+	// and out, and the action engine, which there runs only the Demo
+	// Home's actions against the simulator. Every other unsafe route is
+	// refused there; see DemoRefuses.
+	PublicDemo bool
 }
 
 // TokenAny marks a route every API token may call (subject to Access).
@@ -140,12 +146,15 @@ var Routes = []Route{
 	{Pattern: "GET /api/setup", Access: Public},
 	{Pattern: "POST /api/setup", Access: Public},
 	{Pattern: "POST /api/auth/login", Access: Public},
-	{Pattern: "POST /api/auth/logout", Access: Public},
+	{Pattern: "POST /api/auth/logout", Access: Public, PublicDemo: true},
 	{Pattern: "POST /api/auth/passkeys/login/begin", Access: Public},
 	{Pattern: "POST /api/auth/passkeys/login/finish", Access: Public},
 	{Pattern: "POST /api/auth/dev-login", Access: Public, Optional: true}, // -tags devlogin, loopback only
 	{Pattern: "/api/", Access: Public},                                    // the API's 404
 	{Pattern: "/", Access: Public},                                        // the web app; first paint checks the session itself
+	// The public demo's sign-in: a visitor becomes the fixed demo operator,
+	// rate-limited per address. Mounted only with CHADASH_DEMO_PUBLIC.
+	{Pattern: "POST /api/auth/demo", Access: Public, Optional: true, PublicDemo: true},
 	// OIDC sign-in (wave 13): browser redirects to and from the provider.
 	// Linking and step-up through them check the session themselves.
 	{Pattern: "GET /api/auth/oidc/start", Access: Public},
@@ -202,13 +211,13 @@ var Routes = []Route{
 
 	// Actions: the engine authorizes each one (Policy), so the routes only
 	// need a session. Added by the action engine track.
-	{Pattern: "POST /api/actions/plan", Access: SignedIn, Token: TokenAny},
-	{Pattern: "POST /api/plans/{id}/approve", Access: SignedIn, Token: TokenAny},
+	{Pattern: "POST /api/actions/plan", Access: SignedIn, Token: TokenAny, PublicDemo: true},
+	{Pattern: "POST /api/plans/{id}/approve", Access: SignedIn, Token: TokenAny, PublicDemo: true},
 	{Pattern: "GET /api/tasks/{id}", Access: SignedIn, Token: TokenAny},
 	// Cancelling: your own task, or anyone's with tasks.all (the engine asks
 	// the policy). Listing what could be planned on a target: filtered by
 	// the policy, per action.
-	{Pattern: "POST /api/tasks/{id}/cancel", Access: SignedIn, Token: TokenAny},
+	{Pattern: "POST /api/tasks/{id}/cancel", Access: SignedIn, Token: TokenAny, PublicDemo: true},
 	{Pattern: "GET /api/actions", Access: SignedIn, Token: TokenAny},
 
 	// Identity across sources: reads for viewers, decisions for admins.
@@ -277,6 +286,11 @@ var Routes = []Route{
 	// token needs. The owner's, session only, like every setting.
 	{Pattern: "GET /api/settings/agents", Access: Owner},
 	{Pattern: "PUT /api/settings/agents", Access: Owner},
+	// Settings → Integrations → Dozzle (v0.4): the address a container's
+	// sheet links its logs at. Every role that opens a container reads it;
+	// setting it is admin+, like the integrations.
+	{Pattern: "GET /api/settings/dozzle", Access: Viewer},
+	{Pattern: "PUT /api/settings/dozzle", Access: Admin},
 
 	// Settings → Users. An admin manages everyone but the owner (users.go);
 	// handing over ownership is the owner's, and T3.
@@ -437,6 +451,20 @@ func Lookup(pattern string) (Route, bool) {
 //
 // Guard sits inside the cross-origin protection, so CSRF checks run first.
 func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
+	return GuardWith(mux, a, log, GuardOptions{})
+}
+
+// GuardOptions change what Guard admits for the whole hub.
+type GuardOptions struct {
+	// PublicDemo refuses every request DemoRefuses names, before any
+	// session or token is looked at, with 403 demo_read_only and a
+	// sentence. It's the one place the public demo (CHADASH_DEMO_PUBLIC)
+	// is enforced.
+	PublicDemo bool
+}
+
+// GuardWith is Guard with options.
+func GuardWith(mux *http.ServeMux, a *auth.Service, log *slog.Logger, opts GuardOptions) http.Handler {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
@@ -450,6 +478,10 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 		if !ok {
 			log.Error("authz: route has no row in internal/authz/routes.go; refusing", "pattern", pattern)
 			httpx.Say(w, http.StatusInternalServerError, "no_authz_rule", msg.New("authz.no_rule"))
+			return
+		}
+		if opts.PublicDemo && DemoRefuses(route, r.Method) {
+			httpx.Say(w, http.StatusForbidden, "demo_read_only", msg.New("demo.read_only"))
 			return
 		}
 		if route.Access == Public || route.Access == NodeKey || route.Access == Signature {
@@ -489,6 +521,29 @@ func Guard(mux *http.ServeMux, a *auth.Service, log *slog.Logger) http.Handler {
 			mux.ServeHTTP(w, r)
 		})).ServeHTTP(w, r)
 	})
+}
+
+// DemoRefuses reports whether the public demo refuses a request with
+// method to route. Everything a visitor could change outside the simulator
+// is refused, whatever their role: the node and webhook channels (the demo
+// has no nodes or forges), every admin and owner route (integrations,
+// imports, specs, nodes and join tokens, users, settings, stacks and git
+// sync, notification channels, export, the audit log), and every unsafe
+// method on any other route unless its row is marked PublicDemo (signing
+// in and out, and the action engine, which runs only the Demo Home's
+// actions). So API tokens, passkeys, step-up, holds, push subscriptions,
+// first-run setup and password sign-in are refused too. Reads below admin
+// stay open.
+func DemoRefuses(route Route, method string) bool {
+	switch {
+	case route.Access == NodeKey || route.Access == Signature:
+		return true
+	case route.Access == Admin || route.Access == Owner:
+		return true
+	case method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions:
+		return false
+	}
+	return !route.PublicDemo
 }
 
 // TokenRoute decides whether an API token whose user has role and whose

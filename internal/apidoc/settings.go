@@ -13,6 +13,14 @@ type (
 		Posture *string `json:"posture"`
 		StepUp  *string `json:"step_up"`
 	}
+	// dozzleSettings mirrors internal/server/dozzle.go's DozzleSettings: the
+	// server package imports this one.
+	dozzleSettings struct {
+		URL string `json:"url"`
+	}
+	dozzleUpdate struct {
+		URL *string `json:"url"`
+	}
 	agentsUpdate struct {
 		Enabled *bool `json:"enabled"`
 	}
@@ -71,6 +79,8 @@ func init() {
 		"PUT /api/settings/security":       {Summary: "Change the posture or the step-up rule; the rule needs a step-up.", Body: securityUpdate{}, Resp: security.View{}, Errors: []string{"step_up_required"}},
 		"GET /api/settings/agents":         {Summary: "The Agents switch: whether agent tokens can be made.", Resp: security.AgentSettings{}},
 		"PUT /api/settings/agents":         {Summary: "Turn Agents on or off.", Body: agentsUpdate{}, Resp: security.AgentSettings{}, Errors: []string{"invalid"}},
+		"GET /api/settings/dozzle":         {Summary: "Dozzle's address, where a container's sheet links its logs; \"\" when unset.", Resp: dozzleSettings{}},
+		"PUT /api/settings/dozzle":         {Summary: "Set Dozzle's address, or \"\" to turn the links off.", Body: dozzleUpdate{}, Resp: dozzleSettings{}, Errors: []string{"invalid"}},
 		"GET /api/settings/sign-in":        {Summary: "OIDC, forward-auth and the group mappings.", Resp: security.SignInView{}},
 		"PUT /api/settings/sign-in":        {Summary: "Change OIDC, forward-auth or the group mappings. Needs a step-up.", Body: signInUpdate{}, Resp: security.SignInView{}, Errors: []string{"step_up_required"}},
 		"POST /api/settings/sign-in/test":  {Summary: "Check the OIDC provider's discovery and offer a test sign-in.", Resp: security.TestView{}},

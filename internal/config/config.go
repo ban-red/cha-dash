@@ -68,6 +68,11 @@ type Config struct {
 	DemoLocal     bool
 	DemoAt        time.Duration
 	DemoSeed      int64
+	// DemoPublic hosts the demo for anyone (CHADASH_DEMO_PUBLIC): visitors
+	// are signed in as a fixed operator, only the Demo Home's actions run,
+	// nothing else can be changed, and the simulator restarts every hour.
+	// The hub refuses it unless Demo is on.
+	DemoPublic bool
 
 	// NodePairingFile turns on local pairing for chadash-node: the hub
 	// writes a pairing token there on first run (a volume shared with the
@@ -136,7 +141,7 @@ type Loader struct {
 	nodePairing, nodePairingFrom                              string
 	history, historyDir                                       string
 	metricsListen, metricsToken                               string
-	demo                                                      bool
+	demo, demoPublic                                          bool
 	demoAt, demoSeed                                          string
 	envErrs                                                   []error // env values a flag default can't hold
 }
@@ -170,6 +175,15 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 		demo = b
 	}
 	fs.BoolVar(&l.demo, "demo", demo, "run the Demo Home simulator instead of a real home (env CHADASH_DEMO)")
+	demoPublic := false
+	if v := env("CHADASH_DEMO_PUBLIC", ""); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			l.envErrs = append(l.envErrs, fmt.Errorf("CHADASH_DEMO_PUBLIC %q: want 1, true, 0 or false", v))
+		}
+		demoPublic = b
+	}
+	fs.BoolVar(&l.demoPublic, "demo-public", demoPublic, "host the demo for anyone: visitors are signed in as an operator and can change nothing but the simulator; needs --demo (env CHADASH_DEMO_PUBLIC)")
 	fs.StringVar(&l.demoAt, "demo-at", env("CHADASH_DEMO_AT", "local"), "demo clock: local (start at 14:05, shown as the local time), a time of day (HH:MM[:SS], UTC) on the demo's day, or now to follow the real clock in UTC (env CHADASH_DEMO_AT)")
 	fs.StringVar(&l.demoSeed, "demo-seed", env("CHADASH_DEMO_SEED", "1"), "demo simulator seed (env CHADASH_DEMO_SEED)")
 	fs.StringVar(&l.history, "history", env("CHADASH_HISTORY", "standard"), "metrics history to keep: off, standard (48 hours by the minute, 14 days by the quarter hour) or long-term (also hourly for a year, daily forever); Settings → History wins, except over off (env CHADASH_HISTORY)")
@@ -188,6 +202,10 @@ func (l *Loader) Config() (Config, error) {
 		SecretKeyFile: l.keyFile,
 		LogFormat:     strings.ToLower(l.format),
 		Demo:          l.demo,
+		DemoPublic:    l.demoPublic,
+	}
+	if c.DemoPublic && !c.Demo {
+		errs = append(errs, errors.New("CHADASH_DEMO_PUBLIC needs demo mode: set CHADASH_DEMO=true too. A public hub must never show a real home"))
 	}
 	switch c.History = strings.ToLower(strings.TrimSpace(l.history)); c.History {
 	case "off", "standard", "long-term":

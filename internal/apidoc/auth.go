@@ -82,6 +82,7 @@ func init() {
 		"POST /api/auth/passkeys/login/finish": {Summary: "Finish a passkey sign-in with the assertion's toJSON().", Body: json.RawMessage{}, Resp: userBody{}, Fail: map[int]any{401: unknownPasskey{}},
 			Errors: []string{"ceremony_expired", "passkey_rejected", "unknown_passkey"}},
 		"POST /api/auth/dev-login":                {Summary: "Sign in as the owner in one click: -tags devlogin builds, from this machine only.", Resp: userBody{}},
+		"POST /api/auth/demo":                     {Summary: "The public demo only: sign in as its fixed operator, with no password.", Resp: userBody{}, Errors: []string{"rate_limited"}},
 		"GET /api/auth/oidc/start":                {Summary: "Go to the OIDC provider to sign in, link or step up.", Redirect: true, Query: []Param{{Name: "return", Desc: "The path to come back to."}, {Name: "link", Desc: "1 links the provider account to you."}, {Name: "step_up", Desc: "1 steps up at the provider."}}},
 		"GET /api/auth/oidc/callback":             {Summary: "The OIDC provider's redirect back to the hub.", Redirect: true, Query: []Param{{Name: "code", Desc: "The authorization code."}, {Name: "state", Desc: "The flow's state."}}},
 		"GET /api/auth/session":                   {Summary: "The signed-in user, the session and its step-up state.", Resp: sessionBody{}},

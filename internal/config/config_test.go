@@ -166,6 +166,32 @@ func TestDemo(t *testing.T) {
 	}
 }
 
+func TestDemoPublic(t *testing.T) {
+	c, err := load(t, map[string]string{"CHADASH_DEMO": "true", "CHADASH_DEMO_PUBLIC": "true"})
+	if err != nil || !c.Demo || !c.DemoPublic {
+		t.Fatalf("public demo: %+v %v", c, err)
+	}
+	c, err = load(t, map[string]string{"CHADASH_DEMO": "1"}, "--demo-public")
+	if err != nil || !c.DemoPublic {
+		t.Fatalf("public demo by flag: %+v %v", c, err)
+	}
+	if c, err := load(t, nil); err != nil || c.DemoPublic {
+		t.Fatalf("off by default: %+v %v", c, err)
+	}
+	// Refused unless demo mode is on: a public hub must never show a real home.
+	for _, env := range []map[string]string{
+		{"CHADASH_DEMO_PUBLIC": "true"},
+		{"CHADASH_DEMO": "false", "CHADASH_DEMO_PUBLIC": "1"},
+	} {
+		if _, err := load(t, env); err == nil || !strings.Contains(err.Error(), "CHADASH_DEMO_PUBLIC needs demo mode") {
+			t.Errorf("%v: err = %v", env, err)
+		}
+	}
+	if _, err := load(t, map[string]string{"CHADASH_DEMO": "1", "CHADASH_DEMO_PUBLIC": "yes please"}); err == nil || !strings.Contains(err.Error(), "CHADASH_DEMO_PUBLIC") {
+		t.Errorf("a typo: err = %v", err)
+	}
+}
+
 func TestLoggerFormat(t *testing.T) {
 	var buf bytes.Buffer
 	Config{LogFormat: "json", LogLevel: slog.LevelInfo}.Logger(&buf).Info("hi", "k", "v")

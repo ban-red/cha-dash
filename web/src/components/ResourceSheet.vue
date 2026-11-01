@@ -33,6 +33,7 @@ import { useLive } from '../stores/live';
 import { useUi } from '../stores/ui';
 import type { TileStatus } from './Tile.vue';
 import { navigate, settingsPath, stackPath } from '../lib/router';
+import { dozzleBase, dozzleLink, loadDozzle } from '../lib/dozzle';
 import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '../widgets/containers';
 import { statusOf } from '../widgets/subject';
 import { fmtValue, metricWords, upFor } from '../widgets/read';
@@ -226,6 +227,9 @@ const stackLink = computed(() => {
   return stackPath(node, attr<string>(st, 'project') ?? st.name ?? '');
 });
 const nodeLink = computed(() => current.value?.kind === 'engine' && !!attr(current.value, 'node') && ui.can.value.panes.includes('nodes'));
+/** A container's logs in Dozzle, when an admin set its address (lib/dozzle.ts). */
+const dozzle = computed(() => (r.value?.kind === 'container' ? dozzleLink(dozzleBase.value, attr(r.value, 'container_id')) : undefined));
+watch(kind, (k) => k === 'container' && void loadDozzle(), { immediate: true });
 const links = computed(() => resourceLinks(r.value).map((l) => ({ title: l.title || l.url, url: safeUrl(l.url)! })));
 const labels = computed(() => Object.entries(r.value?.labels ?? {}).sort(([a], [b]) => a.localeCompare(b)));
 
@@ -648,9 +652,10 @@ watch(id, async (now, before) => {
             </li>
           </ul>
         </template>
-        <div v-if="stackLink || nodeLink" class="rs-acts">
+        <div v-if="stackLink || nodeLink || dozzle" class="rs-acts">
           <UiButton v-if="stackLink" size="sm" :href="stackLink" @click.prevent="navigate(stackLink)">Open in Settings → Stacks</UiButton>
           <UiButton v-if="nodeLink" size="sm" :href="settingsPath('nodes')" @click.prevent="ui.openSettings('nodes')">Its node in Settings → Nodes</UiButton>
+          <UiButton v-if="dozzle" size="sm" :href="dozzle" target="_blank" rel="noopener noreferrer">Logs in Dozzle</UiButton>
         </div>
         <ul v-if="links.length" class="rs-links">
           <li v-for="l in links" :key="l.url"><a :href="l.url" target="_blank" rel="noopener noreferrer">{{ l.title }}</a></li>
@@ -725,6 +730,7 @@ watch(id, async (now, before) => {
             {{ logBusy ? 'Reading…' : logLines ? 'Show again' : 'Show the last 50 lines' }}
           </UiButton>
           <UiButton v-if="logLines?.lines.length" variant="ghost" @click="copyLogs">{{ logCopied ? 'Copied' : 'Copy' }}</UiButton>
+          <UiButton v-if="dozzle" variant="ghost" :href="dozzle" target="_blank" rel="noopener noreferrer">Live in Dozzle</UiButton>
         </div>
         <p class="sr" aria-live="polite">{{ logCopied ? 'Copied to the clipboard.' : logLines ? `${logLines.lines.length} lines.` : '' }}</p>
         <pre v-if="logLines?.lines.length" class="rs-log" tabindex="0" :aria-label="`Last lines of ${label(r)}’s log`">{{ logLines.lines.join('\n') }}</pre>

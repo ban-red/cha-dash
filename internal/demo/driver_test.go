@@ -470,3 +470,59 @@ func TestRun(t *testing.T) {
 	cancel()
 	<-done
 }
+
+// The public demo restarts the day every hour: whatever a visitor fixed is
+// open again for the next, at the starting moment.
+func TestRestart(t *testing.T) {
+	d, tp, clock := newDriver(t, Options{Seed: 1, At: DefaultAt})
+	if err := d.Fix("plex-token-revoked"); err != nil {
+		t.Fatal(err)
+	}
+	clock.Advance(PublicRestart)
+	d.Step()
+	if in := incident(t, tp, "plex-token-revoked"); in.Status == sim.StatusOpen {
+		t.Fatalf("fixed an hour ago, still %s", in.Status)
+	}
+	if err := d.Restart(); err != nil {
+		t.Fatal(err)
+	}
+	if got := d.Now(); !got.Equal(time.Date(2026, 10, 3, 14, 5, 0, 0, time.UTC)) {
+		t.Fatalf("Now after a restart = %v", got)
+	}
+	if in := incident(t, tp, "plex-token-revoked"); in.Status != sim.StatusOpen {
+		t.Fatalf("after a restart: %s", in.Status)
+	}
+	// It runs on from there in real time.
+	clock.Advance(time.Minute)
+	if got := d.Now(); !got.Equal(time.Date(2026, 10, 3, 14, 6, 0, 0, time.UTC)) {
+		t.Fatalf("a minute after the restart = %v", got)
+	}
+}
+
+func TestRunRestarts(t *testing.T) {
+	tp := topics.New(graph.New(), time.Now())
+	d, err := New(tp, Options{Seed: 1, At: DefaultAt, RestartEvery: 50 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Fix("plex-token-revoked"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.CanFix("plex-token-revoked"); err == nil {
+		t.Fatal("a fix in progress can be pressed again")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		d.Run(ctx)
+		close(done)
+	}()
+	defer func() { cancel(); <-done }()
+	deadline := time.Now().Add(5 * time.Second)
+	for d.CanFix("plex-token-revoked") != nil || incident(t, tp, "plex-token-revoked").Status != sim.StatusOpen {
+		if time.Now().After(deadline) {
+			t.Fatal("Run never restarted the day")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

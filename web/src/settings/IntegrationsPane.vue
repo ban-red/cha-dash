@@ -25,6 +25,8 @@ import { useUi } from '../stores/ui';
 
 // The owner's only, and rarely opened: its own chunk.
 const InstalledSpecs = defineAsyncComponent(() => import('./InstalledSpecs.vue'));
+// Dozzle's address, for links to a container's logs: rarely changed, its own chunk.
+const DozzleSetting = defineAsyncComponent(() => import('./DozzleSetting.vue'));
 const ui = useUi();
 const owner = computed(() => ui.can.value.securitySettings);
 
@@ -194,6 +196,7 @@ onMounted(() => {
       </ul>
       </template>
     </section>
+    <DozzleSetting />
     <InstalledSpecs v-if="owner" />
   </template>
 </template>

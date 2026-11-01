@@ -27,6 +27,37 @@ describe('session store', () => {
     expect(s.state.devLogin).toBe(true);
   });
 
+  it('signs a public demo visitor in without a form', async () => {
+    const visitor = { id: 'u_v', username: 'visitor', role: 'operator' };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(200, { required: false, public_demo: true }))
+      .mockResolvedValueOnce(json(401, { error: { code: 'unauthenticated', message: 'sign in required' } }))
+      .mockResolvedValueOnce(json(200, { user: visitor }));
+    vi.stubGlobal('fetch', fetchMock);
+    const s = createSession();
+    await s.refresh();
+    expect(fetchMock.mock.calls[2]![0]).toBe('/api/auth/demo');
+    expect(fetchMock.mock.calls[2]![1].method).toBe('POST');
+    expect(s.state.publicDemo).toBe(true);
+    expect(s.state.phase).toBe('ready');
+    expect(s.state.user).toEqual(visitor);
+  });
+
+  it('shows sign-in when a public demo visit is refused', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(json(200, { required: false, public_demo: true }))
+        .mockResolvedValueOnce(json(401, { error: { code: 'unauthenticated', message: 'sign in required' } }))
+        .mockResolvedValueOnce(json(401, { error: { code: 'unauthenticated', message: 'sign in required' } })),
+    );
+    const s = createSession();
+    await s.refresh();
+    expect(s.state.phase).toBe('login');
+  });
+
   it('opens sign-in when there is no session, and the app when there is', async () => {
     const fetchMock = vi
       .fn()

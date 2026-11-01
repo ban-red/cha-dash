@@ -55,6 +55,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerStepUp(mux)
 	s.registerOIDC(mux)
 	s.registerDevLogin(mux)
+	s.registerDemo(mux)
 }
 
 // Require rejects requests without a valid session cookie with 401 and
@@ -179,6 +180,10 @@ func (s *Service) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]any{"required": s.SetupRequired(), "sign_in": s.PublicSignInInfo()}
 	if devLoginBuilt {
 		status["dev_login"] = true
+	}
+	if s.PublicDemo() {
+		// The web app signs visitors in with POST /api/auth/demo.
+		status["public_demo"] = true
 	}
 	httpx.WriteJSON(w, http.StatusOK, status)
 }

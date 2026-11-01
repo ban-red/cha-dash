@@ -36,6 +36,12 @@ export interface SessionState {
    * makes). Only ever true in the Vite dev server; the button is src/dev/.
    */
   devLogin: boolean;
+  /**
+   * The hub is the public demo (`GET /api/setup` → `public_demo`): visitors
+   * are signed in as its operator with `POST /api/auth/demo`, never shown a
+   * sign-in form.
+   */
+  publicDemo: boolean;
   /** Just created the owner: offer to add a passkey before the front page (skippable). */
   offerPasskey: boolean;
   /** Showing a last-known snapshot because the hub can't be reached; the session isn't confirmed yet. */
@@ -101,6 +107,7 @@ export function createSession(opts: SessionOptions = {}) {
     user: undefined,
     error: '',
     devLogin: false,
+    publicDemo: false,
     offerPasskey: false,
     offline: false,
     stepUpMethods: undefined,
@@ -161,8 +168,9 @@ export function createSession(opts: SessionOptions = {}) {
       return;
     }
     try {
-      const setup = await api<{ required: boolean; dev_login?: boolean; sign_in?: unknown }>('/api/setup');
+      const setup = await api<{ required: boolean; dev_login?: boolean; public_demo?: boolean; sign_in?: unknown }>('/api/setup');
       state.devLogin = import.meta.env.DEV && setup?.dev_login === true;
+      state.publicDemo = setup?.public_demo === true;
       noteSignIn(setup?.sign_in);
       if (setup?.required) {
         state.user = undefined;
@@ -173,7 +181,20 @@ export function createSession(opts: SessionOptions = {}) {
       state.user = s.user;
       noteStepUp(s);
       state.phase = 'ready';
-    } catch (err) {
+    } catch (first) {
+      let err = first;
+      if (err instanceof ApiError && err.status === 401 && state.publicDemo) {
+        // The public demo: every visitor is its operator, no form.
+        try {
+          const res = await api<{ user: User }>('/api/auth/demo', { method: 'POST' });
+          state.user = res.user;
+          state.stepUpMethods = [];
+          state.phase = 'ready';
+          return;
+        } catch (visit) {
+          err = visit;
+        }
+      }
       if (err instanceof ApiError && err.status === 401) {
         state.user = undefined;
         state.phase = 'login';
@@ -231,6 +252,8 @@ export function createSession(opts: SessionOptions = {}) {
       } catch {
         /* nothing stored, or storage blocked */
       }
+      // The public demo has no sign-in page: the next visit starts at once.
+      if (state.publicDemo) await refresh();
     }
   }
 

@@ -49,7 +49,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/spec` | The Tier 1 spec engine: YAML specs with gjson extraction and expr-lang expressions; fan-out resources (`each`); actions on param-addressed targets (`actions.go`, an `integration.Actor`); the format's JSON Schema, generated from its types (`schema.go`) |
 | `integrations/<id>` | Tier 0 integrations, one folder each, with a `recipe.md` for the least-privilege credential. Linked in by `cmd/chadash/integrations.go` |
 | `specs` | The bundled Tier 1 specs (`<id>.yaml`), embedded and registered at init |
-| `internal/demo` | Demo mode: runs the Demo Home simulator (`sim/`) and maps it onto the topics; its incident fixes are engine actions (`Driver.Actions`), the only way to run them |
+| `internal/demo` | Demo mode: runs the Demo Home simulator (`sim/`) and maps it onto the topics; its incident fixes are engine actions (`Driver.Actions`), the only way to run them. `Restart` starts the day again at its first moment; the public demo does it every hour (`Options.RestartEvery`, `PublicRestart`) |
 | `internal/topics` | The topic set (`graph`, `metrics`, `inbox`, `causes`; `Backups` is named for wave 27 and not served yet), their document shapes and routing; the cause hints' store (`CauseSet`: the topic, and the paths only `GET /api/causes` returns); the inbox per viewer (`InboxSource`, `InboxView`: approvals only for approvers) and the household's projection of an incident (`ProjectIncident`); the graph per viewer (`GraphSource`) and the household's view of it (`HouseholdGraph`) |
 | `internal/realtime` | WebSocket gateway, protocol v1 (`hello` / `sub` / `snap` / `diff` / `ping`); `GraphSource`, `DocSource`, `Mux`; `ContextSource`, `ViewerDocSource` (items filtered per viewer), `ProjectedDocSource` (items projected per viewer) and `GraphSource.View` (the graph filtered and projected per viewer); `Hub.CloseWhere`, `Options.Recheck` and `MaxLifetime`, which keep open sockets in step with their session |
 | `internal/graph` | Home Graph v0: resources, relations, version, watchers |
@@ -98,6 +98,7 @@ Precedence is flag > env > default. Nothing is required.
 | `--demo` | `CHADASH_DEMO` | off; `1`/`true` runs the Demo Home simulator |
 | `--demo-at` | `CHADASH_DEMO_AT` | `local`: start at 14:05, shown as the hub's local time; a time of day (`HH:MM[:SS]`, UTC) on the demo's day; or `now` for the real clock in UTC |
 | `--demo-seed` | `CHADASH_DEMO_SEED` | `1` |
+| `--demo-public` | `CHADASH_DEMO_PUBLIC` | off; `1`/`true` hosts the demo for anyone (see [The public demo](#the-public-demo)). Refused at start unless demo mode is on, and on a data directory that holds integration instances |
 | `--node-pairing-file` | `CHADASH_NODE_PAIRING_FILE` | none; where the hub writes chadash-node's pairing token (an absolute path in a volume shared with the node). Empty: no node can pair |
 | `--node-pairing-from` | `CHADASH_NODE_PAIRING_FROM` | private, loopback, link-local and CGNAT ranges; comma-separated CIDRs a node may pair from, or `any`. A known node connects from anywhere |
 | `healthcheck --timeout` | — | `3s` |
@@ -120,10 +121,11 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 |---|---|---|
 | `GET /healthz` | none | `200 ok` if both database pools answer within 2 s, else `503`. Reveals nothing else |
 | `GET /metrics` | none, or a bearer token | Only on its own listener, off by default (`CHADASH_METRICS_LISTEN`; `CHADASH_METRICS_TOKEN` adds `Authorization: Bearer`). The Prometheus text format: `chadash_build_info{version}`, `chadash_series_value{resource,metric,unit,source}` for every series with a current value (unknown and stale left out), `chadash_resource_health{resource,kind,source,status}` 1 per resource, `chadash_history_series` and `chadash_history_file_bytes` with history on, and the Go runtime (`chadash_go_goroutines`, `_heap_bytes`, `_memory_bytes`, `_gc_cycles_total`). Sorted, so scrapes are stable. Nothing else is on that listener, never pprof (09 → E9) |
-| `GET /api/setup` | none | `{"required": bool}` |
+| `GET /api/setup` | none | `{"required": bool}`, plus `"public_demo": true` in the public demo, where the web app signs visitors in with `POST /api/auth/demo` |
 | `POST /api/setup` | none (first run only) | `{"username"?,"password"}` → `201 {"user"}` + session cookie. `username` defaults to `admin`. `422` invalid input (setup stays open), `409` already done |
 | `POST /api/auth/login` | none | `{"username","password"}` → `200 {"user"}` + cookie, `401` otherwise |
 | `POST /api/auth/logout` | cookie (optional) | `204`; deletes the session server-side and clears the cookie |
+| `POST /api/auth/demo` | none | The public demo only (404 otherwise): signs the visitor in as its fixed operator, `visitor`, which has no password → `200 {"user"}` + cookie, session method `demo`. A visitor with a live demo session gets it back; new sessions are limited per address (5, then one a minute; `429 rate_limited`). Not audited: signing in changes no setting |
 | `GET /api/auth/session` | session | `{"user","session","step_up_until","step_up_methods"}`. `session.method` is `password`, `passkey`, `oidc` or `forward_auth`; `step_up_until` is RFC 3339 while a step-up grant lasts, else `null`; `step_up_methods` is what this account can step up with here: `["passkey"]`, `["password"]`, `["oidc"]` or `[]` |
 | `POST /api/auth/step-up/begin` | session | No body → `200 {"method":"passkey","publicKey": request options}` (the account's passkeys, user verification required) plus the ceremony cookie, or `{"method":"password"}` under the fallback, or `{"method":"oidc","url","provider"}` for an account with a linked identity and neither passkey nor password (the browser goes to `url`, adding `&return=`). `403 passkey_required` under "passkey only" without a passkey; `409 passkeys_unavailable` when the account's passkeys can't work at this address and the password can't stand in |
 | `GET /api/auth/oidc/start` | none | `?return=/path` signs in; `&link=1` links the provider account to the signed-in user (needs a step-up grant); `&step_up=1` steps up there (`prompt=login`, `max_age=0`; only when the step-up rule offers the provider to the account, else `step_up_unavailable`). Linking and stepping up start only on `Sec-Fetch-Site: same-origin` or `none`, or without that header from a `Referer` on this host (`cross_site`). Writes an `oidc_logins` row (state, nonce, PKCE verifier, return path, 10 minutes), sets `chadash_oidc` (the state, `Path=/api/auth/oidc/callback`, `HttpOnly`, `SameSite=Lax`) and answers `303` to the provider. A return path that isn't a path on this origin becomes `/`. Failures redirect with `?oidc_error=<code>` |
@@ -188,6 +190,8 @@ It's created `0700`; the database, its `-wal` and `-shm`, and the key file are
 | `GET /api/settings/sign-in` | owner | `{"oidc":{"enabled","name","issuer","client_id","scopes","group_claim"},"forward_auth":{"enabled","user_header","groups_header","email_header"},"mappings":[{"group","role"}],"provision","hide_password_form","client_secret_set","redirect_uri","trusted_proxies","last_test","forward_groups"}`. `forward_groups` is `{"header","value","at"}`, the groups header a trusted proxy last sent since the hub started, or `null` |
 | `PUT /api/settings/sign-in` | owner | The settings, plus `"client_secret"?` (stored in the vault; `""` removes it) → `200` the same shape. T3: `403 step_up_required` without a grant. `422 invalid` (an owner mapping, an unknown role, a group twice, provisioning without a mapping, a bad issuer or header). Audited as `settings.sign_in.update`, the secret only as `set` or `cleared` |
 | `GET /api/settings/agents` | owner | `{"enabled":false}`: the Agents switch, off until the owner turns it on. Session only |
+| `GET /api/settings/dozzle` | viewer | `{"url"}`: Dozzle's address, where a container's sheet links its logs (`<url>/container/<container_id>`); `""` when unset. Cha Dash never connects to it |
+| `PUT /api/settings/dozzle` | admin | `{"url"}` → `200` the same: http or https, no user, query or fragment, the trailing slash dropped; `""` turns the links off. `422 invalid` otherwise. Audited as `settings.dozzle.update` with before and after |
 | `PUT /api/settings/agents` | owner | `{"enabled"}` → `200` the same. `422 invalid` without `enabled`. Audited as `settings.agents.update` with the value before and after. Turning it off revokes no token |
 | `POST /api/settings/sign-in/test` | owner | `{}` → `{"ok","error"?,"issuer","authorization_endpoint","token_endpoint","auth_time":"listed"\|"not_listed"\|"unknown","login_url"?}`: discovery on the saved issuer, and with OIDC on, a test sign-in (`prompt=login`, `max_age=0`) that signs nobody in and records what the token carried for `last_test` |
 | `GET /api/users` | admin | `[{"id","username","role","disabled","has_passkey","last_seen_at","role_from_groups"}]`, the owner first. `last_seen_at` is the latest of the user's live sessions, or `null`. `role_from_groups`: a group mapping is set and the account has a linked identity on a method that's on, so its next sign-in through the provider or the proxy sets its role. An admin's `PUT` of the role still applies, and clears it until then |
@@ -288,6 +292,38 @@ no_authz_rule` and an error in the log, and `authz`'s tests fail on it, so
 **a new route needs a row before it answers anyone**. Handlers then only
 attach the session (`auth.Require`, which passes straight through when Guard
 already ran it).
+
+### The public demo
+
+`CHADASH_DEMO_PUBLIC=true` (with `CHADASH_DEMO=true`; the hub refuses it
+alone) hosts the Demo Home for anyone:
+- **Visitors are an operator.** The web app sees `public_demo` in
+  `GET /api/setup` and calls `POST /api/auth/demo`, which signs it in as one
+  fixed account, `visitor` (role `operator`, no password, so it can't sign in
+  any other way). First-run setup stays closed. New sessions are limited per
+  address. Hosting it is in [deploy/README.md](../deploy/README.md#the-public-demo).
+- **One choke point.** `authz.GuardWith(…, GuardOptions{PublicDemo: true})`
+  asks `authz.DemoRefuses` for every request, before any session or token:
+  the node and webhook channels, every admin and owner row, and every unsafe
+  method on a row not marked `PublicDemo` answer `403 demo_read_only` with a
+  sentence (`demo.read_only`). The rows marked `PublicDemo` are signing in and
+  out and the action engine (`TestPublicDemoRoutes` holds the reviewed list).
+  So integrations, imports, specs, nodes and join tokens, API tokens, users,
+  passkeys, step-up, settings, stacks and git sync, notification channels,
+  holds and board edits are all refused, whatever a later role change might
+  allow. Reads below admin stay open.
+- **Actions reach only the simulator.** Demo mode registers only the Demo
+  Home's actions with the engine (instances there write to a private graph,
+  and their actions aren't registered); stacks, updates, installed specs and
+  history aren't started. The operator's tier cap (T2) covers every Demo Home
+  fix, so none needs a step-up the visitor couldn't give.
+- **Every hour the simulated day restarts** at its first moment
+  (`demo.PublicRestart`), so every visitor finds the incidents open.
+- **Tests:** `authz`'s `TestDemoRefusesAcrossTheRouteTable` and
+  `TestPublicDemoRefusesWhatReachesOutside`; `cmd/chadash`'s
+  `TestPublicDemoRouteMatrix` calls every row of the table as a visitor on a
+  real hub, and `TestPublicDemoRefusesWithASentence`,
+  `TestPublicDemoSignsVisitorsIn` and `TestPublicDemoNeedsAnEmptyDataDir`.
 
 **API tokens.** A request with `Authorization: Bearer cdt_…` is
 authenticated by the token alone, only on `/api/`, and only on rows whose

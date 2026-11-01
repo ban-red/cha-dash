@@ -62,7 +62,14 @@ type Options struct {
 	// under, as real instances' are (see SetPosture). Empty publishes the
 	// simulator's own severities.
 	Posture security.Posture
+	// RestartEvery restarts the simulated day at its starting moment this
+	// often (Restart): the public demo's hourly reset, so every visitor
+	// finds the incidents open, whatever the last one fixed. 0: never.
+	RestartEvery time.Duration
 }
+
+// PublicRestart is how often the public demo restarts (CHADASH_DEMO_PUBLIC).
+const PublicRestart = time.Hour
 
 // Driver owns the simulator and keeps the topics in step with it.
 type Driver struct {
@@ -79,6 +86,7 @@ type Driver struct {
 	shown  time.Duration // local mode: what the page adds to the simulated clock
 	label  string        // local mode: the local zone's abbreviation, "MDT"
 	mirror *mirror
+	start0 time.Time // sim0 when the driver started, for Restart
 }
 
 // New builds the simulator at its starting moment and loads it into t. It
@@ -105,7 +113,23 @@ func New(t *topics.Set, opts Options) (*Driver, error) {
 	if err := d.reset(d.simTime(wall)); err != nil {
 		return nil, err
 	}
+	d.start0 = d.sim0
 	return d, nil
+}
+
+// Restart starts the simulated day again at the moment the driver started
+// at (in local mode, shown at the local time now), with every scripted
+// incident as it was then and every fix undone, and publishes it. Tasks
+// still verifying a fix time out against the new day.
+func (d *Driver) Restart() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	wall := d.clock()
+	d.wall0, d.sim0 = wall, d.start0
+	if d.opts.Local && !d.opts.WallClock {
+		d.sim0, d.shown, d.label = localStart(wall, d.opts.Zone, d.opts.At)
+	}
+	return d.reset(d.simTime(wall))
 }
 
 // localStart picks the simulated start for local mode: the moment at time
@@ -199,13 +223,25 @@ func (d *Driver) Now() time.Time {
 func (d *Driver) Run(ctx context.Context) {
 	timer := time.NewTimer(d.untilNextTick())
 	defer timer.Stop()
+	var restart <-chan time.Time
+	if d.opts.RestartEvery > 0 {
+		t := time.NewTicker(d.opts.RestartEvery)
+		defer t.Stop()
+		restart = t.C
+	}
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-restart:
+			if err := d.Restart(); err != nil {
+				d.log.Error("demo: could not restart the simulated day", "err", err)
+			} else {
+				d.log.Info("demo: the simulated day restarted", "sim_time", d.Now().Format(time.RFC3339))
+			}
 		case <-timer.C:
+			d.Step()
 		}
-		d.Step()
 		timer.Reset(d.untilNextTick())
 	}
 }

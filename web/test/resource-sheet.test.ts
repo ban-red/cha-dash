@@ -14,6 +14,7 @@ import InboxSheet from '../src/components/InboxSheet.vue';
 import ResourceSheet from '../src/components/ResourceSheet.vue';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { toPointer } from '../src/lib/jsonpatch';
+import { loadDozzle } from '../src/lib/dozzle';
 import { navigate, resolve, route, sheetOf, sheetPath } from '../src/lib/router';
 import { permissions } from '../src/model/roles';
 import type { GraphDoc, Incident, Resource } from '../src/model/types';
@@ -237,6 +238,21 @@ describe('a container’s sheet', () => {
     expect(p.querySelector<HTMLAnchorElement>('.rs-links a')!.href).toBe('https://sonarr.home.example/');
     expect(p.querySelector('.rs-labels summary')!.textContent).toBe('Labels · 3');
     expect(await axeViolations(p)).toEqual([]);
+  });
+
+  it('links a container to its logs in Dozzle when the hub has its address', async () => {
+    fakeFetch({ 'GET /api/settings/dozzle': { status: 200, body: { url: 'https://logs.home.example' } }, 'GET /api/actions': { status: 200, body: [] } });
+    await loadDozzle(true);
+    const { panel } = await sheetOn(SONARR, home({ [SONARR]: { attrs: { image: 'lscr.io/linuxserver/sonarr:4.0.17', container_id: '3f1a2b3c4d5e' } } }));
+    const link = [...panel()!.querySelectorAll<HTMLAnchorElement>('a.btn')].find((a) => a.textContent?.includes('Dozzle'));
+    expect(link?.href).toBe('https://logs.home.example/container/3f1a2b3c4d5e');
+    expect(link?.target).toBe('_blank');
+    expect(link?.rel).toContain('noopener');
+    // Without an address, no link.
+    fakeFetch({ 'GET /api/settings/dozzle': { status: 200, body: { url: '' } } });
+    await loadDozzle(true);
+    await nextTick();
+    expect([...panel()!.querySelectorAll('a.btn')].some((a) => a.textContent?.includes('Dozzle'))).toBe(false);
   });
 
   it('shows the open problem as one line that opens the Inbox on it', async () => {
