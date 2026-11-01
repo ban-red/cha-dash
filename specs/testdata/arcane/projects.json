@@ -1,0 +1,150 @@
+{
+  "$schema": "https://arcane.home.example/api/schemas/BasePaginatedDetails.json",
+  "success": true,
+  "data": [
+    {
+      "tags": [],
+      "updateInfo": {
+        "status": "has_update",
+        "hasUpdate": true,
+        "imageCount": 2,
+        "checkedImageCount": 2,
+        "imagesWithUpdates": 1,
+        "imagesNotPulled": 0,
+        "errorCount": 0,
+        "imageRefs": ["lscr.io/linuxserver/sonarr:latest", "lscr.io/linuxserver/radarr:latest"],
+        "updatedImageRefs": ["lscr.io/linuxserver/sonarr:latest"],
+        "updateInfoByRef": {
+          "lscr.io/linuxserver/sonarr:latest": {
+            "checkTime": "2026-10-31T22:00:04.118Z",
+            "updateType": "digest",
+            "currentVersion": "latest",
+            "latestVersion": "latest",
+            "currentDigest": "sha256:1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
+            "latestDigest": "sha256:9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0",
+            "error": "",
+            "responseTimeMs": 412,
+            "hasUpdate": true
+          },
+          "lscr.io/linuxserver/radarr:latest": {
+            "checkTime": "2026-10-31T22:00:04.531Z",
+            "updateType": "digest",
+            "currentVersion": "latest",
+            "latestVersion": "latest",
+            "currentDigest": "sha256:2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a",
+            "latestDigest": "sha256:2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a",
+            "error": "",
+            "responseTimeMs": 388,
+            "hasUpdate": false
+          }
+        },
+        "lastCheckedAt": "2026-10-31T22:00:04.531Z"
+      },
+      "status": "running",
+      "dirName": "media",
+      "name": "media",
+      "relativePath": "media",
+      "id": "5b0e8d4a-2f1c-4e7b-9a63-0c1d2e3f4a51",
+      "path": "/app/data/projects/media",
+      "updatedAt": "2026-10-29T18:41:07Z",
+      "createdAt": "2026-08-14T10:02:55Z",
+      "runtimeServices": [
+        {
+          "name": "radarr",
+          "image": "lscr.io/linuxserver/radarr:latest",
+          "status": "running",
+          "containerId": "7c41a9e0d2b35f68e1a4c7d90b3e6f2a15c8d4e7b0a3f6c9e2d5b8a1c4f7e0d3",
+          "containerName": "media-radarr-1",
+          "ports": ["7878:7878/tcp"],
+          "health": "healthy"
+        },
+        {
+          "name": "sonarr",
+          "image": "lscr.io/linuxserver/sonarr:latest",
+          "status": "running",
+          "containerId": "3e9a5c1f7b2d48e60a1c3e5f7b9d2a4c6e8f0b1d3a5c7e9f2b4d6a8c0e1f3a5c",
+          "containerName": "media-sonarr-1",
+          "ports": ["8989:8989/tcp"],
+          "health": "healthy"
+        }
+      ],
+      "runningCount": 2,
+      "serviceCount": 2,
+      "isArchived": false
+    },
+    {
+      "tags": [{ "name": "docs", "color": "blue", "sources": ["ui"] }],
+      "gitOpsManagedBy": "a7d3c2e1-6b5f-4a98-8c07-1e2f3a4b5c6d",
+      "updateInfo": {
+        "status": "up_to_date",
+        "hasUpdate": false,
+        "imageCount": 2,
+        "checkedImageCount": 2,
+        "imagesWithUpdates": 0,
+        "imagesNotPulled": 0,
+        "errorCount": 0,
+        "imageRefs": ["ghcr.io/paperless-ngx/paperless-ngx:2.18", "redis:8"],
+        "lastCheckedAt": "2026-10-31T22:00:05.002Z"
+      },
+      "status": "partially running",
+      "dirName": "paperless",
+      "name": "paperless",
+      "relativePath": "paperless",
+      "id": "5b0e8d4a-2f1c-4e7b-9a63-0c1d2e3f4a52",
+      "path": "/app/data/projects/paperless",
+      "updatedAt": "2026-10-31T07:15:22Z",
+      "createdAt": "2026-09-02T16:30:11Z",
+      "runtimeServices": [
+        {
+          "name": "broker",
+          "image": "redis:8",
+          "status": "exited",
+          "containerId": "b2d4f6a8c0e1f3a5c7e9b1d3f5a7c9e0b2d4f6a8c0e1f3a5c7e9b1d3f5a7c9e0",
+          "containerName": "paperless-broker-1"
+        },
+        {
+          "name": "webserver",
+          "image": "ghcr.io/paperless-ngx/paperless-ngx:2.18",
+          "status": "running",
+          "containerId": "c3e5a7b9d1f2a4c6e8b0d2f4a6c8e0b1d3f5a7c9e1b3d5f7a9c0e2b4d6f8a0c1",
+          "containerName": "paperless-webserver-1",
+          "ports": ["8000:8000/tcp"],
+          "health": "unhealthy"
+        }
+      ],
+      "runningCount": 1,
+      "serviceCount": 2,
+      "isArchived": false
+    },
+    {
+      "tags": [],
+      "updateInfo": {
+        "status": "unknown",
+        "hasUpdate": false,
+        "imageCount": 1,
+        "checkedImageCount": 0,
+        "imagesWithUpdates": 0,
+        "imagesNotPulled": 0,
+        "errorCount": 0,
+        "imageRefs": ["nginx:1.29"]
+      },
+      "status": "stopped",
+      "dirName": "sandbox",
+      "name": "sandbox",
+      "relativePath": "sandbox",
+      "id": "5b0e8d4a-2f1c-4e7b-9a63-0c1d2e3f4a53",
+      "path": "/app/data/projects/sandbox",
+      "updatedAt": "2026-10-12T11:04:39Z",
+      "createdAt": "2026-10-12T11:02:17Z",
+      "runningCount": 0,
+      "serviceCount": 1,
+      "isArchived": false
+    }
+  ],
+  "pagination": {
+    "totalPages": 1,
+    "totalItems": 3,
+    "currentPage": 1,
+    "itemsPerPage": 50
+  }
+}

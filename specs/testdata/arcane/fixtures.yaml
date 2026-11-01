@@ -1,0 +1,7 @@
+# The answers chadash spec test serves for arcane.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/arcane.yaml specs/testdata/arcane
+config: { environment: "0" }
+secrets: { api_key: arc_0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0 }
+answers:
+  version: app-version.json
+  projects: projects.json

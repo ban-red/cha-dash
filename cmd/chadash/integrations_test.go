@@ -31,7 +31,7 @@ func TestIntegrationsLinkedIn(t *testing.T) {
 		// Graph v2 (v0.3)
 		"caddy", "npm",
 		// Reach (v0.4): bundled specs
-		"beszel", "komodo", "gatus",
+		"beszel", "komodo", "gatus", "arcane", "dockhand",
 	} {
 		if _, _, ok := integration.Default.Get(id); !ok {
 			t.Errorf("%s isn't registered in the hub", id)

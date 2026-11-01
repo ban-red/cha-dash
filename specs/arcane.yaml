@@ -1,0 +1,97 @@
+# Arcane: the compose projects (stacks) it manages, and their state. Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# test: arcane_test.go, against testdata/arcane/ (synthetic, from Arcane
+# v2.17.2's source). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: arcane
+  name: Arcane
+  icon: arcane
+  version: 0.1.0
+  tier: bronze
+  category: automation
+  capabilities: [stacks.list]
+
+config:
+  api_key: { type: secret, title: API key, required: true, description: "An API key from Settings → API Keys in Arcane (it starts arc_)" }
+  # "0" is the environment Arcane runs in; remote ones (agents) have a UUID.
+  environment: { type: string, title: Environment ID, required: true, default: "0", pattern: '^[A-Za-z0-9-]{1,64}$', description: "0 is Arcane's own Docker host; a remote environment's ID is in its URL in Arcane" }
+
+source:
+  headers:
+    X-API-Key: "{{ secret.api_key }}"
+  timeout: 15s
+
+every: 60s
+
+requests:
+  # Public: Arcane's own about box. Optional, so a proxy that hides it
+  # doesn't stop the stacks.
+  version:
+    path: /api/app-version
+    optional: true
+    extract:
+      version: currentVersion
+  # Paginated; archived projects are left out by default. totalItems counts
+  # them all, data holds the first 50 by name.
+  projects:
+    path: /api/environments/{{ config.environment }}/projects
+    query: { start: "0", limit: "50", sort: "name", order: "asc" }
+    extract:
+      list: data
+      total: pagination.totalItems
+
+version: version.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: |
+      len(filter(projects.list ?? [], {.status == "partially running" || any(.runtimeServices ?? [], {.health == "unhealthy"})})) > 0 ? "attention" : "ok"
+    reason: |
+      join(map(filter(projects.list ?? [], {.status == "partially running" || any(.runtimeServices ?? [], {.health == "unhealthy"})}),
+        {.name + (any(.runtimeServices ?? [], {.health == "unhealthy"}) ? " is unhealthy" : " is partly running")}), ", ")
+    attrs:
+      type: '"arcane"'
+      version: version.version
+      environment: config.environment
+    caps: [stacks.list]
+    links:
+      - { title: Arcane, url: config.url }
+
+  # One per project, the first 50, keyed by Arcane's ID (stable across renames).
+  - id: stack
+    each: projects.list
+    key: item.id
+    part_of: app
+    kind: stack
+    name: item.name
+    # Arcane's statuses: running, partially running, stopped, unknown, and
+    # deploying, stopping, restarting while it acts.
+    state: 'item.status == "partially running" ? "partial" : (item.status ?? "unknown")'
+    health: |
+      any(item.runtimeServices ?? [], {.health == "unhealthy"}) || item.status == "partially running" ? "attention" :
+        ((item.status ?? "unknown") == "unknown" ? "unknown" : "ok")
+    reason: |
+      any(item.runtimeServices ?? [], {.health == "unhealthy"}) ?
+        join(map(filter(item.runtimeServices, {.health == "unhealthy"}), {.name}), ", ") + " is unhealthy" :
+        (item.status == "partially running" ? string(item.runningCount) + " of " + string(item.serviceCount) + " services are running" : "")
+    attrs:
+      type: '"arcane.project"'
+      project: item.name
+      services: 'map(item.runtimeServices ?? [], {.name})'
+      running: item.runningCount
+      service_count: item.serviceCount
+      update_available: 'item.updateInfo?.hasUpdate ?? false'
+      # Run by one of Arcane's GitOps syncs.
+      gitops: 'item.gitOpsManagedBy != nil'
+      tags: 'map(item.tags ?? [], {.name})'
+
+metrics:
+  - { resource: app, key: stacks, value: 'projects.total == nil ? nil : float(projects.total)', unit: count, max: 500, band: [0, 500] }
+  - { resource: app, key: stacks.running, value: 'projects.list == nil ? nil : float(len(filter(projects.list, {.status == "running"})))', unit: count, max: 500, band: [0, 500] }
+  - { resource: app, key: updates, value: 'projects.list == nil ? nil : float(len(filter(projects.list, {.updateInfo?.hasUpdate ?? false})))', unit: count, max: 500, band: [0, 0], warn: 1 }

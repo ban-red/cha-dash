@@ -1,0 +1,93 @@
+# Dockhand: the compose stacks on one of its environments, and their state.
+# Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# test: dockhand_test.go, against testdata/dockhand/ (synthetic, from
+# Dockhand v1.0.56's source). Notes in README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: dockhand
+  name: Dockhand
+  icon: dockhand
+  version: 0.1.0
+  tier: bronze
+  category: automation
+  capabilities: [stacks.list]
+
+config:
+  # Only needed with Dockhand's authentication on: without it, its API
+  # answers anyone, and ignores the header.
+  token: { type: secret, title: API token, description: "From Profile → API tokens in Dockhand (it starts dh_); leave empty if Dockhand's authentication is off" }
+  environment: { type: string, title: Environment ID, required: true, default: "1", pattern: '^[1-9][0-9]{0,8}$', description: "The number in Settings → Environments; 1 is the first one Dockhand made" }
+
+# Dockhand reads a bearer token only when it starts dh_, so an empty one is
+# the same as none.
+source:
+  headers:
+    Authorization: "Bearer {{ secret.token }}"
+  timeout: 15s
+
+every: 60s
+
+requests:
+  # Every compose stack on the environment, with its containers. An array at
+  # the top level. Dockhand answers [] when it can't reach the environment's
+  # Docker, so an offline host looks empty rather than failing.
+  stacks:
+    path: /api/stacks
+    query: { env: "{{ config.environment }}" }
+    extract:
+      list: "@this"
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: 'len(filter(stacks.list ?? [], {.health == "unhealthy" || .status in ["partial", "restarting"]})) > 0 ? "attention" : "ok"'
+    reason: |
+      join(map(filter(stacks.list ?? [], {.health == "unhealthy" || .status in ["partial", "restarting"]}),
+        {.name + (.health == "unhealthy" ? " is unhealthy" : (.status == "restarting" ? " is restarting" : " is partly running"))}), ", ")
+    attrs:
+      type: '"dockhand"'
+      environment: config.environment
+    caps: [stacks.list]
+    links:
+      - { title: Dockhand, url: config.url }
+
+  # One per stack, the first 50, keyed by its compose project name (Dockhand
+  # has no other ID for a stack).
+  - id: stack
+    each: stacks.list
+    key: item.name
+    part_of: app
+    kind: stack
+    name: item.name
+    # Dockhand's statuses: running, partial, restarting (every live
+    # container is in a restart loop), stopped, and created (defined in
+    # Dockhand, never started). Containers that exited 0 don't count.
+    state: item.status ?? "unknown"
+    health: |
+      item.health == "unhealthy" || item.status in ["partial", "restarting"] ? "attention" :
+        (item.status in ["running", "stopped", "created"] ? "ok" : "unknown")
+    reason: |
+      item.health == "unhealthy" ?
+        join(map(filter(item.containerDetails ?? [], {.health == "unhealthy" && .state in ["running", "restarting", "paused"]}), {.service}), ", ") + " is unhealthy" :
+        (item.status == "partial" ? join(map(filter(item.containerDetails ?? [], {.state != "running" && !(.state == "exited" && .exitCode == 0)}), {.service + " isn't running (" + .state + ")"}), ", ") :
+          (item.status == "restarting" ? "Its containers are restarting" : ""))
+    attrs:
+      type: '"dockhand.stack"'
+      project: item.name
+      services: 'map(item.containerDetails ?? [], {.service})'
+      # healthy, unhealthy, starting, or none (no container has a health check).
+      stack_health: 'item.health'
+      update_available: 'item.updatesAvailable ?? false'
+      updates: 'item.updateCount'
+      # internal (written in Dockhand), git, or external (adopted).
+      source: 'item.sourceType'
+
+metrics:
+  - { resource: app, key: stacks, value: 'stacks.list == nil ? nil : float(len(stacks.list))', unit: count, max: 500, band: [0, 500] }
+  - { resource: app, key: stacks.running, value: 'stacks.list == nil ? nil : float(len(filter(stacks.list, {.status == "running"})))', unit: count, max: 500, band: [0, 500] }
+  - { resource: app, key: updates, value: 'stacks.list == nil ? nil : float(len(filter(stacks.list, {.updatesAvailable ?? false})))', unit: count, max: 500, band: [0, 0], warn: 1 }

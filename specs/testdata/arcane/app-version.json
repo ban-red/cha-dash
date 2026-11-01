@@ -1,0 +1,17 @@
+{
+  "$schema": "https://arcane.home.example/api/schemas/VersionInfo.json",
+  "currentVersion": "2.17.2",
+  "currentTag": "v2.17.2",
+  "currentDigest": "sha256:4e1f0a9c7b2d3e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7",
+  "revision": "0f3a9c1e2b4d5f60718293a4b5c6d7e8f90a1b2c",
+  "shortRevision": "0f3a9c1",
+  "goVersion": "go1.26.2",
+  "nodeVersion": "24.11.0",
+  "svelteKitVersion": "2.48.4",
+  "buildTime": "2026-10-28T09:12:44Z",
+  "displayVersion": "v2.17.2",
+  "newestDigest": "sha256:4e1f0a9c7b2d3e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7",
+  "enabledFeatures": ["apns"],
+  "isSemverVersion": true,
+  "updateAvailable": false
+}

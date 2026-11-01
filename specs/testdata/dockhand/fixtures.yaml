@@ -1,0 +1,6 @@
+# The answers chadash spec test serves for dockhand.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/dockhand.yaml specs/testdata/dockhand
+config: { environment: "1" }
+secrets: { token: dh_fAkE0123456789abcdefghijklmnopqrstuvwxyzAB }
+answers:
+  stacks: stacks.json

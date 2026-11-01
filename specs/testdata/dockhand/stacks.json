@@ -1,0 +1,202 @@
+[
+  {
+    "name": "media",
+    "containers": [
+      "4d2f6b8a0c1e3f5a7b9d1c3e5f7a9b0d2c4e6f8a1b3d5c7e9f0a2b4d6c8e1f3a",
+      "5e3a7c9b1d2f4a6c8e0b2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c5e7b9d0f2a4c"
+    ],
+    "containerDetails": [
+      {
+        "id": "4d2f6b8a0c1e3f5a7b9d1c3e5f7a9b0d2c4e6f8a1b3d5c7e9f0a2b4d6c8e1f3a",
+        "name": "media-radarr-1",
+        "service": "radarr",
+        "state": "running",
+        "status": "Up 3 days (healthy)",
+        "health": "healthy",
+        "image": "lscr.io/linuxserver/radarr:latest",
+        "ports": [{ "publicPort": 7878, "privatePort": 7878, "type": "tcp", "display": "7878:7878/tcp" }],
+        "networks": [{ "name": "media_default", "ipAddress": "10.107.10.3" }],
+        "volumeCount": 2,
+        "restartCount": 0,
+        "created": 1761672102,
+        "labels": {
+          "com.docker.compose.project": "media",
+          "com.docker.compose.service": "radarr",
+          "com.docker.compose.container-number": "1"
+        },
+        "updateAvailable": false,
+        "pinnedToDigest": false,
+        "coolingDown": false,
+        "newerVersion": null
+      },
+      {
+        "id": "5e3a7c9b1d2f4a6c8e0b2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c5e7b9d0f2a4c",
+        "name": "media-sonarr-1",
+        "service": "sonarr",
+        "state": "running",
+        "status": "Up 3 days (healthy)",
+        "health": "healthy",
+        "image": "lscr.io/linuxserver/sonarr:latest",
+        "ports": [{ "publicPort": 8989, "privatePort": 8989, "type": "tcp", "display": "8989:8989/tcp" }],
+        "networks": [{ "name": "media_default", "ipAddress": "10.107.10.2" }],
+        "volumeCount": 2,
+        "restartCount": 0,
+        "created": 1761672101,
+        "labels": {
+          "com.docker.compose.project": "media",
+          "com.docker.compose.service": "sonarr",
+          "com.docker.compose.container-number": "1"
+        },
+        "updateAvailable": true,
+        "pinnedToDigest": false,
+        "coolingDown": false,
+        "newerVersion": null
+      }
+    ],
+    "labelTags": [],
+    "updatesAvailable": true,
+    "updateCount": 1,
+    "newerVersionCount": 0,
+    "coolingDownCount": 0,
+    "pinnedDigestCount": 0,
+    "status": "running",
+    "health": "healthy",
+    "sourceType": "internal",
+    "icon": null
+  },
+  {
+    "name": "paperless",
+    "containers": [
+      "6f4b8d0c2e3a5b7d9f1c3e5a7b9d0f2c4e6a8b1d3f5c7e9a0b2d4f6c8e1a3b5d",
+      "7a5c9e1d3f4b6c8e0a2d4f6b8c0e2a4d6f8b0c2e4a6d8f0b1c3e5a7d9f2b4c6e"
+    ],
+    "containerDetails": [
+      {
+        "id": "6f4b8d0c2e3a5b7d9f1c3e5a7b9d0f2c4e6a8b1d3f5c7e9a0b2d4f6c8e1a3b5d",
+        "name": "paperless-broker-1",
+        "service": "broker",
+        "state": "running",
+        "status": "Up 2 hours",
+        "image": "redis:8",
+        "ports": [],
+        "networks": [{ "name": "paperless_default", "ipAddress": "10.107.11.2" }],
+        "volumeCount": 1,
+        "restartCount": 0,
+        "created": 1761921003,
+        "labels": {
+          "com.docker.compose.project": "paperless",
+          "com.docker.compose.service": "broker",
+          "com.docker.compose.container-number": "1"
+        },
+        "updateAvailable": false,
+        "pinnedToDigest": false,
+        "coolingDown": false,
+        "newerVersion": null
+      },
+      {
+        "id": "7a5c9e1d3f4b6c8e0a2d4f6b8c0e2a4d6f8b0c2e4a6d8f0b1c3e5a7d9f2b4c6e",
+        "name": "paperless-webserver-1",
+        "service": "webserver",
+        "state": "running",
+        "status": "Up 2 hours (unhealthy)",
+        "health": "unhealthy",
+        "image": "ghcr.io/paperless-ngx/paperless-ngx:2.18",
+        "ports": [{ "publicPort": 8000, "privatePort": 8000, "type": "tcp", "display": "8000:8000/tcp" }],
+        "networks": [{ "name": "paperless_default", "ipAddress": "10.107.11.3" }],
+        "volumeCount": 4,
+        "restartCount": 0,
+        "created": 1761921004,
+        "labels": {
+          "com.docker.compose.project": "paperless",
+          "com.docker.compose.service": "webserver",
+          "com.docker.compose.container-number": "1",
+          "dockhand.tags": "docs"
+        },
+        "updateAvailable": false,
+        "pinnedToDigest": false,
+        "coolingDown": false,
+        "newerVersion": null
+      }
+    ],
+    "labelTags": [{ "name": "docs" }],
+    "updatesAvailable": false,
+    "updateCount": 0,
+    "newerVersionCount": 0,
+    "coolingDownCount": 0,
+    "pinnedDigestCount": 0,
+    "status": "running",
+    "health": "unhealthy",
+    "sourceType": "git",
+    "icon": null
+  },
+  {
+    "name": "photos",
+    "containers": [
+      "8b6d0f2e4a5c7d9f1b3e5a7c9d1f3b5e7a9c0e2f4b6d8a1c3e5f7b9d0a2c4e6f",
+      "9c7e1a3f5b6d8e0a2c4f6b8d0e2a4c6f8b0d2e4a6c8f0a1b3d5e7c9f1a3b5d7e"
+    ],
+    "containerDetails": [
+      {
+        "id": "8b6d0f2e4a5c7d9f1b3e5a7c9d1f3b5e7a9c0e2f4b6d8a1c3e5f7b9d0a2c4e6f",
+        "name": "photos-ml-1",
+        "service": "ml",
+        "state": "exited",
+        "status": "Exited (137) 40 minutes ago",
+        "image": "ghcr.io/immich-app/immich-machine-learning:v2",
+        "ports": [],
+        "networks": [{ "name": "photos_default", "ipAddress": "" }],
+        "volumeCount": 1,
+        "restartCount": 0,
+        "exitCode": 137,
+        "created": 1761400220,
+        "labels": {
+          "com.docker.compose.project": "photos",
+          "com.docker.compose.service": "ml",
+          "com.docker.compose.container-number": "1"
+        },
+        "updateAvailable": false,
+        "pinnedToDigest": false,
+        "coolingDown": false,
+        "newerVersion": null
+      },
+      {
+        "id": "9c7e1a3f5b6d8e0a2c4f6b8d0e2a4c6f8b0d2e4a6c8f0a1b3d5e7c9f1a3b5d7e",
+        "name": "photos-server-1",
+        "service": "server",
+        "state": "running",
+        "status": "Up 6 days",
+        "image": "ghcr.io/immich-app/immich-server:v2",
+        "ports": [{ "publicPort": 2283, "privatePort": 2283, "type": "tcp", "display": "2283:2283/tcp" }],
+        "networks": [{ "name": "photos_default", "ipAddress": "10.107.12.2" }],
+        "volumeCount": 2,
+        "restartCount": 0,
+        "created": 1761400219,
+        "labels": {
+          "com.docker.compose.project": "photos",
+          "com.docker.compose.service": "server",
+          "com.docker.compose.container-number": "1"
+        },
+        "updateAvailable": false,
+        "pinnedToDigest": false,
+        "coolingDown": false,
+        "newerVersion": null
+      }
+    ],
+    "labelTags": [],
+    "updatesAvailable": false,
+    "updateCount": 0,
+    "newerVersionCount": 0,
+    "coolingDownCount": 0,
+    "pinnedDigestCount": 0,
+    "status": "partial",
+    "health": "none"
+  },
+  {
+    "name": "sandbox",
+    "containers": [],
+    "containerDetails": [],
+    "status": "created",
+    "sourceType": "internal",
+    "icon": null
+  }
+]
