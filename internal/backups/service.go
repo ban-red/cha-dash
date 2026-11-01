@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"maps"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/topics"
@@ -94,6 +96,10 @@ func (s *Service) Run(ctx context.Context) {
 	gn := make(chan struct{}, 1)
 	gw := s.o.Topics.Graph.Watch(nil, gn, 0)
 	defer gw.Close()
+	// The inbox too: a datastore's problem opening or ending changes hints.
+	in := make(chan struct{}, 1)
+	iw := s.o.Topics.Inbox.Watch(in, 0)
+	defer iw.Close()
 	tick := time.NewTicker(s.o.Every)
 	defer tick.Stop()
 	for {
@@ -104,6 +110,7 @@ func (s *Service) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-gn:
+		case <-in:
 		case <-tick.C:
 		}
 		t := time.NewTimer(s.o.Debounce)
@@ -115,6 +122,9 @@ func (s *Service) Run(ctx context.Context) {
 		}
 		if _, _, err := gw.Drain(); err != nil {
 			gw.Snapshot()
+		}
+		if _, _, err := iw.Drain(); err != nil {
+			iw.Snapshot()
 		}
 	}
 }
@@ -128,7 +138,7 @@ func (s *Service) Sync() error {
 	for id, ob := range s.objectives {
 		over[id] = time.Duration(ob.MaxAgeMS) * time.Millisecond
 	}
-	items := Compute(doc, over, s.o.Now())
+	items := ComputeWith(doc, over, s.o.Now(), s.openIncidents())
 	_, err := s.o.Topics.Backups.Update(func(tx *livedoc.Tx) error {
 		for id := range s.items {
 			if _, ok := items[id]; !ok {
@@ -145,6 +155,23 @@ func (s *Service) Sync() error {
 	}
 	s.items = items
 	return nil
+}
+
+// openIncidents reads the inbox's incidents, for the hints.
+func (s *Service) openIncidents() map[string]integration.Incident {
+	if s.o.Topics.Inbox == nil {
+		return nil
+	}
+	_, snap := s.o.Topics.Inbox.Snapshot()
+	raw, _ := snap[topics.Incidents].(map[string]json.RawMessage)
+	out := make(map[string]integration.Incident, len(raw))
+	for id, b := range raw {
+		var inc integration.Incident
+		if json.Unmarshal(b, &inc) == nil && inc.Status == integration.StatusOpen {
+			out[id] = inc
+		}
+	}
+	return out
 }
 
 // Item returns one resource's place on the map.

@@ -5,7 +5,57 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/integration"
 )
+
+// An open problem on the datastore a stale guest's backups land on is the
+// hint, ahead of the job's failed run; a hint (info) or a security finding
+// isn't, nor is one that's resolved; with none on the datastore, an open
+// problem on the job is.
+func TestStaleHintFromAnIncident(t *testing.T) {
+	l := baseLab()
+	l.doc.Resources[guest].Attrs["backup.last_ok"] = now.Add(-40 * time.Hour)
+	l.doc.Resources[daily].Attrs["last_ok"] = now.Add(-40 * time.Hour)
+	l.doc.Resources[daily].Attrs["last_run.status"] = "failed"
+	inc := func(target, sev, status string) integration.Incident {
+		return integration.Incident{Class: integration.ClassProblem, Severity: sev, Status: status, Target: target,
+			Title: "PBS datastore main is filling up.", OpenedAt: now.Add(-2 * time.Hour)}
+	}
+	incidents := map[string]integration.Incident{
+		"i_pbs.filling.main": inc(dstore, integration.SeverityAttention, integration.StatusOpen),
+	}
+	g := ComputeWith(l.doc, nil, now, incidents)[guest]
+	if g.Cause == nil || g.Cause.Resource != dstore || g.Cause.Incident != "i_pbs.filling.main" || g.Cause.Message != "backups.cause_target_incident" ||
+		g.Cause.Text != "Its backups go to main, which has a problem: PBS datastore main is filling up." {
+		t.Fatalf("datastore incident: %+v", g.Cause)
+	}
+	// The container on that guest inherits the hint with its coverage.
+	if c := ComputeWith(l.doc, nil, now, incidents)[ctr]; c.Cause == nil || c.Cause.Incident != "i_pbs.filling.main" {
+		t.Fatalf("container: %+v", c.Cause)
+	}
+	// Advice, a security finding and a resolved problem explain nothing.
+	hint := inc(dstore, integration.SeverityInfo, integration.StatusOpen)
+	sec := inc(dstore, integration.SeverityAttention, integration.StatusOpen)
+	sec.Category = integration.CategorySecurity
+	gone := inc(dstore, integration.SeverityDown, integration.StatusResolved)
+	for name, i := range map[string]integration.Incident{"hint": hint, "security": sec, "resolved": gone} {
+		if g := ComputeWith(l.doc, nil, now, map[string]integration.Incident{"x": i})[guest]; g.Cause != nil && g.Cause.Incident != "" {
+			t.Fatalf("%s named: %+v", name, g.Cause)
+		}
+	}
+	// The job's own open problem, when the datastore has none and the run
+	// gave no error.
+	job := inc(daily, integration.SeverityAttention, integration.StatusOpen)
+	job.Title = "Backups on pve01 failed"
+	if g := ComputeWith(l.doc, nil, now, map[string]integration.Incident{"i_pve.backup.daily": job})[guest]; g.Cause == nil ||
+		g.Cause.Text != "daily has a problem: Backups on pve01 failed." || g.Cause.Resource != daily {
+		t.Fatalf("job incident: %+v", g.Cause)
+	}
+	// Fresh backups get no hint, whatever the inbox says.
+	if g := ComputeWith(baseLab().doc, nil, now, incidents)[guest]; g.Cause != nil {
+		t.Fatalf("fresh: %+v", g.Cause)
+	}
+}
 
 var now = time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
 

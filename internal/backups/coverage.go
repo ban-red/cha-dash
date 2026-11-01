@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/graph"
+	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/msg"
 )
 
@@ -70,6 +71,9 @@ type Hint struct {
 	Resource string         `json:"resource"`
 	Message  string         `json:"message"`
 	Args     map[string]any `json:"args,omitempty"`
+	// Incident is the open problem the hint names, when it names one: the
+	// datastore's ("mars is 95% full") or the job's.
+	Incident string `json:"incident,omitempty"`
 }
 
 // Item is one protectable resource on the coverage map: the backups
@@ -104,7 +108,16 @@ type Item struct {
 // (overrides by resource ID, else the covering schedule's). A pure
 // function of its inputs.
 func Compute(doc graph.Doc, overrides map[string]time.Duration, now time.Time) map[string]Item {
+	return ComputeWith(doc, overrides, now, nil)
+}
+
+// ComputeWith is Compute with the inbox's incidents: an open problem on
+// where a stale resource's backups land, or on the job that makes them,
+// is named as the hint ("stale because PBS's datastore is full"). Hints
+// (info), security findings and anything but an open problem never are.
+func ComputeWith(doc graph.Doc, overrides map[string]time.Duration, now time.Time, incidents map[string]integration.Incident) map[string]Item {
 	h := newHome(doc)
+	h.problems = problemsOf(h, incidents)
 	out := map[string]Item{}
 	var containers []*graph.Resource
 	for _, id := range slices.Sorted(maps.Keys(doc.Resources)) {
@@ -138,6 +151,36 @@ type home struct {
 	primary map[graph.RID]graph.RID
 	members map[graph.RID][]graph.RID
 	out     map[graph.RID][]*graph.Relation
+	// problems are the open problems by their target's primary, oldest
+	// first.
+	problems map[graph.RID][]problem
+}
+
+// problem is an open problem incident a hint can name.
+type problem struct {
+	id     string
+	title  string
+	opened time.Time
+}
+
+// problemsOf keeps the open problems that can explain something: not a
+// hint (info, advice rather than a fault, as the cause engine has it), not
+// a security finding.
+func problemsOf(h *home, incidents map[string]integration.Incident) map[graph.RID][]problem {
+	out := map[graph.RID][]problem{}
+	for _, id := range slices.Sorted(maps.Keys(incidents)) {
+		inc := incidents[id]
+		if inc.Status != integration.StatusOpen || inc.Class != integration.ClassProblem || inc.Category == integration.CategorySecurity ||
+			inc.Severity == integration.SeverityInfo || inc.Target == "" || inc.Title == "" {
+			continue
+		}
+		t := h.canon(graph.RID(inc.Target))
+		out[t] = append(out[t], problem{id: id, title: strings.TrimSuffix(inc.Title, "."), opened: inc.OpenedAt})
+	}
+	for t := range out {
+		slices.SortStableFunc(out[t], func(a, b problem) int { return a.opened.Compare(b.opened) })
+	}
+	return out
 }
 
 func newHome(doc graph.Doc) *home {
@@ -373,10 +416,20 @@ func (h *home) judge(it *Item, overrides map[string]time.Duration, now time.Time
 	}
 }
 
-// hint says why backups are stale, conservatively: a datastore they land
-// on that isn't ok itself, else a covering job whose last run failed with
-// a reason. Nothing that is fine is blamed.
+// hint says why backups are stale, conservatively: an open problem on a
+// datastore they land on, else one that isn't ok itself, else a covering
+// job whose last run failed with a reason, else an open problem on that
+// job. Nothing that is fine is blamed.
 func (h *home) hint(cs []Cover) *Hint {
+	for _, c := range cs {
+		if c.Target == "" {
+			continue
+		}
+		if ps := h.problems[h.canon(graph.RID(c.Target))]; len(ps) > 0 {
+			m := msg.New("backups.cause_target_incident", "target", c.TargetName, "problem", ps[0].title)
+			return &Hint{Text: m.Text(), Resource: c.Target, Message: m.ID, Args: m.Args, Incident: ps[0].id}
+		}
+	}
 	for _, c := range cs {
 		if c.Target == "" {
 			continue
@@ -398,6 +451,12 @@ func (h *home) hint(cs []Cover) *Hint {
 		if c.LastStatus == "failed" && c.LastError != "" {
 			m := msg.New("backups.cause_failed", "job", c.Name, "error", c.LastError)
 			return &Hint{Text: m.Text(), Resource: c.ID, Message: m.ID, Args: m.Args}
+		}
+	}
+	for _, c := range cs {
+		if ps := h.problems[h.canon(graph.RID(c.ID))]; len(ps) > 0 {
+			m := msg.New("backups.cause_job_incident", "job", c.Name, "problem", ps[0].title)
+			return &Hint{Text: m.Text(), Resource: c.ID, Message: m.ID, Args: m.Args, Incident: ps[0].id}
 		}
 	}
 	return nil

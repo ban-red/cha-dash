@@ -13,9 +13,11 @@ func init() {
 		"backups.state_unread":    "Cha Dash can't read the backup jobs that would cover it.",
 		"backups.through":         "Through {guest}'s backup.",
 		// Why it's stale, when something on the way isn't ok.
-		"backups.cause_target":      "Its backups go to {target}, which isn't ok: {reason}.",
-		"backups.cause_target_down": "Its backups go to {target}, which isn't ok.",
-		"backups.cause_failed":      "{job}'s last run failed: {error}",
+		"backups.cause_target":          "Its backups go to {target}, which isn't ok: {reason}.",
+		"backups.cause_target_down":     "Its backups go to {target}, which isn't ok.",
+		"backups.cause_failed":          "{job}'s last run failed: {error}",
+		"backups.cause_target_incident": "Its backups go to {target}, which has a problem: {problem}.",
+		"backups.cause_job_incident":    "{job} has a problem: {problem}.",
 		// The objectives' API.
 		"backups.objective_range":   "An objective is between one hour and 366 days (max_age_ms).",
 		"backups.not_protectable":   "That resource isn't on the backup coverage map.",
