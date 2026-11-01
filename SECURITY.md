@@ -69,7 +69,9 @@ These are tracked as requirements in [docs/plan/03-architecture.md](docs/plan/03
   - Icons are served with the checked type, `nosniff`, a private cache and `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`, behind the session. The web shows them only in `<img>`, where scripts never run. Demo mode fetches nothing.
 - Releases will be signed and ship with an SBOM.
 
-A full threat model will be published here before v1.0.
+## Threat model
+
+[docs/threat-model.md](docs/threat-model.md) lists what Cha Dash protects, its trust boundaries, the threats at each one and the mitigations in code, what's out of scope, and the known gaps. It covers agents, MCP and prompt injection. An external review is planned before 1.0.
 
 ## Test data
 
