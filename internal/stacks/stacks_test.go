@@ -623,7 +623,9 @@ func TestDeployKeepsHeldServices(t *testing.T) {
 		t.Fatalf("deploy: %+v", task.Error)
 	}
 	running := h.docker.Running("media")
-	if running["web"] != "nginx:1.28" || running["db"] != stackstest.Digest("postgres:17") {
+	// Kept on 17's digest, with its tag beside it (the node's heldRef).
+	_, sum, _ := strings.Cut(stackstest.Digest("postgres:17"), "@")
+	if running["web"] != "nginx:1.28" || running["db"] != "postgres:17@"+sum {
 		t.Fatalf("running %v: db should stay on 17", running)
 	}
 	if len(asked) == 0 || !strings.HasPrefix(asked[0], "media@local") {
