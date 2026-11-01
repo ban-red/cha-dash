@@ -232,6 +232,22 @@ describe('the lens', () => {
     expect(await axeViolations(l.dlg())).toEqual([]);
   });
 
+  it('says "because" only for what isn’t fine, as the bar does', async () => {
+    // A hint on an ok node (a backup job with an open problem): none in the list.
+    const okHint: CauseHint = { ...hint, args: { what: 'Something else.' } };
+    const okId = buildAtlas(docs(withIncidents).graph, { layers: DEFAULT_LAYERS }).order.find(
+      (id) => id.startsWith('app:') && buildAtlas(docs(withIncidents).graph, { layers: DEFAULT_LAYERS }).nodes.get(id)!.health === 'ok',
+    )!;
+    navigate('/?atlas=1');
+    const h = harness({ ...docs(withIncidents), causes: { causes: { 'app:sonarr': [hint], [okId]: [okHint] } } });
+    await flushPromises();
+    h.mountIn(AtlasLens);
+    await flushPromises();
+    const item = (id: string) => document.querySelector(`.atlas-list [data-id="${id}"]`)!.textContent!;
+    expect(item(okId)).not.toContain('because');
+    expect(item('app:sonarr')).toContain('because');
+  });
+
   it('asks the hub for the path when the topic has none (it never does)', async () => {
     const { path, ...bare } = hint;
     const net = fakeFetch({ 'GET /api/causes': { status: 200, body: { resource: 'app:sonarr', causes: [{ ...bare, path }] } } });

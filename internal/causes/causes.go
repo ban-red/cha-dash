@@ -279,6 +279,9 @@ func (h *home) causesOf(s symptom) []topics.Cause {
 	type node struct {
 		id   graph.RID
 		path []graph.Relation
+		// behind a depends_on that's ok and unchanged: only something that
+		// happened or changed can pass through it, never "isn't ok" alone
+		quiet bool
 	}
 	visited := map[graph.RID]bool{s.id: true}
 	queue := []node{{id: s.id}}
@@ -295,11 +298,15 @@ func (h *home) causesOf(s symptom) []topics.Cause {
 			}
 			visited[e.to] = true
 			path := append(slices.Clone(n.path), e.rel)
-			if c, ok := h.reason(e.to, from, to); ok {
+			c, ok := h.reason(e.to, from, to)
+			if ok && !(n.quiet && c.plain) {
 				c.path, c.parent = path, n.id
 				cands = append(cands, c)
 			}
-			queue = append(queue, node{id: e.to, path: path})
+			// Quiet past a healthy, unchanged depends_on; loud again past
+			// anything that happened (a restart can carry a host's trouble).
+			quiet := (n.quiet || (!ok && e.rel.Type == dependsOn && h.health(e.to) == graph.HealthOK)) && !(ok && !c.plain)
+			queue = append(queue, node{id: e.to, path: path, quiet: quiet})
 		}
 	}
 	return h.rank(s, cands)
@@ -351,12 +358,16 @@ func (h *home) reason(id graph.RID, from, to time.Time) (candidate, bool) {
 	if h.in.Changes != nil {
 		// The first time in the window a member went from ok to something
 		// worse. The row in effect at from is moved to from: not a change.
+		// Seen again after a gap (unknown, as when the hub was down) isn't
+		// one either: only leaving ok is.
 		var first history.StateChange
 		for _, m := range h.members[id] {
+			prev := ""
 			for _, ch := range h.in.Changes(string(m.ID), from, to.Add(time.Millisecond)) {
-				if ch.At.After(from) && in(ch.At) && healthRank[graph.Health(ch.Status)] > 0 && (first.At.IsZero() || ch.At.Before(first.At)) {
+				if ch.At.After(from) && in(ch.At) && graph.Health(prev) == graph.HealthOK && healthRank[graph.Health(ch.Status)] > 0 && (first.At.IsZero() || ch.At.Before(first.At)) {
 					first = ch
 				}
+				prev = ch.Status
 			}
 		}
 		if !first.At.IsZero() {

@@ -23,6 +23,8 @@ Breadth first from the symptom, at most three relations, each resource once, so 
 
 Never up `part_of` into a compose stack: its health is its containers' worst, so it would blame a container on itself.
 
+Past a `depends_on` that's ok with nothing to say for itself, only something that happened or changed in the window is a candidate, never "isn't ok" alone: a healthy Radarr carries none of Prowlarr's standing trouble to Bazarr, but an app whose container restarted a minute ago still can.
+
 ## Candidates
 
 A resource on the walk is a candidate for the first of these that holds. The window runs from 30 minutes before the symptom began to 2 minutes after.

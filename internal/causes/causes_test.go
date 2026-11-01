@@ -280,3 +280,45 @@ func TestLaterTroubleIsNoCause(t *testing.T) {
 		t.Fatalf("causes: %+v", got)
 	}
 }
+
+// Trouble doesn't pass through a dependency that's fine: Bazarr depends on
+// Radarr, which is ok and unchanged, so Prowlarr's problem behind it is no
+// cause of Bazarr's (seen on the dogfood home, 2026-10-31).
+func TestNoBlameThroughAHealthyDependency(t *testing.T) {
+	h := newDoc(t).
+		add("app:bazarr", "app", "Bazarr", graph.HealthAttention, integration.AttrHealthSince, since(t0),
+			integration.AttrHealthReason, "1 subtitle provider is throttled").
+		add("app:radarr", "app", "Radarr", graph.HealthOK).
+		add("app:prowlarr", "app", "Prowlarr", graph.HealthAttention, integration.AttrHealthSince, since(t0),
+			integration.AttrHealthReason, "an indexer has no definition").
+		rel("app:bazarr", "depends_on", "app:radarr").
+		rel("app:radarr", "depends_on", "app:prowlarr")
+	if c := h.find()["app:bazarr"]; len(c) != 0 {
+		t.Fatalf("Bazarr blamed through a healthy Radarr: %+v", c)
+	}
+	// Radarr in trouble too: then it carries Prowlarr's.
+	h.add("app:radarr", "app", "Radarr", graph.HealthAttention, integration.AttrHealthSince, since(t0.Add(time.Minute)))
+	if c := h.find()["app:bazarr"]; len(c) == 0 || c[0].Resource != "app:prowlarr" {
+		t.Fatalf("through an unhealthy Radarr: %+v", c)
+	}
+}
+
+// Seen again after the hub was down (unknown, then attention) is no
+// change: only leaving ok is. Otherwise every restart of the hub makes
+// every standing problem look as if it began at once (dogfood home,
+// 2026-10-31).
+func TestHubRestartIsNoChange(t *testing.T) {
+	h := newDoc(t).add("s", "app", "S", graph.HealthDown, integration.AttrHealthSince, since(t0)).
+		add("x", "app", "X", graph.HealthOK).rel("s", "depends_on", "x")
+	got := h.find(func(in *Input) {
+		in.Changes = func(res string, from, to time.Time) []history.StateChange {
+			if res != "x" {
+				return nil
+			}
+			return []history.StateChange{{At: from, Status: "unknown"}, {At: t0.Add(-time.Minute), Status: "attention"}, {At: t0, Status: "ok"}}
+		}
+	})["s"]
+	if len(got) != 0 {
+		t.Fatalf("a restart read as a change: %+v", got)
+	}
+}

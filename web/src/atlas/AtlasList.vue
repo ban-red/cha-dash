@@ -39,7 +39,7 @@ const Item = defineComponent({
     return () => {
       const n = props.node;
       const word = n.folded ? 'folded' : (WORDS[n.health] ?? n.health);
-      const why = n.folded ? undefined : because(n.id);
+      const why = n.folded || n.health === 'ok' ? undefined : because(n.id);
       const kids = n.children.map((c) => atlas.nodes.get(c)!);
       return h('li', [
         h(
