@@ -50,6 +50,9 @@ type Tokens struct {
 	// OnRevoke runs after a token is revoked, so what it was waiting on is
 	// withdrawn (the engine's approvals). Nil does nothing.
 	OnRevoke func(ctx context.Context, tokenID string)
+	// AgentsOn reports whether the owner has turned Agents on, which
+	// minting an agent token needs (security.Service.AgentsOn). Nil: off.
+	AgentsOn func(ctx context.Context) (bool, error)
 }
 
 // NewTokens returns the tokens API over a.
@@ -63,7 +66,7 @@ func NewTokens(a *auth.Service, log *slog.Logger) *Tokens {
 // Register mounts:
 //
 //	GET    /api/tokens          → 200 {"tokens": [token]}: your own; the owner, everyone's; admins, everyone's but the owner's
-//	POST   /api/tokens          {name, scopes, expires_in_days?} → 201 {"token", "secret"}: the secret, once
+//	POST   /api/tokens          {name, scopes, kind?, expires_in_days?} → 201 {"token", "secret"}: the secret, once
 //	DELETE /api/tokens/{id}     → 200 {"token"}, revoked at once; your own, or any you can see (above; 404 otherwise)
 //	GET    /api/tokens/scopes   → 200 the scope vocabulary for the picker, per your role
 //
@@ -133,6 +136,7 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 	a, _ := ActorFrom(r)
 	var req struct {
 		Name          string   `json:"name"`
+		Kind          string   `json:"kind"`
 		Scopes        []string `json:"scopes"`
 		ExpiresInDays *int     `json:"expires_in_days"`
 	}
@@ -145,18 +149,42 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 	}
 	// Refusals are audited too: asking for a scope your role can't hand
 	// out is worth seeing. Only the name and the scopes asked for.
-	audit := func(text string) {
-		t.Audit.Refuse(r, "tokens.create", "", map[string]any{"name": clipString(req.Name, 100), "scopes": clipScopes(req.Scopes)}, T1, "invalid", text)
+	audit := func(code, text string) {
+		t.Audit.Refuse(r, "tokens.create", "", map[string]any{"name": clipString(req.Name, 100), "kind": clipString(req.Kind, 20), "scopes": clipScopes(req.Scopes)}, T1, code, text)
 	}
 	// Scope and validation sentences aren't in the catalog yet.
 	refuse := func(text string) {
-		audit(text)
+		audit("invalid", text)
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", text)
 	}
+	say := func(status int, code string, m msg.M) {
+		audit(code, m.Text())
+		httpx.Say(w, status, code, m)
+	}
+	kind, ok := auth.ParseTokenKind(req.Kind)
+	if !ok {
+		say(http.StatusUnprocessableEntity, "invalid", msg.New("authz.token_kind"))
+		return
+	}
+	if kind == auth.KindAgent {
+		// An agent token needs Agents on (ADR-0017). That is all this
+		// checks for now: the agent kind's narrower scopes, its limits and
+		// every write it asks for waiting for a person come in wave 29.
+		on := false
+		if t.AgentsOn != nil {
+			var err error
+			if on, err = t.AgentsOn(r.Context()); err != nil {
+				t.internal(w, "reading the Agents setting failed", err)
+				return
+			}
+		}
+		if !on {
+			say(http.StatusForbidden, "agents_off", msg.New("authz.agents_off"))
+			return
+		}
+	}
 	if days < 1 || days > MaxTokenDays {
-		m := msg.New("authz.token_days")
-		audit(m.Text())
-		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", m)
+		say(http.StatusUnprocessableEntity, "invalid", msg.New("authz.token_days"))
 		return
 	}
 	scopes, err := cleanScopes(req.Scopes, a.Role)
@@ -164,7 +192,7 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 		refuse(err.Error())
 		return
 	}
-	tok, secret, err := t.auth.CreateToken(r.Context(), a.ID, req.Name, scopes, t.now().Add(time.Duration(days)*24*time.Hour))
+	tok, secret, err := t.auth.CreateToken(r.Context(), a.ID, req.Name, kind, scopes, t.now().Add(time.Duration(days)*24*time.Hour))
 	var ve *auth.ValidationError
 	switch {
 	case errors.As(err, &ve):
@@ -174,7 +202,7 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 		t.internal(w, "creating an API token failed", err)
 		return
 	}
-	t.Audit.Change(r, "tokens.create", "token:"+tok.ID, map[string]any{"name": tok.Name, "scopes": tok.Scopes, "expires_at": tok.ExpiresAt}, T1, nil)
+	t.Audit.Change(r, "tokens.create", "token:"+tok.ID, map[string]any{"name": tok.Name, "kind": tok.Kind, "scopes": tok.Scopes, "expires_at": tok.ExpiresAt}, T1, nil)
 	// The only response that ever carries the secret. /api/tokens is never
 	// compressed (server.noCompress), so it can't leak through BREACH.
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"token": tok, "secret": secret})

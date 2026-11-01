@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - **Errors name their sentence.** Beside the English `message`, an API error now carries a stable `id` for the sentence and its parameters in `args`, so it can be translated later. Signing in, setup, tokens, passkeys and the user and access settings use them first.
+- **API tokens have a kind:** an API token for scripts and automations, as before, or an agent token for an AI agent. Every token you already have is an API token. The tokens API shows the kind and takes it when you make one (`"kind": "agent"`); Settings → API tokens doesn't show it yet.
+- **An Agents switch, off by default.** While it's off, nobody can make an agent token. Only the owner can turn it on (`PUT /api/settings/agents`), and the change is in the audit log. For now an agent token can do exactly what an API token with the same scopes can: the limits that keep an agent to reading and proposing come later in 0.4, so leave Agents off until then.
 
 ## [0.3.0] - 2026-10-31
 

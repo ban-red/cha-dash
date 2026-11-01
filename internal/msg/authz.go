@@ -19,6 +19,8 @@ func init() {
 		"authz.not_owner":       "You're no longer the owner.",
 
 		"authz.token_days":            "A token must expire within 1 to 365 days.",
+		"authz.token_kind":            "A token's kind is api or agent.",
+		"authz.agents_off":            "Agents is off, so agent tokens can't be made. The owner can turn it on in Settings → Security.",
 		"authz.token_not_found":       "There's no such token.",
 		"authz.token_already_revoked": "This token was already revoked.",
 

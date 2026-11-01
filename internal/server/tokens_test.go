@@ -366,3 +366,61 @@ func TestTokenActionsAndApprovals(t *testing.T) {
 		}
 	}
 }
+
+// TestAgentTokens: an agent token can't be minted while Agents is off; the
+// owner turns it on in a session, audited; the kind is kept and listed.
+func TestAgentTokens(t *testing.T) {
+	e, st := fullEnv(t)
+	owner := signIn(t, e)
+	_, ada := addUser(t, e, owner, "ada", auth.RoleAdmin)
+	agent := map[string]any{"name": "assistant", "kind": "agent", "scopes": []string{"graph.read"}}
+
+	if status, _, b := e.call(t, owner, "GET", "/api/settings/agents", nil); status != http.StatusOK || string(b) != `{"enabled":false}`+"\n" {
+		t.Fatalf("GET before: %d %s", status, b)
+	}
+	if status, code, b := e.call(t, owner, "POST", "/api/tokens", agent); status != http.StatusForbidden || code != "agents_off" {
+		t.Fatalf("agent token with Agents off: %d %s", status, b)
+	}
+	if ev, ok := lastAudit(t, st, "tokens.create"); !ok || ev.Error == nil || ev.Error.Code != "agents_off" {
+		t.Fatalf("the refusal isn't audited: %+v", ev)
+	}
+	if status, code, b := e.call(t, owner, "POST", "/api/tokens", map[string]any{"name": "x", "kind": "robot", "scopes": []string{"graph.read"}}); status != http.StatusUnprocessableEntity || code != "invalid" {
+		t.Fatalf("kind robot: %d %s", status, b)
+	}
+
+	// The owner's switch: not an admin's, not a token's.
+	for _, c := range []*http.Client{ada, withToken(nil, mintToken(t, e, owner, "script", "*"))} {
+		for _, m := range []string{"GET", "PUT"} {
+			if status, _, _ := e.call(t, c, m, "/api/settings/agents", map[string]bool{"enabled": true}); status != http.StatusForbidden {
+				t.Fatalf("%s by someone else: %d", m, status)
+			}
+		}
+	}
+	if status, code, _ := e.call(t, owner, "PUT", "/api/settings/agents", map[string]any{}); status != http.StatusUnprocessableEntity || code != "invalid" {
+		t.Fatalf("PUT without enabled: %d %s", status, code)
+	}
+	if status, _, b := e.call(t, owner, "PUT", "/api/settings/agents", map[string]bool{"enabled": true}); status != http.StatusOK || !strings.Contains(string(b), `"enabled":true`) {
+		t.Fatalf("PUT: %d %s", status, b)
+	}
+	if ev, ok := lastAudit(t, st, "settings.agents.update"); !ok || ev.Target != "settings:agents" || !strings.Contains(string(ev.Params), `"enabled":true`) {
+		t.Fatalf("the change isn't audited: %+v", ev)
+	}
+
+	status, _, b := e.call(t, owner, "POST", "/api/tokens", agent)
+	var created struct{ Token auth.APIToken }
+	if status != http.StatusCreated || json.Unmarshal(b, &created) != nil || created.Token.Kind != auth.KindAgent {
+		t.Fatalf("agent token with Agents on: %d %s", status, b)
+	}
+	status, _, b = e.call(t, owner, "GET", "/api/tokens", nil)
+	var list struct{ Tokens []auth.APIToken }
+	if status != http.StatusOK || json.Unmarshal(b, &list) != nil {
+		t.Fatalf("list: %d %s", status, b)
+	}
+	kinds := map[string]auth.TokenKind{}
+	for _, tok := range list.Tokens {
+		kinds[tok.Name] = tok.Kind
+	}
+	if kinds["assistant"] != auth.KindAgent || kinds["script"] != auth.KindAPI {
+		t.Fatalf("listed kinds: %v", kinds)
+	}
+}

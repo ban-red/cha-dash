@@ -120,6 +120,7 @@ var provenElsewhere = map[string]string{
 	"DELETE /api/specs/installed/{id}":             "specstore.TestRoutes",
 	"PUT /api/specs/installed/{id}/actions":        "specstore.TestRoutes",
 	"PUT /api/settings/security":                   "TestChangesAreAudited",
+	"PUT /api/settings/agents":                     "TestAgentTokens",
 	"PUT /api/settings/history":                    "TestHistorySettings",
 	"POST /api/settings/history/clear":             "TestHistorySettings",
 	"POST /api/import/homarr":                      "this test's Homepage and plain-YAML imports: every source shares importhttp's handler, which records import.<source>",

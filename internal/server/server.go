@@ -30,6 +30,7 @@
 //	PUT  /api/settings/security    {posture?, step_up?}; step_up needs a step-up (owner)
 //	GET|PUT /api/settings/sign-in, POST …/test   OIDC, forward-auth, group mappings (owner;
 //	                               PUT needs a step-up; security.Service.RegisterSignIn)
+//	GET|PUT /api/settings/agents   the Agents switch, off by default (owner; security.Service.RegisterAgents)
 //	GET|DELETE /api/auth/identities…, POST …/forward-auth   your linked sign-ins (authz.Identities)
 //	GET  /api/demo             demo clock and seed; demo mode only (session)
 //	POST /api/actions/plan, POST /api/plans/{id}/approve, GET /api/tasks/{id},
@@ -249,6 +250,9 @@ func New(d Deps) (http.Handler, error) {
 		// Revoking a token withdraws the plans it left waiting for a person.
 		tokens.OnRevoke = func(ctx context.Context, id string) { eng.Withdraw(ctx, id, "The token that asked was revoked.") }
 	}
+	if d.Security != nil {
+		tokens.AgentsOn = d.Security.AgentsOn
+	}
 	tokens.Register(mux, session)
 	if d.Topics != nil {
 		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
@@ -304,6 +308,8 @@ func New(d Deps) (http.Handler, error) {
 		// Settings → Security → Sign-in: OIDC and forward-auth.
 		d.Security.Vault = d.Vault
 		d.Security.RegisterSignIn(mux, session, d.Auth, d.Proxies.Configured())
+		// Settings → Security → Agents: minting an agent token needs it on.
+		d.Security.RegisterAgents(mux, session)
 		d.Auth.SetSignIn(d.Security.SignIn, d.Security.ClientSecret)
 	}
 	if d.Actions != nil {

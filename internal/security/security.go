@@ -25,6 +25,9 @@
 // And the sign-in settings (SignInKey, signin.go): the OIDC provider,
 // forward-auth and their group mappings, with the client secret in the
 // vault. auth reads them through SignIn and ClientSecret.
+//
+// And the Agents switch (AgentsKey, agents.go), off by default: minting an
+// agent token needs it on.
 package security
 
 import (

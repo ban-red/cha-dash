@@ -376,3 +376,85 @@ export function imageUpdate(r: Resource | undefined): ImageUpdate | undefined {
   }
   return out;
 }
+
+/*
+ * REST shapes of v0.4's contracts (wave 25), mirroring the Go JSON. Nothing
+ * serves the rollouts, windows, objectives or incident events yet: waves
+ * 26–28 add their routes and the `backups` topic.
+ */
+
+/** What an API token is for, fixed at minting (internal/auth `TokenKind`). */
+export type TokenKind = 'api' | 'agent';
+
+/** `GET`/`PUT /api/settings/agents` (internal/security `AgentSettings`). Off by default. */
+export interface AgentSettings {
+  enabled: boolean;
+}
+
+/** internal/updates `RolloutState`. */
+export type RolloutState = 'scheduled' | 'waiting' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+
+/** internal/updates `StepState`. */
+export type RolloutStepState = 'pending' | 'running' | 'succeeded' | 'rolled_back' | 'not_started' | 'skipped';
+
+/** One container or stack in a rollout (internal/updates `RolloutStep`). */
+export interface RolloutStep {
+  /** The container's or stack's resource ID. */
+  target: string;
+  /** The action that updates it. */
+  action: string;
+  /** What it snapshots first; absent when nothing can be. */
+  snapshot?: 'git' | 'pve';
+  state: RolloutStepState;
+  /** Why it was skipped or failed, a sentence. */
+  reason?: string;
+}
+
+/** internal/updates `Rollout`. Times are RFC 3339. */
+export interface Rollout {
+  id: string;
+  created_by?: string;
+  plan_hash: string;
+  state: RolloutState;
+  window_id?: string;
+  /** Absent: at once, or when its window opens. */
+  scheduled_for?: string;
+  steps: RolloutStep[];
+  created_at: string;
+  started_at?: string;
+  finished_at?: string;
+}
+
+/** internal/updates `MaintenanceWindow`: a weekly one repeats `starts_at`..`ends_at` every 7 days. */
+export interface MaintenanceWindow {
+  id: string;
+  name: string;
+  /** Host resource IDs. */
+  hosts: string[];
+  starts_at: string;
+  ends_at: string;
+  weekly: boolean;
+  created_by?: string;
+  created_at: string;
+}
+
+/** internal/backups `Objective`: how old the newest good backup may be before it's stale. */
+export interface BackupObjective {
+  resource: string;
+  max_age_ms: number;
+  set_by?: string;
+  set_at: string;
+}
+
+/** internal/incidents `EventKind`. */
+export type IncidentEventKind = 'opened' | 'changed' | 'caused' | 'acknowledged' | 'expected' | 'resolved';
+
+/** One step in an incident's lifecycle (internal/incidents `Event`). */
+export interface IncidentEvent {
+  id: string;
+  incident_id: string;
+  at: string;
+  kind: IncidentEventKind;
+  /** What the kind needs; `{}` when nothing. */
+  data: Record<string, unknown>;
+}

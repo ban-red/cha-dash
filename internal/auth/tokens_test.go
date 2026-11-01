@@ -47,11 +47,11 @@ func bearer(t *testing.T, srv *httptest.Server, value string) (int, string) {
 func TestTokenLifecycle(t *testing.T) {
 	h, u, srv := tokenHarness(t)
 	ctx := t.Context()
-	tok, secret, err := h.svc.CreateToken(ctx, u.ID, "  backup script ", []string{"graph.read", "docker.*"}, h.clock.now().Add(90*24*time.Hour))
+	tok, secret, err := h.svc.CreateToken(ctx, u.ID, "  backup script ", "", []string{"graph.read", "docker.*"}, h.clock.now().Add(90*24*time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tok.Name != "backup script" || !strings.HasPrefix(tok.ID, "tok_") || !tokenSecretRE.MatchString(secret) ||
+	if tok.Name != "backup script" || tok.Kind != KindAPI || !strings.HasPrefix(tok.ID, "tok_") || !tokenSecretRE.MatchString(secret) ||
 		!strings.Contains(secret, strings.TrimPrefix(tok.ID, "tok_")) {
 		t.Fatalf("created %+v %q", tok, secret)
 	}
@@ -136,7 +136,7 @@ func TestTokenLifecycle(t *testing.T) {
 	if acc.OK {
 		t.Fatal("an expired token has access")
 	}
-	tok2, secret2, _ := h.svc.CreateToken(ctx, u.ID, "second", []string{"*"}, h.clock.now().Add(time.Hour))
+	tok2, secret2, _ := h.svc.CreateToken(ctx, u.ID, "second", KindAgent, []string{"*"}, h.clock.now().Add(time.Hour))
 	if acc, _ := h.svc.TokenAccess(ctx, tok2.ID); !acc.OK || acc.Role != RoleOwner || acc.Scopes[0] != "*" {
 		t.Fatalf("access %+v", acc)
 	}
@@ -153,7 +153,7 @@ func TestTokenLifecycle(t *testing.T) {
 		t.Fatal("a revoked token has access")
 	}
 	got, _ := h.svc.GetToken(ctx, tok2.ID)
-	if got.RevokedAt == nil || got.RevokedBy != u.ID {
+	if got.RevokedAt == nil || got.RevokedBy != u.ID || got.Kind != KindAgent {
 		t.Fatalf("revoked token %+v", got)
 	}
 	if _, err := h.svc.GetToken(ctx, "tok_nope"); !errors.Is(err, ErrTokenNotFound) {
@@ -162,9 +162,21 @@ func TestTokenLifecycle(t *testing.T) {
 
 	// Names are checked.
 	for _, bad := range []string{"", "   ", strings.Repeat("x", 65), "tab\there"} {
-		if _, _, err := h.svc.CreateToken(ctx, u.ID, bad, nil, h.clock.now().Add(time.Hour)); err == nil {
+		if _, _, err := h.svc.CreateToken(ctx, u.ID, bad, KindAPI, nil, h.clock.now().Add(time.Hour)); err == nil {
 			t.Errorf("name %q accepted", bad)
 		}
+	}
+	// So is the kind.
+	if _, _, err := h.svc.CreateToken(ctx, u.ID, "x", "robot", nil, h.clock.now().Add(time.Hour)); err == nil {
+		t.Error("kind robot accepted")
+	}
+	list, _ = h.svc.ListTokens(ctx, "")
+	kinds := map[string]TokenKind{}
+	for _, l := range list {
+		kinds[l.ID] = l.Kind
+	}
+	if len(kinds) != 2 || kinds[tok.ID] != KindAPI || kinds[tok2.ID] != KindAgent {
+		t.Fatalf("listed kinds: %v", kinds)
 	}
 }
 

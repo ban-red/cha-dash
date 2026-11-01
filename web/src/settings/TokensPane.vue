@@ -3,7 +3,7 @@
  * Settings → API tokens. Every role manages its own tokens; owners and
  * admins see everyone's and can revoke any.
  *
- *   GET    /api/tokens          → {tokens: [{id, user_id, username, name, scopes, created_at, expires_at, last_used_at, last_used_ip?, revoked_at}]}
+ *   GET    /api/tokens          → {tokens: [{id, user_id, username, name, kind, scopes, created_at, expires_at, last_used_at, last_used_ip?, revoked_at}]}
  *   GET    /api/tokens/scopes   → the scope picker: {reads, families, actions, all, default_days, max_days, approval}
  *   POST   /api/tokens          {name, scopes, expires_in_days} → {token, secret}: the secret, once
  *   DELETE /api/tokens/{id}     → {token}, revoked at once
@@ -27,12 +27,15 @@ import { copyText } from './recipe';
 import { focusFirst } from '../lib/focus';
 import UiButton from '../ui/Button.vue';
 import UiField from '../ui/Field.vue';
+import type { TokenKind } from '../model/types';
 
 export interface HubToken {
   id: string;
   user_id: string;
   username: string;
   name: string;
+  /** api or agent; the pane doesn't show it yet. */
+  kind: TokenKind;
   scopes: string[];
   created_at: string;
   expires_at: string | null;

@@ -270,6 +270,10 @@ var Routes = []Route{
 	{Pattern: "GET /api/settings/sign-in", Access: Owner},
 	{Pattern: "PUT /api/settings/sign-in", Access: Owner},
 	{Pattern: "POST /api/settings/sign-in/test", Access: Owner},
+	// Settings → Security → Agents (v0.4): the switch minting an agent
+	// token needs. The owner's, session only, like every setting.
+	{Pattern: "GET /api/settings/agents", Access: Owner},
+	{Pattern: "PUT /api/settings/agents", Access: Owner},
 
 	// Settings → Users. An admin manages everyone but the owner (users.go);
 	// handing over ownership is the owner's, and T3.

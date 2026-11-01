@@ -61,6 +61,33 @@ var (
 	ErrTokenNotFound = errors.New("auth: no such API token")
 )
 
+// TokenKind is what a token is for, fixed when it's minted.
+type TokenKind string
+
+// The token kinds, as api_tokens.kind allows them.
+const (
+	// KindAPI is for scripts and automations: the token acts as its user,
+	// narrowed to its scopes.
+	KindAPI TokenKind = "api"
+	// KindAgent is for an AI agent (ADR-0017), which reads and proposes and
+	// never acts. Minting one needs Agents turned on; internal/authz checks
+	// that. Today an agent token is otherwise an API token: its narrower
+	// scopes, its limits and the rule that every write it asks for waits
+	// for a person come in v0.4's wave 29.
+	KindAgent TokenKind = "agent"
+)
+
+// ParseTokenKind returns the kind named s; "" is KindAPI.
+func ParseTokenKind(s string) (TokenKind, bool) {
+	switch TokenKind(s) {
+	case "", KindAPI:
+		return KindAPI, true
+	case KindAgent:
+		return KindAgent, true
+	}
+	return "", false
+}
+
 // APIToken is a token as the tokens API lists it. It never carries the
 // secret or its hash.
 type APIToken struct {
@@ -68,6 +95,7 @@ type APIToken struct {
 	UserID     string     `json:"user_id"`
 	Username   string     `json:"username"`
 	Name       string     `json:"name"`
+	Kind       TokenKind  `json:"kind"`
 	Scopes     []string   `json:"scopes"`
 	CreatedAt  time.Time  `json:"created_at"`
 	ExpiresAt  *time.Time `json:"expires_at"`
@@ -112,13 +140,19 @@ func ValidateTokenName(name string) (string, error) {
 	return name, nil
 }
 
-// CreateToken stores a new token for userID and returns it with its secret,
-// which is never stored or shown again. Scopes are stored as given:
-// internal/authz validates them first.
-func (s *Service) CreateToken(ctx context.Context, userID, name string, scopes []string, expires time.Time) (APIToken, string, error) {
+// CreateToken stores a new token of kind for userID and returns it with its
+// secret, which is never stored or shown again. Scopes are stored as given,
+// and kind is stored as asked: internal/authz validates the scopes, and
+// decides whether an agent token may be minted, first.
+func (s *Service) CreateToken(ctx context.Context, userID, name string, kind TokenKind, scopes []string, expires time.Time) (APIToken, string, error) {
 	name, err := ValidateTokenName(name)
 	if err != nil {
 		return APIToken{}, "", err
+	}
+	if k, ok := ParseTokenKind(string(kind)); ok {
+		kind = k
+	} else {
+		return APIToken{}, "", &ValidationError{"A token is an API token or an agent token."}
 	}
 	if scopes == nil {
 		scopes = []string{}
@@ -131,7 +165,7 @@ func (s *Service) CreateToken(ctx context.Context, userID, name string, scopes [
 	secret := TokenPrefix + short + "_" + rand.Text() + rand.Text()
 	now := s.now().UTC().Truncate(time.Millisecond)
 	exp := expires.UTC().Truncate(time.Millisecond)
-	t := APIToken{ID: tokenIDPrefix + short, UserID: userID, Name: name, Scopes: scopes, CreatedAt: now, ExpiresAt: &exp}
+	t := APIToken{ID: tokenIDPrefix + short, UserID: userID, Name: name, Kind: kind, Scopes: scopes, CreatedAt: now, ExpiresAt: &exp}
 	err = s.st.WriteTx(ctx, func(tx *sql.Tx) error {
 		if err := tx.QueryRowContext(ctx, `SELECT username FROM users WHERE id = ? AND disabled_at IS NULL`, userID).Scan(&t.Username); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -139,32 +173,33 @@ func (s *Service) CreateToken(ctx context.Context, userID, name string, scopes [
 			}
 			return err
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO api_tokens (id, user_id, name, token_hash, scopes, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			t.ID, userID, name, tokenHash(secret), string(raw), now.UnixMilli(), exp.UnixMilli())
+		_, err := tx.ExecContext(ctx, `INSERT INTO api_tokens (id, user_id, name, kind, token_hash, scopes, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			t.ID, userID, name, string(kind), tokenHash(secret), string(raw), now.UnixMilli(), exp.UnixMilli())
 		return err
 	})
 	if err != nil {
 		return APIToken{}, "", err
 	}
-	s.log.Info("API token created", "token", t.ID, "user", t.Username)
+	s.log.Info("API token created", "token", t.ID, "kind", kind, "user", t.Username)
 	return t, secret, nil
 }
 
-const tokenQuery = `SELECT t.id, t.user_id, u.username, t.name, t.scopes, t.created_at, t.expires_at, t.last_used_at, t.last_used_ip, t.revoked_at, t.revoked_by
+const tokenQuery = `SELECT t.id, t.user_id, u.username, t.name, t.kind, t.scopes, t.created_at, t.expires_at, t.last_used_at, t.last_used_ip, t.revoked_at, t.revoked_by
 	FROM api_tokens t JOIN users u ON u.id = t.user_id`
 
 func scanToken(sc scanner) (APIToken, error) {
 	var t APIToken
-	var scopes string
+	var scopes, kind string
 	var created int64
 	var expires, used, revoked sql.NullInt64
 	var ip, by sql.NullString
-	if err := sc.Scan(&t.ID, &t.UserID, &t.Username, &t.Name, &scopes, &created, &expires, &used, &ip, &revoked, &by); err != nil {
+	if err := sc.Scan(&t.ID, &t.UserID, &t.Username, &t.Name, &kind, &scopes, &created, &expires, &used, &ip, &revoked, &by); err != nil {
 		return APIToken{}, err
 	}
 	if json.Unmarshal([]byte(scopes), &t.Scopes) != nil || t.Scopes == nil {
 		t.Scopes = []string{}
 	}
+	t.Kind = TokenKind(kind)
 	t.CreatedAt = time.UnixMilli(created).UTC()
 	t.ExpiresAt, t.LastUsedAt, t.RevokedAt = msTime(expires), msTime(used), msTime(revoked)
 	t.LastUsedIP, t.RevokedBy = ip.String, by.String
