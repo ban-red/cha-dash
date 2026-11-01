@@ -232,6 +232,22 @@ func (in *instance) publish(now time.Time) error {
 				verifyFail = j
 			}
 		}
+		// A verify run from the hub (Verify now) shows until a job's is newer.
+		var verifyNowFailed *verifyResult
+		if v, ok := verified.Load(verifiedKey(in.key, u.Store)); ok {
+			res := v.(verifyResult)
+			last, _ := r.Attrs["verify_last"].(time.Time)
+			if res.At.After(last) {
+				r.Attrs["verify_last"], r.Attrs["verify_state"], r.Attrs["verify_now"] = res.At, res.State, true
+				if res.Group != "" {
+					r.Attrs["verify_group"] = res.Group
+				}
+				verifyFail = nil
+				if !okState(res.State) {
+					verifyNowFailed = &res
+				}
+			}
+		}
 		maint := ""
 		if it, ok := in.stores[u.Store]; ok && it.Maintenance != "" {
 			maint = it.Maintenance
@@ -257,6 +273,9 @@ func (in *instance) publish(now time.Time) error {
 		}
 		if verifyFail != nil {
 			reasons = append(reasons, "verification failed "+day(unix(verifyFail.LastEndtime)))
+		}
+		if verifyNowFailed != nil {
+			reasons = append(reasons, "verification failed "+day(verifyNowFailed.At))
 		}
 		known = append(known, "datastore."+u.Store+".error", "filling."+u.Store)
 		switch {

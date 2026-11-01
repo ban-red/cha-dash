@@ -1,6 +1,6 @@
 # Proxmox Backup Server (`pbs`)
 
-Reads one Proxmox Backup Server: the server as the instance's `app` resource, and each datastore as a `backup_target` with its usage, when PBS expects it to fill up, garbage collection, prune and verify jobs. Failed tasks of the last day go on the app. It reads with an Audit token; an optional control token lets it prune a datastore by its retention policy (see Actions).
+Reads one Proxmox Backup Server: the server as the instance's `app` resource, and each datastore as a `backup_target` with its usage, when PBS expects it to fill up, garbage collection, prune and verify jobs. Failed tasks of the last day go on the app. It reads with an Audit token; an optional control token lets it prune a datastore by its retention policy and verify it now (see Actions).
 
 **Tier:** silver (repairs, version check, fixture tests). **Capabilities:** `backups.targets`, `backups.jobs`. **Fixture:** [`testdata/integrations/pbs/`](../../testdata/integrations/pbs/README.md), **synthetic**: no PBS was captured, so it's built from the PBS API's source and agrees with the Proxmox VE capture (one PBS at `10.0.11.120:8007`, five datastores on one filesystem, 91.9% used).
 
@@ -80,13 +80,15 @@ PBS before 3.x is an `unsupported_version` Repair; above 4.x it's read the same 
 
 | Action | Tier | Target | What it does |
 |---|---|---|---|
+| `pbs.datastore.verify` ("Verify now") | T1 | a datastore (`backup_target`); `group` (`vm/100`, `ct/101`, `host/x`) and `ns` optional | `POST /admin/datastore/{store}/verify` with `backup-type` and `backup-id` for a group, `ns` for a namespace. Follows the PBS task's log into the task; Verify reads its status back with the read token. The result shows on the datastore (`verify_last`, `verify_state`, `verify_now: true`, `verify_group`) until a verify job's is newer; a failed one is its reason ("verification failed today"). Kept in memory: a restart forgets it, and the jobs' results show again |
 | `pbs.datastore.prune` ("Prune per policy") | T2 | a datastore (`backup_target`) | `POST /admin/datastore/{store}/prune-datastore` with the retention of the datastore's prune job (an enabled one first, then by ID; `job` param to choose): its `keep-*` options, `ns` and `max-depth`. Follows the PBS task's log into the task; Verify reads the task's status back with the read token |
 
 - The ID and label are the Demo Home's, so the `filling.<store>` incident suggests it (with the link to PBS as the alternative) when the datastore's prune job is disabled, and the hub fills its `plan_ready`.
 - **Preconditions:** a datastore in maintenance (`mars is in maintenance (read-only), so it can't be pruned now.`), no prune job (`mini-g5 has no prune job, so there's no retention policy to prune by. …`), a named job that isn't there, a policy that keeps everything.
 - Pruning only marks snapshots gone; the space comes back at the next garbage collection, as the plan's steps say.
 - **The control token's own rights** are checked when planning (`Def.Permitted`, on the control instance): `GET /access/permissions?path=/datastore/<store>` must show `Datastore.Audit` (to read the prune job back when it runs) and `Datastore.Modify` (to prune every group). Without them the prune is unavailable, naming what's missing and DatastoreAdmin. Found in the live run: a DatastorePowerUser token can't list the datastore's prune jobs, so it used to plan and then fail at run time with "no prune job".
-- **Without a control token** the action answers `409 unavailable` ("Add a control token to … to let Cha Dash prune its datastores. …") with `recipe` naming the instance. A 403 from PBS fails the task with the role it needs.
+- **Verify now's** preconditions refuse a datastore in offline maintenance (read-only still reads), and its planning check wants `Datastore.Verify` on `/datastore/<store>` (DatastoreAdmin has it). Its fixtures are the prune's fake PBS; it hasn't run against a real PBS yet. Settings → Backups offers it for a guest whose job writes to the datastore, narrowed to the guest's group.
+- **Without a control token** either action answers `409 unavailable` ("Add a control token to … to let Cha Dash prune and verify its datastores. …") with `recipe` naming the instance. A 403 from PBS fails the task with the role it needs.
 - **Fixtures:** synthetic, [`testdata/integrations/pbs/actions/`](../../testdata/integrations/pbs/actions/README.md). The prune itself, its task log and the refusals ran against a real PBS on 2026-10-29 ([08b · live runs](../../docs/plan/08-v0.2-live-runs.md#pbs--prune-per-policy)). Still not verified: that `Datastore.Prune` alone prunes only the token's own groups, and PBS's exact 403 text; the planning check now stops such a token before it gets there.
 
 ## Grants and warnings

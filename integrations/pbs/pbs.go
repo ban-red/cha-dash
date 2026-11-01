@@ -52,7 +52,7 @@ func (Integration) Manifest() integration.Manifest {
 	tokenID := &integration.Schema{Type: "string", Title: "Token ID", Pattern: tokenIDPattern,
 		Description: "The API token, as user@realm!name (e.g. chadash@pbs!dash). The Audit role on / is enough."}
 	controlID := &integration.Schema{Type: "string", Title: "Control token ID", Pattern: tokenIDPattern, Group: integration.GroupControl,
-		Description: "Optional. A second token that lets Cha Dash prune datastores by their retention policy, as user@realm!name (e.g. chadash-control@pbs!control)."}
+		Description: "Optional. A second token that lets Cha Dash prune datastores by their retention policy and verify them now, as user@realm!name (e.g. chadash-control@pbs!control)."}
 	return integration.Manifest{
 		ID: ID, Name: "Proxmox Backup Server", Icon: "proxmox-backup-server", Version: "0.2.0", Tier: integration.Silver,
 		Category:     integration.CatHosts,
@@ -70,7 +70,7 @@ func (Integration) Manifest() integration.Manifest {
 				{Field: "control_token_id", Replaces: "token_id"},
 				{Field: "control_token_secret", Replaces: "token_secret"},
 			},
-			Missing: "Add a control token to {instance} to let Cha Dash prune its datastores. The recipe's control variant makes one.",
+			Missing: "Add a control token to {instance} to let Cha Dash prune and verify its datastores. The recipe's control variant makes one.",
 		},
 		Poll: integration.Poll{Interval: liveInterval, Idle: idleInterval, Timeout: syncTimeout},
 	}

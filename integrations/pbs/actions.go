@@ -29,10 +29,9 @@ import (
 // at the next garbage collection.
 const actPrune = "pbs.datastore.prune"
 
-// ActVerify will verify a datastore, or one snapshot in it, now: PBS's
-// verify job run from the hub, under the control token (T1: it reads and
-// checks, it changes nothing). Not in Actions yet: it comes with backup
-// coverage in wave 27 (docs/plan/14-v0.4.md, "Run now, verify now").
+// ActVerify verifies a datastore, or one snapshot group in it, now: PBS's
+// verify run from the hub, under the control token (T1: it reads and
+// checks, it changes nothing). verify.go has it.
 const ActVerify = "pbs.datastore.verify"
 
 // Waiting on PBS. Variables, so tests can make them short.
@@ -44,7 +43,7 @@ const jobIDPattern = `^[A-Za-z0-9_][A-Za-z0-9._-]{0,63}$`
 func (in *instance) Actions() []action.Def {
 	job := &integration.Schema{Type: "string", Title: "Prune job", Pattern: jobIDPattern,
 		Description: "Whose retention policy to prune by. Empty: the datastore's prune job (an enabled one first)."}
-	return []action.Def{{
+	return []action.Def{in.verifyDef(), {
 		ID: actPrune, Title: "Prune per policy", Targets: []string{"backup_target"}, Tier: action.T2, Async: true,
 		Params:  integration.Params(integration.Object(integration.Prop("job", job))),
 		Resolve: in.resolveStore,
@@ -68,10 +67,13 @@ func (in *instance) Actions() []action.Def {
 
 // Execute implements integration.Actor.
 func (in *instance) Execute(ctx context.Context, req action.Request, run *action.TaskRun) error {
-	if req.Action != actPrune {
-		return action.Fail("unavailable", "Proxmox Backup Server has no action called "+req.Action+".")
+	switch req.Action {
+	case actPrune:
+		return in.runPrune(ctx, req, run)
+	case ActVerify:
+		return in.runVerify(ctx, req, run)
 	}
-	return in.runPrune(ctx, req, run)
+	return action.Fail("unavailable", "Proxmox Backup Server has no action called "+req.Action+".")
 }
 
 // resolveStore finds a datastore by its resource ID (pbs:<instance>/datastore/<store>).
@@ -227,7 +229,10 @@ func (in *instance) runPrune(ctx context.Context, r action.Request, run *action.
 		return writeFail(err, store)
 	}
 	upids.Store(r.Task, upid)
-	if err := in.follow(ctx, run, upid, store); err != nil {
+	err = in.follow(ctx, run, upid, func(exit string) error {
+		return action.Fail("upstream", fmt.Sprintf("Proxmox Backup Server couldn't prune %s: %s.", store, exit))
+	})
+	if err != nil {
 		upids.Delete(r.Task)
 		return err
 	}
@@ -299,8 +304,9 @@ func taskPath(upid, sub string) string {
 	return "/nodes/localhost/tasks/" + url.PathEscape(upid) + "/" + sub
 }
 
-// follow waits for a PBS task to end, copying its log into run's log.
-func (in *instance) follow(ctx context.Context, run *action.TaskRun, upid, store string) error {
+// follow waits for a PBS task to end, copying its log into run's log. A
+// task that ends badly fails with failed(its exit status).
+func (in *instance) follow(ctx context.Context, run *action.TaskRun, upid string, failed func(exit string) error) error {
 	next := 0
 	for {
 		var lines []logLine
@@ -326,7 +332,7 @@ func (in *instance) follow(ctx context.Context, run *action.TaskRun, upid, store
 			if taskOK(st.ExitStatus) {
 				return nil
 			}
-			return action.Fail("upstream", fmt.Sprintf("Proxmox Backup Server couldn't prune %s: %s.", store, cmp.Or(st.ExitStatus, "the task failed")))
+			return failed(cmp.Or(st.ExitStatus, "the task failed"))
 		}
 		t := time.NewTimer(taskPoll)
 		select {

@@ -114,7 +114,7 @@ func (f *fakePBS) serve(w http.ResponseWriter, r *http.Request) {
 		at := r.URL.Query().Get("path")
 		privs := map[string]bool{"Datastore.Audit": true}
 		if control {
-			for _, p := range []string{"Datastore.Audit", "Datastore.Modify", "Datastore.Prune"} {
+			for _, p := range []string{"Datastore.Audit", "Datastore.Modify", "Datastore.Prune", "Datastore.Verify"} {
 				privs[p] = !slices.Contains(f.lacks[at], p)
 			}
 			for p, ok := range privs {
@@ -132,6 +132,16 @@ func (f *fakePBS) serve(w http.ResponseWriter, r *http.Request) {
 		f.n++
 		store := strings.TrimSuffix(strings.TrimPrefix(path, "/admin/datastore/"), "/prune-datastore")
 		upid := fmt.Sprintf(`UPID:jupiter:%08X:05F5E400:00000000:6AC0AF00:prune:%s:%s:`, 0x3000+f.n, store, controlTok)
+		f.tasks[upid] = 0
+		f.reply(w, 200, upid, "")
+	case r.Method == http.MethodPost && strings.HasSuffix(path, "/verify"):
+		if !control || f.deny {
+			f.reply(w, 403, nil, "permission check failed")
+			return
+		}
+		f.n++
+		store := strings.TrimSuffix(strings.TrimPrefix(path, "/admin/datastore/"), "/verify")
+		upid := fmt.Sprintf(`UPID:jupiter:%08X:05F5E400:00000000:6AC0AF00:verify:%s:%s:`, 0x3000+f.n, store, controlTok)
 		f.tasks[upid] = 0
 		f.reply(w, 200, upid, "")
 	case r.Method == http.MethodGet && strings.HasPrefix(path, "/nodes/localhost/tasks/"):
@@ -180,7 +190,7 @@ func storeTarget(s string) string { return "pbs:i_test/datastore/" + s }
 func TestPrunePerPolicy(t *testing.T) {
 	f := newFakePBS(t)
 	_, acts := pruneActions(t, f, true)
-	if got := acts.IDs(); !slices.Equal(got, []string{actPrune}) {
+	if got := acts.IDs(); !slices.Equal(got, []string{actPrune, ActVerify}) {
 		t.Fatalf("ids = %v", got)
 	}
 	p, err := acts.Plan(actPrune, storeTarget("mars"), nil)

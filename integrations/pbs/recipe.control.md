@@ -1,6 +1,6 @@
 ---
 title: A control token
-summary: A second user and token that can prune one datastore by its retention policy. Cha Dash keeps reading with the Audit token; this one is used only when you approve a prune.
+summary: A second user and token that can prune one datastore by its retention policy and verify it. Cha Dash keeps reading with the Audit token; this one is used only when you approve a prune or a verify.
 access: scoped
 params:
   - name: user
@@ -51,4 +51,5 @@ proxmox-backup-manager acl update /datastore/{{store}} DatastoreAdmin --auth-id 
 
 - **DatastoreAdmin can also read, restore and delete** the backups in that datastore. Cha Dash only ever prunes with it, by the policy of the datastore's own prune job, after a plan you confirm, and every prune is in the audit log.
 - **DatastorePowerUser** isn't enough: it prunes only the backup groups the token owns, which is none.
-- Without this token, the datastore's prune shows as unavailable with a link here. The Audit token keeps working either way.
+- **Verify now** needs `Datastore.Verify`, which DatastoreAdmin has. A verify only reads and checks the datastore's chunks.
+- Without this token, the datastore's prune and verify show as unavailable with a link here. The Audit token keeps working either way.
