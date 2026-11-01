@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A container kept through a stack redeploy by a hold could no longer be checked for updates.** The node pinned it by digest alone, so once the hold was released Settings → Updates said it was pinned by digest. It now keeps the tag beside the digest (`syslog-ng:latest@sha256:…`), and the next check sees the tag again. A container already pinned this way is checked again after its stack's next deploy.
+- **A container update's plan ended with a formatting error.** Its last step read "put the previous image back%!(EXTRA …)", and a pull's second step did the same.
+
 ## [0.3.0-beta.3] - 2026-10-31
 
 The rest of v0.3. Cha Dash now knows what your apps use and says why something isn't fine ("because qBittorrent's container was OOM-killed at 14:03"). It draws the whole home on the Atlas, and lists the container images that have a newer version, with update, hold and snooze. You can also install integrations from spec files, read Caddy and Nginx Proxy Manager, and pick a 12-hour or 24-hour clock.

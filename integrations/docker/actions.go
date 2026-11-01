@@ -262,7 +262,12 @@ func (in *instance) steps(labels ...string) func(action.Request) []action.Step {
 	return func(req action.Request) []action.Step {
 		out := make([]action.Step, len(labels))
 		for i, l := range labels {
-			out[i] = action.Step{Label: fmt.Sprintf(l, req.Target.Name, in.ep.node)}
+			// A sentence with no verb is used as is: Sprintf would add
+			// "%!(EXTRA …)" for the arguments it doesn't use.
+			if strings.Contains(l, "%") {
+				l = fmt.Sprintf(l, req.Target.Name, in.ep.node)
+			}
+			out[i] = action.Step{Label: l}
 		}
 		return out
 	}

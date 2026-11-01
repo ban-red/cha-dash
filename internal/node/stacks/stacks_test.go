@@ -779,8 +779,11 @@ func TestHeldServiceKeepsItsImage(t *testing.T) {
 		t.Fatalf("deploy: %+v", res)
 	}
 	running := n.docker.Running("media")
-	if running["web"] != "nginx:1.28" || running["db"] != digestOf("postgres:17") {
-		t.Errorf("running %v: web should move to 1.28 and db stay on 17's digest", running)
+	// db keeps its tag beside the digest, so the Update Center can still
+	// ask about postgres:17 once the hold is released.
+	_, sum, _ := strings.Cut(digestOf("postgres:17"), "@")
+	if running["web"] != "nginx:1.28" || running["db"] != "postgres:17@"+sum {
+		t.Errorf("running %v: web should move to 1.28 and db stay on postgres:17 at its digest", running)
 	}
 	if disk, _ := os.ReadFile(filepath.Join(n.root, "media", "compose.yaml")); !strings.Contains(string(disk), "image: postgres:18\n") {
 		t.Errorf("the file should stay as written:\n%s", disk)
@@ -797,6 +800,26 @@ func TestHeldServiceKeepsItsImage(t *testing.T) {
 	for _, s := range plan.Services {
 		if s.Name == "db" && (s.Action != stackproto.ActionRecreate || !s.Pull) {
 			t.Errorf("released: %+v", s)
+		}
+	}
+}
+
+// A held service is pinned to its running tag at the image's digest, so
+// the Update Center still sees the tag; without a tag, or for another
+// repository, the digest reference stays as it is.
+func TestHeldRef(t *testing.T) {
+	const sum = "sha256:75696e8d977a21d76af45bb7480ac156e0b8eaee3ea8661b382c2efb0b64adbb"
+	for _, c := range []struct{ image, ref, want string }{
+		{"lscr.io/linuxserver/syslog-ng:latest", "lscr.io/linuxserver/syslog-ng@" + sum, "lscr.io/linuxserver/syslog-ng:latest@" + sum},
+		{"postgres:17", "docker.io/library/postgres@" + sum, "postgres:17@" + sum},
+		{"postgres:17@sha256:0000", "postgres@" + sum, "postgres:17@" + sum},
+		{"postgres", "postgres@" + sum, "postgres@" + sum},
+		{"", "postgres@" + sum, "postgres@" + sum},
+		{"mariadb:11", "postgres@" + sum, "postgres@" + sum},
+		{"localhost:5000/app:2", "localhost:5000/app@" + sum, "localhost:5000/app:2@" + sum},
+	} {
+		if got := heldRef(c.image, c.ref); got != c.want {
+			t.Errorf("heldRef(%q, %q) = %q, want %q", c.image, c.ref, got, c.want)
 		}
 	}
 }

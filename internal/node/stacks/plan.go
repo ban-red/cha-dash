@@ -104,6 +104,21 @@ func pulls(services []stackproto.ServicePlan) []string {
 	return out
 }
 
+// heldRef is what a held service is pinned to: the tag its container runs,
+// with that image's registry digest ("syslog-ng:latest@sha256:…"), as a
+// rollback pins. Keeping the tag lets the Update Center ask about it once
+// the hold is released; a digest alone reads as "pinned by digest". An
+// image without a tag, or from another repository, keeps the digest
+// reference as it is.
+func heldRef(image, digestRef string) string {
+	_, digest, ok := strings.Cut(digestRef, "@")
+	img, _, _ := strings.Cut(image, "@")
+	if !ok || img == "" || stripTag(img) == img || !sameRepo(img, digestRef) {
+		return digestRef
+	}
+	return img + "@" + digest
+}
+
 // keepHeld keeps each held service that the plan would recreate on the
 // image it runs now: in p only, pinned to that image's registry digest
 // (as a rollback pins), so the committed file stays as written. A held
@@ -131,11 +146,17 @@ func (m *Module) keepHeld(ctx context.Context, stack string, p *types.Project, r
 		m.log.Warn("stacks: couldn't read the running images; held services aren't kept", "stack", stack, "err", err)
 		refs = nil
 	}
+	runs := map[string]string{} // service → the image its container was made from
+	for _, c := range running {
+		if c.Service != "" {
+			runs[c.Service] = c.Image
+		}
+	}
 	pinned, unkept := map[string]bool{}, map[string]bool{}
 	for _, name := range touched {
 		svc, ok := p.Services[name]
 		if ref := refs[name]; ok && ref != "" {
-			svc.Image = ref
+			svc.Image = heldRef(runs[name], ref)
 			p.Services[name] = svc
 			pinned[name] = true
 		} else {

@@ -460,6 +460,19 @@ func TestDockerActionsThroughTheNode(t *testing.T) {
 	if p.Tier != action.T1 || p.Confirm != "undo" || p.Undo == nil || p.Undo.Action != "docker.container.start" || len(p.Steps) != 2 || !strings.Contains(p.Steps[0].Label, "chadash-node local") {
 		t.Fatalf("plan %+v", p)
 	}
+	// Every step reads as a sentence: one without a verb ("If it doesn't,
+	// put the previous image back") isn't run through Sprintf.
+	for _, a := range []string{"docker.container.update", "docker.container.pull", "docker.container.recreate"} {
+		q, err := e.plan(a, sonarr, "")
+		if err != nil {
+			t.Fatalf("%s: %v", a, err)
+		}
+		for _, s := range q.Steps {
+			if strings.Contains(s.Label, "%!") {
+				t.Errorf("%s step %q", a, s.Label)
+			}
+		}
+	}
 	if task := e.run(p, ""); task.State != action.StateSucceeded {
 		t.Fatalf("stop: %+v", task)
 	}
