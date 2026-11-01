@@ -249,6 +249,20 @@ describe('a container’s sheet', () => {
     expect(ui.sheet.value).toBeUndefined();
   });
 
+  it('lists the hub’s cause hints under "Because", each opening its resource', async () => {
+    const hint = { text: 'sonarr-db exited (code 1) at 03:10. sonarr depends on sonarr-db.', resource: DB, rule: 'exited' };
+    const gone = { text: 'Something no longer in the graph.', resource: 'docker:i_d/container/old', rule: 'health' };
+    const { ui, panel } = await sheetOn(SONARR, { ...home(), causes: { causes: { [SONARR]: [hint, gone] } } } as ReturnType<typeof home>);
+    const box = panel()!.querySelector<HTMLElement>('.rs-causes')!;
+    expect(box.querySelector('h3')!.textContent).toBe('Because');
+    expect([...box.querySelectorAll('li')].map((li) => li.textContent)).toEqual([hint.text, gone.text]);
+    expect(box.querySelectorAll('button')).toHaveLength(1);
+    expect(await axeViolations(panel()!)).toEqual([]);
+    box.querySelector<HTMLButtonElement>('button')!.click();
+    await nextTick();
+    expect(ui.sheet.value).toBe(DB);
+  });
+
   it('has tabs with arrow keys, and Related opens other sheets or reveals the rest', async () => {
     const { ui, panel } = await sheetOn(SONARR);
     const tabs = () => [...panel()!.querySelectorAll<HTMLButtonElement>('[role="tab"]')];

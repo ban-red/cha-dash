@@ -98,6 +98,8 @@ const statusWord = computed(() => {
   return h.status !== 'ok' && h.reason ? h.reason : (c.state ?? h.status);
 });
 const incident = computed(() => (id.value ? live.problems.value.find((i) => i.target === id.value) : undefined));
+/** The hub's cause hints for it, the first cause first (the `causes` topic). */
+const hints = computed(() => live.causesOf(id.value));
 
 // ── Overview ──
 const dash = (v: unknown): string => (v === undefined || v === null || v === '' ? '—' : String(v));
@@ -575,6 +577,15 @@ watch(id, async (now, before) => {
       <span>{{ incident.title }}</span>
       <span class="go">Open in the Inbox</span>
     </button>
+    <section v-if="hints.length && !gone" class="rs-causes" :aria-labelledby="`${uid}-because`">
+      <h3 :id="`${uid}-because`">Because</h3>
+      <ul>
+        <li v-for="c in hints" :key="`${c.rule} ${c.resource}`">
+          <button v-if="live.graph.value?.resources[c.resource]" type="button" class="rs-cause" @click="go(live.graph.value!.resources[c.resource]!)">{{ c.text }}</button>
+          <span v-else>{{ c.text }}</span>
+        </li>
+      </ul>
+    </section>
 
     <template v-if="r && !gone">
       <div v-if="tabs.length > 1" class="rs-tabs" role="tablist" :aria-label="`${label(r)}`">
@@ -926,6 +937,38 @@ watch(id, async (now, before) => {
 .rs-incident .go {
   flex: none;
   color: var(--text-3);
+}
+.rs-causes {
+  margin: 0 0 var(--space-3);
+  font-size: var(--type-small);
+}
+.rs-causes h3 {
+  margin: 0 0 var(--space-1);
+  color: var(--text-3);
+  font-size: inherit;
+  font-weight: inherit;
+}
+.rs-causes ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rs-cause {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rs-cause:hover {
+  text-decoration-color: currentColor;
 }
 .rs-tabs {
   display: flex;

@@ -166,6 +166,20 @@ describe('service tile', () => {
     expect(w.find('.tf').text()).toBe('on magpie');
   });
 
+  it('says "because" with the hub’s cause hint, in place of its own guess', () => {
+    const hint = {
+      text: "qBittorrent's container was OOM-killed at 14:03. Sonarr depends on qBittorrent.",
+      resource: 'docker:magpie/qbittorrent',
+      rule: 'oom_killed',
+      args: { what: "qBittorrent's container was OOM-killed at 14:03.", why: 'Sonarr depends on qBittorrent.' },
+    };
+    const { w } = mountWidget({ ...docs(withIncidents), causes: { causes: { 'app:sonarr': [hint] } } } as Data, 'service', 'small', 'app:sonarr');
+    const note = w.find('.note').text();
+    expect(note).toContain("because qBittorrent's container was OOM-killed at 14:03");
+    expect(note).not.toContain('likely:');
+    expect(note).not.toContain('depends on');
+  });
+
   it('says "Queue clear" for an empty queue, never a bare 0', () => {
     const { w } = mountWidget(docs(withIncidents), 'service', 'small', 'app:radarr');
     expect(w.find('.v').text()).toBe('Queue clear');

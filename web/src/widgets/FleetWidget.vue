@@ -33,7 +33,7 @@ interface Row extends HostRow {
 }
 const rows = computed<Row[]>(() =>
   hostRows(live.graph.value, live.metrics.value).map((h) => {
-    const s = subjectOf(live.graph.value, live.problems.value, live.repairs.value, h.id);
+    const s = subjectOf(live.graph.value, live.problems.value, live.repairs.value, h.id, live.causes.value);
     const r = live.graph.value?.resources[h.id];
     const core = r?.labels?.['chadash.role'] === 'network-core';
     const word =

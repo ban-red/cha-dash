@@ -48,7 +48,7 @@ const worst = computed<CheckRow | undefined>(() => rows.value.find((r) => r.stat
 const kumaRepair = computed(() => {
   if (scopeRes.value) return undefined;
   return appsOfType(live.graph.value, 'uptimekuma')
-    .map((a) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, a.id))
+    .map((a) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, a.id, live.causes.value))
     .find((x) => x.needsRepair);
 });
 

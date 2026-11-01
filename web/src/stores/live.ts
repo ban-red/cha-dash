@@ -1,6 +1,6 @@
 /**
  * Live state: the realtime client feeding one reactive document with the
- * `graph`, `metrics`, `inbox` and `tasks` topics, plus connection status and
+ * `graph`, `metrics`, `inbox`, `tasks` and `causes` topics, plus connection status and
  * the hub's clock. `fixes` is the per-incident state of actions run on the
  * engine (stores/actions.ts).
  *
@@ -19,12 +19,12 @@
 import { computed, inject, provide, reactive, ref, type InjectionKey } from 'vue';
 import { RealtimeClient, sameOriginWs, type ConnectionInfo, type WebSocketFactory } from '../realtime/client';
 import type { BackoffOptions } from '../realtime/backoff';
-import type { GraphDoc, InboxDoc, LiveDoc, MetricsDoc } from '../model/types';
+import type { CauseHint, CausesDoc, GraphDoc, InboxDoc, LiveDoc, MetricsDoc } from '../model/types';
 import { openProblems, openRepairs } from '../model/inbox';
 import { rewind } from '../model/history';
 import { cursor } from './cursor';
 
-export const TOPICS = ['graph', 'metrics', 'inbox', 'tasks'] as const;
+export const TOPICS = ['graph', 'metrics', 'inbox', 'tasks', 'causes'] as const;
 
 export type FixState = 'sending' | 'accepted' | 'failed';
 
@@ -182,6 +182,10 @@ export function createLive(opts: LiveOptions = {}) {
   const inbox = computed<InboxDoc | undefined>(() => doc.inbox);
   const problems = computed(() => openProblems(doc.inbox));
   const repairs = computed(() => openRepairs(doc.inbox));
+  /** The hub's cause hints (`causes` topic), by resource. */
+  const causes = computed<CausesDoc | undefined>(() => doc.causes);
+  /** One resource's cause hints, the first cause first. */
+  const causesOf = (id: string | undefined): CauseHint[] => (id ? (doc.causes?.causes?.[id] ?? []) : []);
 
   /** Values on screen are last-known (hub unreachable or silent). */
   const stale = computed(() => {
@@ -239,6 +243,8 @@ export function createLive(opts: LiveOptions = {}) {
     inbox,
     problems,
     repairs,
+    causes,
+    causesOf,
     stale,
     loading,
     start,

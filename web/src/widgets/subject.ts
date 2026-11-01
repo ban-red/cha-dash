@@ -23,7 +23,7 @@ import type { TileStatus } from '../components/Tile.vue';
 import { since } from '../lib/format';
 import { attr, integrationOf, label, outgoing } from '../model/graph';
 import { tileStatus } from '../model/status';
-import { normalizeHealth, type GraphDoc, type Health, type Incident, type Resource } from '../model/types';
+import { normalizeHealth, type CausesDoc, type GraphDoc, type Health, type Incident, type Resource } from '../model/types';
 
 export interface Subject {
   resource: Resource | undefined;
@@ -39,8 +39,14 @@ export interface Subject {
   repairReason: string | undefined;
   /** The open problem on it, or (while it's in trouble) on what it runs on or depends on. */
   problem: Incident | undefined;
-  /** The likely cause of a down or attention state, from that problem or the graph. */
+  /**
+   * The cause of a down or attention state: the hub's first cause hint
+   * (`causes` topic) when it has one, else a guess from that problem or
+   * the graph.
+   */
   cause: string | undefined;
+  /** `cause` is the hub's hint ("because …"), not a guess ("likely: …"). */
+  hinted: boolean;
 }
 
 /** States that are quiet when the resource is healthy: it was stopped on purpose. */
@@ -119,6 +125,7 @@ export function subjectOf(
   problems: readonly Incident[],
   repairs: readonly Incident[],
   id: string | undefined,
+  hints?: CausesDoc,
 ): Subject {
   const resource = id ? g?.resources[id] : undefined;
   const health = normalizeHealth(resource);
@@ -131,8 +138,10 @@ export function subjectOf(
   if (resource && needsRepair && (status === 'ok' || status === 'unknown')) status = 'repair';
   const troubled = status === 'down' || status === 'attention';
   const problem = resource ? problemFor(g, problems, resource.id, troubled) : undefined;
-  const cause = resource && troubled ? causeOf(g, problem, resource) : undefined;
-  return { resource, health, status, integration, repair, needsRepair, repairReason, problem, cause };
+  const hint = resource && troubled ? hints?.causes?.[resource.id]?.[0] : undefined;
+  const what = hint && (typeof hint.args?.['what'] === 'string' ? hint.args['what'] : hint.text);
+  const cause = what ? stripDot(what) : resource && troubled ? causeOf(g, problem, resource) : undefined;
+  return { resource, health, status, integration, repair, needsRepair, repairReason, problem, cause, hinted: Boolean(what) };
 }
 
 /** The incident a click on the tile opens: the problem first, else the repair. */
@@ -172,7 +181,8 @@ export interface StateLine {
  * The one sentence a widget prints for a state that isn't healthy, symptom
  * first and with its time: "Down since 14:02 · exit 137 · likely: qBittorrent
  * ran out of memory", "Plex rejected its token. Values are last-known.",
- * "Stopped (as intended)". Undefined when healthy.
+ * "Stopped (as intended)". A cause the hub found reads "because …", a
+ * guess "likely: …". Undefined when healthy.
  */
 export function stateLine(s: Subject, now: number): StateLine | undefined {
   const h = s.health;
@@ -180,12 +190,12 @@ export function stateLine(s: Subject, now: number): StateLine | undefined {
     case 'down': {
       const parts = [h.since ? `Down ${since(h.since, now)}` : 'Down'];
       if (h.reason && !/^down\b/i.test(h.reason)) parts.push(h.reason);
-      if (s.cause) parts.push(`likely: ${lowerFirst(s.cause)}`);
+      if (s.cause) parts.push(`${causeWord(s)} ${lowerFirst(s.cause)}`);
       return withHref({ glyph: 'down', text: parts.join(' · ') }, h.reason ? h.url : undefined);
     }
     case 'attention': {
       const parts = [sentence(h.reason ?? 'Needs attention')];
-      if (s.cause && !h.reason?.toLowerCase().includes(s.cause.toLowerCase())) parts.push(`likely: ${lowerFirst(s.cause)}`);
+      if (s.cause && !h.reason?.toLowerCase().includes(s.cause.toLowerCase())) parts.push(`${causeWord(s)} ${lowerFirst(s.cause)}`);
       return withHref({ glyph: 'attn', text: parts.join(' · ') }, h.url);
     }
     case 'maintenance':
@@ -198,6 +208,8 @@ export function stateLine(s: Subject, now: number): StateLine | undefined {
       return undefined;
   }
 }
+
+const causeWord = (s: Pick<Subject, 'hinted'>) => (s.hinted ? 'because' : 'likely:');
 
 const withHref = (l: StateLine, href: string | undefined): StateLine => (href ? { ...l, href } : l);
 

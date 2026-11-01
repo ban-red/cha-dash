@@ -63,7 +63,7 @@ const downs = computed(() => links.value.filter((l) => l.down));
 const sources = computed(() =>
   ['linkding', 'karakeep']
     .flatMap((t) => distinct(live.graph.value).filter((r) => r.kind === 'app' && (attr(r, 'type') === t || r.id === `app:${t}`)))
-    .map((r) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, r.id)),
+    .map((r) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, r.id, live.causes.value)),
 );
 const broken = computed(() => sources.value.filter((x) => x.needsRepair));
 const name = computed(() => (group.value ? `Links · ${target}` : 'Bookmarks'));

@@ -22,6 +22,7 @@ import (
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
+	"dash.cha.sh/internal/causes"
 	"dash.cha.sh/internal/config"
 	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
@@ -369,6 +370,16 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		sec.OnChange(drv.SetPosture)
 	}
 	corr := correlate.New(correlate.Options{Topics: itp, Store: st, Log: log})
+	// Cause hints run over the topics the page reads: in demo mode the
+	// Demo Home's, on its clock, as over a real home.
+	causeOpts := causes.Options{Topics: tp, Log: log.With("component", "causes")}
+	if rec != nil {
+		causeOpts.History = rec
+	}
+	if drv != nil {
+		causeOpts.Now, causeOpts.Clock = drv.Now, drv.Clock
+	}
+	hints := causes.New(causeOpts)
 
 	// With local node pairing on (the compose file's default), the hub's own
 	// Docker is read through the node, not a socket proxy.
@@ -589,6 +600,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		a.bg.Go(func() { tp.RunClock(bg, inboxClock, time.Now) })
 	}
 	a.bg.Go(func() { corr.Run(bg) })
+	a.bg.Go(func() { hints.Run(bg) })
 	a.bg.Go(func() { eng.Run(bg) })
 	a.bg.Go(func() { nt.Run(bg) })
 	a.bg.Go(func() { icn.Run(bg) })

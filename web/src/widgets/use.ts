@@ -7,7 +7,7 @@ import { subjectOf, type Subject } from './subject';
 /** The state of one resource (by id), live. */
 export function useSubject(id: () => string | undefined): ComputedRef<Subject> {
   const live = useLive();
-  return computed(() => subjectOf(live.graph.value, live.problems.value, live.repairs.value, id()));
+  return computed(() => subjectOf(live.graph.value, live.problems.value, live.repairs.value, id(), live.causes.value));
 }
 
 /** The signed-in viewer's role, or undefined outside a session (previews). */

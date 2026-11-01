@@ -179,6 +179,10 @@ func (d *Driver) SetPosture(p security.Posture) {
 	}
 }
 
+// Clock formats a simulated time of day as the page and the simulator's
+// copy show it ("14:03", shifted in local mode).
+func (d *Driver) Clock(t time.Time) string { return t.UTC().Add(d.shown).Format("15:04") }
+
 // Seed is the simulator's seed.
 func (d *Driver) Seed() int64 { return d.opts.Seed }
 

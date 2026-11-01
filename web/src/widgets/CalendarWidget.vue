@@ -70,7 +70,7 @@ const sources = computed<Resource[]>(() => {
   if (configured.value.length) return configured.value;
   return distinct(live.graph.value).filter((r) => r.caps?.includes('media.calendar') || Array.isArray(attr(r, 'calendar')));
 });
-const states = computed(() => sources.value.map((r) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, r.id)));
+const states = computed(() => sources.value.map((r) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, r.id, live.causes.value)));
 const broken = computed(() => states.value.filter((x) => x.status === 'down' || x.needsRepair));
 const DAY = 86_400_000;
 

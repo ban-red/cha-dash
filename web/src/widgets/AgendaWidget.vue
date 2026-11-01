@@ -186,7 +186,7 @@ const WEEKDAYS = [
 /** Large: the next three days, under the month. */
 const soon = computed(() => days.value.filter((d) => daysBetween(today.value, d.day) < 3));
 
-const states = computed(() => sources.value.map((r) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, r.id)));
+const states = computed(() => sources.value.map((r) => subjectOf(live.graph.value, live.problems.value, live.repairs.value, r.id, live.causes.value)));
 const broken = computed(() => states.value.filter((x) => x.status === 'down' || x.needsRepair));
 const status = computed<TileStatus>(() => (broken.value.length && broken.value.length === sources.value.length && broken.value.some((x) => x.status === 'down') ? 'down' : 'ok'));
 const brokenNote = computed(() =>
