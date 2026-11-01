@@ -1,0 +1,109 @@
+# Beszel: the systems its agents report, with their CPU, memory and disk.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# test: beszel_test.go, against testdata/beszel/ (synthetic). Notes in
+# README.md.
+#
+# Beszel's hub is a PocketBase app. Signing in with a password
+# (auth-with-password, then the token it returns) is a handshake a spec
+# can't do, so this spec takes a token made ahead of time: PocketBase's
+# Impersonate, for a read-only Beszel user, with a long duration.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: beszel
+  name: Beszel
+  icon: beszel
+  version: 0.1.0
+  tier: bronze
+  category: hosts
+  capabilities: [host.metrics]
+
+config:
+  token: { type: secret, title: Auth token, required: true, description: "A read-only user's token, from Impersonate in Beszel's PocketBase admin (/_/)" }
+  disk_warn: { type: integer, title: Disk use before attention (%), default: 90, min: 50, max: 100 }
+
+source:
+  headers:
+    Authorization: "{{ secret.token }}"
+  timeout: 10s
+
+every: 60s
+
+requests:
+  # The systems the token's user may see (Beszel's own rule), the first 50
+  # by name.
+  systems:
+    path: /api/collections/systems/records
+    query: { perPage: "50", sort: "name" }
+    extract:
+      list: items
+      total: totalItems
+  # The hub's version, beside its public key; optional, as it isn't part of
+  # PocketBase's API.
+  hub:
+    path: /api/beszel/getkey
+    optional: true
+    extract:
+      version: v
+
+version: hub.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: 'len(filter(systems.list ?? [], {.status == "down"})) > 0 ? "attention" : "ok"'
+    reason: |
+      len(filter(systems.list ?? [], {.status == "down"})) == 0 ? "" :
+        join(map(filter(systems.list, {.status == "down"}), {.name}), ", ") + (len(filter(systems.list, {.status == "down"})) == 1 ? " is down" : " are down")
+    attrs:
+      type: '"beszel"'
+      version: hub.version
+    caps: [host.metrics]
+    links:
+      - { title: Beszel, url: config.url }
+
+  # One host per system, keyed by its PocketBase record ID.
+  - id: system
+    each: systems.list
+    key: item.id
+    part_of: app
+    kind: host
+    name: item.name
+    state: 'item.status == "up" ? "online" : (item.status == "down" ? "offline" : (item.status == "paused" ? "paused" : "unknown"))'
+    health: |
+      item.status == "down" ? "down" :
+        (item.status == "up" && (item.info.dp ?? 0) >= (config.disk_warn ?? 90) ? "attention" :
+          (item.status in ["up", "paused"] ? "ok" : "unknown"))
+    reason: |
+      item.status == "down" ? "Beszel's agent isn't answering" :
+        (item.status == "up" && (item.info.dp ?? 0) >= (config.disk_warn ?? 90) ? "Its disk is " + string(round(item.info.dp)) + "% full" : "")
+    attrs:
+      type: '"beszel.system"'
+      hostname: '(item.info.h ?? "") != "" ? item.info.h : nil'
+      address: '(item.host ?? "") != "" ? item.host : nil'
+      kernel: '(item.info.k ?? "") != "" ? item.info.k : nil'
+      cpu_model: '(item.info.m ?? "") != "" ? item.info.m : nil'
+      cores: 'item.info.c ?? nil'
+      threads: 'item.info.t ?? nil'
+      uptime_s: 'item.info.u ?? nil'
+      agent_version: '(item.info.v ?? "") != "" ? item.info.v : nil'
+      # The latest readings, in percent; Beszel keeps their history itself.
+      cpu_pct: 'item.status == "up" && item.info.cpu != nil ? round(item.info.cpu * 10) / 10 : nil'
+      mem_pct: 'item.status == "up" && item.info.mp != nil ? round(item.info.mp * 10) / 10 : nil'
+      disk_pct: 'item.status == "up" && item.info.dp != nil ? round(item.info.dp * 10) / 10 : nil'
+      net_mbps: 'item.status == "up" && item.info.b != nil ? round(item.info.b * 8 * 10) / 10 : nil'
+    caps: [host.metrics]
+
+metrics:
+  - { resource: app, key: systems, value: 'systems.total == nil ? nil : float(systems.total)', unit: count, max: 1000, band: [0, 1000] }
+  - resource: app
+    key: systems.down
+    value: 'systems.list == nil ? nil : float(len(filter(systems.list, {.status == "down"})))'
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1

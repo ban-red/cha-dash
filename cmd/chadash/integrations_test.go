@@ -30,6 +30,8 @@ func TestIntegrationsLinkedIn(t *testing.T) {
 		"lidarr", "transmission", "nzbget", "nextcloud", "audiobookshelf", "paperlessngx", "speedtesttracker",
 		// Graph v2 (v0.3)
 		"caddy", "npm",
+		// Reach (v0.4): bundled specs
+		"beszel", "komodo", "gatus",
 	} {
 		if _, _, ok := integration.Default.Get(id); !ok {
 			t.Errorf("%s isn't registered in the hub", id)

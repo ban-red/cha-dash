@@ -1,0 +1,68 @@
+[
+  {
+    "name": "Front door",
+    "group": "core",
+    "key": "core_front-door",
+    "results": [
+      {
+        "status": 200,
+        "hostname": "home.example",
+        "duration": 48213000,
+        "conditionResults": [
+          { "condition": "[STATUS] == 200", "success": true },
+          { "condition": "[RESPONSE_TIME] < 500", "success": true }
+        ],
+        "success": true,
+        "timestamp": "2026-10-31T21:59:30.123456789Z"
+      }
+    ],
+    "events": [
+      { "type": "START", "timestamp": "2026-10-30T08:00:00Z" },
+      { "type": "HEALTHY", "timestamp": "2026-10-30T08:00:05Z" }
+    ]
+  },
+  {
+    "name": "Photos",
+    "group": "apps",
+    "key": "apps_photos",
+    "results": [
+      {
+        "status": 502,
+        "hostname": "photos.home.example",
+        "duration": 1204000000,
+        "conditionResults": [
+          { "condition": "[STATUS] == 200", "success": false },
+          { "condition": "[RESPONSE_TIME] < 1000", "success": false }
+        ],
+        "success": false,
+        "timestamp": "2026-10-31T21:59:41Z"
+      }
+    ],
+    "events": [
+      { "type": "UNHEALTHY", "timestamp": "2026-10-31T21:40:41Z" }
+    ]
+  },
+  {
+    "name": "nas-ssh",
+    "group": "",
+    "key": "_nas-ssh",
+    "results": [
+      {
+        "hostname": "10.20.30.12",
+        "duration": 2000000000,
+        "errors": ["dial tcp 10.20.30.12:22: i/o timeout"],
+        "conditionResults": [{ "condition": "[CONNECTED] == true", "success": false }],
+        "success": false,
+        "timestamp": "2026-10-31T21:59:50Z"
+      }
+    ],
+    "events": []
+  },
+  {
+    "name": "Backups bucket",
+    "group": "external",
+    "key": "external_backups-bucket",
+    "results": [],
+    "events": []
+  }
+]

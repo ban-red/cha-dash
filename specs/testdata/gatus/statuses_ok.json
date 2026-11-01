@@ -1,0 +1,8 @@
+[
+  {
+    "name": "Front door",
+    "group": "core",
+    "key": "core_front-door",
+    "results": [{ "status": 200, "hostname": "home.example", "duration": 1000000, "success": true, "timestamp": "2026-10-31T22:00:00Z" }]
+  }
+]

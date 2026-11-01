@@ -1,0 +1,84 @@
+{
+  "page": 1,
+  "perPage": 50,
+  "totalItems": 3,
+  "totalPages": 1,
+  "items": [
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "id": "a1b2c3d4e5f6g7h",
+      "name": "egret",
+      "status": "up",
+      "host": "10.20.30.31",
+      "port": "45876",
+      "info": {
+        "h": "egret",
+        "k": "6.8.12-4-pve",
+        "c": 8,
+        "t": 16,
+        "m": "Intel(R) Core(TM) i7-10700T CPU @ 2.00GHz",
+        "u": 1294033,
+        "cpu": 12.437,
+        "mp": 61.2,
+        "dp": 47.9,
+        "b": 1.25,
+        "v": "0.12.3",
+        "dt": 52
+      },
+      "users": ["u7x8y9z0a1b2c3d"],
+      "created": "2026-09-01 10:00:00.000Z",
+      "updated": "2026-10-31 21:59:00.000Z"
+    },
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "id": "b2c3d4e5f6g7h8i",
+      "name": "magpie",
+      "status": "up",
+      "host": "10.20.30.32",
+      "port": "45876",
+      "info": {
+        "h": "magpie",
+        "k": "6.12.24-Unraid",
+        "c": 6,
+        "t": 12,
+        "m": "AMD Ryzen 5 5600G with Radeon Graphics",
+        "u": 4021337,
+        "cpu": 33.05,
+        "mp": 72.4,
+        "dp": 93.4,
+        "b": 12.5,
+        "v": "0.12.3"
+      },
+      "users": ["u7x8y9z0a1b2c3d"],
+      "created": "2026-09-01 10:05:00.000Z",
+      "updated": "2026-10-31 21:59:00.000Z"
+    },
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "id": "c3d4e5f6g7h8i9j",
+      "name": "stork",
+      "status": "down",
+      "host": "10.20.30.33",
+      "port": "45876",
+      "info": {
+        "h": "stork",
+        "k": "6.8.12-4-pve",
+        "c": 4,
+        "t": 4,
+        "m": "Intel(R) Celeron(R) J4125 CPU @ 2.00GHz",
+        "u": 88210,
+        "cpu": 4.1,
+        "mp": 38,
+        "dp": 22.5,
+        "b": 0.02,
+        "v": "0.11.1"
+      },
+      "users": ["u7x8y9z0a1b2c3d"],
+      "created": "2026-09-01 10:10:00.000Z",
+      "updated": "2026-10-31 21:40:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "6720a1b2c3d4e5f6000000a1",
+    "type": "Server",
+    "name": "magpie",
+    "template": false,
+    "tags": [],
+    "info": { "state": "Ok", "region": "", "address": "https://10.20.30.21:8120", "version": "1.19.5", "send_unreachable_alerts": true, "send_cpu_alerts": true, "send_mem_alerts": true, "send_disk_alerts": true }
+  },
+  {
+    "id": "6720a1b2c3d4e5f6000000a2",
+    "type": "Server",
+    "name": "egret",
+    "template": false,
+    "tags": [],
+    "info": { "state": "Ok", "region": "", "address": "https://10.20.30.22:8120", "version": "1.19.5", "send_unreachable_alerts": true, "send_cpu_alerts": true, "send_mem_alerts": true, "send_disk_alerts": true }
+  }
+]

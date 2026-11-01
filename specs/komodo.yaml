@@ -1,0 +1,105 @@
+# Komodo: the compose stacks it manages, and their state. Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# test: komodo_test.go, against testdata/komodo/ (synthetic). Notes in
+# README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: komodo
+  name: Komodo
+  icon: komodo
+  version: 0.1.0
+  tier: bronze
+  category: automation
+  capabilities: [stacks.list]
+
+config:
+  api_key: { type: secret, title: API key, required: true, description: "A service user's key, from Settings → Users in Komodo" }
+  api_secret: { type: secret, title: API secret, required: true, description: "Shown once, beside the key" }
+
+# Komodo Core's API is one POST route per kind (/read, /write, /execute),
+# with the request's type and params in the body. Only /read is used.
+source:
+  headers:
+    X-Api-Key: "{{ secret.api_key }}"
+    X-Api-Secret: "{{ secret.api_secret }}"
+  timeout: 15s
+
+every: 60s
+
+requests:
+  version:
+    method: POST
+    path: /read
+    body: '{"type": "GetVersion", "params": {}}'
+    extract:
+      version: version
+  # Every stack the key's user may read. An array at the top level.
+  stacks:
+    method: POST
+    path: /read
+    body: '{"type": "ListStacks", "params": {}}'
+    extract:
+      list: "@this"
+  # For the servers' names; a user without read on servers still sees stacks.
+  servers:
+    method: POST
+    path: /read
+    body: '{"type": "ListServers", "params": {}}'
+    optional: true
+    extract:
+      list: "@this"
+
+version: version.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: 'len(filter(stacks.list ?? [], {.info.state in ["unhealthy", "dead"]})) > 0 ? "attention" : "ok"'
+    reason: |
+      len(filter(stacks.list ?? [], {.info.state in ["unhealthy", "dead"]})) == 0 ? "" :
+        join(map(filter(stacks.list, {.info.state in ["unhealthy", "dead"]}), {.name + " is " + .info.state}), ", ")
+    attrs:
+      type: '"komodo"'
+      version: version.version
+      servers: 'servers.list == nil ? nil : len(servers.list)'
+    caps: [stacks.list]
+    links:
+      - { title: Komodo, url: config.url }
+
+  # One per stack, the first 50, keyed by Komodo's ID (stable across renames).
+  - id: stack
+    each: stacks.list
+    key: item.id
+    part_of: app
+    kind: stack
+    name: item.name
+    state: item.info.state ?? "unknown"
+    health: |
+      (item.info.state ?? "unknown") in ["running", "stopped", "paused", "down"] ? "ok" :
+        ((item.info.state ?? "unknown") == "dead" ? "down" :
+          ((item.info.state ?? "unknown") == "unknown" ? "unknown" : "attention"))
+    reason: |
+      (item.info.state ?? "unknown") in ["running", "stopped", "paused", "down", "unknown"] ? "" :
+        "Komodo says it's " + item.info.state + ((item.info.status ?? "") != "" ? " (" + item.info.status + ")" : "")
+    attrs:
+      type: '"komodo.stack"'
+      project: item.name
+      status: '(item.info.status ?? "") != "" ? item.info.status : nil'
+      server: 'servers.list == nil ? nil : (len(filter(servers.list, {.id == item.info.server_id})) > 0 ? filter(servers.list, {.id == item.info.server_id})[0].name : nil)'
+      services: 'map(item.info.services ?? [], {.service})'
+      update_available: 'any(item.info.services ?? [], {.update_available == true})'
+      repo: '(item.info.repo ?? "") != "" ? item.info.repo : nil'
+      branch: '(item.info.repo ?? "") != "" && (item.info.branch ?? "") != "" ? item.info.branch : nil'
+      deployed_hash: item.info.deployed_hash
+      latest_hash: item.info.latest_hash
+      # A git-backed stack whose branch has moved past what's deployed.
+      behind: 'item.info.deployed_hash != nil && item.info.latest_hash != nil ? item.info.deployed_hash != item.info.latest_hash : nil'
+
+metrics:
+  - { resource: app, key: stacks, value: 'stacks.list == nil ? nil : float(len(stacks.list))', unit: count, max: 500, band: [0, 500] }
+  - { resource: app, key: stacks.running, value: 'stacks.list == nil ? nil : float(len(filter(stacks.list, {.info.state == "running"})))', unit: count, max: 500, band: [0, 500] }
+  - { resource: app, key: updates, value: 'stacks.list == nil ? nil : float(len(filter(stacks.list, {any(.info.services ?? [], {.update_available == true})})))', unit: count, max: 500, band: [0, 0], warn: 1 }

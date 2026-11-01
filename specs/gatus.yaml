@@ -1,0 +1,85 @@
+# Gatus: its endpoints' latest results, as checks.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# test: gatus_test.go, against testdata/gatus/ (synthetic). Notes in
+# README.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: gatus
+  name: Gatus
+  icon: gatus
+  version: 0.1.0
+  tier: bronze
+  category: monitoring
+  capabilities: [checks.uptime]
+
+# No credential: Gatus's API answers without one unless its security
+# section is on (basic auth or OIDC), which a spec can't sign in to.
+config: {}
+
+source:
+  timeout: 10s
+
+every: 60s
+
+requests:
+  # Every endpoint with its newest result (pageSize is results per
+  # endpoint). An array at the top level.
+  statuses:
+    path: /api/v1/endpoints/statuses
+    query: { page: "1", pageSize: "1" }
+    extract:
+      list: "@this"
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: 'len(filter(statuses.list ?? [], {len(.results ?? []) > 0 && !.results[0].success})) > 0 ? "attention" : "ok"'
+    reason: |
+      len(filter(statuses.list ?? [], {len(.results ?? []) > 0 && !.results[0].success})) == 0 ? "" :
+        string(len(filter(statuses.list ?? [], {len(.results ?? []) > 0 && !.results[0].success}))) + " of " + string(len(statuses.list ?? [])) + " checks are failing"
+    attrs:
+      type: '"gatus"'
+      endpoints: len(statuses.list ?? [])
+    caps: [checks.uptime]
+    links:
+      - { title: Gatus, url: config.url }
+
+  # One check per endpoint, the first 50. Its key is Gatus's own
+  # (<group>_<name>, lowercased, with dashes), without the leading _ of
+  # an endpoint with no group.
+  - id: check
+    each: statuses.list
+    key: trimPrefix(item.key, "_")
+    part_of: app
+    kind: check
+    name: '(item.group ?? "") != "" ? item.group + " / " + item.name : item.name'
+    state: 'len(item.results ?? []) == 0 ? "unknown" : (item.results[0].success ? "online" : "error")'
+    health: 'len(item.results ?? []) == 0 ? "unknown" : (item.results[0].success ? "ok" : "down")'
+    reason: |
+      len(item.results ?? []) == 0 || item.results[0].success ? "" :
+        (len(item.results[0].errors ?? []) > 0 ? item.results[0].errors[0] :
+          (len(filter(item.results[0].conditionResults ?? [], {!.success})) > 0 ? "Failed: " + filter(item.results[0].conditionResults, {!.success})[0].condition : "The last check failed"))
+    attrs:
+      check: '"gatus"'
+      group: '(item.group ?? "") != "" ? item.group : nil'
+      target: 'len(item.results ?? []) > 0 && (item.results[0].hostname ?? "") != "" ? item.results[0].hostname : nil'
+      status_code: 'len(item.results ?? []) > 0 && (item.results[0].status ?? 0) > 0 ? item.results[0].status : nil'
+      # Gatus reports durations in nanoseconds.
+      response_ms: 'len(item.results ?? []) > 0 && item.results[0].duration != nil ? round(item.results[0].duration / 1000000) : nil'
+      checked_at: 'len(item.results ?? []) > 0 ? item.results[0].timestamp : nil'
+    caps: [checks.uptime]
+
+metrics:
+  - { resource: app, key: checks, value: 'statuses.list == nil ? nil : float(len(statuses.list))', unit: count, max: 1000, band: [0, 1000] }
+  - resource: app
+    key: checks.down
+    value: 'statuses.list == nil ? nil : float(len(filter(statuses.list, {len(.results ?? []) > 0 && !.results[0].success})))'
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1

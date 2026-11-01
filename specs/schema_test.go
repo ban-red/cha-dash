@@ -47,7 +47,7 @@ func TestSchemaTakesEveryBundledSpec(t *testing.T) {
 	}
 
 	names, _ := fs.Glob(FS, "*.yaml")
-	if len(names) < 9 {
+	if len(names) < 12 {
 		t.Fatalf("only %d specs", len(names))
 	}
 	for _, name := range names {
