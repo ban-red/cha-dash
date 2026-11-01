@@ -6,13 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0-beta.3] - 2026-10-31
+
+The rest of v0.3. Cha Dash now knows what your apps use and says why something isn't fine ("because qBittorrent's container was OOM-killed at 14:03"). It draws the whole home on the Atlas, and lists the container images that have a newer version, with update, hold and snooze. You can also install integrations from spec files, read Caddy and Nginx Proxy Manager, and pick a 12-hour or 24-hour clock.
+
+**On upgrade,** update both images, the hub and the node: checking for updates, updating a container and keeping a held one on its image all run in the node. A node's registry checks are on by default, also with a `policy.yaml` that has no `images` section; `images: { allow: [] }` turns them off. The hub's database migrates on start (`00022`). Nothing else changes in `compose.yaml`.
+
 ### Added
 
 - **Container updates.** Docker hosts read through chadash-node now check whether each running container's image tag points at a newer image, asking each registry at most every 6 hours, with a request Docker Hub doesn't count as a pull. Settings → Updates lists them by host and updates one with a pull, a recreate and a health check, putting the previous image back on its own if the new one doesn't come up healthy. Hold a container on its image, or snooze an update for 7 days. A held container keeps its image through a pull, an update through Unraid and a redeploy of its stack. The Inbox shows one quiet hint while updates wait. Local builds, digest pins and registries that need a login say why they can't be checked.
 - **The `images.check` node grant.** The node asks registries only with this grant, on by default. `images: { allow: [] }` in the node's policy turns it off.
 - **The spec format's schema.** Every hub serves the JSON Schema of the integration spec format at `/api/specs/schema/v1alpha1.json`, so an editor can check a spec as you write it. A spec with a misspelt key inside `config`, `requests` or `targets` is now refused instead of the key being dropped.
 - **Install a spec from Settings.** The owner can add an integration from a spec file in Settings → Integrations → Installed specs. Cha Dash first lists every request it makes, with the secrets each one sends, and every action it adds, with each action's method, path and tier. Its reads start at once; its actions stay off until the owner turns them on, and so do any requests it sends as POST, which could change things whatever they're called. A secret the app sends back in an answer is blanked before the spec can publish it. Installed specs are kept in the database, so a backup carries them.
-- **`chadash spec lint` and `chadash spec test`.** Spec authors can check a spec against the schema and the hub's load rules, and run it against recorded answers to see what it publishes, without a running hub. The format, `chadash/v1alpha1`, is now public; [docs/specs.md](docs/specs.md) is the guide.
+- **`chadash spec lint` and `chadash spec test`.** Spec authors can check a spec against the schema and the hub's load rules, and run it against recorded answers to see what it publishes, without a running hub. The format, `chadash/v1alpha1`, is now public; [docs/specs.md](https://github.com/ban-red/cha-dash/blob/main/docs/specs.md) is the guide.
 - **Vendor logos in Settings.** The Integrations list and the catalogue show each service's logo (Proxmox, Plex, Radarr and the rest) in place of a two-letter badge. A service with no bundled logo keeps its badge.
 - **Apps can say what they use.** An integration can now list the services its app is set up to use (a download client, indexers, a media server) by address, and Cha Dash links the app to what answers there: another app, a route or a container, shown as "depends on". A match by name alone waits in the Inbox for you to confirm. Sonarr, Radarr and Lidarr report their download clients and indexers, Prowlarr the apps it syncs to, Bazarr and Seerr their Sonarr and Radarr (and Seerr its media server), Tautulli its Plex, and Frigate its MQTT broker. Only addresses are kept: usernames, passwords and API keys in the same settings never leave the integration.
 - **"Because …" on tiles.** When something isn't healthy, Cha Dash looks at what it needs, up to three steps away, for what is unhealthy too or changed around when the trouble began. It looks for a container that was OOM-killed or restarted, a host that rebooted, or an open problem. A tile then says, for example, "because qBittorrent's container was OOM-killed at 14:03", and the resource's sheet lists up to three causes under **Because**, each opening its own sheet. These are hints: they never change a health or open an incident. Open problems in the Inbox gain them after their own causes. Scripts can read them with `GET /api/causes?resource=<id>` (`graph.read`), with the path that led to each.
@@ -398,7 +404,8 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0-beta.2...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0-beta.3...HEAD
+[0.3.0-beta.3]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.3
 [0.3.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.2
 [0.3.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.1
 [0.2.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.2.0-beta.2
