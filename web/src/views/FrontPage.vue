@@ -44,6 +44,7 @@ import { oidcErrorWords, takeOidcReturn } from '../settings/signin';
 
 const InboxSheet = defineAsyncComponent(() => import('../components/InboxSheet.vue'));
 const ResourceSheet = defineAsyncComponent(() => import('../components/ResourceSheet.vue'));
+const AtlasLens = defineAsyncComponent(() => import('../atlas/AtlasLens.vue'));
 const ConfirmDialog = defineAsyncComponent(() => import('../components/ConfirmDialog.vue'));
 const TypeConfirmDialog = defineAsyncComponent(() => import('../components/TypeConfirmDialog.vue'));
 const StepUpDialog = defineAsyncComponent(() => import('../components/StepUpDialog.vue'));
@@ -258,6 +259,7 @@ onBeforeUnmount(() => {
     </div>
   </div>
   <InboxSheet v-if="inboxLoaded && ui.can.value.inbox" />
+  <AtlasLens v-if="ui.atlas.value !== undefined" />
   <ResourceSheet v-if="sheetLoaded" />
   <ConfirmDialog v-if="confirmLoaded" />
   <TypeConfirmDialog v-if="ui.state.confirm?.kind === 'type'" :key="ui.state.confirm.plan?.id ?? 0" />

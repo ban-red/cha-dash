@@ -138,6 +138,21 @@ export const WIDGETS: Record<string, WidgetSpec> = {
       { key: 'media', kind: 'boolean', default: false, label: 'Include media releases', help: 'What Sonarr, Radarr and Lidarr expect, as on Up next.' },
     ],
   }),
+  atlas: spec('atlas', 'Atlas', 'hero', ['large', 'hero'], {
+    group: 'basics', about: 'A map of the home: what runs on what, what depends on what, and how traffic gets in.',
+    options: [
+      { key: 'compute', kind: 'boolean', default: true, label: 'Compute', help: 'Hosts, guests, engines, containers and apps.' },
+      { key: 'network', kind: 'boolean', default: true, label: 'Network', help: 'The router and the routes in.' },
+      { key: 'storage', kind: 'boolean', default: false, label: 'Storage', help: 'Arrays, pools, shares and datastores.' },
+      { key: 'backups', kind: 'boolean', default: false, label: 'Backups', help: 'Backup jobs and what they protect.' },
+      { key: 'dependencies', kind: 'boolean', default: true, label: 'Dependencies', help: 'What depends on what.' },
+      {
+        key: 'zoom', kind: 'choice', default: 'fit', label: 'Zoom',
+        choices: [{ value: 'fit', label: 'Fit the whole map' }, { value: '1', label: '100%' }, { value: '0.75', label: '75%' }, { value: '0.5', label: '50%' }],
+        help: 'How the tile opens. Drag to move around; ⌘ or Ctrl with the wheel zooms.',
+      },
+    ],
+  }),
   incidents: spec('incidents', 'Incidents', 'large', ['wide', 'panel', 'tall', 'column', 'large'], { group: 'basics', about: 'Everything open, problems first; the latest fix when it’s quiet.' }),
   /**
    * Any service: an imported Homepage entry (`service@homepage:<section>/<entry>`),

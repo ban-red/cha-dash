@@ -129,6 +129,12 @@ describe('UiDialog', () => {
     expect(submits).toBe(1);
   });
 
+  it('has a full size whose body fills it', () => {
+    const w = mount(UiDialog, { attachTo: document.body, props: { title: 'Atlas', size: 'full' } });
+    expect(w.get('dialog').classes()).toEqual(['dlg', 'dlg-full']);
+    w.unmount();
+  });
+
   it('closes the native dialog when it unmounts', async () => {
     const show = ref(true);
     const w = mount(defineComponent({ setup: () => () => (show.value ? h(UiDialog, { title: 'T' }) : null) }), { attachTo: document.body });

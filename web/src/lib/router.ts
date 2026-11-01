@@ -7,6 +7,8 @@
  *   /                                  the front page (the first board)
  *   /boards/{id}                       the front page on that board
  *   …?r={resource id}                  a resource's sheet over the front page (10 · The resource sheet)
+ *   …?atlas=1, …?atlas={resource id}   the Atlas lens over the front page, centred on that resource;
+ *                                      a sheet opened from it keeps it (`?atlas=…&r=…`)
  *   /settings                          → /settings/integrations
  *   /settings/integrations             instances and the catalog
  *   /settings/integrations/new         pick an integration to add
@@ -121,9 +123,28 @@ export function sheetOf(r: Route): string | undefined {
   return r.query['r'] || undefined;
 }
 
-/** The current front-page path with a resource's sheet open, or with none. */
+/** The current front-page path with a resource's sheet open, or with none. The Atlas stays open under it. */
 export function sheetPath(r: Route, id: string | undefined): string {
-  return id ? `${r.path}?r=${encodeURIComponent(id)}` : r.path;
+  return frontPath(r.path, r.query['atlas'], id);
+}
+
+/** The Atlas lens: open (`''`, or the resource it centres on), or undefined. */
+export function atlasOf(r: Route): string | undefined {
+  if (resolve(r).name !== 'front' || r.query['atlas'] === undefined) return undefined;
+  return r.query['atlas'] === '1' ? '' : r.query['atlas'];
+}
+
+/** The current front-page path with the Atlas open (centred on focus) or closed; a sheet closes with it. */
+export function atlasPath(r: Route, focus: string | undefined): string {
+  return frontPath(r.path, focus === undefined ? undefined : focus || '1', undefined);
+}
+
+function frontPath(path: string, atlas: string | undefined, sheet: string | undefined): string {
+  const q = new URLSearchParams();
+  if (atlas !== undefined) q.set('atlas', atlas);
+  if (sheet) q.set('r', sheet);
+  const qs = q.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 /** Path for one stack, or the stacks list without one. The new-stack form is `/settings/stacks/new`. */

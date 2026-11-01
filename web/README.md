@@ -71,6 +71,8 @@ src/
   components/         Briefing, NeedsAttention, HubBanner, InboxSheet, ResourceSheet (lazy), IncidentItem, DiscoveryItem, LeadsItem,
                       SuggestionItem, ApprovalItem (lazy), CommandPalette (lazy), ConfirmDialog (hold), TypeConfirmDialog and
                       StepUpDialog (lazy), TaskLogDialog (lazy), NoteDialog (lazy), ClampText, GlyphTip, HoldToConfirm, SettingsMenu, TaskPresence, Toasts, Tile, TileCog, PulseStrip, PeekBanner
+  atlas/              the Atlas (lazy; see "The Atlas"): AtlasLens, AtlasCanvas, AtlasList, atlas.css;
+                      the layout is model/atlas.ts
   widgets/            one component per widget type (see "Widgets"), registry.ts, WidgetHost.vue;
                       subject.ts (the eight states), read.ts, containers.ts (a container's state in words,
                       for the tile and its sheet), checks.ts, guests.ts, serviceStats.ts
@@ -190,6 +192,18 @@ One resource over the front page (`components/ResourceSheet.vue`, lazy, mounted 
 - **Metrics**, a tab once the resource has a `cpu.pct` or `mem.mib` series. While the sheet is open, `live.watchResource(id)` subscribes to `metrics:resource/<id>` (`RealtimeClient.watch`, kept across reconnects, never holding up "live"), and the Docker integration reads that container's stats every 10 s into `metrics`. The tab shows the value, memory against its limit, and a sparkline of the readings seen while open (the series' own history until there are two). Opening the tab asks `GET /api/history` for a day (`model/history.ts`), which also says whether the hub keeps history. When it does, Now, 1 h, 24 h, 7 d and 30 d switch the sparklines to the hub's averages over that range, with the peak beside the value, and **Download CSV** saves the range shown (`historyCsv`: a row a point, UTC times, each series' avg, min and max; a name that a spreadsheet would run as a formula starts with `'`). Container stats are read only while a sheet is open, so their history has gaps, and the tab says so.
 - **Related**, a tab when there is any: depends on, used by (apps first), routed by, part of, runs on, the same as. A resource with a sheet opens it; anything else closes the sheet and shows the usual way (`ui.reveal`: its incident, tile or link).
 - **Tabs** are WAI-ARIA tabs (arrows, Home, End), in the order Overview, Actions, Logs, Metrics, Related, History, and start over on Overview for each resource. Esc closes the sheet unless a dialog sits above it. A container that leaves the graph keeps its last-known name and says so. The Demo Home's Docker has no node, so its sheets say it's read-only.
+
+## The Atlas
+
+A map of the home, from [09 · v0.3 → The Atlas](../docs/plan/09-v0.3.md#the-atlas): what runs on what, what depends on what, and how traffic gets in. `atlas/AtlasLens.vue` is the full-screen lens and `widgets/AtlasWidget.vue` the Atlas tile; both draw with `atlas/AtlasCanvas.vue` and load on demand.
+
+- **The route is the state.** `?atlas=1` opens the lens; `?atlas=<resource id>` opens it on that resource (`atlasOf`, `atlasPath` in `lib/router.ts`). `ui.openAtlas(focus)` pushes an entry and closes ⌘K and the Inbox; `ui.closeAtlas()` replaces. A sheet opened from the lens keeps `atlas` in the query, so closing the sheet goes back to the map.
+- **Opened from** ⌘K ("Open the Atlas"), a resource's sheet ("Show on the Atlas", centred on it), and a node on the Atlas tile.
+- **The layout** (`model/atlas.ts`, `buildAtlas`) is our own and pure: a tidy tree on fixed rows (the router, hosts and the network, guests and engines, the second level of engines, containers, apps, routes), each node under what it runs on, a route under what it routes to, a backup job under what it backs up. Only primaries are drawn: an alias's relations move to its primary, and the primary's health is the worst of them. IDs are sorted first, so the same graph gives the same positions whatever order it arrives in. More than 12 healthy containers on one engine fold into one dashed node ("13 more containers"), each with what hangs under it; a container that isn't ok never folds. Selecting a fold opens it.
+- **Layers:** compute, network, storage, backups and dependencies, each its own line style. The lens remembers its layers on the device (`chadash.atlas.layers`); the tile keeps the ones saved in its options.
+- **Health and causes.** A node has its health's colour, the status glyph and the word in its name. Selecting one that isn't ok lights the path of its first cause hint (`live.causesOf`, `lit`) and dims the rest; the bar under the map says the causes in words, with "Open its sheet" when the kind has one.
+- **Keyboard.** One node is in the Tab order; the arrows move to the nearest node that way (`neighbour`), Enter selects or opens a fold, + and − zoom, 0 fits. Drag pans, the wheel zooms (on the tile, only with ⌘ or Ctrl, so the page still scrolls).
+- **The list** (`atlas/AtlasList.vue`, a `nav` beside the map) holds the same nodes, grouped by their root's layer and nested as the map nests them, each a button with its kind, health and first cause in words. It is how screen readers read the map; the canvas follows its selection. Below 760 px it sits under the map.
 
 ## The command bar (⌘K)
 
@@ -332,6 +346,7 @@ The catalog (`model/widgets.ts`) covers the Workbench list's v0.1 rows ([docs/de
 | `bookmarks` | glyph · small · wide · panel · tall · column | a group (`labels['chadash.group']`), or none | apps' links and their checks; Linkding and Karakeep as sources |
 | `clock` | glyph · strip · small · wide | a second IANA time zone | nothing: the hub's clock in the display zone |
 | `weather` | glyph · strip · small · wide · panel · tall · large | a weather resource, or the first | below |
+| `atlas` | large · hero | none: the whole home | the graph and the `causes` topic, as the Atlas lens draws them; options: the layers (compute, network and dependencies on), the zoom (fit, 100%, 75%, 50%) |
 
 `arr`, `traefik`, `uptimekuma` and `incidents` keep their small and wide layouts; the service tile covers their stats at the other sizes.
 

@@ -65,6 +65,7 @@ const commands = computed(() =>
       openBoard: (id) => navigate(id === board.state.boards[0]?.id ? '/' : `/boards/${encodeURIComponent(id)}`),
       // A resource with a sheet opens it; any other shows its incident, tile or link.
       reveal: (id) => (ui.hasSheet(id) ? ui.openSheet(id) : ui.reveal(id)),
+      openAtlas: (focus) => ui.openAtlas(focus),
       openSettings: (pane, id) => ui.openSettings(pane, id),
       addIntegration: () => navigate('/settings/integrations/new'),
       setTheme,

@@ -33,7 +33,7 @@
  */
 import { computed, inject, provide, reactive, type InjectionKey } from 'vue';
 import { ApiError, api } from '../lib/api';
-import { navigate, route, settingsPath, sheetOf, sheetPath, type SettingsPane } from '../lib/router';
+import { atlasOf, atlasPath, navigate, route, settingsPath, sheetOf, sheetPath, type SettingsPane } from '../lib/router';
 import { prefersReducedMotion } from '../lib/motion';
 import { repairTarget } from '../model/integrations';
 import { NODE_REVIEW, UPDATE_REVIEW } from '../model/inbox';
@@ -139,6 +139,20 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
 
   function closeSheet(): void {
     if (sheet.value) navigate(sheetPath(route.value, undefined), { replace: true });
+  }
+
+  /** The Atlas lens: open (`''`, or the resource it centres on), or undefined (the route's `?atlas=`). */
+  const atlas = computed(() => atlasOf(route.value));
+
+  /** Open the Atlas, centred on a resource when one's given (closing the Inbox, the command bar and a sheet). */
+  function openAtlas(focus = ''): void {
+    state.paletteOpen = false;
+    state.inboxOpen = false;
+    navigate(atlasPath(route.value, focus));
+  }
+
+  function closeAtlas(): void {
+    if (atlas.value !== undefined) navigate(atlasPath(route.value, undefined), { replace: true });
   }
 
   function openInbox(focus = ''): void {
@@ -365,6 +379,9 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     sheet,
     openSheet,
     closeSheet,
+    atlas,
+    openAtlas,
+    closeAtlas,
     /** The resource's kind has a sheet. */
     hasSheet: (id: string) => hasSheet(live.graph.value, id),
     reconnect,

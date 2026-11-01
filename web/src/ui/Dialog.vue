@@ -18,7 +18,7 @@ import CloseButton from './CloseButton.vue';
 import { useModal } from './useModal';
 import './dialog.css';
 
-export type DialogSize = 'sm' | 'md' | 'lg';
+export type DialogSize = 'sm' | 'md' | 'lg' | 'full';
 
 const {
   title,
@@ -27,7 +27,7 @@ const {
   closeLabel = 'Close',
 } = defineProps<{
   title?: string | undefined;
-  /** 460, 520 or 720 px wide; nearly full width on a phone. */
+  /** 460, 520 or 720 px wide, or `full`: the whole viewport less a margin, the body filling it. Nearly full width on a phone. */
   size?: DialogSize;
   as?: 'div' | 'form';
   closeLabel?: string;

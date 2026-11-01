@@ -1,0 +1,208 @@
+/*
+ * The Atlas: the canvas, its nodes and relations, and the list beside it.
+ * Loaded with the Atlas chunk (the lens, or the widget). Health is a glyph's
+ * shape as well as its colour, so nothing here relies on colour alone.
+ */
+.atlas-canvas {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--text-3) 22%, transparent) 1px, transparent 1.4px) 0 0 / 24px 24px,
+    var(--surface-2);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.atlas-canvas:active {
+  cursor: grabbing;
+}
+.atlas-world {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: 0 0;
+}
+.atlas-edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.atlas-edge {
+  fill: none;
+  stroke: color-mix(in oklch, var(--text-3) 55%, transparent);
+  stroke-width: 1.25;
+  transition: opacity var(--motion-move-duration) var(--motion-move-easing);
+}
+/* Each layer its own line, so they read apart without colour. */
+.atlas-edge.l-network {
+  stroke-dasharray: 2 4;
+}
+.atlas-edge.l-storage,
+.atlas-edge.l-backups {
+  stroke-dasharray: 6 3;
+}
+.atlas-edge.l-dependencies {
+  stroke: color-mix(in oklch, var(--accent) 60%, transparent);
+  stroke-width: 1.5;
+}
+.atlas-edge.lit {
+  stroke: var(--text);
+  stroke-width: 2.25;
+  stroke-dasharray: none;
+}
+.atlas-edge.dim {
+  opacity: 0.2;
+}
+
+.atlas-node {
+  position: absolute;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  align-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: var(--hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    opacity var(--motion-move-duration) var(--motion-move-easing),
+    border-color var(--motion-press-duration) var(--motion-press-easing);
+}
+.atlas-node:hover {
+  background: var(--surface-hover);
+}
+.atlas-node:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.atlas-node .g {
+  grid-row: 1 / span 2;
+  width: 10px;
+  height: 10px;
+}
+.atlas-name {
+  overflow: hidden;
+  font-size: var(--type-small);
+  font-weight: var(--weight-medium);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.atlas-kind {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--type-caption);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.atlas-node.h-attention {
+  border-color: var(--attention-line);
+  background: var(--attention-bg);
+}
+.atlas-node.h-down {
+  border-color: var(--down-line);
+  background: var(--down-bg);
+}
+.atlas-node.h-maintenance {
+  border-color: var(--line-2);
+  background: var(--maint-bg);
+}
+.atlas-node.k-router,
+.atlas-node.k-host {
+  border-width: 2px;
+}
+.atlas-node.fold {
+  border-style: dashed;
+  background: transparent;
+}
+.atlas-node.sel {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.atlas-node.lit {
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--text) 14%, transparent);
+}
+.atlas-node.dim {
+  opacity: 0.35;
+}
+
+.atlas-tools {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+/* The list: the same nodes, nested as on the map. */
+.atlas-list {
+  overflow: auto;
+  min-height: 0;
+  font-size: var(--type-small);
+}
+.atlas-list h3 {
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--text-3);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.atlas-list h3:first-child {
+  margin-top: 0;
+}
+.atlas-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.atlas-list ul ul {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: var(--hairline) solid var(--line);
+}
+.atlas-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  column-gap: 6px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.atlas-item:hover,
+.atlas-item[aria-current='true'] {
+  background: var(--surface-hover);
+}
+.atlas-item .g {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+}
+.atlas-item .what {
+  color: var(--text-3);
+}
+.atlas-item .why {
+  grid-column: 2;
+  color: var(--text-2);
+}

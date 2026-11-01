@@ -73,6 +73,8 @@ export interface CommandContext {
     addWidget?: () => void;
     openBoard: (id: string) => void;
     reveal: (resourceId: string) => void;
+    /** The Atlas lens, centred on a resource when one's given. */
+    openAtlas?: (focus?: string) => void;
     openSettings: (pane: SettingsPane, id?: string) => void;
     addIntegration: () => void;
     setTheme: (id: ThemeId) => void;
@@ -204,6 +206,7 @@ export function buildCommands(ctx: CommandContext): Command[] {
       kbd: 'E',
       run: d.toggleEdit,
     },
+    ...(d.openAtlas ? [{ id: 'atlas', group: 'Actions' as const, label: 'Open the Atlas', keywords: 'map graph topology what runs on what depends', run: () => d.openAtlas!() }] : []),
   ];
   if (d.addWidget && ctx.currentBoard) {
     out.push({ id: 'add-widget', group: 'Actions', label: 'Add widget', keywords: 'add new widget tile card catalog picker edit layout', run: d.addWidget });

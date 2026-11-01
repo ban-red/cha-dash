@@ -577,6 +577,9 @@ watch(id, async (now, before) => {
       <span>{{ incident.title }}</span>
       <span class="go">Open in the Inbox</span>
     </button>
+    <p v-if="r && !gone && ui.atlas.value === undefined" class="rs-atlas">
+      <UiButton size="sm" variant="ghost" @click="ui.openAtlas(r.id)">Show on the Atlas</UiButton>
+    </p>
     <section v-if="hints.length && !gone" class="rs-causes" :aria-labelledby="`${uid}-because`">
       <h3 :id="`${uid}-because`">Because</h3>
       <ul>
@@ -937,6 +940,9 @@ watch(id, async (now, before) => {
 .rs-incident .go {
   flex: none;
   color: var(--text-3);
+}
+.rs-atlas {
+  margin: 0 0 var(--space-2);
 }
 .rs-causes {
   margin: 0 0 var(--space-3);

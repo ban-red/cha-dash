@@ -26,7 +26,7 @@ const port = ref('80x');
 const kind = ref('docker');
 const notes = ref('');
 const agree = ref(true);
-const dialog = ref<'' | 'plain' | 'form'>('');
+const dialog = ref<'' | 'plain' | 'form' | 'full'>('');
 const size = ref('Medium');
 const sheet = ref<'' | 'top' | 'right'>('');
 
@@ -104,8 +104,12 @@ function pick(id: string): void {
       <div class="cat-row">
         <UiButton @click="dialog = 'plain'">Open a dialog</UiButton>
         <UiButton @click="dialog = 'form'">Open a form dialog</UiButton>
+        <UiButton @click="dialog = 'full'">Open a full dialog</UiButton>
       </div>
-      <UiDialog v-if="dialog === 'plain'" title="Dismissed services" @close="dialog = ''">
+      <UiDialog v-if="dialog === 'full'" size="full" title="Atlas" @close="dialog = ''">
+        <p class="muted">A full dialog's body fills the viewport: a lens lays out its own panes in it.</p>
+      </UiDialog>
+      <UiDialog v-else-if="dialog === 'plain'" title="Dismissed services" @close="dialog = ''">
         <p class="muted">A dialog's body is whatever the feature puts in it.</p>
         <template #foot><UiButton variant="primary" @click="dialog = ''">Done</UiButton></template>
       </UiDialog>
