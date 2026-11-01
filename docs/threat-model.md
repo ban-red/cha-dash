@@ -2,7 +2,7 @@
 
 Cha Dash holds the credentials for the machines in a home, and it can stop, restart, update and deploy things on them. This page says what it protects, where it draws trust boundaries, what each boundary guards against, and what it doesn't. [SECURITY.md](../SECURITY.md) has the security model in detail and how to report a problem.
 
-**How to read it.** Every mitigation names the package or ADR where it lives, and each was checked against the code. Items marked **(0.4, planned)** are decided but not built yet; they are described from the decision, not the code. An external review is planned before 1.0.
+**How to read it.** Every mitigation names the package or ADR where it lives, and each was checked against the code. An external review is planned before 1.0.
 
 ## What we protect
 
@@ -122,9 +122,9 @@ A spec is YAML that tells the hub what to request and how to read the answer, wi
 | **E** A token runs a risky action | Tokens can't step up, so T3 and T4 are out of reach. T2 plans from a token wait for a person, who approves with a fresh step-up, bound to the plan's hash. Only a person in a session (admin or owner) can approve | `internal/action` (`approval.go`), `internal/authz` (`DecideApproval`) |
 | **R** Nobody knows a script did it | The audit names the user a token acts for (`on_behalf_of`); approvals record both sides | `internal/audit`, `internal/action` |
 | **E** Agent tokens appear without the owner knowing | Agents is off by default. Minting an agent token is refused (`403 agents_off`) until the owner turns it on; the switch is owner-only, session-only and audited | `internal/security` (`agents.go`), `internal/authz` |
-| **E** An agent acts on its own **(0.4, planned)** | Every write from an agent token waits for a person, at every tier, T1 included. An agent can't approve, raise a tier, propose T4, see secrets, or change users, tokens, integrations or settings. At most 3 pending proposals and 20 an hour per token | [ADR-0017](adr/0017-ai-and-mcp.md) |
-| **I** An agent reads more than it should **(0.4, planned)** | Read scopes narrowable to a lens, tag or host; `logs` a separate scope, off by default; the same server-side redaction as the browser | [ADR-0017](adr/0017-ai-and-mcp.md) |
-| **E** The MCP endpoint is an open door **(0.4, planned)** | `POST /mcp` (streamable HTTP, `mcp/v0`) answers only while Agents is on, with an agent token; its tools (`search`, `get_resource`, `plan`, `propose`) are generated from the OpenAPI document, and `propose` creates a plan that waits | [ADR-0017](adr/0017-ai-and-mcp.md), [14 · v0.4](plan/14-v0.4.md#agents-mcp-read-and-propose) |
+| **E** An agent acts on its own | Every plan from an agent token waits for a person, at every tier, T1 included, and expires after 15 minutes. An agent can't approve (`DecideApproval` refuses it), propose T4, a stack or the hub itself, or call any route but `POST /mcp` (`403 agent_mcp_only`). At approval the blast radius and tier are computed again, and a changed plan voids it. At most 3 waiting proposals and 20 an hour per token by default (the owner can change both); past that a proposal is refused and the Inbox gets one burst item. Turning Agents off withdraws every agent's waiting proposals | `internal/action` (`agents.go`), `internal/authz` (`agents.go`) |
+| **I** An agent reads more than it should | `graph.read` and `inbox.read`, each narrowable by `host=`, `tag=` or `lens=` (a board); `logs.read` separate, off unless picked, and needed for any action that reads data back. The graph the user's role sees, through the same redaction as the browser; attribute and label keys that look like credentials are dropped; a blast radius outside the token's narrowing is only a count | `internal/authz` (`agents.go`), `internal/mcp` |
+| **E** The MCP endpoint is an open door | `POST /mcp` (streamable HTTP, JSON-RPC 2.0, no sessions or streams) answers `404` while Agents is off and only to an agent token (a plain token or a session gets `403`). An `Origin` that isn't trusted, the hub's own IP or localhost is refused, which stops DNS rebinding. Tools (`search`, `get_resource`, `plan`, `propose`, `get_proposal`) take inputs whose schemas come from the OpenAPI document; `propose` makes a plan that waits | `internal/mcp`, [docs/agents.md](agents.md) |
 
 ### Prompt injection
 
@@ -133,11 +133,11 @@ Container names, labels, compose files, log lines, Homepage descriptions, Traefi
 Cha Dash's answer, from [ADR-0017](adr/0017-ai-and-mcp.md):
 
 1. **An agent can't act.** The worst an injected agent can do is propose. That holds whatever the agent believes, so it's the defence that matters.
-2. **The person approving sees the engine's plan, not the agent's words.** The approval sheet is built from the action, target, blast radius and diff the engine computed. The agent's rationale is shown as quoted, untrusted text. T2 and up take a fresh passkey.
+2. **The person approving sees the engine's plan, not the agent's words.** The approval sheet is built from the action, target, blast radius and diff the engine computed. The agent's rationale is shown as quoted, untrusted text. T2 and up take a fresh step-up, made after the proposal.
 3. **Approvals bind to the plan's hash.** If the plan changes before it runs, the approval is void.
-4. **Graph text is data (0.4, planned).** Names, labels, descriptions and log lines come back in structured fields marked untrusted, never in a tool's description or instructions.
-5. **Logs need their own scope (0.4, planned)**, off by default, because logs are the easiest place to plant text.
-6. **Limits against approval fatigue (0.4, planned)**: 3 pending and 20 an hour per token, and the sheet counts the agent's proposals today.
+4. **Graph text is data.** Names, states, labels, attributes, incident text, causes, plan steps and log lines come back as `{"untrusted": true, "value": …}`, never in a tool's description or the server's instructions, which are fixed sentences.
+5. **Logs need their own scope** (`logs.read`), off unless picked, because logs are the easiest place to plant text.
+6. **Limits against approval fatigue**: 3 waiting and 20 an hour per token by default, and the sheet says which of the agent's proposals today this is. The rationale is stripped of control and bidirectional characters and cut to 500 characters.
 
 Cha Dash ships no model and calls none. What an agent reads may go to the model the owner chose; that's the owner's choice, made visible by the token's scopes and last use.
 
@@ -156,9 +156,9 @@ Cha Dash ships no model and calls none. What an agent reads may go to the model 
 | **I** An export carries secrets | The export refuses to write a document that contains a secret value; secrets travel only in a passphrase-encrypted bundle | `internal/export` |
 | **T** Someone edits the audit log | Each event's hash covers the one before; triggers block updates and deletes; `chadash audit verify`, `GET /api/audit/verify` and the export header `X-Chadash-Audit-Head` give the head to record elsewhere | `internal/audit` |
 
-### The public demo (0.4, planned)
+### The public demo
 
-The Demo Home on a public host: visitors signed in as an Operator, every action against the simulator only, settings, users and tokens read-only, a reset every hour. `CHADASH_DEMO_PUBLIC` turns it on, and the hub refuses it unless demo mode is on, so a real install can't be opened this way. Demo mode itself is built: it reads nothing real and fetches no icons ([`internal/demo`](../internal/demo)). The public switch is not built yet.
+The Demo Home on a public host: visitors are signed in as a passwordless Operator, every action runs against the simulator only, and the day starts again every hour. `CHADASH_DEMO_PUBLIC` turns it on; the hub refuses it unless demo mode is on, and refuses to start on a data directory that holds any integration. One check, `authz.DemoRefuses` in `Guard`, runs before any session or token check and refuses node and webhook routes, every admin and owner route, and every write that isn't marked for the demo (signing in and out, plan, approve, cancel); a test calls every route in the table as a visitor. New visitor sessions are limited per address. Demo mode reads nothing real and fetches no icons ([`internal/demo`](../internal/demo)).
 
 ### Supply chain and releases
 
@@ -186,8 +186,10 @@ These are true today. Each is either accepted, with the reason, or work to do.
 - **Expressions in installed specs can't be stopped mid-run.** The engine (expr-lang) compiles them with a 500-node limit but runs them with no context or time budget; the request around them has a timeout, the expression itself doesn't. A hostile spec could burn CPU until the hub restarts. Only install specs you've read.
 - **Installed specs have no signature or provenance.** The hub records the SHA-256 of the YAML the owner installed; `source` is a label. Actions stay off until the owner turns them on for that exact version.
 - **API document mirrors can drift.** `internal/apidoc` reflects most types from the handlers, but anonymous request and response types are mirrored inside it. A mirror can drift from its handler; the test only checks that each route has a row. The API reference may be wrong where a mirror is.
-- **Agent tokens are API tokens until wave 29 (0.4).** Minting needs Agents on, but the narrower scopes, the limits and "every write waits" aren't enforced yet; T2 plans wait, as for any token, but T0 and T1 don't. Turning Agents off refuses new agent tokens; it doesn't revoke existing ones. Leave Agents off until 0.4.0.
-- **There is no MCP endpoint yet**, and graph text isn't yet marked untrusted in responses. Both are 0.4 work.
+- **Turning Agents off doesn't revoke agent tokens.** It withdraws their waiting proposals and closes `/mcp`, so they can do nothing while it's off, but they work again when it's turned back on. Revoke them to be sure.
+- **Over the limits, an agent gets a tool error, not HTTP 429**, so its MCP client keeps working; the refusal is audited and raises the burst item. There's no per-agent mute, and an agent can't withdraw its own proposal.
+- **The approval record doesn't say how the approver stepped up** (passkey or password).
+- **The MCP clients in [docs/agents.md](agents.md) aren't tested**; the page gives config shapes only.
 - **The audit chain is hash-linked but not keyed or anchored.** Someone who can write the SQLite file can truncate it or rewrite it and recompute every hash. Record the head somewhere the hub can't write.
 - **First run has no setup token** ([ADR-0028](adr/0028-first-run-without-a-setup-token.md)). Whoever reaches a new hub first creates the owner. Create it straight after install.
 - **Deploying a stack is root on the node's host.** Root-equivalent settings are listed in the plan; refusing them is the host owner's choice (`stacks.deny`), and none is refused by default.
