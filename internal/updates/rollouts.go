@@ -84,6 +84,9 @@ type Rollout struct {
 	CreatedAt    time.Time     `json:"created_at"`
 	StartedAt    time.Time     `json:"started_at,omitzero"`
 	FinishedAt   time.Time     `json:"finished_at,omitzero"`
+	// Cancelling: it's running, and someone asked it to stop. The step in
+	// progress finishes (or rolls back on its own); the rest don't start.
+	Cancelling bool `json:"cancelling,omitempty"`
 }
 
 // MaxWeeklyWindow is the longest a weekly window may be.

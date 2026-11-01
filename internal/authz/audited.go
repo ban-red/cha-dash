@@ -75,6 +75,7 @@ var Audited = map[string]string{
 	"DELETE /api/specs/installed/{id}":                 "settings.specs.remove",
 	"PUT /api/specs/installed/{id}/actions":            "settings.specs.actions",
 	"DELETE /api/updates/{resource}/hold":              "update.release",
+	"DELETE /api/updates/{resource}/rejected":          "update.retry",
 	"PUT /api/backups/objectives/{resource}":           "backups.objective.set",
 	"DELETE /api/backups/objectives/{resource}":        "backups.objective.clear",
 	"PUT /api/updates/settings":                        "settings.updates.update",

@@ -173,7 +173,9 @@ func (e *Engine) end(ctx context.Context, d *Def, r Request, id string, tier Tie
 	case ctx.Err() != nil && e.ctx.Err() != nil:
 		state, result, fail = StateFailed, audit.Failed, Fail("interrupted", "The hub shut down while this was running.")
 	case ctx.Err() != nil:
-		state, result, fail = StateCancelled, audit.Failed, Fail("cancelled", "Cancelled.")
+		state, result, fail = StateCancelled, audit.Failed, Fail(CodeCancelled, "Cancelled.")
+	case errorOf(err).Code == CodeCancelled:
+		state, result, fail = StateCancelled, audit.Failed, errorOf(err)
 	default:
 		state, result, fail = StateFailed, audit.Failed, errorOf(err)
 	}

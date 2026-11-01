@@ -107,6 +107,21 @@ func (in *WindowInput) check() error {
 	return nil
 }
 
+// checkHosts refuses a host the graph doesn't have, unless the window
+// already had it (kept): a host an integration hasn't published since a
+// restart, or one that's gone, doesn't stop someone editing the window's
+// name or times. A new host must be one Cha Dash sees, so a typo or a
+// stale ID can't make a window that covers nothing.
+func (s *Service) checkHosts(hosts, kept []string) error {
+	_, doc := s.g.Snapshot(nil)
+	for _, h := range hosts {
+		if doc.Resources[graph.RID(h)] == nil && !slices.Contains(kept, h) {
+			return invalid(msg.New("updates.window_unknown_host", "host", h))
+		}
+	}
+	return nil
+}
+
 // ErrNoWindow is a window that doesn't exist.
 var ErrNoWindow = errors.New("updates: no such window")
 
@@ -154,6 +169,9 @@ func (s *Service) CreateWindow(ctx context.Context, in WindowInput, userID strin
 	if err := in.check(); err != nil {
 		return MaintenanceWindow{}, err
 	}
+	if err := s.checkHosts(in.Hosts, nil); err != nil {
+		return MaintenanceWindow{}, err
+	}
 	var n int
 	if err := s.st.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM maintenance_windows`).Scan(&n); err != nil {
 		return MaintenanceWindow{}, err
@@ -179,6 +197,13 @@ func (s *Service) CreateWindow(ctx context.Context, in WindowInput, userID strin
 // UpdateWindow changes a window. Rollouts scheduled into it move with it.
 func (s *Service) UpdateWindow(ctx context.Context, id string, in WindowInput) (MaintenanceWindow, error) {
 	if err := in.check(); err != nil {
+		return MaintenanceWindow{}, err
+	}
+	old, err := s.Window(ctx, id)
+	if err != nil {
+		return MaintenanceWindow{}, err
+	}
+	if err := s.checkHosts(in.Hosts, old.Hosts); err != nil {
 		return MaintenanceWindow{}, err
 	}
 	hosts, _ := json.Marshal(in.Hosts)

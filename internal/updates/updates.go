@@ -111,6 +111,10 @@ type Service struct {
 	windows    []MaintenanceWindow // as stored, for Expected
 	launched   map[string]time.Time
 
+	stopMu      sync.Mutex
+	stopping    map[string]string // a running rollout someone asked to stop → who
+	runningHere map[string]bool   // the rollouts whose steps run in this hub
+
 	poke chan struct{} // a hold changed: recount the Inbox item now
 	mu   sync.Mutex
 	last string // the item as last written, to skip writing it unchanged
@@ -122,7 +126,8 @@ func New(o Options) (*Service, error) {
 		return nil, errors.New("updates: needs a store and a graph")
 	}
 	s := &Service{st: o.Store, g: o.Graph, inbox: o.Inbox, refresh: o.Refresh, now: o.Now, log: o.Log, poke: make(chan struct{}, 1),
-		reg: o.Registry, ownedStack: o.OwnedStack, canAct: o.CanAct, users: o.Users, launched: map[string]time.Time{}}
+		reg: o.Registry, ownedStack: o.OwnedStack, canAct: o.CanAct, users: o.Users, launched: map[string]time.Time{},
+		stopping: map[string]string{}, runningHere: map[string]bool{}}
 	s.notes = newNotesCache(o.GitHub, o.HTTP)
 	if s.now == nil {
 		s.now = time.Now
@@ -210,6 +215,10 @@ type Row struct {
 	CheckedAt time.Time `json:"checked_at,omitzero"`
 	Reason    string    `json:"reason,omitempty"`
 	Hold      *Hold     `json:"hold,omitempty"`
+	// Rejected is the digest its last update rolled back from, while the
+	// registry still offers it: State is rolled_back, and no rollout takes
+	// it until a newer digest appears or someone tries again.
+	Rejected *Rejection `json:"rejected,omitempty"`
 	// Update is the action that updates it, or nil with Why saying what
 	// would make it updatable.
 	Update *Action `json:"update,omitempty"`
@@ -230,6 +239,10 @@ type Row struct {
 // then by host and name.
 func (s *Service) List(ctx context.Context) ([]Row, error) {
 	holds, err := s.holds(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rejected, err := s.rejections(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -272,6 +285,14 @@ func (s *Service) List(ctx context.Context) ([]Row, error) {
 				}
 			}
 		}
+		if rj, ok := rejected[holdKey(row.Engine, row.Name)]; ok {
+			// Kept on the row until it's pruned, so a newer digest or a
+			// current container can end it (pruneRejections).
+			row.Rejected = &rj
+			if rj.active(row.Latest) && row.State == integration.UpdateAvailable {
+				row.State = StateRolledBack
+			}
+		}
 		row.Update, row.Why = updater(row)
 		if row.Source != "" && row.State == integration.UpdateAvailable {
 			row.Risk = s.notes.risk(row.Source, row.Version)
@@ -279,7 +300,7 @@ func (s *Service) List(ctx context.Context) ([]Row, error) {
 		rows = append(rows, row)
 	}
 	rows = append(rows, hostRows(doc)...)
-	order := map[string]int{integration.UpdateAvailable: 0, integration.UpdateHeld: 1, integration.UpdateCantCheck: 2, integration.UpdateCurrent: 3}
+	order := map[string]int{integration.UpdateAvailable: 0, StateRolledBack: 1, integration.UpdateHeld: 1, integration.UpdateCantCheck: 2, integration.UpdateCurrent: 3}
 	slices.SortFunc(rows, func(a, b Row) int {
 		return cmp.Or(cmp.Compare(order[a.State], order[b.State]), strings.Compare(a.Host, b.Host), strings.Compare(a.Name, b.Name), strings.Compare(a.Resource, b.Resource))
 	})
@@ -299,7 +320,7 @@ func (h Hold) active(now time.Time, latest string) bool {
 // updater picks the action that updates a row's container, by how it's
 // run, or says why there's none.
 func updater(r Row) (*Action, string) {
-	if r.State != integration.UpdateAvailable && r.State != integration.UpdateHeld {
+	if r.State != integration.UpdateAvailable && r.State != integration.UpdateHeld && r.State != StateRolledBack {
 		return nil, ""
 	}
 	switch {
@@ -590,6 +611,7 @@ func (s *Service) Recount(ctx context.Context) {
 		s.log.Warn("updates: count", "err", err)
 		return
 	}
+	s.pruneRejections(ctx, rows)
 	var names []string
 	for _, r := range rows {
 		if r.State == integration.UpdateAvailable {

@@ -394,10 +394,14 @@ var Routes = []Route{
 	{Pattern: "POST /api/updates/check", Access: Operator},
 	{Pattern: "POST /api/updates/{resource}/hold", Access: Operator},
 	{Pattern: "DELETE /api/updates/{resource}/hold", Access: Operator},
+	// Try again: offer a digest an update rolled back from (wave 31).
+	// Operator+, like releasing a hold: it lets the T2 update be asked for.
+	{Pattern: "DELETE /api/updates/{resource}/rejected", Access: Operator},
 	// Rollouts, release notes and maintenance windows (wave 26). Reading
 	// them is viewer+, like the list. A rollout itself is the
 	// updates.rollout action; previewing its plan changes nothing, and
-	// cancelling one that hasn't started is operator+, like starting one.
+	// cancelling one (before it starts, or before its next step while it
+	// runs) is operator+, like starting one.
 	// Release notes call GitHub, so turning them on is a setting (admin+).
 	// Windows decide when incidents don't notify, so they're settings too.
 	{Pattern: "GET /api/updates/{resource}/notes", Access: Viewer},

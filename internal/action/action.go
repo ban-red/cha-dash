@@ -428,3 +428,9 @@ func (e *Error) Error() string { return e.Message }
 
 // Fail returns an *Error.
 func Fail(code, msg string) *Error { return &Error{Code: code, Message: msg} }
+
+// CodeCancelled is the code of a task that was cancelled. An Execute that
+// stops on its own between steps, because someone asked it to (a rollout
+// cancelled while it runs), returns Fail(CodeCancelled, …): the task ends
+// cancelled, with that sentence, rather than failed.
+const CodeCancelled = "cancelled"

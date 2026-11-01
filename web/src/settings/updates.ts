@@ -8,7 +8,8 @@
  *   PUT    /api/updates/settings                {release_notes} (admin)
  *   POST   /api/updates/rollouts/preview        {targets} → RolloutPlan
  *   GET    /api/updates/rollouts                → {rollouts: Rollout[]}
- *   POST   /api/updates/rollouts/{id}/cancel    → the rollout
+ *   DELETE /api/updates/{resource}/rejected     Try again → the row; 404 not_rejected
+ *   POST   /api/updates/rollouts/{id}/cancel    → the rollout; a running one: 202, it stops before its next step
  *   GET    /api/windows                         → {windows: WindowView[]}
  *   POST   /api/windows, PUT /api/windows/{id}  WindowInput → the window (admin)
  *   DELETE /api/windows/{id}                    (admin)
@@ -32,12 +33,15 @@ export interface UpdateRow {
   host: string;
   stack?: string;
   image?: string;
-  state: 'current' | 'available' | 'cant_check' | 'held';
+  /** rolled_back: its update rolled back from the digest the registry still offers (`rejected`). */
+  state: 'current' | 'available' | 'cant_check' | 'held' | 'rolled_back';
   current?: string;
   latest?: string;
   checked_at?: string;
   reason?: string;
   hold?: { kind: 'hold' | 'snooze'; until?: string; created_by?: string; created_at: string };
+  /** The digest its last update rolled back from, and why; no rollout takes it until a newer one or Try again. */
+  rejected?: { digest: string; reason?: string; rollout?: string; created_at: string };
   update?: { id: string; target: string };
   why?: string;
   link?: { title: string; url: string };
@@ -150,6 +154,20 @@ export function inRepo(url: string, repo: string): boolean {
   if (/(^|\/)\.\.(\/|$)/.test(url.slice('https://github.com'.length))) return false;
   return path === want || path.startsWith(`${want}/`);
 }
+
+/** A digest as people read it: its first 12 hex digits. */
+export const shortDigest = (d?: string): string => (d ? d.replace(/^sha256:/, '').slice(0, 12) : '');
+
+/** What a rolled-back row says: the digest and why. */
+export function rolledBackWords(r: UpdateRow): string {
+  if (!r.rejected) return '';
+  const why = r.rejected.reason ? `: ${r.rejected.reason}` : '.';
+  return `Rolled back from ${shortDigest(r.rejected.digest)}${why} Update all leaves it out until a newer image appears.`;
+}
+
+/** A rollout that can be cancelled now: before it starts, or while it runs and isn't already stopping. */
+export const cancellable = (r: Rollout): boolean =>
+  r.state === 'scheduled' || r.state === 'waiting' || (r.state === 'running' && !r.cancelling);
 
 /** What a step's state reads as. */
 export const STEP_WORDS: Record<RolloutStep['state'], string> = {

@@ -82,7 +82,7 @@ func (s *Service) Plan(ctx context.Context, targets []string) (RolloutPlan, erro
 		if len(want) > 0 && !want[r.Resource] {
 			continue
 		}
-		if len(want) == 0 && r.State != integration.UpdateAvailable && r.State != integration.UpdateHeld {
+		if len(want) == 0 && r.State != integration.UpdateAvailable && r.State != integration.UpdateHeld && r.State != StateRolledBack {
 			continue
 		}
 		found[r.Resource] = true
@@ -97,6 +97,8 @@ func (s *Service) Plan(ctx context.Context, targets []string) (RolloutPlan, erro
 			st.State, st.Reason = StepSkipped, msg.New("updates.skip_snoozed", "name", r.Name).Text()
 		case r.State == integration.UpdateHeld:
 			st.State, st.Reason = StepSkipped, msg.New("updates.skip_held", "name", r.Name).Text()
+		case r.State == StateRolledBack && r.Rejected != nil:
+			st.State, st.Reason = StepSkipped, rejectedReason(r)
 		case r.State != integration.UpdateAvailable:
 			st.State, st.Reason = StepSkipped, msg.New("updates.skip_current", "name", r.Name).Text()
 		case r.Update == nil:
@@ -127,6 +129,24 @@ func (s *Service) Plan(ctx context.Context, targets []string) (RolloutPlan, erro
 	}
 	p.Hash = planHash(p.Steps)
 	return p, nil
+}
+
+// rejectedReason says why a row is left out: the digest it rolled back
+// from, and why it did.
+func rejectedReason(r Row) string {
+	if r.Rejected.Reason == "" {
+		return msg.New("updates.skip_rolled_back", "name", r.Name, "digest", ShortDigest(r.Rejected.Digest)).Text()
+	}
+	return msg.New("updates.skip_rolled_back_why", "name", r.Name, "digest", ShortDigest(r.Rejected.Digest), "reason", r.Rejected.Reason).Text()
+}
+
+// ShortDigest is a digest as people read it: its first 12 hex digits.
+func ShortDigest(d string) string {
+	_, hex, ok := strings.Cut(d, ":")
+	if !ok {
+		hex = d
+	}
+	return hex[:min(len(hex), 12)]
 }
 
 // planHash is a rollout plan's hash: its steps in order, with their

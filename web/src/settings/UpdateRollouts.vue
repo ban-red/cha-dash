@@ -3,7 +3,8 @@
  * Settings → Updates → Rollouts: what "Update all" and scheduled rollouts
  * did, step by step, and the ones still to run. A running one's progress is
  * on the task sheet too; a scheduled or waiting one can be run now or
- * cancelled (operator and up).
+ * cancelled, and a running one cancelled before its next step (operator
+ * and up): the step in progress finishes, or rolls back on its own.
  *
  *   GET  /api/updates/rollouts               → {rollouts}
  *   POST /api/updates/rollouts/{id}/cancel   → the rollout
@@ -19,7 +20,7 @@ import UiButton from '../ui/Button.vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import type { Rollout, RolloutStep } from '../model/types';
-import { ROLLOUT_ACTION, ROLLOUT_TARGET, ROLLOUT_WORDS, STEP_WORDS, type WindowView } from './updates';
+import { ROLLOUT_ACTION, ROLLOUT_TARGET, ROLLOUT_WORDS, STEP_WORDS, cancellable, type WindowView } from './updates';
 
 const { rollouts, windows, status, error } = defineProps<{ rollouts: Rollout[]; windows: WindowView[]; status: 'loading' | 'ready' | 'error'; error: string }>();
 const emit = defineEmits<{ changed: []; retry: [] }>();
@@ -81,7 +82,7 @@ async function cancel(r: Rollout): Promise<void> {
   busy.value = r.id;
   try {
     await api(`/api/updates/rollouts/${encodeURIComponent(r.id)}/cancel`, { method: 'POST' });
-    ui.toast('Cancelled the rollout.');
+    ui.toast(r.state === 'running' ? 'The rollout stops after the update that’s running.' : 'Cancelled the rollout.');
     emit('changed');
   } catch (err) {
     ui.toast(hubWords(err, 'The rollout wasn’t cancelled.'), 'error');
@@ -112,7 +113,7 @@ function runNow(r: Rollout): void {
           <summary class="st-row up-row">
             <Glyph :kind="GLYPH[r.state]" :label="ROLLOUT_WORDS[r.state]" />
             <span>
-              <span class="t">{{ ROLLOUT_WORDS[r.state] }} · {{ when(r) }}</span>
+              <span class="t">{{ r.cancelling ? 'Stopping after this step' : ROLLOUT_WORDS[r.state] }} · {{ when(r) }}</span>
               <span class="m">{{ counts(r) }}<template v-if="r.created_by"> · by {{ r.created_by }}</template></span>
             </span>
           </summary>
@@ -128,9 +129,18 @@ function runNow(r: Rollout): void {
             </li>
           </ol>
         </details>
-        <div v-if="canRun && (r.state === 'scheduled' || r.state === 'waiting')" class="up-acts up-ro-acts">
-          <UiButton size="sm" variant="primary" :aria-label="`Run the rollout ${when(r)} now`" @click="runNow(r)">Run now<span class="tier">T2</span></UiButton>
-          <UiButton size="sm" :disabled="busy === r.id" :aria-label="`Cancel the rollout ${when(r)}`" @click="cancel(r)">Cancel</UiButton>
+        <div v-if="canRun && cancellable(r)" class="up-acts up-ro-acts">
+          <UiButton v-if="r.state !== 'running'" size="sm" variant="primary" :aria-label="`Run the rollout ${when(r)} now`" @click="runNow(r)">
+            Run now<span class="tier">T2</span>
+          </UiButton>
+          <UiButton
+            size="sm"
+            :disabled="busy === r.id"
+            :aria-label="r.state === 'running' ? `Cancel the rollout ${when(r)} after the update that’s running` : `Cancel the rollout ${when(r)}`"
+            @click="cancel(r)"
+          >
+            Cancel
+          </UiButton>
         </div>
       </li>
     </ul>

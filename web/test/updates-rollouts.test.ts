@@ -268,3 +268,58 @@ describe('Update Center helpers', () => {
     expect(windowProblem({ ...ok, weekly: false, ends_at: '2026-11-09T04:00:00Z' })).toBe('');
   });
 });
+
+describe('Settings → Updates: a running rollout and a rolled-back digest', () => {
+  const RUNNING = {
+    id: 'rol_3', created_by: 'owner', plan_hash: 'sha256:z', state: 'running', created_at: '2026-10-31T12:00:00Z', started_at: '2026-10-31T12:00:00Z',
+    steps: [
+      { target: 'docker:i_a/container/bazarr', name: 'bazarr', host: 'magpie', action: 'docker.container.update', state: 'running' },
+      { target: 'docker:i_a/container/radarr', name: 'radarr', host: 'magpie', action: 'docker.container.update', state: 'pending' },
+    ],
+  };
+  const CANARY = row('canary', {
+    state: 'rolled_back',
+    latest: 'sha256:cccccccccccccccc',
+    rejected: { digest: 'sha256:cccccccccccccccc', reason: 'It didn’t come up healthy.', rollout: 'rol_1', created_at: '2026-10-31T11:20:00Z' },
+  });
+
+  it('cancels a running rollout before its next step', async () => {
+    const { w, hub } = await pane('owner', {
+      'GET /api/updates/rollouts': { status: 200, body: { rollouts: [RUNNING] } },
+      'POST /api/updates/rollouts/rol_3/cancel': { status: 202, body: { ...RUNNING, cancelling: true } },
+    });
+    const ro = w.find('section[aria-labelledby="up-ro"]');
+    expect(ro.text()).toContain('Running');
+    expect(ro.findAll('button').some((b) => b.text().startsWith('Run now'))).toBe(false);
+    const cancel = ro.findAll('button').find((b) => b.attributes('aria-label')?.endsWith('after the update that’s running'))!;
+    expect(cancel.text()).toBe('Cancel');
+    await cancel.trigger('click');
+    await flushPromises();
+    expect(hub.last('POST', '/api/updates/rollouts/rol_3/cancel')).toBeTruthy();
+  });
+
+  it('says it’s stopping, without another Cancel', async () => {
+    const { w } = await pane('owner', { 'GET /api/updates/rollouts': { status: 200, body: { rollouts: [{ ...RUNNING, cancelling: true }] } } });
+    const ro = w.find('section[aria-labelledby="up-ro"]');
+    expect(ro.text()).toContain('Stopping after this step');
+    expect(ro.findAll('button').some((b) => b.text() === 'Cancel')).toBe(false);
+  });
+
+  it('marks a rolled-back digest, leaves it out of Update all, and tries again', async () => {
+    const { w, hub } = await pane('owner', {
+      'GET /api/updates': { status: 200, body: { updates: [...UPDATES.updates, CANARY] } },
+      'DELETE /api/updates/*': { status: 200, body: { ...CANARY, state: 'available', rejected: undefined } },
+    });
+    const canary = w.findAll('.up-row').find((r) => r.find('.t').text().startsWith('canary'))!;
+    expect(canary.find('.t').text()).toContain('rolled back');
+    expect(canary.text()).toContain('Rolled back from cccccccccccc: It didn’t come up healthy.');
+    expect(w.find('input[aria-label="Select canary"]').exists()).toBe(false);
+    expect(byLabel(w, 'Update all')!.text()).toContain('Update all (2)');
+    expect(canary.findAll('button').some((b) => b.attributes('aria-label') === 'Update canary')).toBe(false);
+    await byLabel(w, "Try canary's update again")!.trigger('click');
+    await flushPromises();
+    expect(hub.last('DELETE', `/api/updates/${encodeURIComponent('docker:i_a/container/canary')}/rejected`)).toBeTruthy();
+    expect(w.find('input[aria-label="Select canary"]').exists()).toBe(true);
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+  });
+});

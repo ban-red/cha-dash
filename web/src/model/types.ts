@@ -440,6 +440,8 @@ export interface Rollout {
   created_at: string;
   started_at?: string;
   finished_at?: string;
+  /** Running, and someone asked it to stop: it stops before its next step. */
+  cancelling?: boolean;
 }
 
 /** internal/updates `MaintenanceWindow`: a weekly one repeats `starts_at`..`ends_at` every 7 days. */
@@ -489,6 +491,8 @@ export interface BackupHint {
   resource: string;
   message: string;
   args?: Record<string, unknown>;
+  /** The open problem it names, when it names one (the datastore's or the job's). */
+  incident?: string;
 }
 
 /** internal/backups `Item`: one entry of the coverage map. */

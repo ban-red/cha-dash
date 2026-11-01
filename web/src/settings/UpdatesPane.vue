@@ -32,7 +32,18 @@ import ReleaseNotes from './ReleaseNotes.vue';
 import SettingsHelp from './SettingsHelp.vue';
 import UpdateRollouts from './UpdateRollouts.vue';
 import UpdateWindows from './UpdateWindows.vue';
-import { ROLLOUT_ACTION, ROLLOUT_TARGET, kindOf, riskWords, selectable, type RolloutPlan, type UpdateRow, type WindowView } from './updates';
+import {
+  ROLLOUT_ACTION,
+  ROLLOUT_TARGET,
+  kindOf,
+  riskWords,
+  rolledBackWords,
+  selectable,
+  shortDigest,
+  type RolloutPlan,
+  type UpdateRow,
+  type WindowView,
+} from './updates';
 
 const ui = useUi();
 const rows = ref<UpdateRow[]>([]);
@@ -121,11 +132,11 @@ onBeforeUnmount(() => clearTimeout(timer));
 
 // ── the list ─────────────────────────────────────────────────────────────
 
-/** Rows to act on (available or held), by host. */
+/** Rows to act on (available, held or rolled back), by host. */
 const groups = computed(() => {
   const by = new Map<string, UpdateRow[]>();
   for (const r of rows.value) {
-    if (r.state !== 'available' && r.state !== 'held') continue;
+    if (r.state !== 'available' && r.state !== 'held' && r.state !== 'rolled_back') continue;
     const k = r.host || r.engine;
     by.set(k, [...(by.get(k) ?? []), r]);
   }
@@ -171,7 +182,21 @@ async function hold(r: UpdateRow, kind: 'hold' | 'snooze' | 'release'): Promise<
   }
 }
 
-const short = (d?: string) => (d ? d.replace(/^sha256:/, '').slice(0, 12) : '');
+const short = shortDigest;
+
+/** Try again: offer the digest an update rolled back from. */
+async function tryAgain(r: UpdateRow): Promise<void> {
+  busy.value[r.resource] = true;
+  try {
+    const next = await api<UpdateRow>(`/api/updates/${encodeURIComponent(r.resource)}/rejected`, { method: 'DELETE' });
+    rows.value = rows.value.map((x) => (x.resource === r.resource ? next : x));
+    ui.toast(`${r.name}’s update is offered again.`);
+  } catch (err) {
+    ui.toast(hubWords(err, 'That didn’t work.'), 'error');
+  } finally {
+    busy.value[r.resource] = false;
+  }
+}
 
 function holdWords(r: UpdateRow): string {
   if (!r.hold) return '';
@@ -292,12 +317,13 @@ const notesOpen = ref<Record<string, boolean>>({});
               :value="r.resource"
               :aria-label="`Select ${r.name}`"
             />
-            <Glyph :kind="r.state === 'held' ? 'off' : 'attn'" />
+            <Glyph :kind="r.state === 'held' ? 'off' : r.state === 'rolled_back' ? 'down' : 'attn'" />
             <span>
               <span class="t">
                 {{ r.name }}
                 <span v-if="r.stack" class="chip">{{ r.stack }}</span>
                 <span v-if="r.state === 'held'" class="chip">{{ r.hold?.kind === 'snooze' ? 'snoozed' : 'held' }}</span>
+                <span v-if="r.state === 'rolled_back'" class="chip">rolled back</span>
                 <span v-if="r.risk && r.state === 'available'" :class="['chip', 'up-risk', r.risk]">{{ riskWords(r.risk) }}</span>
               </span>
               <span v-if="kindOf(r) === 'image'" class="m">
@@ -307,6 +333,7 @@ const notesOpen = ref<Record<string, boolean>>({});
               </span>
               <span v-else class="m">{{ kindOf(r) === 'apt' ? `Host packages · ${r.latest}` : `${r.image} ${r.current}` }}</span>
               <span v-if="r.hold" class="m">{{ holdWords(r) }}</span>
+              <span v-if="r.state === 'rolled_back'" class="m up-why">{{ rolledBackWords(r) }}</span>
               <span v-if="r.why" class="m up-why">{{ r.why }}</span>
             </span>
             <span class="end up-acts">
@@ -323,6 +350,15 @@ const notesOpen = ref<Record<string, boolean>>({});
               </UiButton>
               <UiButton v-if="r.update && canUpdate && r.state === 'available'" size="sm" variant="primary" :aria-label="`Update ${r.name}`" @click="update(r)">
                 Update<span class="tier">T2</span>
+              </UiButton>
+              <UiButton
+                v-if="canUpdate && r.state === 'rolled_back'"
+                size="sm"
+                :disabled="busy[r.resource]"
+                :aria-label="`Try ${r.name}'s update again`"
+                @click="tryAgain(r)"
+              >
+                Try again
               </UiButton>
               <template v-if="canHold && kindOf(r) === 'image'">
                 <UiButton v-if="r.hold" size="sm" :disabled="busy[r.resource]" :aria-label="`Release ${r.name}`" @click="hold(r, 'release')">Release</UiButton>

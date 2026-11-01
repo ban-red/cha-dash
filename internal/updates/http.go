@@ -20,12 +20,14 @@ import (
 //	POST   /api/updates/check                   Check now → {"asked": n}
 //	POST   /api/updates/{resource}/hold         {"kind": "hold"|"snooze"} → Row
 //	DELETE /api/updates/{resource}/hold         release it → Row
+//	DELETE /api/updates/{resource}/rejected     Try again: offer a rolled-back digest again → Row
 //	GET    /api/updates/{resource}/notes        release notes → Notes
 //	GET    /api/updates/settings                {"release_notes": bool}
 //	PUT    /api/updates/settings                {"release_notes": bool}
 //	POST   /api/updates/rollouts/preview        {"targets"} → RolloutPlan
 //	GET    /api/updates/rollouts                {"rollouts": [Rollout…]}
-//	POST   /api/updates/rollouts/{id}/cancel    a scheduled or waiting one → Rollout
+//	POST   /api/updates/rollouts/{id}/cancel    a scheduled or waiting one → Rollout;
+//	                                            a running one stops before its next step → 202 Rollout
 //	GET    /api/windows                         {"windows": [MaintenanceWindow…]}
 //	POST   /api/windows                         WindowInput → MaintenanceWindow
 //	PUT    /api/windows/{id}                    WindowInput → MaintenanceWindow
@@ -39,6 +41,7 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 	mux.Handle("POST /api/updates/check", session(http.HandlerFunc(s.handleCheck)))
 	mux.Handle("POST /api/updates/{resource}/hold", session(http.HandlerFunc(s.handleHold)))
 	mux.Handle("DELETE /api/updates/{resource}/hold", session(http.HandlerFunc(s.handleRelease)))
+	mux.Handle("DELETE /api/updates/{resource}/rejected", session(http.HandlerFunc(s.handleTryAgain)))
 	mux.Handle("GET /api/updates/{resource}/notes", session(http.HandlerFunc(s.handleNotes)))
 	mux.Handle("GET /api/updates/settings", session(http.HandlerFunc(s.handleGetSettings)))
 	mux.Handle("PUT /api/updates/settings", session(http.HandlerFunc(s.handlePutSettings)))
@@ -204,20 +207,59 @@ func (s *Service) handleRollouts(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) handleCancel(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	ro, err := s.CancelRollout(r.Context(), id)
+	ro, err := s.CancelRollout(r.Context(), id, nameOf(r))
 	switch {
 	case errors.Is(err, ErrNoRollout):
 		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("updates.no_rollout"))
 		return
 	case errors.Is(err, errNotPending):
-		httpx.Say(w, http.StatusConflict, "not_pending", msg.New("updates.rollout_not_pending"))
+		httpx.Say(w, http.StatusConflict, "not_pending", msg.New("updates.rollout_not_cancellable"))
+		return
+	case errors.Is(err, errStopping):
+		httpx.Say(w, http.StatusConflict, "stopping", msg.New("updates.rollout_stopping"))
 		return
 	case err != nil:
 		s.internal(w, "updates: cancel rollout", err)
 		return
 	}
-	s.Audit.Change(r, "update.rollout.cancel", id, map[string]any{"window": ro.WindowID}, authz.T1, nil)
-	httpx.WriteJSON(w, http.StatusOK, ro)
+	params := map[string]any{"window": ro.WindowID}
+	status := http.StatusOK
+	if ro.Cancelling {
+		// Running: it stops before its next step.
+		params["running"], status = true, http.StatusAccepted
+	}
+	s.Audit.Change(r, "update.rollout.cancel", id, params, authz.T1, nil)
+	httpx.WriteJSON(w, status, ro)
+}
+
+// nameOf is who a request is, by name, for a sentence ("Cancelled by op").
+func nameOf(r *http.Request) string {
+	if a, ok := authz.ActorFrom(r); ok {
+		if a.Kind == authz.KindToken && a.UserName != "" {
+			return a.UserName
+		}
+		return a.Name
+	}
+	return ""
+}
+
+func (s *Service) handleTryAgain(w http.ResponseWriter, r *http.Request) {
+	resource := r.PathValue("resource")
+	row, ok, err := s.TryAgain(r.Context(), resource)
+	if errors.Is(err, ErrNotFound) {
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("updates.no_container"))
+		return
+	}
+	if err != nil {
+		s.internal(w, "updates: try again", err)
+		return
+	}
+	if !ok {
+		httpx.Say(w, http.StatusNotFound, "not_rejected", msg.New("updates.not_rejected", "name", row.Name))
+		return
+	}
+	s.Audit.Change(r, "update.retry", resource, map[string]any{"container": row.Name, "engine": row.Engine}, authz.T1, nil)
+	httpx.WriteJSON(w, http.StatusOK, row)
 }
 
 func (s *Service) handleWindows(w http.ResponseWriter, r *http.Request) {

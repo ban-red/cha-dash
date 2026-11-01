@@ -560,7 +560,14 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Sessions:    action.Sessions{Proxies: proxies, StepUpUntil: func(id auth.Identity) time.Time { return id.Session.StepUpUntil }},
 		// A T4 spends the grant that allowed it, and tells the admins.
 		ConsumeStepUp: authSvc.SpendStepUp,
-		OnTaskDone:    nt.TaskDone,
+		// A container update that rolled back on its own: the Update
+		// Center remembers the digest, so Update all doesn't retry it.
+		OnTaskDone: func(d action.TaskDone) {
+			nt.TaskDone(d)
+			if upd != nil {
+				upd.TaskDone(d)
+			}
+		},
 		// A container held on its image isn't updated, however it's asked.
 		Guard: guardOf(upd),
 		// A git sync's denied or expired approval closes its Inbox item.

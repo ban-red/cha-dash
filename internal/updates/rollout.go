@@ -320,6 +320,9 @@ func (s *Service) executeRollout(ctx context.Context, r action.Request, run *act
 // runSteps runs a rollout's steps in order, stopping at the first that
 // fails, and records each step's state as it goes.
 func (s *Service) runSteps(ctx context.Context, actor action.Actor, ro *Rollout, run *action.TaskRun) error {
+	s.stopMu.Lock()
+	s.runningHere[ro.ID] = true
+	s.stopMu.Unlock()
 	var order []int
 	for i, st := range ro.Steps {
 		if st.State != StepSkipped {
@@ -328,10 +331,22 @@ func (s *Service) runSteps(ctx context.Context, actor action.Actor, ro *Rollout,
 	}
 	snapped := map[string]bool{}
 	var failed *action.Error
+	stoppedBy, stopped := "", false
+	defer s.stopped(ro.ID)
 	for n, i := range order {
 		st := &ro.Steps[i]
 		if failed != nil {
 			st.State = StepNotStarted
+			continue
+		}
+		if !stopped {
+			stoppedBy, stopped = s.stopRequested(ro.ID)
+			if stopped {
+				run.Logf("%s", cancelledBy(stoppedBy).Text())
+			}
+		}
+		if stopped {
+			st.State, st.Reason = StepNotStarted, cancelledBy(stoppedBy).Text()
 			continue
 		}
 		run.Step(msg.New("updates.progress", "n", n+1, "count", len(order), "name", st.Name).Text())
@@ -354,6 +369,13 @@ func (s *Service) runSteps(ctx context.Context, actor action.Actor, ro *Rollout,
 		if err := run.Nested(ctx, actor, st.Action, st.Target, nil); err != nil {
 			failed = asFail(err)
 			st.State, st.Reason = StepRolledBack, failed.Message
+			if failed.Code == "rolled_back" {
+				// Remember the digest, so the next Update all doesn't try
+				// the same broken image again.
+				if err := s.Reject(context.WithoutCancel(ctx), st.Target, st.To, failed.Message, ro.ID); err != nil {
+					s.log.Warn("updates: remember a rolled-back digest", "target", st.Target, "err", err)
+				}
+			}
 			continue
 		}
 		st.State = StepSucceeded
@@ -364,18 +386,52 @@ func (s *Service) runSteps(ctx context.Context, actor action.Actor, ro *Rollout,
 	run.Step(summary(*ro))
 	ro.FinishedAt = s.now()
 	ro.State = RolloutSucceeded
-	if failed != nil {
+	switch {
+	case failed != nil:
 		ro.State = RolloutFailed
-	}
-	if ctx.Err() != nil {
+	case stopped || ctx.Err() != nil:
 		ro.State = RolloutCancelled
 	}
 	s.saveSteps(context.WithoutCancel(ctx), ro)
-	if failed != nil {
+	switch {
+	case failed != nil:
 		s.failedItem(*ro)
 		return action.Fail("rolled_back", summary(*ro))
+	case stopped:
+		// The task reads cancelled, like one stopped from the task sheet,
+		// but the step that was running finished first.
+		sum := msg.New("updates.sum_cancelled")
+		if stoppedBy != "" {
+			sum = msg.New("updates.sum_cancelled_by", "by", stoppedBy)
+		}
+		return action.Fail(action.CodeCancelled, strings.TrimSpace(sum.Text()+" "+summary(*ro)))
 	}
 	return nil
+}
+
+// cancelledBy says who stopped a rollout.
+func cancelledBy(by string) msg.M {
+	if by == "" {
+		return msg.New("updates.cancelled")
+	}
+	return msg.New("updates.cancelled_by", "by", by)
+}
+
+// stopRequested says whether someone asked a running rollout to stop, and
+// who.
+func (s *Service) stopRequested(id string) (string, bool) {
+	s.stopMu.Lock()
+	defer s.stopMu.Unlock()
+	by, ok := s.stopping[id]
+	return by, ok
+}
+
+// stopped forgets a stop request once its rollout has ended.
+func (s *Service) stopped(id string) {
+	s.stopMu.Lock()
+	defer s.stopMu.Unlock()
+	delete(s.stopping, id)
+	delete(s.runningHere, id)
 }
 
 func asFail(err error) *action.Error {
@@ -496,6 +552,11 @@ func (s *Service) Rollout(ctx context.Context, id string) (Rollout, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return ro, ErrNoRollout
 	}
+	if err == nil {
+		one := []Rollout{ro}
+		s.cancelling(one)
+		ro = one[0]
+	}
 	return ro, err
 }
 
@@ -517,12 +578,15 @@ func (s *Service) Rollouts(ctx context.Context) ([]Rollout, error) {
 		}
 		out = append(out, ro)
 	}
+	s.cancelling(out)
 	return out, rows.Err()
 }
 
-// CancelRollout cancels a scheduled or waiting rollout. A running one runs
-// to its end.
-func (s *Service) CancelRollout(ctx context.Context, id string) (Rollout, error) {
+// CancelRollout cancels a scheduled or waiting rollout at once. A running
+// one stops before its next step: the step in progress finishes, or rolls
+// back on its own, and the rest don't start; Rollout.Cancelling says so
+// until it has. by is who asked, by name.
+func (s *Service) CancelRollout(ctx context.Context, id, by string) (Rollout, error) {
 	res, err := s.st.Writer().ExecContext(ctx, `UPDATE rollouts SET state = 'cancelled', finished_at = ? WHERE id = ? AND state IN ('scheduled', 'waiting')`,
 		s.now().UnixMilli(), id)
 	if err != nil {
@@ -532,14 +596,43 @@ func (s *Service) CancelRollout(ctx context.Context, id string) (Rollout, error)
 	if err != nil {
 		return ro, err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	if n, _ := res.RowsAffected(); n == 1 {
+		s.resolveItem(waitingItemID(id))
+		return ro, nil
+	}
+	if ro.State != RolloutRunning {
 		return ro, errNotPending
 	}
-	s.resolveItem(waitingItemID(id))
+	s.stopMu.Lock()
+	defer s.stopMu.Unlock()
+	if !s.runningHere[id] {
+		// Its task isn't in this hub (it stopped mid-rollout): the next
+		// start ends it (RecoverRollouts).
+		return ro, errNotPending
+	}
+	if _, ok := s.stopping[id]; ok {
+		return ro, errStopping
+	}
+	s.stopping[id] = by
+	ro.Cancelling = true
 	return ro, nil
 }
 
-var errNotPending = errors.New("updates: the rollout isn't scheduled or waiting")
+var (
+	errNotPending = errors.New("updates: the rollout isn't scheduled, waiting or running")
+	errStopping   = errors.New("updates: the rollout is already stopping")
+)
+
+// cancelling marks the rollouts someone asked to stop.
+func (s *Service) cancelling(ros []Rollout) {
+	s.stopMu.Lock()
+	defer s.stopMu.Unlock()
+	for i := range ros {
+		if _, ok := s.stopping[ros[i].ID]; ok && ros[i].State == RolloutRunning {
+			ros[i].Cancelling = true
+		}
+	}
+}
 
 // ── the scheduler ────────────────────────────────────────────────────────
 
