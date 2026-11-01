@@ -89,10 +89,10 @@ export function permissions(role: string | undefined): Permissions {
   const admin = r === 'owner' || r === 'admin';
   // Below admin, Updates and Backups come last: a path the role can't open falls back to the first pane, Security.
   const panes: SettingsPane[] = admin
-    ? ['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security', 'general']
+    ? ['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'security', 'general']
     : r === 'household'
-      ? ['security', 'notifications', 'tokens', 'general']
-      : ['security', 'notifications', 'tokens', 'general', 'updates', 'backups'];
+      ? ['security', 'notifications', 'tokens', 'general', 'timeline']
+      : ['security', 'notifications', 'tokens', 'general', 'updates', 'backups', 'timeline'];
   return {
     role: r,
     inbox: r !== 'household',

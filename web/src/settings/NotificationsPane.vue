@@ -7,7 +7,9 @@
  *   always on), with resolutions, the attention grace and which channels;
  * - channels: Web Push (built in), ntfy and webhooks, each with a test
  *   button that sends one now and says how it went;
- * - the delivery log, failures first to hand.
+ * - the delivery log, failures first to hand;
+ * - the morning digest's time and "all quiet", under its rule while it's on
+ *   (GET/PUT /api/notify/digest; the time is in the hub's time zone).
  *
  * Secrets (an ntfy token, a webhook's signing secret) are typed once and
  * never shown again; the hub says only whether one is set. Its own chunk,
@@ -23,7 +25,7 @@ import SettingsHelp from './SettingsHelp.vue';
 import { computed, onMounted, reactive, ref, useId } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import NotifyDevice from './NotifyDevice.vue';
-import { ago } from '../lib/format';
+import { absolute, ago } from '../lib/format';
 import { hubWords } from '../lib/actions';
 import { focusFirst } from '../lib/focus';
 import { useUi } from '../stores/ui';
@@ -37,6 +39,9 @@ import {
   listChannels,
   listDeliveries,
   listRules,
+  getDigest,
+  updateDigest,
+  type DigestSettings,
   testChannel,
   updateChannel,
   updateRule,
@@ -64,8 +69,38 @@ const loadError = ref('');
 const ruleBusy = ref('');
 const ruleError = ref<Record<string, string>>({});
 
+// ── the morning digest ──
+const digest = ref<DigestSettings>();
+const digestTime = ref('');
+const digestBusy = ref(false);
+const digestError = ref('');
+const digestDirty = computed(() => !!digest.value && digestTime.value !== digest.value.time);
+function syncDigest(d: DigestSettings): void {
+  digest.value = d;
+  digestTime.value = d.time;
+}
+async function saveDigest(patch: { time?: string; all_quiet?: boolean }, e?: Event): Promise<void> {
+  if (digestBusy.value) {
+    e?.preventDefault();
+    return;
+  }
+  digestBusy.value = true;
+  digestError.value = '';
+  try {
+    syncDigest(await updateDigest(patch));
+    if (patch.time) ui.toast(`The digest goes at ${patch.time}, ${digest.value?.zone ?? 'the hub’s time'}.`);
+  } catch (err) {
+    digestError.value = hubWords(err, 'The digest wasn’t changed.');
+    if (e?.target instanceof HTMLInputElement && digest.value) e.target.checked = digest.value.all_quiet;
+  } finally {
+    digestBusy.value = false;
+  }
+}
+
 async function load(): Promise<void> {
   try {
+    // The digest's settings arrive on their own: without them its rule still toggles.
+    void getDigest().then(syncDigest, (err: unknown) => (digestError.value = hubWords(err, 'The digest’s time couldn’t be loaded.')));
     const [rs, cs] = await Promise.all([listRules(), listChannels()]);
     rules.value = rs;
     channels.value = cs?.channels ?? [];
@@ -408,6 +443,29 @@ onMounted(() => {
                 </UiButton>
               </div>
             </UiField>
+            <div v-if="r.id === 'digest' && (digest || digestError)" class="nr-digest">
+              <template v-if="digest">
+                <UiField label="Send it at" :help="`${digest.zone}, the hub’s time zone.${digest.next_at ? ` Next: ${absolute(digest.next_at)}.` : ''}`" v-slot="{ control }">
+                  <div class="nr-grace-row">
+                    <input v-bind="control" v-model="digestTime" type="time" required />
+                    <UiButton
+                      size="sm"
+                      aria-label="Save the digest's time"
+                      :aria-disabled="!digestDirty || !digestTime || digestBusy ? 'true' : undefined"
+                      :aria-busy="digestBusy || undefined"
+                      @click="digestDirty && digestTime && saveDigest({ time: digestTime })"
+                    >
+                      Save
+                    </UiButton>
+                  </div>
+                </UiField>
+                <label class="check-row">
+                  <input type="checkbox" :checked="digest.all_quiet" :aria-disabled="digestBusy ? 'true' : undefined" @change="saveDigest({ all_quiet: ($event.target as HTMLInputElement).checked }, $event)" />
+                  <span>All quiet: send one on a day with nothing to say, too</span>
+                </label>
+              </template>
+              <p v-if="digestError" class="err" role="alert">{{ digestError }}</p>
+            </div>
             <fieldset v-if="channels.length > 1" class="nr-chans">
               <legend>Send to</legend>
               <label v-for="c in channels" :key="c.id" class="check-row">
@@ -581,6 +639,11 @@ onMounted(() => {
 .nr-grace {
   width: 16rem;
   max-width: 100%;
+}
+.nr-digest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 .nr-grace-row {
   display: flex;

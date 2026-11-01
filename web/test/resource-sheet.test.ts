@@ -282,7 +282,7 @@ describe('a container’s sheet', () => {
   it('has tabs with arrow keys, and Related opens other sheets or reveals the rest', async () => {
     const { ui, panel } = await sheetOn(SONARR);
     const tabs = () => [...panel()!.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    expect(tabs().map((t) => t.textContent!.trim())).toEqual(['Overview', 'Related', 'History']);
+    expect(tabs().map((t) => t.textContent!.trim())).toEqual(['Overview', 'Related', 'Timeline', 'History']);
     expect(tabs()[0]!.getAttribute('aria-selected')).toBe('true');
     tabs()[0]!.focus();
     tabs()[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -397,7 +397,7 @@ async function wave2(opts: { role?: string; audit?: unknown; states?: (url: URL)
 describe('wave 2: acting from the sheet', () => {
   it('lists what the hub would plan, by tier, with the reason and the fix for what can’t run', async () => {
     const { panel, show, e } = await wave2();
-    expect([...panel().querySelectorAll('[role="tab"]')].map((t) => t.textContent!.trim())).toEqual(['Overview', 'Actions', 'Logs', 'Related', 'History']);
+    expect([...panel().querySelectorAll('[role="tab"]')].map((t) => t.textContent!.trim())).toEqual(['Overview', 'Actions', 'Logs', 'Related', 'Timeline', 'History']);
     expect(e.listed).toContain(SONARR);
     const acts = await show('Actions');
     expect([...acts.querySelectorAll('.rs-tier h3')].map((h) => h.textContent)).toEqual(['T1', 'T2', 'T3']);
@@ -452,7 +452,7 @@ describe('wave 2: acting from the sheet', () => {
   it('a viewer sees no Logs and only what their role can run', async () => {
     const { panel } = await wave2({ role: 'viewer' });
     const tabs = [...panel().querySelectorAll('[role="tab"]')].map((t) => t.textContent!.trim());
-    expect(tabs).toEqual(['Overview', 'Related', 'History']);
+    expect(tabs).toEqual(['Overview', 'Related', 'Timeline', 'History']);
     // Reading data back (logs) is Operator and up, as the hub's policy says.
     expect(['owner', 'admin', 'operator', 'viewer', 'household'].map((r) => permissions(r).readData)).toEqual([true, true, true, false, false]);
   });
@@ -681,7 +681,7 @@ describe('wave 4: metrics while it’s open', () => {
       });
     put(2, cpu(null, '2026-10-03T14:05:00Z'), mem(200, '2026-10-03T14:05:00Z'));
     await flushPromises();
-    expect(tabNames()).toEqual(['Overview', 'Metrics', 'Related', 'History']);
+    expect(tabNames()).toEqual(['Overview', 'Metrics', 'Related', 'Timeline', 'History']);
     const rows = () => [...panel()!.querySelectorAll('.rs-metrics li')].map((li) => li.querySelector('.rs-mt')!.textContent + ' ' + li.querySelector('.rs-mv')!.textContent!.replace(/\s+/g, ' ').trim());
     expect(rows()).toEqual(['CPU —', 'Memory 200 MiB of 1,024 MiB']);
     put(3, cpu(20, '2026-10-03T14:05:10Z'), mem(210, '2026-10-03T14:05:10Z'));

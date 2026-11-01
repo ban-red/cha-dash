@@ -88,6 +88,17 @@ export const deleteChannel = (id: string) => api<void>(`/api/notify/channels/${e
 export const testChannel = (id: string) => api<TestResult>(`/api/notify/channels/${encodeURIComponent(id)}/test`, { method: 'POST' });
 export const listRules = async () => (await api<{ rules?: NotifyRule[] }>('/api/notify/rules'))?.rules ?? [];
 export const updateRule = (id: string, body: Partial<RuleSettings>) => api<NotifyRule>(`/api/notify/rules/${encodeURIComponent(id)}`, { method: 'PUT', body });
+/** GET/PUT /api/notify/digest: the morning digest's time (HH:MM in the hub's zone) and "all quiet"; its rule, `digest`, turns it on. */
+export interface DigestSettings {
+  time: string;
+  all_quiet: boolean;
+  enabled: boolean;
+  zone: string;
+  last_sent_at: string | null;
+  next_at: string | null;
+}
+export const getDigest = () => api<DigestSettings>('/api/notify/digest');
+export const updateDigest = (body: { time?: string; all_quiet?: boolean }) => api<DigestSettings>('/api/notify/digest', { method: 'PUT', body });
 export const listDeliveries = async (state = '') =>
   (await api<{ deliveries?: NotifyDelivery[] }>(`/api/notify/deliveries?limit=50${state ? `&state=${encodeURIComponent(state)}` : ''}`))?.deliveries ?? [];
 

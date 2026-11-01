@@ -23,6 +23,7 @@
  *   /settings/import/discover          Bring in → Discover: this host, leads, places you name
  *   /settings/import/history           Bring in → History: applied imports, Import again, Revert
  *   /settings/backup                   export this hub, import a Home file
+ *   /settings/timeline                 incidents, actions, health and windows on one axis (every role; ?resource= narrows it)
  *   /settings/users                    users and roles (owner, admin)
  *   /settings/audit                    the audit log (owner, admin)
  *   /settings/notifications            this device's notifications; channels, rules, the delivery log (owner, admin)
@@ -39,9 +40,24 @@ export interface Route {
   query: Record<string, string>;
 }
 
-export type SettingsPane = 'integrations' | 'stacks' | 'nodes' | 'updates' | 'backups' | 'import' | 'backup' | 'history' | 'users' | 'audit' | 'notifications' | 'tokens' | 'security' | 'general';
+export type SettingsPane =
+  | 'integrations'
+  | 'stacks'
+  | 'nodes'
+  | 'updates'
+  | 'backups'
+  | 'import'
+  | 'backup'
+  | 'history'
+  | 'timeline'
+  | 'users'
+  | 'audit'
+  | 'notifications'
+  | 'tokens'
+  | 'security'
+  | 'general';
 
-const PANES: readonly string[] = ['stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security', 'general'];
+const PANES: readonly string[] = ['stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'security', 'general'];
 
 export type View =
   | { name: 'front'; board?: string }

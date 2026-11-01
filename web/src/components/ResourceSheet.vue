@@ -11,8 +11,10 @@
  * Tabs: Overview, Actions (what the hub would plan here, by tier, through the
  * usual ladder), Logs (the last 50 lines, kept while the sheet is open),
  * Metrics (CPU and memory, which sources read only while a sheet watches the
- * resource: `live.watchResource`), Related and History (tasks on it; the
- * audit log for admins). A tab with nothing to show isn't drawn.
+ * resource: `live.watchResource`), Related, Timeline (its incidents,
+ * actions, health changes and maintenance windows: TimelineList, read when
+ * the tab opens) and History (tasks on it; the audit log for admins). A tab
+ * with nothing to show isn't drawn.
  * The sheet never repeats the Inbox: an open problem is one line that opens
  * it there.
  *
@@ -38,6 +40,7 @@ import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '
 import { statusOf } from '../widgets/subject';
 import { fmtValue, metricWords, upFor } from '../widgets/read';
 import CameraPicture from '../widgets/CameraPicture.vue';
+import TimelineList from './TimelineList.vue';
 import {
   csvName,
   fetchHistory,
@@ -381,6 +384,9 @@ const resultWord = (e: AuditRow) => (e.result === 'ok' ? 'done' : e.result === '
 function openAudit(): void {
   if (id.value) ui.openSettings('audit', undefined, { target: id.value });
 }
+function openTimeline(): void {
+  if (id.value) ui.openSettings('timeline', undefined, { resource: id.value });
+}
 
 // ── Metrics ──
 // While the sheet is open the hub knows someone watches this resource, so a
@@ -513,13 +519,14 @@ watch(
 );
 
 // ── Tabs ──
-type Tab = 'overview' | 'actions' | 'logs' | 'metrics' | 'related' | 'history';
+type Tab = 'overview' | 'actions' | 'logs' | 'metrics' | 'related' | 'timeline' | 'history';
 const tabs = computed(() => {
   const out: { id: Tab; name: string }[] = [{ id: 'overview', name: 'Overview' }];
   if (actionOffers.value.length || working.value) out.push({ id: 'actions', name: 'Actions' });
   if (logOffer.value) out.push({ id: 'logs', name: 'Logs' });
   if (metricRows.value.length) out.push({ id: 'metrics', name: 'Metrics' });
   if (related.value.length) out.push({ id: 'related', name: 'Related' });
+  out.push({ id: 'timeline', name: 'Timeline' });
   out.push({ id: 'history', name: 'History' });
   return out;
 });
@@ -774,6 +781,19 @@ watch(id, async (now, before) => {
           </li>
         </ul>
         <p v-if="span !== 'now' && past.state === 'idle'" class="rs-hint">Containers are read only while their sheet is open, so their history has gaps.</p>
+      </section>
+
+      <section
+        v-if="tab === 'timeline'"
+        :id="`${uid}-panel-timeline`"
+        class="rs-panel"
+        role="tabpanel"
+        :aria-labelledby="`${uid}-tab-timeline`"
+      >
+        <TimelineList :resource="id" :title="label(r) || id || ''" />
+        <div class="rs-acts">
+          <UiButton variant="ghost" size="sm" @click="openTimeline">Open the timeline</UiButton>
+        </div>
       </section>
 
       <section

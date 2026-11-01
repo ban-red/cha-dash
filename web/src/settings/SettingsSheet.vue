@@ -29,6 +29,7 @@ const UpdatesPane = defineAsyncComponent(() => import('./UpdatesPane.vue'));
 const BackupsPane = defineAsyncComponent(() => import('./BackupsPane.vue'));
 const BackupPane = defineAsyncComponent(() => import('./BackupPane.vue'));
 const HistoryPane = defineAsyncComponent(() => import('./HistoryPane.vue'));
+const TimelinePane = defineAsyncComponent(() => import('./TimelinePane.vue'));
 const BringInPane = defineAsyncComponent(() => import('../import/BringInPane.vue'));
 const UsersPane = defineAsyncComponent(() => import('./UsersPane.vue'));
 const AuditPane = defineAsyncComponent(() => import('./AuditPane.vue'));
@@ -50,6 +51,7 @@ const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'import', label: 'Bring in', note: 'import and discover' },
   { id: 'backup', label: 'Backup', note: 'export and restore' },
   { id: 'history', label: 'History', note: 'what Cha Dash keeps' },
+  { id: 'timeline', label: 'Timeline', note: 'what happened, and when' },
   { id: 'users', label: 'Users', note: 'people and roles' },
   { id: 'audit', label: 'Audit', note: 'who did what' },
   { id: 'notifications', label: 'Notifications', note: 'push, ntfy, webhooks' },
@@ -65,7 +67,7 @@ const PANES = computed(() =>
 const GROUPS: { label: string; ids: SettingsPane[] }[] = [
   { label: 'This device', ids: ['general'] },
   { label: 'Connect', ids: ['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import'] },
-  { label: 'Keep', ids: ['backup', 'history'] },
+  { label: 'Keep', ids: ['backup', 'history', 'timeline'] },
   { label: 'People & access', ids: ['users', 'tokens', 'security', 'notifications', 'audit'] },
 ];
 const NAV = computed(() =>
@@ -86,6 +88,7 @@ const TITLES: Record<SettingsPane, string> = {
   import: 'Bring in',
   backup: 'Backup',
   history: 'History',
+  timeline: 'Timeline',
   users: 'Users',
   audit: 'Audit',
   notifications: 'Notifications',
@@ -163,6 +166,7 @@ onBeforeUnmount(() => {
             <BringInPane v-else-if="pane === 'import'" />
             <BackupPane v-else-if="pane === 'backup'" />
             <HistoryPane v-else-if="pane === 'history'" />
+            <TimelinePane v-else-if="pane === 'timeline'" />
             <UsersPane v-else-if="pane === 'users'" />
             <AuditPane v-else-if="pane === 'audit'" />
             <NotificationsPane v-else-if="pane === 'notifications'" />

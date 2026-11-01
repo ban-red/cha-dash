@@ -535,14 +535,14 @@ describe('roles', () => {
     // Below admin, Settings is your passkeys only; integrations, the wizard and decisions are admin.
     for (const r of ['operator', 'viewer', 'household']) {
       expect(p(r).settings).toBe(true);
-      // Updates and Backups are viewer and up: reading them is viewer+, acting operator+.
-      expect(p(r).panes).toEqual(r === 'household' ? ['security', 'notifications', 'tokens', 'general'] : ['security', 'notifications', 'tokens', 'general', 'updates', 'backups']);
+      // Updates and Backups are viewer and up (reading viewer+, acting operator+); the timeline is every role's.
+      expect(p(r).panes).toEqual(r === 'household' ? ['security', 'notifications', 'tokens', 'general', 'timeline'] : ['security', 'notifications', 'tokens', 'general', 'updates', 'backups', 'timeline']);
       expect(p(r).integrations).toBe(false);
       expect(p(r).editBoards).toBe(false);
       expect(p(r).decide).toBe(false);
     }
     expect(p('admin').integrations && p('admin').decide).toBe(true);
-    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'users', 'audit', 'notifications', 'tokens', 'security', 'general']);
+    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'security', 'general']);
     expect(p('admin').securitySettings).toBe(false);
     expect(p('owner').securitySettings).toBe(true);
     expect(p('someone-new').role).toBe('viewer');

@@ -20,7 +20,9 @@
  * each saved as it's added or removed. Clearing, all or one, asks first,
  * inline.
  * With CHADASH_HISTORY=off, or in demo mode, the pane says why there's
- * nothing to choose.
+ * nothing to choose. Incidents says how long the timeline keeps incident
+ * events (incident_keep_ms, 90 days by default): it's in the hub's own
+ * database, so it can be chosen even then.
  *
  * Its own chunk: SettingsSheet loads it when the pane opens.
  */
@@ -58,6 +60,9 @@ interface HistoryView {
   excluded: string[];
   exclude_keys: { pattern: string; series: number }[];
   estimates: Partial<Record<HistoryLevel, number>>;
+  incident_keep_ms: number;
+  incident_default_keep_ms: number;
+  incident_choices_ms: number[];
 }
 
 const ui = useUi();
@@ -85,6 +90,9 @@ const keeping = ref(false);
 const keepError = ref('');
 const pattern = ref('');
 const patterning = ref(false);
+const incidentKeep = ref(0);
+const incidentSaving = ref(false);
+const incidentError = ref('');
 const patternError = ref('');
 
 const LEVELS: { id: HistoryLevel; label: string; description: string }[] = [
@@ -217,6 +225,7 @@ async function load(): Promise<void> {
     view.value = await api<HistoryView>('/api/settings/history');
     choice.value = view.value.level;
     limit.value = view.value.max_bytes;
+    incidentKeep.value = view.value.incident_keep_ms;
     syncRecorded();
     syncKeep();
     status.value = 'ready';
@@ -309,6 +318,23 @@ async function saveLimit(): Promise<void> {
     limitError.value = errorWords(err, 'The size limit wasn’t changed.');
   } finally {
     limiting.value = false;
+  }
+}
+
+async function saveIncidentKeep(): Promise<void> {
+  const v = view.value;
+  if (!v || v.incident_keep_ms === incidentKeep.value || incidentSaving.value) return;
+  incidentSaving.value = true;
+  incidentError.value = '';
+  try {
+    view.value = await api<HistoryView>('/api/settings/history', { method: 'PUT', body: { incident_keep_ms: incidentKeep.value } });
+    incidentKeep.value = view.value.incident_keep_ms;
+    ui.toast(`Incidents are kept for ${keepWords(incidentKeep.value)}. Older ones go within the hour.`);
+  } catch (err) {
+    incidentKeep.value = v.incident_keep_ms;
+    incidentError.value = errorWords(err, 'How long incidents are kept wasn’t changed.');
+  } finally {
+    incidentSaving.value = false;
   }
 }
 
@@ -503,6 +529,32 @@ onMounted(() => {
           <UiButton size="sm" type="submit" :aria-disabled="!pattern.trim() || patterning ? 'true' : undefined" :aria-busy="patterning || undefined">Add</UiButton>
         </form>
         <p v-if="patternError" class="err" role="alert">{{ patternError }}</p>
+      </section>
+
+      <section class="st-section" aria-labelledby="hp-inc-h">
+        <header><h3 id="hp-inc-h">Incidents</h3></header>
+        <p class="st-lede">
+          Every incident’s life, from opening to resolution, for the timeline on each sheet and in Settings → Timeline. Resolved incidents leave the Inbox after a
+          day; the timeline keeps them this long.
+        </p>
+        <div class="hp-limit">
+          <label :for="`${name}-inc`">Keep incidents for</label>
+          <select :id="`${name}-inc`" v-model.number="incidentKeep" :disabled="incidentSaving">
+            <option v-for="ms in view.incident_choices_ms" :key="ms" :value="ms">
+              {{ keepWords(ms) }}{{ ms === view.incident_default_keep_ms ? ' (default)' : '' }}
+            </option>
+          </select>
+          <UiButton
+            size="sm"
+            aria-label="Save how long incidents are kept"
+            :aria-disabled="incidentKeep === view.incident_keep_ms || incidentSaving ? 'true' : undefined"
+            :aria-busy="incidentSaving || undefined"
+            @click="saveIncidentKeep"
+          >
+            Save
+          </UiButton>
+        </div>
+        <p v-if="incidentError" class="err" role="alert">{{ incidentError }}</p>
       </section>
     </template>
   </div>
