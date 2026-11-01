@@ -120,3 +120,40 @@ func TestVerifyNowShowsOnTheDatastore(t *testing.T) {
 		t.Fatalf("old result shown: %+v", s.Attrs)
 	}
 }
+
+// The last verify run from the hub is kept in the instance's state, so it
+// shows on its datastore again after a restart.
+func TestVerifyResultSurvivesARestart(t *testing.T) {
+	t.Cleanup(func() { verified.Clear() })
+	srv, h, in := connect(t)
+	in.recordVerify(t.Context(), "mars", "vm/100", "OK")
+	in.recordVerify(t.Context(), "store-2", "", "verification failed - please check the log")
+	raw, err := h.State.Load(t.Context(), verifyStateKey)
+	if err != nil || !strings.Contains(string(raw), `"v":1`) || !strings.Contains(string(raw), `"mars":{`) || !strings.Contains(string(raw), `"group":"vm/100"`) {
+		t.Fatalf("state = %s, %v", raw, err)
+	}
+
+	// A restart: nothing in memory, a new instance on the same state.
+	verified.Clear()
+	again := h.Connect(Integration{}, map[string]any{"url": srv.URL, "tls": map[string]any{"mode": "tofu"}, "token_id": fixtureTok},
+		map[string]string{"token_secret": fakeSecret}).(*instance)
+	syncOK(t, again, integrationtest.Watched)
+	if m := res(t, h, "datastore/mars"); m.Attrs["verify_now"] != true || m.Attrs["verify_state"] != "OK" || m.Attrs["verify_group"] != "vm/100" {
+		t.Fatalf("mars = %+v", m.Attrs)
+	}
+	if s := res(t, h, "datastore/store-2"); s.Attrs["verify_now"] != true || !strings.Contains(s.Attrs["health.reason"].(string), "verification failed") {
+		t.Fatalf("store-2 = %+v", s.Attrs)
+	}
+
+	// An unreadable state is left alone, and nothing shows from it.
+	verified.Clear()
+	if err := h.State.Save(t.Context(), verifyStateKey, []byte(`{"v":99}`)); err != nil {
+		t.Fatal(err)
+	}
+	third := h.Connect(Integration{}, map[string]any{"url": srv.URL, "tls": map[string]any{"mode": "tofu"}, "token_id": fixtureTok},
+		map[string]string{"token_secret": fakeSecret}).(*instance)
+	syncOK(t, third, integrationtest.Watched)
+	if m := res(t, h, "datastore/mars"); m.Attrs["verify_now"] != nil {
+		t.Fatalf("mars from an unreadable state = %+v", m.Attrs)
+	}
+}

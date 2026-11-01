@@ -3,6 +3,7 @@ package pbs
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -38,17 +39,94 @@ type verifyParams struct {
 // verifyResult is the newest verify run from the hub on one datastore,
 // shown on it (verify_last, verify_state) until a verify job's is newer.
 type verifyResult struct {
-	At    time.Time
-	State string // PBS's exit status: OK, WARNINGS: n, or the error
-	Group string
+	At    time.Time `json:"at"`
+	State string    `json:"state"` // PBS's exit status: OK, WARNINGS: n, or the error
+	Group string    `json:"group,omitempty"`
 }
 
 // verified holds the results by instance and datastore. The control
 // instance records them as its task ends, and the read instance, which
-// publishes the datastore, as it reads the task back.
+// publishes the datastore, as it reads the task back. Each is also kept in
+// the instance's state (verifyStateKey), so it survives a restart: the
+// read instance loads them at its first sync.
 var verified sync.Map
 
 func verifiedKey(instance, store string) string { return instance + "\x00" + store }
+
+// verifyStateKey is the instance state that keeps the last verify run
+// from the hub per datastore: {"v": 1, "stores": {store: verifyResult}}.
+const (
+	verifyStateKey     = "verify"
+	verifyStateVersion = 1
+)
+
+type verifyState struct {
+	V      int                     `json:"v"`
+	Stores map[string]verifyResult `json:"stores"`
+}
+
+// verifyStateMu serializes reading and rewriting the state, since the
+// read and control instances share it.
+var verifyStateMu sync.Mutex
+
+// loadVerified fills verified from the instance's state, once; a state
+// that can't be read is tried again at the next sync. A result already in
+// memory that's newer wins.
+func (in *instance) loadVerified(ctx context.Context) {
+	if in.verifyLoaded || in.d.State == nil {
+		return
+	}
+	verifyStateMu.Lock()
+	b, err := in.d.State.Load(ctx, verifyStateKey)
+	verifyStateMu.Unlock()
+	if err != nil {
+		in.d.Log.Warn("couldn't load the last verify results; trying again at the next sync", "err", err)
+		return
+	}
+	in.verifyLoaded = true
+	var st verifyState
+	if b == nil {
+		return
+	}
+	if err := json.Unmarshal(b, &st); err != nil || st.V != verifyStateVersion {
+		in.d.Log.Warn("the saved verify results are unreadable; they show again after the next verify", "err", err)
+		return
+	}
+	for store, res := range st.Stores {
+		key := verifiedKey(in.key, store)
+		if v, ok := verified.Load(key); ok && !v.(verifyResult).At.Before(res.At) {
+			continue
+		}
+		verified.Store(key, res)
+	}
+}
+
+// saveVerified keeps one datastore's result in the instance's state.
+func (in *instance) saveVerified(ctx context.Context, store string, res verifyResult) {
+	if in.d.State == nil {
+		return
+	}
+	verifyStateMu.Lock()
+	defer verifyStateMu.Unlock()
+	st := verifyState{V: verifyStateVersion, Stores: map[string]verifyResult{}}
+	if b, err := in.d.State.Load(ctx, verifyStateKey); err == nil && b != nil {
+		var old verifyState
+		if json.Unmarshal(b, &old) == nil && old.V == verifyStateVersion && old.Stores != nil {
+			st.Stores = old.Stores
+		}
+	}
+	if len(res.State) > 500 {
+		res.State = res.State[:500]
+	}
+	st.Stores[store] = res
+	b, err := json.Marshal(st)
+	if err == nil {
+		err = in.d.State.Save(ctx, verifyStateKey, b)
+	}
+	if err != nil {
+		in.d.Log.Warn("couldn't keep the verify result", "store", store, "err", err)
+	}
+}
 
 func (in *instance) verifyDef() action.Def {
 	group := &integration.Schema{Type: "string", Title: "Snapshot group", Pattern: groupPattern,
@@ -154,19 +232,21 @@ func (in *instance) runVerify(ctx context.Context, r action.Request, run *action
 	}
 	upids.Store(r.Task, upid)
 	err = in.follow(ctx, run, upid, func(exit string) error {
-		in.recordVerify(store, p.Group, exit)
+		in.recordVerify(ctx, store, p.Group, exit)
 		return action.Fail("upstream", msg.New("pbs.verify_failed", "target", store, "reason", exit).Text())
 	})
 	if err != nil {
 		upids.Delete(r.Task)
 		return err
 	}
-	in.recordVerify(store, p.Group, "OK")
+	in.recordVerify(ctx, store, p.Group, "OK")
 	return nil
 }
 
-func (in *instance) recordVerify(store, group, state string) {
-	verified.Store(verifiedKey(in.key, store), verifyResult{At: in.d.Now().UTC(), State: state, Group: group})
+func (in *instance) recordVerify(ctx context.Context, store, group, state string) {
+	res := verifyResult{At: in.d.Now().UTC(), State: state, Group: group}
+	verified.Store(verifiedKey(in.key, store), res)
+	in.saveVerified(context.WithoutCancel(ctx), store, res)
 }
 
 func verifyFail(err error, store string) error {
@@ -201,10 +281,10 @@ func (in *instance) verifyOK(ctx context.Context, r action.Request, run *action.
 	if st.Status != "stopped" || !taskOK(st.ExitStatus) {
 		status := cmp.Or(st.ExitStatus, st.Status)
 		if st.Status == "stopped" {
-			in.recordVerify(r.Target.Ref, p.Group, status)
+			in.recordVerify(ctx, r.Target.Ref, p.Group, status)
 		}
 		return action.Fail("verify_failed", msg.New("pbs.verify_reported", "status", status).Text())
 	}
-	in.recordVerify(r.Target.Ref, p.Group, st.ExitStatus)
+	in.recordVerify(ctx, r.Target.Ref, p.Group, st.ExitStatus)
 	return nil
 }

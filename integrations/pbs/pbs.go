@@ -134,6 +134,10 @@ type instance struct {
 	jobMissing bool // the same for /admin/prune and /admin/verify
 	havePrune  bool // the prune jobs were read, so "none" means none
 
+	// verifyLoaded: the last verify results from the hub were read from
+	// the instance's state (loadVerified).
+	verifyLoaded bool
+
 	hidden map[string]string // part → why the token can't read it
 	notes  []integration.Warning
 	raised map[string]bool
@@ -519,6 +523,7 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	in.loadVerified(ctx)
 	return in.publish(now)
 }
 
