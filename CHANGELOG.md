@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-31
+
+The first stable release of Cha Dash, and the end of v0.3. Since 0.2, Cha Dash reaches every host: a node joins with a token and waits for your approval, stacks follow a git branch and deploy on push, and you can sign in with your own OIDC provider. It knows what your apps use and says why something isn't fine, draws the whole home on the Atlas, lists the containers whose image has a newer version and updates one through a health gate that rolls back on its own, and installs integrations from spec files, such as those in the [community repository](https://github.com/ban-red/cha-dash-specs). The details are in the three betas below. This release adds two fixes that the last live checks found.
+
+**On upgrade,** update both images, the hub and every node, and back up first ([how](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md#backing-up)). From 0.3.0-beta.3 nothing else changes. From 0.2, read the betas' upgrade notes: the database migrates on start, and checking for and applying updates needs the node on 0.3. **`latest` now exists**, and follows stable releases: if your `compose.override.yaml` (or a node's `.env`) follows `beta`, switch it to `latest` or a pinned `0.3.0` to stay on stable releases, or keep `beta` to try 0.4 early.
+
+### Changed
+
+- **Stable releases publish `latest`.** The install guide, `compose.node.yaml` and the Unraid template follow it, without a `beta` override, and the Unraid template is no longer marked beta. [SECURITY.md](https://github.com/ban-red/cha-dash/blob/main/SECURITY.md#supported-versions) says which versions get security fixes: the newest 0.3 release, and the newest beta of the next version.
+- **The guide** ([docs/beta.md](https://github.com/ban-red/cha-dash/blob/main/docs/beta.md)) describes 0.3: what an action can change, and every place the hub and its nodes connect to, now including icons, your sign-in provider, notification services, container registries and git remotes.
+
 ### Fixed
 
 - **A container kept through a stack redeploy by a hold could no longer be checked for updates.** The node pinned it by digest alone, so once the hold was released Settings → Updates said it was pinned by digest. It now keeps the tag beside the digest (`syslog-ng:latest@sha256:…`), and the next check sees the tag again. A container already pinned this way is checked again after its stack's next deploy.
@@ -409,7 +420,8 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0-beta.3...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0
 [0.3.0-beta.3]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.3
 [0.3.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.2
 [0.3.0-beta.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.1

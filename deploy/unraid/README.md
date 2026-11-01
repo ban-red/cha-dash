@@ -28,7 +28,7 @@ Then **Connect your home**. For this server, add the **Unraid** integration with
 
 | Setting | Value | Why |
 |---|---|---|
-| Repository | `ghcr.io/ban-red/chadash:beta` | The beta. It moves to `latest` when 0.1.0 is released |
+| Repository | `ghcr.io/ban-red/chadash:latest` | The newest stable release. For the betas, change it to `:beta` |
 | Port | 3696 → 3696 | Change the host side only ([ADR-0009](../../docs/adr/0009-default-port-3696.md)) |
 | `/data` | `/mnt/user/appdata/chadash` | The SQLite database (in WAL mode) and the vault key. Like other SQLite apps, it's happiest on a pool: an appdata share that lives only on your cache pool, or a direct path such as `/mnt/cache/appdata/chadash` |
 | `CHADASH_PUBLIC_URL` | empty | Optional. The `https://` address you open Cha Dash at. Passkeys need it, and HTTPS ([more](../README.md#behind-a-reverse-proxy)) |
@@ -56,5 +56,5 @@ If you also want the **Docker** integration, for containers Unraid doesn't manag
 ## For the maintainer: listing it in CA
 
 - The template's `TemplateURL`, `Icon` and `ReadMe` point at `main` in this repo. The icon is the PWA's for now; a dedicated one can replace it at the same kind of URL.
-- Switch `Repository` to `ghcr.io/ban-red/chadash:latest` and drop `Status:Beta` from `Category` when 0.1.0 ships.
+- `Repository` follows `latest`, and `Category` has no `Status:Beta`, since 0.3.0, the first stable release.
 - Once it's submitted, the repo slug can't change again ([decision 8](../../docs/plan/04-roadmap.md#decisions)).

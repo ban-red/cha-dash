@@ -6,7 +6,7 @@
 -->
 <Container version="2">
   <Name>chadash</Name>
-  <Repository>ghcr.io/ban-red/chadash:beta</Repository>
+  <Repository>ghcr.io/ban-red/chadash:latest</Repository>
   <Registry>https://github.com/ban-red/cha-dash/pkgs/container/chadash</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -21,7 +21,7 @@ This is a beta. Before the first start, give the appdata folder to the user the 
 Then start it and open the Web UI to create your account (the username starts as admin). The beta guide: https://github.com/ban-red/cha-dash/blob/main/docs/beta.md</Overview>
   <Changes>### 0.2.0-beta.1
 The first published beta: actions with plans, confirmations, undo and an audit log. What's in it: https://github.com/ban-red/cha-dash/blob/main/CHANGELOG.md</Changes>
-  <Category>Tools:Utilities Network:Management Status:Beta</Category>
+  <Category>Tools:Utilities Network:Management</Category>
   <WebUI>http://[IP]:[PORT:3696]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/unraid/chadash.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/ban-red/cha-dash/main/web/public/icons/icon-512.png</Icon>

@@ -16,7 +16,13 @@ You'll get an acknowledgement within a few days. Once a fix is ready, we'll coor
 
 ## Supported versions
 
-Cha Dash is in **beta** (`0.1.0-beta.N`). Security fixes go to the latest beta; there are no maintained older lines before 1.0, so upgrade to the newest tag.
+| Version | Security fixes |
+|---|---|
+| 0.3.x | Yes, in the newest 0.3 release |
+| Betas of the next version | Yes, in the newest beta |
+| 0.2 and older betas | No: upgrade |
+
+Before 1.0, only the newest minor line is maintained. When 0.4.0 ships, 0.3 stops getting fixes, so upgrade to the newest release.
 
 Release images and binaries are signed with cosign (keyless, GitHub OIDC) and published with an SBOM and build provenance. [docs/beta.md](docs/beta.md) shows how to verify them.
 

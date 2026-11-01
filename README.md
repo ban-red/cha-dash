@@ -3,7 +3,7 @@
 **The front page of your home.**
 One calm, beautiful page that tells you everything's fine — and lets you fix it, safely, when it isn't.
 
-> Status: **beta** (0.2.0-beta.1, October 2026): the Front Page, now with actions and owned stacks. **Want to try it?** Start with the [beta guide](docs/beta.md), and tell us how it goes. Repo: [github.com/ban-red/cha-dash](https://github.com/ban-red/cha-dash)
+> Status: **0.3.0** (November 2026), the first stable release: the Front Page with actions, owned stacks, remote nodes, container updates and the Atlas. Still 0.x: the config, API and spec format can change before 1.0. **Want to try it?** Start with the [guide](docs/beta.md), and tell us how it goes. Repo: [github.com/ban-red/cha-dash](https://github.com/ban-red/cha-dash)
 
 Cha Dash is an open-source, self-hosted dashboard for homelabs. Unraid, Docker and Proxmox are supported first-class. It starts as one customizable page of live widgets, and grows into safe control of your containers, stacks, VMs and LXCs, snapshots, updates and backups, across every host you run.
 
@@ -13,7 +13,7 @@ docker compose up -d   # the main way to run Cha Dash (deploy/README.md) — the
 
 ## Using it
 
-- [Beta guide](docs/beta.md) — install in 3 minutes, what's read-only, privacy, and how to send feedback
+- [Guide](docs/beta.md) — install in 3 minutes, what's read-only, privacy, and how to send feedback
 - [Deploying](deploy/README.md) — Docker Compose, reverse proxies, backups and upgrades; the [Unraid template](deploy/unraid/README.md)
 - [Changelog](CHANGELOG.md) — what's in each release
 

@@ -159,7 +159,7 @@ The node image gets the same tags as the hub.
 
 **The first release only** (and the first with the node, for `chadash-node`): ghcr.io makes a new package private. Open the package's settings, make it public, and check it's linked to this repository. If the package already existed, give the repository write access under *Manage Actions access*, or the push is refused.
 
-**At 0.1.0,** the first stable release: point the Unraid template at `latest` and drop `Status:Beta` from its category ([deploy/unraid](deploy/unraid/README.md#for-the-maintainer-listing-it-in-ca)), take the `beta` override out of [docs/beta.md](docs/beta.md) and [deploy/README.md](deploy/README.md), and fill in *Supported versions* in [SECURITY.md](SECURITY.md).
+**A stable release** (no `-beta` or `-rc`) also moves `latest`. 0.3.0 was the first: the Unraid template follows `latest` ([deploy/unraid](deploy/unraid/README.md#for-the-maintainer-listing-it-in-ca)), and the install docs no longer add a `beta` override. At each new minor release, update *Supported versions* in [SECURITY.md](SECURITY.md).
 
 ## Fixtures and privacy
 

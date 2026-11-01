@@ -8,9 +8,9 @@
 #
 #   docker compose -f compose.node.yaml up -d
 #
-# During the beta there's no `latest` image: add
-# CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:beta (or a pinned tag) to
-# .env first. An override file isn't read when -f names this file.
+# It runs `latest`. To pin a version, add
+# CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:0.3.0 (say) to .env. An
+# override file isn't read when -f names this file.
 #
 # The node logs "waiting for approval in Cha Dash; fingerprint …" and waits.
 # Compare the fingerprint in Settings → Nodes, then approve it there. Once it

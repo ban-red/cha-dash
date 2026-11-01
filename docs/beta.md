@@ -1,6 +1,6 @@
-# The Cha Dash beta
+# Trying Cha Dash
 
-Thank you for trying Cha Dash. This is **0.2.0-beta.1**, the first published beta: one calm, live page for your homelab that can now also act on it, with a plan, the confirmation each action's risk needs, and an audit log. We're looking for people who will run it every day for a while and tell us honestly how it goes. What's in it is in the [changelog](../CHANGELOG.md).
+Thank you for trying Cha Dash. **0.3.0** is its first stable release: one calm, live page for your homelab that can also act on it, with a plan, the confirmation each action's risk needs, and an audit log, across every host a node runs on. We're looking for people who will run it every day for a while and tell us honestly how it goes. What's in it is in the [changelog](../CHANGELOG.md).
 
 ## Install it in 3 minutes
 
@@ -9,8 +9,6 @@ You need Docker with the Compose plugin, on amd64 or arm64 (armv7 works on a bes
 ```sh
 mkdir chadash && cd chadash
 curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.yaml
-# There's no "latest" during the beta, so follow the beta tag for both images:
-printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n  chadash-node:\n    image: ghcr.io/ban-red/chadash-node:beta\n' > compose.override.yaml
 docker compose up -d
 ```
 
@@ -23,17 +21,17 @@ That's the whole install: no YAML to write, and no settings required. Running be
 - **On Unraid?** Use the [Unraid template](../deploy/unraid/README.md).
 - **Just looking?** Demo mode runs a made-up homelab with scripted incidents and connects to nothing. Fetch [`compose.demo.yaml`](../deploy/compose.demo.yaml) next to the others, then:
   ```sh
-  docker compose -f compose.yaml -f compose.override.yaml -f compose.demo.yaml up -d
-  docker compose -f compose.yaml -f compose.override.yaml -f compose.demo.yaml logs chadash | grep setup
+  docker compose -f compose.yaml -f compose.demo.yaml up -d
+  docker compose -f compose.yaml -f compose.demo.yaml logs chadash | grep setup
   ```
-  (With `-f`, Compose doesn't load `compose.override.yaml` by itself, so it's named.) It's a separate project with its own data, but it uses port 3696 too, so stop a real install first.
+  (With `-f`, Compose doesn't load a `compose.override.yaml` by itself: name yours too if you have one.) It's a separate project with its own data, but it uses port 3696 too, so stop a real install first.
 
-## What "read-only" means
+## What it can change
 
-- **Cha Dash v0.1 can't change anything.** It doesn't start, stop, restart, update or delete anything, on any platform. Actions arrive in v0.2, each with a confirmation that fits its risk, an audit log, and undo where there can be one.
-- **The Docker socket proxy** in `compose.yaml` allows GET requests only, and only Cha Dash can reach it. The hub itself never touches the Docker socket.
-- **Your credentials** should only be able to read, too. Each integration's recipe shows how, and **Test connection** warns when a key could write. A few services (Home Assistant, Plex, the *arr apps and some others) don't offer a read-only key at all; Cha Dash still only reads with them.
-- **The only things Cha Dash writes** are its own database and key in `/data`, and temporary files in a small in-memory `/tmp`.
+- **Nothing until you ask.** Every action shows its plan first: what it does, to what, and what else it touches. Its confirmation fits its risk: undo for small things, hold to confirm for restarts and updates, your passkey or password and the typed name for the big ones. Everything is in the audit log.
+- **The hub never writes to Docker.** Only a node does (`chadash-node`, beside the hub or on another host), and only what that host's policy allows. [deploy/README.md](../deploy/README.md#the-node) has the policy.
+- **Your credentials** decide the rest. Each integration's recipe shows how to make a key that can only read, and **Test connection** warns when a key could write. Add a separate control key only where you want actions.
+- **The only things the hub writes** are its own database and key in `/data`, and temporary files in a small in-memory `/tmp`.
 
 ## What we'd love to hear about
 
@@ -66,12 +64,17 @@ Open an issue on [GitHub](https://github.com/ban-red/cha-dash/issues/new/choose)
 
 **There's no telemetry.** No analytics, no crash reports, no update checks, no usage statistics. Cha Dash never contacts us.
 
-**The hub connects only to these**, and we checked the code for this release to be sure the list is complete:
+**The hub connects only to these:**
 
 1. **The services you add**, at the addresses you give, with the credentials you give. Its requests say `User-Agent: chadash/<version> (+https://dash.cha.sh)`.
 2. **plex.tv**, only while you use **Sign in with Plex**. Cha Dash creates a sign-in PIN there and checks it until you approve, sending a random ID for your hub and the name "Cha Dash". The token comes back to your form and goes into the vault. After that, Plex is read from your own server.
 3. **Open-Meteo** (`api.open-meteo.com`), only if you add the **Weather** integration. It sends the coordinates you set, rounded to about 100 m, every 15 minutes while someone is looking and every 30 otherwise. There's no key and no account, and you can point it at a self-hosted Open-Meteo instead.
-4. **Your own network, in the setup wizard's *Discover* step**: the socket proxy from `compose.yaml` as soon as the step opens, and the machines and Docker addresses you list there. It sends plain GET requests to the usual ports of the services Cha Dash knows, without credentials. It never scans a network.
+4. **Icons**: each tile's icon when it's a web address, and the favicon of the sites your tiles and services link to, fetched once and kept in the hub so the page loads nothing from elsewhere.
+5. **Your sign-in provider**, if you set up OIDC.
+6. **Where you send notifications**: your ntfy server or webhook, and for Web Push the push service of the browser you subscribed with (Mozilla's, Google's or Apple's), which gets an encrypted message it can't read.
+7. **Your own network, in the setup wizard's *Discover* step**: `socket-proxy:2375`, the Docker socket proxy older installs ran beside the hub, as soon as the step opens, and the machines and Docker addresses you list there. It sends plain GET requests to the usual ports of the services Cha Dash knows, without credentials. It never scans a network.
+
+**Nodes connect to** the hub, the container registries of the images they run (to check for updates, at most every 6 hours, and to pull when you update or deploy), and the git remotes you have a stack follow.
 
 **The web app loads nothing from anywhere else.** Fonts and icons are built in, and the page's Content-Security-Policy (`default-src 'self'`) makes the browser refuse anything from another origin.
 
@@ -81,26 +84,23 @@ Pulling the image or downloading a binary is an ordinary download from GitHub, t
 
 ## What isn't there yet
 
-- **No actions.** That's v0.2.
-- **One account**, the owner. Roles arrive with actions.
-- **Not built yet:** discovered containers becoming catalog widgets (they become service tiles), "Add widget" from ⌘K, undoing a dismissed suggestion, your merge decisions in exports, the calendar's "unmonitored" option, and the wall and e-ink levels of detail.
-- **Icons from other sites** don't show on tiles, because the browser's security policy blocks them; tiles show a monogram until the hub can keep icons itself.
+- **Updating several containers at once**, in order, with a snapshot first. One at a time works today; rollouts are planned for v0.4, with backup coverage, an incident timeline and agents that can propose but never act ([the plan](plan/14-v0.4.md)).
 - **Passkeys and installing the app need HTTPS**, and passkeys need `CHADASH_PUBLIC_URL` ([how](../deploy/README.md#behind-a-reverse-proxy)).
 - **armv7 is best-effort.** It's built and tested as 32-bit in CI, but not on real armv7 hardware.
 
-## Updating between betas
+## Updating
 
 ```sh
 docker compose pull
 docker compose up -d
 ```
 
-[Back up](../deploy/README.md#backing-up) first: a new version may migrate the database, and there's no going back without the backup. Each beta moves the `beta` tag; to stay on one, pin it in `compose.override.yaml`, for example `ghcr.io/ban-red/chadash:0.2.0-beta.1` and `ghcr.io/ban-red/chadash-node:0.2.0-beta.1`.
+[Back up](../deploy/README.md#backing-up) first: a new version may migrate the database, and there's no going back without the backup. `latest` follows every stable release. To stay on one, pin it in `compose.override.yaml` for both images, for example `ghcr.io/ban-red/chadash:0.3.0` and `ghcr.io/ban-red/chadash-node:0.3.0`, or follow `beta` to try the next version early.
 
 **Checking the image** is optional. Every release is signed by its GitHub workflow, and [cosign](https://docs.sigstore.dev/) v3 or later can confirm it:
 
 ```sh
-cosign verify ghcr.io/ban-red/chadash:beta \
+cosign verify ghcr.io/ban-red/chadash:latest \
   --certificate-identity-regexp '^https://github\.com/ban-red/cha-dash/\.github/workflows/release\.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

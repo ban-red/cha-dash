@@ -36,10 +36,7 @@ You need Docker with the Compose plugin, on amd64 or arm64.
    mkdir chadash && cd chadash
    curl -fsSLO https://raw.githubusercontent.com/ban-red/cha-dash/main/deploy/compose.yaml
    ```
-   **During the beta** there's no `latest` image yet. Follow the betas with an override for both images, as the [beta guide](../docs/beta.md) does:
-   ```sh
-   printf 'services:\n  chadash:\n    image: ghcr.io/ban-red/chadash:beta\n  chadash-node:\n    image: ghcr.io/ban-red/chadash-node:beta\n' > compose.override.yaml
-   ```
+   It runs `latest`, the newest stable release. To pin a version or follow the betas, see [Upgrading](#upgrading).
 2. **Start it:**
    ```sh
    docker compose up -d
@@ -213,7 +210,7 @@ and add Docker with the endpoint `tcp://socket-proxy:2375`. That proxy allows `G
    # paste the .env block from Settings → Nodes into .env
    docker compose -f compose.node.yaml up -d
    ```
-   **During the beta** there's no `latest` image. Add `CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:beta` to `.env` before starting it, or a pinned tag.
+   It runs `latest`. To pin the node to the hub's version, add `CHADASH_NODE_IMAGE=ghcr.io/ban-red/chadash-node:0.3.0` (say) to `.env`.
 3. **Approve it.** The node logs `waiting for approval in Cha Dash; fingerprint …` once, then asks again every 30 seconds for as long as it takes. Settings → Nodes and the Inbox show it waiting, with the address it dialled from, its fingerprint, its version and what its policy allows. Compare the fingerprint with the node's log (`docker compose -f compose.node.yaml logs chadash-node`), then **Approve** it: that asks you to confirm it's you, because an approved node gets stack secrets when Cha Dash deploys there. **Reject** revokes it.
 4. **Done.** The node connects on its next try. When the token asked for it, its Docker integration (endpoint `node://<name>`, named after the node) is already there. You can delete the `CHADASH_NODE_TOKEN` line: the token was spent when the node joined, and the node reconnects on its identity in the `node` volume.
 
