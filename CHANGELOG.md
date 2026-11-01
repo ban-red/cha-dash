@@ -33,6 +33,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Containers keep two image labels** in Cha Dash: `org.opencontainers.image.source` and `org.opencontainers.image.version`, which release notes need. Other image labels still stay out.
 - **The "updates available" Inbox item** counts Proxmox hosts with pending packages too, and says "new versions" rather than "new images".
+- **Incidents are kept for 90 days.** Every incident's life is recorded as it happens: when it opened, when it got worse or better, what caused it, and when it resolved. Choose how long they're kept (7 days to a year) in Settings → History, beside the metrics. Resolved incidents still leave the Inbox after a day; the timeline keeps them.
+- **A timeline.** A resource's sheet has a Timeline tab, and Settings → Timeline shows the whole home: incidents, the actions that ran, health changes and maintenance windows on one time axis, newest first. **Copy as Markdown** puts the range on the clipboard, ready for a postmortem. Household members see only what their boards show and their own actions. Scripts can read it with an API token that has `inbox.read` (`GET /api/timeline`).
+- **Proxmox VE can tell Cha Dash at once.** Add a webhook target in PVE (8.3 and later) and a backup failure or a fenced node shows within seconds instead of at the next poll. Make the secret in the Proxmox instance's settings (shown once; rotate or remove it there); the [Proxmox guide](https://github.com/ban-red/cha-dash/blob/main/integrations/proxmox/README.md#notifications) has the steps. The hub never reads what PVE sends: a notification only makes it check that Proxmox now.
+- **A morning digest, off by default.** Once a day, at a time you set in Settings → Notifications, one notification: what opened overnight, what's still open, updates waiting and stale backups. On a quiet day it says nothing, unless you turn on **All quiet**. Its time is in the hub's time zone (`TZ`).
 
 ## [0.3.0] - 2026-10-31
 

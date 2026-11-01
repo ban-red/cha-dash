@@ -170,6 +170,31 @@ Guest actions, per the Tiers table in [08 · v0.2](../../docs/plan/08-v0.2.md#ti
 - **Control token recipe** ([`recipe.control.md`](recipe.control.md)): a second user `chadash-control@pve` with a role of `VM.Audit Sys.Audit Datastore.Audit VM.PowerMgmt VM.Snapshot VM.Snapshot.Rollback VM.Backup Datastore.AllocateSpace`, a privilege-separated token, and both ACLs on `/` or on `/pool/<name>` to keep it to a few guests.
 - **Fixtures:** synthetic, from the PVE API documentation: [`testdata/integrations/proxmox/actions/`](../../testdata/integrations/proxmox/actions/README.md). `actions_test.go` runs every action through the engine against a fake that keeps guest state, and checks each request's method, path and form.
 
+## Notifications
+
+PVE can tell the hub at once when something happens (a backup fails, a node is fenced), instead of the hub finding out at its next poll. PVE 8.1 brought the notification system; its **webhook** target, which this uses, came in PVE 8.3. The hub's side is `internal/pvehook` (decision 11 in [14 · v0.4](../../docs/plan/14-v0.4.md#decisions)).
+
+**What it does:** a notification only makes the hub sync this instance now (at most every 15 seconds). The hub never reads, keeps or shows what PVE sends; what you see comes from PVE's API, as on every sync. So the body template doesn't matter, and an empty one works.
+
+**1. Make the secret in Cha Dash.** Settings → Integrations → the Proxmox instance → **PVE notifications** → **Make a secret**. It's shown once: copy it now. **Rotate** replaces it (PVE's target then needs the new one); **Remove** makes the hub refuse every notification for the instance.
+
+**2. Add a webhook target in PVE** (Datacenter → Notifications → Notification Targets → Add → **Webhook**):
+
+| Field | Value |
+|---|---|
+| Endpoint Name | `chadash` |
+| Method | `POST` |
+| URL | `https://<your hub>/api/hooks/pve/<instance ID>` (the path the instance's panel shows) |
+| Headers | `X-Chadash-Webhook-Secret` = `{{ secrets.chadash }}` |
+| Secrets | `chadash` = the secret from step 1 |
+| Body | optional; the hub ignores it |
+
+Keep the secret in **Secrets** and refer to it from the header, so PVE doesn't show it in the target's config. PVE must trust the hub's certificate: a hub on plain `http://` on the LAN works, but then the secret crosses the LAN in clear, as any credential would.
+
+**3. Send it something.** Datacenter → Notifications → **Notification Matchers**: add a matcher (or edit `default-matcher`) whose targets include `chadash`. Matching every severity is fine: the hub only syncs. Then select the target and **Test**; the instance's panel shows when the hub last heard from PVE.
+
+**What the hub answers:** `202` (`queued`, `coalesced` when a sync started in the last 15 s, or `not_running` when the instance is off), `401` for a wrong or missing secret (the first in each 10 minutes is in the audit log as `integration.pve_hook.refused`), `413` past 64 KiB, `429` when PVE sends too fast. Fixture bodies: [`testdata/integrations/proxmox/webhook/`](../../testdata/integrations/proxmox/webhook/README.md).
+
 ## Not yet
 
 - Merging instances that see the same domain (the cluster CA as identity), and failover between a cluster's nodes.

@@ -6,7 +6,7 @@ The service watches the `inbox` topic (a `livedoc.Doc`) and the action engine (`
 
 ## What notifies
 
-Symptoms, not causes ([02 · Experience → Voice and copy](../../docs/plan/02-experience.md#voice-and-copy)). Five fixed rules; an admin can turn each off (except critical actions), route it to some channels, and choose whether resolutions are sent.
+Symptoms, not causes ([02 · Experience → Voice and copy](../../docs/plan/02-experience.md#voice-and-copy)). Seven fixed rules; an admin can turn each off (except critical actions), route it to some channels, and choose whether resolutions are sent.
 
 | Rule | When | Resolution notice by default |
 |---|---|---|
@@ -15,7 +15,12 @@ Symptoms, not causes ([02 · Experience → Voice and copy](../../docs/plan/02-e
 | `repair` · An integration needs reconnecting | A `repair` incident opens (not while it's in a fixing phase: the user is already on it) | no |
 | `stack.stuck` · A stack is stuck | `internal/stacks` opens its `stack-stuck` incident: a deploy failed and so did its rollback | yes |
 | `approval` · A plan is waiting for approval | An API token's plan at T2 or above waits for a person (an Inbox item of class `approval`). Once per plan; Web Push reaches admins and the owner only | — |
+| `digest` · Morning digest | Off by default. Once a day at its time: what opened since the last digest (and how many resolved), what's open now, updates waiting, stale backups. Nothing on a quiet day unless **All quiet** is on. Web Push reaches admins and the owner only | — |
 | `action.t4` · Critical actions | Every T4 task that ends, however it ended. Web Push reaches admins and the owner only. Always on | — |
+
+**The morning digest** (`digest.go`). Its time is `HH:MM` in the hub's time zone (`TZ`; 07:30 until set), kept with "all quiet" in `settings` as `notify.digest`. It reads three nil-safe sources (`DigestSources`): the incident timeline (`internal/incidents`) for what opened, the Update Center for updates waiting, and stale backups from the backups track (nothing until it's wired). "Open now" counts problems and repairs at `attention` or `down`, not hints. It's marked sent before it's composed, so a crash doesn't send it twice; a hub that was down more than 2 hours past the time waits for the next day. It goes alone, never in a group, and opens the timeline (`/settings/timeline`).
+
+**Maintenance windows.** With `Options.Expected` (an `incidents.Expectations` the rollouts track fills), an incident that opens while its target is expected doesn't notify, and no grace runs; once it stops being expected the rules apply as usual, so one still open after the window notifies then.
 
 **Never:** hints (an open `info` problem nothing is working on; `web/src/model/inbox.ts` `isHint`), anything at `info` (settling incidents included), the correlator's suggestions, or an incident that was already resolved when first seen. The security posture already decides a security finding's severity: under Relaxed every finding is `info`, a hint, so it never notifies; under Standard or Strict an `attention` finding follows the attention rule like any other problem.
 
@@ -109,6 +114,8 @@ Every message to every destination is a `notify_deliveries` row: `pending`, then
 | `POST /api/notify/channels/{id}/test` | admin | `{ok, status_code, error, devices?}`. Web Push goes to your own devices: `409 no_devices` without one |
 | `GET /api/notify/rules` | admin | `{"rules":[{id, label, description, enabled, resolved, grace_minutes?, channels, locked?, has_resolved, defaults, updated_at, updated_by?}]}`. `channels: null` is every enabled channel |
 | `PUT /api/notify/rules/{id}` | admin | `{enabled?, resolved?, grace_minutes?, channels?}` → the rule. `409 locked` turning off `action.t4` |
+| `GET /api/notify/digest` | admin | `{time, all_quiet, enabled, zone, last_sent_at, next_at}`; `enabled` is the `digest` rule's |
+| `PUT /api/notify/digest` | admin | `{time?, all_quiet?}` → the same. `422 bad_time`, `nothing_to_change`. Audited as `settings.notify.digest.update` |
 | `GET /api/notify/deliveries?state=&limit=` | admin | `{"deliveries":[{id, channel_id, channel_name, channel_kind, device, kind, title, state, attempts, status_code, error, created_at, updated_at, next_at}]}`, newest first; `limit` 1–200 (50) |
 | `GET /api/notify/push/key` | session | `{"public_key"}` |
 | `GET /api/notify/push/subscriptions` | session | `{"subscriptions":[{id, label, host, fingerprint, created_at, last_ok_at, last_error}]}`: your own |
