@@ -409,6 +409,13 @@ export interface RolloutStep {
   state: RolloutStepState;
   /** Why it was skipped or failed, a sentence. */
   reason?: string;
+  /** What the list calls the container, and its host. */
+  name?: string;
+  host?: string;
+  /** The PVE guest a `pve` snapshot is of. */
+  guest?: string;
+  /** The image digest it updates to, as planned. */
+  to?: string;
 }
 
 /** internal/updates `Rollout`. Times are RFC 3339. */
