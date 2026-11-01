@@ -112,7 +112,7 @@ func cleanAgentScopes(in []string, role string, tierOf func(string) (Tier, bool)
 		return nil, refuse(ErrForbidden, msg.New("agents.scope_none"))
 	}
 	if len(in) > MaxTokenScopes {
-		return nil, forbid("A token can have at most %d scopes. Use a pattern such as proxmox.guest.* instead.", MaxTokenScopes)
+		return nil, forbid(msg.New("authz.too_many_scopes", "max", MaxTokenScopes))
 	}
 	out := make([]string, 0, len(in))
 	for _, s := range in {
@@ -207,9 +207,6 @@ func WithAgentsSwitch(f func(context.Context) (bool, error)) PolicyOption {
 func WithTargetFacts(f func(ctx context.Context, target string) TargetFacts) PolicyOption {
 	return func(p *Policy) { p.facts = f }
 }
-
-// refuse is a Refusal with a catalog sentence.
-func refuse(err error, m msg.M) *Refusal { return &Refusal{Err: err, Msg: m.Text()} }
 
 // AgentReadsLogs reports whether an agent token with scopes, held by a
 // user whose role is now role, may read task logs: logs.read, and still

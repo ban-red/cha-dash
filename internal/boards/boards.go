@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -164,7 +165,7 @@ func (s *Service) SaveLayout(ctx context.Context, boardID string, base, formatVe
 			return 0, fmt.Errorf("boards: %w", err)
 		}
 		if err := json.Compact(&compactTiles, tiles); err != nil {
-			return 0, fmt.Errorf("boards: %w: %v", ErrInvalidTiles, err)
+			return 0, fmt.Errorf("boards: %w", invalidTiles(msg.New("boards.tiles_unreadable", "reason", err.Error())))
 		}
 	}
 	var next int64

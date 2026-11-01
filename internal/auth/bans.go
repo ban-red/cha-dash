@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -155,7 +156,7 @@ func ListBans(ctx context.Context, st *store.Store) ([]Ban, error) {
 func Unban(ctx context.Context, st *store.Store, ip string) (netip.Addr, error) {
 	a, err := netip.ParseAddr(strings.TrimSpace(ip))
 	if err != nil {
-		return netip.Addr{}, &ValidationError{"that isn't an IP address"}
+		return netip.Addr{}, &ValidationError{msg.New("auth.not_an_ip")}
 	}
 	res, err := st.Writer().ExecContext(ctx, `DELETE FROM ip_bans WHERE ip = ?`, banKey(a))
 	if err != nil {

@@ -121,6 +121,15 @@ var migrated = []string{
 	"internal/specstore",
 	"internal/onboarding",
 	"internal/icons",
+	// Wave 31: the rest of the hub's own handlers.
+	"internal/server",
+	"internal/importer/importhttp",
+	"internal/security",
+	"internal/runtime",
+	"internal/export",
+	"internal/boards",
+	"internal/correlate",
+	"internal/audit",
 }
 
 // TestMigratedPackagesSay fails when a migrated package writes an error

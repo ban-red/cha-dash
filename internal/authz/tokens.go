@@ -152,11 +152,6 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 	audit := func(code, text string) {
 		t.Audit.Refuse(r, "tokens.create", "", map[string]any{"name": clipString(req.Name, 100), "kind": clipString(req.Kind, 20), "scopes": clipScopes(req.Scopes)}, T1, code, text)
 	}
-	// Scope and validation sentences aren't in the catalog yet.
-	refuse := func(text string) {
-		audit("invalid", text)
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", text)
-	}
 	say := func(status int, code string, m msg.M) {
 		audit(code, m.Text())
 		httpx.Say(w, status, code, m)
@@ -194,14 +189,19 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 		scopes, err = cleanScopes(req.Scopes, a.Role)
 	}
 	if err != nil {
-		refuse(err.Error())
+		m, ok := Sentence(err)
+		if !ok {
+			t.internal(w, "checking a token's scopes failed", err)
+			return
+		}
+		say(http.StatusUnprocessableEntity, "invalid", m)
 		return
 	}
 	tok, secret, err := t.auth.CreateToken(r.Context(), a.ID, req.Name, kind, scopes, t.now().Add(time.Duration(days)*24*time.Hour))
 	var ve *auth.ValidationError
 	switch {
 	case errors.As(err, &ve):
-		refuse(ve.Msg)
+		say(http.StatusUnprocessableEntity, "invalid", ve.M)
 		return
 	case err != nil:
 		t.internal(w, "creating an API token failed", err)
@@ -218,10 +218,10 @@ func (t *Tokens) create(w http.ResponseWriter, r *http.Request) {
 // without duplicates, in the order given.
 func cleanScopes(in []string, role string) ([]string, error) {
 	if len(in) == 0 {
-		return nil, forbid("Pick at least one scope: what the token may read or run.")
+		return nil, forbid(msg.New("authz.scope_none"))
 	}
 	if len(in) > MaxTokenScopes {
-		return nil, forbid("A token can have at most %d scopes. Use a pattern such as proxmox.guest.* instead.", MaxTokenScopes)
+		return nil, forbid(msg.New("authz.too_many_scopes", "max", MaxTokenScopes))
 	}
 	out := make([]string, 0, len(in))
 	for _, s := range in {

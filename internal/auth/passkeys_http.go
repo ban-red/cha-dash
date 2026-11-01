@@ -261,7 +261,7 @@ func (s *Service) handleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 	var verr *ValidationError
 	switch {
 	case errors.As(err, &verr):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", verr.M)
 	case errors.Is(err, ErrPasskeyNotFound):
 		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("auth.passkey_not_found"))
 	case err != nil:
@@ -293,8 +293,8 @@ func (s *Service) handleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 // passkeyRP resolves the relying party, answering 409 when passkeys can't work here.
 func (s *Service) passkeyRP(w http.ResponseWriter, r *http.Request) (relyingParty, bool) {
 	rp, err := s.relyingParty(r)
-	if unavailable, ok := errors.AsType[*unavailableError](err); ok {
-		httpx.Error(w, http.StatusConflict, "passkeys_unavailable", unavailable.msg)
+	if ue, ok := errors.AsType[*unavailableError](err); ok {
+		httpx.Say(w, http.StatusConflict, "passkeys_unavailable", ue.m)
 		return rp, false
 	}
 	return rp, err == nil

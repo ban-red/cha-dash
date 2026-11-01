@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // HeadHeader carries the chain's head (Head.String) on the NDJSON export.
@@ -24,11 +25,11 @@ func (l *Log) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler,
 	mux.Handle("GET /api/audit", wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		f := Filter{Actor: q.Get("actor"), Action: q.Get("action"), Target: q.Get("target"), Result: q.Get("result"), Cursor: q.Get("cursor")}
-		bad := func(msg string) { httpx.Error(w, http.StatusUnprocessableEntity, "invalid", msg) }
+		bad := func(m msg.M) { httpx.Say(w, http.StatusUnprocessableEntity, "invalid", m) }
 		switch f.Result {
 		case "", OK, Failed, Refused:
 		default:
-			bad("result must be ok, failed or refused.")
+			bad(msg.New("audit.bad_result"))
 			return
 		}
 		for _, t := range []struct {
@@ -38,7 +39,7 @@ func (l *Log) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler,
 			if v := q.Get(t.name); v != "" {
 				ts, err := time.Parse(time.RFC3339Nano, v)
 				if err != nil {
-					bad(t.name + " must be an RFC 3339 time.")
+					bad(msg.New("audit.bad_time", "name", t.name))
 					return
 				}
 				*t.dst = ts
@@ -47,18 +48,18 @@ func (l *Log) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler,
 		if v := q.Get("limit"); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil || n < 1 || n > MaxLimit {
-				bad("limit must be between 1 and " + strconv.Itoa(MaxLimit) + ".")
+				bad(msg.New("audit.bad_limit", "max", MaxLimit))
 				return
 			}
 			f.Limit = n
 		}
 		page, err := l.Query(r.Context(), f)
 		if errors.Is(err, ErrBadCursor) {
-			bad("That cursor isn't one this endpoint gave out.")
+			bad(msg.New("audit.bad_cursor"))
 			return
 		} else if err != nil {
 			log.Error("audit: query failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, page)
@@ -83,7 +84,7 @@ func (l *Log) Register(mux *http.ServeMux, wrap func(http.Handler) http.Handler,
 		rep, err := l.Verify(r.Context())
 		if err != nil {
 			log.Error("audit: verify failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, rep)

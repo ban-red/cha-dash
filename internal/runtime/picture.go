@@ -12,6 +12,7 @@ import (
 
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/msg"
 )
 
 // Picture bounds.
@@ -175,7 +176,7 @@ func (m *Manager) handlePicture(w http.ResponseWriter, r *http.Request) {
 	if h := q.Get("h"); h != "" {
 		n, err := strconv.Atoi(h)
 		if err != nil {
-			httpx.Error(w, http.StatusBadRequest, "bad_request", "h must be a whole number of pixels")
+			httpx.Say(w, http.StatusBadRequest, "bad_request", msg.New("integrations.bad_picture_height"))
 			return
 		}
 		height = n
@@ -184,9 +185,10 @@ func (m *Manager) handlePicture(w http.ResponseWriter, r *http.Request) {
 	var pe *PictureError
 	switch {
 	case errors.Is(err, integration.ErrNoPicture):
-		httpx.Error(w, http.StatusNotFound, "no_picture", "there's no picture of that resource")
+		httpx.Say(w, http.StatusNotFound, "no_picture", msg.New("integrations.no_picture"))
 		return
 	case errors.As(err, &pe):
+		// The integration's own words about the upstream: not the hub's.
 		httpx.Error(w, http.StatusBadGateway, "upstream", pe.Message)
 		return
 	case r.Context().Err() != nil:

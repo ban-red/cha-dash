@@ -35,6 +35,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"dash.cha.sh/internal/msg"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
@@ -63,9 +64,15 @@ var (
 )
 
 // unavailableError says why passkeys can't work at the address in use.
-type unavailableError struct{ msg string }
+// m is the sentence; msg its English text.
+type unavailableError struct {
+	msg string
+	m   msg.M
+}
 
 func (e *unavailableError) Error() string { return e.msg }
+
+func unavailable(m msg.M) *unavailableError { return &unavailableError{msg: m.Text(), m: m} }
 
 // relyingParty is the WebAuthn relying party a ceremony runs under.
 type relyingParty struct {
@@ -77,23 +84,23 @@ type relyingParty struct {
 // that's well formed but can't host passkeys (plain http off localhost, an IP
 // address) isn't an error, because the URL may serve other purposes; why says
 // what's wrong, and the passkey routes repeat it.
-func publicRelyingParty(raw string) (rp relyingParty, why string, err error) {
+func publicRelyingParty(raw string) (rp relyingParty, why msg.M, err error) {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return rp, "", fmt.Errorf("auth: public URL %q: want http(s)://host[:port]", raw)
+		return rp, msg.M{}, fmt.Errorf("auth: public URL %q: want http(s)://host[:port]", raw)
 	}
 	host := strings.ToLower(u.Hostname())
 	rp = relyingParty{ID: host, Origin: u.Scheme + "://" + strings.ToLower(u.Host)}
 	switch {
 	case net.ParseIP(host) != nil:
-		return rp, "passkeys need a domain name, and CHADASH_PUBLIC_URL is an IP address; set it to the https:// name you open Cha Dash at", nil
+		return rp, msg.New("auth.passkeys_public_ip"), nil
 	case u.Scheme != "https" && !isLocalhost(host):
-		return rp, "passkeys need HTTPS, and CHADASH_PUBLIC_URL is plain http; set it to the https:// address you open Cha Dash at", nil
+		return rp, msg.New("auth.passkeys_public_http"), nil
 	}
 	if err := protocol.ValidateRPID(host); err != nil {
-		return rp, fmt.Sprintf("CHADASH_PUBLIC_URL's host %q can't be a passkey relying party: %v", host, err), nil
+		return rp, msg.New("auth.passkeys_public_rp", "host", host, "reason", err.Error()), nil
 	}
-	return rp, "", nil
+	return rp, msg.M{}, nil
 }
 
 func isLocalhost(host string) bool {
@@ -105,8 +112,8 @@ func isLocalhost(host string) bool {
 func (s *Service) relyingParty(r *http.Request) (relyingParty, error) {
 	var rp relyingParty
 	if s.publicURL != "" {
-		if s.publicWhy != "" {
-			return rp, &unavailableError{s.publicWhy}
+		if s.publicWhy.ID != "" {
+			return rp, unavailable(s.publicWhy)
 		}
 		rp = s.publicRP
 	} else {
@@ -127,15 +134,15 @@ func (s *Service) relyingParty(r *http.Request) (relyingParty, error) {
 			if port != "" {
 				local += ":" + port
 			}
-			return rp, &unavailableError{fmt.Sprintf("passkeys need a domain name, not an IP address: open Cha Dash at %s instead, or set CHADASH_PUBLIC_URL", local)}
+			return rp, unavailable(msg.New("auth.passkeys_loopback", "url", local))
 		default:
-			return rp, &unavailableError{"passkeys need CHADASH_PUBLIC_URL set to the https:// address you open Cha Dash at; browsers allow them only over HTTPS or on localhost"}
+			return rp, unavailable(msg.New("auth.passkeys_need_public_url"))
 		}
 	}
 	// Browsers send Origin on every POST. A page at another address would have
 	// its ceremony refused by the browser anyway; say why here instead.
 	if o := r.Header.Get("Origin"); o != "" && !strings.EqualFold(o, rp.Origin) {
-		return rp, &unavailableError{fmt.Sprintf("passkeys work at %s, but this page is at %s; open Cha Dash at %s, or change CHADASH_PUBLIC_URL", rp.Origin, o, rp.Origin)}
+		return rp, unavailable(msg.New("auth.passkeys_wrong_origin", "origin", rp.Origin, "page", o))
 	}
 	return rp, nil
 }
@@ -533,11 +540,11 @@ func cleanPasskeyName(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	switch {
 	case name == "":
-		return "", &ValidationError{"name must not be empty"}
+		return "", &ValidationError{msg.New("auth.passkey_name_empty")}
 	case !utf8.ValidString(name) || strings.ContainsFunc(name, unicode.IsControl):
-		return "", &ValidationError{"name must be plain text"}
+		return "", &ValidationError{msg.New("auth.passkey_name_plain")}
 	case utf8.RuneCountInString(name) > maxPasskeyName:
-		return "", &ValidationError{fmt.Sprintf("name must be at most %d characters", maxPasskeyName)}
+		return "", &ValidationError{msg.New("auth.passkey_name_long", "max", maxPasskeyName)}
 	}
 	return name, nil
 }

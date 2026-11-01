@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"dash.cha.sh/internal/msg"
 )
 
 // OIDCClientSecretName is where the vault keeps the provider's client secret.
@@ -137,65 +139,65 @@ func (s SignInSettings) Normalize() SignInSettings {
 
 // Validate says what's wrong with normalized settings, in a sentence.
 func (s SignInSettings) Validate() error {
-	bad := func(format string, a ...any) error { return &ValidationError{fmt.Sprintf(format, a...)} }
+	bad := func(m msg.M) error { return &ValidationError{m} }
 	o := s.OIDC
 	if len(o.Name) > 40 {
-		return bad("the provider's name must be at most 40 characters")
+		return bad(msg.New("auth.signin_provider_name"))
 	}
 	if o.Issuer != "" || o.Enabled {
 		u, err := url.Parse(o.Issuer)
 		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
-			return bad("the issuer must be the provider's http(s):// URL, as its discovery document names it")
+			return bad(msg.New("auth.signin_issuer"))
 		}
 		if len(o.Issuer) > 512 {
-			return bad("the issuer URL is too long")
+			return bad(msg.New("auth.signin_issuer_long"))
 		}
 	}
 	if o.Enabled && o.ClientID == "" {
-		return bad("OIDC needs the client ID the provider gave Cha Dash")
+		return bad(msg.New("auth.signin_client_id"))
 	}
 	if len(o.ClientID) > 256 {
-		return bad("the client ID is too long")
+		return bad(msg.New("auth.signin_client_id_long"))
 	}
 	if len(o.Scopes) > 16 {
-		return bad("ask for at most 16 scopes")
+		return bad(msg.New("auth.signin_too_many_scopes"))
 	}
 	for _, sc := range o.Scopes {
 		if !scopeRE.MatchString(sc) {
-			return bad("%q isn't a scope", sc)
+			return bad(msg.New("auth.signin_bad_scope", "scope", sc))
 		}
 	}
 	if !claimRE.MatchString(o.GroupClaim) {
-		return bad("the group claim must be a claim name, such as groups")
+		return bad(msg.New("auth.signin_group_claim"))
 	}
 	f := s.ForwardAuth
 	for _, h := range []string{f.UserHeader, f.GroupsHeader, f.EmailHeader} {
 		if !headerNameRE.MatchString(h) {
-			return bad("%q isn't a header name", h)
+			return bad(msg.New("auth.signin_bad_header", "header", h))
 		}
 	}
 	if f.UserHeader == f.GroupsHeader || f.UserHeader == f.EmailHeader {
-		return bad("the user header must differ from the groups and email headers")
+		return bad(msg.New("auth.signin_same_header"))
 	}
 	if len(s.Mappings) > 64 {
-		return bad("at most 64 group mappings")
+		return bad(msg.New("auth.signin_too_many_mappings"))
 	}
 	seen := map[string]bool{}
 	for _, m := range s.Mappings {
 		switch {
 		case m.Group == "" || len(m.Group) > 256:
-			return bad("each mapping needs a group name of at most 256 characters")
+			return bad(msg.New("auth.signin_mapping_group"))
 		case m.Role == RoleOwner:
-			return bad("the owner role never comes from a group")
+			return bad(msg.New("auth.signin_mapping_owner"))
 		case !ValidRole(m.Role):
-			return bad("%q isn't a role: use admin, operator, viewer or household", m.Role)
+			return bad(msg.New("auth.signin_mapping_role", "role", m.Role))
 		case seen[m.Group]:
-			return bad("the group %q is mapped twice", m.Group)
+			return bad(msg.New("auth.signin_mapping_twice", "group", m.Group))
 		}
 		seen[m.Group] = true
 	}
 	if s.Provision && len(s.Mappings) == 0 {
-		return bad("creating accounts on first sign-in needs at least one group mapping, so new accounts get a role")
+		return bad(msg.New("auth.signin_provision_mappings"))
 	}
 	return nil
 }

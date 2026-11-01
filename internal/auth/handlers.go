@@ -212,7 +212,7 @@ func (s *Service) handleSetup(w http.ResponseWriter, r *http.Request) {
 		httpx.Say(w, http.StatusConflict, "setup_complete", msg.New("auth.setup_complete"))
 		return
 	case errors.As(err, &verr):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", verr.M)
 		return
 	case err != nil:
 		s.log.Error("setup failed", "err", err)

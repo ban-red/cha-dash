@@ -105,6 +105,21 @@ func (a Access) refusal() msg.M {
 	return msg.New("authz.refused")
 }
 
+// tokenRefusal is refusal for an API token, which acts as its user.
+func (a Access) tokenRefusal() msg.M {
+	switch a {
+	case Viewer:
+		return msg.New("authz.token_viewer_refused")
+	case Operator:
+		return msg.New("authz.token_operator_only")
+	case Admin:
+		return msg.New("authz.token_admin_only")
+	case Owner:
+		return msg.New("authz.token_owner_only")
+	}
+	return msg.New("authz.token_refused")
+}
+
 // Route is one row of the table.
 type Route struct {
 	// Pattern is exactly as registered with the ServeMux: "GET /api/boards/{id}/layout".
@@ -562,12 +577,11 @@ func GuardWith(mux *http.ServeMux, a *auth.Service, log *slog.Logger, opts Guard
 					return
 				}
 				if err := TokenRoute(route, id.User.Role, id.Token.Scopes); err != nil {
-					var ref *Refusal
-					code, text := "forbidden", err.Error()
-					if errors.As(err, &ref) && errors.Is(ref.Err, ErrSessionOnly) {
+					code := "forbidden"
+					if errors.Is(err, ErrSessionOnly) {
 						code = "session_only"
 					}
-					httpx.Error(w, http.StatusForbidden, code, text)
+					sayErr(w, http.StatusForbidden, code, err)
 					return
 				}
 				mux.ServeHTTP(w, r)
@@ -637,15 +651,15 @@ func TokenRoute(route Route, role string, scopes []string) error {
 	case route.Access == Public:
 		return nil
 	case route.Token == "" || route.Access == NodeKey || route.Access == Signature || route.Access == AgentToken:
-		return &Refusal{Err: ErrSessionOnly, Msg: "API tokens can't use this; sign in to Cha Dash instead."}
+		return refuse(ErrSessionOnly, msg.New("authz.session_only"))
 	case !route.Access.Allows(role):
-		return forbid("%s This token acts as its user, so it can't either.", route.Access.refusal().Text())
+		return forbid(route.Access.tokenRefusal())
 	case route.Token == TokenAny:
 		return nil
 	}
 	sc, err := ParseScope(route.Token)
 	if err != nil || !covered(scopes, sc, "") {
-		return forbid("This token doesn't have the %s scope.", route.Token)
+		return forbid(msg.New("authz.token_scope_missing", "scope", route.Token))
 	}
 	return nil
 }

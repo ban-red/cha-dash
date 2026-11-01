@@ -7,11 +7,11 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // MaxLayoutBytes bounds a layout save (layout and tiles together). A board
@@ -48,7 +48,7 @@ type handlers struct {
 
 func (h handlers) internal(w http.ResponseWriter, what string, err error) {
 	h.log.Error(what, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }
 
 func (h handlers) list(w http.ResponseWriter, r *http.Request) {
@@ -98,13 +98,13 @@ func (h handlers) putLayout(w http.ResponseWriter, r *http.Request) {
 	}
 	switch trimmed := bytes.TrimSpace(req.Layout); {
 	case req.Revision == nil || *req.Revision < 0:
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "revision must be the revision the layout was loaded at (0 for a board never saved)")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("boards.bad_revision"))
 		return
 	case req.FormatVersion == nil || *req.FormatVersion < 1:
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "format_version must be a positive integer")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("boards.bad_format_version"))
 		return
 	case len(trimmed) == 0 || trimmed[0] != '{':
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "layout must be a JSON object")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("boards.layout_not_object"))
 		return
 	}
 	tiles := req.Tiles
@@ -118,14 +118,15 @@ func (h handlers) putLayout(w http.ResponseWriter, r *http.Request) {
 	}
 	rev, err := h.s.SaveLayout(r.Context(), r.PathValue("id"), *req.Revision, *req.FormatVersion, req.Layout, tiles, userID)
 	var conflict *ConflictError
+	var invalid *InvalidError
 	switch {
 	case errors.Is(err, ErrNotFound):
 		notFound(w)
-	case errors.Is(err, ErrInvalidTiles):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", strings.TrimPrefix(err.Error(), "boards: "))
+	case errors.As(err, &invalid):
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", invalid.M)
 	case errors.As(err, &conflict):
 		httpx.WriteJSON(w, http.StatusConflict, conflictBody{
-			Error:    httpx.ErrorDetail{Code: "conflict", Message: "the layout changed since it was loaded; reload it and try again"},
+			Error:    httpx.Detail("conflict", msg.New("boards.layout_conflict")),
 			Revision: conflict.Current,
 		})
 	case err != nil:
@@ -173,11 +174,12 @@ func (h handlers) dismissals(w http.ResponseWriter, r *http.Request, do func(con
 		return
 	}
 	refs, err := do(r.Context(), r.PathValue("id"), req.Resources)
+	var invalid *InvalidError
 	switch {
 	case errors.Is(err, ErrNotFound):
 		notFound(w)
-	case errors.Is(err, ErrInvalidRef):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", err.Error())
+	case errors.As(err, &invalid):
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", invalid.M)
 	case err != nil:
 		h.internal(w, what, err)
 	default:
@@ -187,5 +189,5 @@ func (h handlers) dismissals(w http.ResponseWriter, r *http.Request, do func(con
 }
 
 func notFound(w http.ResponseWriter) {
-	httpx.Error(w, http.StatusNotFound, "not_found", "no such board")
+	httpx.Say(w, http.StatusNotFound, "not_found", msg.New("boards.not_found"))
 }

@@ -53,12 +53,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"dash.cha.sh/internal/auth"
+	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
@@ -131,14 +133,38 @@ var (
 // Refusal is a decision against the actor.
 type Refusal struct {
 	Err error  // ErrForbidden or ErrStepUpRequired
-	Msg string // a sentence for the person
+	Msg string // a sentence for the person: M's English text
+	M   msg.M  // the sentence, from the catalog
 }
 
 func (r *Refusal) Error() string { return r.Msg }
 func (r *Refusal) Unwrap() error { return r.Err }
 
-func forbid(format string, args ...any) error {
-	return &Refusal{Err: ErrForbidden, Msg: fmt.Sprintf(format, args...)}
+// refuse is the refusal err saying m.
+func refuse(err error, m msg.M) *Refusal { return &Refusal{Err: err, Msg: m.Text(), M: m} }
+
+func forbid(m msg.M) error { return refuse(ErrForbidden, m) }
+
+// Sentence is err's catalog sentence when it carries one: a Refusal's or
+// an auth.ValidationError's.
+func Sentence(err error) (msg.M, bool) {
+	if r, ok := errors.AsType[*Refusal](err); ok && r.M.ID != "" {
+		return r.M, true
+	}
+	if v, ok := errors.AsType[*auth.ValidationError](err); ok && v.M.ID != "" {
+		return v.M, true
+	}
+	return msg.M{}, false
+}
+
+// sayErr answers err with its sentence (Sentence), or its text when it
+// carries none.
+func sayErr(w http.ResponseWriter, status int, code string, err error) {
+	if m, ok := Sentence(err); ok {
+		httpx.Say(w, status, code, m)
+		return
+	}
+	httpx.Error(w, status, code, err.Error())
 }
 
 // ── Roles ────────────────────────────────────────────────────────────────────
@@ -200,7 +226,7 @@ func SeesApprovals(role string) bool { return rank(role) >= rank(auth.RoleAdmin)
 // (stepUp) is T3, so it needs a step-up grant.
 func ChangeSecuritySettings(a Actor, stepUp bool, now time.Time) error {
 	if a.Role != auth.RoleOwner {
-		return forbid("Only the owner can change the security settings, so this file's security settings weren't imported.")
+		return forbid(msg.New("authz.import_security_owner"))
 	}
 	if !stepUp {
 		return nil
@@ -261,15 +287,15 @@ var ReadScopes = []ReadScope{
 func ValidTokenScope(scope, role string) error {
 	sc, err := ParseScope(scope)
 	if err != nil {
-		return forbid("%q isn't a scope. Use an action ID such as docker.container.restart, a pattern such as proxmox.guest.*, or a read scope.", scope)
+		return forbid(msg.New("authz.scope_unknown", "scope", scope))
 	}
 	for _, r := range ReadScopes {
 		if sc.Action == r.Scope && rank(role) < rank(r.MinRole) {
-			return forbid("Your role (%s) can't use %s, so a token of yours can't either.", role, r.Scope)
+			return forbid(msg.New("authz.scope_role", "role", role, "scope", r.Scope))
 		}
 	}
 	if sc.Action == ScopeApprovals {
-		return forbid("Tokens can't approve plans: a person approves them, in a session.")
+		return forbid(msg.New("authz.token_no_approve"))
 	}
 	return nil
 }
@@ -404,14 +430,14 @@ type Env struct {
 func Decide(a Actor, req Request, env Env) error {
 	tr := req.Tier.rank()
 	if tr < 0 {
-		return forbid("%q isn't a tier.", req.Tier)
+		return forbid(msg.New("authz.tier_unknown", "tier", req.Tier))
 	}
 	sc, err := ParseScope(req.Scope)
 	if err != nil || strings.Contains(sc.Action, "*") {
-		return forbid("%q isn't an action.", req.Scope)
+		return forbid(msg.New("authz.action_unknown", "action", req.Scope))
 	}
 	if rank(a.Role) < 0 {
-		return forbid("Your account has no role that allows this.")
+		return forbid(msg.New("authz.no_role"))
 	}
 	if a.Kind == KindAgent {
 		// What an agent may never propose, whatever its role and scopes.
@@ -425,31 +451,31 @@ func Decide(a Actor, req Request, env Env) error {
 		}
 	}
 	if settingsAction(sc.Action) && rank(a.Role) < rank(auth.RoleAdmin) {
-		return forbid("Only an admin or the owner can change stacks: they're settings, whatever the tier.")
+		return forbid(msg.New("authz.stacks_admin"))
 	}
 	if a.Role == auth.RoleHousehold {
 		// Only actions meant for the household, at every tier: a T0 can
 		// still read what household shouldn't see.
 		if !req.Household || tr > HouseholdCap.rank() {
-			return forbid("Household accounts can only run actions meant for the household.")
+			return forbid(msg.New("authz.household_actions"))
 		}
 	} else if tr > tierCap(a.Role).rank() {
-		return forbid("Your role (%s) can't run %s actions.", a.Role, req.Tier)
+		return forbid(msg.New("authz.role_tier", "role", a.Role, "tier", req.Tier))
 	}
 	if req.ReadsData && !req.Household && rank(a.Role) < rank(auth.RoleOperator) {
-		return forbid("Only operators, admins and the owner can run %s: what it reads back can hold secrets.", sc.Action)
+		return forbid(msg.New("authz.reads_data", "action", sc.Action))
 	}
 	if env.Grants != nil && !coveredFacts(env.Grants, sc, req.Target, env.Facts) {
 		if a.Kind == KindAgent {
 			return refuse(ErrForbidden, msg.New("agents.not_scoped", "action", sc.Action))
 		}
-		return forbid("This token isn't allowed to run %s.", sc.Action)
+		return forbid(msg.New("authz.token_action", "action", sc.Action))
 	}
 	if tr >= T3.rank() && a.Kind == KindToken {
-		return forbid("API tokens can't run %s actions; they need a person to confirm.", req.Tier)
+		return forbid(msg.New("authz.token_tier", "tier", req.Tier))
 	}
 	if tr >= T3.rank() && a.Kind == KindSync {
-		return forbid("A git sync can't run %s actions; they need a person to confirm.", req.Tier)
+		return forbid(msg.New("authz.sync_tier", "tier", req.Tier))
 	}
 	if a.Kind == KindAgent {
 		// An agent only proposes: it never runs the plan, so it never steps
@@ -461,14 +487,14 @@ func Decide(a Actor, req Request, env Env) error {
 	switch req.Tier {
 	case T4:
 		if !covered(env.T4, sc, req.Target) {
-			return forbid("T4 actions are off for %s. The owner can enable them in Settings.", sc.Action)
+			return forbid(msg.New("authz.t4_off", "action", sc.Action))
 		}
 		if a.StepUpUntil.Sub(env.Now) <= auth.StepUpTTL-FreshStepUp {
-			return &Refusal{Err: ErrStepUpRequired, Msg: "Confirm it's you again: this action always asks."}
+			return refuse(ErrStepUpRequired, msg.New("authz.stepup_always"))
 		}
 	case T3:
 		if !a.StepUpUntil.After(env.Now) {
-			return &Refusal{Err: ErrStepUpRequired, Msg: "Confirm it's you first."}
+			return refuse(ErrStepUpRequired, msg.New("authz.stepup_first"))
 		}
 	}
 	return nil
@@ -502,11 +528,11 @@ func DecideApproval(a Actor, tier Tier, now time.Time) error {
 	case a.Kind == KindAgent:
 		return refuse(ErrForbidden, msg.New("agents.only_people"))
 	case a.Kind != KindUser || a.Session == "":
-		return forbid("Only a person signed in to Cha Dash can approve or deny this, never a token.")
+		return forbid(msg.New("authz.approve_person_only"))
 	case rank(a.Role) < rank(auth.RoleAdmin):
-		return forbid("Only an admin or the owner can approve or deny plans that wait for a person.")
+		return forbid(msg.New("authz.approve_admin_only"))
 	case tier.rank() >= T2.rank() && !a.StepUpUntil.After(now):
-		return &Refusal{Err: ErrStepUpRequired, Msg: "Confirm it's you first: approving this needs a fresh check."}
+		return refuse(ErrStepUpRequired, msg.New("authz.approve_stepup"))
 	}
 	return nil
 }
@@ -612,7 +638,7 @@ func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 		t4, err := p.T4Enabled(ctx)
 		if err != nil {
 			p.log.Error("authz: reading the T4 settings failed; refusing", "err", err)
-			return forbid("T4 actions are unavailable: the hub couldn't read their settings.")
+			return forbid(msg.New("authz.t4_unreadable"))
 		}
 		env.T4 = t4
 	}
@@ -624,7 +650,7 @@ func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 		g, err := p.grants(ctx, a)
 		if err != nil {
 			p.log.Error("authz: reading the actor's grants failed; refusing", "err", err, "actor", a.ID)
-			return forbid("The hub couldn't check what you're allowed to do.")
+			return forbid(msg.New("authz.check_failed"))
 		}
 		env.Grants = g
 	}
@@ -636,13 +662,13 @@ func (p *Policy) Decide(ctx context.Context, a Actor, req Request) error {
 func (p *Policy) token(ctx context.Context, a Actor) (Actor, []string, error) {
 	if p.tokens == nil {
 		if p.grants == nil {
-			return a, nil, forbid("API tokens aren't accepted here.")
+			return a, nil, forbid(msg.New("authz.tokens_not_here"))
 		}
 		// Grants alone (tests, or a caller that resolves tokens itself).
 		g, err := p.grants(ctx, a)
 		if err != nil {
 			p.log.Error("authz: reading the actor's grants failed; refusing", "err", err, "actor", a.ID)
-			return a, nil, forbid("The hub couldn't check what you're allowed to do.")
+			return a, nil, forbid(msg.New("authz.check_failed"))
 		}
 		if g == nil {
 			g = []string{}
@@ -652,10 +678,10 @@ func (p *Policy) token(ctx context.Context, a Actor) (Actor, []string, error) {
 	acc, err := p.tokens(ctx, a.ID)
 	if err != nil {
 		p.log.Error("authz: reading an API token failed; refusing", "err", err, "token", a.ID)
-		return a, nil, forbid("The hub couldn't check what this token is allowed to do.")
+		return a, nil, forbid(msg.New("authz.token_check_failed"))
 	}
 	if !acc.OK {
-		return a, nil, forbid("This API token has been revoked or has expired.")
+		return a, nil, forbid(msg.New("authz.token_gone"))
 	}
 	if acc.Kind == auth.KindAgent {
 		// An agent token is never a plain token, whatever the actor says.
@@ -670,17 +696,17 @@ func (p *Policy) token(ctx context.Context, a Actor) (Actor, []string, error) {
 // step-up grant.
 func (p *Policy) syncOwner(ctx context.Context, a Actor) (Actor, error) {
 	if p.users == nil || a.User == "" {
-		return a, forbid("Git syncs aren't accepted here.")
+		return a, forbid(msg.New("authz.syncs_not_here"))
 	}
 	u, err := p.users(ctx, a.User)
 	switch {
 	case errors.Is(err, auth.ErrUserNotFound):
-		return a, forbid("The user this sync acts for no longer exists.")
+		return a, forbid(msg.New("authz.sync_user_gone"))
 	case err != nil:
 		p.log.Error("authz: reading a sync's owner failed; refusing", "err", err, "sync", a.ID)
-		return a, forbid("The hub couldn't check what this sync is allowed to do.")
+		return a, forbid(msg.New("authz.sync_check_failed"))
 	case u.Disabled:
-		return a, forbid("The user this sync acts for has been disabled.")
+		return a, forbid(msg.New("authz.sync_user_disabled"))
 	}
 	a.Role, a.UserName, a.StepUpUntil = u.Role, u.Username, time.Time{}
 	return a, nil
@@ -692,7 +718,7 @@ func (p *Policy) syncOwner(ctx context.Context, a Actor) (Actor, error) {
 func (p *Policy) ReadScope(ctx context.Context, a Actor, scope string) error {
 	switch a.Kind {
 	case KindSync:
-		return forbid("A git sync can't read %s.", scope)
+		return forbid(msg.New("authz.sync_read", "scope", scope))
 	case KindAgent:
 		return refuse(ErrForbidden, msg.New("agents.no_reads", "scope", scope))
 	}
@@ -704,12 +730,12 @@ func (p *Policy) ReadScope(ctx context.Context, a Actor, scope string) error {
 		}
 	}
 	if rank(a.Role) < rank(auth.RoleAdmin) {
-		return forbid("Only admins and the owner can see this.")
+		return forbid(msg.New("authz.admins_see"))
 	}
 	if a.Kind == KindToken {
 		sc, _ := ParseScope(scope)
 		if !covered(grants, sc, "") {
-			return forbid("This token doesn't have the %s scope.", scope)
+			return forbid(msg.New("authz.token_scope_missing", "scope", scope))
 		}
 	}
 	return nil

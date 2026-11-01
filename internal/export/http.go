@@ -9,6 +9,7 @@ import (
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // MaxBodyBytes bounds an import request: a Home file, JSON-escaped, and a
@@ -53,7 +54,7 @@ func (h handler) exportBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := CheckPassphrase(req.Passphrase); err != nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, "weak_passphrase", "the passphrase needs at least 12 characters")
+		httpx.Say(w, http.StatusUnprocessableEntity, "weak_passphrase", msg.New("export.weak_passphrase"))
 		return
 	}
 	h.export(w, r, req.Passphrase)
@@ -65,10 +66,10 @@ func (h handler) export(w http.ResponseWriter, r *http.Request, passphrase strin
 	switch {
 	case errors.As(err, &leak):
 		h.log.Warn("export refused: a secret value appears in plain text", "secret", leak.Secret)
-		httpx.Error(w, http.StatusConflict, "secret_in_plain_text", strings.TrimPrefix(leak.Error(), "export: "))
+		httpx.Say(w, http.StatusConflict, "secret_in_plain_text", leak.Sentence())
 		return
 	case errors.Is(err, ErrNoVault):
-		httpx.Error(w, http.StatusServiceUnavailable, "no_vault", "the vault isn't available")
+		httpx.Say(w, http.StatusServiceUnavailable, "no_vault", msg.New("export.no_vault"))
 		return
 	case err != nil:
 		h.internal(w, "export failed", err)
@@ -108,11 +109,11 @@ func (h handler) importFile(w http.ResponseWriter, r *http.Request) {
 		dry = true
 	case "", "0", "false":
 	default:
-		httpx.Error(w, http.StatusBadRequest, "invalid", "dry_run must be 1 or 0")
+		httpx.Say(w, http.StatusBadRequest, "invalid", msg.New("request.bad_dry_run"))
 		return
 	}
 	if strings.TrimSpace(req.YAML) == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "yaml is required: the Home file's text")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("export.yaml_required"))
 		return
 	}
 	d, err := Parse([]byte(req.YAML))
@@ -191,13 +192,15 @@ func (h handler) importError(w http.ResponseWriter, err error) {
 	var pe *ParseError
 	switch {
 	case errors.As(err, &pe):
+		// A parse error names its line and path; its reasons aren't in
+		// the catalog yet.
 		httpx.Error(w, http.StatusUnprocessableEntity, "invalid_export", pe.Error())
 	case errors.Is(err, ErrWrongPassphrase):
-		httpx.Error(w, http.StatusUnprocessableEntity, "wrong_passphrase", "the passphrase is wrong, or the secrets bundle was changed")
+		httpx.Say(w, http.StatusUnprocessableEntity, "wrong_passphrase", msg.New("export.wrong_passphrase"))
 	case errors.Is(err, ErrBadBundle):
-		httpx.Error(w, http.StatusUnprocessableEntity, "bad_bundle", "the secrets bundle is damaged or uses parameters this hub doesn't support")
+		httpx.Say(w, http.StatusUnprocessableEntity, "bad_bundle", msg.New("export.bad_bundle"))
 	case errors.Is(err, ErrNoVault):
-		httpx.Error(w, http.StatusServiceUnavailable, "no_vault", "the vault isn't available")
+		httpx.Say(w, http.StatusServiceUnavailable, "no_vault", msg.New("export.no_vault"))
 	default:
 		h.internal(w, "home file import failed", err)
 	}
@@ -205,5 +208,5 @@ func (h handler) importError(w http.ResponseWriter, err error) {
 
 func (h handler) internal(w http.ResponseWriter, what string, err error) {
 	h.log.Error(what, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }

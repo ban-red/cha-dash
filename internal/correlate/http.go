@@ -9,6 +9,7 @@ import (
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 )
 
 // Register mounts the correlation API, each route wrapped by wrap (the
@@ -47,15 +48,14 @@ func userID(r *http.Request) string {
 func (h handlers) fail(w http.ResponseWriter, what string, err error) {
 	switch {
 	case errors.Is(err, ErrNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such suggestion, decision or resource")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("correlate.not_found"))
 	case errors.Is(err, ErrInvalid):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid",
-			`a decision needs two different resources, a type (same_as, runs_on, routes_to, stores_on, depends_on, monitors) and a verdict ("confirm" or "reject")`)
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("correlate.bad_decision"))
 	default:
 		if h.log != nil {
 			h.log.Error(what, "err", err)
 		}
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 	}
 }
 

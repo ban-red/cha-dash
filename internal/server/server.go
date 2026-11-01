@@ -404,7 +404,7 @@ func New(d Deps) (http.Handler, error) {
 		d.PVEHooks.Register(mux, session)
 	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such endpoint")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("hub.no_endpoint"))
 	})
 	mux.Handle("GET /ws", d.Auth.Require(d.Realtime))
 
@@ -433,7 +433,7 @@ func New(d Deps) (http.Handler, error) {
 		}
 	}
 	cop.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		httpx.Error(w, http.StatusForbidden, "cross_origin", "cross-origin request refused")
+		httpx.Say(w, http.StatusForbidden, "cross_origin", msg.New("hub.cross_origin"))
 	}))
 
 	// The public demo (CHADASH_DEMO_PUBLIC) is enforced here, in Guard, for

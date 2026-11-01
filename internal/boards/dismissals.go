@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"unicode/utf8"
+
+	"dash.cha.sh/internal/msg"
 )
 
 // Discovery suggestions the owner dismissed on a board (the web app's label
@@ -64,11 +65,15 @@ func dismissed(ctx context.Context, q rowQuerier, boardID string) ([]string, err
 // checkRefs checks a batch of refs to dismiss or restore.
 func checkRefs(verb string, refs []string) error {
 	if len(refs) == 0 || len(refs) > MaxDismissBatch {
-		return fmt.Errorf("%w: %s 1–%d resources at a time", ErrInvalidRef, verb, MaxDismissBatch)
+		m := msg.New("boards.dismiss_batch", "max", MaxDismissBatch)
+		if verb == "restore" {
+			m = msg.New("boards.restore_batch", "max", MaxDismissBatch)
+		}
+		return &InvalidError{Err: ErrInvalidRef, M: m}
 	}
 	for _, r := range refs {
 		if r == "" || len(r) > MaxRefLen || !utf8.ValidString(r) {
-			return fmt.Errorf("%w: resource ids are 1–%d bytes of UTF-8", ErrInvalidRef, MaxRefLen)
+			return &InvalidError{Err: ErrInvalidRef, M: msg.New("boards.bad_ref", "max", MaxRefLen)}
 		}
 	}
 	return nil

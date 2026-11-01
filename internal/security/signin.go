@@ -24,6 +24,7 @@ import (
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/vault"
 )
 
@@ -37,7 +38,7 @@ func ParseSignIn(raw []byte) (auth.SignInSettings, error) {
 	dec := json.NewDecoder(strings.NewReader(string(raw)))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&set); err != nil {
-		return auth.SignInSettings{}, &auth.ValidationError{Msg: "the sign-in settings aren't valid: " + err.Error()}
+		return auth.SignInSettings{}, &auth.ValidationError{M: msg.New("security.signin_unreadable", "reason", err.Error())}
 	}
 	set = set.Normalize()
 	if err := set.Validate(); err != nil {
@@ -188,17 +189,17 @@ func (s *Service) handlePutSignIn(w http.ResponseWriter, r *http.Request, view f
 	const action, target = "settings.sign_in.update", "settings:sign_in"
 	if err := set.Validate(); err != nil {
 		if verr, ok := errors.AsType[*auth.ValidationError](err); ok {
-			s.Audit.Refuse(r, action, target, params, authz.T3, "invalid", verr.Msg)
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
+			s.Audit.Refuse(r, action, target, params, authz.T3, "invalid", verr.Error())
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", verr.M)
 			return
 		}
 	}
 	if req.ClientSecret != nil && len(*req.ClientSecret) > 1024 {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "the client secret is too long")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("security.client_secret_long"))
 		return
 	}
 	if req.ClientSecret != nil && *req.ClientSecret != "" && s.Vault == nil {
-		httpx.Error(w, http.StatusConflict, "no_vault", "This hub has no vault to keep the client secret in.")
+		httpx.Say(w, http.StatusConflict, "no_vault", msg.New("security.no_vault"))
 		return
 	}
 	// How people get in is the most sensitive setting there is: a step-up,
@@ -220,13 +221,13 @@ func (s *Service) handlePutSignIn(w http.ResponseWriter, r *http.Request, view f
 		}
 		if err != nil {
 			s.log.Error("security: saving the OIDC client secret failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 	}
 	if err := s.SetSignIn(r.Context(), set); err != nil {
 		s.log.Error("security: saving the sign-in settings failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 		return
 	}
 	s.Audit.Change(r, action, target, params, authz.T3, nil)
@@ -252,7 +253,7 @@ type TestView struct {
 func (s *Service) handleTestSignIn(w http.ResponseWriter, r *http.Request, a *auth.Service) {
 	set := s.SignIn()
 	if set.OIDC.Issuer == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "Save the provider's issuer URL first.")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("security.issuer_first"))
 		return
 	}
 	d, err := a.FetchDiscovery(r.Context(), set.OIDC.Issuer)

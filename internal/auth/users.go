@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"dash.cha.sh/internal/msg"
 )
 
 var (
@@ -107,7 +109,7 @@ func (s *Service) getUser(ctx context.Context, q queryRower, id string) (UserInf
 }
 
 // errOwnerByTransfer is the sentence for asking for the owner role directly.
-var errOwnerByTransfer = &ValidationError{"there is exactly one owner; transfer ownership to make someone else the owner"}
+var errOwnerByTransfer = &ValidationError{msg.New("auth.owner_by_transfer")}
 
 // CreateUser adds an account with a password. role is any role but owner.
 func (s *Service) CreateUser(ctx context.Context, username, password, role string) (UserInfo, error) {
@@ -115,7 +117,7 @@ func (s *Service) CreateUser(ctx context.Context, username, password, role strin
 		return UserInfo{}, errOwnerByTransfer
 	}
 	if !ValidRole(role) {
-		return UserInfo{}, &ValidationError{"role must be admin, operator, viewer or household"}
+		return UserInfo{}, &ValidationError{msg.New("auth.role_invalid")}
 	}
 	if err := validateCredentials(username, password); err != nil {
 		return UserInfo{}, err
@@ -161,7 +163,7 @@ func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disab
 			return UserInfo{}, errOwnerByTransfer
 		}
 		if !ValidRole(*role) {
-			return UserInfo{}, &ValidationError{"role must be admin, operator, viewer or household"}
+			return UserInfo{}, &ValidationError{msg.New("auth.role_invalid")}
 		}
 	}
 	var out UserInfo
@@ -214,7 +216,7 @@ func (s *Service) UpdateUser(ctx context.Context, id string, role *string, disab
 // admin, in one transaction. The target must be an enabled account.
 func (s *Service) TransferOwnership(ctx context.Context, fromID, toID string) (UserInfo, error) {
 	if fromID == toID {
-		return UserInfo{}, &ValidationError{"you're already the owner"}
+		return UserInfo{}, &ValidationError{msg.New("auth.already_owner")}
 	}
 	var out UserInfo
 	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
@@ -230,7 +232,7 @@ func (s *Service) TransferOwnership(ctx context.Context, fromID, toID string) (U
 			return err
 		}
 		if to.Disabled {
-			return &ValidationError{to.Username + " is disabled; enable the account before handing it ownership"}
+			return &ValidationError{msg.New("auth.transfer_to_disabled", "username", to.Username)}
 		}
 		now := s.now().UnixMilli()
 		// Demote first: the single-owner index never sees two owners.

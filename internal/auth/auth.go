@@ -27,6 +27,7 @@ import (
 	"unicode/utf8"
 
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -86,10 +87,11 @@ func (e *AccountLimitedError) Error() string {
 	return "auth: too many wrong passwords for this account"
 }
 
-// ValidationError is a user-fixable input problem.
-type ValidationError struct{ Msg string }
+// ValidationError is a user-fixable input problem, said as a catalog
+// sentence. A handler answers it with httpx.Say(…, "invalid", e.M).
+type ValidationError struct{ M msg.M }
 
-func (e *ValidationError) Error() string { return e.Msg }
+func (e *ValidationError) Error() string { return e.M.Text() }
 
 var usernameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$`)
 
@@ -131,7 +133,7 @@ type Service struct {
 	// one), and the ceremonies begun but not yet finished.
 	publicURL  string
 	publicRP   relyingParty
-	publicWhy  string
+	publicWhy  msg.M
 	ceremonies ceremonies
 
 	// stepUpMode is the owner's step-up rule (SetStepUpMode).
@@ -193,8 +195,8 @@ func New(ctx context.Context, st *store.Store, log *slog.Logger, proxies httpx.P
 			return nil, err
 		}
 		s.publicRP, s.publicWhy = rp, why
-		if why != "" {
-			log.Warn("passkeys are unavailable: "+why, "public_url", s.publicURL)
+		if why.ID != "" {
+			log.Warn("passkeys are unavailable: "+why.Text(), "public_url", s.publicURL)
 		}
 	}
 	if _, err := st.Writer().ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= ?`, s.now().UnixMilli()); err != nil {
@@ -268,13 +270,13 @@ func (s *Service) Setup(ctx context.Context, username, password string) (User, e
 
 func validateCredentials(username, password string) error {
 	if !usernameRE.MatchString(username) {
-		return &ValidationError{"username must be 1–64 letters, digits or . _ @ -, starting with a letter or digit"}
+		return &ValidationError{msg.New("auth.username_invalid")}
 	}
 	if utf8.RuneCountInString(password) < MinPasswordLen {
-		return &ValidationError{fmt.Sprintf("password must be at least %d characters", MinPasswordLen)}
+		return &ValidationError{msg.New("auth.password_short", "min", MinPasswordLen)}
 	}
 	if len(password) > MaxPasswordLen {
-		return &ValidationError{fmt.Sprintf("password must be at most %d bytes", MaxPasswordLen)}
+		return &ValidationError{msg.New("auth.password_long", "max", MaxPasswordLen)}
 	}
 	return nil
 }

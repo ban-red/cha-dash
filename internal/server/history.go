@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"math"
 	"net/http"
 	"slices"
@@ -85,14 +86,14 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 		q := r.URL.Query()
 		resource := q.Get("resource")
 		if resource == "" {
-			httpx.Error(w, http.StatusBadRequest, "bad_resource", "resource is a resource ID")
+			httpx.Say(w, http.StatusBadRequest, "bad_resource", msg.New("history.bad_resource"))
 			return
 		}
 		now := time.Now()
 		to, ok := msParam(q.Get("to"), now)
 		from, ok2 := msParam(q.Get("from"), to.Add(-7*24*time.Hour))
 		if !ok || !ok2 || !from.Before(to) {
-			httpx.Error(w, http.StatusBadRequest, "bad_range", "from and to are Unix milliseconds, from before to")
+			httpx.Say(w, http.StatusBadRequest, "bad_range", msg.New("history.bad_range"))
 			return
 		}
 		type change struct {
@@ -109,7 +110,7 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 		}
 		changes, err := rec.States(r.Context(), resource, from, to)
 		if err != nil {
-			httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't read the history")
+			httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.read_failed"))
 			return
 		}
 		list := make([]change, len(changes))
@@ -138,14 +139,14 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 		to, ok := msParam(q.Get("to"), now)
 		from, ok2 := msParam(q.Get("from"), to.Add(-24*time.Hour))
 		if !ok || !ok2 || !from.Before(to) {
-			httpx.Error(w, http.StatusBadRequest, "bad_range", "from and to are Unix milliseconds, from before to")
+			httpx.Say(w, http.StatusBadRequest, "bad_range", msg.New("history.bad_range"))
 			return
 		}
 		points := pulseDefaultPoints
 		if s := q.Get("points"); s != "" {
 			n, err := strconv.Atoi(s)
 			if err != nil || n < 1 || n > pulsePoints {
-				httpx.Error(w, http.StatusBadRequest, "bad_points", "points is 1 to 288")
+				httpx.Say(w, http.StatusBadRequest, "bad_points", msg.New("history.bad_points", "max", pulsePoints))
 				return
 			}
 			points = n
@@ -160,7 +161,7 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 		}
 		p, err := rec.Pulse(r.Context(), from, to, points, func(id string) bool { return visible(r, id) })
 		if err != nil {
-			httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't read the history")
+			httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.read_failed"))
 			return
 		}
 		slots := make([]slot, len(p.Slots))
@@ -174,7 +175,7 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 		q := r.URL.Query()
 		keys := q["series"]
 		if len(keys) == 0 || len(keys) > historySeries {
-			httpx.Error(w, http.StatusBadRequest, "bad_series", "ask for 1 to 20 series, as series=<resource>#<metric>")
+			httpx.Say(w, http.StatusBadRequest, "bad_series", msg.New("history.bad_series", "max", historySeries))
 			return
 		}
 		now := time.Now()
@@ -184,14 +185,14 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 		}
 		from, ok2 := msParam(q.Get("from"), to.Add(-24*time.Hour))
 		if !ok || !ok2 || !from.Before(to) {
-			httpx.Error(w, http.StatusBadRequest, "bad_range", "from and to are Unix milliseconds, from before to")
+			httpx.Say(w, http.StatusBadRequest, "bad_range", msg.New("history.bad_range"))
 			return
 		}
 		points := historyDefaultPoints
 		if s := q.Get("points"); s != "" {
 			n, err := strconv.Atoi(s)
 			if err != nil || n < 1 || n > historyPoints {
-				httpx.Error(w, http.StatusBadRequest, "bad_points", "points is 1 to 2000")
+				httpx.Say(w, http.StatusBadRequest, "bad_points", msg.New("history.bad_points", "max", historyPoints))
 				return
 			}
 			points = n
@@ -207,7 +208,7 @@ func registerHistory(mux *http.ServeMux, session func(http.Handler) http.Handler
 			}
 			rg, err := rec.Query(r.Context(), key, from, to, points)
 			if err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't read the history")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.read_failed"))
 				return
 			}
 			out[key] = toHistoryJSON(rg)
@@ -303,6 +304,14 @@ type historyTierJSON struct {
 // historyExcludeMax bounds the exclusions, a list of instance IDs.
 const historyExcludeMax = 500
 
+// checkSentence is what history.CheckKeep or CheckKeyPattern refused.
+func checkSentence(err error) msg.M {
+	if ce, ok := errors.AsType[*history.CheckError](err); ok {
+		return ce.M
+	}
+	return msg.New("hub.internal_error")
+}
+
 // historyMinLimit is the smallest size limit: below it, a busy hub would
 // trim away most of its 48 hours.
 const historyMinLimit = 64 << 20
@@ -347,7 +356,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 		if rec != nil {
 			s, err := rec.Stats(r.Context())
 			if err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't read the history")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.read_failed"))
 				return
 			}
 			out.Level, out.Series, out.Resources, out.FileBytes, out.MaxBytes = s.Level, s.Series, s.Resources, s.FileBytes, s.MaxBytes
@@ -385,7 +394,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 	}
 	locked := func(w http.ResponseWriter) bool {
 		if rec == nil {
-			httpx.Error(w, http.StatusConflict, "history_locked", "History is off for this hub (CHADASH_HISTORY=off, or demo mode).")
+			httpx.Say(w, http.StatusConflict, "history_locked", msg.New("history.locked"))
 			return true
 		}
 		return false
@@ -421,20 +430,20 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 			}
 		}
 		if body.Exclude != nil && len(*body.Exclude) > historyExcludeMax {
-			httpx.Error(w, http.StatusUnprocessableEntity, "bad_exclude", "exclude lists at most 500 instances")
+			httpx.Say(w, http.StatusUnprocessableEntity, "bad_exclude", msg.New("history.bad_exclude", "max", historyExcludeMax))
 			return
 		}
 		var patterns []string
 		if body.ExcludeKeys != nil {
 			if len(*body.ExcludeKeys) > history.MaxKeyPatterns {
-				httpx.Error(w, http.StatusUnprocessableEntity, "bad_exclude_keys", "exclude_keys lists at most 200 patterns")
+				httpx.Say(w, http.StatusUnprocessableEntity, "bad_exclude_keys", msg.New("history.bad_exclude_keys", "max", history.MaxKeyPatterns))
 				return
 			}
 			patterns = []string{}
 			for _, p := range *body.ExcludeKeys {
 				p = strings.TrimSpace(p)
 				if err := history.CheckKeyPattern(p); err != nil {
-					httpx.Error(w, http.StatusUnprocessableEntity, "bad_exclude_keys", strings.TrimPrefix(err.Error(), "history: "))
+					httpx.Say(w, http.StatusUnprocessableEntity, "bad_exclude_keys", checkSentence(err))
 					return
 				}
 				if !slices.Contains(patterns, p) {
@@ -448,7 +457,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 			for name, ms := range *body.Keep {
 				t, ok := history.ParseTier(name)
 				if !ok || ms != nil && *ms < 0 {
-					httpx.Error(w, http.StatusUnprocessableEntity, "bad_keep", "keep maps 1m, 15m, 1h or 1d to milliseconds, or null for the default")
+					httpx.Say(w, http.StatusUnprocessableEntity, "bad_keep", msg.New("history.bad_keep"))
 					return
 				}
 				if ms != nil {
@@ -456,7 +465,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 				}
 			}
 			if err := history.CheckKeep(keep); err != nil {
-				httpx.Error(w, http.StatusUnprocessableEntity, "bad_keep", strings.TrimPrefix(err.Error(), "history: "))
+				httpx.Say(w, http.StatusUnprocessableEntity, "bad_keep", checkSentence(err))
 				return
 			}
 		}
@@ -464,12 +473,12 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 		if body.Level != nil {
 			var err error
 			if l, err = history.ParseLevel(*body.Level); err != nil {
-				httpx.Error(w, http.StatusUnprocessableEntity, "bad_level", "level is off, standard or long-term")
+				httpx.Say(w, http.StatusUnprocessableEntity, "bad_level", msg.New("history.bad_level"))
 				return
 			}
 		}
 		if m := body.MaxBytes; m != nil && *m != 0 && *m < historyMinLimit {
-			httpx.Error(w, http.StatusUnprocessableEntity, "bad_limit", "max_bytes is 0 (no limit) or at least 64 MB")
+			httpx.Say(w, http.StatusUnprocessableEntity, "bad_limit", msg.New("history.bad_limit"))
 			return
 		}
 		params := map[string]any{}
@@ -484,11 +493,11 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 		if body.Level != nil {
 			params["level_from"], params["level_to"] = rec.Level(), l
 			if err := rec.SetLevel(r.Context(), l); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't change the history level")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.level_failed"))
 				return
 			}
 			if err := history.SaveLevel(r.Context(), st, l, now); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the level applies now but couldn't be saved for the next start")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.level_unsaved"))
 				return
 			}
 		}
@@ -496,7 +505,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 			params["max_bytes_from"], params["max_bytes_to"] = rec.Limit(), *m
 			rec.SetLimit(*m)
 			if err := history.SaveLimit(r.Context(), st, *m, now); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the limit applies now but couldn't be saved for the next start")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.limit_unsaved"))
 				return
 			}
 		}
@@ -505,7 +514,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 			params["exclude_from"], params["exclude_to"] = rec.Excluded(), ids
 			rec.SetExcluded(ids)
 			if err := history.SaveExcluded(r.Context(), st, ids, now); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the exclusions apply now but couldn't be saved for the next start")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.exclusions_unsaved"))
 				return
 			}
 		}
@@ -513,7 +522,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 			params["exclude_keys_from"], params["exclude_keys_to"] = rec.ExcludedKeys(), patterns
 			rec.SetExcludedKeys(patterns)
 			if err := history.SaveExcludedKeys(r.Context(), st, patterns, now); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the exclusions apply now but couldn't be saved for the next start")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.exclusions_unsaved"))
 				return
 			}
 		}
@@ -521,7 +530,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 			params["keep_from"], params["keep_to"] = keepParams(rec.Keep()), keepParams(keep)
 			rec.SetKeep(keep)
 			if err := history.SaveKeep(r.Context(), st, keep, now); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "the retention applies now but couldn't be saved for the next start")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.retention_unsaved"))
 				return
 			}
 		}
@@ -534,7 +543,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 		}
 		if instance := r.URL.Query().Get("instance"); instance != "" {
 			if err := rec.ClearInstance(r.Context(), instance); err != nil {
-				httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't clear that integration's history")
+				httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.clear_instance_failed"))
 				return
 			}
 			audit.Change(r, authz.Audited["POST /api/settings/history/clear"], "integration:"+instance, nil, authz.T3, nil)
@@ -542,7 +551,7 @@ func registerHistorySettings(mux *http.ServeMux, session func(http.Handler) http
 			return
 		}
 		if err := rec.Clear(r.Context()); err != nil {
-			httpx.Error(w, http.StatusInternalServerError, "history_failed", "couldn't clear the history")
+			httpx.Say(w, http.StatusInternalServerError, "history_failed", msg.New("history.clear_failed"))
 			return
 		}
 		audit.Change(r, authz.Audited["POST /api/settings/history/clear"], "settings:history", nil, authz.T3, nil)

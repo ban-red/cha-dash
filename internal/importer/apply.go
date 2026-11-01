@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"dash.cha.sh/internal/boards"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
 )
@@ -234,7 +235,7 @@ func (s *Service) choose(ctx context.Context, q querier, res *Result, secrets Se
 		var integ string
 		err := q.QueryRowContext(ctx, `SELECT integration FROM integration_instances WHERE id = ?`, existing).Scan(&integ)
 		if errors.Is(err, sql.ErrNoRows) || (err == nil && integ != p.Instances[i].Integration) {
-			return fmt.Errorf("%w: %s can't use %s instead", ErrInvalidChoices, p.Instances[i].Name, existing)
+			return &ChoicesError{msg.New("imports.cant_reuse", "name", p.Instances[i].Name, "existing", existing)}
 		}
 		if err != nil {
 			return err
@@ -272,7 +273,7 @@ func (s *Service) onto(ctx context.Context, q querier, p *Plan, boardID string) 
 	if errors.Is(err, sql.ErrNoRows) {
 		var one int
 		if q.QueryRowContext(ctx, `SELECT 1 FROM boards WHERE id = ?`, boardID).Scan(&one) != nil {
-			return fmt.Errorf("%w: no board %s", ErrInvalidChoices, boardID)
+			return &ChoicesError{msg.New("imports.no_board", "board", boardID)}
 		}
 		doc, tiles, fv = `{"version":1,"columns":12,"sections":[]}`, `{}`, LayoutVersion
 		err = q.QueryRowContext(ctx, `SELECT title, slug FROM boards WHERE id = ?`, boardID).Scan(&title, &slug)

@@ -17,6 +17,7 @@ import (
 
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -298,8 +299,8 @@ func (m *Manager) PollAuth(ctx context.Context, integ, id string) (AuthStatus, e
 		}
 	}
 	if len(out) == 0 {
-		return AuthStatus{Status: AuthFailed, Error: &httpx.ErrorDetail{Code: integration.CodeUpstream,
-			Message: "the sign-in finished without a credential; try again, or paste one"}}, nil
+		e := httpx.Detail(integration.CodeUpstream, msg.New("integrations.sign_in_no_credential"))
+		return AuthStatus{Status: AuthFailed, Error: &e}, nil
 	}
 	m.log.Info("sign-in finished", "integration", integ)
 	return AuthStatus{Status: AuthDone, Secrets: out}, nil
@@ -327,11 +328,12 @@ func (m *Manager) writeAuthError(w http.ResponseWriter, err error) {
 	var ue *upstreamError
 	switch {
 	case errors.As(err, &ue):
+		// The integration's own words about the upstream: not the hub's.
 		httpx.Error(w, http.StatusBadGateway, ue.code, ue.msg)
 	case errors.Is(err, ErrNoSignIn):
-		httpx.Error(w, http.StatusUnprocessableEntity, "no_sign_in", "this integration has no sign-in flow; paste the credential instead")
+		httpx.Say(w, http.StatusUnprocessableEntity, "no_sign_in", msg.New("integrations.no_sign_in"))
 	case errors.Is(err, ErrNoSuchAuth):
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such sign-in; it may have finished or expired")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("integrations.sign_in_gone"))
 	default:
 		m.writeError(w, err)
 	}

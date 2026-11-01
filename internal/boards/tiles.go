@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"dash.cha.sh/internal/msg"
 )
 
 // Tiles is a board's tile configuration: what each layout item shows that the
@@ -88,38 +89,50 @@ const (
 // ErrInvalidTiles wraps every reason ParseTiles refuses a document.
 var ErrInvalidTiles = errors.New("invalid tiles")
 
+// InvalidError is a refused tiles document or dismissal: it unwraps to
+// ErrInvalidTiles or ErrInvalidRef and says why as a catalog sentence.
+type InvalidError struct {
+	Err error
+	M   msg.M
+}
+
+func (e *InvalidError) Error() string { return e.M.Text() }
+func (e *InvalidError) Unwrap() error { return e.Err }
+
+func invalidTiles(m msg.M) error { return &InvalidError{Err: ErrInvalidTiles, M: m} }
+
 // ParseTiles validates a tiles document: a JSON object of item ids to tiles,
 // with no unknown fields, http(s) links only, and sources that name both an
 // instance and a capability.
 func ParseTiles(raw json.RawMessage) (Tiles, error) {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 || trimmed[0] != '{' {
-		return nil, fmt.Errorf("%w: tiles must be a JSON object of layout item ids to tiles", ErrInvalidTiles)
+		return nil, invalidTiles(msg.New("boards.tiles_not_object"))
 	}
 	dec := json.NewDecoder(bytes.NewReader(trimmed))
 	dec.DisallowUnknownFields()
 	dec.UseNumber()
 	var tiles Tiles
 	if err := dec.Decode(&tiles); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidTiles, err)
+		return nil, invalidTiles(msg.New("boards.tiles_unreadable", "reason", err.Error()))
 	}
 	if dec.More() {
-		return nil, fmt.Errorf("%w: trailing data after the object", ErrInvalidTiles)
+		return nil, invalidTiles(msg.New("boards.tiles_trailing"))
 	}
 	if len(tiles) > MaxTiles {
-		return nil, fmt.Errorf("%w: %d tiles is more than %d", ErrInvalidTiles, len(tiles), MaxTiles)
+		return nil, invalidTiles(msg.New("boards.tiles_too_many", "count", len(tiles), "max", MaxTiles))
 	}
 	for id, t := range tiles {
 		if id == "" || len(id) > MaxTileIDLen || !utf8.ValidString(id) {
-			return nil, fmt.Errorf("%w: item ids must be 1–%d bytes of UTF-8", ErrInvalidTiles, MaxTileIDLen)
+			return nil, invalidTiles(msg.New("boards.tiles_bad_id", "max", MaxTileIDLen))
 		}
 		if t.Href != "" && !HrefOK(t.Href) {
-			return nil, fmt.Errorf("%w: %s: href must be an http(s) URL", ErrInvalidTiles, id)
+			return nil, invalidTiles(msg.New("boards.tiles_bad_href", "id", id))
 		}
 		if t.Bind != nil {
 			for _, s := range t.Bind.Sources {
 				if s.Instance == "" || s.Capability == "" {
-					return nil, fmt.Errorf("%w: %s: every source needs an instance and a capability", ErrInvalidTiles, id)
+					return nil, invalidTiles(msg.New("boards.tiles_bad_source", "id", id))
 				}
 			}
 		}

@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
+
+	"dash.cha.sh/internal/msg"
 )
 
 // Choices are what the person decided in the Review sheet: what to leave
@@ -44,6 +45,13 @@ const (
 // target form, a field that isn't missing, a reuse across integrations.
 var ErrInvalidChoices = errors.New("importer: invalid choices")
 
+// ChoicesError is an invalid choice, said as a catalog sentence. It
+// unwraps to ErrInvalidChoices.
+type ChoicesError struct{ M msg.M }
+
+func (e *ChoicesError) Error() string { return ErrInvalidChoices.Error() + ": " + e.M.Text() }
+func (e *ChoicesError) Unwrap() error { return ErrInvalidChoices }
+
 // ErrPlanChanged is Apply refusing a plan that no longer matches the one
 // reviewed: the hub's state or the files changed in between.
 var ErrPlanChanged = errors.New("importer: the plan changed since it was reviewed")
@@ -59,12 +67,12 @@ func (c Choices) validate() error {
 	case t == "", t == TargetNew, t == TargetNone:
 	default:
 		if _, ok := c.TargetBoard(); !ok {
-			return fmt.Errorf("%w: target %q isn't new, none or board:<id>", ErrInvalidChoices, t)
+			return &ChoicesError{msg.New("imports.bad_target", "target", t)}
 		}
 	}
 	for _, s := range c.Skip {
 		if !strings.HasPrefix(s, "instance:") && !strings.HasPrefix(s, "tile:") {
-			return fmt.Errorf("%w: skip %q isn't instance:<id> or tile:<id>", ErrInvalidChoices, s)
+			return &ChoicesError{msg.New("imports.bad_skip", "skip", s)}
 		}
 	}
 	return nil
@@ -96,7 +104,7 @@ func fillSecrets(res *Result, secrets Secrets, typed map[string]map[string]Secre
 				continue
 			}
 			if !slices.Contains(in.MissingSecrets, f) {
-				return fmt.Errorf("%w: %s has no missing field %q", ErrInvalidChoices, in.Name, f)
+				return &ChoicesError{msg.New("imports.no_missing_field", "name", in.Name, "field", f)}
 			}
 			name := "instance/" + in.ID + "/" + f
 			secrets[name] = v

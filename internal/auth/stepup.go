@@ -158,10 +158,10 @@ func (s *Service) registerStepUp(mux *http.ServeMux) {
 
 // refuseStepUp answers when c offers no method.
 func (s *Service) refuseStepUp(w http.ResponseWriter, c stepUpChoice) {
-	var unavailable *unavailableError
+	var ue *unavailableError
 	switch {
-	case c.anyPK && errors.As(c.rpErr, &unavailable):
-		httpx.Error(w, http.StatusConflict, "passkeys_unavailable", unavailable.msg)
+	case c.anyPK && errors.As(c.rpErr, &ue):
+		httpx.Say(w, http.StatusConflict, "passkeys_unavailable", ue.m)
 	case c.mode == StepUpPasskeyOnly:
 		httpx.Say(w, http.StatusForbidden, "passkey_required", msg.New("auth.stepup_passkey_policy"))
 	default:

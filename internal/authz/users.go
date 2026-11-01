@@ -125,14 +125,13 @@ func (u *Users) transfer(w http.ResponseWriter, r *http.Request) {
 // refusals and aren't audited.
 func (u *Users) refused(w http.ResponseWriter, r *http.Request, err error, action, target string, params any) bool {
 	var verr *auth.ValidationError
-	status, code, text := 0, "", ""
+	status, code := 0, ""
 	var m msg.M
 	switch {
 	case err == nil:
 		return false
 	case errors.As(err, &verr):
-		// Validation sentences aren't in the catalog yet.
-		status, code, text = http.StatusUnprocessableEntity, "invalid", verr.Msg
+		status, code, m = http.StatusUnprocessableEntity, "invalid", verr.M
 	case errors.Is(err, auth.ErrUserNotFound):
 		status, code, m = http.StatusNotFound, "not_found", msg.New("authz.user_not_found")
 	case errors.Is(err, auth.ErrUserExists):
@@ -149,15 +148,8 @@ func (u *Users) refused(w http.ResponseWriter, r *http.Request, err error, actio
 	if action == "users.transfer-ownership" {
 		tier = T3
 	}
-	if m.ID != "" {
-		text = m.Text()
-	}
-	u.Audit.Refuse(r, action, target, params, tier, code, text)
-	if m.ID != "" {
-		httpx.Say(w, status, code, m)
-	} else {
-		httpx.Error(w, status, code, text)
-	}
+	u.Audit.Refuse(r, action, target, params, tier, code, m.Text())
+	httpx.Say(w, status, code, m)
 	return true
 }
 
@@ -177,6 +169,6 @@ func WriteRefusal(w http.ResponseWriter, err error) bool {
 	if errors.Is(err, ErrStepUpRequired) {
 		code = "step_up_required"
 	}
-	httpx.Error(w, http.StatusForbidden, code, err.Error())
+	sayErr(w, http.StatusForbidden, code, err)
 	return true
 }

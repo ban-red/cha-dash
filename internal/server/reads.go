@@ -8,6 +8,7 @@ import (
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/topics"
 )
 
@@ -38,7 +39,7 @@ func registerReads(mux *http.ServeMux, session func(http.Handler) http.Handler, 
 	mux.Handle("GET /api/causes", session(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		res := r.URL.Query().Get("resource")
 		if res == "" || len(res) > 512 {
-			httpx.Error(w, http.StatusBadRequest, "invalid", "resource must name a resource.")
+			httpx.Say(w, http.StatusBadRequest, "invalid", msg.New("hub.causes_bad_resource"))
 			return
 		}
 		id, _ := auth.FromContext(r.Context())

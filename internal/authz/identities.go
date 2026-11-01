@@ -18,9 +18,9 @@ import (
 func DecideIdentityChange(a Actor, now time.Time) error {
 	switch {
 	case a.Kind != KindUser || a.Session == "":
-		return forbid("Only a person signed in to Cha Dash can change their linked sign-ins.")
+		return forbid(msg.New("authz.identities_person_only"))
 	case !a.StepUpUntil.After(now):
-		return &Refusal{Err: ErrStepUpRequired, Msg: "Confirm it's you first: linked sign-ins are a way into your account."}
+		return refuse(ErrStepUpRequired, msg.New("authz.identities_stepup"))
 	}
 	return nil
 }
@@ -173,7 +173,7 @@ func (h *Identities) linkForward(w http.ResponseWriter, r *http.Request) {
 	var verr *auth.ValidationError
 	switch {
 	case errors.As(err, &verr):
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", verr.Msg)
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", verr.M)
 	case errors.Is(err, auth.ErrIdentityTaken):
 		m := msg.New("authz.proxy_name_taken")
 		h.Audit.Refuse(r, "auth.forward.link", target, params, T3, "already_linked", m.Text())

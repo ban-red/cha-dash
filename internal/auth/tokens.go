@@ -132,11 +132,11 @@ var tokenSecretRE = regexp.MustCompile(`^cdt_([a-z2-7]{26})_([A-Z2-7]{52})$`)
 func ValidateTokenName(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || utf8.RuneCountInString(name) > 64 {
-		return "", &ValidationError{"A token's name must be 1 to 64 characters."}
+		return "", &ValidationError{msg.New("auth.token_name_length")}
 	}
 	for _, r := range name {
 		if unicode.IsControl(r) {
-			return "", &ValidationError{"A token's name can't contain control characters."}
+			return "", &ValidationError{msg.New("auth.token_name_control")}
 		}
 	}
 	return name, nil
@@ -154,7 +154,7 @@ func (s *Service) CreateToken(ctx context.Context, userID, name string, kind Tok
 	if k, ok := ParseTokenKind(string(kind)); ok {
 		kind = k
 	} else {
-		return APIToken{}, "", &ValidationError{"A token is an API token or an agent token."}
+		return APIToken{}, "", &ValidationError{msg.New("auth.token_kind")}
 	}
 	if scopes == nil {
 		scopes = []string{}

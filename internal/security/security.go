@@ -45,6 +45,7 @@ import (
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
 )
@@ -347,20 +348,20 @@ func (s *Service) handlePut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Posture == nil && req.StepUp == nil {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "send posture, step_up or both")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("security.nothing_sent"))
 		return
 	}
 	// Check everything before changing anything.
 	if req.Posture != nil {
 		if _, ok := Parse(*req.Posture); !ok {
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", fmt.Sprintf("%q isn't a security level: use relaxed, standard or strict", *req.Posture))
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("security.bad_posture", "posture", *req.Posture))
 			return
 		}
 	}
 	if req.StepUp != nil {
 		m, ok := auth.ParseStepUpMode(*req.StepUp)
 		if !ok {
-			httpx.Error(w, http.StatusUnprocessableEntity, "invalid", fmt.Sprintf("%q isn't a step-up rule: use passkey_or_password or passkey_only", *req.StepUp))
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("security.bad_step_up", "rule", *req.StepUp))
 			return
 		}
 		if m != s.StepUp() {
@@ -378,14 +379,14 @@ func (s *Service) handlePut(w http.ResponseWriter, r *http.Request) {
 	if req.Posture != nil {
 		if err := s.Set(r.Context(), Posture(*req.Posture)); err != nil {
 			s.log.Error("security: saving the posture failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 	}
 	if req.StepUp != nil {
 		if err := s.SetStepUp(r.Context(), auth.StepUpMode(*req.StepUp)); err != nil {
 			s.log.Error("security: saving the step-up rule failed", "err", err)
-			httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 			return
 		}
 	}

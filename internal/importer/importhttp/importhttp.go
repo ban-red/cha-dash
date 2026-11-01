@@ -23,7 +23,6 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/importer"
+	"dash.cha.sh/internal/msg"
 )
 
 // Role is one file a source reads.
@@ -133,7 +133,7 @@ func (h *handler) detect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(in.Files) == 0 || len(in.Files) > 32 {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "send 1 to 32 files")
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("imports.detect_count"))
 		return
 	}
 	heads := make([][]byte, len(in.Files))
@@ -142,7 +142,7 @@ func (h *handler) detect(w http.ResponseWriter, r *http.Request) {
 		if f.Base64 {
 			var err error
 			if b, err = base64.StdEncoding.DecodeString(f.Head); err != nil {
-				httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "a file's head isn't base64")
+				httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("imports.head_not_base64"))
 				return
 			}
 		}
@@ -231,7 +231,7 @@ func decode(w http.ResponseWriter, r *http.Request, s Source) (request, map[stri
 			err = json.Unmarshal(v, &req.PlanHash)
 		default:
 			if !slices.ContainsFunc(s.Roles, func(role Role) bool { return role.Key == k }) {
-				httpx.Error(w, http.StatusBadRequest, "bad_json", "unknown field "+strconvQuote(k))
+				httpx.Say(w, http.StatusBadRequest, "bad_json", msg.New("request.unknown_field", "field", clip(k)))
 				return req, nil, false
 			}
 			{
@@ -247,7 +247,7 @@ func decode(w http.ResponseWriter, r *http.Request, s Source) (request, map[stri
 			}
 		}
 		if err != nil {
-			httpx.Error(w, http.StatusBadRequest, "invalid", k+" has the wrong shape")
+			httpx.Say(w, http.StatusBadRequest, "invalid", msg.New("imports.wrong_shape", "field", k))
 			return req, nil, false
 		}
 	}
@@ -256,7 +256,7 @@ func decode(w http.ResponseWriter, r *http.Request, s Source) (request, map[stri
 		v := req.Files[role.Key]
 		if strings.TrimSpace(v) == "" {
 			if role.Required {
-				httpx.Error(w, http.StatusUnprocessableEntity, "invalid", role.Key+" is required")
+				httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("imports.file_required", "field", role.Key))
 				return req, nil, false
 			}
 			continue
@@ -264,7 +264,7 @@ func decode(w http.ResponseWriter, r *http.Request, s Source) (request, map[stri
 		if role.Binary {
 			b, err := base64.StdEncoding.DecodeString(v)
 			if err != nil {
-				httpx.Error(w, http.StatusUnprocessableEntity, "invalid", role.Key+" isn't base64")
+				httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("imports.file_not_base64", "field", role.Key))
 				return req, nil, false
 			}
 			files[role.Key] = b
@@ -275,13 +275,13 @@ func decode(w http.ResponseWriter, r *http.Request, s Source) (request, map[stri
 	return req, files, true
 }
 
-// strconvQuote quotes a field name for an error, cut short: it's a key the
-// client sent, never a value.
-func strconvQuote(k string) string {
+// clip cuts a field name short for an error: it's a key the client sent,
+// never a value.
+func clip(k string) string {
 	if len(k) > 40 {
 		k = k[:40]
 	}
-	return strconv.Quote(k)
+	return k
 }
 
 func (h *handler) post(w http.ResponseWriter, r *http.Request, s Source) {
@@ -295,7 +295,7 @@ func (h *handler) post(w http.ResponseWriter, r *http.Request, s Source) {
 		dry = true
 	case "", "0", "false":
 	default:
-		httpx.Error(w, http.StatusBadRequest, "invalid", "dry_run must be 1 or 0")
+		httpx.Say(w, http.StatusBadRequest, "invalid", msg.New("request.bad_dry_run"))
 		return
 	}
 	res, secrets, err := s.Build(files)
@@ -336,7 +336,7 @@ func (h *handler) post(w http.ResponseWriter, r *http.Request, s Source) {
 			return
 		}
 		httpx.WriteJSON(w, http.StatusConflict, map[string]any{
-			"error":  httpx.ErrorDetail{Code: "plan_changed", Message: "Something changed since the preview. Here's the plan as it is now."},
+			"error":  httpx.Detail("plan_changed", msg.New("imports.plan_changed")),
 			"result": fresh,
 		})
 		return
@@ -369,8 +369,8 @@ func (h *handler) post(w http.ResponseWriter, r *http.Request, s Source) {
 }
 
 func (h *handler) fail(w http.ResponseWriter, s Source, what string, err error) {
-	if errors.Is(err, importer.ErrInvalidChoices) {
-		httpx.Error(w, http.StatusUnprocessableEntity, "invalid_choices", strings.TrimPrefix(err.Error(), "importer: invalid choices: "))
+	if ce, ok := errors.AsType[*importer.ChoicesError](err); ok {
+		httpx.Say(w, http.StatusUnprocessableEntity, "invalid_choices", ce.M)
 		return
 	}
 	h.internal(w, s.ID+" "+what+" failed", err)
@@ -383,7 +383,7 @@ func (h *handler) record(w http.ResponseWriter, r *http.Request, s Source) {
 		return
 	}
 	if rec == nil {
-		httpx.Error(w, http.StatusNotFound, "not_found", "nothing has been imported from "+s.Name+" yet")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("imports.nothing_from", "source", s.Name))
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]*importer.Record{"record": rec})
@@ -403,7 +403,7 @@ func (h *handler) history(w http.ResponseWriter, r *http.Request) {
 func (h *handler) entry(w http.ResponseWriter, r *http.Request) {
 	e, err := h.svc.Entry(r.Context(), r.PathValue("id"))
 	if errors.Is(err, importer.ErrNoImport) {
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such import")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("imports.not_found"))
 		return
 	}
 	if err != nil {
@@ -429,10 +429,10 @@ func (h *handler) revert(w http.ResponseWriter, r *http.Request) {
 	}
 	switch {
 	case errors.Is(err, importer.ErrNoImport):
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such import")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("imports.not_found"))
 		return
 	case errors.Is(err, importer.ErrReverted):
-		httpx.Error(w, http.StatusConflict, "reverted", "This import was reverted already.")
+		httpx.Say(w, http.StatusConflict, "reverted", msg.New("imports.reverted"))
 		return
 	case err != nil:
 		h.internal(w, "reverting an import failed", err)
@@ -446,5 +446,5 @@ func (h *handler) revert(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) internal(w http.ResponseWriter, what string, err error) {
 	h.log.Error(what, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+	httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 }

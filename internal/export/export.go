@@ -15,6 +15,7 @@ import (
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/importer"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 	"dash.cha.sh/internal/vault"
 )
@@ -61,8 +62,11 @@ var ErrNoVault = errors.New("export: the vault key isn't available")
 // plain text: the value also appears in a non-secret field or setting.
 type LeakError struct{ Secret string }
 
-func (e *LeakError) Error() string {
-	return fmt.Sprintf("export: refusing to write a Home file that holds the value of secret %s in plain text (it also appears in a non-secret field or setting); change that secret or that field", e.Secret)
+func (e *LeakError) Error() string { return "export: " + e.Sentence().Text() }
+
+// Sentence says what was refused, for a person.
+func (e *LeakError) Sentence() msg.M {
+	return msg.New("export.secret_in_plain_text", "secret", e.Secret)
 }
 
 // minGuardLen is the shortest secret value the leak guard looks for. A

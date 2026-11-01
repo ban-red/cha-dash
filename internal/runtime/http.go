@@ -13,6 +13,7 @@ import (
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/integration"
+	"dash.cha.sh/internal/msg"
 )
 
 // Register mounts the integrations API, each route wrapped by wrap (the
@@ -72,16 +73,16 @@ func (m *Manager) writeError(w http.ResponseWriter, err error) {
 			Fields: ve.Fields,
 		})
 	case errors.Is(err, ErrUnknownIntegration):
-		httpx.Error(w, http.StatusUnprocessableEntity, "unknown_integration", "this hub doesn't have that integration")
+		httpx.Say(w, http.StatusUnprocessableEntity, "unknown_integration", msg.New("integrations.unknown"))
 	case errors.Is(err, ErrNotFound):
-		httpx.Error(w, http.StatusNotFound, "not_found", "no such instance")
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("integrations.instance_not_found"))
 	case errors.Is(err, ErrNotRunning):
-		httpx.Error(w, http.StatusConflict, "not_running", "the instance isn't running; it's disabled or can't start")
+		httpx.Say(w, http.StatusConflict, "not_running", msg.New("integrations.not_running"))
 	case errors.Is(err, ErrNameTaken):
-		httpx.Error(w, http.StatusConflict, "conflict", "another instance of this integration already has that name")
+		httpx.Say(w, http.StatusConflict, "conflict", msg.New("integrations.name_taken"))
 	default:
 		m.log.Error("integrations API failed", "err", err)
-		httpx.Error(w, http.StatusInternalServerError, "internal", "internal error")
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
 	}
 }
 

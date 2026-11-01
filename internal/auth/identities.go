@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"dash.cha.sh/internal/msg"
 )
 
 // ForwardAuthIssuer stands in for the issuer of forward-auth links in the
@@ -107,7 +109,7 @@ func IsLastSignInMethod(err error) bool { return errors.Is(err, errLastSignInMet
 func (s *Service) LinkForwardAuth(ctx context.Context, userID, username string) (bool, error) {
 	username = strings.TrimSpace(username)
 	if username == "" || len(username) > 255 {
-		return false, &ValidationError{"the proxy sent no usable username"}
+		return false, &ValidationError{msg.New("auth.proxy_no_username")}
 	}
 	created := false
 	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {

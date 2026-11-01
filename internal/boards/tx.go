@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -109,7 +110,7 @@ func AppendLayoutTx(ctx context.Context, tx *sql.Tx, boardID string, formatVersi
 		return 0, fmt.Errorf("boards: %w", err)
 	}
 	if err := json.Compact(&compactTiles, tiles); err != nil {
-		return 0, fmt.Errorf("boards: %w: %v", ErrInvalidTiles, err)
+		return 0, fmt.Errorf("boards: %w", invalidTiles(msg.New("boards.tiles_unreadable", "reason", err.Error())))
 	}
 	var cur sql.NullInt64
 	if err := tx.QueryRowContext(ctx, `SELECT MAX(revision) FROM layouts WHERE board_id = ?`, boardID).Scan(&cur); err != nil {

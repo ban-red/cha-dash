@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
 )
 
@@ -52,18 +53,25 @@ func keepFor(level Level, over map[Tier]time.Duration, t Tier) time.Duration {
 	return level.keep(t)
 }
 
+// CheckError is a retention or pattern CheckKeep or CheckKeyPattern
+// refuses, said as a catalog sentence.
+type CheckError struct{ M msg.M }
+
+func (e *CheckError) Error() string { return "history: " + e.M.Text() }
+
 // CheckKeep says whether per-tier retention is allowed: each value within
 // its tier's choices, and no tier keeping less than the finer one below it
 // at either level, since queries over a long range read the coarser tier.
+// Its errors are *CheckError.
 func CheckKeep(over map[Tier]time.Duration) error {
 	for t, k := range over {
 		if t < Minute || t > Day {
-			return fmt.Errorf("history: no tier %d", t)
+			return &CheckError{msg.New("history.no_tier", "tier", int(t))}
 		}
 		cs := KeepChoices[t]
 		lo, hi := cs[0], cs[len(cs)-1]
 		if k == 0 && hi != 0 || k != 0 && (k < lo || hi != 0 && k > hi) {
-			return fmt.Errorf("history: the %s tier keeps %s to %s", TierNames[t], words(lo), words(hi))
+			return &CheckError{msg.New("history.keep_range", "tier", TierNames[t], "low", words(lo), "high", words(hi))}
 		}
 	}
 	inf := func(d time.Duration) time.Duration {
@@ -75,7 +83,7 @@ func CheckKeep(over map[Tier]time.Duration) error {
 	for _, l := range []Level{Standard, LongTerm} {
 		for t := Quarter; t <= Day; t++ {
 			if inf(keepFor(l, over, t)) < inf(keepFor(l, over, t-1)) {
-				return fmt.Errorf("history: the %s tier can't keep less than the %s tier", TierNames[t], TierNames[t-1])
+				return &CheckError{msg.New("history.keep_order", "tier", TierNames[t], "finer", TierNames[t-1])}
 			}
 		}
 	}
@@ -182,14 +190,14 @@ const (
 // CheckKeyPattern says whether p is a pattern SetExcludedKeys takes.
 func CheckKeyPattern(p string) error {
 	if p == "" || len(p) > maxKeyPatternLen {
-		return fmt.Errorf("history: a pattern is 1 to %d characters", maxKeyPatternLen)
+		return &CheckError{msg.New("history.pattern_length", "max", maxKeyPatternLen)}
 	}
 	if strings.Trim(p, "*") == "" {
-		return errors.New("history: a pattern of only * would leave out every metric; turn history off instead")
+		return &CheckError{msg.New("history.pattern_only_stars")}
 	}
 	for _, c := range p {
 		if c < ' ' || c == 0x7f {
-			return errors.New("history: a pattern has no control characters")
+			return &CheckError{msg.New("history.pattern_control")}
 		}
 	}
 	return nil
