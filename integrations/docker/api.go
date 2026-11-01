@@ -116,6 +116,9 @@ type inspect struct {
 		Health     *healthSummary `json:"Health"` // its Log (check output) isn't decoded
 	} `json:"State"`
 	Config struct {
+		// Image is the name the container was made with. The list's Image
+		// turns into an ID once that tag points at a newer image.
+		Image        string              `json:"Image"`
 		ExposedPorts map[string]struct{} `json:"ExposedPorts"`
 		Env          flagEnv             `json:"Env"`
 		Cmd          flagArgs            `json:"Cmd"`

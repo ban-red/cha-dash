@@ -304,7 +304,8 @@ func TestRolloutStopsAtTheFirstFailure(t *testing.T) {
 		t.Fatalf("plan = %+v", p)
 	}
 	if task.State != action.StateFailed || task.Error == nil || task.Error.Code != "rolled_back" ||
-		task.Error.Message != "Updated: bazarr and lidarr. Rolled back: radarr. Didn't start: sonarr." {
+		task.Error.Message != "Updated: bazarr and lidarr. Rolled back: radarr. Didn't start: sonarr." ||
+		task.Step != task.Error.Message { // not the last nested step
 		t.Fatalf("task = %+v %+v", task, task.Error)
 	}
 	calls := f.got()

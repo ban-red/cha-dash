@@ -38,6 +38,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Proxmox VE can tell Cha Dash at once.** Add a webhook target in PVE (8.3 and later) and a backup failure or a fenced node shows within seconds instead of at the next poll. Make the secret in the Proxmox instance's settings (shown once; rotate or remove it there); the [Proxmox guide](https://github.com/ban-red/cha-dash/blob/main/integrations/proxmox/README.md#notifications) has the steps. The hub never reads what PVE sends: a notification only makes it check that Proxmox now.
 - **A morning digest, off by default.** Once a day, at a time you set in Settings → Notifications, one notification: what opened overnight, what's still open, updates waiting and stale backups. On a quiet day it says nothing, unless you turn on **All quiet**. Its time is in the hub's time zone (`TZ`).
 
+### Fixed
+
+- A hint, such as a guest that isn't backed up, is no longer named as the cause of something else on the same host. It's advice, not a fault.
+- A container whose image tag has moved on since it was created, as after a `docker pull`, shows its image by name again in Settings → Updates, not as an image ID.
+
 ## [0.3.0] - 2026-10-31
 
 The first stable release of Cha Dash, and the end of v0.3. Since 0.2, Cha Dash reaches every host: a node joins with a token and waits for your approval, stacks follow a git branch and deploy on push, and you can sign in with your own OIDC provider. It knows what your apps use and says why something isn't fine, draws the whole home on the Atlas, lists the containers whose image has a newer version and updates one through a health gate that rolls back on its own, and installs integrations from spec files, such as those in the [community repository](https://github.com/ban-red/cha-dash-specs). The details are in the three betas below. This release adds two fixes that the last live checks found.

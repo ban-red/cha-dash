@@ -225,6 +225,9 @@ func (in *instance) container(s summary, c *inspected) (integration.Resource, []
 	var ins *inspect
 	if c != nil {
 		ins = &c.ins
+		if isImageID(s.Image) && c.ins.Config.Image != "" {
+			r.Attrs["image"] = c.ins.Config.Image
+		}
 	}
 	if ports := containerPorts(s, ins); len(ports) > 0 {
 		r.Attrs["ports"] = ports
@@ -770,4 +773,19 @@ func mounts(in []mountSummary) []map[string]any {
 		}
 	}
 	return out
+}
+
+// isImageID reports whether ref is an image ID (sha256:…, or bare hex as
+// docker ps shortens it) rather than a name.
+func isImageID(ref string) bool {
+	ref = strings.TrimPrefix(ref, "sha256:")
+	if len(ref) != 12 && len(ref) != 64 {
+		return false
+	}
+	for _, r := range ref {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }

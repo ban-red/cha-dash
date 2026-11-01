@@ -234,6 +234,15 @@ func TestWhatGetsCauses(t *testing.T) {
 	if c := got["s"]; len(c) != 1 || c[0].Rule != RuleIncident || c[0].Text != "X has a problem: Backups fail. S runs on X." {
 		t.Fatalf("s: %+v", got)
 	}
+	// A hint on x is advice, not a cause.
+	hint := inc(integration.ClassProblem, "", "x")
+	hint.Severity = integration.SeverityInfo
+	got = h.find(func(in *Input) { in.Incidents = map[string]integration.Incident{"p": hint} })
+	for _, c := range got["s"] {
+		if c.Rule == RuleIncident {
+			t.Fatalf("a hint as a cause: %+v", c)
+		}
+	}
 }
 
 // History: a resource ok now that went down in the window is a cause.

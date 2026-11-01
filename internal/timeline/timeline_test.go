@@ -207,3 +207,24 @@ func TestTruncatedKeepsTheNewest(t *testing.T) {
 		t.Fatalf("truncated %v, %d entries", tl.Truncated, len(tl.Entries))
 	}
 }
+
+func TestTrimDropsOldStatesFirst(t *testing.T) {
+	var out []Entry
+	out = append(out, Entry{At: at(0), Kind: KindIncident, Event: "opened"})
+	for i := range MaxEntries {
+		out = append(out, Entry{At: at(1 + i), Kind: KindState})
+	}
+	out = append(out, Entry{At: at(MaxEntries + 1), Kind: KindAction})
+	got := trim(out)
+	if len(got) != MaxEntries || got[0].Kind != KindIncident || got[len(got)-1].Kind != KindAction || !got[1].At.Equal(at(3)) {
+		t.Fatalf("%d entries, first %s, second at %v", len(got), got[0].Kind, got[1].At)
+	}
+	// Too many of the rest: the oldest of them go too.
+	var many []Entry
+	for i := range MaxEntries + 2 {
+		many = append(many, Entry{At: at(i), Kind: KindIncident})
+	}
+	if got := trim(many); len(got) != MaxEntries || !got[0].At.Equal(at(2)) {
+		t.Fatalf("%d entries, first at %v", len(got), got[0].At)
+	}
+}

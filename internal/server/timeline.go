@@ -35,7 +35,8 @@ const (
 // resource narrows it to one resource (its incidents, the actions on it,
 // its health, the windows on its hosts); without it, the whole home. to
 // defaults to now and from to a week before to; at most 92 days apart.
-// Entries are oldest first, at most 1,000 (the newest; truncated says so).
+// Entries are oldest first, at most 1,000 (the oldest health changes go
+// first; truncated says so).
 // Viewer and up see everything; household sees its inbox's projection
 // (problems on its boards, no causes, no security findings), the health of
 // what its graph shows, and only its own actions.

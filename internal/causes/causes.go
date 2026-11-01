@@ -174,7 +174,10 @@ func newHome(in Input) *home {
 	}
 	for _, id := range slices.Sorted(maps.Keys(in.Incidents)) {
 		inc := in.Incidents[id]
-		if inc.Status != integration.StatusOpen || inc.Class != integration.ClassProblem || inc.Category == integration.CategorySecurity {
+		// A hint (info) is advice, not a fault: "batocera isn't backed up"
+		// on a host doesn't explain anything else on it.
+		if inc.Status != integration.StatusOpen || inc.Class != integration.ClassProblem || inc.Category == integration.CategorySecurity ||
+			inc.Severity == integration.SeverityInfo {
 			continue
 		}
 		if t := h.canon(graph.RID(inc.Target)); t != "" {

@@ -35,7 +35,8 @@ const (
 	KindWindow   = "window"   // a maintenance window began or ended
 )
 
-// MaxEntries bounds one timeline; the newest are kept and Truncated says so.
+// MaxEntries bounds one timeline; Truncated says when some were left out
+// (trim says which).
 const MaxEntries = 1000
 
 // Entry is one thing on the time axis.
@@ -71,7 +72,8 @@ type Timeline struct {
 	Resource string    `json:"resource,omitempty"`
 	// Entries are oldest first.
 	Entries []Entry `json:"entries"`
-	// Truncated: there were more than MaxEntries; the oldest were left out.
+	// Truncated: there were more than MaxEntries; the oldest state
+	// changes were left out first.
 	Truncated bool `json:"truncated"`
 	// History is the metrics history's level ("off" without one): with
 	// it off, the timeline has no state changes.
@@ -160,11 +162,27 @@ func Build(ctx context.Context, src Sources, q Query, v View) (Timeline, error) 
 		return cmp.Or(a.At.Compare(c.At), cmp.Compare(order[a.Kind], order[c.Kind]))
 	})
 	if len(b.out) > MaxEntries {
-		b.out = b.out[len(b.out)-MaxEntries:]
+		b.out = trim(b.out)
 		tl.Truncated = true
 	}
 	tl.Entries = b.out
 	return tl, nil
+}
+
+// trim keeps MaxEntries of out, oldest first. The oldest state changes go
+// first: a week of flapping health shouldn't push out an incident, its
+// cause or the action that fixed it. Then the oldest of the rest.
+func trim(out []Entry) []Entry {
+	drop := len(out) - MaxEntries
+	kept := out[:0]
+	for _, e := range out {
+		if drop > 0 && e.Kind == KindState {
+			drop--
+			continue
+		}
+		kept = append(kept, e)
+	}
+	return kept[drop:]
 }
 
 type builder struct {

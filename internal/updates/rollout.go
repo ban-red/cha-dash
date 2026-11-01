@@ -359,6 +359,9 @@ func (s *Service) runSteps(ctx context.Context, actor action.Actor, ro *Rollout,
 		st.State = StepSucceeded
 	}
 	run.Progress(1)
+	// The last step a nested update reported ("Rolled back and healthy")
+	// isn't the rollout's: end on what happened to each.
+	run.Step(summary(*ro))
 	ro.FinishedAt = s.now()
 	ro.State = RolloutSucceeded
 	if failed != nil {

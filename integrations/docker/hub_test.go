@@ -90,3 +90,24 @@ func TestHubContainerFromItsOwnID(t *testing.T) {
 		t.Fatalf("related to %s", got)
 	}
 }
+
+// A container whose tag has since moved shows as an ID in the list; its
+// image is the name it was made with.
+func TestContainerImageAfterTheTagMoved(t *testing.T) {
+	in := &instance{name: "lab"}
+	c := &inspected{}
+	c.ins.Config.Image = "registry.example/w31/canary:latest"
+	r, _ := in.container(summary{ID: "abc", Names: []string{"/canary"}, Image: "sha256:" + strings.Repeat("8", 64)}, c)
+	if r.Attrs["image"] != "registry.example/w31/canary:latest" {
+		t.Fatalf("image %v", r.Attrs["image"])
+	}
+	r, _ = in.container(summary{ID: "abc", Names: []string{"/web"}, Image: "nginx:1.29-alpine"}, c)
+	if r.Attrs["image"] != "nginx:1.29-alpine" {
+		t.Fatalf("a name was replaced: %v", r.Attrs["image"])
+	}
+	for ref, want := range map[string]bool{"812d47f806db": true, "sha256:" + strings.Repeat("a", 64): true, "redis": false, "deadbeefcafe:1": false} {
+		if isImageID(ref) != want {
+			t.Errorf("isImageID(%q) = %v", ref, !want)
+		}
+	}
+}
