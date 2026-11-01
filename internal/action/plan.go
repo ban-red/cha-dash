@@ -92,6 +92,9 @@ func (e *Engine) Plan(ctx context.Context, a Actor, req PlanRequest) (*Plan, err
 	if d.TierFor != nil {
 		tier = max(tier, d.TierFor(t))
 	}
+	if d.TierOf != nil {
+		tier = max(tier, d.TierOf(ctx, Request{Action: d.ID, Target: t, Params: params, Actor: a}))
+	}
 	stepUp := "none"
 	switch err := e.policy.Authorize(WithDef(ctx, d), a, d.scope(), t.ID, tier); {
 	case errors.Is(err, ErrStepUpRequired):

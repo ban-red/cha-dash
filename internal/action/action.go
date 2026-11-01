@@ -289,6 +289,10 @@ type Def struct {
 	// TierFor raises the tier for a particular target (the host running
 	// the hub is T4). Nil keeps Tier.
 	TierFor func(t Target) Tier
+	// TierOf raises the tier for a particular request, params included:
+	// a rollout is as high as the highest of its steps. Asked when
+	// planning, after TierFor. Nil keeps the tier.
+	TierOf func(ctx context.Context, req Request) Tier
 	// Preconditions refuse early with a sentence: return Precondition(…)
 	// or Unavailable(…). Checked at plan and again at approve.
 	Preconditions func(ctx context.Context, req Request) error

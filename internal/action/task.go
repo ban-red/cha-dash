@@ -85,8 +85,9 @@ func (t *Task) clone() Task {
 // it. Its methods are safe for concurrent use and cheap; the tasks topic
 // coalesces what they publish.
 type TaskRun struct {
-	e  *Engine
-	id string
+	e    *Engine
+	id   string
+	tier Tier // the task's tier: the most a step it runs (Nested) may be
 }
 
 // ID is the task's ID.

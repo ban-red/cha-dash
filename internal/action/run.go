@@ -139,7 +139,7 @@ func (e *Engine) start(d *Def, r Request, task Task, tier Tier, undo *Undo, crea
 
 // run executes, verifies and audits one task.
 func (e *Engine) run(ctx context.Context, d *Def, r Request, id string, tier Tier, undo *Undo) {
-	run := &TaskRun{e: e, id: id}
+	run := &TaskRun{e: e, id: id, tier: tier}
 	started := e.now().UTC().Truncate(time.Millisecond)
 	e.updateTask(id, true, func(t *Task) { t.State, t.StartedAt = StateRunning, &started })
 
@@ -476,7 +476,7 @@ func (e *Engine) resume(o resumable) {
 	go func() {
 		defer e.wg.Done()
 		defer cancel()
-		run := &TaskRun{e: e, id: task.ID}
+		run := &TaskRun{e: e, id: task.ID, tier: o.tier}
 		err := e.call(ctx, d.timeout(), func(ctx context.Context) error { return d.Resume(ctx, task, run) })
 		if err != nil && e.ctx.Err() != nil {
 			e.log.Warn("action: the hub stopped while resuming a task; it resumes at the next start", "task", task.ID)
