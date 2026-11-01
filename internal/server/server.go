@@ -12,6 +12,7 @@
 //	GET  /api/auth/passkeys, PATCH|DELETE …/{id}      manage your passkeys          (session)
 //	POST /api/auth/step-up/begin, POST /api/auth/step-up   confirm it's you for T3+ (session)
 //	GET  /api/version          build version                       (session)
+//	GET  /api/openapi.json     the API's OpenAPI 3.1 document (internal/apidoc), unauthenticated
 //	GET  /api/boards           boards; creates "Home" on first use (session)
 //	GET  /api/boards/{id}/layout   latest layout and revision      (session)
 //	PUT  /api/boards/{id}/layout   save at the next revision       (admin)
@@ -79,6 +80,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/action"
+	"dash.cha.sh/internal/apidoc"
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
@@ -208,6 +210,12 @@ func New(d Deps) (http.Handler, error) {
 	mux.HandleFunc("GET /api/specs/schema/v1alpha1.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/schema+json")
 		_, _ = w.Write(spec.Schema())
+	})
+	// The API's OpenAPI document, generated from the route table: the same
+	// for every hub of a version, with no data in it, so no session either.
+	mux.HandleFunc("GET /api/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write(apidoc.JSON())
 	})
 	// session attaches the signed-in identity. Who may call each route is
 	// decided by authz.Guard, in front of the whole mux, from the table in

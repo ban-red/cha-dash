@@ -152,6 +152,9 @@ var Routes = []Route{
 	{Pattern: "GET /api/auth/oidc/callback", Access: Public},
 	// The spec format's JSON Schema: the same for every hub of a version.
 	{Pattern: "GET /api/specs/schema/v1alpha1.json", Access: Public},
+	// The API's OpenAPI document (internal/apidoc): generated from this
+	// table, the same for every hub of a version. It holds no data.
+	{Pattern: "GET /api/openapi.json", Access: Public},
 	// Installed specs are the owner's: a spec runs code paths the hub
 	// trusts. Installing one and turning its actions on need a step-up
 	// (the handlers ask; internal/server's TestStepUpRoutes checks them).

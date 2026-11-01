@@ -125,6 +125,12 @@ func TestEndToEnd(t *testing.T) {
 	} else if b, _ := io.ReadAll(resp.Body); !strings.Contains(string(b), `"const": "chadash/v1alpha1"`) {
 		t.Fatalf("spec schema body: %.200s", b)
 	}
+	// So does the OpenAPI document.
+	if resp := e.request(t, c, "GET", "/api/openapi.json", nil, nil); resp.StatusCode != 200 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
+		t.Fatalf("openapi: %d %s", resp.StatusCode, resp.Header.Get("Content-Type"))
+	} else if b, _ := io.ReadAll(resp.Body); !strings.Contains(string(b), `"openapi": "3.1.0"`) {
+		t.Fatalf("openapi body: %.200s", b)
+	}
 	if resp := e.request(t, c, "GET", "/api/nope", nil, nil); resp.StatusCode != 404 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
 		t.Fatalf("unknown api: %d %s", resp.StatusCode, resp.Header.Get("Content-Type"))
 	}
