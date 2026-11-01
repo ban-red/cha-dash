@@ -36,6 +36,12 @@ const (
 	// Causes is the cause hints' topic, and its collection keyed by
 	// resource ID.
 	Causes = "causes"
+	// Backups will be backup coverage's topic: each protectable resource,
+	// what covers it and how fresh its newest good backup is
+	// (docs/plan/14-v0.4.md, "The coverage map"). Named in wave 25 so the
+	// web can be typed against it; Set doesn't hold it and the realtime
+	// server doesn't serve it until wave 27.
+	Backups = "backups"
 )
 
 // ResourceMetrics prefixes the topic of one resource's series,

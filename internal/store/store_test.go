@@ -49,12 +49,12 @@ func TestMigrateUp(t *testing.T) {
 	s, path := openTemp(t)
 	ctx := t.Context()
 
-	want := []string{"api_tokens", "approvals", "audit", "audit_events", "board_dismissals", "boards", "correlation_decisions", "discovery_dismissals", "forward_auth_links", "goose_db_version", "icons", "idempotency_keys", "imports", "installed_specs", "integration_instances", "integration_state", "ip_bans", "layouts", "node_hub_keys", "node_join_tokens", "nodes", "notify_channels", "notify_deliveries", "notify_events", "notify_push_subscriptions", "notify_rules", "oidc_identities", "oidc_logins", "passkey_users", "passkeys", "plans", "sessions", "settings", "stack_drafts", "stack_hooks", "stack_secret_grants", "stack_syncs", "tasks", "update_holds", "users", "vault_secrets"}
+	want := []string{"api_tokens", "approvals", "audit", "audit_events", "backup_objectives", "board_dismissals", "boards", "correlation_decisions", "discovery_dismissals", "forward_auth_links", "goose_db_version", "icons", "idempotency_keys", "imports", "incident_events", "installed_specs", "integration_instances", "integration_state", "ip_bans", "layouts", "maintenance_windows", "node_hub_keys", "node_join_tokens", "nodes", "notify_channels", "notify_deliveries", "notify_events", "notify_push_subscriptions", "notify_rules", "oidc_identities", "oidc_logins", "passkey_users", "passkeys", "plans", "rollouts", "sessions", "settings", "stack_drafts", "stack_hooks", "stack_secret_grants", "stack_syncs", "tasks", "update_holds", "users", "vault_secrets"}
 	if got := tables(t, s.Reader()); !slices.Equal(got, want) {
 		t.Fatalf("tables = %v, want %v", got, want)
 	}
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != 22 {
+	if err != nil || v != 25 {
 		t.Fatalf("SchemaVersion = %d, %v", v, err)
 	}
 

@@ -29,6 +29,12 @@ import (
 // at the next garbage collection.
 const actPrune = "pbs.datastore.prune"
 
+// ActVerify will verify a datastore, or one snapshot in it, now: PBS's
+// verify job run from the hub, under the control token (T1: it reads and
+// checks, it changes nothing). Not in Actions yet: it comes with backup
+// coverage in wave 27 (docs/plan/14-v0.4.md, "Run now, verify now").
+const ActVerify = "pbs.datastore.verify"
+
 // Waiting on PBS. Variables, so tests can make them short.
 var taskPoll = time.Second
 
