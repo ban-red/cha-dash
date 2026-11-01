@@ -20,7 +20,7 @@
  *
  * Its own chunk, loaded with the section.
  */
-import { onMounted, ref, useId } from 'vue';
+import { computed, onMounted, ref, useId } from 'vue';
 import { ApiError, api } from '../lib/api';
 import { ago } from '../lib/format';
 import { StepUpCancelled } from '../stores/actions';
@@ -35,7 +35,7 @@ interface Summary {
   name: string;
   version: string;
   secrets: string[];
-  requests: { name: string; method: string; path: string; optional?: boolean }[];
+  requests: { name: string; method: string; path: string; optional?: boolean; secrets?: string[]; body?: string }[];
   actions: { id: string; title: string; tier: string; method: string; path: string; body?: string[]; household?: boolean }[];
 }
 interface Installed {
@@ -66,6 +66,9 @@ const adding = ref(false);
 const yaml = ref('');
 const source = ref('');
 const preview = ref<Preview | null>(null);
+/** Its GET reads, and the POSTs that wait for its actions: a POST can change things whatever it's called. */
+const reads = computed(() => preview.value?.summary.requests.filter((r) => r.method !== 'POST') ?? []);
+const posts = computed(() => preview.value?.summary.requests.filter((r) => r.method === 'POST') ?? []);
 const exists = ref(false);
 const error = ref('');
 const errorDetails = ref<string[]>([]);
@@ -227,10 +230,21 @@ async function remove(s: Installed): Promise<void> {
         </p>
         <h4>{{ preview.summary.name }} {{ preview.summary.version }} reads</h4>
         <ul class="is-list">
-          <li v-for="r in preview.summary.requests" :key="r.name">
+          <li v-for="r in reads" :key="r.name">
             <span class="st-mono">{{ r.method }} {{ r.path }}</span><template v-if="r.optional"> · optional</template>
+            <template v-if="r.secrets?.length"> · sends <span class="st-mono">{{ r.secrets.join(', ') }}</span></template>
           </li>
         </ul>
+        <template v-if="posts.length">
+          <h4>and sends {{ posts.length }} POST request{{ posts.length === 1 ? '' : 's' }} that could change things, which wait{{ posts.length === 1 ? 's' : '' }} for its actions to be on</h4>
+          <ul class="is-list">
+            <li v-for="r in posts" :key="r.name">
+              <span class="st-mono">{{ r.method }} {{ r.path }}</span><template v-if="r.optional"> · optional</template>
+              <template v-if="r.secrets?.length"> · sends <span class="st-mono">{{ r.secrets.join(', ') }}</span></template>
+              <template v-if="r.body"> · body <code class="st-mono">{{ r.body }}</code></template>
+            </li>
+          </ul>
+        </template>
         <template v-if="preview.summary.actions.length">
           <h4>and adds {{ preview.summary.actions.length }} action{{ preview.summary.actions.length === 1 ? '' : 's' }}, off until you turn them on</h4>
           <ul class="is-list">

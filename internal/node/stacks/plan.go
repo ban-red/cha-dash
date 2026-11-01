@@ -1,6 +1,7 @@
 package stacks
 
 import (
+	"context"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -101,4 +102,61 @@ func pulls(services []stackproto.ServicePlan) []string {
 		}
 	}
 	return out
+}
+
+// keepHeld keeps each held service that the plan would recreate on the
+// image it runs now: in p only, pinned to that image's registry digest
+// (as a rollback pins), so the committed file stays as written. A held
+// service the plan leaves alone isn't touched, and a pinned one isn't
+// pulled. It returns the plan again, with the pinned services' reasons.
+func (m *Module) keepHeld(ctx context.Context, stack string, p *types.Project, running []Container, hold []string, services []stackproto.ServicePlan) ([]stackproto.ServicePlan, error) {
+	if len(hold) == 0 {
+		return services, nil
+	}
+	held := map[string]bool{}
+	for _, h := range hold {
+		held[h] = true
+	}
+	var touched []string
+	for _, sp := range services {
+		if held[sp.Name] && (sp.Action == stackproto.ActionRecreate || sp.Pull) && sp.Action != stackproto.ActionCreate {
+			touched = append(touched, sp.Name)
+		}
+	}
+	if len(touched) == 0 {
+		return services, nil
+	}
+	refs, err := m.docker.ImageRefs(ctx, stack)
+	if err != nil {
+		m.log.Warn("stacks: couldn't read the running images; held services aren't kept", "stack", stack, "err", err)
+		refs = nil
+	}
+	pinned, unkept := map[string]bool{}, map[string]bool{}
+	for _, name := range touched {
+		svc, ok := p.Services[name]
+		if ref := refs[name]; ok && ref != "" {
+			svc.Image = ref
+			p.Services[name] = svc
+			pinned[name] = true
+		} else {
+			unkept[name] = true
+		}
+	}
+	if len(pinned) > 0 {
+		if services, err = planServices(p, running); err != nil {
+			return nil, err
+		}
+	}
+	for i, sp := range services {
+		switch {
+		case pinned[sp.Name]:
+			services[i].Pull = false
+			if sp.Action != stackproto.ActionUnchanged {
+				services[i].Reason = "held: kept on the image it runs"
+			}
+		case unkept[sp.Name]:
+			services[i].Reason += "; it's held, but its image has no registry digest to keep it on"
+		}
+	}
+	return services, nil
 }

@@ -457,7 +457,7 @@ func (s *Service) validate(ctx context.Context, node, name, content string) (*Va
 		return nil, err
 	}
 	var plan stackproto.Plan
-	err = s.call(ctx, node, stackproto.VerbPlan, stackproto.PlanRequest{Stack: name, Content: content, Secrets: secrets}, &plan, s.timeout, nil)
+	err = s.call(ctx, node, stackproto.VerbPlan, stackproto.PlanRequest{Stack: name, Content: content, Secrets: secrets, Hold: s.held(ctx, node, name)}, &plan, s.timeout, nil)
 	clear(secrets)
 	if e := stackproto.ErrorFrom(err); e != nil && (e.Code == stackproto.CodeInvalid || e.Code == stackproto.CodeProtected) {
 		v.OK = false

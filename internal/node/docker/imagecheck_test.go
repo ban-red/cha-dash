@@ -196,3 +196,30 @@ func TestImageCheckThroughDocker(t *testing.T) {
 		t.Fatalf("%s; Docker asked %q, the registry %q", res, f.inspected, f.asked)
 	}
 }
+
+// A registry that answers, even with a 429, isn't asked again through
+// Docker: Docker Hub counts that lookup as a pull.
+func TestImageCheckRateLimitedNoPull(t *testing.T) {
+	f, host := newFakeDocker(t)
+	p := node.DefaultPolicy()
+	m, err := New(Options{Host: host, Policy: p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { m.Close() })
+	m.registry = f.fakeRegistry(t, "")
+	d, err := node.NewDispatcher(p, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.repoDigests[digest("a")] = []string{"docker.io/library/nginx@" + digest("1")}
+	f.add(&fakeContainer{Name: "web", Image: "nginx:1.27", ImageID: digest("a")})
+	f.registry["docker.io/library/nginx:1.27"] = "429"
+	res, _, err := call(t, d, "image.check", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(res), `"state":"cant_check"`) || !strings.Contains(string(res), "429") || len(f.inspected) != 0 {
+		t.Fatalf("%s; Docker asked %q", res, f.inspected)
+	}
+}

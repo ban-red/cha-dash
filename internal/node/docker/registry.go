@@ -31,6 +31,10 @@ var manifestTypes = strings.Join([]string{
 var (
 	errRegistryLogin    = errors.New("registry: needs a login")
 	errRegistryNotFound = errors.New("registry: no such tag")
+	// errRegistryAnswered wraps any other answer (a 429, a 5xx, no digest):
+	// the registry is reachable, so Docker's lookup, which Docker Hub
+	// counts as a pull, isn't tried instead.
+	errRegistryAnswered = errors.New("registry answered")
 )
 
 // registryBase is the API origin for a registry's domain: Docker Hub's
@@ -74,11 +78,11 @@ func (m *Module) headTag(ctx context.Context, tagged reference.NamedTagged) (str
 	case resp.StatusCode == http.StatusNotFound:
 		return "", errRegistryNotFound
 	case resp.StatusCode != http.StatusOK:
-		return "", fmt.Errorf("registry answered %s", resp.Status)
+		return "", fmt.Errorf("%w %s", errRegistryAnswered, resp.Status)
 	}
 	d := resp.Header.Get("Docker-Content-Digest")
 	if !strings.HasPrefix(d, "sha256:") || len(d) != len("sha256:")+64 {
-		return "", fmt.Errorf("registry answered without a digest")
+		return "", fmt.Errorf("%w without a digest", errRegistryAnswered)
 	}
 	return d, nil
 }

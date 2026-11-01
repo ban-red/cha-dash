@@ -170,9 +170,11 @@ func TestLifecycle(t *testing.T) {
 // write.
 func TestProtected(t *testing.T) {
 	f, d := setup(t, "docker: { allow: [read, logs, lifecycle, update, remove], protect: [vaultwarden] }\n")
+	// A hub outside any compose project (an Unraid template), known by its image.
+	f.add(&fakeContainer{Name: "Cha-Dash", Image: "ghcr.io/ban-red/chadash:0.3.0", State: "running"})
 	writes := []string{"container.start", "container.stop", "container.restart", "container.pull", "container.recreate", "container.remove"}
 	for _, verb := range writes {
-		for _, target := range []string{"chadash-chadash-1", "vaultwarden", "weird-name", "self00000000"} {
+		for _, target := range []string{"chadash-chadash-1", "Cha-Dash", "vaultwarden", "weird-name", "self00000000"} {
 			_, _, err := call(t, d, verb, map[string]any{"id": target, "force": true})
 			if nodeproto.CodeOf(err) != nodeproto.CodeForbidden {
 				t.Errorf("%s %s = %v, want forbidden", verb, target, err)

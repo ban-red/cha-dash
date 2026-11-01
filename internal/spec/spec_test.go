@@ -297,3 +297,22 @@ func TestRegisterFS(t *testing.T) {
 		t.Fatal("a bad spec must fail registration")
 	}
 }
+
+// A secret an app echoes back (a value sent in a query, as a label) is
+// scrubbed before any expression sees it. (A password in the instance's
+// URL never gets that far: the config refuses one.)
+func TestSecretsDontComeBack(t *testing.T) {
+	up := &widgets{version: "1.4", healthy: true, stats: `{"data":{"count":1,"items":[],"echo":"label t0ken-value"}}`}
+	srv := up.serve(t)
+	echo := strings.Replace(base, "extract: { count: data.count, items: data.items.#, missing: data.nope }", "extract: { count: data.count, items: data.items.#, missing: data.nope, echo: data.echo }", 1)
+	echo = strings.Replace(echo, "attrs: { items: stats.items, missing: stats.missing, extra: extra.n }", "attrs: { items: stats.items, echo: stats.echo }", 1)
+	h := integrationtest.New(t)
+	inst := h.Connect(mustParse(t, echo), map[string]any{"url": srv.URL + "/base", "site": "lab"}, map[string]string{"token": "t0ken-value"})
+	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := h.Resource("widgets:i_test/app")
+	if r.Attrs["echo"] != "label [redacted]" {
+		t.Errorf("echo = %v", r.Attrs["echo"])
+	}
+}

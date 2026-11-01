@@ -373,6 +373,8 @@ func (f *fakeDocker) fakeRegistry(t *testing.T, unreachable string) func(string)
 		case "401":
 			w.Header().Set("WWW-Authenticate", strings.Replace(challenge, repo, "private/"+repo, 1))
 			w.WriteHeader(http.StatusUnauthorized)
+		case "429":
+			w.WriteHeader(http.StatusTooManyRequests)
 		default:
 			w.Header().Set("Docker-Content-Digest", d)
 			w.WriteHeader(http.StatusOK)

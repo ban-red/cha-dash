@@ -461,6 +461,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		if err != nil {
 			return nil, err
 		}
+		if stk != nil {
+			stk.Held = upd.HeldServices
+		}
 	}
 
 	// The action engine and its audit log. In demo mode the Demo Home's

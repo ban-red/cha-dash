@@ -300,6 +300,9 @@ type PlanRequest struct {
 	Stack   string  `json:"stack"`
 	Content string  `json:"content"`
 	Secrets Secrets `json:"secrets"`
+	// Hold names services held on their image (the Update Center): a
+	// recreate keeps the image they run, whatever the file's tag points at.
+	Hold []string `json:"hold,omitempty"`
 }
 
 // Service plan actions.
@@ -353,6 +356,8 @@ type DeployRequest struct {
 	// Source is the git commit the content came from, "<url>@<sha>", for a
 	// deploy a sync started. It becomes a Chadash-Source trailer.
 	Source string `json:"source,omitempty"`
+	// Hold names services held on their image, as in PlanRequest.
+	Hold []string `json:"hold,omitempty"`
 }
 
 // RollbackRequest restores the file of an earlier commit as a new commit,

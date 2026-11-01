@@ -46,6 +46,7 @@ type attempt struct {
 	source   string // "<url>@<sha>" for a deploy a git sync started
 	running  []Container
 	prevRefs map[string]string // service → digest reference running now
+	hold     []string          // services held on their image
 }
 
 func (m *Module) deploy(ctx context.Context, req stackproto.DeployRequest, em emitter) (stackproto.DeployResult, error) {
@@ -59,7 +60,7 @@ func (m *Module) deploy(ctx context.Context, req stackproto.DeployRequest, em em
 		return stackproto.DeployResult{}, err
 	}
 	a.content, a.kind, a.by, a.via, a.ref = req.Content, stackproto.KindDeploy, req.By, req.Via, req.Ref
-	a.source = req.Source
+	a.source, a.hold = req.Source, req.Hold
 	a.subject = "Deploy " + a.s.name
 	return m.run(ctx, a, em.withSecrets(a.secrets))
 }
@@ -190,6 +191,9 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 	em.step("Plan from the running containers")
 	services, err := planServices(p, a.running)
 	if err != nil {
+		return res, err
+	}
+	if services, err = m.keepHeld(ctx, a.s.name, p, a.running, a.hold, services); err != nil {
 		return res, err
 	}
 	if why := m.protectedTouched(services, a.running); why != "" {

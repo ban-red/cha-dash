@@ -64,12 +64,18 @@ type Summary struct {
 	ActionsDigest string `json:"actions_digest"`
 }
 
-// RequestInfo is one read.
+// RequestInfo is one read. A POST can change things whatever it's called:
+// an installed spec's run only with its actions on.
 type RequestInfo struct {
 	Name     string `json:"name"`
 	Method   string `json:"method"`
 	Path     string `json:"path"`
 	Optional bool   `json:"optional,omitempty"`
+	// Secrets are the secret fields it sends (in its query, its headers,
+	// its body, or the source's headers), sorted.
+	Secrets []string `json:"secrets,omitempty"`
+	// Body is a POST's body as written, templates unfilled.
+	Body string `json:"body,omitempty"`
 }
 
 // ActionSummary is one action: its tier and the write it sends.
@@ -94,7 +100,13 @@ func (s *Spec) Summarize() Summary {
 		}
 	}
 	for _, r := range s.f.Requests {
-		out.Requests = append(out.Requests, RequestInfo{Name: r.Name, Method: cmp(strings.ToUpper(r.Method), "GET"), Path: r.Path, Optional: r.Optional})
+		var texts []string
+		texts = append(texts, slices.Collect(maps.Values(r.Query))...)
+		texts = append(texts, slices.Collect(maps.Values(r.Headers))...)
+		texts = append(texts, slices.Collect(maps.Values(s.f.Source.Headers))...)
+		texts = append(texts, r.Body)
+		out.Requests = append(out.Requests, RequestInfo{Name: r.Name, Method: cmp(strings.ToUpper(r.Method), "GET"), Path: r.Path, Optional: r.Optional,
+			Secrets: secretsIn(texts), Body: r.Body})
 	}
 	for _, a := range s.actions {
 		out.Actions = append(out.Actions, ActionSummary{ID: a.tpl.ID, Title: a.tpl.Title, Tier: a.tier.String(), Method: strings.ToUpper(a.tpl.Request.Method), Path: a.tpl.Request.Path,
@@ -104,14 +116,40 @@ func (s *Spec) Summarize() Summary {
 	return out
 }
 
-// actionsDigest hashes the actions and targets as parsed, every key
-// included (bodies, params, preconditions, verify, undo, household, the
-// targets' patterns and reads). JSON sorts map keys, so it's stable.
+// actionsDigest hashes everything that decides what the spec can change,
+// as parsed: the actions and targets, every key included (bodies, params,
+// preconditions, verify, undo, household, the targets' patterns and
+// reads); the POST requests, which run only with the actions on; and what
+// actions send or read besides (the source's headers and timeout, the
+// config fields). JSON sorts map keys, so it's stable.
 func (s *Spec) actionsDigest() string {
+	var posts []request
+	for _, r := range s.f.Requests {
+		if strings.EqualFold(r.Method, "POST") {
+			posts = append(posts, r)
+		}
+	}
 	b, _ := json.Marshal(struct {
 		Actions []actionTpl
 		Targets targets
-	}{s.f.Actions, s.f.Targets})
+		Posts   []request
+		Source  source
+		Config  fields
+	}{s.f.Actions, s.f.Targets, posts, s.f.Source, s.f.Config})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
+}
+
+// secretsIn names the secret fields the templates in texts fill, sorted.
+func secretsIn(texts []string) []string {
+	var out []string
+	for _, t := range texts {
+		for _, m := range templateRE.FindAllStringSubmatch(t, -1) {
+			if m[1] == "secret" && !slices.Contains(out, m[2]) {
+				out = append(out, m[2])
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
 }

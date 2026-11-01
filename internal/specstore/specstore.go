@@ -140,12 +140,13 @@ func (i installed) Manifest() integration.Manifest {
 }
 
 func (i installed) Connect(ctx context.Context, cfg integration.Config, d integration.Deps) (integration.Instance, error) {
-	inst, err := i.Spec.Connect(ctx, cfg, d)
+	id := i.Spec.Manifest().ID
+	inst, err := i.Spec.ConnectGated(ctx, cfg, d, func() bool { return i.svc.ActionsOn(id) })
 	if err != nil {
 		return nil, err
 	}
 	if a, ok := inst.(integration.Actor); ok {
-		return gated{Instance: inst, actor: a, id: i.Spec.Manifest().ID, svc: i.svc}, nil
+		return gated{Instance: inst, actor: a, id: id, svc: i.svc}, nil
 	}
 	return inst, nil
 }

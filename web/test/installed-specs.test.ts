@@ -29,8 +29,9 @@ const SUMMARY = {
   version: '0.2.0',
   secrets: ['api_key'],
   requests: [
-    { name: 'status', method: 'GET', path: '/api/v1/status' },
+    { name: 'status', method: 'GET', path: '/api/v1/status', secrets: ['api_key'] },
     { name: 'pending', method: 'GET', path: '/api/v1/request', optional: true },
+    { name: 'poke', method: 'POST', path: '/api/v1/settings/jobs/run', secrets: ['api_key'], body: '{"all": true}' },
   ],
   actions: [{ id: 'myseerr.request.approve', title: 'Approve', tier: 'T1', method: 'POST', path: '/api/v1/request/{{ target.id }}/approve', body: ['note'], household: true }],
 };
@@ -66,6 +67,10 @@ describe('Installed specs', () => {
     const pv = w.find('.is-preview');
     expect(pv.text()).toContain('GET /api/v1/status');
     expect(pv.text()).toContain('optional');
+    expect(pv.text()).toContain('GET /api/v1/status · sends api_key');
+    // A POST read could change things: listed apart, with its body.
+    expect(pv.text()).toContain('sends 1 POST request that could change things, which waits for its actions to be on');
+    expect(pv.text()).toContain('POST /api/v1/settings/jobs/run · sends api_key · body {"all": true}');
     expect(pv.text()).toContain('adds 1 action, off until you turn them on');
     expect(pv.text()).toContain('Approve T1 · POST /api/v1/request/{{ target.id }}/approve · sends note · household members can run it');
     expect(await axeViolations(w.element.parentElement!)).toEqual([]);

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -284,5 +285,72 @@ func TestGuard(t *testing.T) {
 	}
 	if err := e.s.Guard(t.Context(), req("docker.container.update", radarr)); err != nil {
 		t.Fatalf("snoozed: %v", err)
+	}
+	// A pull moves the tag a recreate would take: held too.
+	if err := e.s.Guard(t.Context(), req("docker.container.pull", sonarr)); err == nil {
+		t.Fatal("a pull of a held container went through")
+	}
+	// The same container through Unraid: its row is same_as the node's.
+	if _, err := e.g.Update(func(tx *graph.Tx) error {
+		if err := tx.Upsert(graph.Resource{ID: "unraid:i_u/host", Kind: "host", Name: "tower"}); err != nil {
+			return err
+		}
+		if err := tx.Upsert(graph.Resource{ID: "unraid:i_u/container/sonarr", Kind: "container", Name: "sonarr"}); err != nil {
+			return err
+		}
+		if err := tx.Relate(graph.Relation{From: "unraid:i_u/container/sonarr", Type: "runs_on", To: "unraid:i_u/host"}); err != nil {
+			return err
+		}
+		return tx.Relate(graph.Relation{From: "unraid:i_u/container/sonarr", Type: "same_as", To: graph.RID(sonarr)})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.s.Guard(t.Context(), req("unraid.container.update", "unraid:i_u/container/sonarr")); err == nil {
+		t.Fatal("an update through Unraid went past the hold")
+	}
+}
+
+// A stack deploy keeps held services on their image: the hub names them by
+// compose service, for the engine that reads through the stack's node
+// (named by ID or name). A snooze holds nothing.
+func TestHeldServices(t *testing.T) {
+	e := newEnv(t)
+	label := func(name, svc string) {
+		_, err := e.g.Update(func(tx *graph.Tx) error {
+			r, _ := tx.Get(graph.RID("docker:i_a/container/" + name))
+			r.Labels = map[string]string{"com.docker.compose.project": "media", "com.docker.compose.service": svc}
+			return tx.Upsert(r)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	db, web := e.container("media-db-1", "available", "sha256:bb"), e.container("media-web-1", "available", "sha256:bb")
+	label("media-db-1", "db")
+	label("media-web-1", "web")
+	if _, err := e.g.Update(func(tx *graph.Tx) error {
+		return tx.Upsert(graph.Resource{ID: "docker:i_a/engine", Kind: "engine", Name: "pvedocker", Attrs: map[string]any{"node": "pvedocker"}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Hold(t.Context(), db, KindHold, "u_op"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Hold(t.Context(), web, KindSnooze, "u_op"); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		project string
+		node    []string
+		want    []string
+	}{
+		{"media", []string{"n_1", "pvedocker"}, []string{"db"}},
+		{"media", []string{"n_2", "elsewhere"}, nil},
+		{"other", []string{"pvedocker"}, nil},
+	} {
+		got, err := e.s.HeldServices(t.Context(), c.project, c.node...)
+		if err != nil || !slices.Equal(got, c.want) {
+			t.Errorf("%s on %v: %v, %v; want %v", c.project, c.node, got, err, c.want)
+		}
 	}
 }

@@ -815,6 +815,9 @@ func (m *Module) plan(ctx context.Context, req stackproto.PlanRequest, _ emitter
 	if err != nil {
 		return stackproto.Plan{}, err
 	}
+	if services, err = m.keepHeld(ctx, s.name, p, cs, req.Hold, services); err != nil {
+		return stackproto.Plan{}, err
+	}
 	if why := m.protectedTouched(services, cs); why != "" {
 		return stackproto.Plan{}, stackproto.Errorf(stackproto.CodeProtected, "%s", why)
 	}

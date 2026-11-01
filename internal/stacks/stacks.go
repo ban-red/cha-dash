@@ -78,6 +78,10 @@ type Service struct {
 	// Audit records secret changes (names only, never values). Set by the
 	// server; nil records nothing.
 	Audit *authz.Recorder
+	// Held names a stack's services held on their image (the Update
+	// Center), which plans and deploys keep there. Set by the server; nil
+	// holds nothing.
+	Held func(ctx context.Context, stack string, node ...string) ([]string, error)
 
 	// Git sync and webhooks (sync.go, hooks.go).
 	proxies httpx.Proxies
@@ -502,4 +506,21 @@ func secretRefs(content string) []string {
 		}
 	}
 	return sortedUnique(out)
+}
+
+// held is Held, or nothing. A failed lookup holds nothing and is logged:
+// a deploy shouldn't wait on the Update Center.
+func (s *Service) held(ctx context.Context, node, stack string) []string {
+	if s.Held == nil {
+		return nil
+	}
+	ids := []string{node}
+	if n, err := s.node(ctx, node); n.ID != "" || err == nil {
+		ids = append(ids, n.Name)
+	}
+	out, err := s.Held(ctx, stack, ids...)
+	if err != nil {
+		s.log.Warn("stacks: couldn't read the holds; held services aren't kept", "node", node, "stack", stack, "err", err)
+	}
+	return out
 }

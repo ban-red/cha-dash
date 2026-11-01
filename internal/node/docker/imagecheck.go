@@ -199,11 +199,14 @@ func (m *Module) askRegistry(ctx context.Context, tagged reference.NamedTagged, 
 	}
 	a = tagAnswer{at: now, keep: CheckEvery}
 	d, err := m.headTag(ctx, tagged)
-	if err != nil && ctx.Err() == nil && !errors.Is(err, errRegistryLogin) && !errors.Is(err, errRegistryNotFound) {
+	if err != nil && ctx.Err() == nil && !errors.Is(err, errRegistryLogin) && !errors.Is(err, errRegistryNotFound) && !errors.Is(err, errRegistryAnswered) {
 		// Not reachable from here (plain http, a registry only the
 		// daemon's config knows): Docker's lookup, which may count as a
-		// pull, but only for such registries.
-		res, ierr := m.cli.DistributionInspect(ctx, ref, client.DistributionInspectOptions{})
+		// pull, but only for such registries. A registry that answered
+		// (even a 429) is never asked again this way.
+		ictx, cancel := context.WithTimeout(ctx, registryTimeout)
+		res, ierr := m.cli.DistributionInspect(ictx, ref, client.DistributionInspectOptions{})
+		cancel()
 		if err = ierr; err == nil {
 			d = res.Descriptor.Digest.String()
 		}

@@ -3,6 +3,7 @@ package specstore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -194,6 +195,44 @@ func TestActionsOff(t *testing.T) {
 	other := strings.Replace(newer, "tier: T1", "tier: T2", 1)
 	if v, _, err := e.s.Install(t.Context(), other, "", "u_owner", true); err != nil || v.ActionsOn {
 		t.Fatalf("replace with other actions: %+v %v", v, err)
+	}
+}
+
+// A read that POSTs can change things whatever it's called: an installed
+// spec's waits for its actions, and changing one turns them off again.
+func TestPostReadsWaitForActions(t *testing.T) {
+	e := newEnv(t)
+	posting := strings.Replace(community(t), "requests:\n", "requests:\n  poke:\n    method: POST\n    path: /api/v1/settings/jobs/run\n    body: '{\"all\": true}'\n    extract:\n      ok: ok\n", 1)
+	v, _, err := e.s.Install(t.Context(), posting, "", "u_owner", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	integ, _, _ := e.reg.Get("myseerr")
+	h := integrationtest.New(t)
+	inst := h.Connect(integ, map[string]any{"url": "http://127.0.0.1:1"}, map[string]string{"api_key": "fake-key"})
+	err = inst.Sync(t.Context(), integrationtest.Watched)
+	if re, ok := errors.AsType[*integration.RepairError](err); !ok || re.Message != spec.WritesOff {
+		t.Fatalf("sync while off: %v", err)
+	}
+	if _, err := e.s.SetActions(t.Context(), "myseerr", true, v.SHA256); err != nil {
+		t.Fatal(err)
+	}
+	// On: the POST goes out (and finds nothing listening).
+	if re, ok := errors.AsType[*integration.RepairError](inst.Sync(t.Context(), integrationtest.Watched)); ok && re.Message == spec.WritesOff {
+		t.Fatal("still gated with the actions on")
+	}
+	// Another body: off again.
+	changed := strings.Replace(posting, `{"all": true}`, `{"all": false}`, 1)
+	if v, _, err := e.s.Install(t.Context(), changed, "", "u_owner", true); err != nil || v.ActionsOn {
+		t.Fatalf("replace with another POST: %+v %v", v, err)
+	}
+	// So do new source headers, which actions send too.
+	if _, err := e.s.SetActions(t.Context(), "myseerr", true, func() string { l, _ := e.s.List(t.Context()); return l[0].SHA256 }()); err != nil {
+		t.Fatal(err)
+	}
+	headers := strings.Replace(changed, `X-Api-Key: "{{ secret.api_key }}"`, "X-Api-Key: \"{{ secret.api_key }}\"\n    X-Forwarded-User: admin", 1)
+	if v, _, err := e.s.Install(t.Context(), headers, "", "u_owner", true); err != nil || v.ActionsOn {
+		t.Fatalf("replace with other headers: %+v %v", v, err)
 	}
 }
 

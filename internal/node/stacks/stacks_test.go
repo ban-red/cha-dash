@@ -755,3 +755,48 @@ func TestErrorFromSurvivesText(t *testing.T) {
 type errorString string
 
 func (e errorString) Error() string { return string(e) }
+
+// A service held on its image (the Update Center) keeps the image it runs
+// when a deploy would recreate it, while the file keeps what was written;
+// the next deploy leaves it alone, and the others deploy as usual.
+func TestHeldServiceKeepsItsImage(t *testing.T) {
+	twoDB := strings.Replace(v1, "x-chadash:", "  db:\n    image: postgres:17\nx-chadash:", 1)
+	bumped := strings.Replace(strings.Replace(twoDB, "postgres:17", "postgres:18", 1), "nginx:1.27", "nginx:1.28", 1)
+	n := newTestNode(t)
+	if res := n.deploy("media", twoDB, nil); res.Outcome != stackproto.OutcomeDeployed {
+		t.Fatalf("first: %+v", res)
+	}
+	var plan stackproto.Plan
+	n.must("stack.plan", stackproto.PlanRequest{Stack: "media", Content: bumped, Hold: []string{"db"}}, &plan)
+	for _, s := range plan.Services {
+		if s.Name == "db" && (s.Pull || s.Reason != "held: kept on the image it runs") {
+			t.Errorf("db's plan: %+v", s)
+		}
+	}
+	var res stackproto.DeployResult
+	n.must("stack.deploy", stackproto.DeployRequest{Stack: "media", Content: bumped, Hold: []string{"db"}, By: "sam"}, &res)
+	if res.Outcome != stackproto.OutcomeDeployed {
+		t.Fatalf("deploy: %+v", res)
+	}
+	running := n.docker.Running("media")
+	if running["web"] != "nginx:1.28" || running["db"] != digestOf("postgres:17") {
+		t.Errorf("running %v: web should move to 1.28 and db stay on 17's digest", running)
+	}
+	if disk, _ := os.ReadFile(filepath.Join(n.root, "media", "compose.yaml")); !strings.Contains(string(disk), "image: postgres:18\n") {
+		t.Errorf("the file should stay as written:\n%s", disk)
+	}
+	// The same file again, still held: nothing to recreate.
+	n.must("stack.plan", stackproto.PlanRequest{Stack: "media", Content: bumped, Hold: []string{"db"}}, &plan)
+	for _, s := range plan.Services {
+		if s.Action != stackproto.ActionUnchanged {
+			t.Errorf("held again: %+v", s)
+		}
+	}
+	// Released: the next deploy moves db to the file's tag.
+	n.must("stack.plan", stackproto.PlanRequest{Stack: "media", Content: bumped}, &plan)
+	for _, s := range plan.Services {
+		if s.Name == "db" && (s.Action != stackproto.ActionRecreate || !s.Pull) {
+			t.Errorf("released: %+v", s)
+		}
+	}
+}

@@ -30,9 +30,9 @@ Record the answers from your own instance, then take out anything personal: name
 
 ## Install it
 
-Settings → Integrations → Installed specs (the owner only): paste or choose the file and press **Check**. Cha Dash lists every request it makes and every action it adds, with the action's method, path and tier. **Install** asks you to confirm it's you. The spec then shows on the Add list, marked installed, and its reads start with its first instance.
+Settings → Integrations → Installed specs (the owner only): paste or choose the file and press **Check**. Cha Dash lists every request it makes, with the secrets each one sends, and every action it adds, with the action's method, path and tier. Requests sent as POST are listed apart, with their body: a POST can change things whatever it's called. **Install** asks you to confirm it's you. The spec then shows on the Add list, marked installed, and its reads start with its first instance.
 
-**Its actions stay off** until you press **Turn actions on**, which asks you to confirm it's you again. Replacing a spec with a version whose actions differ turns them off again. A spec with instances can't be removed until they go, and an ID one of Cha Dash's own integrations uses is refused.
+**Its actions stay off** until you press **Turn actions on**, which asks you to confirm it's you again, and so do its POST requests: until then its instances say why they don't read. Replacing a spec with a version whose actions, POST requests, source headers or config fields differ turns them off again. A secret the app sends back in an answer is replaced by `[redacted]` before any expression sees it. Expressions can't be stopped mid-run, so a spec whose expressions loop over a large answer can keep a core busy: install specs you've read. A spec with instances can't be removed until they go, and an ID one of Cha Dash's own integrations uses is refused.
 
 Installed specs live in the hub's database, so a backup carries them.
 

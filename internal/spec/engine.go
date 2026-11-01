@@ -20,13 +20,21 @@ import (
 )
 
 // Connect implements integration.Integration.
-func (s *Spec) Connect(_ context.Context, cfg integration.Config, d integration.Deps) (integration.Instance, error) {
+func (s *Spec) Connect(ctx context.Context, cfg integration.Config, d integration.Deps) (integration.Instance, error) {
+	return s.ConnectGated(ctx, cfg, d, nil)
+}
+
+// ConnectGated connects an installed spec's instance: its POST requests,
+// which can change things whatever they're called, run only while
+// writes() says the owner turned the spec's actions on. Nil gates nothing
+// (a bundled spec).
+func (s *Spec) ConnectGated(_ context.Context, cfg integration.Config, d integration.Deps, writes func() bool) (integration.Instance, error) {
 	base, err := url.Parse(cfg.String("url"))
 	if err != nil || base.Host == "" || (base.Scheme != "http" && base.Scheme != "https") {
 		return nil, &integration.ConfigError{Message: "url must be an http:// or https:// URL"}
 	}
 	base.RawQuery, base.Fragment = "", ""
-	in := &instance{s: s, cfg: cfg, d: d, base: base, plain: map[string]any{}, secret: map[string]string{}}
+	in := &instance{s: s, cfg: cfg, d: d, base: base, plain: map[string]any{}, secret: map[string]string{}, writes: writes}
 	for k, v := range cfg.Values {
 		if s.secrets[k] {
 			in.secret[k], _ = v.(string)
@@ -47,7 +55,12 @@ type instance struct {
 	base   *url.URL
 	plain  map[string]any    // non-secret config: expressions may read it
 	secret map[string]string // secret values: templates only
+	writes func() bool       // installed specs: whether POST requests may run
 }
+
+// WritesOff is the repair an installed spec's instance shows while its
+// POST requests wait for the owner to turn its actions on.
+const WritesOff = "This installed spec reads with POST requests, which can change things on the app. They run once the owner turns its actions on in Settings → Integrations → Installed specs."
 
 func (in *instance) Close() error { return nil }
 
@@ -87,6 +100,13 @@ func (in *instance) fetch(ctx context.Context) (map[string]any, string, error) {
 	env := in.env()
 	answered := false // a request got a 2xx: the app is there
 	for _, r := range in.s.f.Requests {
+		if in.writes != nil && strings.EqualFold(r.Method, "POST") && !in.writes() {
+			if r.Optional {
+				env[r.Name] = map[string]any{}
+				continue
+			}
+			return env, "", &integration.RepairError{Code: integration.CodeInvalidConfig, Message: WritesOff}
+		}
 		vals, err := in.do(ctx, r, env)
 		if me, ok := errors.AsType[*missingError](err); ok {
 			err = me.classify(in.s.manifest.Name, answered)
@@ -108,7 +128,7 @@ func (in *instance) fetch(ctx context.Context) (map[string]any, string, error) {
 			}
 			return env, in.versionOf(env), err
 		}
-		env[r.Name] = vals
+		env[r.Name] = in.scrub(vals)
 		answered = true
 	}
 	version := in.versionOf(env)
@@ -120,6 +140,33 @@ func (in *instance) fetch(ctx context.Context) (map[string]any, string, error) {
 		return env, version, rerr
 	}
 	return env, version, nil
+}
+
+// scrub takes the instance's secret values out of what a request
+// extracted, before any expression sees it: an app that echoes a value
+// sent in a query or body (a tag's label) can't carry a secret into the
+// graph, a link or a metric.
+func (in *instance) scrub(v any) any {
+	switch v := v.(type) {
+	case string:
+		for _, sec := range in.secret {
+			if len(sec) >= 4 {
+				v = strings.ReplaceAll(v, sec, "[redacted]")
+			}
+		}
+		return v
+	case map[string]any:
+		for k, x := range v {
+			v[k] = in.scrub(x)
+		}
+		return v
+	case []any:
+		for i, x := range v {
+			v[i] = in.scrub(x)
+		}
+		return v
+	}
+	return v
 }
 
 // repair returns the first of the spec's repairs whose condition holds, or

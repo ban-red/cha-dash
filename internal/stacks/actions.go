@@ -446,7 +446,7 @@ func (s *Service) executeDeploy(ctx context.Context, r action.Request, run *acti
 	}
 	req := stackproto.DeployRequest{
 		Stack: ref.Stack, Content: draft.Content, Secrets: secrets, ExpectHead: ref.Head,
-		By: r.Actor.Name, Via: r.Actor.Via, Ref: run.ID(),
+		By: r.Actor.Name, Via: r.Actor.Via, Ref: run.ID(), Hold: s.held(ctx, ref.Node, ref.Stack),
 	}
 	// A draft from git names its commit. When the sync itself deploys it,
 	// the node's commit says "by git sync for <owner>" and carries the

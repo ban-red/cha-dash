@@ -603,3 +603,30 @@ func TestDraftSource(t *testing.T) {
 		t.Errorf("drafts = %+v", all)
 	}
 }
+
+// A hold in the Update Center reaches the node with the plan and the
+// deploy: the held service keeps the image it runs while the rest of the
+// stack moves to the file's tags (wave 24, "a held container keeps its
+// image while its stack redeploys").
+func TestDeployKeepsHeldServices(t *testing.T) {
+	h := newHub(t)
+	two := "services:\n  web:\n    image: nginx:1.27\n    healthcheck:\n      test: [\"CMD\", \"true\"]\n  db:\n    image: postgres:17\nx-chadash:\n  soak: 20s\n"
+	h.saveDraft("media", two)
+	h.run(ActionDeploy, Target("local", "media"), "")
+	var asked []string
+	h.svc.Held = func(_ context.Context, stack string, node ...string) ([]string, error) {
+		asked = append(asked, stack+"@"+strings.Join(node, ","))
+		return []string{"db"}, nil
+	}
+	h.saveDraft("media", strings.NewReplacer("1.27", "1.28", "postgres:17", "postgres:18").Replace(two))
+	if _, task := h.run(ActionDeploy, Target("local", "media"), ""); task.Error != nil {
+		t.Fatalf("deploy: %+v", task.Error)
+	}
+	running := h.docker.Running("media")
+	if running["web"] != "nginx:1.28" || running["db"] != stackstest.Digest("postgres:17") {
+		t.Fatalf("running %v: db should stay on 17", running)
+	}
+	if len(asked) == 0 || !strings.HasPrefix(asked[0], "media@local") {
+		t.Fatalf("holds asked as %v", asked)
+	}
+}

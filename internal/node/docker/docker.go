@@ -455,6 +455,11 @@ func (m *Module) writable(ctx context.Context, id string) (client.ContainerInspe
 	if s, err := m.SelfInfo(ctx); err == nil && s.Hub != nil && s.Hub.ID == c.ID {
 		return res, node.Forbidden("%s is the Cha Dash hub; the node never acts on it", name)
 	}
+	// A hub outside the node's project (an Unraid template, a node from
+	// compose.node.yaml beside it): known by its image.
+	if c.Config != nil && imageRepo(c.Config.Image) == HubImage {
+		return res, node.Forbidden("%s runs Cha Dash's hub image; the node never acts on a hub", name)
+	}
 	return res, nil
 }
 

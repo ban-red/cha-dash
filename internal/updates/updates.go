@@ -245,40 +245,88 @@ func stringAttr(attrs map[string]any, k string) string {
 // ── holds ─────────────────────────────────────────────────────────────
 
 // updateActions put a newer image on a container: what a hold refuses.
-var updateActions = map[string]bool{"docker.container.update": true, "unraid.container.update": true}
+// A pull counts: it moves the tag, and a recreate after it would take
+// the newer image.
+var updateActions = map[string]bool{"docker.container.update": true, "unraid.container.update": true, "docker.container.pull": true}
 
 // Guard refuses updating a container held on its image, wherever the
 // update is asked for: the page, ⌘K, the API (action.Options.Guard). A
-// snooze only hides an update, so it refuses nothing.
+// hold is kept on the container as one source names it, so the target's
+// same_as aliases and primary are looked up too: a hold set on the
+// node's Docker row stops an update through Unraid. A snooze only hides
+// an update, so it refuses nothing.
 func (s *Service) Guard(ctx context.Context, req action.Request) error {
 	if !updateActions[req.Action] {
 		return nil
 	}
 	target := graph.RID(req.Target.ID)
-	_, doc := s.g.Snapshot(func(r *graph.Resource) bool { return r.ID == target || r.Kind == "engine" })
-	r, ok := doc.Resources[target]
-	if !ok {
+	_, doc := s.g.Snapshot(nil)
+	if doc.Resources[target] == nil {
 		return nil
 	}
-	engine := ""
-	for _, rel := range doc.Relations {
-		if rel.From == target && rel.Type == "runs_on" {
-			engine = string(rel.To)
+	// The thing's members: the target, what it's same_as, and what's same_as that.
+	members := map[graph.RID]bool{target: true}
+	for range 2 {
+		for _, rel := range doc.Relations {
+			if rel.Type == "same_as" && (members[rel.From] || members[rel.To]) {
+				members[rel.From], members[rel.To] = true, true
+			}
 		}
 	}
 	holds, err := s.holds(ctx)
 	if err != nil {
 		return err
 	}
-	name := cmp.Or(r.Name, string(r.ID))
-	if h, ok := holds[holdKey(engine, name)]; ok && h.Kind == KindHold {
-		by := ""
-		if h.CreatedBy != "" {
-			by = " by " + h.CreatedBy
+	for _, rel := range doc.Relations {
+		r := doc.Resources[rel.From]
+		if rel.Type != "runs_on" || !members[rel.From] || r == nil {
+			continue
 		}
-		return action.Precondition(fmt.Sprintf("%s is held on its image%s. Release it in Settings → Updates to update it.", name, by))
+		name := cmp.Or(r.Name, string(r.ID))
+		if h, ok := holds[holdKey(string(rel.To), name)]; ok && h.Kind == KindHold {
+			by := ""
+			if h.CreatedBy != "" {
+				by = " by " + h.CreatedBy
+			}
+			return action.Precondition(fmt.Sprintf("%s is held on its image%s. Release it in Settings → Updates to update it.", name, by))
+		}
 	}
 	return nil
+}
+
+// HeldServices names the services of a compose project on a node that are
+// held on their image, for the node to keep them there through a stack
+// deploy. A snooze holds nothing. The engine is the Docker instance's
+// that reads through that node, which its endpoint names by ID or name:
+// node lists both.
+func (s *Service) HeldServices(ctx context.Context, project string, node ...string) ([]string, error) {
+	holds, err := s.holds(ctx)
+	if err != nil || len(holds) == 0 {
+		return nil, err
+	}
+	_, doc := s.g.Snapshot(nil)
+	engines := map[graph.RID]bool{}
+	for id, r := range doc.Resources {
+		if n := stringAttr(r.Attrs, "node"); r.Kind == "engine" && n != "" && slices.Contains(node, n) {
+			engines[id] = true
+		}
+	}
+	var out []string
+	for _, rel := range doc.Relations {
+		if rel.Type != "runs_on" || !engines[rel.To] {
+			continue
+		}
+		c := doc.Resources[rel.From]
+		if c == nil || c.Kind != "container" || c.Labels["com.docker.compose.project"] != project {
+			continue
+		}
+		svc := c.Labels["com.docker.compose.service"]
+		if h, ok := holds[holdKey(string(rel.To), cmp.Or(c.Name, string(c.ID)))]; ok && h.Kind == KindHold && svc != "" && !slices.Contains(out, svc) {
+			out = append(out, svc)
+		}
+	}
+	slices.Sort(out)
+	return out, nil
 }
 
 // holdKey keys a hold by the engine and the container's name: an update
