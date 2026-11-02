@@ -171,6 +171,7 @@ Everything in 04's v0.4 (the full Update Center, backups, incident timeline), pl
 ### v1.0 · Home: what's left
 - Spec format `v1` (from `v1alpha1`), translations through Weblate on the message IDs, the external security review, stable config and API guarantees, wall and TV modes, Helm and Umbrel.
 - ⬇ The docs site, demo and threat model are no longer 1.0 work. They're done by then.
+- ➡ v0.5 ([15](15-v0.5.md)) takes wall and TV modes, the detail levels, TrueNAS, Home Assistant both ways, the network sources and spec `v1beta1`, so 1.0 keeps the guarantees, the review, translations and distribution.
 
 ---
 

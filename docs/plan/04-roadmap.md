@@ -58,8 +58,9 @@ New open questions get a row here, and an ADR when they're settled. These four c
 | **v0.2** | Control | Safe actions on Docker, Proxmox and Unraid; **a local node and owned stacks on the hub's host**; audit, roles, notifications |
 | **v0.3** | Fleet | **Remote nodes on every Docker server**; stacks fleet-wide; **git sync and deploy webhooks**; OIDC; history, the Atlas, cause hints |
 | **v0.4** | Care | Update Center with safe rollouts, backup assurance, incident timeline |
+| **v0.5** | Glance | [15](15-v0.5.md): wall, kiosk and TV modes, every widget at four levels of detail, TrueNAS, Home Assistant both ways, network sources, spec `v1beta1` |
 | **v1.0** | Home | Public declarative integrations, TrueNAS, wall and TV modes, i18n, security review, stable config and API |
-| **Post-1.0** | Beyond | WASM plugins, MCP with approvals, multi-site |
+| **Post-1.0** | Beyond | WASM plugins, multi-site. MCP with approvals shipped in v0.4 ([D1](09-roadmap-2026.md#7-decisions-this-needs)) |
 
 ---
 
@@ -307,7 +308,6 @@ Compare it for one day against a gridstack 14 prototype.
 ## Post-1.0 candidates
 
 - WASM plugins
-- MCP server with approval flows
 - Multi-site support
 - Proxmox deploy (OCI image → LXC)
 - Power and cost tracking
