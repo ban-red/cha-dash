@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-01
+
+The first release of v0.4: Cha Dash now looks after the house, not only shows it. Settings → Backups says what isn't backed up or is stale, across Proxmox, PBS, Unraid and your containers' volumes. Updates run as rollouts, one container after another through the health gate, now or in a maintenance window, and a version that rolled back isn't tried again. Every incident's life goes on a timeline, Proxmox can tell Cha Dash about a failed backup at once, and a morning digest sums up the night. AI agents can connect through MCP, off by default: they read and propose, and a person approves every action. There's a docs site, a threat model, an OpenAPI document, a one-line installer and five new bundled sources.
+
+**On upgrade,** back up first ([how](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md#backing-up)) and update both images, the hub and every node. The database migrates on start. Agents, release notes and the digest stay off until you turn them on. The one-line installer checks signatures with cosign 3 or later, if cosign is installed. `CHADASH_TEST_AUTOMATION` is for test hubs only: never set it on a hub that holds anything real.
+
 ### Added
 
 - **Errors name their sentence.** Beside the English `message`, an API error now carries a stable `id` for the sentence and its parameters in `args`, so it can be translated later. Signing in, setup, tokens, passkeys and the user and access settings use them first.
@@ -471,7 +477,8 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0
 [0.3.0-beta.3]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.3
 [0.3.0-beta.2]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.2
