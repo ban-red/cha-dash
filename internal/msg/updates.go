@@ -50,6 +50,7 @@ func init() {
 		"updates.label_one":               "Update 1 container",
 		"updates.label_some":              "Update {count} containers",
 		"updates.label_schedule_all":      "Schedule every available update",
+		"updates.label_schedule_one":      "Schedule 1 update",
 		"updates.label_schedule":          "Schedule {count} updates",
 		"updates.label_run":               "Run the scheduled rollout now",
 		"updates.on_host":                 "{name} on {host}",

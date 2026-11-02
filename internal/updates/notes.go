@@ -72,8 +72,10 @@ type Notes struct {
 	FetchedAt time.Time `json:"fetched_at"`
 }
 
-// githubRE is a GitHub repository URL as the label gives it.
-var githubRE = regexp.MustCompile(`^(?i)(?:https?://|git@|git\+https://)?(?:www\.)?github\.com[/:]([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))/([A-Za-z0-9._-]{1,100}?)(?:\.git)?/?$`)
+// githubRE is a GitHub repository URL as the label gives it, or a tree or
+// file in it (authelia's label is .../tree/<commit>): only the owner and
+// the repository are kept.
+var githubRE = regexp.MustCompile(`^(?i)(?:https?://|git@|git\+https://)?(?:www\.)?github\.com[/:]([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))/([A-Za-z0-9._-]{1,100}?)(?:\.git)?(?:/(?:tree|blob)/[A-Za-z0-9._/-]{1,200})?/?$`)
 
 // githubRepo is the canonical https://github.com/<owner>/<repo> of a
 // source label, or "" when it isn't one.

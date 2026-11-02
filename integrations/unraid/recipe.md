@@ -32,7 +32,7 @@ Choose **Read-only, or let Cha Dash control Unraid?** in the form first. The lin
 
 Signed in to Unraid's web UI, open this address. It asks Unraid for a key named Cha Dash with exactly the scopes for your choice.
 
-```url
+```text
 {{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes={{scopes}}
 ```
 
@@ -40,19 +40,19 @@ More than Cha Dash asks for by itself: copy one of these instead, if you want a 
 
 **Read and update everything.** Read and update access to Info, Array, Docker, VMs and Share, and read access to Me. Update on Array can also add and remove disks.
 
-```url
+```text
 {{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,info:update_any,array:read_any,array:update_any,docker:read_any,docker:update_any,vms:read_any,vms:update_any,share:read_any,share:update_any,me:read_any
 ```
 
 **Read everything, full control of Docker and VMs.** Read access as in Read-only, plus update access to Docker and VMs and delete access to Docker. Update covers start, stop, restart, pause, update and reboot; delete is what removing a container needs. Unraid's API has no create or VM delete operation, so the key doesn't ask for them.
 
-```url
+```text
 {{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,array:read_any,docker:read_any,docker:update_any,docker:delete_any,vms:read_any,vms:update_any,share:read_any,me:read_any
 ```
 
 **Control, and parity checks.** The Control scopes plus update access to Array, for **Also let Cha Dash run parity checks** in the form. Unraid also lets a key with Array update add and remove disks. Cha Dash only sends the four parity mutations (start, pause, resume, cancel), and never the array start and stop.
 
-```url
+```text
 {{url}}/Tools/ApiKeyAuthorize?name=Cha%20Dash&description=Cha%20Dash%20dashboard&scopes=info:read_any,array:read_any,array:update_any,docker:read_any,docker:update_any,vms:read_any,vms:update_any,share:read_any,me:read_any
 ```
 

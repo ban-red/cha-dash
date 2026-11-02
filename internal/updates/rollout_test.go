@@ -323,7 +323,9 @@ func TestRolloutStopsAtTheFirstFailure(t *testing.T) {
 	}
 	raw := e.inbox.Item(incidentsColl, failedItemID(ro.ID))
 	var it item
-	if raw == nil || json.Unmarshal(raw, &it) != nil || it.Title != "A rollout stopped at radarr" || it.Summary != task.Error.Message {
+	// On the container that rolled back, so a window on its host makes it expected.
+	if raw == nil || json.Unmarshal(raw, &it) != nil || it.Title != "A rollout stopped at radarr" || it.Summary != task.Error.Message ||
+		!strings.HasSuffix(it.Target, "/container/radarr") {
 		t.Fatalf("inbox = %s", raw)
 	}
 	// Each step is audited on its own, under the rollout's task.
@@ -612,3 +614,18 @@ func TestRolloutRoutes(t *testing.T) {
 }
 
 func escape(id string) string { return strings.ReplaceAll(id, "/", "%2F") }
+
+func TestRolloutLabelCounts(t *testing.T) {
+	s := &Service{}
+	for _, c := range []struct {
+		params, want string
+	}{
+		{`{"window":"mw_1","targets":["a"]}`, "Schedule 1 update"},
+		{`{"window":"mw_1","targets":["a","b"]}`, "Schedule 2 updates"},
+		{`{"targets":["a"]}`, "Update 1 container"},
+	} {
+		if got := s.rolloutLabel(action.Request{Params: json.RawMessage(c.params)}); got != c.want {
+			t.Errorf("%s: %q, want %q", c.params, got, c.want)
+		}
+	}
+}

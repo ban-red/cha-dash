@@ -52,6 +52,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - A hint, such as a guest that isn't backed up, is no longer named as the cause of something else on the same host. It's advice, not a fault.
 - A container whose image tag has moved on since it was created, as after a `docker pull`, shows its image by name again in Settings → Updates, not as an image ID.
+- A rollout that stops at a container now opens its Inbox item on that container, not on the hub, so a maintenance window over the container's host holds its notification until the window ends.
+- Release notes show for images whose source label points at a branch or file on GitHub (`…/tree/main`), as Authelia's does.
+- The schedule button says "Schedule 1 update", not "1 updates".
+- The installer stops with a clear message when cosign is older than 3, which can't find the signatures on Cha Dash's images, instead of saying it couldn't verify them.
 
 ## [0.3.0] - 2026-10-31
 

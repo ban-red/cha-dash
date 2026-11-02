@@ -15,17 +15,21 @@ import (
 
 func TestGithubRepo(t *testing.T) {
 	for in, want := range map[string]string{
-		"https://github.com/linuxserver/docker-sonarr":      "https://github.com/linuxserver/docker-sonarr",
-		"https://github.com/linuxserver/docker-sonarr.git":  "https://github.com/linuxserver/docker-sonarr",
-		"git@github.com:home-assistant/core.git":            "https://github.com/home-assistant/core",
-		"https://www.github.com/a/b/":                       "https://github.com/a/b",
-		"https://github.com/a/b/tree/main":                  "",
-		"https://gitlab.com/a/b":                            "",
-		"https://github.com.evil.example/a/b":               "",
-		"https://github.com/a/..":                           "",
-		"":                                                  "",
-		"javascript:alert(1)//github.com/a/b":               "",
-		"https://github.com/a/b?x=https://evil.example/a/b": "",
+		"https://github.com/linuxserver/docker-sonarr":                                       "https://github.com/linuxserver/docker-sonarr",
+		"https://github.com/linuxserver/docker-sonarr.git":                                   "https://github.com/linuxserver/docker-sonarr",
+		"git@github.com:home-assistant/core.git":                                             "https://github.com/home-assistant/core",
+		"https://www.github.com/a/b/":                                                        "https://github.com/a/b",
+		"https://github.com/a/b/tree/main":                                                   "https://github.com/a/b",
+		"https://github.com/authelia/authelia/tree/1b524f7f4bbf7b5637f4c6b98f4f66fd4b4aed91": "https://github.com/authelia/authelia",
+		"https://github.com/a/b/blob/main/Dockerfile":                                        "https://github.com/a/b",
+		"https://github.com/a/b/issues":                                                      "",
+		"https://github.com/a/b/tree/main?x=1":                                               "",
+		"https://gitlab.com/a/b":                                                             "",
+		"https://github.com.evil.example/a/b":                                                "",
+		"https://github.com/a/..":                                                            "",
+		"":                                                                                   "",
+		"javascript:alert(1)//github.com/a/b":                                                "",
+		"https://github.com/a/b?x=https://evil.example/a/b":                                  "",
 	} {
 		if got := githubRepo(in); got != want {
 			t.Errorf("githubRepo(%q) = %q, want %q", in, got, want)

@@ -112,9 +112,9 @@ func TestInstallDryRun(t *testing.T) {
 			if strings.Contains(out, "/main/") {
 				t.Errorf("fetches from main:\n%s", out)
 			}
-			// A dry run asks Docker only whether it's there.
+			// A dry run asks Docker only whether it's there, and cosign its version.
 			for _, line := range strings.Split(strings.TrimSpace(s.calls()), "\n") {
-				if line != "docker compose version" && line != "docker info" && !strings.HasPrefix(line, "hostname") {
+				if line != "docker compose version" && line != "docker info" && line != "cosign version" && !strings.HasPrefix(line, "hostname") {
 					t.Errorf("a dry run ran %q", line)
 				}
 			}
@@ -197,6 +197,7 @@ func TestInstallRefuses(t *testing.T) {
 		{"docker not answering", map[string]string{"docker": `[ "$1" = info ] && exit 1; exit 0`, "curl": curlOK}, []string{"--tag", "v0.4.0"}, "Docker isn't answering"},
 		{"no curl or wget", map[string]string{"docker": dockerOK}, []string{"--tag", "v0.4.0"}, "neither curl nor wget"},
 		{"a bad signature", map[string]string{"docker": dockerOK, "curl": curlOK, "cosign": `exit 1`}, []string{"--tag", "v0.4.0"}, "nothing was started"},
+		{"cosign 2", map[string]string{"docker": dockerOK, "curl": curlOK, "cosign": `[ "$1" = version ] && echo "GitVersion:    v2.6.1"; exit 0`}, []string{"--tag", "v0.4.0"}, "needs cosign 3 or later"},
 		{"a signature without a digest", map[string]string{"docker": dockerOK, "curl": curlOK, "cosign": `echo '[]'`}, []string{"--tag", "v0.4.0"}, "didn't name its digest"},
 		{"not from a release", map[string]string{"docker": dockerOK, "curl": curlOK}, nil, "isn't from a release"},
 		{"not a tag", map[string]string{"docker": dockerOK, "curl": curlOK}, []string{"--tag", "main"}, "main isn't a release tag"},

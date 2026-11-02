@@ -133,6 +133,13 @@ verify_images() {
 		say "cosign isn't installed, so the images' signatures weren't checked. To check them: https://github.com/$REPO/blob/$TAG/deploy/README.md#checking-an-image"
 		return 0
 	fi
+	# The release signs with cosign 3, which keeps signatures as OCI
+	# referrers; cosign 2 looks for .sig tags, finds none and says the image
+	# is unsigned. Ask for 3 rather than refuse a signed image.
+	major=$(cosign version 2>/dev/null | sed -n 's/^GitVersion: *v\{0,1\}\([0-9][0-9]*\)\..*/\1/p' | head -n 1)
+	if [ -n "$major" ] && [ "$major" -lt 3 ]; then
+		die "cosign $major is installed; checking Cha Dash's signatures needs cosign 3 or later (the release signs with its bundle format). Update it, or uninstall it to skip the check: nothing was started."
+	fi
 	re=$(identity_re "$TAG")
 	for img in "$IMAGE:$VERSION" "$NODE_IMAGE:$VERSION"; do
 		say "Checking the signature of $img with cosign"

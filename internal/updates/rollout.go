@@ -1,6 +1,7 @@
 package updates
 
 import (
+	"cmp"
 	"context"
 	crand "crypto/rand"
 	"database/sql"
@@ -193,6 +194,8 @@ func (s *Service) rolloutLabel(r action.Request) string {
 		return msg.New("updates.label_run").Text()
 	case p.Window != "" && n == 0:
 		return msg.New("updates.label_schedule_all").Text()
+	case p.Window != "" && n == 1:
+		return msg.New("updates.label_schedule_one").Text()
 	case p.Window != "":
 		return msg.New("updates.label_schedule", "count", n).Text()
 	case n == 0:
@@ -805,10 +808,15 @@ func failedItemID(id string) string  { return "rollout.failed." + id }
 // failedItem tells the Inbox a rollout stopped: which ran, which rolled
 // back, which didn't start.
 func (s *Service) failedItem(ro Rollout) {
+	// The item is about the container that rolled back, so it's on that
+	// container: its sheet and timeline show it, and a maintenance window
+	// on its host makes it expected (Expected), as the rollout's other
+	// incidents are. Review still opens the Update Center.
 	var back string
+	target := integration.HubResource
 	for _, st := range ro.Steps {
 		if st.State == StepRolledBack {
-			back = st.Name
+			back, target = st.Name, cmp.Or(st.Target, integration.HubResource)
 			break
 		}
 	}
@@ -818,7 +826,7 @@ func (s *Service) failedItem(ro Rollout) {
 	}
 	s.putItem(item{
 		ID: failedItemID(ro.ID), Scenario: "rollout-failed", Class: "problem", Severity: "attention", Status: "open", Phase: "open",
-		Title: title, Summary: summary(ro), Target: integration.HubResource,
+		Title: title, Summary: summary(ro), Target: target,
 		Facts:  map[string]any{"rollout": ro.ID},
 		Causes: []any{}, BlastRadius: []any{},
 		Suggested:    map[string]any{"id": ReviewAction, "label": msg.New("updates.review").Text(), "tier": "T0", "target": integration.HubResource},
