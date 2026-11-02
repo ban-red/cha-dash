@@ -3,15 +3,18 @@ package msg
 // Signing in, setup, API tokens, passkeys and step-up (internal/auth).
 func init() {
 	register(map[string]string{
-		"auth.signin_required":     "sign in required",
-		"auth.bad_credentials":     "invalid username or password",
-		"auth.rate_limited":        "too many attempts; try again later",
-		"auth.ip_banned":           "this address is banned after too many wrong passwords; an admin can clear it",
-		"auth.unknown_host":        "Cha Dash doesn't know the name {host}. Open it at its IP address, or set CHADASH_PUBLIC_URL to the address you use, then create the owner.",
-		"auth.setup_complete":      "setup has already been completed",
-		"auth.setup_signin_failed": "account created, but signing in failed; sign in again",
-		"auth.devlogin_local_only": "dev login only answers on this machine, at localhost or 127.0.0.1",
-		"auth.owner_disabled":      "the owner account is disabled",
+		"auth.signin_required":         "sign in required",
+		"auth.bad_credentials":         "invalid username or password",
+		"auth.rate_limited":            "too many attempts; try again later",
+		"auth.automation_key":          "That isn't this hub's automation key. It's in automation.key in the data directory, and changes at every start.",
+		"auth.automation_no_owner":     "This hub has no owner yet. Test automation signs in as the owner; it doesn't make one.",
+		"auth.automation_session_only": "The automation key steps up only sessions it started.",
+		"auth.ip_banned":               "this address is banned after too many wrong passwords; an admin can clear it",
+		"auth.unknown_host":            "Cha Dash doesn't know the name {host}. Open it at its IP address, or set CHADASH_PUBLIC_URL to the address you use, then create the owner.",
+		"auth.setup_complete":          "setup has already been completed",
+		"auth.setup_signin_failed":     "account created, but signing in failed; sign in again",
+		"auth.devlogin_local_only":     "dev login only answers on this machine, at localhost or 127.0.0.1",
+		"auth.owner_disabled":          "the owner account is disabled",
 
 		"auth.token_rate_limited": "Too many bad API tokens from this address; try again later.",
 		"auth.token_expired":      "This API token has expired. Make a new one in Settings → API tokens.",

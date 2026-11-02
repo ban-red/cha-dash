@@ -33,6 +33,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Acknowledge a problem** from the Inbox (operators and up), with an optional note. It shows who and when, goes on the timeline, stops further and escalating notifications while it stays open, and the morning digest lists it apart. Take it back any time; resolving it clears it.
 - **Agents can withdraw their own waiting proposal** through MCP (`withdraw`).
 - **An approval records how the approver confirmed it was them**: passkey, password or a fresh sign-in at the provider, in the audit log and on the Inbox item.
+- **Test automation, for automated tests only.** `CHADASH_TEST_AUTOMATION=true` writes a new key to `automation.key` in the data directory at each start; a script that reads it signs in as the owner and confirms destructive actions without a passkey. Everything else still applies, and the audit says `automation`. While it's on, the log warns, the Inbox keeps a security finding open and every page shows a banner. Never turn it on for a hub that holds anything real.
 
 ### Changed
 

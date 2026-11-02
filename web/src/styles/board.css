@@ -254,6 +254,15 @@ html:has(.brief-tools.stuck) {
   background: var(--accent-bg);
   color: var(--text);
 }
+/* Test automation: attention, solid, above any other banner. */
+.banner.automation {
+  border: var(--hairline) solid var(--attention-line);
+  background: var(--attention-bg);
+  color: var(--text);
+}
+.banner.automation code {
+  font-family: var(--font-num);
+}
 .demo-tag {
   flex: none;
   display: inline-block;

@@ -160,6 +160,8 @@ Cha Dash ships no model and calls none. What an agent reads may go to the model 
 
 The Demo Home on a public host: visitors are signed in as a passwordless Operator, every action runs against the simulator only, and the day starts again every hour. `CHADASH_DEMO_PUBLIC` turns it on; the hub refuses it unless demo mode is on, and refuses to start on a data directory that holds any integration. One check, `authz.DemoRefuses` in `Guard`, runs before any session or token check and refuses node and webhook routes, every admin and owner route, and every write that isn't marked for the demo (signing in and out, plan, approve, cancel); a test calls every route in the table as a visitor. New visitor sessions are limited per address. Demo mode reads nothing real and fetches no icons ([`internal/demo`](../internal/demo)).
 
+**Test automation** (`CHADASH_TEST_AUTOMATION`) is a lowered security level for automated tests, off by default and in every build. A key the hub writes to its data directory at each start (0600, new every start) signs in as the owner with a step-up, so anyone who can read the hub's data directory (who could already read its database and vault key) can act as the owner without a passkey. Only the step-up is lowered: roles, tiers, typed confirmations, the approval of agents' plans and the audit stay, and the audit names the method `automation`. The key is compared in constant time and guesses are limited per address. While it's on the log warns at start, the Inbox keeps a security finding at attention and every page shows a banner; it refuses to run with the public demo and makes no account. **Never on a hub that holds anything real.**
+
 ### Supply chain and releases
 
 | Threat | Mitigation | Where |

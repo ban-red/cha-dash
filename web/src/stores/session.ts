@@ -52,6 +52,12 @@ export interface SessionState {
    */
   stepUpMethods: string[] | undefined;
   /**
+   * Test automation is on (`GET /api/auth/session` → `automation`, or the
+   * first-paint snapshot): a key on the hub signs in as the owner without a
+   * passkey, so every page says so.
+   */
+  automation: boolean;
+  /**
    * How the sign-in page may sign in (`GET /api/setup` → `sign_in`): the
    * identity provider's button, and whether the password form shows.
    * Undefined until the hub says, or on a hub without it.
@@ -63,6 +69,7 @@ interface SessionDoc {
   user: User;
   step_up_until?: string | null;
   step_up_methods?: string[];
+  automation?: boolean;
 }
 
 /** Mirrors internal/auth: 1–64 of letters, digits, . _ @ -, starting with a letter or digit. */
@@ -111,6 +118,7 @@ export function createSession(opts: SessionOptions = {}) {
     offerPasskey: false,
     offline: false,
     stepUpMethods: undefined,
+    automation: false,
     signIn: undefined,
   });
   /** The snapshot the offline front page opens on; taken once by the shell. Not reactive. */
@@ -121,6 +129,7 @@ export function createSession(opts: SessionOptions = {}) {
   let vouched = false;
   if (inline) {
     state.user = inline.user;
+    state.automation = inline.automation === true;
     state.phase = 'ready';
     vouched = true;
   }
@@ -160,6 +169,7 @@ export function createSession(opts: SessionOptions = {}) {
 
   function noteStepUp(s: SessionDoc | undefined): void {
     if (Array.isArray(s?.step_up_methods)) state.stepUpMethods = s.step_up_methods.filter((m) => typeof m === 'string');
+    if (s) state.automation = s.automation === true;
   }
 
   async function refresh(): Promise<void> {

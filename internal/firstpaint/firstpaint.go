@@ -57,6 +57,9 @@ type Builder struct {
 	Demo          bool
 	DemoZone      string
 	DemoZoneLabel string
+	// Automation: test automation is on (auth/automation.go); the page
+	// shows a banner from its first paint.
+	Automation bool
 	// MaxBytes caps the encoded snapshot; 0 means MaxBytes.
 	MaxBytes int
 	// Inbox is how a role sees the inbox, the same view the inbox topic
@@ -90,16 +93,18 @@ type Board struct {
 
 // Snapshot is the document in the data block.
 type Snapshot struct {
-	V       int            `json:"v"`
-	User    User           `json:"user"`
-	Boards  []boards.Board `json:"boards"`
-	Board   *Board         `json:"board"` // nil: no board yet
-	Demo    bool           `json:"demo,omitempty"`
-	Zone    string         `json:"time_zone,omitempty"`  // the Demo Home's display zone
-	Label   string         `json:"zone_label,omitempty"` // and its label
-	Graph   graph.Doc      `json:"graph"`
-	Metrics map[string]any `json:"metrics"`
-	Inbox   map[string]any `json:"inbox"`
+	V      int            `json:"v"`
+	User   User           `json:"user"`
+	Boards []boards.Board `json:"boards"`
+	Board  *Board         `json:"board"` // nil: no board yet
+	Demo   bool           `json:"demo,omitempty"`
+	// Automation: test automation is on; the page shows a banner.
+	Automation bool           `json:"automation,omitempty"`
+	Zone       string         `json:"time_zone,omitempty"`  // the Demo Home's display zone
+	Label      string         `json:"zone_label,omitempty"` // and its label
+	Graph      graph.Doc      `json:"graph"`
+	Metrics    map[string]any `json:"metrics"`
+	Inbox      map[string]any `json:"inbox"`
 }
 
 // TooLargeError means the encoded snapshot is over the cap.
@@ -132,7 +137,7 @@ func (b *Builder) Build(ctx context.Context, u User) ([]byte, error) {
 
 // Snapshot assembles u's snapshot from the live state.
 func (b *Builder) Snapshot(ctx context.Context, u User) (Snapshot, error) {
-	s := Snapshot{V: Version, User: u, Demo: b.Demo}
+	s := Snapshot{V: Version, User: u, Demo: b.Demo, Automation: b.Automation}
 	if b.Demo {
 		s.Zone, s.Label = b.DemoZone, b.DemoZoneLabel
 	}

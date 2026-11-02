@@ -38,13 +38,14 @@ func FromContext(ctx context.Context) (Identity, bool) {
 //	POST /api/setup          {"token","username","password"} → 201 {"user"} + session cookie
 //	POST /api/auth/login     {"username","password"} → 200 {"user"} + session cookie
 //	POST /api/auth/logout    → 204, cookie cleared
-//	GET  /api/auth/session   → 200 {"user","session","step_up_until","step_up_methods"} or 401
+//	GET  /api/auth/session   → 200 {"user","session","step_up_until","step_up_methods","automation"?} or 401
 //
 // plus the passkey endpoints under /api/auth/passkeys (registerPasskeys),
 // step-up under /api/auth/step-up (registerStepUp) and OIDC under
 // /api/auth/oidc (registerOIDC; oidc_http.go). GET /api/setup also says how
 // the sign-in page may sign in: {"sign_in": {"oidc"?: {"name"}, "password_form"}}.
-// Binaries built with -tags devlogin also mount POST /api/auth/dev-login.
+// Binaries built with -tags devlogin also mount POST /api/auth/dev-login, and
+// test automation mounts POST /api/auth/automation (automation.go).
 func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/setup", s.handleSetupStatus)
 	mux.HandleFunc("POST /api/setup", s.handleSetup)
@@ -56,6 +57,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerOIDC(mux)
 	s.registerDevLogin(mux)
 	s.registerDemo(mux)
+	s.registerAutomation(mux)
 }
 
 // Require rejects requests without a valid session cookie with 401 and
@@ -309,5 +311,8 @@ func (s *Service) handleSession(w http.ResponseWriter, r *http.Request) {
 		Session       Session    `json:"session"`
 		StepUpUntil   *time.Time `json:"step_up_until"`
 		StepUpMethods []string   `json:"step_up_methods"`
-	}{id.User, id.Session, until, opts.methods()})
+		// Automation: test automation is on (automation.go); the web
+		// shows a banner for as long as it is.
+		Automation bool `json:"automation,omitempty"`
+	}{id.User, id.Session, until, opts.methods(), s.Automation()})
 }

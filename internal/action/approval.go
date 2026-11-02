@@ -628,6 +628,8 @@ func approvedBy(by *TaskActor) string {
 		return msg.New("actions.approved_by_password", "name", by.Name).Text()
 	case "oidc":
 		return msg.New("actions.approved_by_oidc", "name", by.Name).Text()
+	case "automation":
+		return msg.New("actions.approved_by_automation", "name", by.Name).Text()
 	}
 	return msg.New("actions.approved_by", "name", by.Name).Text()
 }

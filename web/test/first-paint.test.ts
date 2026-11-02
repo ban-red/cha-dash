@@ -105,6 +105,12 @@ describe('reading the data block', () => {
     expect(s.takeInline()?.v).toBe(1);
     expect(s.takeInline()).toBeUndefined();
   });
+
+  it('says test automation is on from the first paint', () => {
+    fakeFetch({});
+    expect(createSession({ inline: { ...snapshot(), automation: true } }).state.automation).toBe(true);
+    expect(createSession({ inline: snapshot() }).state.automation).toBe(false);
+  });
 });
 
 describe('seeding the board', () => {

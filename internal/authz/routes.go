@@ -178,6 +178,10 @@ var Routes = []Route{
 	// The public demo's sign-in: a visitor becomes the fixed demo operator,
 	// rate-limited per address. Mounted only with CHADASH_DEMO_PUBLIC.
 	{Pattern: "POST /api/auth/demo", Access: Public, Optional: true, PublicDemo: true},
+	// Test automation (CHADASH_TEST_AUTOMATION; auth/automation.go): the key in
+	// the data directory is the credential. Mounted only while it's on.
+	{Pattern: "POST /api/auth/automation", Access: Public, Optional: true},
+	{Pattern: "POST /api/auth/automation/step-up", Access: Public, Optional: true},
 	// OIDC sign-in (wave 13): browser redirects to and from the provider.
 	// Linking and step-up through them check the session themselves.
 	{Pattern: "GET /api/auth/oidc/start", Access: Public},

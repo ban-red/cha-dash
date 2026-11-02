@@ -152,6 +152,11 @@ type Service struct {
 	// demoLimit its per-address budget of new sessions. Zero outside it.
 	demoUser  User
 	demoLimit *httpx.Limiter
+	// automationSum is the SHA-256 of the test-automation key
+	// (EnableAutomation), and automationLimit its per-address budget. Nil
+	// outside test automation.
+	automationSum   []byte
+	automationLimit *httpx.Limiter
 
 	// strikes counts wrong passwords per client address, then per username (bans.go).
 	banMu   sync.Mutex

@@ -272,3 +272,22 @@ func TestMetricsListener(t *testing.T) {
 		}
 	}
 }
+
+func TestTestAutomation(t *testing.T) {
+	if c, err := load(t, nil); err != nil || c.TestAutomation {
+		t.Fatalf("off by default: %+v %v", c.TestAutomation, err)
+	}
+	if c, err := load(t, map[string]string{"CHADASH_TEST_AUTOMATION": "1"}); err != nil || !c.TestAutomation {
+		t.Fatalf("env: %v %v", c.TestAutomation, err)
+	}
+	if c, err := load(t, nil, "--test-automation"); err != nil || !c.TestAutomation {
+		t.Fatalf("flag: %v %v", c.TestAutomation, err)
+	}
+	// Never with the public demo.
+	if _, err := load(t, map[string]string{"CHADASH_DEMO": "1", "CHADASH_DEMO_PUBLIC": "1", "CHADASH_TEST_AUTOMATION": "1"}); err == nil || !strings.Contains(err.Error(), "CHADASH_TEST_AUTOMATION and CHADASH_DEMO_PUBLIC") {
+		t.Fatalf("with the public demo: %v", err)
+	}
+	if _, err := load(t, map[string]string{"CHADASH_TEST_AUTOMATION": "maybe"}); err == nil {
+		t.Fatal("a bad value was accepted")
+	}
+}

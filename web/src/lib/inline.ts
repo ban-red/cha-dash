@@ -37,6 +37,8 @@ export interface InlineSnapshot {
   board: InlineBoard | null;
   /** The Demo Home: the simulator's clock, shown in time_zone (UTC when absent). */
   demo?: boolean;
+  /** Test automation is on (CHADASH_TEST_AUTOMATION): the page shows a banner. */
+  automation?: boolean;
   /** The Demo Home's display zone: "UTC", or an offset ("-08:05") that shows the hub's local time. */
   time_zone?: string;
   /** That zone's name for people ("MDT"). */

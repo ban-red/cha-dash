@@ -72,6 +72,21 @@ describe('session store', () => {
     await s.refresh();
     expect(s.state.phase).toBe('ready');
     expect(s.state.user).toEqual(user);
+    expect(s.state.automation).toBe(false);
+  });
+
+  it('notes test automation from the session', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(json(200, { required: false }))
+        .mockResolvedValueOnce(json(200, { user, session: { id: 's1', method: 'automation' }, automation: true })),
+    );
+    const s = createSession();
+    await s.refresh();
+    expect(s.state.phase).toBe('ready');
+    expect(s.state.automation).toBe(true);
   });
 
   it('shows an unreachable state rather than a sign-in form when the hub is down', async () => {

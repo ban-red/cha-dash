@@ -391,3 +391,9 @@ func renameVM(t *testing.T, e *env) {
 		t.Fatal(err)
 	}
 }
+
+func TestApprovedByAutomation(t *testing.T) {
+	if got := approvedBy(&TaskActor{Name: "owner", StepUp: "automation"}); got != "Approved by owner, confirmed with the test-automation key." {
+		t.Fatalf("%q", got)
+	}
+}

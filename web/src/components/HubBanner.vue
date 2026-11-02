@@ -4,6 +4,9 @@
  * banner. Appears after a short grace period, so a quick reconnect doesn't
  * flash it. Otherwise, in demo mode, a standing note that the page is the
  * Demo Home on its own clock, with a way to sign out of it.
+ *
+ * Above all of those, while test automation is on (`automation`), a
+ * standing warning: a key on the hub signs in as the owner without a passkey.
  */
 import { computed } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
@@ -11,6 +14,7 @@ import { hhmm, shortDate } from '../lib/format';
 import { useLive } from '../stores/live';
 import UiButton from '../ui/Button.vue';
 
+defineProps<{ automation?: boolean }>();
 const emit = defineEmits<{ signOut: [] }>();
 const live = useLive();
 const GRACE_MS = 3000;
@@ -45,6 +49,10 @@ const reload = () => location.reload();
 </script>
 
 <template>
+  <div v-if="automation" class="banner automation" role="alert" aria-label="Test automation">
+    <Glyph kind="attn" label="warning" />
+    <span><b>Test automation is on.</b> Anyone who can read this hub's automation key signs in as the owner and confirms actions without a passkey. For automated tests only: restart the hub without <code>CHADASH_TEST_AUTOMATION</code> before it holds anything real.</span>
+  </div>
   <div v-if="mode === 'offline' && restored" class="banner" role="status">
     <Glyph kind="down" label="unreachable" />
     <span><b>Cha Dash hub unreachable.</b> You're looking at the last-known page, as of <span class="n nb">{{ asOf }}</span>. <span class="n nb">{{ retryIn }}</span></span>

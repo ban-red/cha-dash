@@ -271,6 +271,20 @@ describe('empty and offline', () => {
     expect(mountIn(HubBanner).find('.banner').exists()).toBe(false);
   });
 
+  it('warns on every page while test automation is on, above other banners', async () => {
+    const { mountIn, ws, live } = harness(docs(withIncidents));
+    const banner = mountIn(HubBanner, { automation: true });
+    expect(banner.find('.banner.automation').attributes('role')).toBe('alert');
+    expect(banner.find('.banner.automation').text()).toContain('Test automation is on');
+    ws.drop();
+    vi.advanceTimersByTime(4000);
+    live.tick();
+    await nextTick();
+    // Offline too: both say so.
+    expect(banner.findAll('.banner').map((b) => b.classes('automation'))).toEqual([true, false]);
+    expect(mountIn(HubBanner, { automation: false }).find('.banner.automation').exists()).toBe(false);
+  });
+
   it('keeps last-known values hatched under the offline banner', async () => {
     const { mountIn, ws, live } = harness(docs(withIncidents));
     const banner = mountIn(HubBanner);

@@ -274,6 +274,13 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 			return nil, err
 		}
 	}
+	if cfg.TestAutomation {
+		// A lowered step-up for automated tests (config refuses it with the
+		// public demo); the Inbox keeps a finding open while it's on, below.
+		if err := authSvc.EnableAutomation(cfg.DataDir); err != nil {
+			return nil, err
+		}
+	}
 
 	// The security posture decides the severity security findings reach the
 	// inbox at, for real instances and the Demo Home alike.
@@ -537,6 +544,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	// Acknowledgements ride on the inbox's items; the recorder puts them
 	// back after a restart.
+	if cfg.TestAutomation {
+		server.AutomationFinding(tp.Inbox, time.Now())
+	}
 	acks := incidents.NewAcks(incidents.AcksOptions{Store: inc, Inbox: tp.Inbox, Log: log.With("component", "incidents")})
 	incRec := incidents.NewRecorder(incidents.RecorderOptions{Store: inc, Inbox: tp.Inbox, Expect: expect, Acks: acks, Log: log.With("component", "incidents")})
 	// Notifications: the inbox's transitions (each device hears what its
@@ -611,7 +621,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// when the web app is built in (the placeholder page has no use for it).
 	var firstPaint *firstpaint.Builder
 	if webui.Embedded {
-		firstPaint = &firstpaint.Builder{Topics: tp, Boards: bs, Demo: drv != nil, Inbox: server.InboxView(bs, g, log), WholeGraph: authz.SeesWholeGraph}
+		firstPaint = &firstpaint.Builder{Topics: tp, Boards: bs, Demo: drv != nil, Automation: cfg.TestAutomation, Inbox: server.InboxView(bs, g, log), WholeGraph: authz.SeesWholeGraph}
 		if drv != nil {
 			firstPaint.DemoZone, firstPaint.DemoZoneLabel = drv.TimeZone()
 		}
