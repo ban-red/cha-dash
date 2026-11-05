@@ -56,6 +56,8 @@ A small set of fakes in `internal/testfakes`, each a Go `httptest`-style server 
 
 Playwright's Chromium gets a virtual WebAuthn authenticator (CDP `WebAuthn.addVirtualAuthenticator`, user verification on). The owner registers a passkey and steps up with it in the browser, through the real code path, with nothing lowered. Test automation mode stays for scripts that don't drive a browser.
 
+**Built** (2026-11-05): `web/e2e/passkey.spec.ts`, its own Playwright project on `http://localhost` (a relying party ID can't be an IP address), run after the others. A virtual authenticator registers a passkey from Settings → Security, signs in with it alone, and steps up with it through the hub's own ceremony. It runs in CI's End-to-end job; it needs the release build, so it wasn't run locally.
+
 ### H5 · Agents through MCP
 
 A scripted MCP client in the system tests, using the official TypeScript SDK as a test-only dependency: initialize, list tools, `propose`, `get_resource`, `plan`, `withdraw`, each refusal. It's the same protocol Claude Desktop speaks, so "two real clients" becomes a protocol test plus a conformance check against the SDK's version matrix. The approval is done in the browser with the virtual passkey (H4).

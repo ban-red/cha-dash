@@ -29,12 +29,22 @@ export default defineConfig({
       name: 'desktop',
       use: { ...devices['Desktop Chrome'], storageState: owner },
       dependencies: ['first-run'],
+      testIgnore: /passkey\.spec\.ts/,
     },
     {
       name: 'phone',
       use: { ...devices['Pixel 7'], storageState: owner },
       dependencies: ['first-run'],
       testMatch: /front-page\.spec\.ts/,
+    },
+    // Chromium's virtual authenticator (e2e/passkey.spec.ts), on localhost:
+    // a relying party ID can't be an IP address. Last, so the owner's new
+    // passkey doesn't change what the other projects see.
+    {
+      name: 'passkey',
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
+      dependencies: ['desktop', 'phone'],
+      testMatch: /passkey\.spec\.ts/,
     },
   ],
 });

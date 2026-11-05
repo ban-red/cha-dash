@@ -67,7 +67,7 @@ bun run test:engine                          # every package with engine tests (
 bun run test:engine ./internal/node/stacks/  # one package
 ```
 
-**End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, and the safety ladder on the action engine. Playwright's test runner needs Node.js (any current LTS); nothing else here does.
+**End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, the safety ladder on the action engine, and passkeys (Chromium's virtual authenticator, on `localhost`). Playwright's test runner needs Node.js (any current LTS); nothing else here does.
 
 ```sh
 bun run build && CGO_ENABLED=0 go build -tags webui -o chadash ./cmd/chadash   # the binary they test
@@ -121,7 +121,7 @@ docker build --target node -t chadash-node:dev .                      # its imag
 | Workflows | zizmor's security audits of `.github/workflows/`; accepted findings and their reasons are in [`.github/zizmor.yml`](.github/zizmor.yml) |
 | Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui`, and chadash-node |
 | Engine | amd64 and arm64: `bun run test:engine` on the runner's Docker Engine, with `CHADASH_REQUIRE_ENGINE=1` so a missing engine fails, then the leak check |
-| End-to-end | the hub with the SPA embedded, in Chromium: first run, the front page on desktop and phone, **axe (WCAG 2.2 AA) in all six themes**, the command bar, a T1 action and a T2 confirmation |
+| End-to-end | the hub with the SPA embedded, in Chromium: first run, the front page on desktop and phone, **axe (WCAG 2.2 AA) in all six themes**, the command bar, a T1 action and a T2 confirmation, and a passkey registered, used to sign in and to step up by Chromium's virtual authenticator |
 | Image | amd64 and arm64 builds of the hub and the node (no push), a smoke run of each, **hub image ≤ 40 MB compressed**, **node binary ≤ 40 MB** |
 | Footprint (non-blocking) | the hub's RSS budgets, and the node binary's size |
 | Docs ([`docs.yml`](.github/workflows/docs.yml)) | the OpenAPI document, the docs generators' tests, and the docs site's build; on `main` it also deploys to GitHub Pages |
