@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"time"
@@ -190,8 +191,7 @@ func (s *schemas) object(t reflect.Type) map[string]any {
 }
 
 func (s *schemas) collect(t reflect.Type, depth int, out *[]field) {
-	for i := range t.NumField() {
-		f := t.Field(i)
+	for f := range t.Fields() {
 		tag := f.Tag.Get("json")
 		if tag == "-" {
 			continue
@@ -253,9 +253,7 @@ func nullable(s map[string]any) map[string]any {
 	}
 	if t, ok := s["type"].(string); ok && s["$ref"] == nil {
 		out := map[string]any{}
-		for k, v := range s {
-			out[k] = v
-		}
+		maps.Copy(out, s)
 		out["type"] = []string{t, "null"}
 		return out
 	}

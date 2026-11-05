@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 	"sync"
@@ -257,9 +258,7 @@ func (a *Acks) forget(id string) {
 func (a *Acks) restore(open map[string]Ack) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	for id, ack := range open {
-		a.restored[id] = ack
-	}
+	maps.Copy(a.restored, open)
 }
 
 // reconcile puts restored acknowledgements back on their incidents once

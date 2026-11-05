@@ -113,7 +113,7 @@ func TestInstallDryRun(t *testing.T) {
 				t.Errorf("fetches from main:\n%s", out)
 			}
 			// A dry run asks Docker only whether it's there, and cosign its version.
-			for _, line := range strings.Split(strings.TrimSpace(s.calls()), "\n") {
+			for line := range strings.SplitSeq(strings.TrimSpace(s.calls()), "\n") {
 				if line != "docker compose version" && line != "docker info" && line != "cosign version" && !strings.HasPrefix(line, "hostname") {
 					t.Errorf("a dry run ran %q", line)
 				}

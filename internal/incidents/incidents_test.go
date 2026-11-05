@@ -3,6 +3,7 @@ package incidents
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"path/filepath"
 	"testing"
 	"time"
@@ -50,9 +51,7 @@ func (e *env) publish(id string, fields map[string]any) {
 	in := map[string]any{"id": id, "class": "problem", "scenario": "check-failed", "severity": "attention", "status": "open", "phase": "open",
 		"title": "Sonarr isn't answering", "target": "container:sonarr", "opened_at": e.clock.t.Format(time.RFC3339), "updated_at": e.clock.t.Format(time.RFC3339),
 		"causes": []any{}, "blast_radius": []any{}}
-	for k, v := range fields {
-		in[k] = v
-	}
+	maps.Copy(in, fields)
 	raw, _ := json.Marshal(in)
 	if _, err := e.inbox.Update(func(tx *livedoc.Tx) error { tx.Put("incidents", id, json.RawMessage(raw)); return nil }); err != nil {
 		e.t.Fatal(err)

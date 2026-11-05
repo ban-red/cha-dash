@@ -99,7 +99,7 @@ func (s *Service) SetDigestSources(src DigestSources) {
 }
 
 func (s *Service) loadDigest(ctx context.Context) error {
-	d := storedDigest{DigestSettings: DigestSettings{Time: DefaultDigestTime}}
+	d := storedDigest{Time: DefaultDigestTime}
 	var raw string
 	err := s.st.Reader().QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, digestKey).Scan(&raw)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -365,7 +365,7 @@ func (s *Service) handleUpdateDigest(w http.ResponseWriter, r *http.Request) {
 		}
 		if t != d.Time && d.LastSent >= s.scheduled(d, s.now()).UnixMilli() {
 			// Sent today already: a later time today doesn't send twice.
-			d.LastSent = max(d.LastSent, s.scheduled(storedDigest{DigestSettings: DigestSettings{Time: t}}, s.now()).UnixMilli())
+			d.LastSent = max(d.LastSent, s.scheduled(storedDigest{Time: t}, s.now()).UnixMilli())
 		}
 		d.Time = t
 	}

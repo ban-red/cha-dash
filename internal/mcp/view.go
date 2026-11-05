@@ -319,7 +319,7 @@ func (f *factIndex) tags(id string) []string {
 				}
 			}
 		}
-		for _, t := range strings.Split(r.Labels["chadash.tags"], ",") {
+		for t := range strings.SplitSeq(r.Labels["chadash.tags"], ",") {
 			if t = strings.TrimSpace(t); t != "" {
 				out = append(out, t)
 			}

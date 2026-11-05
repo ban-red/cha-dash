@@ -27,6 +27,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/netip"
 	"os"
@@ -145,9 +146,7 @@ func (e *Engine) Start(name, image string, extra map[string]string) string {
 	ctx, cancel := e.Ctx()
 	defer cancel()
 	labels := e.Labels()
-	for k, v := range extra {
-		labels[k] = v
-	}
+	maps.Copy(labels, extra)
 	res, err := e.Cli.ContainerCreate(ctx, client.ContainerCreateOptions{
 		Name:   ProjectPrefix + e.Run + "-" + name,
 		Config: &container.Config{Image: image, Labels: labels},

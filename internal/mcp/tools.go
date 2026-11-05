@@ -189,8 +189,7 @@ func (s *Server) callTool(ctx context.Context, v viewer, params json.RawMessage)
 		case errors.As(err, &ar):
 			f.Error.Code, f.Error.Status, f.Error.Message = ar.Code, ar.Status, untrusted(ar.Message)
 		default:
-			var re *rpcError
-			if errors.As(err, &re) {
+			if re, ok := errors.AsType[*rpcError](err); ok {
 				return nil, re
 			}
 			s.log.Error("mcp: a tool failed", "tool", p.Name, "err", err)
@@ -533,8 +532,7 @@ func (s *Server) readResource(ctx context.Context, v viewer, params json.RawMess
 		return nil, notFound
 	}
 	if err != nil {
-		var r *refused
-		if errors.As(err, &r) {
+		if r, ok := errors.AsType[*refused](err); ok {
 			return nil, &rpcError{Code: codeNoResource, Message: r.m, Data: map[string]any{"code": r.code, "status": r.status}}
 		}
 		s.log.Error("mcp: reading a resource failed", "uri", clip(p.URI, 200), "err", err)

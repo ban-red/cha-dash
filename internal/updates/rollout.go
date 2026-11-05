@@ -438,8 +438,7 @@ func (s *Service) stopped(id string) {
 }
 
 func asFail(err error) *action.Error {
-	var e *action.Error
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[*action.Error](err); ok {
 		return e
 	}
 	return action.Fail("failed", err.Error())
@@ -736,8 +735,7 @@ func (s *Service) runDue(ctx context.Context, ro Rollout, userID string, now tim
 	switch {
 	case err != nil:
 		delete(s.launched, ro.ID)
-		var ref *action.Refusal
-		if errors.As(err, &ref) {
+		if ref, ok := errors.AsType[*action.Refusal](err); ok {
 			s.wait(ctx, ro, msg.New("updates.wait_refused", "reason", ref.Message))
 			return
 		}
