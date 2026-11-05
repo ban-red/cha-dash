@@ -201,10 +201,12 @@ type Registry struct {
 // Ref is an image reference in the registry.
 func (r *Registry) Ref(repo, tag string) string { return r.Host + "/" + repo + ":" + tag }
 
-// Auth is the X-Registry-Auth value for the registry's login ("" without one).
+// Auth is the X-Registry-Auth value for the registry's login. Without one
+// it's an empty login ({}): older engines refuse a push with no header at
+// all ("missing X-Registry-Auth"), which newer ones allow.
 func (r *Registry) Auth() string {
 	if r.User == "" {
-		return ""
+		return base64.URLEncoding.EncodeToString([]byte("{}"))
 	}
 	b, _ := json.Marshal(map[string]string{"username": r.User, "password": r.Password, "serveraddress": r.Host})
 	return base64.URLEncoding.EncodeToString(b)
