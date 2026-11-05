@@ -16,6 +16,7 @@ import (
 	"github.com/coder/websocket"
 
 	"dash.cha.sh/internal/action"
+	hubclock "dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/config"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/jsonpatch"
@@ -522,6 +523,54 @@ func TestRunRestarts(t *testing.T) {
 	for d.CanFix("plex-token-revoked") != nil || incident(t, tp, "plex-token-revoked").Status != sim.StatusOpen {
 		if time.Now().After(deadline) {
 			t.Fatal("Run never restarted the day")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// The public demo's hourly reset on the hub's clock: a fix still holds
+// after 40 minutes, and the day is back at its start, with the incident
+// open, once the clock passes the hour. 14b's manual test 15, the reset
+// nobody watched (docs/plan/17-test-automation.md, H2).
+func TestPublicRestartOnTheHubClock(t *testing.T) {
+	hub := hubclock.NewTest()
+	tp := topics.New(graph.New(), hub.Now())
+	d, err := New(tp, Options{Seed: 1, At: DefaultAt, RestartEvery: PublicRestart, Timers: hub})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := d.Now()
+	if err := d.Fix("plex-token-revoked"); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		d.Run(ctx)
+		close(done)
+	}()
+	defer func() { cancel(); <-done }()
+	// Run's ticker counts its hour from when it starts.
+	time.Sleep(200 * time.Millisecond)
+
+	if err := hub.Advance(40 * time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if got := d.Now().Sub(start); got < 39*time.Minute {
+		t.Fatalf("40 minutes on, the simulated day moved %s: it restarted early", got)
+	}
+	if d.CanFix("plex-token-revoked") == nil && incident(t, tp, "plex-token-revoked").Status == sim.StatusOpen {
+		t.Fatal("the fix was undone before the hour")
+	}
+
+	if err := hub.Advance(21 * time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for d.Now().Sub(start) > time.Minute || incident(t, tp, "plex-token-revoked").Status != sim.StatusOpen {
+		if time.Now().After(deadline) {
+			t.Fatalf("an hour on, the day wasn't restarted: %s past its start, plex %s", d.Now().Sub(start), incident(t, tp, "plex-token-revoked").Status)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

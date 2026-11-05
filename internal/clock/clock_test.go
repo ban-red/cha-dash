@@ -109,13 +109,16 @@ func TestAfterFunc(t *testing.T) {
 	}
 }
 
-// A ticker ticks on real time, and once after each move.
+// A ticker ticks on real time, and after a move that takes the clock a
+// period past its last tick; a shorter move doesn't tick it.
 func TestTickerWakesOnAMove(t *testing.T) {
 	c := NewTest()
 	tk := c.NewTicker(time.Hour)
 	defer tk.Stop()
 	never(t, tk.C, 50*time.Millisecond, "an hourly tick")
-	_ = c.Advance(time.Minute)
+	_ = c.Advance(40 * time.Minute)
+	never(t, tk.C, 50*time.Millisecond, "a tick after 40 minutes of an hourly ticker")
+	_ = c.Advance(21 * time.Minute)
 	select {
 	case at := <-tk.C:
 		if c.Now().Sub(at) > time.Second {

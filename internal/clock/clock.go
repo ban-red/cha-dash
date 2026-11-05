@@ -112,8 +112,10 @@ func (c *Clock) wake() <-chan struct{} {
 
 // ── Ticker ──
 
-// Ticker sends the clock's time on C every d of real time, and once right
-// after each move of the clock. Like time.Ticker, C holds one tick at most.
+// Ticker sends the clock's time on C every d of real time, and right after
+// a move of the clock that takes it d or more past the last tick: a ticker
+// fires once its period has passed on the clock, however that happened.
+// Like time.Ticker, C holds one tick at most.
 type Ticker struct {
 	C    <-chan time.Time
 	stop chan struct{}
@@ -127,9 +129,11 @@ func (c *Clock) NewTicker(d time.Duration) *Ticker {
 	rt := time.NewTicker(d)
 	go func() {
 		defer rt.Stop()
-		send := func() {
+		last := c.Now()
+		send := func(now time.Time) {
+			last = now
 			select {
-			case ch <- c.Now():
+			case ch <- now:
 			default:
 			}
 		}
@@ -138,9 +142,11 @@ func (c *Clock) NewTicker(d time.Duration) *Ticker {
 			case <-t.stop:
 				return
 			case <-rt.C:
-				send()
+				send(c.Now())
 			case <-c.wake():
-				send()
+				if now := c.Now(); now.Sub(last) >= d {
+					send(now)
+				}
 			}
 		}
 	}()
