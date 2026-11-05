@@ -2,7 +2,7 @@
 
 > **Status: agreed** (2026-11-05). The maintainer settled [S1–S6](#open-questions-s1s6) as recommended ([Decisions](#decisions)). Its waves run inside v0.5 ([15](15-v0.5.md#waves)). Builds on owned stacks ([ADR-0006](../adr/0006-owned-stacks-and-thin-node.md)), node deploys ([ADR-0020](../adr/0020-node-deploys-with-compose-sdk-and-go-git.md)) and git sync ([ADR-0021](../adr/0021-git-sync-and-deploy-webhooks.md)).
 
-**House rule (same as v0.5):** tests, type-checks and verification builds are fine. Dev servers, Docker and anything that reads the lab need the maintainer's go-ahead. **Anything that writes to the lab needs a go-ahead per run against named test targets.**
+**House rule (from [17](17-test-automation.md#the-rule)):** nothing is tested by hand. Every check is an automated test the agent writes and runs, on throwaway data directories, containers and registries. The lab is never a test target: it's only read, by `live:verify`, to check fixtures. Dev servers and builds still need the maintainer's say. **Writing to the lab is an operation, not a test, and needs a go-ahead per run against named targets.**
 
 **The goal:** the maintainer turns Dockhand off on pvedocker and doesn't miss it. Every stack there is managed by Cha Dash, and nothing done day to day needs another tool, except live logs, where linking to Dozzle stays a fine answer.
 
@@ -117,7 +117,7 @@ Once 1–3 and 7 have shipped:
 1. Update the [Dockhand guide](../../deploy/moving-from-dockhand.md): the gap list (CPU and memory are done; exec wasn't in v0.3), private registries, stack update.
 2. Add a short "Moving from Dockge" section: Dockge's layout is ours, so it's Adopt in place, or point `stacks.root` at Dockge's folder.
 3. On pvedocker, with a go-ahead per wave: adopt or move the 16 Dockhand stacks, least important first, as the guide says.
-4. A week with Dockhand stopped but not removed. Anything the maintainer had to open it for goes back into this plan.
+4. A script checks the result: every project on pvedocker is managed by Cha Dash, none still carries Dockhand's labels as its writer, each stack's plan says "No changes", and every container is healthy. Then a week with Dockhand stopped but not removed; anything the maintainer had to open it for goes back into this plan, as a gap with its test.
 5. Remove Dockhand. Its read-only spec stays for people who keep it.
 
 ---
@@ -150,11 +150,13 @@ Settled by the maintainer on 2026-11-05: **S1–S6 all as recommended.**
 
 ## Waves
 
+Each wave ships its tests with it: every node verb at layer 3 (a real Docker Engine), every flow at layer 4 (hub, node and browser), as [17](17-test-automation.md#layers) sets out.
+
 | Wave | What |
 |---|---|
 | 32a | Stack lifecycle (1); two writers (7); the guide's gap list corrected |
 | 32b | Update a stack (2), and Settings → Updates grouping by stack; private registries (3) |
-| 32c | Live logs (4); lab cutover steps 3–4, with a go-ahead |
+| 32c | Live logs (4); lab cutover steps 3–4, with a go-ahead (an operation, checked by its script) |
 | v0.5.x | Images, volumes and networks (6); exec (5) with its own security review |
 
 ---
@@ -162,9 +164,10 @@ Settled by the maintainer on 2026-11-05: **S1–S6 all as recommended.**
 ## Done when
 
 - Each new verb is in `stackproto`, the node's README verb table, `internal/authz/routes.go` for its routes, and has a test of each policy refusal and of `docker.protect`.
-- Stop, start, down and remove work on a stack in the demo and on a throwaway stack in the lab; a removed stack can be restored from its commit.
-- A stack on `:latest` updates with one action, and a broken new image rolls the stack back to the old digests.
+- Engine tests (layer 3, [17](17-test-automation.md#layers)) prove stop, start, restart, down, remove, update and a private-registry pull on throwaway stacks in a real Docker Engine, and that a removed stack can be restored from its commit.
+- A system test (layer 4) drives each from the stack's page in the browser, with the confirmation each tier asks for.
+- A stack on `:latest` updates with one action, and a broken image (written into the test registry) rolls the stack back to the old digests.
 - A stack whose image is on a private registry deploys and updates, and the hub never receives the credential (a test proves it isn't in any frame).
-- Following a container's logs works for 30 minutes without the tab growing past its line cap.
+- Following a container's logs for 30 minutes of test-clock time keeps the tab under its line cap, and the stream ends.
 - All 16 stacks on pvedocker are managed by Cha Dash, and Dockhand has been stopped for a week with no reason to start it.
 - The changelog has each user-facing change under `## [Unreleased]`.
