@@ -86,20 +86,20 @@ Each open item in [14b](14b-v0.4-manual-tests.md), and where it goes.
 
 | 14b | Check | Automated as | Layer |
 |---|---|---|---|
-| 1 | A rollout scheduled into a window runs in it, incidents don't notify, the leftover one notifies at the end plus grace | Test clock (H2), notification fake (H3), canary images (H1) | 4 |
-| 2–3 | Cancel a rollout; a rolled-back digest isn't retried | Canary images in the throwaway registry | 3, 4 |
-| 4 | Release notes as plain text, links only into the repository | Recorded GitHub releases fixtures, including Authelia's `/tree/<ref>` label | 1 |
+| 1 | A rollout scheduled into a window runs in it, incidents don't notify, the leftover one notifies at the end plus grace | **Done:** `TestScheduledRolloutRunsWhenTheHubClockReachesItsWindow`, `TestScheduledRollout`, `TestWindows`, `TestExpectedInAWindowWaitsForItsEnd`, `TestAttentionAfterAWindowWaitsItsGrace`. Left for `e2e:system`: the chain through the real hub (window, rollout, incident, notification) | 2 |
+| 2–3 | Cancel a rollout; a rolled-back digest isn't retried | **Done:** `TestCancelRunningRollout`, `TestRejectedDigests` (already there); the rollback itself on a real engine: `TestEngineContainerUpdate` | 2, 3 |
+| 4 | Release notes as plain text, links only into the repository | **Done:** `TestGithubRepo` (Authelia's `/tree/<ref>`), `TestSanitizeNotes`, `TestReleaseNotes` (already there) | 1 |
 | 5 | PVE apt rows with `Sys.Modify`; Unraid "can't check" | Fixtures for a token with and without the grant | 2 |
 | 6 | PBS Verify now and its result | Recorded PBS exchanges for the verify task and its status | 2 |
 | 7 | Coverage after a guest joins a job | The simulator changes a job; the next sync's coverage row changes | 2 |
 | 8 | Unraid flash backup status | A design question, not a test: decided from Unraid's API schema; if a scope can read it, fixtures for both | 1 |
-| 9 | A PVE backup failure through the webhook within a minute | Recorded PVE webhook payloads replayed with the instance's secret (H3) | 4 |
-| 10 | A week of timeline on a resource | Test clock and simulator: a week generated, then read through the API and the sheet | 4 |
+| 9 | A PVE backup failure through the webhook within a minute | **Partly:** `TestHookAcceptsTheSecretAndOnlySyncs` (the recorded payload, the secret, refusals) and `TestStandalone90` (a failed job becomes the incident), apart. Left for `e2e:system`: the hook's POST through a real refresh to the open incident | 2 → 4 |
+| 10 | A week of timeline on a resource | **Done:** `TestTimelineMergesHealthChangesFromHistory` (the incident, the action and health changes from a real history recorder, in order), with `TestMergeOrderForOneResource` and `TestTimelineRoute` | 2 |
 | 11 | The morning digest at its time, quiet on a quiet day | **Done:** `TestDigestArrivesAtItsTimeOnTheHubClock` (test clock, ntfy capture, Web Push decrypted); `TestDigestSaysNothingOnAQuietDay` | 2 |
 | 12 | Acknowledge stops notifications; the digest lists it apart | **Done:** `TestAcknowledgedStopsEscalating`, `TestDigestNamesAcknowledged` (already there) | 2 |
 | 13 | An agent proposes, the owner approves with a passkey, the audit has both | MCP client (H5), virtual authenticator (H4) | 4 |
 | 14 | The docs site builds and publishes | Already the Docs job; publishing is CI's | CI |
-| 15 | The public demo's hourly reset | Test clock | 4 |
+| 15 | The public demo's hourly reset | **Done:** `TestPublicRestartOnTheHubClock` (holds at 40 minutes, restarts past the hour), with `TestPublicDemoSignsVisitorsIn` and `TestPublicDemoRouteMatrix` for the visitor | 2 |
 | 16 | The installer | H7 | CI |
 | 17 | The LXC script | H7 shim | CI |
 | 18 | Specs against live instances | `spec test` against recorded answers (layer 2); `live:verify` for drift (layer 5) | 2, 5 |
