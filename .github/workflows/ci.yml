@@ -19,7 +19,7 @@ concurrency:
 
 env:
   # Keep in step with the oven/bun image in the Dockerfile.
-  BUN_VERSION: "1.4.2"
+  BUN_VERSION: "1.4.4"
   # Budgets from docs/plan/03-architecture.md, "Performance budgets". Raising
   # one takes a reason in the pull request.
   INITIAL_JS_BUDGET_KB: "150"   # entry script + modulepreloads, gzip -6, 1 kB = 1000 bytes
