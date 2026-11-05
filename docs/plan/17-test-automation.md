@@ -45,10 +45,12 @@ The places that take a `now func() time.Time` get it from one clock made in `new
 ### H3 · Fake outside services
 
 A small set of fakes in `internal/testfakes`, each a Go `httptest`-style server with a capture log the test reads:
-- **Notifications:** ntfy, Gotify, a generic webhook, SMTP. A test asserts what was sent and what wasn't.
+- **Notifications:** the channels Cha Dash has, ntfy and webhooks, through one capture server (`testfakes.Capture`). A test asserts what was sent and what wasn't. Gotify or email get a fake when they become channels.
 - **Web Push:** a push service that checks the VAPID signature and decrypts the payload (RFC 8030, 8291, 8292), so a test reads the digest's text exactly as a phone would receive it.
 - **Webhooks in:** PVE notification payloads and git forge push events, replayed from recorded fixtures with the right signatures.
 - **OIDC:** a minimal provider for the sign-in flows.
+
+**Built** (2026-11-05): `internal/testfakes` with `Capture` and `Push` (VAPID checked, payload decrypted as a browser does). notify's own tests now use its device and VAPID check, so the fake is proven against the real sender. `TestDigestArrivesAtItsTimeOnTheHubClock` runs the digest through `Run` on the test clock to an ntfy capture and a phone. Still to build: webhooks in, and the OIDC provider. A whole hub sending Web Push to a loopback fake needs a test-only switch, added with `e2e:system`.
 
 ### H4 · Passkeys without a person
 
@@ -91,8 +93,8 @@ Each open item in [14b](14b-v0.4-manual-tests.md), and where it goes.
 | 8 | Unraid flash backup status | A design question, not a test: decided from Unraid's API schema; if a scope can read it, fixtures for both | 1 |
 | 9 | A PVE backup failure through the webhook within a minute | Recorded PVE webhook payloads replayed with the instance's secret (H3) | 4 |
 | 10 | A week of timeline on a resource | Test clock and simulator: a week generated, then read through the API and the sheet | 4 |
-| 11 | The morning digest at its time, quiet on a quiet day | Test clock, Web Push fake decrypting the text (H3) | 4 |
-| 12 | Acknowledge stops notifications; the digest lists it apart | Notification fake | 4 |
+| 11 | The morning digest at its time, quiet on a quiet day | **Done:** `TestDigestArrivesAtItsTimeOnTheHubClock` (test clock, ntfy capture, Web Push decrypted); `TestDigestSaysNothingOnAQuietDay` | 2 |
+| 12 | Acknowledge stops notifications; the digest lists it apart | **Done:** `TestAcknowledgedStopsEscalating`, `TestDigestNamesAcknowledged` (already there) | 2 |
 | 13 | An agent proposes, the owner approves with a passkey, the audit has both | MCP client (H5), virtual authenticator (H4) | 4 |
 | 14 | The docs site builds and publishes | Already the Docs job; publishing is CI's | CI |
 | 15 | The public demo's hourly reset | Test clock | 4 |

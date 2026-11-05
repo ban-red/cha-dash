@@ -3,21 +3,11 @@ package notify
 import (
 	"bytes"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/ecdh"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/hkdf"
-	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -35,6 +25,7 @@ import (
 	"dash.cha.sh/internal/authz"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/store"
+	"dash.cha.sh/internal/testfakes"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/internal/vault"
 )
@@ -555,24 +546,16 @@ func TestEveryT4ReachesTheAdmins(t *testing.T) {
 
 // ── Web Push ─────────────────────────────────────────────────────────────
 
-// device is a browser's side of a push subscription.
-type device struct {
-	priv *ecdh.PrivateKey
-	auth []byte
-}
+// device is a browser's side of a push subscription (testfakes.Device).
+type device struct{ testfakes.Device }
 
-func newDevice() device {
-	k, _ := ecdh.P256().GenerateKey(rand.Reader)
-	a := make([]byte, 16)
-	_, _ = rand.Read(a)
-	return device{priv: k, auth: a}
-}
+func newDevice() device { return device{testfakes.NewDevice()} }
 
 func (d device) input(endpoint string) SubscribeInput {
 	var in SubscribeInput
 	in.Endpoint = endpoint
-	in.Keys.P256dh = base64.RawURLEncoding.EncodeToString(d.priv.PublicKey().Bytes())
-	in.Keys.Auth = base64.RawURLEncoding.EncodeToString(d.auth)
+	in.Keys.P256dh = d.P256dh()
+	in.Keys.Auth = d.Device.Auth()
 	in.Label = "Firefox on Linux"
 	return in
 }
@@ -580,37 +563,11 @@ func (d device) input(endpoint string) SubscribeInput {
 // decrypt is the browser's half of RFC 8291.
 func (d device) decrypt(t *testing.T, body []byte) []byte {
 	t.Helper()
-	if len(body) < 86 {
-		t.Fatalf("body is %d bytes", len(body))
-	}
-	salt, rs, idlen := body[:16], binary.BigEndian.Uint32(body[16:20]), int(body[20])
-	if rs != 4096 || idlen != 65 {
-		t.Fatalf("rs %d idlen %d", rs, idlen)
-	}
-	asPub, err := ecdh.P256().NewPublicKey(body[21 : 21+idlen])
-	if err != nil {
-		t.Fatal(err)
-	}
-	shared, err := d.priv.ECDH(asPub)
-	if err != nil {
-		t.Fatal(err)
-	}
-	info := append(append([]byte("WebPush: info\x00"), d.priv.PublicKey().Bytes()...), asPub.Bytes()...)
-	prkKey, _ := hkdf.Extract(sha256.New, shared, d.auth)
-	ikm, _ := hkdf.Expand(sha256.New, prkKey, string(info), 32)
-	prk, _ := hkdf.Extract(sha256.New, ikm, salt)
-	cek, _ := hkdf.Expand(sha256.New, prk, "Content-Encoding: aes128gcm\x00", 16)
-	nonce, _ := hkdf.Expand(sha256.New, prk, "Content-Encoding: nonce\x00", 12)
-	block, _ := aes.NewCipher(cek)
-	gcm, _ := cipher.NewGCM(block)
-	plain, err := gcm.Open(nil, nonce, body[21+idlen:], nil)
+	plain, err := d.Decrypt(body)
 	if err != nil {
 		t.Fatalf("decrypt: %v", err)
 	}
-	if plain[len(plain)-1] != 0x02 {
-		t.Fatal("no last-record delimiter")
-	}
-	return plain[:len(plain)-1]
+	return plain
 }
 
 type pushed struct {
@@ -694,41 +651,7 @@ func (p *pushService) to(path string) []pushed {
 }
 
 // checkVAPID verifies "vapid t=<jwt>, k=<key>" for aud.
-func checkVAPID(h, aud string) bool {
-	rest, ok := strings.CutPrefix(h, "vapid t=")
-	if !ok {
-		return false
-	}
-	tok, k, ok := strings.Cut(rest, ", k=")
-	if !ok {
-		return false
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(k)
-	if err != nil {
-		return false
-	}
-	pub, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), raw)
-	if err != nil {
-		return false
-	}
-	parts := strings.Split(tok, ".")
-	if len(parts) != 3 {
-		return false
-	}
-	claims, _ := base64.RawURLEncoding.DecodeString(parts[1])
-	var c struct {
-		Aud string `json:"aud"`
-	}
-	if json.Unmarshal(claims, &c) != nil || c.Aud != aud {
-		return false
-	}
-	sig, _ := base64.RawURLEncoding.DecodeString(parts[2])
-	if len(sig) != 64 {
-		return false
-	}
-	digest := sha256.Sum256([]byte(parts[0] + "." + parts[1]))
-	return ecdsa.Verify(pub, digest[:], new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:]))
-}
+func checkVAPID(h, aud string) bool { return testfakes.CheckVAPID(h, aud) }
 
 func TestWebPushPerViewer(t *testing.T) {
 	e := newEnv(t)
@@ -901,7 +824,7 @@ func TestSubscribeRefusesSomeoneElsesEndpoint(t *testing.T) {
 	}
 	after := e.pushRow(t, endpoint)
 	if after.ID != before.ID || dev.ID != before.ID || after.User != "u_view" || after.Label != "Firefox on macOS" ||
-		bytes.Equal(after.P256dh, before.P256dh) || bytes.Equal(after.Auth, before.Auth) || !bytes.Equal(after.Auth, b.auth) {
+		bytes.Equal(after.P256dh, before.P256dh) || bytes.Equal(after.Auth, before.Auth) || base64.RawURLEncoding.EncodeToString(after.Auth) != b.Device.Auth() {
 		t.Fatalf("re-subscribing: %+v, was %+v", after, before)
 	}
 
