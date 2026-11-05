@@ -38,7 +38,9 @@ What's missing for layers 3 and 4, and for checks that once needed a person, a d
 
 ### H2 · A test clock
 
-The 67 places that take a `now func() time.Time` get it from one clock made in `newApp`. With test automation on, and only then, `CHADASH_TEST_CLOCK=1` makes that clock controllable: `POST /api/test/clock {"advance": "15m"}` or `{"set": "…"}`, with the automation key. Timers run through the same clock.
+The places that take a `now func() time.Time` get it from one clock made in `newApp`. With test automation on, and only then, `CHADASH_TEST_CLOCK=1` makes that clock controllable: `POST /api/test/clock {"advance": "15m"}` or `{"set": "…"}`, with the automation key. Timers run through the same clock.
+
+**Built** (2026-11-05): `internal/clock` (real time plus a skew that only moves forward; tickers, timers and `AfterFunc` wake on each move), the flag and the route, and the clock wired through `newApp` into every service with a `Now` and the schedulers' loops (notify, updates, the incident recorder, the action engine's expiry, the Demo Home). Tests: approval expiry and a scheduled rollout's window happen when the clock moves, with no direct call. Sessions, step-up, tokens, rate limits and transport timeouts stay on real time. This automates maintenance windows, the 5-minute grace, the morning digest at its time, the public demo's hourly reset, token expiry, and "a week of recording" (the simulator generates a week in seconds).
 
 ### H3 · Fake outside services
 

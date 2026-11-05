@@ -26,6 +26,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/msg"
 	"dash.cha.sh/internal/store"
@@ -157,6 +158,9 @@ type Service struct {
 	// outside test automation.
 	automationSum   []byte
 	automationLimit *httpx.Limiter
+	// testClock is the movable clock /api/test/clock moves
+	// (EnableTestClock, testclock.go). Nil: the routes aren't mounted.
+	testClock *clock.Clock
 
 	// strikes counts wrong passwords per client address, then per username (bans.go).
 	banMu   sync.Mutex

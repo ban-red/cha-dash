@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/security"
 	"dash.cha.sh/internal/topics"
 	"dash.cha.sh/sim"
@@ -56,8 +57,11 @@ type Options struct {
 	// SampleInterval is how often metrics move; 0 means the simulator's
 	// default (30 s). The driver advances once per interval.
 	SampleInterval time.Duration
-	Clock          func() time.Time // the real clock; nil means time.Now
-	Log            *slog.Logger
+	Clock          func() time.Time // the real clock; nil means Timers.Now
+	// Timers is the hub's clock (internal/clock): the driver's ticks and
+	// the public demo's restart wait on it. Nil: real time.
+	Timers *clock.Clock
+	Log    *slog.Logger
 	// Posture is the security posture the Demo Home's hints are published
 	// under, as real instances' are (see SetPosture). Empty publishes the
 	// simulator's own severities.
@@ -94,7 +98,7 @@ type Driver struct {
 func New(t *topics.Set, opts Options) (*Driver, error) {
 	d := &Driver{t: t, opts: opts, clock: opts.Clock, log: opts.Log, mirror: &mirror{t: t, posture: opts.Posture}}
 	if d.clock == nil {
-		d.clock = time.Now
+		d.clock = opts.Timers.Now
 	}
 	if d.log == nil {
 		d.log = slog.New(slog.DiscardHandler)
@@ -221,11 +225,11 @@ func (d *Driver) Now() time.Time {
 // Run advances the simulator in real time until ctx ends, waking at each
 // sample tick.
 func (d *Driver) Run(ctx context.Context) {
-	timer := time.NewTimer(d.untilNextTick())
+	timer := d.opts.Timers.NewTimer(d.untilNextTick())
 	defer timer.Stop()
 	var restart <-chan time.Time
 	if d.opts.RestartEvery > 0 {
-		t := time.NewTicker(d.opts.RestartEvery)
+		t := d.opts.Timers.NewTicker(d.opts.RestartEvery)
 		defer t.Stop()
 		restart = t.C
 	}

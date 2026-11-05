@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	hubclock "dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/livedoc"
 )
 
@@ -33,6 +34,9 @@ type RecorderOptions struct {
 	Acks *Acks
 	Log  *slog.Logger
 	Now  func() time.Time
+	// Clock is the hub's clock (internal/clock); its timers drive the
+	// schedule, and its Now is the default for Now. Nil: real time.
+	Clock *hubclock.Clock
 }
 
 // Recorder watches the inbox and writes each incident's lifecycle to the
@@ -49,6 +53,7 @@ type Recorder struct {
 	acks   *Acks
 	log    *slog.Logger
 	now    func() time.Time
+	clk    *hubclock.Clock
 
 	primed      bool
 	lastVersion uint64
@@ -66,19 +71,19 @@ type known struct {
 
 // NewRecorder returns a recorder; Run starts it.
 func NewRecorder(o RecorderOptions) *Recorder {
-	r := &Recorder{store: o.Store, inbox: o.Inbox, expect: o.Expect, acks: o.Acks, log: o.Log, now: o.Now, seen: map[string]*known{}}
+	r := &Recorder{store: o.Store, inbox: o.Inbox, expect: o.Expect, acks: o.Acks, log: o.Log, now: o.Now, clk: o.Clock, seen: map[string]*known{}}
 	if r.log == nil {
 		r.log = slog.New(slog.DiscardHandler)
 	}
 	if r.now == nil {
-		r.now = time.Now
+		r.now = o.Clock.Now
 	}
 	return r
 }
 
 // Run records until ctx ends.
 func (r *Recorder) Run(ctx context.Context) {
-	t := time.NewTicker(time.Second)
+	t := r.clk.NewTicker(time.Second)
 	defer t.Stop()
 	for {
 		r.Step(ctx)

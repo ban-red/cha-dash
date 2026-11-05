@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **A test clock, for automated tests only.** With `CHADASH_TEST_CLOCK=true`, which needs `CHADASH_TEST_AUTOMATION`, `POST /api/test/clock` with the automation key moves the hub's clock forward. Maintenance windows, scheduled rollouts, notification grace, the morning digest, approval expiry and the Demo Home's day all see the new time at once. It never goes back, and every move is logged. Never on a hub that holds anything real.
+
 ## [0.4.0] - 2026-11-01
 
 The first release of v0.4: Cha Dash now looks after the house, not only shows it. Settings → Backups says what isn't backed up or is stale, across Proxmox, PBS, Unraid and your containers' volumes. Updates run as rollouts, one container after another through the health gate, now or in a maintenance window, and a version that rolled back isn't tried again. Every incident's life goes on a timeline, Proxmox can tell Cha Dash about a failed backup at once, and a morning digest sums up the night. AI agents can connect through MCP, off by default: they read and propose, and a person approves every action. There's a docs site, a threat model, an OpenAPI document, a one-line installer and five new bundled sources.

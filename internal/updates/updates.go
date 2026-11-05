@@ -28,6 +28,7 @@ import (
 	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/auth"
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/livedoc"
@@ -63,6 +64,9 @@ type Options struct {
 	Refresh func() int
 	Now     func() time.Time
 	Log     *slog.Logger
+	// Clock is the hub's clock (internal/clock); its timers drive the
+	// schedule, and its Now is the default for Now. Nil: real time.
+	Clock *clock.Clock
 
 	// Registry is the action engine's: a rollout's steps take their tiers
 	// from their Defs, and updates.rollout runs them. Nil plans every
@@ -94,6 +98,7 @@ type Service struct {
 	inbox   *livedoc.Doc
 	refresh func() int
 	now     func() time.Time
+	clk     *clock.Clock
 	log     *slog.Logger
 
 	// Audit records holds and releases. Set by the server.
@@ -125,12 +130,12 @@ func New(o Options) (*Service, error) {
 	if o.Store == nil || o.Graph == nil {
 		return nil, errors.New("updates: needs a store and a graph")
 	}
-	s := &Service{st: o.Store, g: o.Graph, inbox: o.Inbox, refresh: o.Refresh, now: o.Now, log: o.Log, poke: make(chan struct{}, 1),
+	s := &Service{st: o.Store, g: o.Graph, inbox: o.Inbox, refresh: o.Refresh, now: o.Now, clk: o.Clock, log: o.Log, poke: make(chan struct{}, 1),
 		reg: o.Registry, ownedStack: o.OwnedStack, canAct: o.CanAct, users: o.Users, launched: map[string]time.Time{},
 		stopping: map[string]string{}, runningHere: map[string]bool{}}
 	s.notes = newNotesCache(o.GitHub, o.HTTP)
 	if s.now == nil {
-		s.now = time.Now
+		s.now = o.Clock.Now
 	}
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
@@ -553,7 +558,7 @@ func (s *Service) Check() int { return s.refresh() }
 func (s *Service) Run(ctx context.Context) {
 	s.loadWindows(ctx)
 	s.RecoverRollouts(ctx)
-	t := time.NewTicker(30 * time.Second)
+	t := s.clk.NewTicker(30 * time.Second)
 	defer t.Stop()
 	for {
 		s.Recount(ctx)

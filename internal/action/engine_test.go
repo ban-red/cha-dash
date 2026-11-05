@@ -15,6 +15,7 @@ import (
 
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/auth"
+	hubclock "dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/realtime"
@@ -70,6 +71,9 @@ type env struct {
 	guard func(context.Context, Request) error
 	// limits is Options.AgentLimits.
 	limits func(context.Context) (AgentLimits, error)
+	// hub, when set, is the engine's Clock (internal/clock) and its Now,
+	// in place of clock: the engine's own timers run on it.
+	hub *hubclock.Clock
 }
 
 var (
@@ -127,8 +131,12 @@ func newEnv(t *testing.T, policy Policy, defs ...Def) *env {
 
 func (e *env) start() {
 	e.t.Helper()
+	now := e.clock.Now
+	if e.hub != nil {
+		now = e.hub.Now
+	}
 	eng, err := New(e.t.Context(), Options{Store: e.st, Audit: e.audit, Registry: e.reg, Policy: e.policy, Graph: e.g,
-		Sessions: Sessions{Lookup: lookup}, Now: e.clock.Now, Inbox: e.inbox, AgentLimits: e.limits,
+		Sessions: Sessions{Lookup: lookup}, Now: now, Clock: e.hub, Inbox: e.inbox, AgentLimits: e.limits,
 		Guard: func(ctx context.Context, r Request) error {
 			if e.guard == nil {
 				return nil

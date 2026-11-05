@@ -9,6 +9,7 @@ func init() {
 		"auth.automation_key":          "That isn't this hub's automation key. It's in automation.key in the data directory, and changes at every start.",
 		"auth.automation_no_owner":     "This hub has no owner yet. Test automation signs in as the owner; it doesn't make one.",
 		"auth.automation_session_only": "The automation key steps up only sessions it started.",
+		"auth.test_clock_move":         "Give advance, a duration such as 15m or 168h, or set, a time (RFC 3339) ahead of the clock. The clock only goes forward.",
 		"auth.ip_banned":               "this address is banned after too many wrong passwords; an admin can clear it",
 		"auth.unknown_host":            "Cha Dash doesn't know the name {host}. Open it at its IP address, or set CHADASH_PUBLIC_URL to the address you use, then create the owner.",
 		"auth.setup_complete":          "setup has already been completed",

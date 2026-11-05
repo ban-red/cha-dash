@@ -291,3 +291,22 @@ func TestTestAutomation(t *testing.T) {
 		t.Fatal("a bad value was accepted")
 	}
 }
+
+func TestTestClock(t *testing.T) {
+	if c, err := load(t, nil); err != nil || c.TestClock {
+		t.Fatalf("off by default: %v %v", c.TestClock, err)
+	}
+	if c, err := load(t, map[string]string{"CHADASH_TEST_AUTOMATION": "1", "CHADASH_TEST_CLOCK": "1"}); err != nil || !c.TestClock {
+		t.Fatalf("env: %v %v", c.TestClock, err)
+	}
+	if c, err := load(t, nil, "--test-automation", "--test-clock"); err != nil || !c.TestClock {
+		t.Fatalf("flag: %v %v", c.TestClock, err)
+	}
+	// Only on a test hub.
+	if _, err := load(t, map[string]string{"CHADASH_TEST_CLOCK": "1"}); err == nil || !strings.Contains(err.Error(), "CHADASH_TEST_CLOCK needs test automation") {
+		t.Fatalf("without test automation: %v", err)
+	}
+	if _, err := load(t, map[string]string{"CHADASH_TEST_AUTOMATION": "1", "CHADASH_TEST_CLOCK": "soon"}); err == nil {
+		t.Fatal("a bad value was accepted")
+	}
+}

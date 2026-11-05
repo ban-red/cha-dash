@@ -14,6 +14,7 @@ in [docs/plan/03-architecture.md](../docs/plan/03-architecture.md).
 | `internal/node` | The node runtime: the local policy file and its permission keys, the `Module`/`Verb` seam modules implement, the `Dispatcher` that enforces the policy on every verb, the identity on disk, the dial loop with pairing, join tokens (sent only to the hub whose key the token names; `pending` waits, logged once) and key rotation, the health file |
 | `internal/node/docker` | The node's Docker module: capability verbs over the Docker Engine API (moby client), with `docker.protect` and `redact_env` |
 | `internal/testengine` | Test support for engine tests (layer 3, `-tags engine`, `bun run test:engine`): a real Docker Engine from the environment, a throwaway registry (optionally behind a login), canary images committed from a pinned busybox (healthy, exits at once, never healthy) and pushed to it, and cleanup of everything a run labelled `chadash.test`, with `Leaks` for the check after the suite. Imported only by `engine`-tagged tests, never by the hub or the node |
+| `internal/clock` | The hub's clock: real time plus a skew only a test clock may move (`CHADASH_TEST_CLOCK`), forward only. `Now`, and the `Ticker`, `Timer` and `AfterFunc` that schedules wait on, which also wake right after each move. A nil `*Clock` is real time. No imports; `newApp` makes one and passes it to every schedule |
 | `internal/nodes` | The hub's side of the node: `/node`, the registry of node keys (`nodes`, `node_hub_keys`), the hub's own keys in the vault, local pairing (single-use secret, regenerated on use, revoke and request), join tokens (`JoinTokens`, `node_join_tokens`: SHA-256 only, single-use, 15 minutes to 24 hours) and pending nodes approved by an admin (`Approve`, `Options.OnApproved`, `node.<id>.pending` Inbox items, expiry after 7 days), revocation, status in the Home Graph (`node:<id>`, approved nodes only), the nodes API, and `Caller` (`Hub.Call`) for running node verbs |
 | `internal/server` | HTTP routes, the middleware chain, graceful `Serve`; `sockets.go` wires auth events to the realtime hub (`SocketRecheck`, closing a session's or a user's sockets) and to the audit log |
 | `internal/auth` | First-run setup, argon2id passwords, passkeys (WebAuthn), cookie sessions, step-up grants, attempt limiting, address bans after wrong passwords (`bans.go`); the users store and its invariants (one owner, disabled never deleted); API tokens (`cdt_…`, stored as a SHA-256, `RequireToken`, `TokenAccess`; a `TokenKind`, `api` or `agent`, fixed at minting, on the request's `TokenRef` and in `TokenAccess`). `Identify` reads a session without renewing it; `StillValid` rechecks one a long-lived connection read earlier. `OnEvent` tells listeners about sign-ins (`signed_in`, with the session's method: `password`, `passkey`, `oidc`, `forward_auth`, `dev`; emitted once by `StartSession`, which every sign-in ends in; audited for `oidc` and `forward_auth` only), refused sign-ins through the provider or a proxy, roles their groups changed, linked identities, untrusted or repeated forward-auth headers, sign-outs, account changes, step-ups and passkey changes (the server closes sockets and audits them; `auth` imports neither). OIDC sign-in, linking and step-up through the provider (`oidc.go`, `oidc_http.go`: discovery, JWKS, PKCE, ID token checks with golang-jwt), forward-auth from trusted proxies (`forwardauth.go`, the `ForwardAuth` middleware), linked identities (`identities.go`) and the sign-in settings' types and group mapping (`signin.go`), read through `SetSignIn` |
@@ -104,6 +105,7 @@ Precedence is flag > env > default. Nothing is required.
 | `--demo-seed` | `CHADASH_DEMO_SEED` | `1` |
 | `--demo-public` | `CHADASH_DEMO_PUBLIC` | off; `1`/`true` hosts the demo for anyone (see [The public demo](#the-public-demo)). Refused at start unless demo mode is on, and on a data directory that holds integration instances |
 | `--test-automation` | `CHADASH_TEST_AUTOMATION` | off; `1`/`true` lowers the step-up for automated tests (see [Test automation](#test-automation)). Refused with the public demo. Never on a hub that holds anything real |
+| `--test-clock` | `CHADASH_TEST_CLOCK` | off; `1`/`true` lets the automation key move the hub's clock forward (see [The test clock](#the-test-clock)). Only with test automation |
 | `--node-pairing-file` | `CHADASH_NODE_PAIRING_FILE` | none; where the hub writes chadash-node's pairing token (an absolute path in a volume shared with the node). Empty: no node can pair |
 | `--node-pairing-from` | `CHADASH_NODE_PAIRING_FROM` | private, loopback, link-local and CGNAT ranges; comma-separated CIDRs a node may pair from, or `any`. A known node connects from anywhere |
 | `healthcheck --timeout` | — | `3s` |
@@ -397,6 +399,20 @@ posture (`hub.test-automation`), and a banner on every page (the session
 endpoint and the first-paint snapshot carry `automation`). It makes no
 account, refuses with the public demo, and never reuses a key file. Turn it
 off by restarting without the flag. Never on a hub that holds anything real.
+
+### The test clock
+
+`CHADASH_TEST_CLOCK=true` (or `--test-clock`), only with test automation, makes
+the hub's clock movable ([`internal/clock`](clock/clock.go)). `POST /api/test/clock`
+with the automation key and `{"advance": "15m"}` or `{"set": "<RFC 3339>"}`
+moves it forward; `GET` reads it. It never goes back, and time keeps running
+between moves. Every schedule reads that one clock, made in `newApp`:
+maintenance windows and scheduled rollouts, notification grace and the morning
+digest, approval expiry, the incident recorder, the Inbox's clock, the Demo
+Home's day, and the `Now` of every service that has one. Their tickers and
+timers wake right after each move, so a test sees the effect in a second, not
+at the next real tick. Sessions, step-up grants, API tokens, rate limits and
+transport timeouts stay on real time. Each move is logged at warn.
 
 ## API
 

@@ -78,6 +78,10 @@ type Config struct {
 	// data directory signs in as the owner, already stepped up. Never on a
 	// hub that holds anything real; refused with DemoPublic.
 	TestAutomation bool
+	// TestClock makes the hub's clock movable (CHADASH_TEST_CLOCK;
+	// internal/clock): POST /api/test/clock with the automation key moves
+	// it forward. Only with TestAutomation.
+	TestClock bool
 
 	// NodePairingFile turns on local pairing for chadash-node: the hub
 	// writes a pairing token there on first run (a volume shared with the
@@ -146,7 +150,7 @@ type Loader struct {
 	nodePairing, nodePairingFrom                              string
 	history, historyDir                                       string
 	metricsListen, metricsToken                               string
-	demo, demoPublic, testAutomation                          bool
+	demo, demoPublic, testAutomation, testClock               bool
 	demoAt, demoSeed                                          string
 	envErrs                                                   []error // env values a flag default can't hold
 }
@@ -196,6 +200,15 @@ func Bind(fs *flag.FlagSet, getenv func(string) string) *Loader {
 		}
 		testAutomation = b
 	}
+	testClock := false
+	if v := env("CHADASH_TEST_CLOCK", ""); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			l.envErrs = append(l.envErrs, fmt.Errorf("CHADASH_TEST_CLOCK %q: want 1, true, 0 or false", v))
+		}
+		testClock = b
+	}
+	fs.BoolVar(&l.testClock, "test-clock", testClock, "for automated tests only: the automation key can move the hub's clock forward (POST /api/test/clock); needs --test-automation (env CHADASH_TEST_CLOCK)")
 	fs.BoolVar(&l.testAutomation, "test-automation", testAutomation, "for automated tests only: a key written to the data dir signs in as the owner and steps up without a passkey; never on a hub that holds anything real (env CHADASH_TEST_AUTOMATION)")
 	fs.BoolVar(&l.demoPublic, "demo-public", demoPublic, "host the demo for anyone: visitors are signed in as an operator and can change nothing but the simulator; needs --demo (env CHADASH_DEMO_PUBLIC)")
 	fs.StringVar(&l.demoAt, "demo-at", env("CHADASH_DEMO_AT", "local"), "demo clock: local (start at 14:05, shown as the local time), a time of day (HH:MM[:SS], UTC) on the demo's day, or now to follow the real clock in UTC (env CHADASH_DEMO_AT)")
@@ -219,9 +232,13 @@ func (l *Loader) Config() (Config, error) {
 		DemoPublic:    l.demoPublic,
 
 		TestAutomation: l.testAutomation,
+		TestClock:      l.testClock,
 	}
 	if c.TestAutomation && c.DemoPublic {
 		errs = append(errs, errors.New("CHADASH_TEST_AUTOMATION and CHADASH_DEMO_PUBLIC can't both be on: a public hub must never take an owner's key"))
+	}
+	if c.TestClock && !c.TestAutomation {
+		errs = append(errs, errors.New("CHADASH_TEST_CLOCK needs test automation: set CHADASH_TEST_AUTOMATION=true too. Only a test hub's clock may move"))
 	}
 	if c.DemoPublic && !c.Demo {
 		errs = append(errs, errors.New("CHADASH_DEMO_PUBLIC needs demo mode: set CHADASH_DEMO=true too. A public hub must never show a real home"))

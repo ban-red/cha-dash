@@ -674,7 +674,7 @@ func (e *Engine) schedule(id string, at time.Time) {
 	if old := e.timers[id]; old != nil {
 		old.Stop()
 	}
-	e.timers[id] = time.AfterFunc(wait, func() {
+	e.timers[id] = e.clk.AfterFunc(wait, func() {
 		e.mu.Lock()
 		closed := e.closed
 		delete(e.timers, id)

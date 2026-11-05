@@ -120,6 +120,7 @@ var AuditExempt = map[string]string{
 	"POST /api/auth/demo":                    "The public demo only: signs a visitor in as its fixed operator, a new session limited per address. Sign-ins change no setting.",
 	"POST /api/auth/automation":              "Test automation only: a sign-in and its step-up, recorded as auth events (method automation) like every other.",
 	"POST /api/auth/automation/step-up":      "Test automation only: a step-up, recorded as an auth event (method automation) like every other.",
+	"POST /api/test/clock":                   "Test clock only (a test hub): moves the clock forward, logged at warn with the time before and after; it changes no setting or record.",
 	"POST /api/auth/passkeys/register/begin": "Starts a ceremony in memory; finishing it is audited.",
 	"POST /api/auth/step-up/begin":           "Starts a ceremony in memory; the step-up itself is audited.",
 	"POST /api/integrations/test":            "Tests a connection and saves nothing; saving the instance is audited.",

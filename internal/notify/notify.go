@@ -29,6 +29,7 @@ import (
 
 	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/incidents"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/store"
@@ -89,6 +90,9 @@ type Options struct {
 	Location *time.Location
 	Log      *slog.Logger
 	Now      func() time.Time
+	// Clock is the hub's clock (internal/clock); its timers drive the
+	// schedule, and its Now is the default for Now. Nil: real time.
+	Clock *clock.Clock
 }
 
 // Service is notifications: channels, rules, devices, delivery.
@@ -102,6 +106,7 @@ type Service struct {
 	window     time.Duration
 	log        *slog.Logger
 	now        func() time.Time
+	clk        *clock.Clock
 	lanClient  *http.Client
 	pushClient *http.Client
 	// allowLoopbackPush lets tests register push endpoints on httptest.
@@ -142,7 +147,7 @@ func New(ctx context.Context, o Options) (*Service, error) {
 	}
 	s := &Service{
 		st: o.Store, vault: o.Vault, inbox: o.Inbox, inboxView: o.InboxView, publicURL: strings.TrimSuffix(o.PublicURL, "/"),
-		window: o.GroupWindow, log: o.Log, now: o.Now,
+		window: o.GroupWindow, log: o.Log, now: o.Now, clk: o.Clock,
 		lanClient: newClient(policyLAN), pushClient: newClient(policyPublic),
 		det: newDetector(), incs: map[string]incident{}, limits: map[string]*bucket{}, loc: o.Location,
 	}
@@ -153,7 +158,7 @@ func New(ctx context.Context, o Options) (*Service, error) {
 		s.log = slog.New(slog.DiscardHandler)
 	}
 	if s.now == nil {
-		s.now = time.Now
+		s.now = o.Clock.Now
 	}
 	if s.inboxView == nil {
 		s.inboxView = func(_ context.Context, role string) topics.InboxView {
@@ -189,7 +194,7 @@ func New(ctx context.Context, o Options) (*Service, error) {
 
 // Run watches the inbox and delivers until ctx ends.
 func (s *Service) Run(ctx context.Context) {
-	t := time.NewTicker(time.Second)
+	t := s.clk.NewTicker(time.Second)
 	defer t.Stop()
 	for {
 		s.step(ctx)

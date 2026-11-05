@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/audit"
+	hubclock "dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/livedoc"
 )
@@ -395,5 +396,47 @@ func renameVM(t *testing.T, e *env) {
 func TestApprovedByAutomation(t *testing.T) {
 	if got := approvedBy(&TaskActor{Name: "owner", StepUp: "automation"}); got != "Approved by owner, confirmed with the test-automation key." {
 		t.Fatalf("%q", got)
+	}
+}
+
+// The engine's own expiry timer runs on the hub's clock: moving a test
+// clock past the TTL expires the approval, with nobody calling
+// ExpireApprovals (docs/plan/17-test-automation.md, H2).
+func TestApprovalExpiresWhenTheHubClockMoves(t *testing.T) {
+	var calls []string
+	hub := hubclock.NewTest()
+	pol := tokenPolicy{revoked: map[string]bool{}, now: hub.Now}
+	e := newEnv(t, pol, reboot(&calls))
+	e.e.Close()
+	e.hub = hub
+	e.audit.SetClock(hub.Now)
+	e.inbox = livedoc.New(incidentsColl)
+	e.start()
+
+	p := e.mustPlan(token, "proxmox.guest.reboot", "proxmox:i_x/qemu/201")
+	_, apv, err := e.e.ApproveOrSubmit(t.Context(), token, p.ID, ApproveRequest{Hash: p.Hash}, "")
+	if err != nil || apv == nil {
+		t.Fatalf("submit: %v %v", apv, err)
+	}
+	state := func() string {
+		got, _ := e.e.Approval(t.Context(), token, apv.ID)
+		return got.State
+	}
+	if err := hub.Advance(ApprovalTTL - time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if s := state(); s != ApprovalAwaiting {
+		t.Fatalf("expired early: %s", s)
+	}
+	if err := hub.Advance(2 * time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for state() != ApprovalExpired {
+		if time.Now().After(deadline) {
+			t.Fatalf("still %s after the clock passed its expiry", state())
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

@@ -24,6 +24,7 @@ import (
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/causes"
+	"dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/config"
 	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
@@ -162,6 +163,12 @@ const localNodeEndpoint = "node://local"
 
 func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, err error) {
 	log.Info("starting "+buildinfo.String(), "data_dir", cfg.DataDir, "web_app", webui.Embedded)
+	// The hub's clock: real time, or on a test hub one the automation key can
+	// move forward (CHADASH_TEST_CLOCK, internal/clock). Every schedule reads it.
+	clk := clock.Real()
+	if cfg.TestClock {
+		clk = clock.NewTest()
+	}
 
 	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
 		return nil, fmt.Errorf("data dir: %w", err)
@@ -213,7 +220,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		if _, err = hst.Migrate(ctx); err != nil {
 			return nil, err
 		}
-		if rec, err = history.Open(ctx, history.Options{Store: hst, Level: level, Log: log.With("component", "history")}); err != nil {
+		if rec, err = history.Open(ctx, history.Options{Store: hst, Level: level, Log: log.With("component", "history"), Now: clk.Now}); err != nil {
 			return nil, err
 		}
 		limit, ok, err := history.LoadLimit(ctx, st)
@@ -280,6 +287,9 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		if err := authSvc.EnableAutomation(cfg.DataDir); err != nil {
 			return nil, err
 		}
+		if cfg.TestClock {
+			authSvc.EnableTestClock(clk)
+		}
 	}
 
 	// The security posture decides the severity security findings reach the
@@ -292,12 +302,12 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	sec.ProxyNotes = proxyCheck.Notes
 
 	g := graph.New()
-	tp := topics.New(g, time.Now())
+	tp := topics.New(g, clk.Now())
 	var drv *demo.Driver
 	if cfg.Demo {
 		// The Demo Home owns the graph; its app:chadash (self: true) stands
 		// for the hub.
-		opts := demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, Local: cfg.DemoLocal, At: cfg.DemoAt, Log: log, Posture: sec.Posture()}
+		opts := demo.Options{Seed: cfg.DemoSeed, WallClock: cfg.DemoWallClock, Local: cfg.DemoLocal, At: cfg.DemoAt, Log: log, Posture: sec.Posture(), Timers: clk}
 		if cfg.DemoPublic {
 			// Every visitor finds the incidents open, whatever the last one fixed.
 			opts.RestartEvery = demo.PublicRestart
@@ -332,7 +342,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	}
 	itp := tp
 	if cfg.Demo {
-		itp = topics.New(graph.New(), time.Now())
+		itp = topics.New(graph.New(), clk.Now())
 	}
 	// chadash-node: the registry and the /node channel. Its status goes
 	// where the integrations publish (a private graph in demo mode).
@@ -340,7 +350,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// Approving a node adds its Docker integration once the manager exists
 	// (set below; approvals only come in over HTTP, after newApp).
 	var onApproved func(context.Context, nodes.Record, bool, audit.Actor)
-	nodeHub, err := nodes.New(ctx, nodes.Options{Store: st, Vault: v, Graph: itp.Graph, Audit: auditLog,
+	nodeHub, err := nodes.New(ctx, nodes.Options{Store: st, Vault: v, Graph: itp.Graph, Audit: auditLog, Now: clk.Now,
 		PairingFile: cfg.NodePairingFile, PairingFrom: cfg.NodePairingFrom, Proxies: proxies, Log: log.With("component", "nodes"),
 		Inbox: itp.Inbox, PublicURL: cfg.PublicURL,
 		OnApproved: func(ctx context.Context, rec nodes.Record, addDocker bool, by audit.Actor) {
@@ -366,7 +376,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// Demo Home's integrations only.
 	var specs *specstore.Service
 	if !cfg.Demo {
-		specs = specstore.New(specstore.Options{Store: st, Log: log.With("component", "specs")})
+		specs = specstore.New(specstore.Options{Store: st, Log: log.With("component", "specs"), Now: clk.Now})
 		if err := specs.Load(ctx); err != nil {
 			return nil, err
 		}
@@ -375,7 +385,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if cfg.Demo {
 		instanceActions = nil
 	}
-	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log, Posture: sec.Posture(),
+	mgr, err := runtime.New(runtime.Options{Store: st, Vault: v, Topics: itp, Sandboxed: cfg.Demo, Watch: watch, Log: log, Posture: sec.Posture(), Now: clk.Now,
 		Actions: instanceActions,
 		// Integrations reach only the node verbs they use, by name (the Docker
 		// integration's node:// endpoint and its actions).
@@ -402,10 +412,10 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if drv != nil {
 		sec.OnChange(drv.SetPosture)
 	}
-	corr := correlate.New(correlate.Options{Topics: itp, Store: st, Log: log})
+	corr := correlate.New(correlate.Options{Topics: itp, Store: st, Log: log, Now: clk.Now})
 	// Cause hints run over the topics the page reads: in demo mode the
 	// Demo Home's, on its clock, as over a real home.
-	causeOpts := causes.Options{Topics: tp, Log: log.With("component", "causes")}
+	causeOpts := causes.Options{Topics: tp, Log: log.With("component", "causes"), Now: clk.Now}
 	if rec != nil {
 		causeOpts.History = rec
 	}
@@ -415,7 +425,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	hints := causes.New(causeOpts)
 	// Backup coverage, like the cause hints, over the topics the page
 	// reads; the objectives are the hub's own.
-	backupOpts := backups.Options{Topics: tp, Store: st, Log: log.With("component", "backups")}
+	backupOpts := backups.Options{Topics: tp, Store: st, Log: log.With("component", "backups"), Now: clk.Now}
 	if drv != nil {
 		backupOpts.Now = drv.Now
 	}
@@ -430,7 +440,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if cfg.NodePairingFile != "" {
 		sidecar = localNodeEndpoint
 	}
-	ob, err := onboarding.New(onboarding.Options{Store: st, Integrations: mgr, Demo: cfg.Demo, Sidecar: sidecar, Log: log})
+	ob, err := onboarding.New(onboarding.Options{Store: st, Integrations: mgr, Demo: cfg.Demo, Sidecar: sidecar, Log: log, Now: clk.Now})
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +450,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// actions there.
 	var stk *stacks.Service
 	if !cfg.Demo {
-		stk, err = stacks.New(stacks.Options{Store: st, Vault: v, Caller: nodeHub, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "stacks"), Proxies: proxies,
+		stk, err = stacks.New(stacks.Options{Store: st, Vault: v, Caller: nodeHub, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "stacks"), Proxies: proxies, Now: clk.Now,
 			Nodes: func(ctx context.Context) ([]stacks.Node, error) {
 				list, err := nodeHub.List(ctx)
 				if err != nil {
@@ -471,7 +481,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// demo mode, which has no nodes.
 	var upd *updates.Service
 	if !cfg.Demo {
-		upd, err = updates.New(updates.Options{Store: st, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "updates"),
+		upd, err = updates.New(updates.Options{Store: st, Graph: g, Inbox: tp.Inbox, Log: log.With("component", "updates"), Clock: clk,
 			// Rollouts (wave 26): steps take their tiers from the registry,
 			// an owned stack's commit or a PVE snapshot comes first, and a
 			// scheduled one runs as the person who scheduled it.
@@ -545,14 +555,14 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	// Acknowledgements ride on the inbox's items; the recorder puts them
 	// back after a restart.
 	if cfg.TestAutomation {
-		server.AutomationFinding(tp.Inbox, time.Now())
+		server.AutomationFinding(tp.Inbox, clk.Now())
 	}
-	acks := incidents.NewAcks(incidents.AcksOptions{Store: inc, Inbox: tp.Inbox, Log: log.With("component", "incidents")})
-	incRec := incidents.NewRecorder(incidents.RecorderOptions{Store: inc, Inbox: tp.Inbox, Expect: expect, Acks: acks, Log: log.With("component", "incidents")})
+	acks := incidents.NewAcks(incidents.AcksOptions{Store: inc, Inbox: tp.Inbox, Log: log.With("component", "incidents"), Now: clk.Now})
+	incRec := incidents.NewRecorder(incidents.RecorderOptions{Store: inc, Inbox: tp.Inbox, Expect: expect, Acks: acks, Log: log.With("component", "incidents"), Clock: clk})
 	// Notifications: the inbox's transitions (each device hears what its
 	// user's role sees) and every T4 action, from the engine below.
 	nt, err := notify.New(ctx, notify.Options{Store: st, Vault: v, Inbox: tp.Inbox, InboxView: server.InboxView(bs, g, log),
-		PublicURL: cfg.PublicURL, Version: buildinfo.Version, Log: log.With("component", "notify"), Expected: expect})
+		PublicURL: cfg.PublicURL, Version: buildinfo.Version, Log: log.With("component", "notify"), Expected: expect, Clock: clk})
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +599,8 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 				stk.ApprovalEnded(a)
 			}
 		},
-		Log: log,
+		Log:   log,
+		Clock: clk,
 	})
 	if err != nil {
 		return nil, err
@@ -646,7 +657,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	})
 	// Tiles' icons, fetched and served by the hub (the CSP keeps tiles from
 	// loading them). Never fetched in demo mode, which reads nothing real.
-	icn := icons.New(icons.Options{Store: st, Log: log.With("component", "icons"), Fetch: !cfg.Demo})
+	icn := icons.New(icons.Options{Store: st, Log: log.With("component", "icons"), Fetch: !cfg.Demo, Now: clk.Now})
 	h, err := server.New(server.Deps{
 		Log:            log,
 		Store:          st,
@@ -699,7 +710,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	if drv != nil {
 		a.bg.Go(func() { drv.Run(bg) })
 	} else {
-		a.bg.Go(func() { tp.RunClock(bg, inboxClock, time.Now) })
+		a.bg.Go(func() { tp.RunClock(bg, inboxClock, clk.Now) })
 	}
 	a.bg.Go(func() { corr.Run(bg) })
 	a.bg.Go(func() { hints.Run(bg) })

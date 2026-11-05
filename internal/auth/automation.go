@@ -88,6 +88,7 @@ func (s *Service) registerAutomation(mux *http.ServeMux) {
 	if s.Automation() {
 		mux.HandleFunc("POST /api/auth/automation", s.handleAutomation)
 		mux.HandleFunc("POST /api/auth/automation/step-up", s.handleAutomationStepUp)
+		s.registerTestClock(mux)
 	}
 }
 

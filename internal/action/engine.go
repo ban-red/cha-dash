@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"dash.cha.sh/internal/audit"
+	hubclock "dash.cha.sh/internal/clock"
 	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/store"
@@ -80,7 +81,10 @@ type Options struct {
 	// Agents settings); nil, or a zero field, means DefaultAgentLimits.
 	AgentLimits func(context.Context) (AgentLimits, error)
 	Log         *slog.Logger
-	Now         func() time.Time // nil means time.Now
+	Now         func() time.Time // nil means Clock.Now
+	// Clock is the hub's clock (internal/clock); its timers drive the
+	// schedule, and its Now is the default for Now. Nil: real time.
+	Clock *hubclock.Clock
 }
 
 // Engine runs the lifecycle. It's safe for concurrent use.
@@ -104,6 +108,7 @@ type Engine struct {
 	agentMu sync.Mutex
 	log     *slog.Logger
 	now     func() time.Time
+	clk     *hubclock.Clock
 
 	// tasks is the tasks topic's document: {"tasks": {id: Task}}.
 	tasks *livedoc.Doc
@@ -118,7 +123,7 @@ type Engine struct {
 	closed bool
 	// timers expire approvals; resolvedItems are decided approvals' Inbox
 	// items and when they were decided, pruned after RecentTasks.
-	timers        map[string]*time.Timer
+	timers        map[string]*hubclock.Timer
 	resolvedItems map[string]time.Time
 	// bursts are agent tokens pushing past their limits, by token ID.
 	bursts map[string]*burst
@@ -157,7 +162,7 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 		tasks:         livedoc.New(tasksColl),
 		live:          map[string]*liveTask{},
 		locks:         map[string]string{},
-		timers:        map[string]*time.Timer{},
+		timers:        map[string]*hubclock.Timer{},
 		resolvedItems: map[string]time.Time{},
 	}
 	if e.approvalTTL <= 0 {
@@ -166,8 +171,9 @@ func New(ctx context.Context, o Options) (*Engine, error) {
 	if e.log == nil {
 		e.log = slog.New(slog.DiscardHandler)
 	}
+	e.clk = o.Clock
 	if e.now == nil {
-		e.now = time.Now
+		e.now = o.Clock.Now
 	}
 	e.ctx, e.cancel = context.WithCancel(context.Background())
 	resume, err := e.recover(ctx)
@@ -191,7 +197,7 @@ func (e *Engine) Registry() *Registry { return e.reg }
 
 // Run prunes the topic and the working tables every hour until ctx ends.
 func (e *Engine) Run(ctx context.Context) {
-	t := time.NewTicker(time.Hour)
+	t := e.clk.NewTicker(time.Hour)
 	defer t.Stop()
 	for {
 		e.prune(ctx)

@@ -23,6 +23,16 @@ type (
 		User        auth.User `json:"user"`
 		StepUpUntil time.Time `json:"step_up_until"`
 	}
+	// testClock is GET and POST /api/test/clock's answer; testClockMove
+	// the POST's body, one of its two fields.
+	testClock struct {
+		Now   time.Time `json:"now"`
+		SkewS float64   `json:"skew_s"`
+	}
+	testClockMove struct {
+		Advance string    `json:"advance,omitempty"`
+		Set     time.Time `json:"set,omitzero"`
+	}
 	userBody struct {
 		User auth.User `json:"user"`
 	}
@@ -90,6 +100,8 @@ func init() {
 		"POST /api/auth/demo":                     {Summary: "The public demo only: sign in as its fixed operator, with no password.", Resp: userBody{}, Errors: []string{"rate_limited"}},
 		"POST /api/auth/automation":               {Summary: "Test automation only (CHADASH_TEST_AUTOMATION): sign in as the owner, already stepped up, with the key from automation.key in X-Chadash-Automation-Key.", Resp: automationSignIn{}, Errors: []string{"unauthenticated", "no_owner", "rate_limited"}},
 		"POST /api/auth/automation/step-up":       {Summary: "Test automation only: step up a session the key started, with the same key.", Resp: stepUpGranted{}, Errors: []string{"unauthenticated", "forbidden", "rate_limited"}},
+		"GET /api/test/clock":                     {Summary: "Test clock only (CHADASH_TEST_CLOCK, with test automation): the hub's clock and how far ahead of real time it is. The automation key in X-Chadash-Automation-Key.", Resp: testClock{}, Errors: []string{"unauthenticated", "rate_limited"}},
+		"POST /api/test/clock":                    {Summary: "Test clock only: move the hub's clock forward by advance (a duration) or to set (a time ahead of it), with the automation key. Schedules see the new time at once.", Body: testClockMove{}, Resp: testClock{}, Errors: []string{"invalid", "unauthenticated", "rate_limited"}},
 		"GET /api/auth/oidc/start":                {Summary: "Go to the OIDC provider to sign in, link or step up.", Redirect: true, Query: []Param{{Name: "return", Desc: "The path to come back to."}, {Name: "link", Desc: "1 links the provider account to you."}, {Name: "step_up", Desc: "1 steps up at the provider."}}},
 		"GET /api/auth/oidc/callback":             {Summary: "The OIDC provider's redirect back to the hub.", Redirect: true, Query: []Param{{Name: "code", Desc: "The authorization code."}, {Name: "state", Desc: "The flow's state."}}},
 		"GET /api/auth/session":                   {Summary: "The signed-in user, the session and its step-up state.", Resp: sessionBody{}},

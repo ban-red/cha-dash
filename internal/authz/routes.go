@@ -182,6 +182,10 @@ var Routes = []Route{
 	// the data directory is the credential. Mounted only while it's on.
 	{Pattern: "POST /api/auth/automation", Access: Public, Optional: true},
 	{Pattern: "POST /api/auth/automation/step-up", Access: Public, Optional: true},
+	// The test clock (CHADASH_TEST_CLOCK; auth/testclock.go): the same key.
+	// Mounted only while both are on.
+	{Pattern: "GET /api/test/clock", Access: Public, Optional: true},
+	{Pattern: "POST /api/test/clock", Access: Public, Optional: true},
 	// OIDC sign-in (wave 13): browser redirects to and from the provider.
 	// Linking and step-up through them check the session themselves.
 	{Pattern: "GET /api/auth/oidc/start", Access: Public},
