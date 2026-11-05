@@ -154,7 +154,7 @@ func TestSchemas(t *testing.T) {
 		List    []string        `json:"list"`
 		Num     int64           `json:"num,string"`
 		NoTag   bool
-		private int
+		private int //nolint:unused // here to prove the schema leaves unexported fields out
 	}
 	s := newSchemas()
 	got := s.of(reflect.TypeFor[sample]())

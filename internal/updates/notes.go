@@ -334,7 +334,7 @@ func SanitizeNotes(body, repo string) (string, bool) {
 		if r == '\n' || r == '\t' {
 			return r
 		}
-		if unicode.IsControl(r) || r == '‮' || r == '‭' || r == '⁦' || r == '⁧' || r == '⁨' || r == '⁩' {
+		if unicode.IsControl(r) || r == '\u202e' || r == '\u202d' || r == '\u2066' || r == '\u2067' || r == '\u2068' || r == '\u2069' {
 			return -1
 		}
 		return r

@@ -665,6 +665,10 @@ func (s *Service) RunDue(ctx context.Context) {
 		list = append(list, due{ro, user})
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		s.log.Warn("updates: read scheduled rollouts", "err", err)
+		return
+	}
 	now := s.now()
 	for _, d := range list {
 		if t, ok := s.launched[d.ro.ID]; ok && now.Sub(t) < 10*time.Minute {
@@ -784,6 +788,10 @@ func (s *Service) RecoverRollouts(ctx context.Context) {
 		}
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		s.log.Warn("updates: read running rollouts", "err", err)
+		return
+	}
 	for _, ro := range list {
 		for i := range ro.Steps {
 			switch ro.Steps[i].State {

@@ -36,7 +36,7 @@ func TestPublicDemoRoutes(t *testing.T) {
 func TestDemoRefusesAcrossTheRouteTable(t *testing.T) {
 	unsafe := []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
 	for _, r := range Routes {
-		methods := unsafe
+		var methods []string
 		if m, _, ok := strings.Cut(r.Pattern, " "); ok {
 			methods = []string{m}
 		} else {

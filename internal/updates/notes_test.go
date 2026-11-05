@@ -45,7 +45,7 @@ func TestSanitizeNotes(t *testing.T) {
 		"- Fixed [#12](https://github.com/acme/app/pull/12) and [the docs](https://docs.evil.example/x)\n" +
 		"- See https://github.com/acme/app/releases/tag/v2.0.0, https://github.com/acme/application/x and http://github.com/acme/app/x\n" +
 		"- ![logo](https://github.com/acme/app/logo.png) [click](javascript:alert(1)) www.evil.example data:text/html,hi\n" +
-		"- Sneaky https://github.com/acme/app/../../evil/x ‮evil\u0007\n" +
+		"- Sneaky https://github.com/acme/app/../../evil/x \u202eevil\u0007\n" +
 		"<!-- hidden -->Done"
 	got, cut := SanitizeNotes(in, repo)
 	want := "## What's new\nalert(1)**Fast** scans\n" +

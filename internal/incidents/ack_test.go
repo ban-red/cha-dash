@@ -39,7 +39,7 @@ func TestAcknowledge(t *testing.T) {
 	e.publish("sonarr.down", nil)
 	e.step()
 
-	ack, err := a.Acknowledge(t.Context(), "sonarr.down", "sam", "  On it:\nthe disk is‮ full. ")
+	ack, err := a.Acknowledge(t.Context(), "sonarr.down", "sam", "  On it:\nthe disk is\u202e full. ")
 	if err != nil {
 		t.Fatal(err)
 	}
