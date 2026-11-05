@@ -3,7 +3,8 @@
 // environment names (DOCKER_HOST, or the default socket), then the leak
 // check, which runs even when a test failed.
 //
-// Engine tests are the `engine` build tag's TestEngine* tests. They start
+// Engine tests are the `engine` build tag's TestEngine* tests, and its
+// TestSystem* tests (a whole hub and node in process, cmd/chadash). They start
 // only throwaway, labelled containers, networks, volumes and a registry, and
 // never build an image. Without an engine they skip; CI sets
 // CHADASH_REQUIRE_ENGINE=1 so they fail instead.
@@ -13,7 +14,7 @@
 //   bun run test:engine -- -run TestEngineCanaries ./internal/testengine/
 
 const args = process.argv.slice(2);
-const run = args.includes('-run') ? [] : ['-run', '^TestEngine'];
+const run = args.includes('-run') ? [] : ['-run', '^Test(Engine|System)'];
 // Without packages named: every package with an engine-tagged test file.
 // Other packages' tests that happen to start with TestEngine stay out.
 function enginePackages(): string[] {

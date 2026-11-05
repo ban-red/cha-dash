@@ -22,6 +22,8 @@ Each layer runs everything below it too. Pick the lowest that proves the claim.
 | 4 | **System** (grows) | The real hub and a real node as processes, a real Docker Engine, Playwright in Chromium and WebKit, test automation mode, a test clock, fake outside services | CI on every pull request | `bun run e2e` (Demo Home, as today), `bun run e2e:system` (hub + node + Docker) |
 | 5 | **Live drift** | `spikes/live-verify` promoted to `tools/live`: read-only requests to the lab's real instances, sanitized, compared with the recorded fixtures | Run by the agent when an integration changes or before a release ([T2](#open-questions-t1t4)) | `bun run live:verify [id…]` |
 
+**Layer 4 in process** (2026-11-05): `cmd/chadash`'s `TestSystem…` tests (`-tags engine`, run by `bun run test:engine`) start the whole hub with `newApp` and a real node beside it in the same test binary, its Docker and stacks modules on the engine, paired through the hub's local pairing, and drive them through the HTTP API with the automation key. They need no build, so they run locally and in the Engine job. The first deploys a stack through plan and approve, then a broken version that rolls back, and reads the result from the hub. The browser half of layer 4 stays in `web/e2e`.
+
 Layer 5 isn't a test of Cha Dash. It finds out when an upstream API has changed so the fixtures are wrong. When it finds a difference, the fix is new fixtures (recorded by `chadash dev record`, sanitized) and a layer 1–2 test that fails on the old ones.
 
 ## The harness to build

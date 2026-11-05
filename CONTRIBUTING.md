@@ -60,7 +60,7 @@ What it leaves to CI: the build, the images, the engine tests, the end-to-end te
 
 **Nothing is tested by hand** ([plan 17](docs/plan/17-test-automation.md)): every check is an automated test, at the lowest layer that proves it, on throwaway data directories, containers and registries. A pull request that needs a check adds the test for it.
 
-**Engine tests** run the node's Docker and stacks modules against a real Docker Engine: the one `DOCKER_HOST` names, or the default socket. They start a throwaway registry, push canary images to it (committed from a pinned busybox, never built), and remove everything they started; a leak check after the suite fails on anything left behind. Without an engine they skip.
+**Engine tests** run the node's Docker and stacks modules against a real Docker Engine, and system tests (`TestSystem…` in `cmd/chadash`) run a whole hub and a node in the test process against it, through the hub's API: the one `DOCKER_HOST` names, or the default socket. They start a throwaway registry, push canary images to it (committed from a pinned busybox, never built), and remove everything they started; a leak check after the suite fails on anything left behind. Without an engine they skip.
 
 ```sh
 bun run test:engine                          # every package with engine tests (the engine build tag)
