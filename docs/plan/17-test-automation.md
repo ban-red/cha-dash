@@ -32,12 +32,13 @@ What's missing for layers 3 and 4, and for checks that once needed a person, a d
 
 - A `engine` build tag and `internal/testengine`: connects to `DOCKER_HOST`, skips with a clear message when there's no engine (fails in CI, where `CHADASH_REQUIRE_ENGINE=1`), and gives each test a run ID, a labelled network and cleanup that removes everything with its label.
 - **A throwaway registry** (`registry:2`) on a random loopback port, optionally behind htpasswd for private-registry tests.
-- **Images made without a build.** Tests write images straight into that registry with go-containerregistry (a test-only dependency, never linked into the hub or node): a tiny image that serves health, the same with an entrypoint that exits 1, an image whose health check never passes. This replaces "a canary from a temporary registry on pvedocker" and needs no `docker build`.
+- **Images made without a build.** A canary is a pinned busybox with another config (entrypoint, health check, a label for its version), committed through the Engine API and pushed to that registry: one that serves HTTP and passes its health check, one that exits 1 at once, one whose health check never passes. Pushing a new version moves the tag. This replaces "a canary from a temporary registry on pvedocker", needs no `docker build` and no new dependency.
+- **Built** (2026-11-05): `internal/testengine`, `bun run test:engine`, the Engine CI job on amd64 and arm64, and the first engine tests: stacks deploy, rollback (never healthy, exits at once), the dry run blocking a missing tag, a failed new stack removed; `container.update` with each broken image and a good one; `image.check` seeing the tag move.
 - Images the tests pull from Docker Hub (`registry:2`, `busybox`) are pinned by digest.
 
 ### H2 · A test clock
 
-The 67 places that take a `now func() time.Time` get it from one clock made in `newApp`. With test automation on, and only then, `CHADASH_TEST_CLOCK=1` makes that clock controllable: `POST /api/test/clock {"advance": "15m"}` or `{"set": "…"}`, with the automation key. Timers run through the same clock. This automates maintenance windows, the 5-minute grace, the morning digest at its time, the public demo's hourly reset, token expiry, and "a week of recording" (the simulator generates a week in seconds).
+The 67 places that take a `now func() time.Time` get it from one clock made in `newApp`. With test automation on, and only then, `CHADASH_TEST_CLOCK=1` makes that clock controllable: `POST /api/test/clock {"advance": "15m"}` or `{"set": "…"}`, with the automation key. Timers run through the same clock.
 
 ### H3 · Fake outside services
 

@@ -91,6 +91,9 @@ jobs:
         # A path under /root or /home passes on a laptop and fails here, where
         # it exists but can't be read (scripts/ci/test-paths.py).
         run: python3 scripts/ci/test-paths.py
+      - name: go vet -tags engine
+        # The engine tests compile here; they run in the Engine job.
+        run: go vet -tags engine ./...
       - name: dev login (-tags devlogin)
         # Only `bun run dev` builds with this tag; release builds must not.
         run: |
@@ -234,6 +237,37 @@ jobs:
         run: bun install --frozen-lockfile
       - name: TypeScript 7.1 typecheck
         run: bun run typecheck:next
+
+  # Layer 3 (docs/plan/17-test-automation.md): the node's Docker and stacks
+  # modules against the runner's real Docker Engine, with a throwaway registry
+  # and canary images committed from a pinned busybox (internal/testengine).
+  # Nothing is built. The leak check fails if a test left anything behind.
+  engine:
+    name: Engine (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Engine tests and the leak check
+        env:
+          CHADASH_REQUIRE_ENGINE: "1"
+        run: bun run test:engine
 
   # The release binary with the SPA embedded, on the Demo Home, in a real
   # browser (web/e2e): first run, the front page on desktop and phone, axe in

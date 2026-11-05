@@ -2,15 +2,16 @@
 /**
  * `bun run check`: what CI's Go and JavaScript jobs check, run here, with no build.
  *
- * gofmt, go vet (also with -tags devlogin, and for linux/386 and linux/arm/v7),
+ * gofmt, go vet (also with -tags devlogin and -tags engine, and for linux/386 and linux/arm/v7),
  * go fix, golangci-lint, govulncheck, the Dockerfile's COPY lines, home paths in
  * tests, tagged changelog sections, the typecheck, lint, the design tokens, then
  * the tests: Go with the race
  * detector (and the devlogin packages), and every workspace's. Everything runs
  * side by side, one step per core, the slow test suites first. What it leaves
- * to CI: the build, the images, the end-to-end tests (`bun run release:check`
- * runs those), the advisory TypeScript 7.1 typecheck (`bun run typecheck:next`),
- * the performance budgets and zizmor.
+ * to CI: the build, the images, the engine tests (`bun run test:engine`), the
+ * end-to-end tests (`bun run release:check` runs those), the advisory
+ * TypeScript 7.1 typecheck (`bun run typecheck:next`), the performance
+ * budgets and zizmor.
  *
  *   bun run check              the working tree as it is, other sessions' edits included
  *   bun run check --ref HEAD   a clean copy of a commit, in a temporary git worktree
@@ -97,6 +98,7 @@ function steps(dir: string): Step[] {
       { name: 'gofmt', cmd: ['sh', '-c', "git ls-files -z '*.go' | xargs -0 gofmt -l"], quietOk: true },
       { name: 'go vet', cmd: ['go', 'vet', './...'] },
       { name: 'go vet -tags devlogin', cmd: ['go', 'vet', '-tags', 'devlogin', './...'] },
+      { name: 'go vet -tags engine', cmd: ['go', 'vet', '-tags', 'engine', './...'] },
       // CI runs the suite as 386, which only a Linux amd64 machine can do; vet catches what compiles differently.
       { name: 'go vet linux/386', cmd: ['go', 'vet', './...'], env: { GOOS: 'linux', GOARCH: '386' } },
       { name: 'go vet linux/arm/v7', cmd: ['go', 'vet', './...'], env: { GOOS: 'linux', GOARCH: 'arm', GOARM: '7' } },

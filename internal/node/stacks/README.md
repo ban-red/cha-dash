@@ -138,30 +138,12 @@ Unknown keys and bad values are warnings, never errors.
 
 ## What needs a real daemon
 
-`sdk.go` (the `Docker` implementation over the Compose SDK) is compiled but not exercised by `go test`. The maintainer's live run should confirm:
-- hash parity between `compose.ServiceHash` on a project loaded from memory and the labels the CLI stamped (spike 4.6 confirmed it for path-loaded projects);
-- the dry run blocking a missing tag, and the "couldn't check" classification of registry errors;
-- `RepoDigests` giving pullable pins, and a pinned rollback pulling by digest;
-- restart counts during the soak, and `--wait` timeouts;
-- `docker compose ls` still showing node-deployed stacks at their real paths;
-- the node container's view of external paths (they must be mounted at the same path);
-- self-update through the node's Docker module (`PullImage`, `RecreateImage`): the pulled tag's `RepoDigests`, the hub recreated from its own config with its labels, networks and volumes, the healthcheck seen by the gate, and the rollback to the previous digest. The hub's compose labels stay, so `docker compose ps` still lists it; a later `docker compose up -d` puts the file's tag back;
-- a move of a project another tool started from a host path, and its first deploy from the root.
+## Engine tests
 
-## Running it for real
+`sdk.go` (the `Docker` implementation over the Compose SDK) runs against a real Docker Engine in `engine_test.go` (`bun run test:engine`, the `engine` build tag, [plan 17](../../../docs/plan/17-test-automation.md#layers)). Images come from a throwaway registry, as canaries committed from a pinned busybox ([`internal/testengine`](../../testengine)). They cover:
+- a deploy, an unchanged redeploy, and a good deploy after rollbacks;
+- a bad deploy rolling back on its own, for an image that never turns healthy and one that exits at once: pinned to the digest v1 ran (`RepoDigests` give pullable pins, and the rollback pulls by digest), comments kept, the failed attempt in the history;
+- the dry run blocking a missing tag, with no commit and the container untouched;
+- a new stack whose first deploy fails being taken down, its file removed.
 
-For the maintainer, on a scratch stack on the hub's host only (see 08 · v0.2 → Dogfooding writes). Needs a go-ahead per run.
-
-1. Run `chadash-node` with the stacks root mounted, e.g. `/opt/stacks:/opt/stacks`, and paired with the hub.
-2. Settings → Stacks → New stack `scratch`:
-   ```yaml
-   services:
-     web:
-       image: nginx:1.27-alpine
-       healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost"], interval: 3s, retries: 2 }
-   ```
-   Save the draft, then Deploy (hold). Expect the task to succeed and history to show `Deploy scratch: create web`.
-3. Edit the healthcheck to probe a port nothing listens on (`http://localhost:9`). Save, then Deploy.
-4. Expect the task to fail with code `rolled_back`, "…rolled back on its own…". History shows `Roll back scratch: container scratch-web-1 is unhealthy (pinned web)` above the failed `Deploy`. `/opt/stacks/scratch/compose.yaml` should be v1 with `nginx:1.27-alpine@sha256:…`, and `docker compose ls` should still list `scratch`.
-5. Optional: a missing tag (`nginx:9.99-nope`) should be blocked before anything stops, with web's uptime unchanged.
-6. Clean up: un-adopt or `docker compose down` the scratch stack.
+Not covered yet, each a test to write rather than a run to make: hash parity between `compose.ServiceHash` on a project loaded from memory and labels the CLI stamped; the "couldn't check" classification of registry errors; `docker compose ls` showing node-deployed stacks at their paths; external paths seen from the node's container; self-update (`PullImage`, `RecreateImage`) recreating a container with its labels, networks and volumes; a move of a project another tool started from a host path.

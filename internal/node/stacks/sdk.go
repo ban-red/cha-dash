@@ -16,8 +16,8 @@ import (
 
 // SDK is Docker through the Compose SDK, in process: no docker CLI, the
 // same reconciler and config hashes as `docker compose` (ADR-0020). It
-// needs a daemon, so it's exercised by the maintainer's live run, not by
-// `go test` (see README.md → Running it for real).
+// needs a daemon, so it's exercised by the engine tests (engine_test.go,
+// bun run test:engine), not by a plain `go test`.
 type SDK struct {
 	cli command.Cli
 }

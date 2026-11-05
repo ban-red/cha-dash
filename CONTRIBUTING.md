@@ -56,7 +56,16 @@ bun run check --quick      # no race detector or govulncheck
 bun run hooks              # once: a pre-push hook runs `check --ref` on what you push
 ```
 
-What it leaves to CI: the build, the images, the end-to-end tests and the performance budgets. Push small batches, so CI's answer comes the day the code was written; a release is no time to meet a month of it.
+What it leaves to CI: the build, the images, the engine tests, the end-to-end tests and the performance budgets. Push small batches, so CI's answer comes the day the code was written; a release is no time to meet a month of it.
+
+**Nothing is tested by hand** ([plan 17](docs/plan/17-test-automation.md)): every check is an automated test, at the lowest layer that proves it, on throwaway data directories, containers and registries. A pull request that needs a check adds the test for it.
+
+**Engine tests** run the node's Docker and stacks modules against a real Docker Engine: the one `DOCKER_HOST` names, or the default socket. They start a throwaway registry, push canary images to it (committed from a pinned busybox, never built), and remove everything they started; a leak check after the suite fails on anything left behind. Without an engine they skip.
+
+```sh
+bun run test:engine                          # every package with engine tests (the engine build tag)
+bun run test:engine ./internal/node/stacks/  # one package
+```
 
 **End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, and the safety ladder on the action engine. Playwright's test runner needs Node.js (any current LTS); nothing else here does.
 
@@ -107,10 +116,11 @@ docker build --target node -t chadash-node:dev .                      # its imag
 
 | Job | Checks |
 |---|---|
-| Go | gofmt, `go vet`, `go test -race` (and again with `-tags devlogin`), an empty `go fix -diff`, golangci-lint ([`.golangci.yml`](.golangci.yml), staticcheck included), govulncheck; the Dockerfile's `hub` and `node-build` stages COPY every directory their binary imports |
+| Go | gofmt, `go vet` (also with `-tags engine`), `go test -race` (and again with `-tags devlogin`), an empty `go fix -diff`, golangci-lint ([`.golangci.yml`](.golangci.yml), staticcheck included), govulncheck; the Dockerfile's `hub` and `node-build` stages COPY every directory their binary imports |
 | JavaScript | frozen `bun install`, typecheck, lint, tests, design tokens up to date |
 | Workflows | zizmor's security audits of `.github/workflows/`; accepted findings and their reasons are in [`.github/zizmor.yml`](.github/zizmor.yml) |
 | Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui`, and chadash-node |
+| Engine | amd64 and arm64: `bun run test:engine` on the runner's Docker Engine, with `CHADASH_REQUIRE_ENGINE=1` so a missing engine fails, then the leak check |
 | End-to-end | the hub with the SPA embedded, in Chromium: first run, the front page on desktop and phone, **axe (WCAG 2.2 AA) in all six themes**, the command bar, a T1 action and a T2 confirmation |
 | Image | amd64 and arm64 builds of the hub and the node (no push), a smoke run of each, **hub image ≤ 40 MB compressed**, **node binary ≤ 40 MB** |
 | Footprint (non-blocking) | the hub's RSS budgets, and the node binary's size |
