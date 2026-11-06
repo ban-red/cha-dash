@@ -449,7 +449,7 @@ func TestIncidents(t *testing.T) {
 	var repls []map[string]any
 	b, _ = os.ReadFile(filepath.Join(fixtures, "nas", "replication.query.json"))
 	_ = json.Unmarshal(b, &repls)
-	repls[1]["state"] = map[string]any{"state": "FINISHED", "datetime": map[string]any{"$date": 1791037800000}}
+	repls[1]["state"] = map[string]any{"state": "FINISHED", "datetime": map[string]any{"$date": int64(1791037800000)}}
 	srv.set("replication.query", rpcReply{result: repls})
 	h.Advance(30 * time.Minute)
 	syncOK(t, in, integrationtest.Watched)
@@ -662,7 +662,7 @@ func TestLastOKSurvivesRestart(t *testing.T) {
 	var repls []map[string]any
 	b, _ := os.ReadFile(filepath.Join(fixtures, "nas", "replication.query.json"))
 	_ = json.Unmarshal(b, &repls)
-	repls[0]["state"] = map[string]any{"state": "ERROR", "datetime": map[string]any{"$date": 1791036000000}, "error": "connection refused."}
+	repls[0]["state"] = map[string]any{"state": "ERROR", "datetime": map[string]any{"$date": int64(1791036000000)}, "error": "connection refused."}
 	srv.set("replication.query", rpcReply{result: repls})
 	in2 := h.Connect(Integration{}, map[string]any{"url": srv.URL, "tls": map[string]any{"mode": "tofu"}}, map[string]string{"api_key": fakeKey}).(*instance)
 	syncOK(t, in2, integrationtest.Watched)

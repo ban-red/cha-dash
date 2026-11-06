@@ -25,8 +25,10 @@ test('a display shows its board with no chrome, and its credential opens nothing
   expect(secret).toMatch(/^cdc_/);
   expect(display.board.id).toBe(board.id);
 
-  // A screen with no session opens the link.
-  const screen = await browser.newContext();
+  // A screen with no session opens the link. The project's own storage
+  // state is the owner's session, so this context starts empty.
+  const signedOut = { storageState: { cookies: [], origins: [] } };
+  const screen = await browser.newContext(signedOut);
   const tab = await screen.newPage();
   const errors: string[] = [];
   tab.on('pageerror', (e) => errors.push(e.message));
@@ -41,14 +43,21 @@ test('a display shows its board with no chrome, and its credential opens nothing
   // No chrome: no navigation, no Inbox, no menus, no command bar, no sign-in.
   await expect(tab.getByRole('navigation')).toHaveCount(0);
   await expect(tab.getByRole('button', { name: /^Inbox/ })).toHaveCount(0);
-  await expect(tab.getByRole('button', { name: /menu|settings/i })).toHaveCount(0);
+  // A tile's menu ("Fleet menu") and the Settings menu; an incident's own
+  // text may mention settings.
+  await expect(tab.getByRole('button', { name: /(^|\s)menu$|^settings$/i })).toHaveCount(0);
   await expect(tab.locator('.brief')).toHaveCount(0);
   await tab.keyboard.press('ControlOrMeta+k');
   await expect(tab.getByRole('dialog')).toHaveCount(0);
   await expect(tab.getByText('This display isn’t signed in')).toHaveCount(0);
 
+  // The demo changes tiles' states as it runs, and a state's colours fade in
+  // over half a second: axe measures the colours they settle on.
+  await tab.evaluate(() => document.documentElement.setAttribute('data-motion', 'none'));
+  await tab.evaluate(() => Promise.all(document.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.finished.catch(() => undefined))));
   const { violations } = await new AxeBuilder({ page: tab }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);
+  // Each node with axe's own summary (for contrast: the colours and the ratio it measured).
+  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => `${n.target.join(' ')} (${n.failureSummary ?? ''})`).join(', ')}`)).toEqual([]);
 
   // The cookie is the display's, HttpOnly, sent only to /api/display.
   const cookie = (await screen.cookies()).find((c) => c.name === 'chadash_display');
@@ -60,7 +69,7 @@ test('a display shows its board with no chrome, and its credential opens nothing
   // The link was good once: the cookie holds a different secret, and a
   // second claim with the code is refused.
   expect(cookie!.value).not.toContain(secret);
-  const again = await (await browser.newContext()).request.post('/api/display/claim', { headers: json, data: { token: secret } });
+  const again = await (await browser.newContext(signedOut)).request.post('/api/display/claim', { headers: json, data: { token: secret } });
   expect(again.status()).toBe(401);
 
   // Session routes refuse it: with the context's cookies, with the cookie sent by hand, and with the secret as a bearer.
@@ -69,9 +78,12 @@ test('a display shows its board with no chrome, and its credential opens nothing
   expect((await tab.request.get('/api/graph', { headers: { Cookie: `chadash_display=${cookie!.value}` } })).status()).toBe(401);
   const upgrade = { Connection: 'Upgrade', Upgrade: 'websocket', 'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==' };
   expect((await tab.request.get('/ws', { headers: { ...upgrade, Cookie: `chadash_display=${cookie!.value}` } })).status()).toBe(401);
-  for (const path of ['/api/graph', '/api/inbox', '/api/tokens']) {
-    const res = await fetch(`${baseURL}${path}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${secret}` } });
-    expect(res.status, path).toBe(401);
+  // Neither the spent link nor the device's own secret works as a bearer.
+  for (const credential of [secret, cookie!.value]) {
+    for (const path of ['/api/graph', '/api/inbox', '/api/tokens']) {
+      const res = await fetch(`${baseURL}${path}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${credential}` } });
+      expect(res.status, `${path} with ${credential.slice(0, 4)}…`).toBe(401);
+    }
   }
 
   // Revoked: the display's own route refuses it, and the screen says it isn't signed in.

@@ -196,9 +196,7 @@ func (in *instance) publish(ctx context.Context, now time.Time) error {
 		id := in.poolID(p.Name)
 		poolIDs[p.Name] = id
 		r, inc, l := in.poolFacts(p, id, now)
-		for k, v := range l {
-			leaves[k] = v
-		}
+		maps.Copy(leaves, l)
 		used := integration.Unknown()
 		if p.Size.ok && p.Size.v > 0 && p.Allocated.ok {
 			used = p.Allocated.v / p.Size.v * 100

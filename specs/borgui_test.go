@@ -66,7 +66,7 @@ func TestBorgUI(t *testing.T) {
 	// A remote source: its SSH connection's host, its paths as written.
 	checkTarget(t, h, a, "borgui:i_test/plan/2", "Pi config", "failed", integration.HealthDown,
 		"The last run failed: Remote source unavailable: ssh: connect to host 10.20.30.51 port 22: Connection refused", map[string]any{
-			"backup.covers":      covers("10.20.30.51", "/etc", "/home/pi"),
+			"backup.covers":      covers("10.20.30.51", "/etc", "/srv/pi"),
 			"backup.last_status": "failed",
 			"backup.last_at":     "2026-11-06T01:30:31Z",
 			"backup.last_ok":     "2026-11-05T01:31:12Z",

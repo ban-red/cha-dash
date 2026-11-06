@@ -19,6 +19,7 @@ export function useBreakpoint(el: Ref<HTMLElement | null>, initial: Breakpoint =
   const breakpoint = ref<Breakpoint>(initial);
   const width = ref(0);
   let ro: ResizeObserver | undefined;
+  let frame = 0;
 
   const measure = (w: number) => {
     if (!w) return;
@@ -31,13 +32,21 @@ export function useBreakpoint(el: Ref<HTMLElement | null>, initial: Breakpoint =
     if (!node) return;
     measure(node.getBoundingClientRect().width);
     if (typeof ResizeObserver === 'function') {
+      // In the next frame: a new breakpoint relays the board out, which
+      // would resize what's watched inside the observer's callback.
       ro = new ResizeObserver((entries) => {
-        for (const e of entries) measure(e.contentRect.width);
+        const w = entries.at(-1)?.contentRect.width;
+        if (w === undefined) return;
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => measure(w));
       });
       ro.observe(node);
     }
   });
-  onBeforeUnmount(() => ro?.disconnect());
+  onBeforeUnmount(() => {
+    cancelAnimationFrame(frame);
+    ro?.disconnect();
+  });
 
   return { breakpoint, width };
 }

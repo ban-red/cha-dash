@@ -15,7 +15,7 @@
  * Playwright's test runner, and installs Playwright's Chromium the first time.
  * Takes about ten minutes; stops at the first step that fails.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -52,7 +52,8 @@ const steps: [string, string[], string, Record<string, string>?][] = [
   ['bun run check', ['bun', 'scripts/check.ts'], dir],
   ['Build the SPA', ['bun', 'run', 'build'], dir],
   ['Build the hub with the SPA embedded', ['go', 'build', '-tags', 'webui', '-trimpath', '-o', 'chadash', './cmd/chadash'], dir, { CGO_ENABLED: '0' }],
-  ['Playwright Chromium', ['bunx', 'playwright', 'install', 'chromium'], join(dir, 'web')],
+  // WebKit for the iPhone and iPad projects, as CI installs.
+  ['Playwright browsers', ['bunx', 'playwright', 'install', 'chromium', 'webkit'], join(dir, 'web')],
   ['End-to-end tests', ['bun', 'run', 'e2e'], dir],
 ];
 
@@ -64,6 +65,16 @@ for (const [name, cmd, cwd, env] of steps) {
     failed = name;
     break;
   }
+}
+// Playwright's traces and page snapshots outlive the clean copy, so a
+// failure can be read (web/test-results/ is git-ignored).
+if (failed === 'End-to-end tests' && existsSync(join(dir, 'web', 'test-results'))) {
+  rmSync(join(ROOT, 'web', 'test-results'), { recursive: true, force: true });
+  cpSync(join(dir, 'web', 'test-results'), join(ROOT, 'web', 'test-results'), { recursive: true });
+  // The hub's side of it (e2e/global-setup.ts writes it).
+  const hubLog = join(dir, 'web', 'e2e', '.hub.log');
+  if (existsSync(hubLog)) cpSync(hubLog, join(ROOT, 'web', 'test-results', 'hub.log'));
+  console.log('Playwright results and the hub log copied to web/test-results/.');
 }
 Bun.spawnSync(['git', 'worktree', 'remove', '--force', dir], { cwd: ROOT });
 rmSync(dir, { recursive: true, force: true });

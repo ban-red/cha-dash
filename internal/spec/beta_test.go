@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -53,9 +54,7 @@ func syncSemantics(t *testing.T, version string, config map[string]any) (map[str
 	s := mustParse(t, src)
 	h := integrationtest.New(t)
 	cfg := map[string]any{"url": srv.URL}
-	for k, v := range config {
-		cfg[k] = v
-	}
+	maps.Copy(cfg, config)
 	if err := h.Connect(s, cfg, nil).Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)
 	}

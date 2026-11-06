@@ -163,16 +163,16 @@ func migrateFile(path string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "%s: already %s\n", path, spec.APIVersion)
 		return nil
 	}
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) //nolint:gosec // G703: a spec file the operator named on the command line
 	if err != nil {
 		return err
 	}
 	tmp := path + ".migrate"
-	if err := os.WriteFile(tmp, out, info.Mode().Perm()); err != nil {
+	if err := os.WriteFile(tmp, out, info.Mode().Perm()); err != nil { //nolint:gosec // G703: beside the file the operator named, keeping its mode
 		return err
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	if err := os.Rename(tmp, path); err != nil { //nolint:gosec // G703: the file the operator named
+		_ = os.Remove(tmp) //nolint:gosec // G703: our temporary file beside the one the operator named
 		return err
 	}
 	fmt.Fprintf(stdout, "%s: migrated to %s\n", path, spec.APIVersion)
@@ -210,11 +210,11 @@ func newSpec(dir, id string, now time.Time) ([]string, error) {
 	}
 	var wrote []string
 	for _, f := range files {
-		if err := os.MkdirAll(filepath.Dir(f.path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(f.path), 0o755); err != nil { //nolint:gosec // G301: a spec's source folder, meant to be shared and committed
 			return wrote, err
 		}
 		// O_EXCL: a file that appeared since the check isn't overwritten.
-		w, err := os.OpenFile(f.path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		w, err := os.OpenFile(f.path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644) //nolint:gosec // G302: source files, meant to be shared and committed
 		if err != nil {
 			return wrote, err
 		}

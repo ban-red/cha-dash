@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/cookiejar"
 	"regexp"
@@ -321,9 +322,7 @@ func TestRouteMatrix(t *testing.T) {
 			// no credential, every session, every API token and a token with
 			// a session cookie are all 401 invalid_display.
 			probes := map[string]*http.Client{"anonymous": anon, "mixed": mixed}
-			for role, c := range clients {
-				probes[role] = c
-			}
+			maps.Copy(probes, clients)
 			for role, c := range tokens {
 				probes[role+"'s token"] = c
 			}

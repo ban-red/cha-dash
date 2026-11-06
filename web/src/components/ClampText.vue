@@ -7,7 +7,7 @@
  * upstream's page that explains it), text that fits is a link there, in a
  * new tab, and the dialog of cut text offers the same link.
  */
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import { useUi } from '../stores/ui';
 
@@ -30,20 +30,39 @@ const ui = useUi();
 const el = useTemplateRef<HTMLElement>('el');
 const cut = ref(false);
 let ro: ResizeObserver | undefined;
+let frame = 0;
 
 function measure(): void {
   const e = el.value;
+  const was = cut.value;
   cut.value = !!e && e.scrollHeight > e.clientHeight + 1;
+  // Cut or not renders a different element: watch the new one.
+  if (cut.value !== was) void nextTick(observe);
+}
+
+function observe(): void {
+  if (!ro) return;
+  ro.disconnect();
+  if (el.value) ro.observe(el.value);
 }
 
 onMounted(() => {
   measure();
-  if (typeof ResizeObserver !== 'undefined' && el.value) {
-    ro = new ResizeObserver(measure);
-    ro.observe(el.value);
+  if (typeof ResizeObserver !== 'undefined') {
+    // Measured in the next frame: changing what's shown inside the
+    // observer's callback would resize what it watches in the same frame
+    // (WebKit reports that as "ResizeObserver loop completed").
+    ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
+    observe();
   }
 });
-onBeforeUnmount(() => ro?.disconnect());
+onBeforeUnmount(() => {
+  cancelAnimationFrame(frame);
+  ro?.disconnect();
+});
 watch(
   () => text,
   () => requestAnimationFrame(measure),

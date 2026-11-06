@@ -117,7 +117,7 @@ func summarize(doc map[string]any) Summary {
 		if in.Severity != "down" && in.Severity != "attention" {
 			continue
 		}
-		o := open{SummaryIncident: SummaryIncident{ID: in.ID, Title: in.Title, Severity: in.Severity, Target: in.Target, OpenedAt: in.OpenedAt}}
+		o := open{ID: in.ID, Title: in.Title, Severity: in.Severity, Target: in.Target, OpenedAt: in.OpenedAt}
 		if in.Acknowledged != nil {
 			o.acked, o.AcknowledgedBy = true, in.Acknowledged.By
 			s.Incidents.Acknowledged++

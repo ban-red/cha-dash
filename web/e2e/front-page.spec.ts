@@ -30,6 +30,10 @@ for (const theme of ['instrument-dark', 'instrument-light', 'oled', 'night', 'hi
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     await expect(page.getByText('Nextcloud is stuck in maintenance mode').first()).toBeVisible();
+    // Tiles change state as the demo runs, and their colours fade: measure
+    // the colours they settle on.
+    await page.evaluate(() => document.documentElement.setAttribute('data-motion', 'none'));
+    await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.finished.catch(() => undefined))));
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();

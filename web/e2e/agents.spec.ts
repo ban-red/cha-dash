@@ -98,7 +98,8 @@ test('an agent proposes over MCP; the owner approves with a hold and a passkey',
   const secondID = (second.structured.proposal as { id: string }).id;
   const withdrawn = await mcp.call('withdraw', { proposal: secondID, reason: 'e2e: not needed.' });
   expect(withdrawn.isError).toBe(false);
-  expect(((await mcp.call('get_proposal', { proposal: secondID })).structured.proposal as { state: string }).state).toBe('expired');
+  // get_proposal answers with the proposal itself, not wrapped as propose's is.
+  expect((await mcp.call('get_proposal', { proposal: secondID })).structured.state).toBe('expired');
 
   // The owner approves in the Inbox: the hold, then the passkey.
   await page.goto('/');
@@ -117,7 +118,7 @@ test('an agent proposes over MCP; the owner approves with a hold and a passkey',
 
   // The agent sees it decided, and the audit names both sides.
   await expect
-    .poll(async () => ((await mcp.call('get_proposal', { proposal: proposal.id })).structured.proposal as { state: string }).state, { timeout: 15_000 })
+    .poll(async () => (await mcp.call('get_proposal', { proposal: proposal.id })).structured.state, { timeout: 15_000 })
     .toBe('approved');
   const audit = await page.request.get('/api/audit?action=approval.approve&limit=5');
   expect(audit.ok()).toBe(true);
