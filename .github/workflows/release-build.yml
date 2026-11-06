@@ -184,7 +184,7 @@ jobs:
           sha256sum chadash-* install.sh > SHA256SUMS
           cat SHA256SUMS
           { echo "### Binaries"; echo; echo '```'; cat SHA256SUMS; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chadash-binaries
           path: dist/
