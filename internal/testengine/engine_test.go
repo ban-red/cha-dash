@@ -61,14 +61,12 @@ func TestEngineRegistryWithLogin(t *testing.T) {
 	e := New(t)
 	reg := e.Registry(WithLogin("tester", "not-a-real-password"))
 	ref := reg.Ref("private", "1")
-	pinned := e.Push(reg, ref, Healthy, "1")
+	e.Push(reg, ref, Healthy, "1")
 
-	// Drop the local copy, then pull it back: with the login, and without.
+	// Push leaves no local copy, so these pulls go to the registry: without
+	// the login, and with it.
 	ctx, cancel := e.Ctx()
 	defer cancel()
-	if _, err := e.Cli.ImageRemove(ctx, pinned, client.ImageRemoveOptions{Force: true}); err != nil {
-		t.Fatal(err)
-	}
 	if r, err := e.Cli.ImagePull(ctx, ref, client.ImagePullOptions{}); err == nil {
 		if err = r.Wait(ctx); err == nil {
 			t.Fatal("a pull without the login should be refused")

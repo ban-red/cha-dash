@@ -140,9 +140,11 @@ func (e *Engine) Pull(ref string) {
 }
 
 // Start starts a container from image with this run's labels, and returns
-// its ID. extra labels are added.
+// its ID, pulling the image first if the engine hasn't got it. extra labels
+// are added.
 func (e *Engine) Start(name, image string, extra map[string]string) string {
 	e.t.Helper()
+	e.Pull(image)
 	ctx, cancel := e.Ctx()
 	defer cancel()
 	labels := e.Labels()
@@ -318,8 +320,9 @@ func probe(port string) *container.HealthConfig {
 }
 
 // Push makes a canary image of the given kind, tags it as ref (in reg),
-// pushes it and returns its pinned reference, repo@sha256:…. version tells
-// canaries of the same kind apart, so pushing a new version moves the tag.
+// pushes it, removes it from the engine, and returns its pinned reference,
+// repo@sha256:…. version tells canaries of the same kind apart, so pushing
+// a new version moves the tag.
 func (e *Engine) Push(reg *Registry, ref string, kind Canary, version string) string {
 	e.t.Helper()
 	e.Pull(Busybox)
@@ -356,18 +359,40 @@ func (e *Engine) Push(reg *Registry, ref string, kind Canary, version string) st
 	if err := push.Wait(ctx); err != nil {
 		e.t.Fatalf("push %s: %v", ref, err)
 	}
-	img, err := e.Cli.ImageInspect(ctx, commit.ID)
+	// The digest is the registry's, as a pull records it.
+	repo, tag, _ := strings.Cut(strings.TrimPrefix(ref, reg.Host+"/"), ":")
+	digest := reg.digest(ctx, e.t, repo, tag)
+	// Then the engine forgets it: a host has only what it pulled, with the
+	// repo digest a pull records (an engine on the containerd store keeps
+	// none for an image it pushed). Start and the node pull it back.
+	_, _ = e.Cli.ImageRemove(ctx, ref, client.ImageRemoveOptions{})
+	_, _ = e.Cli.ImageRemove(ctx, commit.ID, client.ImageRemoveOptions{})
+	return reg.Host + "/" + repo + "@" + digest
+}
+
+// digest is a tag's manifest digest, from a HEAD as a pull would ask.
+func (r *Registry) digest(ctx context.Context, t testing.TB, repo, tag string) string {
+	t.Helper()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, "http://"+r.Host+"/v2/"+repo+"/manifests/"+tag, nil)
+	req.Header.Set("Accept", strings.Join([]string{
+		"application/vnd.oci.image.index.v1+json",
+		"application/vnd.docker.distribution.manifest.list.v2+json",
+		"application/vnd.oci.image.manifest.v1+json",
+		"application/vnd.docker.distribution.manifest.v2+json",
+	}, ", "))
+	if r.User != "" {
+		req.SetBasicAuth(r.User, r.Password)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		e.t.Fatal(err)
+		t.Fatalf("registry HEAD %s:%s: %v", repo, tag, err)
 	}
-	repo, _, _ := strings.Cut(strings.TrimPrefix(ref, reg.Host+"/"), ":")
-	for _, d := range img.RepoDigests {
-		if strings.HasPrefix(d, reg.Host+"/"+repo+"@") {
-			return d
-		}
+	resp.Body.Close()
+	d := resp.Header.Get("Docker-Content-Digest")
+	if resp.StatusCode != http.StatusOK || !strings.HasPrefix(d, "sha256:") {
+		t.Fatalf("registry HEAD %s:%s = %d, digest %q", repo, tag, resp.StatusCode, d)
 	}
-	e.t.Fatalf("push %s: no digest in %v", ref, img.RepoDigests)
-	return ""
+	return d
 }
 
 // ── cleanup and the leak check ──
