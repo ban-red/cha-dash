@@ -1,0 +1,146 @@
+[
+ {
+  "name": "jellyfin",
+  "id": "jellyfin",
+  "state": "RUNNING",
+  "upgrade_available": true,
+  "latest_version": "1.2.15",
+  "image_updates_available": false,
+  "custom_app": false,
+  "migrated": false,
+  "human_version": "10.10.7_1.2.14",
+  "version": "1.2.14",
+  "metadata": {
+   "app_version": "10.10.7",
+   "name": "jellyfin",
+   "title": "Jellyfin",
+   "train": "community",
+   "description": "",
+   "categories": [
+    "media"
+   ],
+   "icon": ""
+  },
+  "active_workloads": {
+   "containers": 1,
+   "used_ports": [],
+   "container_details": [],
+   "volumes": [],
+   "images": [],
+   "networks": []
+  },
+  "notes": null,
+  "portals": {
+   "Web UI": "http://10.0.12.20:30013/"
+  },
+  "version_details": null,
+  "config": null
+ },
+ {
+  "name": "immich",
+  "id": "immich",
+  "state": "RUNNING",
+  "upgrade_available": false,
+  "latest_version": null,
+  "image_updates_available": false,
+  "custom_app": false,
+  "migrated": false,
+  "human_version": "v1.135.3_1.6.9",
+  "version": "1.6.9",
+  "metadata": {
+   "app_version": "v1.135.3",
+   "name": "immich",
+   "title": "Immich",
+   "train": "community",
+   "description": "",
+   "categories": [
+    "media"
+   ],
+   "icon": ""
+  },
+  "active_workloads": {
+   "containers": 1,
+   "used_ports": [],
+   "container_details": [],
+   "volumes": [],
+   "images": [],
+   "networks": []
+  },
+  "notes": null,
+  "portals": {
+   "Web UI": "http://10.0.12.20:30041/"
+  },
+  "version_details": null,
+  "config": null
+ },
+ {
+  "name": "nextcloud",
+  "id": "nextcloud",
+  "state": "CRASHED",
+  "upgrade_available": false,
+  "latest_version": null,
+  "image_updates_available": false,
+  "custom_app": false,
+  "migrated": false,
+  "human_version": "31.0.6_2.0.12",
+  "version": "2.0.12",
+  "metadata": {
+   "app_version": "31.0.6",
+   "name": "nextcloud",
+   "title": "Nextcloud",
+   "train": "community",
+   "description": "",
+   "categories": [
+    "media"
+   ],
+   "icon": ""
+  },
+  "active_workloads": {
+   "containers": 0,
+   "used_ports": [],
+   "container_details": [],
+   "volumes": [],
+   "images": [],
+   "networks": []
+  },
+  "notes": null,
+  "portals": {},
+  "version_details": null,
+  "config": null
+ },
+ {
+  "name": "syncthing",
+  "id": "syncthing",
+  "state": "STOPPED",
+  "upgrade_available": false,
+  "latest_version": null,
+  "image_updates_available": false,
+  "custom_app": false,
+  "migrated": false,
+  "human_version": "1.29.7_1.2.3",
+  "version": "1.2.3",
+  "metadata": {
+   "app_version": "1.29.7",
+   "name": "syncthing",
+   "title": "Syncthing",
+   "train": "community",
+   "description": "",
+   "categories": [
+    "media"
+   ],
+   "icon": ""
+  },
+  "active_workloads": {
+   "containers": 0,
+   "used_ports": [],
+   "container_details": [],
+   "volumes": [],
+   "images": [],
+   "networks": []
+  },
+  "notes": null,
+  "portals": {},
+  "version_details": null,
+  "config": null
+ }
+]

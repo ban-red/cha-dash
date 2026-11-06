@@ -1,0 +1,532 @@
+[
+ {
+  "id": 1,
+  "name": "tank",
+  "guid": "4719283746501928374",
+  "status": "DEGRADED",
+  "path": "/mnt/tank",
+  "scan": {
+   "function": "SCRUB",
+   "state": "FINISHED",
+   "start_time": {
+    "$date": 1790467200000
+   },
+   "end_time": {
+    "$date": 1790496000000
+   },
+   "percentage": 100.0,
+   "bytes_to_process": 34025136455270,
+   "bytes_processed": 34025136455270,
+   "bytes_issued": 34025136455270,
+   "pause": null,
+   "errors": 0,
+   "total_secs_left": null
+  },
+  "expand": null,
+  "is_upgraded": true,
+  "healthy": false,
+  "warning": false,
+  "status_code": "DEGRADED",
+  "status_detail": "One or more devices are faulted in response to persistent errors. Sufficient replicas exist for the pool to continue functioning in a degraded state.",
+  "size": 47821438894080,
+  "allocated": 34025136455270,
+  "free": 13796302438810,
+  "freeing": 0,
+  "dedup_table_size": 0,
+  "dedup_table_quota": "auto",
+  "fragmentation": "9",
+  "size_str": "47821438894080",
+  "allocated_str": "34025136455270",
+  "free_str": "13796302438810",
+  "freeing_str": "0",
+  "autotrim": {
+   "parsed": "off",
+   "rawvalue": "off",
+   "source": "DEFAULT",
+   "value": "off"
+  },
+  "topology": {
+   "data": [
+    {
+     "name": "raidz2-0",
+     "type": "RAIDZ2",
+     "path": null,
+     "guid": "9182736450192837465",
+     "status": "DEGRADED",
+     "stats": {
+      "timestamp": 1791036300000,
+      "read_errors": 0,
+      "write_errors": 0,
+      "checksum_errors": 0,
+      "ops": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "bytes": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "size": 47821438894080,
+      "allocated": 34025136455270,
+      "fragmentation": 9,
+      "self_healed": 0,
+      "configured_ashift": 12,
+      "logical_ashift": 9,
+      "physical_ashift": 12
+     },
+     "children": [
+      {
+       "name": "1100000000000000001",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000001",
+       "guid": "1100000000000000001",
+       "status": "ONLINE",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 0,
+        "write_errors": 0,
+        "checksum_errors": 0,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "sda1",
+       "disk": "sda",
+       "unavail_disk": null
+      },
+      {
+       "name": "1100000000000000002",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000002",
+       "guid": "1100000000000000002",
+       "status": "ONLINE",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 0,
+        "write_errors": 0,
+        "checksum_errors": 0,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "sdb1",
+       "disk": "sdb",
+       "unavail_disk": null
+      },
+      {
+       "name": "1100000000000000003",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000003",
+       "guid": "1100000000000000003",
+       "status": "ONLINE",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 0,
+        "write_errors": 0,
+        "checksum_errors": 0,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "sdc1",
+       "disk": "sdc",
+       "unavail_disk": null
+      },
+      {
+       "name": "1100000000000000004",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000004",
+       "guid": "1100000000000000004",
+       "status": "FAULTED",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 3,
+        "write_errors": 0,
+        "checksum_errors": 41,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "sdd1",
+       "disk": "sdd",
+       "unavail_disk": null
+      },
+      {
+       "name": "1100000000000000005",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000005",
+       "guid": "1100000000000000005",
+       "status": "ONLINE",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 0,
+        "write_errors": 0,
+        "checksum_errors": 0,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "sde1",
+       "disk": "sde",
+       "unavail_disk": null
+      },
+      {
+       "name": "1100000000000000006",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000006",
+       "guid": "1100000000000000006",
+       "status": "ONLINE",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 0,
+        "write_errors": 0,
+        "checksum_errors": 0,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "sdf1",
+       "disk": "sdf",
+       "unavail_disk": null
+      }
+     ],
+     "unavail_disk": null
+    }
+   ],
+   "log": [],
+   "cache": [],
+   "spare": [],
+   "special": [],
+   "dedup": []
+  }
+ },
+ {
+  "id": 2,
+  "name": "fast",
+  "guid": "6650192837465019283",
+  "status": "ONLINE",
+  "path": "/mnt/fast",
+  "scan": {
+   "function": "SCRUB",
+   "state": "FINISHED",
+   "start_time": {
+    "$date": 1790467200000
+   },
+   "end_time": {
+    "$date": 1790468100000
+   },
+   "percentage": 100.0,
+   "bytes_to_process": 836003226828,
+   "bytes_processed": 836003226828,
+   "bytes_issued": 836003226828,
+   "pause": null,
+   "errors": 0,
+   "total_secs_left": null
+  },
+  "expand": null,
+  "is_upgraded": true,
+  "healthy": true,
+  "warning": false,
+  "status_code": null,
+  "status_detail": null,
+  "size": 1992864825344,
+  "allocated": 836003226828,
+  "free": 1156861598516,
+  "freeing": 0,
+  "dedup_table_size": 0,
+  "dedup_table_quota": "auto",
+  "fragmentation": "3",
+  "size_str": "1992864825344",
+  "allocated_str": "836003226828",
+  "free_str": "1156861598516",
+  "freeing_str": "0",
+  "autotrim": {
+   "parsed": "on",
+   "rawvalue": "on",
+   "source": "LOCAL",
+   "value": "on"
+  },
+  "topology": {
+   "data": [
+    {
+     "name": "mirror-0",
+     "type": "MIRROR",
+     "path": null,
+     "guid": "7766554433221100998",
+     "status": "ONLINE",
+     "stats": {
+      "timestamp": 1791036300000,
+      "read_errors": 0,
+      "write_errors": 0,
+      "checksum_errors": 0,
+      "ops": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "bytes": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "size": 1992864825344,
+      "allocated": 836003226828,
+      "fragmentation": 9,
+      "self_healed": 0,
+      "configured_ashift": 12,
+      "logical_ashift": 9,
+      "physical_ashift": 12
+     },
+     "children": [
+      {
+       "name": "2200000000000000001",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000001",
+       "guid": "2200000000000000001",
+       "status": "ONLINE",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 0,
+        "write_errors": 0,
+        "checksum_errors": 0,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "nvme0n11",
+       "disk": "nvme0n1",
+       "unavail_disk": null
+      },
+      {
+       "name": "2200000000000000002",
+       "type": "DISK",
+       "path": "/dev/disk/by-partuuid/00000000-0000-4000-8000-000000000002",
+       "guid": "2200000000000000002",
+       "status": "ONLINE",
+       "stats": {
+        "timestamp": 1791036300000,
+        "read_errors": 0,
+        "write_errors": 0,
+        "checksum_errors": 0,
+        "ops": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "bytes": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "size": 0,
+        "allocated": 0,
+        "fragmentation": 0,
+        "self_healed": 0,
+        "configured_ashift": 12,
+        "logical_ashift": 9,
+        "physical_ashift": 12
+       },
+       "children": [],
+       "device": "nvme1n11",
+       "disk": "nvme1n1",
+       "unavail_disk": null
+      }
+     ],
+     "unavail_disk": null
+    }
+   ],
+   "log": [],
+   "cache": [],
+   "spare": [],
+   "special": [],
+   "dedup": []
+  }
+ }
+]

@@ -29,6 +29,7 @@ import (
 	_ "dash.cha.sh/integrations/sonarr"         // Sonarr: queue, wanted, calendar
 	_ "dash.cha.sh/integrations/traefik"        // Traefik routers, services and backends
 	_ "dash.cha.sh/integrations/transmission"   // Transmission: speeds, torrents
+	_ "dash.cha.sh/integrations/truenas"        // TrueNAS 25.04+: pools, datasets, disks, apps, snapshot and replication tasks (WebSocket JSON-RPC)
 	_ "dash.cha.sh/integrations/unifi"          // UniFi Network: devices, clients, WAN health (session login)
 	_ "dash.cha.sh/integrations/unraid"         // Unraid API (GraphQL)
 	_ "dash.cha.sh/integrations/uptimekuma"     // Uptime Kuma: a status page's monitors

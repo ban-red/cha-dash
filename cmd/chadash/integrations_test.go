@@ -33,7 +33,7 @@ func TestIntegrationsLinkedIn(t *testing.T) {
 		// Reach (v0.4): bundled specs
 		"beszel", "komodo", "gatus", "arcane", "dockhand",
 		// Network and power (v0.5)
-		"nut", "unifi", "tailscale", "cloudflaretunnel", "technitium",
+		"truenas", "nut", "unifi", "tailscale", "cloudflaretunnel", "technitium",
 	} {
 		if _, _, ok := integration.Default.Get(id); !ok {
 			t.Errorf("%s isn't registered in the hub", id)

@@ -1,0 +1,144 @@
+[
+ {
+  "uuid": "00000000-0000-4000-8000-000000000001",
+  "source": "VolumeStatus",
+  "klass": "VolumeStatus",
+  "args": {
+   "volume": "tank",
+   "state": "DEGRADED",
+   "status": "One or more devices are faulted in response to persistent errors."
+  },
+  "node": "Controller A",
+  "key": "[\"tank\"]",
+  "datetime": {
+   "$date": 1791020460000
+  },
+  "last_occurrence": {
+   "$date": 1791036000000
+  },
+  "dismissed": false,
+  "mail": null,
+  "text": "Pool %(volume)s state is %(state)s: %(status)s",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "level": "CRITICAL",
+  "formatted": "Pool tank state is DEGRADED: One or more devices are faulted in response to persistent errors.",
+  "one_shot": false
+ },
+ {
+  "uuid": "00000000-0000-4000-8000-000000000002",
+  "source": "SMART",
+  "klass": "SMARTFailedSelfTest",
+  "args": {
+   "name": "sdd",
+   "serial": "FAKEHDD00004"
+  },
+  "node": "Controller A",
+  "key": "[\"FAKEHDD00004\"]",
+  "datetime": {
+   "$date": 1791020460000
+  },
+  "last_occurrence": {
+   "$date": 1791036000000
+  },
+  "dismissed": false,
+  "mail": null,
+  "text": "%(name)s (%(serial)s) failed a SMART selftest.",
+  "id": "00000000-0000-4000-8000-000000000002",
+  "level": "WARNING",
+  "formatted": "sdd (FAKEHDD00004) failed a SMART selftest.",
+  "one_shot": false
+ },
+ {
+  "uuid": "00000000-0000-4000-8000-000000000003",
+  "source": "Replication",
+  "klass": "ReplicationFailed",
+  "args": {
+   "name": "fast/apps - tank/backups/apps",
+   "message": "cannot receive incremental stream: out of space."
+  },
+  "node": "Controller A",
+  "key": "[2]",
+  "datetime": {
+   "$date": 1791034200000
+  },
+  "last_occurrence": {
+   "$date": 1791036000000
+  },
+  "dismissed": false,
+  "mail": null,
+  "text": "Replication \"%(name)s\" failed: %(message)s.",
+  "id": "00000000-0000-4000-8000-000000000003",
+  "level": "CRITICAL",
+  "formatted": "Replication \"fast/apps - tank/backups/apps\" failed: cannot receive incremental stream: out of space..",
+  "one_shot": false
+ },
+ {
+  "uuid": "00000000-0000-4000-8000-000000000004",
+  "source": "Certificates",
+  "klass": "CertificateExpired",
+  "args": {
+   "name": "truenas_default"
+  },
+  "node": "Controller A",
+  "key": "[\"truenas_default\"]",
+  "datetime": {
+   "$date": 1789171200000
+  },
+  "last_occurrence": {
+   "$date": 1791036000000
+  },
+  "dismissed": false,
+  "mail": null,
+  "text": "Certificate %(name)r has expired.",
+  "id": "00000000-0000-4000-8000-000000000004",
+  "level": "CRITICAL",
+  "formatted": "Certificate 'truenas_default' has expired.",
+  "one_shot": false
+ },
+ {
+  "uuid": "00000000-0000-4000-8000-000000000005",
+  "source": "NTPHealthCheck",
+  "klass": "NTPHealthCheck",
+  "args": {
+   "reason": "No active NTP peers"
+  },
+  "node": "Controller A",
+  "key": "null",
+  "datetime": {
+   "$date": 1791020460000
+  },
+  "last_occurrence": {
+   "$date": 1791036000000
+  },
+  "dismissed": false,
+  "mail": null,
+  "text": "NTP health check failed - %(reason)s",
+  "id": "00000000-0000-4000-8000-000000000005",
+  "level": "WARNING",
+  "formatted": "NTP health check failed - No active NTP peers",
+  "one_shot": false
+ },
+ {
+  "uuid": "00000000-0000-4000-8000-000000000006",
+  "source": "ScrubPaused",
+  "klass": "ScrubPaused",
+  "args": {
+   "pool": "fast"
+  },
+  "node": "Controller A",
+  "key": "[\"fast\"]",
+  "datetime": {
+   "$date": 1789171200000
+  },
+  "last_occurrence": {
+   "$date": 1791036000000
+  },
+  "dismissed": true,
+  "mail": null,
+  "text": "Scrub for pool %r is paused for more than 8 hours.",
+  "id": "00000000-0000-4000-8000-000000000006",
+  "level": "WARNING",
+  "formatted": "Scrub for pool 'fast' is paused for more than 8 hours.",
+  "one_shot": false
+ }
+]

@@ -1,0 +1,20 @@
+{
+  "pw_name": "chadash",
+  "pw_gecos": "Cha Dash (read-only)",
+  "pw_dir": "/var/empty",
+  "pw_shell": "/usr/sbin/nologin",
+  "pw_uid": 3001,
+  "pw_gid": 3001,
+  "grouplist": [3001, 951],
+  "sid": null,
+  "source": "LOCAL",
+  "local": true,
+  "attributes": {},
+  "two_factor_config": {"secret_configured": false},
+  "privilege": {
+    "roles": {"$set": ["READONLY_ADMIN"]},
+    "allowlist": [],
+    "web_shell": false
+  },
+  "account_attributes": ["LOCAL", "API_KEY"]
+}

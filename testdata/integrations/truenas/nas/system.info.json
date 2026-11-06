@@ -1,0 +1,21 @@
+{
+  "version": "25.10.0",
+  "buildtime": {"$date": 1790467200000},
+  "hostname": "nas01",
+  "physmem": 68719476736,
+  "model": "AMD Ryzen 7 5700G with Radeon Graphics",
+  "cores": 16,
+  "physical_cores": 8,
+  "loadavg": [0.42, 0.51, 0.48],
+  "uptime": "5 days, 12:53:00.000000",
+  "uptime_seconds": 478380.0,
+  "system_serial": "0000-FAKE-SERIAL",
+  "system_product": "Default string",
+  "system_product_version": "Default string",
+  "license": null,
+  "boottime": {"$date": 1790557920000},
+  "datetime": {"$date": 1791036300000},
+  "timezone": "Etc/UTC",
+  "system_manufacturer": "Default string",
+  "ecc_memory": true
+}

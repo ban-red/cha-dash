@@ -1,0 +1,596 @@
+[
+ {
+  "id": "tank",
+  "type": "FILESYSTEM",
+  "name": "tank",
+  "pool": "tank",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 32985348833280,
+   "rawvalue": "32985348833280",
+   "value": "30720.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 1649267441664,
+   "rawvalue": "1649267441664",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank"
+ },
+ {
+  "id": "tank/.system",
+  "type": "FILESYSTEM",
+  "name": "tank/.system",
+  "pool": "tank",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 2147483648,
+   "rawvalue": "2147483648",
+   "value": "2.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 107374182,
+   "rawvalue": "107374182",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank/.system"
+ },
+ {
+  "id": "tank/ix-apps",
+  "type": "FILESYSTEM",
+  "name": "tank/ix-apps",
+  "pool": "tank",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 42949672960,
+   "rawvalue": "42949672960",
+   "value": "40.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 2147483648,
+   "rawvalue": "2147483648",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank/ix-apps"
+ },
+ {
+  "id": "tank/media",
+  "type": "FILESYSTEM",
+  "name": "tank/media",
+  "pool": "tank",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 26388279066624,
+   "rawvalue": "26388279066624",
+   "value": "24576.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 1319413953331,
+   "rawvalue": "1319413953331",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank/media"
+ },
+ {
+  "id": "tank/media/movies",
+  "type": "FILESYSTEM",
+  "name": "tank/media/movies",
+  "pool": "tank",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 16492674416640,
+   "rawvalue": "16492674416640",
+   "value": "15360.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 824633720832,
+   "rawvalue": "824633720832",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank/media/movies"
+ },
+ {
+  "id": "tank/media/tv",
+  "type": "FILESYSTEM",
+  "name": "tank/media/tv",
+  "pool": "tank",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 494780232499,
+   "rawvalue": "494780232499",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank/media/tv"
+ },
+ {
+  "id": "tank/backups",
+  "type": "FILESYSTEM",
+  "name": "tank/backups",
+  "pool": "tank",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 4398046511104,
+   "rawvalue": "4398046511104",
+   "value": "4096.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 1099511627776,
+   "rawvalue": "1099511627776",
+   "value": "1024.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 219902325555,
+   "rawvalue": "219902325555",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": 5497558138880,
+   "rawvalue": "5497558138880",
+   "value": "5497558138880",
+   "source": "LOCAL"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank/backups"
+ },
+ {
+  "id": "tank/vault",
+  "type": "FILESYSTEM",
+  "name": "tank/vault",
+  "pool": "tank",
+  "encrypted": true,
+  "encryption_root": "tank/vault",
+  "key_loaded": false,
+  "locked": true,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 322122547200,
+   "rawvalue": "322122547200",
+   "value": "300.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 9895604649984,
+   "rawvalue": "9895604649984",
+   "value": "9216.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 16106127360,
+   "rawvalue": "16106127360",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/tank/vault"
+ },
+ {
+  "id": "fast",
+  "type": "FILESYSTEM",
+  "name": "fast",
+  "pool": "fast",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 816043786240,
+   "rawvalue": "816043786240",
+   "value": "760.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 1073741824000,
+   "rawvalue": "1073741824000",
+   "value": "1000.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 40802189312,
+   "rawvalue": "40802189312",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/fast"
+ },
+ {
+  "id": "fast/apps",
+  "type": "FILESYSTEM",
+  "name": "fast/apps",
+  "pool": "fast",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 128849018880,
+   "rawvalue": "128849018880",
+   "value": "120.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 1073741824000,
+   "rawvalue": "1073741824000",
+   "value": "1000.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 6442450944,
+   "rawvalue": "6442450944",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/fast/apps"
+ },
+ {
+  "id": "fast/vms",
+  "type": "FILESYSTEM",
+  "name": "fast/vms",
+  "pool": "fast",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 644245094400,
+   "rawvalue": "644245094400",
+   "value": "600.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 1073741824000,
+   "rawvalue": "1073741824000",
+   "value": "1000.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 32212254720,
+   "rawvalue": "32212254720",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": "/mnt/fast/vms"
+ },
+ {
+  "id": "fast/vms/homeassistant",
+  "type": "VOLUME",
+  "name": "fast/vms/homeassistant",
+  "pool": "fast",
+  "encrypted": false,
+  "encryption_root": null,
+  "key_loaded": false,
+  "locked": false,
+  "children": [],
+  "user_properties": {},
+  "used": {
+   "parsed": 68719476736,
+   "rawvalue": "68719476736",
+   "value": "64.00G",
+   "source": "NONE"
+  },
+  "available": {
+   "parsed": 1073741824000,
+   "rawvalue": "1073741824000",
+   "value": "1000.00G",
+   "source": "NONE"
+  },
+  "usedbysnapshots": {
+   "parsed": 3435973836,
+   "rawvalue": "3435973836",
+   "value": "",
+   "source": "NONE"
+  },
+  "quota": {
+   "parsed": null,
+   "rawvalue": "0",
+   "value": null,
+   "source": "DEFAULT"
+  },
+  "compression": {
+   "parsed": "LZ4",
+   "rawvalue": "LZ4",
+   "value": "LZ4",
+   "source": "DEFAULT"
+  },
+  "readonly": {
+   "parsed": "OFF",
+   "rawvalue": "OFF",
+   "value": "OFF",
+   "source": "DEFAULT"
+  },
+  "mountpoint": null,
+  "volsize": {
+   "parsed": 68719476736,
+   "rawvalue": "68719476736",
+   "value": "",
+   "source": "LOCAL"
+  }
+ }
+]
