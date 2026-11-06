@@ -19,6 +19,14 @@ A display reads its one board and what household reads for it:
 
 It can't act, acknowledge, open a resource's sheet, read any other board, read a secret, or call any other part of the API. Its secret is refused everywhere but the display's own routes. A stolen tablet exposes what a household account would see, until you remove it.
 
+## Wall, TV or e-ink
+
+Choose what kind of screen it is when you make the display, or later with **Edit**:
+
+- **Wall tablet**: the board with bigger numbers and no buttons, calm as described below.
+- **TV**: the same, drawn larger to read from across a room. The remote's arrow keys move between tiles, and the tile in focus shows its details.
+- **E-ink screen**: one colour, no motion, and times as "at 14:05" rather than "4m ago". It never dims, tints or moves, since e-ink has no backlight and can't burn in. A new incident still shows its line on top.
+
 ## How it behaves
 
 - **Calm by default.** Two minutes after the last change the display dims. From 21:00 to 07:00 (the hub's time) it turns warmer.
@@ -30,7 +38,7 @@ It can't act, acknowledge, open a resource's sheet, read any other board, read a
 
 ## Setting up the device
 
-Any browser works. Turn off the device's own sleep, or let it dim but never lock. Here's one way for each kind of device.
+Any browser works. Turn off the device's own sleep, or let it dim but never lock. Here's one way for each kind of device. For a TV, use its own browser or a stick that runs one, such as a Fire TV with Silk, and make the display a TV display.
 
 ### An Android tablet with Fully Kiosk Browser
 

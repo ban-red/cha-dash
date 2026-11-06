@@ -129,9 +129,12 @@ docker build --target node -t chadash-node:dev .                      # its imag
 | Build | the SPA, **initial JS ≤ 150 kB gzipped**, the hub with `-tags webui`, and chadash-node |
 | Engine | amd64 and arm64: `bun run test:engine` on the runner's Docker Engine, with `CHADASH_REQUIRE_ENGINE=1` so a missing engine fails, then the leak check |
 | End-to-end | the hub with the SPA embedded, in Chromium: first run, the front page on desktop and phone, **axe (WCAG 2.2 AA) in all six themes**, the command bar, a T1 action and a T2 confirmation, and a passkey registered, used to sign in and to step up by Chromium's virtual authenticator |
+| Visual | `bun run test:visual` in `web/`: a sheet per widget and theme (every level of detail by loading, empty, healthy, incidents and stale) in headless Chromium, compared with the committed baselines |
 | Image | amd64 and arm64 builds of the hub and the node (no push), a smoke run of each, **hub image ≤ 40 MB compressed**, **node binary ≤ 40 MB** |
 | Footprint (non-blocking) | the hub's RSS budgets, and the node binary's size |
 | Docs ([`docs.yml`](.github/workflows/docs.yml)) | the OpenAPI document, the docs generators' tests, and the docs site's build; on `main` it also deploys to GitHub Pages |
+
+**Visual baselines are made only in CI**, because fonts render differently on each OS. The committed references are CI's, in `web/test/visual/__screenshots__/`. Anywhere else, `bun run test:visual` keeps its own references in `web/test/visual/.local/` (git-ignored): the first run records them and later runs compare with them; `--update` records them again. To change the committed ones, label the pull request `update-visual-baselines`, or run CI by hand with `update_visual_baselines`. The Visual job then records instead of comparing and uploads the `visual-baselines` artifact; download it with `gh run download <run> -n visual-baselines -D web/test/visual/__screenshots__` and commit it. A failed comparison uploads `visual-diffs`, with the reference, actual and diff of each sheet.
 
 CodeQL ([`codeql.yml`](.github/workflows/codeql.yml): Go, TypeScript and the workflows) runs on every pull request too, and OpenSSF Scorecard ([`scorecard.yml`](.github/workflows/scorecard.yml)) runs on `main`.
 
@@ -199,6 +202,15 @@ The node image gets the same tags as the hub.
 **The first release only** (and the first with the node, for `chadash-node`): ghcr.io makes a new package private. Open the package's settings, make it public, and check it's linked to this repository. If the package already existed, give the repository write access under *Manage Actions access*, or the push is refused.
 
 **A stable release** (no `-beta` or `-rc`) also moves `latest`. 0.3.0 was the first: the Unraid template follows `latest` ([deploy/unraid](deploy/unraid/README.md#for-the-maintainer-listing-it-in-ca)), and the install docs no longer add a `beta` override. At each new minor release, update *Supported versions* in [SECURITY.md](SECURITY.md), and add the release's data directory to the upgrade tests ([testdata/upgrade](testdata/upgrade/README.md#adding-a-release)), so later versions keep opening it.
+
+### Deprecations
+
+Until 1.0 the API can change, but never without warning. A route or a field goes in two steps:
+
+1. **Deprecate it** in a release: set `Deprecated: "<version>"` on its row in `internal/apidoc` (the OpenAPI document then marks it `deprecated`), and say so under `### Deprecated` in the changelog.
+2. **Remove it** no sooner than the next minor version: list the route in `Removed` in `internal/apidoc/deprecation_test.go` with the version that deprecated it.
+
+`release:cut` writes each final release's routes to `internal/apidoc/testdata/released/`. `TestDeprecationRule` fails when a released route is gone without having been deprecated in a release first. A setting (a flag or an environment variable) follows the same rule through `Deprecated` in `internal/config/schema.go`, and removing one raises the config schema's version.
 
 ## Fixtures and privacy
 

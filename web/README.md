@@ -330,6 +330,19 @@ Containers carrying Homepage's `homepage.group` and `homepage.name` labels (the 
 - **The Inbox item:** "3 services found by their labels. Add them?", with where each goes. **Add them** puts them all on the board in one save; **Dismiss** remembers the answer on the hub, per board: `GET /api/boards/{id}/discovery` → `{"dismissed": [...]}`, `POST /api/boards/{id}/discovery/dismiss` `{"resources": [...]}`. Its toast has **Undo** for 10 s (`POST /api/boards/{id}/discovery/restore`, the same body), and edit mode lists every dismissed service to offer again. The question counts in the Briefing's Inbox badge until it's answered.
 - The dismissed list is fetched only once something could be suggested, and nothing is suggested before it arrives, while the hub is unreachable, or on an unsaved board.
 
+## Levels of detail
+
+Every widget draws at four levels ([02 · Experience](../docs/plan/02-experience.md#levels-of-detail)), and the surface picks one, not the widget (`lib/level.ts`: `provideLevel`, `useLevel`):
+
+| Level | Where | What changes |
+|---|---|---|
+| `full` | the front page at a desk | nothing: everything |
+| `compact` | the front page at the phone breakpoint (`StaticBoard`) | `.kv` and all but the first `.sub` go; lists keep three rows |
+| `simplified` | a wall or TV display | `.v` at `--type-value-lg`, labels at body size; `.kv`, `.tf`, all but the first `.sub` and controls go; lists keep three rows; nothing is pressed |
+| `ink` | an e-ink display, and printing a board | one colour, no motion, the state in the frame's line (thicker for down, dashed for stale); `ago()` is absolute ("at 14:05"); controls go |
+
+`Tile.vue` marks each tile `lvl-<level>` and drops its cog and view dots below full and compact. `styles/tiles.css` ("Levels of detail") builds every level from the parts widgets share: `.v` the value, `.sub` and `.kv` the secondary facts, `.tf` the foot, `.list` the rows. A control a widget adds that isn't a `.btn` or `.linkish` takes `data-control`. The axe sweep runs every widget at every level (`test/a11y-levels-*.test.ts`).
+
 ## Widgets
 
 The catalog (`model/widgets.ts`) covers the Workbench list's v0.1 rows ([docs/design/workbench.md](../docs/design/workbench.md)): each size is its own layout, never a scaled copy, and every widget designs the eight states. Widgets find what they show by kind and relation, or by `resolve()`/`appsOfType()` for apps, never by fixed ID, so the Demo Home's `app:sonarr` and a real `sonarr:<instance id>/app` read the same way. Targets come in the item id (`<type>@<target>`) or the tile config's `bind.resource`. Lists show one of each thing: a resource the correlator marked `same_as` another is swapped for its primary, and a container row names every source that reports it.
@@ -384,6 +397,10 @@ The catalog (`model/widgets.ts`) covers the Workbench list's v0.1 rows ([docs/de
 Tautulli's Now view also lists what's playing (`attrs.now_playing`: title, who, how far along, direct play or transcode), two rows with a "+N more".
 
 **Loading.** The widgets the default board uses ride with the front page, as before, the clock and the weather included. `metric`, `check`, `guests`, `unraid`, `unraidhost`, `storage` and `bookmarks` load on demand, each its own chunk (about 1.5–4.5 kB gzip), behind a skeleton tile; `preloadWidgets()` fetches them ahead (the tests do). The picker learns what the graph can feed each of them from `model/feeds.ts`.
+
+## Visual regression
+
+`bun run test:visual` (in `web/`; `vitest.visual.config.ts`, Vitest's browser mode in headless Chromium) draws one sheet per widget and theme: rows are the four levels, columns are loading, empty, healthy, incidents and stale. Each sheet is compared with its baseline in `test/visual/__screenshots__/`. Baselines are made only in CI, on Linux: the Visual job records them when there are none, when it's run with `update_visual_baselines`, or when a pull request has the `update-visual-baselines` label. It uploads them as the `visual-baselines` artifact to commit. Locally, references go to the ignored `test/visual/.local/`, so a run on a Mac compares only with itself.
 
 ## The CSP
 
