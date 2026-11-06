@@ -197,6 +197,8 @@ func TestEngineLXCContainer(t *testing.T) {
 		"docker compose up -d",
 		"docker in /opt/chadash",
 	}, "\n") + "\n"
+	// curl … | jq is a pipeline: either shim may log first.
+	calls = strings.Replace(calls, "jq -r .tag_name\ncurl -fsSL https://api.github.com/repos/ban-red/cha-dash/releases/latest\n", "curl -fsSL https://api.github.com/repos/ban-red/cha-dash/releases/latest\njq -r .tag_name\n", 1)
 	if code != 0 || !strings.HasSuffix(calls, want) {
 		t.Fatalf("update exited %d, calls:\n%s\nwant them to end with:\n%s\n%s", code, calls, want, out)
 	}

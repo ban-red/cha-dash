@@ -49,13 +49,13 @@ resources:
 // a 32-bit build: it's float64, exact to 2^53, so this shows on any build.
 func TestIntArithmeticIsFloat(t *testing.T) {
 	for src, want := range map[string]any{
-		"int(2147483647) + 1":            float64(2147483648),
-		"int(1794020400000) + int(500)":  float64(1794020400500),
-		"string(int(48318382080.7))":     "48318382080",
-		"string(1.5)":                    "1.5",
-		"string(int(-3.9))":              "-3",
-		"int(\"12\") * 2":                float64(24),
-		"string(2.0 * 4503599627370496)": "9.007199254740992e+15",
+		"int(2147483647) + 1":              float64(2147483648),
+		"int(1794020400000) + int(500)":    float64(1794020400500),
+		"string(int(48318382080.7))":       "48318382080",
+		"string(1.5)":                      "1.5",
+		"string(int(-3.9))":                "-3",
+		"int(\"12\") * 2":                  float64(24),
+		"string(2.0 * 4503599627370496.0)": "9.007199254740992e+15",
 	} {
 		p, err := expr.Compile(src, intBuiltin, stringBuiltin)
 		if err != nil {
