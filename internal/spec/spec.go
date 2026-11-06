@@ -43,6 +43,7 @@ import (
 	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -580,6 +581,46 @@ func fieldSchema(f field) (*integration.Schema, error) {
 	return s, nil
 }
 
+// int64Builtin is expr-lang's int() at 64 bits on every build. Its own is
+// Go's int, 32 bits on the armv7 image, where a byte count or Unix
+// milliseconds overflow it. Otherwise it's the same: a number truncates
+// toward zero, a string parses as a whole number.
+var int64Builtin = expr.Function("int", func(params ...any) (any, error) {
+	switch v := params[0].(type) {
+	case int:
+		return int64(v), nil
+	case int8:
+		return int64(v), nil
+	case int16:
+		return int64(v), nil
+	case int32:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	case uint:
+		return int64(v), nil
+	case uint8:
+		return int64(v), nil
+	case uint16:
+		return int64(v), nil
+	case uint32:
+		return int64(v), nil
+	case uint64:
+		return int64(v), nil
+	case float32:
+		return int64(v), nil
+	case float64:
+		return int64(v), nil
+	case string:
+		n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid operation: int(%q)", v)
+		}
+		return n, nil
+	}
+	return nil, fmt.Errorf("invalid operation: int(%T)", params[0])
+}, new(func(any) int64))
+
 // compileEnv is what every expression sees at compile time; requests add
 // their names.
 func (s *Spec) compileEnv() map[string]any {
@@ -592,7 +633,7 @@ func (s *Spec) compileEnv() map[string]any {
 
 // compileExpr compiles one expression in env, with the version's semantics.
 func (s *Spec) compileExpr(env map[string]any, src string) (*vm.Program, error) {
-	opts := []expr.Option{expr.Env(env), expr.MaxNodes(500)}
+	opts := []expr.Option{expr.Env(env), expr.MaxNodes(500), int64Builtin}
 	if s.beta {
 		opts = append(opts, expr.Patch(minusOne{}))
 	}
