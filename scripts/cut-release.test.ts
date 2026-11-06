@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { cut, SUMMARY_TODO } from './cut-release';
+import { routePatterns, cut, SUMMARY_TODO } from './cut-release';
 
 const REPO = 'https://github.com/ban-red/cha-dash';
 const log = (unreleased: string, current = '') => `# Changelog
@@ -46,5 +46,12 @@ describe('release:cut', () => {
     expect(() => cut(log(''), '0.2.0', '2026-02-02')).toThrow('Nothing under Unreleased');
     expect(() => cut(log('- **A.** No heading.\n'), '0.2.0', '2026-02-02')).toThrow('no ### heading');
     expect(() => cut(log('### Added\n\n- **A.**\n'), '0.2', '2026-02-02')).toThrow('Not a version');
+  });
+});
+
+describe('routePatterns', () => {
+  test('lists each route once, sorted', () => {
+    const go = '{Pattern: "GET /b", Access: Public},\n{Pattern: "GET /a", Access: Admin},\n\t{Pattern: "GET /b", Access: Public},';
+    expect(routePatterns(go)).toBe('GET /a\nGET /b\n');
   });
 });

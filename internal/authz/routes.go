@@ -200,6 +200,7 @@ var Routes = []Route{
 	{Pattern: "GET /api/auth/oidc/callback", Access: Public},
 	// The spec format's JSON Schema: the same for every hub of a version.
 	{Pattern: "GET /api/specs/schema/v1alpha1.json", Access: Public},
+	{Pattern: "GET /api/config/schema.json", Access: Public},
 	// The API's OpenAPI document (internal/apidoc): generated from this
 	// table, the same for every hub of a version. It holds no data.
 	{Pattern: "GET /api/openapi.json", Access: Public},

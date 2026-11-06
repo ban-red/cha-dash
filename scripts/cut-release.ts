@@ -13,7 +13,12 @@
  *   bun run release:cut 0.2.0-beta.3                 a leading v is fine too
  *   bun run release:cut 0.2.0-beta.3 --date 2026-11-02
  *
- * It only edits the file: read the diff, write the summary, commit, then tag
+ * It also writes the version's API routes to
+ * internal/apidoc/testdata/released/<version>.txt (a final version only, not
+ * a beta), from internal/authz/routes.go: TestDeprecationRule then holds
+ * the next releases to them (CONTRIBUTING.md, "Deprecations").
+ *
+ * It only edits files: read the diff, write the summary, commit, then tag
  * that commit. Anything committed after it is the next release's.
  */
 import { dirname, join } from 'node:path';
@@ -112,6 +117,12 @@ export function cut(changelog: string, version: string, date: string): Cut {
   return { text, moved, created };
 }
 
+/** The route patterns a routes.go declares, sorted, one per line. */
+export function routePatterns(routesGo: string): string {
+  const set = new Set([...routesGo.matchAll(/\{Pattern: "([^"]+)"/g)].map((m) => m[1]!));
+  return [...set].sort().join('\n') + '\n';
+}
+
 if (import.meta.main) {
   const argv = process.argv.slice(2);
   if (!argv.length || argv.includes('--help') || argv.includes('-h')) {
@@ -129,6 +140,13 @@ if (import.meta.main) {
     await Bun.write(file, r.text);
     const what = Object.entries(r.moved).map(([k, n]) => `${n} ${k}`).join(', ');
     console.log(`${r.created ? 'Opened' : 'Merged into'} ${argv[0]!.replace(/^v/, '')}: ${what}.`);
+    const version = argv[0]!.replace(/^v/, '');
+    if (/^\d+\.\d+\.\d+$/.test(version)) {
+      const root = dirname(import.meta.dir);
+      const list = join(root, 'internal/apidoc/testdata/released', `${version}.txt`);
+      await Bun.write(list, routePatterns(await Bun.file(join(root, 'internal/authz/routes.go')).text()));
+      console.log(`Wrote the API's routes to ${list.slice(root.length + 1)}.`);
+    }
     if (r.text.includes(SUMMARY_TODO)) console.log(`Write the summary where CHANGELOG.md says ${SUMMARY_TODO.split(':')[0]}, then commit.`);
   } catch (e) {
     console.error(`release:cut: ${(e as Error).message}`);

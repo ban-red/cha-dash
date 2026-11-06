@@ -55,6 +55,10 @@ type Op struct {
 	// Fail are error answers whose body carries more than the error, by
 	// status.
 	Fail map[int]any
+	// Deprecated is the version that deprecated the route ("0.5.0"): the
+	// document marks it, and it stays for at least one minor version more
+	// before it goes (CONTRIBUTING.md, "Deprecations"; TestDeprecationRule).
+	Deprecated string
 }
 
 // Param is a query parameter.
@@ -243,6 +247,10 @@ func operation(s *schemas, route authz.Route, op Op, method, path string) map[st
 		o["x-chadash-errors"] = op.Errors
 	}
 
+	if op.Deprecated != "" {
+		o["deprecated"] = true
+		o["x-chadash-deprecated-in"] = op.Deprecated
+	}
 	o["x-chadash-access"] = access(route.Access)
 	switch route.Access {
 	case authz.Public, authz.NodeKey, authz.Signature:

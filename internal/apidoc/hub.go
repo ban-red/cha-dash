@@ -46,6 +46,7 @@ func init() {
 		"GET /ws":                             {Summary: "The realtime WebSocket: subscribe to topics.", Upgrade: true},
 		"GET /node":                           {Summary: "chadash-node's channel: a WebSocket with mutual TLS inside, authenticated by the node's pinned key.", Upgrade: true},
 		"GET /api/demo":                       {Summary: "The demo clock and seed; demo mode only.", Resp: demo.Info{}},
+		"GET /api/config/schema.json":         {Summary: "The config schema: every setting the hub and chadash-node take, from flags and the environment, with its version.", Media: "application/schema+json"},
 		"GET /api/specs/schema/v1alpha1.json": {Summary: "The spec format's JSON Schema, the same for every hub of a version.", Media: "application/schema+json"},
 		"GET /api/openapi.json":               {Summary: "This document.", Media: "application/json"},
 		"GET /api/icons":                      {Summary: "Which cached icon each tile, origin and instance uses.", Resp: icons.Map{}},

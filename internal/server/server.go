@@ -90,6 +90,7 @@ import (
 	"dash.cha.sh/internal/backups"
 	"dash.cha.sh/internal/boards"
 	"dash.cha.sh/internal/buildinfo"
+	"dash.cha.sh/internal/config"
 	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
 	"dash.cha.sh/internal/displays"
@@ -239,6 +240,12 @@ func New(d Deps) (http.Handler, error) {
 	mux.HandleFunc("GET /api/specs/schema/v1alpha1.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/schema+json")
 		_, _ = w.Write(spec.Schema())
+	})
+	// The config schema (internal/config): every setting the hub and
+	// chadash-node take, the same for every hub of a version.
+	mux.HandleFunc("GET /api/config/schema.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/schema+json")
+		_, _ = w.Write(config.Schema())
 	})
 	// The API's OpenAPI document, generated from the route table: the same
 	// for every hub of a version, with no data in it, so no session either.
