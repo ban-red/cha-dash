@@ -97,6 +97,7 @@ type View struct {
 	Name       string       `json:"name"`
 	Board      boards.Board `json:"board"`
 	Quiet      *auth.Quiet  `json:"quiet"`
+	Style      auth.Style   `json:"style"`
 	CreatedAt  int64        `json:"created_at"`
 	CreatedBy  string       `json:"created_by"`
 	LastSeenAt *int64       `json:"last_seen_at"`
@@ -104,7 +105,7 @@ type View struct {
 }
 
 func view(d auth.Display) View {
-	v := View{ID: d.ID, Name: d.Name, Board: boards.Board{ID: d.BoardID, Name: d.BoardName}, Quiet: d.Quiet,
+	v := View{ID: d.ID, Name: d.Name, Board: boards.Board{ID: d.BoardID, Name: d.BoardName}, Quiet: d.Quiet, Style: d.Style,
 		CreatedAt: d.CreatedAt.UnixMilli(), CreatedBy: d.CreatedBy}
 	if d.LastSeenAt != nil {
 		ms := d.LastSeenAt.UnixMilli()
@@ -132,8 +133,10 @@ func (s *Service) list(w http.ResponseWriter, r *http.Request) {
 
 // CreateRequest is POST /api/displays' body.
 type CreateRequest struct {
-	Name  string      `json:"name"`
-	Board string      `json:"board"`
+	Name  string `json:"name"`
+	Board string `json:"board"`
+	// Style is wall (the default), tv or ink.
+	Style auth.Style  `json:"style"`
 	Quiet *auth.Quiet `json:"quiet"`
 }
 
@@ -147,7 +150,7 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 		s.Audit.Refuse(r, "displays.create", "", map[string]any{"name": clip(req.Name), "board": clip(req.Board)}, authz.T1, code, m.Text())
 		httpx.Say(w, status, code, m)
 	}
-	d, secret, err := s.Auth.CreateDisplay(r.Context(), a.ID, req.Name, req.Board, req.Quiet)
+	d, secret, err := s.Auth.CreateDisplay(r.Context(), a.ID, req.Name, req.Board, req.Style, req.Quiet)
 	var ve *auth.ValidationError
 	switch {
 	case errors.As(err, &ve):
@@ -160,7 +163,7 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 		s.internal(w, "creating a display failed", err)
 		return
 	}
-	s.Audit.Change(r, "displays.create", "display:"+d.ID, map[string]any{"name": d.Name, "board": d.BoardID, "quiet": d.Quiet}, authz.T1, nil)
+	s.Audit.Change(r, "displays.create", "display:"+d.ID, map[string]any{"name": d.Name, "board": d.BoardID, "style": d.Style, "quiet": d.Quiet}, authz.T1, nil)
 	// The only response that ever carries the secret; /api/displays is
 	// never compressed (server.noCompress).
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"display": view(d), "secret": secret})
@@ -181,6 +184,15 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 		}
 		name = &n
 	}
+	var style *auth.Style
+	if v, ok := raw["style"]; ok {
+		var st auth.Style
+		if json.Unmarshal(v, &st) != nil {
+			httpx.Say(w, http.StatusUnprocessableEntity, "invalid", msg.New("displays.style"))
+			return
+		}
+		style = &st
+	}
 	var quiet *auth.Quiet
 	v, setQuiet := raw["quiet"]
 	if setQuiet && string(v) != "null" {
@@ -190,7 +202,7 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	d, err := s.Auth.UpdateDisplay(r.Context(), id, name, setQuiet, quiet)
+	d, err := s.Auth.UpdateDisplay(r.Context(), id, name, style, setQuiet, quiet)
 	var ve *auth.ValidationError
 	switch {
 	case errors.As(err, &ve):
@@ -206,6 +218,9 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 	params := map[string]any{}
 	if name != nil {
 		params["name"] = d.Name
+	}
+	if style != nil {
+		params["style"] = d.Style
 	}
 	if setQuiet {
 		params["quiet"] = d.Quiet
@@ -238,6 +253,7 @@ type Read struct {
 		ID    string      `json:"id"`
 		Name  string      `json:"name"`
 		Quiet *auth.Quiet `json:"quiet"`
+		Style auth.Style  `json:"style"`
 	} `json:"display"`
 	Board  boards.Board `json:"board"`
 	Layout struct {
@@ -272,7 +288,7 @@ func (s *Service) read(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var out Read
-	out.Display.ID, out.Display.Name, out.Display.Quiet = d.ID, d.Name, d.Quiet
+	out.Display.ID, out.Display.Name, out.Display.Quiet, out.Display.Style = d.ID, d.Name, d.Quiet, d.Style
 	out.Board = boards.Board{ID: d.BoardID, Name: d.BoardName}
 	out.Layout.Revision, out.Layout.FormatVersion, out.Layout.Tiles = l.Revision, l.FormatVersion, l.Tiles
 	out.Layout.Layout = l.Document

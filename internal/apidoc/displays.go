@@ -19,6 +19,7 @@ type (
 	}
 	displayUpdate struct {
 		Name  *string     `json:"name,omitempty"`
+		Style *auth.Style `json:"style,omitempty"` // wall, tv or ink
 		Quiet *auth.Quiet `json:"quiet,omitempty"` // null clears the quiet hours
 	}
 	displayClaim struct {

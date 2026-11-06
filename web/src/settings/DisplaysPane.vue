@@ -5,8 +5,8 @@
  *
  *   GET    /api/displays        → {displays: [{id, name, board: {id, name}, quiet: {start, end} | null,
  *                                   created_at, created_by, last_seen_at, last_seen_ip}]}
- *   POST   /api/displays        {name, board, quiet} → 201 {display, secret}: the secret, once
- *   PATCH  /api/displays/{id}   {name?, quiet?} (quiet null clears) → {display}
+ *   POST   /api/displays        {name, board, style, quiet} → 201 {display, secret}: the secret, once
+ *   PATCH  /api/displays/{id}   {name?, style?, quiet?} (quiet null clears) → {display}
  *   DELETE /api/displays/{id}   → 204: revoked, and the screen's socket closes
  *   GET    /api/boards          → the board picker
  *
@@ -35,11 +35,21 @@ export interface Quiet {
   end: string;
 }
 
+/** How a display shows its board (wave 34). */
+export type Style = 'wall' | 'tv' | 'ink';
+const STYLES: { id: Style; label: string }[] = [
+  { id: 'wall', label: 'Wall tablet' },
+  { id: 'tv', label: 'TV' },
+  { id: 'ink', label: 'E-ink screen' },
+];
+const styleWords = (st: Style | undefined) => STYLES.find((x) => x.id === (st ?? 'wall'))!.label;
+
 export interface HubDisplay {
   id: string;
   name: string;
   board: { id: string; name: string };
   quiet: Quiet | null;
+  style?: Style;
   created_at: number;
   created_by: string;
   last_seen_at: number | null;
@@ -99,14 +109,14 @@ const creating = ref(false);
 const saving = ref(false);
 const createError = ref('');
 const nameError = ref('');
-const draft = reactive({ name: '', board: '', quietOn: false, start: '22:00', end: '07:00' });
+const draft = reactive({ name: '', board: '', style: 'wall' as Style, quietOn: false, start: '22:00', end: '07:00' });
 /** The link just made: shown once, until Done. */
 const fresh = ref<{ display: HubDisplay; link: string } | undefined>();
 const copied = ref(false);
 
 async function startCreate(): Promise<void> {
   creating.value = true;
-  Object.assign(draft, { name: '', board: '', quietOn: false, start: '22:00', end: '07:00' });
+  Object.assign(draft, { name: '', board: '', style: 'wall', quietOn: false, start: '22:00', end: '07:00' });
   nameError.value = '';
   createError.value = '';
   await loadBoards();
@@ -131,7 +141,7 @@ async function create(): Promise<void> {
   }
   saving.value = true;
   try {
-    const res = await api<{ display: HubDisplay; secret: string }>('/api/displays', { method: 'POST', body: { name: draft.name.trim(), board: draft.board, quiet: q.quiet } });
+    const res = await api<{ display: HubDisplay; secret: string }>('/api/displays', { method: 'POST', body: { name: draft.name.trim(), board: draft.board, style: draft.style, quiet: q.quiet } });
     fresh.value = { display: res.display, link: `${location.origin}/display/${encodeURIComponent(res.display.board.id)}#${res.secret}` };
     copied.value = false;
     displays.value = [res.display, ...displays.value];
@@ -164,7 +174,7 @@ function cancelCreate(): void {
 
 // ── edit ──
 const editing = ref('');
-const edit = reactive({ name: '', quietOn: false, start: '22:00', end: '07:00' });
+const edit = reactive({ name: '', style: 'wall' as Style, quietOn: false, start: '22:00', end: '07:00' });
 const editError = ref('');
 const busy = ref('');
 const rowError = reactive<Record<string, string>>({});
@@ -173,7 +183,7 @@ function startEdit(d: HubDisplay): void {
   editing.value = d.id;
   revoking.value = '';
   editError.value = '';
-  Object.assign(edit, { name: d.name, quietOn: !!d.quiet, start: d.quiet?.start ?? '22:00', end: d.quiet?.end ?? '07:00' });
+  Object.assign(edit, { name: d.name, style: d.style ?? 'wall', quietOn: !!d.quiet, start: d.quiet?.start ?? '22:00', end: d.quiet?.end ?? '07:00' });
   void focusFirst(`${uid}-en-${d.id}`);
 }
 
@@ -195,8 +205,9 @@ async function saveEdit(d: HubDisplay): Promise<void> {
     editError.value = q.error;
     return;
   }
-  const body: { name?: string; quiet?: Quiet | null } = {};
+  const body: { name?: string; style?: Style; quiet?: Quiet | null } = {};
   if (name !== d.name) body.name = name;
+  if (edit.style !== (d.style ?? 'wall')) body.style = edit.style;
   if (JSON.stringify(q.quiet) !== JSON.stringify(d.quiet)) body.quiet = q.quiet;
   if (!Object.keys(body).length) {
     cancelEdit(d);
@@ -286,6 +297,11 @@ onMounted(load);
           <option v-for="b in boards" :key="b.id" :value="b.id">{{ b.name }}</option>
         </select>
       </UiField>
+      <UiField label="Kind of screen" help="A wall tablet dims and wakes; a TV is larger, moved with the remote's arrows; an e-ink screen is one colour and never dims." v-slot="{ control }">
+        <select v-bind="control" v-model="draft.style">
+          <option v-for="x in STYLES" :key="x.id" :value="x.id">{{ x.label }}</option>
+        </select>
+      </UiField>
       <UiField label="Quiet hours" check help="Dark at night; only a down incident wakes it. Hub time." v-slot="{ control }">
         <input v-bind="control" v-model="draft.quietOn" type="checkbox" />
       </UiField>
@@ -312,7 +328,7 @@ onMounted(load);
           <span class="mono-badge" aria-hidden="true">{{ d.name.slice(0, 2).toUpperCase() }}</span>
           <span>
             <span class="t">{{ d.name }} <span class="chip">{{ d.board.name }}</span></span>
-            <span class="m">{{ quietWords(d.quiet) }}</span>
+            <span class="m">{{ styleWords(d.style) }} · {{ quietWords(d.quiet) }}</span>
             <span class="m">
               made <span :title="absolute(d.created_at)">{{ ago(d.created_at, now) }}</span> by {{ d.created_by }} ·
               <template v-if="d.last_seen_at">last seen <span :title="absolute(d.last_seen_at)">{{ ago(d.last_seen_at, now) }}</span><template v-if="d.last_seen_ip"> from {{ d.last_seen_ip }}</template></template>
@@ -328,6 +344,11 @@ onMounted(load);
         <form v-if="editing === d.id" class="st-form dpl-edit" novalidate :aria-label="`Edit ${d.name}`" @submit.prevent="saveEdit(d)">
           <UiField :id="`${uid}-en-${d.id}`" label="Name" v-slot="{ control }">
             <input v-bind="control" v-model="edit.name" type="text" maxlength="64" autocomplete="off" />
+          </UiField>
+          <UiField label="Kind of screen" help="A wall tablet dims and wakes; a TV is larger, moved with the remote's arrows; an e-ink screen is one colour and never dims." v-slot="{ control }">
+            <select v-bind="control" v-model="edit.style">
+              <option v-for="x in STYLES" :key="x.id" :value="x.id">{{ x.label }}</option>
+            </select>
           </UiField>
           <UiField label="Quiet hours" check help="Hub time." v-slot="{ control }">
             <input v-bind="control" v-model="edit.quietOn" type="checkbox" />

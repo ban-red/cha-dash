@@ -69,6 +69,27 @@ type Quiet struct {
 	End   string `json:"end"`
 }
 
+// Style is how a display shows its board: StyleWall, StyleTV or StyleInk.
+type Style string
+
+// The display styles, as displays.style allows them.
+const (
+	StyleWall Style = "wall"
+	StyleTV   Style = "tv"
+	StyleInk  Style = "ink"
+)
+
+// ParseStyle returns the style named s; "" is StyleWall.
+func ParseStyle(s string) (Style, error) {
+	switch Style(s) {
+	case "", StyleWall:
+		return StyleWall, nil
+	case StyleTV, StyleInk:
+		return Style(s), nil
+	}
+	return "", &ValidationError{msg.New("displays.style")}
+}
+
 // Display is a display as the displays API lists it. It never carries the
 // secret or its hash.
 type Display struct {
@@ -77,6 +98,7 @@ type Display struct {
 	BoardID    string     `json:"-"`
 	BoardName  string     `json:"-"`
 	Quiet      *Quiet     `json:"quiet"`
+	Style      Style      `json:"style"`
 	CreatedBy  string     `json:"created_by"` // username; "" once the account is gone
 	CreatedAt  time.Time  `json:"created_at"`
 	LastSeenAt *time.Time `json:"last_seen_at"`
@@ -118,9 +140,12 @@ func validateDisplayName(name string) (string, error) {
 // CreateDisplay stores a new display of boardID, made by userID, and
 // returns it with its secret, which is never stored or shown again.
 // ErrNoSuchBoard when the board doesn't exist.
-func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID string, quiet *Quiet) (Display, string, error) {
+func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID string, style Style, quiet *Quiet) (Display, string, error) {
 	name, err := validateDisplayName(name)
 	if err != nil {
+		return Display{}, "", err
+	}
+	if style, err = ParseStyle(string(style)); err != nil {
 		return Display{}, "", err
 	}
 	if err := ValidateQuiet(quiet); err != nil {
@@ -146,8 +171,8 @@ func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID strin
 		if userID != "" {
 			by = sql.NullString{String: userID, Valid: true}
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO displays (id, name, board_id, token_hash, quiet_start, quiet_end, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, name, boardID, tokenHash(secret), qs, qe, by, now)
+		_, err := tx.ExecContext(ctx, `INSERT INTO displays (id, name, board_id, token_hash, quiet_start, quiet_end, style, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, name, boardID, tokenHash(secret), qs, qe, string(style), by, now)
 		return err
 	})
 	if err != nil {
@@ -161,20 +186,22 @@ func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID strin
 	return d, secret, nil
 }
 
-const displayQuery = `SELECT d.id, d.name, d.board_id, b.title, d.quiet_start, d.quiet_end, COALESCE(u.username, ''), d.created_at, d.last_seen_at, d.last_seen_ip, d.revoked_at
+const displayQuery = `SELECT d.id, d.name, d.board_id, b.title, d.quiet_start, d.quiet_end, d.style, COALESCE(u.username, ''), d.created_at, d.last_seen_at, d.last_seen_ip, d.revoked_at
 	FROM displays d JOIN boards b ON b.id = d.board_id LEFT JOIN users u ON u.id = d.created_by`
 
 func scanDisplay(sc scanner) (Display, error) {
 	var d Display
 	var qs, qe, ip sql.NullString
+	var style string
 	var created int64
 	var seen, revoked sql.NullInt64
-	if err := sc.Scan(&d.ID, &d.Name, &d.BoardID, &d.BoardName, &qs, &qe, &d.CreatedBy, &created, &seen, &ip, &revoked); err != nil {
+	if err := sc.Scan(&d.ID, &d.Name, &d.BoardID, &d.BoardName, &qs, &qe, &style, &d.CreatedBy, &created, &seen, &ip, &revoked); err != nil {
 		return Display{}, err
 	}
 	if qs.Valid && qe.Valid {
 		d.Quiet = &Quiet{Start: qs.String, End: qe.String}
 	}
+	d.Style = Style(style)
 	d.CreatedAt = time.UnixMilli(created).UTC()
 	d.LastSeenAt, d.RevokedAt = msTime(seen), msTime(revoked)
 	d.LastSeenIP = ip.String
@@ -208,10 +235,17 @@ func (s *Service) GetDisplay(ctx context.Context, id string) (Display, error) {
 	return d, err
 }
 
-// UpdateDisplay renames a display (name non-nil) and sets or clears its
-// quiet hours (setQuiet; quiet nil clears them). A revoked display is
-// ErrDisplayNotFound.
-func (s *Service) UpdateDisplay(ctx context.Context, id string, name *string, setQuiet bool, quiet *Quiet) (Display, error) {
+// UpdateDisplay renames a display (name non-nil), changes its style (style
+// non-nil) and sets or clears its quiet hours (setQuiet; quiet nil clears
+// them). A revoked display is ErrDisplayNotFound.
+func (s *Service) UpdateDisplay(ctx context.Context, id string, name *string, style *Style, setQuiet bool, quiet *Quiet) (Display, error) {
+	if style != nil {
+		st, err := ParseStyle(string(*style))
+		if err != nil {
+			return Display{}, err
+		}
+		style = &st
+	}
 	if name != nil {
 		n, err := validateDisplayName(*name)
 		if err != nil {
@@ -234,6 +268,11 @@ func (s *Service) UpdateDisplay(ctx context.Context, id string, name *string, se
 		}
 		if name != nil {
 			if _, err := tx.ExecContext(ctx, `UPDATE displays SET name = ? WHERE id = ?`, *name, id); err != nil {
+				return err
+			}
+		}
+		if style != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE displays SET style = ? WHERE id = ?`, string(*style), id); err != nil {
 				return err
 			}
 		}

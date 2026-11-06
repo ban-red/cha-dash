@@ -93,7 +93,8 @@ describe('Settings → Displays', () => {
     expect(f.last('POST', '/api/displays')).toBeUndefined();
 
     await w.find('input[type="text"]').setValue('Landing');
-    await w.find('select').setValue('brd_media');
+    await w.findAll('select')[0]!.setValue('brd_media');
+    await w.findAll('select')[1]!.setValue('tv');
     await w.find('input[type="checkbox"]').setValue(true);
     await settle();
     const times = w.findAll('input[type="time"]');
@@ -101,7 +102,7 @@ describe('Settings → Displays', () => {
     await times[1]!.setValue('06:30');
     await w.find('form.dpl-add').trigger('submit');
     await settle();
-    expect(f.last('POST', '/api/displays')?.body).toEqual({ name: 'Landing', board: 'brd_media', quiet: { start: '23:00', end: '06:30' } });
+    expect(f.last('POST', '/api/displays')?.body).toEqual({ name: 'Landing', board: 'brd_media', style: 'tv', quiet: { start: '23:00', end: '06:30' } });
     const link = `${location.origin}/display/brd_media#${SECRET}`;
     expect(w.find<HTMLInputElement>('.dpl-fresh input').element.value).toBe(link);
     expect(w.text()).toContain('This is the only time Cha Dash shows it');
@@ -131,7 +132,7 @@ describe('Settings → Displays', () => {
     await w.find('input[type="text"]').setValue('Hall');
     await w.find('form.dpl-add').trigger('submit');
     await settle();
-    expect(f.last('POST', '/api/displays')?.body).toEqual({ name: 'Hall', board: 'brd_home', quiet: null });
+    expect(f.last('POST', '/api/displays')?.body).toEqual({ name: 'Hall', board: 'brd_home', style: 'wall', quiet: null });
     expect(w.find('.dpl-add .err').text()).toBe('That board no longer exists.');
   });
 

@@ -84,6 +84,7 @@ func TestDisplays(t *testing.T) {
 		{"name": "", "board": board},
 		{"name": "Hall", "board": board, "quiet": map[string]string{"start": "22:00", "end": "22:00"}},
 		{"name": "Hall", "board": board, "quiet": map[string]string{"start": "25:00", "end": "07:00"}},
+		{"name": "Hall", "board": board, "style": "hologram"},
 	} {
 		if status, code, b := e.call(t, owner, "POST", "/api/displays", bad); status != http.StatusUnprocessableEntity || code != "invalid" {
 			t.Errorf("POST %v: %d %s", bad, status, b)
@@ -113,7 +114,7 @@ func TestDisplays(t *testing.T) {
 	if !strings.Contains(string(b), made.Display.ID) || strings.Contains(string(b), made.Secret) {
 		t.Fatalf("GET /api/displays: %s", b)
 	}
-	if status, _, b := e.call(t, owner, "PATCH", "/api/displays/"+made.Display.ID, map[string]any{"name": "Hall", "quiet": nil}); status != 200 || !strings.Contains(string(b), `"quiet":null`) || !strings.Contains(string(b), `"name":"Hall"`) {
+	if status, _, b := e.call(t, owner, "PATCH", "/api/displays/"+made.Display.ID, map[string]any{"name": "Hall", "style": "ink", "quiet": nil}); status != 200 || !strings.Contains(string(b), `"quiet":null`) || !strings.Contains(string(b), `"style":"ink"`) || !strings.Contains(string(b), `"name":"Hall"`) {
 		t.Fatalf("PATCH: %d %s", status, b)
 	}
 	if ev, ok := lastAudit(t, store, "displays.update"); !ok || ev.Result != audit.OK {

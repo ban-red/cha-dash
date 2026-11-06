@@ -25,12 +25,12 @@ func TestDisplayLifecycle(t *testing.T) {
 	if _, err := h.st.Writer().Exec(`INSERT INTO boards (id, slug, title, position, created_at, updated_at) VALUES ('brd_1', 'home', 'Home', 0, 1, 1)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := h.svc.CreateDisplay(ctx, u.ID, "Hall", "brd_nope", nil); !errors.Is(err, ErrNoSuchBoard) {
+	if _, _, err := h.svc.CreateDisplay(ctx, u.ID, "Hall", "brd_nope", "", nil); !errors.Is(err, ErrNoSuchBoard) {
 		t.Fatalf("an unknown board: %v", err)
 	}
 	for _, q := range []*Quiet{{"22:00", "22:00"}, {"7:00", "22:00"}, {"22:00", "24:00"}, {"", "07:00"}} {
 		var ve *ValidationError
-		if _, _, err := h.svc.CreateDisplay(ctx, u.ID, "Hall", "brd_1", q); !errors.As(err, &ve) {
+		if _, _, err := h.svc.CreateDisplay(ctx, u.ID, "Hall", "brd_1", "", q); !errors.As(err, &ve) {
 			t.Errorf("quiet %+v: %v", q, err)
 		}
 	}
@@ -41,11 +41,11 @@ func TestDisplayLifecycle(t *testing.T) {
 		}
 	})
 
-	d, secret, err := h.svc.CreateDisplay(ctx, u.ID, "  Hall tablet ", "brd_1", &Quiet{"22:00", "07:00"})
+	d, secret, err := h.svc.CreateDisplay(ctx, u.ID, "  Hall tablet ", "brd_1", "", &Quiet{"22:00", "07:00"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Name != "Hall tablet" || d.BoardID != "brd_1" || d.BoardName != "Home" || d.CreatedBy != "sam" || d.Quiet == nil ||
+	if d.Name != "Hall tablet" || d.BoardID != "brd_1" || d.BoardName != "Home" || d.CreatedBy != "sam" || d.Quiet == nil || d.Style != StyleWall ||
 		!strings.HasPrefix(d.ID, "dsp_") || !displaySecretRE.MatchString(secret) || !strings.Contains(secret, strings.TrimPrefix(d.ID, "dsp_")) {
 		t.Fatalf("created %+v %q", d, secret)
 	}
@@ -76,8 +76,14 @@ func TestDisplayLifecycle(t *testing.T) {
 		}
 	}
 
-	name := "Kitchen"
-	if d, err = h.svc.UpdateDisplay(ctx, d.ID, &name, true, nil); err != nil || d.Name != "Kitchen" || d.Quiet != nil {
+	name, tv, bad := "Kitchen", StyleTV, Style("hologram")
+	if _, err := h.svc.UpdateDisplay(ctx, d.ID, nil, &bad, false, nil); err == nil {
+		t.Fatal("an unknown style was taken")
+	}
+	if _, _, err := h.svc.CreateDisplay(ctx, u.ID, "Hall", "brd_1", bad, nil); err == nil {
+		t.Fatal("an unknown style was taken at creation")
+	}
+	if d, err = h.svc.UpdateDisplay(ctx, d.ID, &name, &tv, true, nil); err != nil || d.Name != "Kitchen" || d.Quiet != nil || d.Style != StyleTV {
 		t.Fatalf("update: %+v %v", d, err)
 	}
 	if list, _ := h.svc.ListDisplays(ctx); len(list) != 1 {
@@ -102,7 +108,7 @@ func TestDisplayLifecycle(t *testing.T) {
 	if ok, _ := h.svc.DisplayStillValid(ctx, id); ok {
 		t.Fatal("a revoked display is still valid")
 	}
-	if _, err := h.svc.UpdateDisplay(ctx, d.ID, &name, false, nil); !errors.Is(err, ErrDisplayNotFound) {
+	if _, err := h.svc.UpdateDisplay(ctx, d.ID, &name, nil, false, nil); !errors.Is(err, ErrDisplayNotFound) {
 		t.Fatalf("updating a revoked display: %v", err)
 	}
 	if list, _ := h.svc.ListDisplays(ctx); len(list) != 0 {
@@ -121,7 +127,7 @@ func TestRequireDisplay(t *testing.T) {
 	if _, err := h.st.Writer().Exec(`INSERT INTO boards (id, slug, title, position, created_at, updated_at) VALUES ('brd_1', 'home', 'Home', 0, 1, 1)`); err != nil {
 		t.Fatal(err)
 	}
-	_, secret, err := h.svc.CreateDisplay(ctx, u.ID, "Hall", "brd_1", nil)
+	_, secret, err := h.svc.CreateDisplay(ctx, u.ID, "Hall", "brd_1", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

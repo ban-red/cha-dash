@@ -18,6 +18,15 @@
  * The calm (brightness, night tint, the incident that woke it, the burn-in
  * shift, how old the data is) comes from lib/display.ts, ticked by a timer.
  *
+ * The display's style (wave 34) picks the rest:
+ *   wall  the board at the simplified level (lib/level.ts), calm as above;
+ *   tv    the same, larger, for 3 m away; a remote's arrow keys move focus
+ *         between tiles (lib/spatial.ts), and the focused tile shows what
+ *         the simplified level leaves out, so nothing hides behind a hover;
+ *   ink   an e-ink screen: the ink level (one colour, no motion, absolute
+ *         times), never dimmed, tinted or moved. The wake line and the
+ *         data's age still show.
+ *
  * Its own chunk: App.vue loads it only on /display/….
  */
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
@@ -31,6 +40,8 @@ import { ApiError, api } from '../lib/api';
 import { calm, changeKey, type QuietHours } from '../lib/display';
 import { setDisplayTimeZone } from '../lib/format';
 import { takeDisplaySecret } from '../lib/router';
+import type { Level } from '../lib/level';
+import { ARROWS, nextBox } from '../lib/spatial';
 import { defaultBoard } from '../model/defaultLayout';
 import type { GraphDoc, Incident } from '../model/types';
 import type { WebSocketFactory } from '../realtime/client';
@@ -41,8 +52,10 @@ import { createSession, provideSession } from '../stores/session';
 import { tilesFromDoc } from '../stores/tiles';
 import { createUi, provideUi } from '../stores/ui';
 
+export type DisplayStyle = 'wall' | 'tv' | 'ink';
+
 export interface DisplayInfo {
-  display: { id: string; name: string; quiet: QuietHours | null };
+  display: { id: string; name: string; quiet: QuietHours | null; style?: DisplayStyle };
   board: { id: string; name: string };
   layout: { revision?: number; format_version?: number; layout: unknown; tiles?: unknown } | null;
   zone: string;
@@ -187,7 +200,44 @@ const state = computed(() =>
     quiet: info.value?.display.quiet ?? null,
   }),
 );
-const shift = computed(() => ({ transform: `translate(${state.value.shift.x}px, ${state.value.shift.y}px)` }));
+const style = computed<DisplayStyle>(() => info.value?.display.style ?? 'wall');
+const level = computed<Level>(() => (style.value === 'ink' ? 'ink' : 'simplified'));
+/** E-ink has no backlight and no burn-in: it's never dimmed, tinted or moved. */
+const shown$ = computed(() => (style.value === 'ink' ? { ...state.value, brightness: 'full' as const, tint: false, shift: { x: 0, y: 0 } } : state.value));
+const shift = computed(() => ({ transform: `translate(${shown$.value.shift.x}px, ${shown$.value.shift.y}px)` }));
+
+// ── TV: arrow keys move between tiles ──
+const content = ref<HTMLElement | null>(null);
+function cells(): HTMLElement[] {
+  return [...(content.value?.querySelectorAll<HTMLElement>('.cell') ?? [])];
+}
+function onKey(e: KeyboardEvent): void {
+  const dir = ARROWS[e.key];
+  if (style.value !== 'tv' || !dir) return;
+  const list = cells();
+  if (!list.length) return;
+  const from = list.findIndex((c) => c === document.activeElement || c.contains(document.activeElement));
+  const boxes = list.map((c) => {
+    const r = c.getBoundingClientRect();
+    return { x: r.left, y: r.top, w: r.width, h: r.height };
+  });
+  const to = from < 0 ? 0 : nextBox(boxes, from, dir);
+  if (to < 0) return;
+  e.preventDefault();
+  for (const c of list) c.tabIndex = -1;
+  list[to]!.tabIndex = 0;
+  list[to]!.focus();
+}
+// The first tile takes focus, so the first arrow has somewhere to start.
+watch(
+  () => [style.value, shown.value] as const,
+  async ([st]) => {
+    if (st !== 'tv') return;
+    await new Promise((r) => setTimeout(r));
+    const list = cells();
+    list.forEach((c, i) => (c.tabIndex = i === 0 ? 0 : -1));
+  },
+);
 
 /** A tile's link would leave the display: links don't open here. */
 function noLinks(e: MouseEvent): void {
@@ -197,10 +247,12 @@ function noLinks(e: MouseEvent): void {
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
   timer = setInterval(() => live.tick(), tickMs);
+  window.addEventListener('keydown', onKey);
   void start();
 });
 onBeforeUnmount(() => {
   clearInterval(timer);
+  window.removeEventListener('keydown', onKey);
   live.stop();
 });
 </script>
@@ -226,12 +278,13 @@ onBeforeUnmount(() => {
     v-else
     class="dsp"
     :aria-label="info?.display.name || 'Display'"
-    :data-brightness="state.brightness"
-    :data-tint="state.tint || undefined"
+    :data-style="style"
+    :data-brightness="shown$.brightness"
+    :data-tint="shown$.tint || undefined"
     :data-stale="state.stale ? '' : undefined"
   >
     <h1 class="sr">{{ info?.board.name }}</h1>
-    <div class="dsp-content" :style="shift" @click.capture="noLinks">
+    <div ref="content" class="dsp-content" :style="shift" @click.capture="noLinks">
       <p v-if="state.wake" class="dsp-wake" :data-severity="state.wake.severity" role="status">
         <Glyph :kind="state.wake.severity === 'down' ? 'down' : 'attn'" :label="state.wake.severity" />
         <span>{{ state.wake.text }}</span>
@@ -242,7 +295,7 @@ onBeforeUnmount(() => {
           <span>{{ a.text }}</span> <span class="dsp-by">{{ a.by }} is on it</span>
         </li>
       </ul>
-      <StaticBoard v-if="shown" :board="shown">
+      <StaticBoard v-if="shown" :board="shown" :level="level">
         <template #section="{ section }"><SectionHeader :section="section" /></template>
         <template #item="{ item, size }"><WidgetHost :item="item" :size="size" /></template>
       </StaticBoard>
@@ -337,6 +390,29 @@ onBeforeUnmount(() => {
   font-size: var(--type-small);
   color: var(--text-2);
   background: var(--bg);
+}
+/* TV: read from 3 m. The board is drawn larger, and the focused tile shows
+   what the simplified level leaves out, so nothing needs a hover. */
+.dsp[data-style='tv'] .dsp-content {
+  zoom: 1.5;
+}
+.dsp[data-style='tv'] .cell:focus {
+  outline: none;
+}
+.dsp[data-style='tv'] .cell:focus > .tile {
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 6px var(--focus);
+}
+.dsp[data-style='tv'] .cell:focus .tile.lvl-simplified :is(.kv, .tf, .sub ~ .sub) {
+  display: revert;
+}
+.dsp[data-style='tv'] .cell:focus .tile.lvl-simplified .list > .li {
+  display: revert;
+}
+.dsp[data-style='ink'] .dsp-veil,
+.dsp[data-style='ink'] .dsp-tint {
+  display: none;
 }
 @media (prefers-reduced-motion: reduce) {
   html:not([data-motion='full']) .dsp-content,

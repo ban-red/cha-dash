@@ -298,6 +298,62 @@ describe('the calm on the page', () => {
   });
 });
 
+describe('the display styles', () => {
+  it('a wall display draws its board at the simplified level', async () => {
+    at('/display/brd_home');
+    hub();
+    const w = await mountDisplay();
+    connect();
+    await settle();
+    const tiles = w.findAll('.tile');
+    expect(tiles.length).toBeGreaterThan(0);
+    expect(tiles.every((t) => t.classes('lvl-simplified'))).toBe(true);
+    expect(w.find('main.dsp').attributes('data-style')).toBe('wall');
+    expect(w.find('.tile-cog').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('an e-ink display is ink: never dimmed or moved, with absolute times', async () => {
+    at('/display/brd_home');
+    hub({ 'GET /api/display': { status: 200, body: displayInfo({ display: { id: 'dsp_ink', name: 'Fridge', quiet: { start: '00:00', end: '23:59' }, style: 'ink' } }) } });
+    const w = await mountDisplay();
+    connect();
+    await settle();
+    expect(w.findAll('.tile').every((t) => t.classes('lvl-ink'))).toBe(true);
+    vi.advanceTimersByTime(10 * MIN);
+    await settle();
+    const main = w.find('main.dsp');
+    expect(main.attributes('data-brightness')).toBe('full');
+    expect(main.attributes('data-tint')).toBeUndefined();
+    expect(w.find<HTMLElement>('.dsp-content').element.style.transform).toBe('translate(0px, 0px)');
+    expect(w.text()).not.toMatch(/\d+[smhd] ago/);
+    w.unmount();
+  });
+
+  it('a TV moves focus between tiles with the arrow keys', async () => {
+    at('/display/brd_home');
+    hub({ 'GET /api/display': { status: 200, body: displayInfo({ display: { id: 'dsp_tv', name: 'Living room', quiet: null, style: 'tv' } }) } });
+    const w = await mountDisplay();
+    connect();
+    await settle();
+    vi.useRealTimers();
+    await new Promise((r) => setTimeout(r, 5));
+    const cells = [...(w.element as HTMLElement).querySelectorAll<HTMLElement>('.cell')];
+    expect(cells.length).toBeGreaterThan(1);
+    expect(cells.filter((c) => c.tabIndex === 0)).toHaveLength(1);
+    // happy-dom lays nothing out: give the cells a row of boxes.
+    cells.forEach((c, i) => (c.getBoundingClientRect = () => ({ left: i * 100, top: 0, width: 90, height: 90, right: i * 100 + 90, bottom: 90, x: i * 100, y: 0, toJSON() {} }) as DOMRect));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(document.activeElement).toBe(cells[0]);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(document.activeElement).toBe(cells[1]);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    expect(document.activeElement).toBe(cells[0]);
+    expect(w.find('main.dsp').attributes('data-style')).toBe('tv');
+    w.unmount();
+  });
+});
+
 describe('nothing opens on a display', () => {
   it('a click on a tile opens no sheet, no Inbox and no link', async () => {
     at('/display/brd_home');
