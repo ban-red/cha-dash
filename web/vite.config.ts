@@ -26,6 +26,10 @@ function serviceWorker(): Plugin {
   return {
     name: 'chadash-sw',
     apply: 'build',
+    // After Vite's own plugins: its CSS plugin deletes the empty JS file of
+    // a CSS-only chunk in generateBundle, and the worker mustn't precache a
+    // file that isn't there.
+    enforce: 'post',
     generateBundle(_options, bundle) {
       const built = Object.values(bundle)
         .map((f) => f.fileName)

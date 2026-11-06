@@ -29,11 +29,19 @@ const ASSETS = 'chadash-assets';
 /** Paths the worker must never answer for. */
 const bypass = (path) => path === '/api' || path.startsWith('/api/') || path === '/ws' || path.startsWith('/ws/') || path === '/healthz';
 
+// The shell must be cached for the worker to install; any other file that
+// fails (a chunk a later release removed, say) is left out and fetched when
+// it's asked for, so one missing file never keeps the app from working
+// offline.
 self.addEventListener('install', (event) => {
+  const request = (p) => new Request(p, { cache: 'reload', credentials: 'omit' });
   event.waitUntil(
     caches
       .open(SHELL)
-      .then((cache) => cache.addAll(PRECACHE.map((p) => new Request(p, { cache: 'reload', credentials: 'omit' }))))
+      .then(async (cache) => {
+        await cache.add(request('/index.html'));
+        await Promise.all(PRECACHE.filter((p) => p !== '/index.html').map((p) => cache.add(request(p)).catch(() => undefined)));
+      })
       .then(() => self.skipWaiting()),
   );
 });

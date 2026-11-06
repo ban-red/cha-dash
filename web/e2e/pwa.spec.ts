@@ -20,7 +20,10 @@ test('the manifest installs Cha Dash, with icons that are what they say', async 
   expect(res.ok()).toBe(true);
   const m = await res.json();
   expect(m).toMatchObject({ name: 'Cha Dash', start_url: '/', scope: '/', display: 'standalone' });
-  expect(m.theme_color).toBe(await page.locator('meta[name="theme-color"]').getAttribute('content'));
+  // The colour a phone paints before the app runs: the HTML's, as served.
+  // The app then sets the meta to the theme's background, in any CSS colour.
+  const served = await (await request.get('/')).text();
+  expect(served).toContain(`<meta name="theme-color" content="${m.theme_color}"`);
 
   const purposes = new Set<string>();
   for (const icon of m.icons as { src: string; sizes: string; type: string; purpose: string }[]) {

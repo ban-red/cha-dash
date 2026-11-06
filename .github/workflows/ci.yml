@@ -264,6 +264,10 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - name: The runner's Docker Engine
+        # Its version and image store (classic or containerd) change what
+        # the engine reports, such as an image's RepoDigests.
+        run: docker info --format 'Docker {{.ServerVersion}}, storage {{.Driver}} {{json .DriverStatus}}'
       - name: Engine tests and the leak check
         env:
           CHADASH_REQUIRE_ENGINE: "1"
@@ -381,6 +385,18 @@ jobs:
               total += size
           if not rows:
               sys.exit("::error::index.html loads no scripts")
+          # The service worker's precache: a path that isn't in dist fails its
+          # install in the browser, so catch it here.
+          import json, re
+          sw = dist / "sw.js"
+          if not sw.is_file():
+              sys.exit(f"::error::{sw} is missing: the chadash-sw plugin should write it")
+          m = re.search(r"const PRECACHE = (\[.*?\]);", sw.read_text(encoding="utf-8"), re.S)
+          if not m:
+              sys.exit("::error::sw.js has no precache list")
+          for ref in json.loads(m.group(1)):
+              if not (dist / ref.lstrip("/")).is_file():
+                  sys.exit(f"::error::sw.js precaches {ref}, which isn't in {dist}")
           every_js = sum(gz(p) for p in dist.rglob("*.js"))
 
           lines = ["| Initial JS | gzip |", "|---|---:|"]

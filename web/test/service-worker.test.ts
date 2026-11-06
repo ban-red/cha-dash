@@ -23,12 +23,15 @@ class FakeRequest {
   }
 }
 
-function worker(network: (req: FakeRequest) => Response) {
+function worker(network: (req: FakeRequest) => Response, missing: string[] = []) {
   const listeners: Record<string, Listener> = {};
   const added: FakeRequest[] = [];
   const put: string[] = [];
   const cache = {
-    addAll: async (reqs: FakeRequest[]) => void added.push(...reqs),
+    add: async (req: FakeRequest) => {
+      if (missing.includes(new URL(req.url).pathname)) throw new TypeError('Request failed: 404');
+      added.push(req);
+    },
     put: async (key: string | FakeRequest) => void put.push(typeof key === 'string' ? key : key.url),
     keys: async () => [],
     delete: async () => true,
@@ -63,6 +66,15 @@ describe('the service worker’s shell', () => {
     await fire(w.listeners['install']);
     expect(w.added.map((r) => new URL(r.url).pathname)).toEqual(['/index.html', '/boot.js', '/assets/index-abc.js']);
     for (const r of w.added) expect(r.credentials).toBe('omit');
+  });
+
+  it('installs without a file that 404s, but never without the shell', async () => {
+    // A CSS-only chunk Vite dropped, say: the rest is still cached.
+    const w = worker(() => html('no-cache'), ['/assets/index-abc.js']);
+    await fire(w.listeners['install']);
+    expect(w.added.map((r) => new URL(r.url).pathname)).toEqual(['/index.html', '/boot.js']);
+    const broken = worker(() => html('no-cache'), ['/index.html']);
+    await expect(fire(broken.listeners['install'])).rejects.toThrow('404');
   });
 
   it('never keeps a no-store page, and refreshes the shell from a generic one', async () => {
