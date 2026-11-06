@@ -35,10 +35,11 @@ const DefaultPolicyPath = "/etc/chadash-node/policy.yaml"
 //	docker.remove     remove a container (not by default)
 //	docker.exec       exec into a container (not by default; also needs exec: true)
 //	stacks.read       list stacks, read compose files, diff, history
-//	stacks.deploy     deploy and roll back a stack (root on this host: see StacksPolicy)
+//	stacks.deploy     deploy and roll back a stack (root on this host: see StacksPolicy); stop, start, restart and take it down
 //	stacks.adopt      adopt a running compose project in place, or move it into the root
 //	stacks.sync       check and fetch a git remote a stack follows (limited by stacks.remotes)
 //	stacks.selfupdate update the hub's own container (not by default; the hub's host only)
+//	stacks.remove     take a stack down and delete its folder from the root as a commit, its volumes too if asked (not by default)
 //	images.check      ask containers' registries whether their image tags moved (read-only, but traffic from this host)
 //	host.metrics      host CPU, memory, disk (later)
 //	host.smart        SMART detail (later; needs CAP_SYS_RAWIO)
@@ -144,7 +145,7 @@ type RelayPolicy struct {
 // grants are the valid entries of each section's allow list.
 var grants = map[string][]string{
 	"docker": {"read", "logs", "lifecycle", "update", "exec", "remove"},
-	"stacks": {"read", "deploy", "adopt", "sync", "selfupdate"},
+	"stacks": {"read", "deploy", "adopt", "sync", "selfupdate", "remove"},
 	"images": {"check"},
 	"host":   {"metrics", "smart"},
 }
@@ -154,8 +155,8 @@ var readOnly = []string{"docker.read", "docker.logs", "stacks.read", "images.che
 
 // DefaultPolicy is what a node without a policy file runs: Docker reads,
 // logs, lifecycle and updates; stacks read, deploy, adopt and sync, from
-// any remote; image update checks; the hub and the node itself protected; exec, remove and
-// selfupdate off; env redacted.
+// any remote; image update checks; the hub and the node itself protected; exec, remove,
+// stacks.remove and selfupdate off; env redacted.
 func DefaultPolicy() Policy {
 	t := true
 	return Policy{

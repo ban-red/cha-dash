@@ -35,16 +35,27 @@ const (
 	VerbMove             = "stack.move"
 	VerbSelfUpdate       = "stack.selfupdate"
 	VerbSelfUpdateResult = "stack.selfupdate.result"
+
+	// v0.5 (plan 16, wave 32a): a whole stack's lifecycle. stop, start,
+	// restart and down need PermDeploy; remove needs PermRemove. An older
+	// node answers them as it answers any verb it doesn't know.
+	VerbStop    = "stack.stop"
+	VerbStart   = "stack.start"
+	VerbRestart = "stack.restart"
+	VerbDown    = "stack.down"
+	VerbRemove  = "stack.remove"
 )
 
 // Local policy permissions (policy.yaml's stacks.allow: read, deploy,
-// adopt, sync, selfupdate). stack.move needs PermAdopt.
+// adopt, sync, selfupdate, remove). stack.move needs PermAdopt; stack.stop,
+// stack.start, stack.restart and stack.down need PermDeploy.
 const (
 	PermRead       = "stacks.read"
 	PermDeploy     = "stacks.deploy"
 	PermAdopt      = "stacks.adopt"
 	PermSync       = "stacks.sync"       // stack.remote.check and stack.fetch, to the hosts in stacks.remotes
 	PermSelfUpdate = "stacks.selfupdate" // stack.selfupdate and its result; off unless the host's policy turns it on
+	PermRemove     = "stacks.remove"     // stack.remove; off unless the host's policy turns it on
 )
 
 // Stack statuses, from the containers Docker reports for the project.
@@ -70,6 +81,7 @@ const (
 	KindUnadopt    = "unadopt"
 	KindAccept     = "accept" // accepting edits made outside Cha Dash
 	KindSelfUpdate = "self-update"
+	KindRemove     = "remove" // stack.remove: the stack's file left the repo
 	KindOther      = "other"
 )
 
@@ -97,6 +109,10 @@ const (
 	CodeExists      = "exists"      // adopting a name that's taken
 	CodeUnadoptable = "unadoptable"
 	CodeForbidden   = "forbidden" // the node's policy refuses it, such as a remote outside stacks.remotes
+	// CodeNotDeployed is stack.start on a managed stack with no containers
+	// at all (never up, or down): there's nothing to start. The hub deploys
+	// the current commit instead.
+	CodeNotDeployed = "not_deployed"
 	CodeInternal    = "internal"
 )
 
@@ -118,7 +134,7 @@ func Errorf(code, format string, args ...any) *Error {
 var knownCodes = map[string]bool{
 	CodeNotFound: true, CodeInvalid: true, CodeProtected: true, CodeDrift: true, CodeConflict: true,
 	CodeBusy: true, CodeNotManaged: true, CodeExists: true, CodeUnadoptable: true, CodeForbidden: true,
-	CodeInternal: true,
+	CodeInternal: true, CodeNotDeployed: true,
 }
 
 // ErrorFrom recovers an *Error from what a Caller returned: the error
@@ -242,6 +258,12 @@ type Stack struct {
 	// MovedFrom is where stack.move brought the file from, while a copy is
 	// still there: the tool that wrote it may still deploy it.
 	MovedFrom string `json:"moved_from,omitempty"`
+	// Volumes are the project's named volumes, by their Docker names
+	// ("media_data"), sorted: the ones that exist now, found by their
+	// compose project label. External volumes aren't the project's and
+	// aren't listed. stack.down keeps them all; stack.remove keeps them
+	// unless asked.
+	Volumes []string `json:"volumes"`
 }
 
 // EnvInfo describes the .env next to the file: whether there is one and its
@@ -412,6 +434,57 @@ type UnadoptRequest struct {
 // UnadoptResult is the commit that recorded it.
 type UnadoptResult struct {
 	Commit string `json:"commit"`
+}
+
+// ── stack.stop, stack.start, stack.restart, stack.down, stack.remove ─────
+
+// LifecycleRequest stops, starts, restarts or takes down a managed stack.
+// ExpectHead, when set, must be the stack's last commit, as for a deploy
+// (CodeConflict otherwise). Each refuses (CodeProtected) a stack that is
+// Cha Dash's own or has a container docker.protect names, and holds the
+// stack's lock (CodeBusy).
+type LifecycleRequest struct {
+	Name       string `json:"name"`
+	ExpectHead string `json:"expect_head,omitempty"`
+	By         string `json:"by,omitempty"`
+	Via        string `json:"via,omitempty"`
+}
+
+// RemoveRequest takes a stack down and removes it from the root as a
+// commit (KindRemove), so its history keeps it and a rollback to an
+// earlier commit restores it. Volumes also removes the project's named
+// volumes. A stack adopted in place (LocationExternal) only stops being
+// managed: its files outside the root stay where they are.
+type RemoveRequest struct {
+	Name       string `json:"name"`
+	ExpectHead string `json:"expect_head,omitempty"`
+	Volumes    bool   `json:"volumes,omitempty"`
+	By         string `json:"by,omitempty"`
+	Via        string `json:"via,omitempty"`
+}
+
+// LifecycleResult is the stack after a lifecycle verb.
+type LifecycleResult struct {
+	Name     string    `json:"name"`
+	Status   string    `json:"status"`   // one of the Status* consts, after
+	Services []Service `json:"services"` // the containers after (none after down or remove)
+	// Healthy is stack.restart's health gate: whether every container came
+	// back running and healthy and stayed so through the soak. It only
+	// reports: nothing is rolled back. Unhealthy names the services that
+	// failed it.
+	Healthy   *bool    `json:"healthy,omitempty"`
+	Unhealthy []string `json:"unhealthy,omitempty"`
+	// Commit is stack.remove's: the commit that recorded the removal.
+	Commit *Commit `json:"commit,omitempty"`
+	// VolumesKept and VolumesRemoved are the project's named volumes after
+	// down or remove, by their Docker names.
+	VolumesKept    []string `json:"volumes_kept,omitempty"`
+	VolumesRemoved []string `json:"volumes_removed,omitempty"`
+	// FilesKept is stack.remove on a stack adopted in place: the compose
+	// file outside the root that was left where it is (the node never
+	// deletes files outside the stacks root). Empty for a stack in the
+	// root, whose folder is deleted.
+	FilesKept string `json:"files_kept,omitempty"`
 }
 
 // ── stack.remote.check and stack.fetch ───────────────────────────────────

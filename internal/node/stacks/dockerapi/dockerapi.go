@@ -34,6 +34,18 @@ type Docker interface {
 	Up(ctx context.Context, p *types.Project, wait time.Duration, progress func(Event)) error
 	// Down removes the project's containers and networks (never volumes).
 	Down(ctx context.Context, project string, progress func(Event)) error
+	// Stop stops the project's containers and leaves them (compose stop).
+	Stop(ctx context.Context, project string, progress func(Event)) error
+	// Start starts the project's existing containers (compose start). It
+	// creates none.
+	Start(ctx context.Context, project string, progress func(Event)) error
+	// Restart restarts the project's containers (compose restart).
+	Restart(ctx context.Context, project string, progress func(Event)) error
+	// Volumes lists the project's named volumes by their Docker names
+	// (those labelled with the compose project), sorted.
+	Volumes(ctx context.Context, project string) ([]string, error)
+	// RemoveVolumes removes the named volumes. Each must be unused.
+	RemoveVolumes(ctx context.Context, names []string) error
 	// ImageRefs is, per service, the image its container runs as a
 	// pullable digest reference ("nginx@sha256:…"), for pinning rollbacks.
 	// Services whose image has no registry digest are left out.

@@ -2,6 +2,7 @@ package stacks
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/go-git/go-git/v5/plumbing/object"
 
 	"dash.cha.sh/internal/stackproto"
 )
@@ -75,12 +77,20 @@ func (m *Module) rollback(ctx context.Context, req stackproto.RollbackRequest, e
 	if err != nil {
 		return stackproto.DeployResult{}, err
 	}
-	if !a.hadPrev {
+	// A stack stack.remove took out of the root has no file at HEAD, but
+	// its history is still there: rolling back restores it.
+	restore := !a.hadPrev && a.head != ""
+	if !a.hadPrev && !restore {
 		return stackproto.DeployResult{}, stackproto.Errorf(stackproto.CodeNotManaged, "%s has no history to roll back to.", a.s.name)
 	}
 	target, err := m.repo.commitByHash(req.Commit)
 	if err != nil {
 		return stackproto.DeployResult{}, err
+	}
+	if restore {
+		if a.s, target, err = m.removedAt(a.s, target); err != nil {
+			return stackproto.DeployResult{}, err
+		}
 	}
 	old, ok, err := m.repo.file(target, a.s.tracked)
 	if err != nil {
@@ -96,10 +106,46 @@ func (m *Module) rollback(ctx context.Context, req stackproto.RollbackRequest, e
 	content, pinned := pinImages(old, recreatedOnly(ctx, a, old, a.running, pins))
 	a.content, a.kind, a.by, a.via, a.ref = content, stackproto.KindRollback, req.By, req.Via, req.Ref
 	a.subject = fmt.Sprintf("Roll back %s to %s", a.s.name, target.Hash.String()[:7])
+	if restore {
+		a.subject = fmt.Sprintf("Restore %s from %s", a.s.name, target.Hash.String()[:7])
+	}
 	if len(pinned) > 0 {
 		a.subject += " (pinned " + strings.Join(pinned, ", ") + ")"
 	}
 	return m.run(ctx, a, em.withSecrets(a.secrets))
+}
+
+// removedAt is the commit a removed stack is read or restored from, and
+// the stack pointed at the file name it had there. The remove commit
+// itself stands for the commit before it, so the hub can restore from the
+// commit stack.remove answered. A stack that was adopted in place can't be
+// restored this way: its files were left where they were, so adopting it
+// again brings it back.
+func (m *Module) removedAt(s stackRef, target *object.Commit) (stackRef, *object.Commit, error) {
+	if trailer(target.Message, trailerKind) == stackproto.KindRemove && trailer(target.Message, trailerStack) == s.name && len(target.ParentHashes) > 0 {
+		parent, err := target.Parent(0)
+		if err != nil {
+			return s, nil, err
+		}
+		target = parent
+	}
+	for _, f := range composeNames {
+		if _, ok, err := m.repo.file(target, s.name+"/"+f); err != nil {
+			return s, nil, err
+		} else if ok {
+			s.file, s.tracked = f, s.name+"/"+f
+			return s, target, nil
+		}
+	}
+	if reg, ok, err := m.repo.file(target, registryPath); err == nil && ok {
+		var r registry
+		if json.Unmarshal([]byte(reg), &r) == nil {
+			if ext, ok := r.Stacks[s.name]; ok {
+				return s, nil, stackproto.Errorf(stackproto.CodeNotFound, "%s was adopted in place at %s, and removing it left its files there. Adopt it again instead.", s.name, filepath.Dir(ext.File))
+			}
+		}
+	}
+	return s, nil, stackproto.Errorf(stackproto.CodeNotFound, "%s didn't exist at %s.", s.name, target.Hash.String()[:7])
 }
 
 // prepare checks the stack can be deployed at all: it's managed (or new),
@@ -201,7 +247,9 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 	}
 	res.Plan = planOf(a.head, a.content != a.prev || !a.hadPrev, services)
 	res.Plan.RootEquivalent = scrubAll(flagged, a.secrets)
-	if a.hadPrev && a.content == a.prev {
+	// The same file is unchanged, unless the stack has no containers at all
+	// (taken down, or never up): then deploying it is how it comes back.
+	if a.hadPrev && a.content == a.prev && len(a.running) > 0 {
 		res.Outcome = stackproto.OutcomeUnchanged
 		res.Reason = "The file is the same as the last commit, so there's nothing to deploy."
 		return done()

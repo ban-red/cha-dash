@@ -43,6 +43,8 @@ type Docker struct {
 	// it fails.
 	LeaveOld bool
 	ups      int
+	vols     map[string][]string // project → its named volumes, kept by Down
+	stopped  map[string]string   // container ID → its health when Stop stopped it
 	calls    []string
 	envs     []map[string]map[string]string
 	next     int
@@ -151,6 +153,15 @@ func (f *Docker) Up(_ context.Context, p *types.Project, _ time.Duration, progre
 		f.projects[p.Name] = cur
 	}
 	cur.workdir, cur.files = p.WorkingDir, p.ComposeFiles
+	for _, k := range sortedKeys(p.Volumes) {
+		if v := p.Volumes[k]; !bool(v.External) && v.Name != "" && !slices.Contains(f.vols[p.Name], v.Name) {
+			if f.vols == nil {
+				f.vols = map[string][]string{}
+			}
+			f.vols[p.Name] = append(f.vols[p.Name], v.Name)
+			slices.Sort(f.vols[p.Name])
+		}
+	}
 	byService := map[string]*dockerapi.Container{}
 	for _, c := range cur.containers {
 		byService[c.Service] = c
@@ -192,6 +203,93 @@ func (f *Docker) Down(_ context.Context, name string, _ func(dockerapi.Event)) e
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, "down "+name)
 	delete(f.projects, name)
+	return nil
+}
+
+// Stop implements dockerapi.Docker: every container exits with code 0.
+func (f *Docker) Stop(_ context.Context, name string, _ func(dockerapi.Event)) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, "stop "+name)
+	if p := f.projects[name]; p != nil {
+		if f.stopped == nil {
+			f.stopped = map[string]string{}
+		}
+		for _, c := range p.containers {
+			if c.State == "running" {
+				f.stopped[c.ID] = c.Health
+			}
+			c.State, c.Health, c.ExitCode = "exited", "", 0
+		}
+	}
+	return nil
+}
+
+// Start implements dockerapi.Docker: every container runs again, and
+// behaves by its image's name as Up's do.
+func (f *Docker) Start(_ context.Context, name string, _ func(dockerapi.Event)) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, "start "+name)
+	f.run(name)
+	return nil
+}
+
+// Restart implements dockerapi.Docker, as Start.
+func (f *Docker) Restart(_ context.Context, name string, _ func(dockerapi.Event)) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, "restart "+name)
+	f.run(name)
+	return nil
+}
+
+// run (re)starts a project's containers; f.mu is held. A container whose
+// image has "unhealthy" in its name fails its healthcheck, "exits" exits.
+func (f *Docker) run(name string) {
+	p := f.projects[name]
+	if p == nil {
+		return
+	}
+	for _, c := range p.containers {
+		if h, ok := f.stopped[c.ID]; ok {
+			c.Health = h
+			delete(f.stopped, c.ID)
+		}
+		c.State, c.ExitCode = "running", 0
+		switch {
+		case strings.Contains(c.Image, "unhealthy"):
+			c.Health = "unhealthy"
+		case strings.Contains(c.Image, "exits"):
+			c.State, c.ExitCode = "exited", 1
+		case c.Health != "":
+			c.Health = "healthy"
+		}
+	}
+}
+
+// Volumes implements dockerapi.Docker: the named volumes Up created for
+// the project, which Down keeps.
+func (f *Docker) Volumes(_ context.Context, name string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.vols[name]), nil
+}
+
+// RemoveVolumes implements dockerapi.Docker. A volume a container of its
+// project still has is in use, as the engine would say.
+func (f *Docker) RemoveVolumes(_ context.Context, names []string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, "rmvolumes "+strings.Join(names, ","))
+	for project, vs := range f.vols {
+		if p := f.projects[project]; p != nil && len(p.containers) > 0 && slices.ContainsFunc(names, func(n string) bool { return slices.Contains(vs, n) }) {
+			return fmt.Errorf("volume is in use by %s", project)
+		}
+	}
+	for project, vs := range f.vols {
+		f.vols[project] = slices.DeleteFunc(vs, func(v string) bool { return slices.Contains(names, v) })
+	}
 	return nil
 }
 

@@ -181,7 +181,9 @@ func (rp *repo) commitLocked(c change, msg string, trailers [][2]string) (plumbi
 	}
 	sig := signature
 	sig.When = now
-	return wt.Commit(b.String(), &git.CommitOptions{Author: &sig, Committer: &sig})
+	// Empty commits are allowed: deploying the file at HEAD to a stack that
+	// was taken down changes no file, and the history still records it.
+	return wt.Commit(b.String(), &git.CommitOptions{Author: &sig, Committer: &sig, AllowEmptyCommits: true})
 }
 
 func mapsKeys[V any](m map[string]V) []string {
@@ -383,7 +385,7 @@ func toCommit(c *object.Commit) stackproto.Commit {
 	subject, _, _ := strings.Cut(c.Message, "\n")
 	kind := trailer(c.Message, trailerKind)
 	switch kind {
-	case stackproto.KindDeploy, stackproto.KindRollback, stackproto.KindAdopt, stackproto.KindUnadopt, stackproto.KindAccept, stackproto.KindSelfUpdate:
+	case stackproto.KindDeploy, stackproto.KindRollback, stackproto.KindAdopt, stackproto.KindUnadopt, stackproto.KindAccept, stackproto.KindSelfUpdate, stackproto.KindRemove:
 	default:
 		kind = stackproto.KindOther
 	}

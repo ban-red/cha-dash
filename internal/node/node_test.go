@@ -22,7 +22,7 @@ func TestDefaultPolicy(t *testing.T) {
 		"docker.read": true, "docker.logs": true, "docker.lifecycle": true, "docker.update": true,
 		"docker.remove": false, "docker.exec": false,
 		"stacks.read": true, "stacks.deploy": true, "stacks.adopt": true, "stacks.sync": true,
-		"stacks.selfupdate": false, "images.check": true, "host.metrics": false, "host.smart": false, "docker.root": false, "nonsense": false, "": false,
+		"stacks.selfupdate": false, "stacks.remove": false, "images.check": true, "host.metrics": false, "host.smart": false, "docker.root": false, "nonsense": false, "": false,
 	} {
 		if p.Allows(perm) != want {
 			t.Errorf("default Allows(%q) = %v", perm, !want)
@@ -189,7 +189,7 @@ func TestEveryWriteVerbRefused(t *testing.T) {
 	if len(info) != len(perms) {
 		t.Fatalf("info lists %d verbs", len(info))
 	}
-	all, _ := ParsePolicy([]byte("docker: { allow: [read, logs, lifecycle, update, exec, remove] }\nexec: true\nstacks: { allow: [read, deploy, adopt, sync, selfupdate] }\nhost: { metrics: true, smart: true }\n"))
+	all, _ := ParsePolicy([]byte("docker: { allow: [read, logs, lifecycle, update, exec, remove] }\nexec: true\nstacks: { allow: [read, deploy, adopt, sync, selfupdate, remove] }\nhost: { metrics: true, smart: true }\n"))
 	d, _ = NewDispatcher(all, fakeModule{verbs})
 	for _, perm := range perms {
 		var items []string

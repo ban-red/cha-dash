@@ -7,7 +7,7 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 - The stacks root defaults to `/opt/stacks`. It uses Dockge's layout: `<root>/<stack>/compose.yaml` and an optional `.env`. `compose.yml`, `docker-compose.yaml` and `docker-compose.yml` work too.
 - The root is a git repository, created on first use with a `.gitignore` that keeps `.env` files out. Every change Cha Dash makes is a commit.
 - A stack adopted in place **outside** the root is listed in `.chadash/stacks.json`. A shadow copy of its file at `.chadash/shadow/<stack>/<file>` is what git versions. The real file stays where it is, and a deploy writes it there.
-- Commits carry trailers the module reads back: `Chadash-Kind` (deploy, rollback, adopt, unadopt, accept, self-update), `Chadash-Stack`, `Chadash-Actor`, on deploys `Chadash-Previous-Image: <service>=<repo>@sha256:…` for each image that was running when the deploy started, and on a move `Chadash-Moved-From: <the old file>`. A deploy a git sync started also carries `Chadash-Source: <url>@<sha>`, and its subject reads "by git sync for sam".
+- Commits carry trailers the module reads back: `Chadash-Kind` (deploy, rollback, adopt, unadopt, accept, self-update, remove), `Chadash-Stack`, `Chadash-Actor`, on deploys `Chadash-Previous-Image: <service>=<repo>@sha256:…` for each image that was running when the deploy started, and on a move `Chadash-Moved-From: <the old file>`. A deploy a git sync started also carries `Chadash-Source: <url>@<sha>`, and its subject reads "by git sync for sam".
 - Files are staged by writing the git index directly. `Worktree.Add` would walk the whole worktree, and a stack directory often holds its data too.
 
 ## Verbs
@@ -16,11 +16,16 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 |---|---|---|
 | `stack.list` | `stacks.read` | Managed stacks: status from Docker, drift, protected, last commit |
 | `stack.detect` | `stacks.read` | Running compose projects that aren't managed yet (found by their labels), plus root directories nobody adopted. Each says whether it can be adopted, and why not. A running project with a directory of its name in the root is offered with that directory's file, whatever its labels say: that's how a project another tool deployed from inside its container is brought over |
-| `stack.get` | `stacks.read` | One stack: the committed file (or the file at commit `at`), `.env` key names only, `x-chadash`, containers, the last 50 commits, referenced secrets |
+| `stack.get` | `stacks.read` | One stack: the committed file (or the file at commit `at`), `.env` key names only, `x-chadash`, containers, the project's named volumes, the last 50 commits, referenced secrets. A stack `stack.remove` took out of the root answers `not_found`, except with `at`: then it's that version (the remove commit stands for the one before it) and its history, to restore from |
 | `stack.validate` | `stacks.read` | Loads a proposed file with compose-go. Secret references are checked for syntax, never resolved. The guard's refusals are errors and its root-equivalent findings warnings (see "What a stack may do on the host"). Returns messages with line numbers |
 | `stack.plan` | `stacks.read` | Compares config hashes (`compose.ServiceHash`) with the running containers' labels. Lists services to create, recreate (and pull) or remove, a downtime estimate, and `root_equivalent`: what the file does that amounts to root on the host. Refuses what the guard refuses (`invalid`) and recreating or removing a container `docker.protect` names (`protected`) |
 | `stack.deploy` | `stacks.deploy` | The seven steps below |
-| `stack.rollback` | `stacks.deploy` | An earlier commit's file as a new commit, through the same steps. The services it recreates are pinned to the digests they last ran; the rest are left as they are |
+| `stack.rollback` | `stacks.deploy` | An earlier commit's file as a new commit, through the same steps. The services it recreates are pinned to the digests they last ran; the rest are left as they are. On a removed stack it restores the file ("Restore … from …"); the remove commit itself stands for the one before it |
+| `stack.stop` | `stacks.deploy` | `compose stop`: the containers stay, stopped. The stack reads `stopped`, which is a state, not drift |
+| `stack.start` | `stacks.deploy` | `compose start` of the containers there are. With none at all (never up, or down) it's `not_deployed`, and the hub deploys the current commit instead: a deploy of the file at HEAD isn't `unchanged` when the stack has no containers |
+| `stack.restart` | `stacks.deploy` | `compose restart`, then the deploy's gate (every container running, and healthy where it has a check, within `wait`, then the soak). It only reports: `healthy`, and the services that failed in `unhealthy`. Nothing rolls back |
+| `stack.down` | `stacks.deploy` | `compose down`: the containers and the project's networks go. Named volumes always stay (`volumes_kept`), and the stack stays managed at its commit |
+| `stack.remove` | `stacks.remove` | Down, then the stack leaves the repo as a commit (`Chadash-Kind: remove`), so the history keeps it and `stack.rollback` restores it. In the root its folder is deleted, everything in it (`.env` and data beside the file too); a drifted file is refused (`drift`) rather than lose the edits. Adopted in place, its files stay where they are (`files_kept`) and only its registration and shadow copy go. Named volumes stay unless `volumes` is set, then they're removed (`volumes_removed`). Off by default |
 | `stack.adopt` | `stacks.adopt` | Adopt in place: commit a root directory, or register an external path and start its shadow history. Nothing moves and nothing restarts. On a drifted stack it accepts the edits made outside Cha Dash |
 | `stack.unadopt` | `stacks.adopt` | Stop versioning a stack. Its files and containers stay as they are |
 | `stack.remote.check` | `stacks.sync` | A branch's tip on a git remote, listed without fetching. Over SSH it also returns the host key the server presented, for the hub to pin |
@@ -67,7 +72,7 @@ The work runs on even when the request's context ends: the hub that asked is the
 7. **Keep it, or roll back.** The previous file comes back as a new commit, with the image of each service it recreates pinned to the digest it last ran (only the image scalar changes, so comments stay). A service the attempt didn't touch still runs that file, so it isn't pinned or recreated. It goes through the same gate with a shorter soak (default 5 s; `x-chadash.rollback_soak`). If that fails too, the outcome is `stuck`. A brand-new stack that fails is taken down again and leaves the repo; the hub keeps its draft.
 
 Other rules:
-- One operation per stack at a time (`busy`).
+- One operation per stack at a time (`busy`). The lifecycle verbs hold the same lock, check `expect_head` the same way, and refuse (`protected`) Cha Dash's own stack and a stack with any container `docker.protect` names, since they touch every container. A name that isn't a stack is `not_found`; one that exists but isn't adopted is `not_managed`.
 - `expect_head` refuses a deploy planned against an older commit (`conflict`).
 - A file on disk that differs from its last commit refuses a deploy (`drift`) until the edits are accepted with `stack.adopt`.
 
@@ -129,6 +134,7 @@ Unknown keys and bad values are warnings, never errors.
 - drift, conflict, protected, busy, and a missing secret;
 - the guard: every always-refused path and reference (and that a refused `env_file` is never read), each policy denial, root-equivalent warnings in validation and the plan, a secret whose value is a private path, `docker.protect` on deploy, plan and rollback, the node's own project learned late, and adoption refusing the node's files;
 - adopt in place (root and external), un-adopt, and accepting edits;
+- the lifecycle verbs (`lifecycle_test.go`): stop as a state and not drift, start, restart's gate reporting an unhealthy service without rolling back, down keeping the volume, start after down (`not_deployed`) and a deploy of the same commit bringing it back; remove in the root and in place, with and without volumes, `stack.get` at a removed stack's commits, and the restore by rollback; each verb's refusals (not found, not managed, protected by name and by `docker.protect`, a stale head, busy, invalid) and the policy (`stacks.deploy`, `stacks.remove` off by default);
 - git remotes: a fetch from a local repository over `file://` (go-git's in-process server), a new commit, a shared cache, the size, byte and time limits, pruning idle caches, redirects outside the allowlist, the URL and allowlist refusals, scrubbed errors, the auth each credential kind builds and SSH host-key pinning, and the `Chadash-Source` trailer;
 - secrets never on disk;
 - moving from another tool's file and from an in-place stack, supplied content, every rewrite, and each refusal (`move_test.go`); symlinked and FIFO files refused, and staging outside the stacks (`move_files_test.go`);
@@ -144,6 +150,7 @@ Unknown keys and bad values are warnings, never errors.
 - a deploy, an unchanged redeploy, and a good deploy after rollbacks;
 - a bad deploy rolling back on its own, for an image that never turns healthy and one that exits at once: pinned to the digest v1 ran (`RepoDigests` give pullable pins, and the rollback pulls by digest), comments kept, the failed attempt in the history;
 - the dry run blocking a missing tag, with no commit and the container untouched;
-- a new stack whose first deploy fails being taken down, its file removed.
+- a new stack whose first deploy fails being taken down, its file removed;
+- the lifecycle (`lifecycle_engine_test.go`): stop keeps the same containers, stopped, and the list says stopped without drift; start runs the same ones; restart passes the gate; down removes the containers and the network and keeps the named volume; a never-healthy service fails restart's gate and nothing is rolled back; remove deletes the folder as a commit, keeps the volume, and a rollback restores it; remove with volumes removes them.
 
 Not covered yet, each a test to write rather than a run to make: hash parity between `compose.ServiceHash` on a project loaded from memory and labels the CLI stamped; the "couldn't check" classification of registry errors; `docker compose ls` showing node-deployed stacks at their paths; external paths seen from the node's container; self-update (`PullImage`, `RecreateImage`) recreating a container with its labels, networks and volumes; a move of a project another tool started from a host path.

@@ -2,7 +2,9 @@ package stacks
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -177,6 +179,62 @@ func (d *SDK) Down(ctx context.Context, project string, progress func(Event)) er
 		return err
 	}
 	return svc.Down(ctx, project, api.DownOptions{RemoveOrphans: true})
+}
+
+// Stop implements Docker.
+func (d *SDK) Stop(ctx context.Context, project string, progress func(Event)) error {
+	svc, err := d.service(progress, false)
+	if err != nil {
+		return err
+	}
+	return svc.Stop(ctx, project, api.StopOptions{})
+}
+
+// Start implements Docker. With no project given, Compose rebuilds it
+// from the containers' labels, so no file or secret is needed.
+func (d *SDK) Start(ctx context.Context, project string, progress func(Event)) error {
+	svc, err := d.service(progress, false)
+	if err != nil {
+		return err
+	}
+	return svc.Start(ctx, project, api.StartOptions{})
+}
+
+// Restart implements Docker.
+func (d *SDK) Restart(ctx context.Context, project string, progress func(Event)) error {
+	svc, err := d.service(progress, false)
+	if err != nil {
+		return err
+	}
+	return svc.Restart(ctx, project, api.RestartOptions{})
+}
+
+// Volumes implements Docker: the volumes labelled with the project, as
+// Compose labels the named volumes it creates. External ones carry no
+// such label.
+func (d *SDK) Volumes(ctx context.Context, project string) ([]string, error) {
+	vs, err := d.cli.Client().VolumeList(ctx, client.VolumeListOptions{Filters: make(client.Filters).Add("label", api.ProjectLabel+"="+project)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(vs.Items))
+	for _, v := range vs.Items {
+		out = append(out, v.Name)
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+// RemoveVolumes implements Docker. It never forces: a volume a container
+// still uses stays, and the error says so.
+func (d *SDK) RemoveVolumes(ctx context.Context, names []string) error {
+	var errs []error
+	for _, n := range names {
+		if _, err := d.cli.Client().VolumeRemove(ctx, n, client.VolumeRemoveOptions{}); err != nil {
+			errs = append(errs, fmt.Errorf("remove volume %s: %w", n, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // ImageRefs implements Docker: per service, the registry digest of the

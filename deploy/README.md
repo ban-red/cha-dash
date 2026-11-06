@@ -185,7 +185,7 @@ docker:
   allow: [read, logs, lifecycle, update]   # also: remove, exec (exec needs exec: true too)
   protect: []                              # container or compose service names no write may touch
   redact_env: true                         # inspect leaves without environment values
-stacks: { root: /opt/stacks, allow: [read, deploy, adopt, sync] }   # also: selfupdate (compose.yaml adds it; see below)
+stacks: { root: /opt/stacks, allow: [read, deploy, adopt, sync] }   # also: remove, selfupdate (compose.yaml adds selfupdate; see below)
 # stacks: { remotes: [git.lab.example, "git.lab.example:2222"] }   # git hosts sync may reach; none listed is any
 # stacks: { deny: [privileged, host_namespaces, devices, cap_add, host_binds], bind_roots: [/mnt/media] }
 images: { allow: [check] }                 # allow: [] stops the registry checks
@@ -201,7 +201,8 @@ exec: false
 | `docker.update` | pull a container's image and recreate it |
 | `docker.remove` | remove containers (off by default) |
 | `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
-| `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks) |
+| `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks). `stacks.deploy` also stops, starts, restarts and takes down a whole stack (down keeps its volumes) |
+| `stacks.remove` | remove a stack: take it down and delete its folder from the stacks root as a commit, so it can be restored from history; its named volumes too, when asked. A stack adopted in place outside the root only stops being managed, and its files stay. Off by default |
 | `stacks.sync` | check and fetch the git remote a stack follows, only from the hosts in `stacks.remotes` when it lists any (Settings → Stacks → Follow git) |
 | `images.check` | ask each running container's registry whether its image tag has moved, with a `HEAD` request at most every 6 hours, for the Update Center. It changes nothing, but it is traffic from the node's host, so `images: { allow: [] }` turns it off |
 | `stacks.selfupdate` | update the hub's own container: Settings → Stacks → Update Cha Dash. Off by default. `compose.yaml` turns it on for the node beside the hub with `CHADASH_NODE_SELFUPDATE: "true"`, which adds it to the default policy; a mounted `policy.yaml` decides alone, so list `selfupdate` there instead. Only a node in the hub's compose project can use it, and it only ever recreates the hub's container |

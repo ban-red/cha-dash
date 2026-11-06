@@ -231,6 +231,13 @@ func (m *Module) Verbs() []node.Verb {
 		verb(stackproto.VerbMove, stackproto.PermAdopt, m.move),
 		verb(stackproto.VerbSelfUpdate, stackproto.PermSelfUpdate, m.selfUpdate),
 		verb(stackproto.VerbSelfUpdateResult, stackproto.PermSelfUpdate, m.selfUpdateResult),
+
+		// A whole stack's lifecycle (v0.5, wave 32a; lifecycle.go).
+		verb(stackproto.VerbStop, stackproto.PermDeploy, m.stop),
+		verb(stackproto.VerbStart, stackproto.PermDeploy, m.start),
+		verb(stackproto.VerbRestart, stackproto.PermDeploy, m.restart),
+		verb(stackproto.VerbDown, stackproto.PermDeploy, m.down),
+		verb(stackproto.VerbRemove, stackproto.PermRemove, m.remove),
 	}
 }
 
@@ -655,6 +662,13 @@ func (m *Module) get(ctx context.Context, req stackproto.GetRequest, _ emitter) 
 	if err != nil {
 		return stackproto.Stack{}, err
 	}
+	if !s.managed && !s.exists && req.At != "" {
+		// A stack stack.remove took out of the root: its versions are still
+		// in history, for the hub to read before restoring one.
+		if head, err := m.headOf(s); err == nil && head != "" {
+			return m.getRemoved(ctx, s, req.At)
+		}
+	}
 	if !s.managed && !s.exists {
 		// A running project outside the root that nobody adopted yet: show
 		// it, read-only, so it can be looked at before adopting.
@@ -723,10 +737,51 @@ func (m *Module) get(ctx context.Context, req stackproto.GetRequest, _ emitter) 
 	for _, c := range cs {
 		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
 	}
+	out.Volumes = m.volumes(ctx, s.name)
 	out.ProtectedReason = m.protectedReason(s.name, []string{out.Content}, cs)
 	// The summary judged the committed file only; an uncommitted file or
 	// what runs can make it protected too.
 	out.Protected = out.Protected || out.ProtectedReason != ""
+	return out, nil
+}
+
+// getRemoved is a removed stack's file at commit at (the remove commit
+// stands for the one before it), with its history: Managed, since Cha Dash
+// still holds it in history and a rollback restores it.
+func (m *Module) getRemoved(ctx context.Context, s stackRef, at string) (stackproto.Stack, error) {
+	c, err := m.repo.commitByHash(at)
+	if err != nil {
+		return stackproto.Stack{}, err
+	}
+	if s, c, err = m.removedAt(s, c); err != nil {
+		return stackproto.Stack{}, err
+	}
+	content, _, err := m.repo.file(c, s.tracked)
+	if err != nil {
+		return stackproto.Stack{}, err
+	}
+	out := stackproto.Stack{Managed: true, Content: content, Containers: []stackproto.Service{}, History: []stackproto.Commit{}, Env: stackproto.EnvInfo{Keys: []string{}}}
+	out.Name, out.Location, out.Path, out.File = s.name, stackproto.LocationRoot, s.dir, s.file
+	hist, err := m.repo.history(s.name, s.tracked, historyLimit)
+	if err != nil {
+		return out, err
+	}
+	for _, h := range hist {
+		out.History = append(out.History, toCommit(h))
+	}
+	if len(out.History) > 0 {
+		out.Head = &out.History[0]
+	}
+	cs, ok := m.containers(ctx, s.name)
+	out.Status, out.Services, out.Running = status(cs)
+	if !ok {
+		out.Status = stackproto.StatusUnknown
+	}
+	out.Meta = metaOf(content).raw
+	out.Secrets = secretRefs(content)
+	out.Volumes = m.volumes(ctx, s.name)
+	out.ProtectedReason = m.protectedReason(s.name, []string{content}, cs)
+	out.Protected = out.ProtectedReason != ""
 	return out, nil
 }
 
@@ -742,7 +797,7 @@ func (m *Module) protectedRunning(ctx context.Context, name string) (stackproto.
 	}
 	// Not the usual "viewed and diffed": there's no one file here to show.
 	const why = "This is Cha Dash's own stack. It isn't in one compose file Cha Dash can read here, so only its containers are shown. Cha Dash changes its own image by self-update (Update Cha Dash)."
-	out := stackproto.Stack{Meta: map[string]any{}, Containers: []stackproto.Service{}, History: []stackproto.Commit{}, Secrets: []string{}, ProtectedReason: why}
+	out := stackproto.Stack{Meta: map[string]any{}, Containers: []stackproto.Service{}, History: []stackproto.Commit{}, Secrets: []string{}, Volumes: m.volumes(ctx, name), ProtectedReason: why}
 	out.Name, out.Protected, out.Location = name, true, stackproto.LocationExternal
 	out.Status, out.Services, out.Running = status(cs)
 	slices.SortFunc(cs, func(a, b Container) int { return strings.Compare(a.Service+a.Name, b.Service+b.Name) })
