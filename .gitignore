@@ -54,5 +54,6 @@ internal/webui/dist/
 
 # Playwright (web/e2e): the signed-in state, results and the HTML report
 web/e2e/.auth/
+web/e2e/.hub.log
 web/test-results/
 web/playwright-report/

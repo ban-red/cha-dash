@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,13 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+  // Everything the hub logs goes to e2e/.hub.log too, which CI keeps with the
+  // report: a failed test comes with the hub's side of it.
+  const logDir = fileURLToPath(new URL('.', import.meta.url));
+  await mkdir(logDir, { recursive: true });
+  const hubLog = createWriteStream(join(logDir, '.hub.log'));
+  hub.stdout.pipe(hubLog, { end: false });
+  hub.stderr.pipe(hubLog, { end: false });
   let output = '';
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`no first-run note from ${bin} within 30 s:\n${output}`)), 30_000);
@@ -50,6 +58,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     const exited = new Promise((r) => hub.once('exit', r));
     hub.kill('SIGTERM');
     await exited;
+    hubLog.end();
     await rm(dataDir, { recursive: true, force: true });
   };
 }
