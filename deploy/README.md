@@ -189,6 +189,7 @@ stacks: { root: /opt/stacks, allow: [read, deploy, adopt, sync] }   # also: remo
 # stacks: { remotes: [git.lab.example, "git.lab.example:2222"] }   # git hosts sync may reach; none listed is any
 # stacks: { deny: [privileged, host_namespaces, devices, cap_add, host_binds], bind_roots: [/mnt/media] }
 images: { allow: [check] }                 # allow: [] stops the registry checks
+# images: { registries: [ghcr.io, "registry.lab.example:5000"] }   # registries the node may log in to; none listed is none
 exec: false
 # hub: { pin: "ed25519:…", pin_rotation: false }   # fix the hub's key
 ```
@@ -201,7 +202,7 @@ exec: false
 | `docker.update` | pull a container's image and recreate it |
 | `docker.remove` | remove containers (off by default) |
 | `docker.exec` | exec into containers (off by default; needs `exec: true` too) |
-| `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks). `stacks.deploy` also stops, starts, restarts and takes down a whole stack (down keeps its volumes) |
+| `stacks.read`, `stacks.deploy`, `stacks.adopt` | owned stacks (see stacks). `stacks.deploy` also stops, starts, restarts and takes down a whole stack (down keeps its volumes), and updates a stack's images with its file unchanged: it checks each tag's registry, pulls the tags, recreates the services whose image moved, and rolls back to the old digests if they fail their health check |
 | `stacks.remove` | remove a stack: take it down and delete its folder from the stacks root as a commit, so it can be restored from history; its named volumes too, when asked. A stack adopted in place outside the root only stops being managed, and its files stay. Off by default |
 | `stacks.sync` | check and fetch the git remote a stack follows, only from the hosts in `stacks.remotes` when it lists any (Settings → Stacks → Follow git) |
 | `images.check` | ask each running container's registry whether its image tag has moved, with a `HEAD` request at most every 6 hours, for the Update Center. It changes nothing, but it is traffic from the node's host, so `images: { allow: [] }` turns it off |
@@ -209,11 +210,34 @@ exec: false
 
 The hub (`chadash`, found by its compose service or, wherever it runs, by its image) and the node (`chadash-node`) are always protected, whatever the file says: no Docker or stack action restarts or removes them. The one exception is Update Cha Dash (`stacks.selfupdate`), which recreates the hub's container with a new image; the node never touches its own. Protection holds for stacks too: a deploy that would recreate or remove a protected container is refused. A file that doesn't parse, or names an unknown grant, stops the node rather than guess.
 
+**Private registries.** The node pulls from a registry that needs a login, and checks it for updates, with the login from a Docker config file on its host. Log in on the host as usual, then mount that file and list the registry in the policy:
+
+```sh
+docker login ghcr.io          # writes ~/.docker/config.json
+```
+
+```yaml
+# compose.override.yaml
+services:
+  chadash-node:
+    volumes:
+      - ~/.docker/config.json:/etc/chadash-node/docker-config.json:ro
+```
+
+```yaml
+# policy.yaml
+images:
+  allow: [check]
+  registries: [ghcr.io]   # host or host:port; Docker Hub is docker.io
+```
+
+The node uses a login only for a registry `images.registries` lists, and sends it only to that registry (a pull, an update check). With no list, the default, it sends none. The login stays on the host: the hub only learns that a registry needs one and whether this node has it ("ghcr.io needs a login, and this node has none for it."). Only plain logins work, the `auth` (or `username` and `password`) that `docker login` writes without a credential helper; a `credsStore` or `credHelpers` entry isn't read, and the node's log says so. If `docker login` used a helper, write a plain file for the node with `docker --config /root/chadash-docker login ghcr.io` and mount `/root/chadash-docker/config.json` instead. The file is read again when it changes. `CHADASH_NODE_DOCKER_CONFIG` puts it elsewhere.
+
 `redact_env` hides environment values only. A container's command line and labels come back as they are, so keep secrets out of them.
 
 **`stacks.deploy` is root on this host.** A compose file can mount the host's disk, run privileged or share the host's namespaces, and Cha Dash deploys what an admin saves. That's by design: media stacks need bind mounts and VPN containers need `cap_add`. The node always refuses what would hand a stack its own keys: the Docker socket, `/`, its own directories and volumes, the `pairing` volume, `volumes_from` another container, env files outside the stack's directory, and `include` or `extends` from other files. Everything else root-equivalent (privileged, host namespaces, devices, `cap_add`, host paths outside the stack's directory) is allowed but called out in the editor and in the deploy confirmation. To lock it down, list those in `stacks.deny`; with `host_binds` denied, `bind_roots` names the host paths stacks may still bind. Or remove `deploy` from `stacks.allow`.
 
-**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`; `hooks` and `secrets` are taken, and a node that joins with a token can't be `local`, which only local pairing gives), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a pairing token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `TOKEN` (a join token, `cdj_…`, for a node on another host), `TOKEN_FILE` (a file holding the join token, such as a Docker secret), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `LOG_LEVEL`, `LOG_FORMAT`, `SELFUPDATE` (`false`; `true` adds `stacks.selfupdate` to the default policy, and is ignored when there's a policy file). `TOKEN` and `TOKEN_FILE` are read only until the node has joined; after that the node ignores them and its log says they can be removed.
+**Its settings** are `CHADASH_NODE_*` variables, none required: `HUB` (`ws://chadash:3696/node`), `NAME` (`local`; `hooks` and `secrets` are taken, and a node that joins with a token can't be `local`, which only local pairing gives), `DIR` (`/etc/chadash-node`), `POLICY`, `PAIRING` (a pairing token, instead of the file; good for one pairing), `PAIRING_FILE` (`/pairing/token`, read again whenever the node pairs), `TOKEN` (a join token, `cdj_…`, for a node on another host), `TOKEN_FILE` (a file holding the join token, such as a Docker secret), `DOCKER_HOST` (`unix:///var/run/docker.sock`), `DOCKER_CONFIG` (`<DIR>/docker-config.json`, the registry logins: see Private registries), `LOG_LEVEL`, `LOG_FORMAT`, `SELFUPDATE` (`false`; `true` adds `stacks.selfupdate` to the default policy, and is ignored when there's a policy file). `TOKEN` and `TOKEN_FILE` are read only until the node has joined; after that the node ignores them and its log says they can be removed.
 
 **Running it unprivileged.** Set `user: "65532:65532"` and `group_add: ["<gid>"]`, with the gid from `stat -c %g /var/run/docker.sock`.
 

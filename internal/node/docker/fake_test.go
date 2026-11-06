@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -28,6 +29,7 @@ type fakeDocker struct {
 	registry    map[string]string         // tag → its digest, "401" (needs a login) or "" (no such tag)
 	asked       []string                  // the tags the fake registry was asked about (fakeRegistry)
 	inspected   []string                  // the tags Docker's /distribution was asked about
+	pullAuth    map[string]string         // ref → the X-Registry-Auth its pull sent
 	headers     []http.Header             // what each registry HEAD sent
 	crash       map[string]bool           // images whose containers restart at once on start
 	exits       map[string]bool           // images whose containers exit at once on start (restart policy no)
@@ -289,8 +291,18 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
+		if f.pullAuth == nil {
+			f.pullAuth = map[string]string{}
+		}
+		f.pullAuth[ref] = r.Header.Get("X-Registry-Auth")
 		if strings.Contains(ref, "missing") {
 			enc.Encode(map[string]any{"errorDetail": map[string]string{"message": "manifest unknown"}, "error": "manifest unknown"})
+			return
+		}
+		// A private image pulls only with a login, as a registry with
+		// htpasswd answers.
+		if strings.Contains(ref, "private") && r.Header.Get("X-Registry-Auth") == "" {
+			jsonOut(w, 500, map[string]string{"message": "Head \"https://" + ref + "\": no basic auth credentials"})
 			return
 		}
 		enc.Encode(map[string]any{"status": "Pulling from library/" + ref, "id": "latest"})
@@ -313,7 +325,15 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(path, "/distribution/") && strings.HasSuffix(path, "/json"):
 		ref := strings.TrimSuffix(strings.TrimPrefix(path, "/distribution/"), "/json")
 		f.inspected = append(f.inspected, ref)
-		switch d := f.registry[ref]; d {
+		d := f.registry[ref]
+		if login, ok := strings.CutPrefix(d, "login:"); ok {
+			// A private tag: its digest when the lookup carries a login.
+			d = "401"
+			if r.Header.Get("X-Registry-Auth") != "" {
+				d = login
+			}
+		}
+		switch d {
 		case "":
 			jsonOut(w, 404, map[string]string{"message": "manifest unknown"})
 		case "401":
@@ -331,6 +351,13 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// The fake registry's one login (fakeRegistry, and a pull of a "private"
+// image).
+const (
+	fakeUser     = "robot"
+	fakePassword = "fake-pw-not-real-0000"
+)
+
 // fakeRegistry serves the registry API for every domain under
 // <url>/<domain>, answering HEADs from f.registry: a digest, "401" (a
 // token is refused: a login) or "" (no such tag). docker.io wants an
@@ -344,6 +371,10 @@ func (f *fakeDocker) fakeRegistry(t *testing.T, unreachable string) func(string)
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		if r.URL.Path == "/token" {
+			if r.Header.Get("Authorization") == "Basic "+base64.StdEncoding.EncodeToString([]byte(fakeUser+":"+fakePassword)) {
+				jsonOut(w, 200, map[string]string{"token": "robot"})
+				return
+			}
 			if r.URL.Query().Get("scope") == "" || strings.Contains(r.URL.Query().Get("scope"), "private") {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
@@ -358,7 +389,7 @@ func (f *fakeDocker) fakeRegistry(t *testing.T, unreachable string) func(string)
 			return
 		}
 		ref := domain + "/" + repo + ":" + tag
-		authed := r.Header.Get("Authorization") == "Bearer anon"
+		authed := r.Header.Get("Authorization") == "Bearer anon" || r.Header.Get("Authorization") == "Bearer robot"
 		challenge := `Bearer realm="` + srv.URL + `/token",service="registry.example",scope="repository:` + repo + `:pull"`
 		if domain == "docker.io" && !authed {
 			w.Header().Set("WWW-Authenticate", challenge)
@@ -367,7 +398,15 @@ func (f *fakeDocker) fakeRegistry(t *testing.T, unreachable string) func(string)
 		}
 		f.asked = append(f.asked, ref)
 		f.headers = append(f.headers, r.Header.Clone())
-		switch d := f.registry[ref]; d {
+		d := f.registry[ref]
+		if login, ok := strings.CutPrefix(d, "login:"); ok {
+			// A private tag: its digest for the robot's token only.
+			d = "401"
+			if r.Header.Get("Authorization") == "Bearer robot" {
+				d = login
+			}
+		}
+		switch d {
 		case "":
 			w.WriteHeader(http.StatusNotFound)
 		case "401":

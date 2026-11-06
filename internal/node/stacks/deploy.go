@@ -103,7 +103,7 @@ func (m *Module) rollback(ctx context.Context, req stackproto.RollbackRequest, e
 	if err != nil {
 		return stackproto.DeployResult{}, err
 	}
-	content, pinned := pinImages(old, recreatedOnly(ctx, a, old, a.running, pins))
+	content, pinned := pinImages(old, m.recreatedOnly(ctx, a, old, a.running, pins))
 	a.content, a.kind, a.by, a.via, a.ref = content, stackproto.KindRollback, req.By, req.Via, req.Ref
 	a.subject = fmt.Sprintf("Roll back %s to %s", a.s.name, target.Hash.String()[:7])
 	if restore {
@@ -207,31 +207,11 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 	}
 
 	// 1. Validate.
-	em.step("Validate the file")
-	v := validate(ctx, a.s, a.content, m.guard)
-	if !v.OK {
-		for _, msg := range v.Messages {
-			if msg.Severity == stackproto.SeverityError {
-				return res, stackproto.Errorf(stackproto.CodeInvalid, "%s", msg.Message)
-			}
-		}
-	}
-	for _, name := range v.Secrets {
-		if _, ok := a.secrets[name]; !ok {
-			return res, stackproto.Errorf(stackproto.CodeInvalid, "The secret %q wasn't sent with the deploy.", name)
-		}
-	}
-	p, err := load(ctx, a.s, a.content, loadOptions{secrets: a.secrets})
+	p, flagged, err := m.loadAttempt(ctx, a, em)
 	if err != nil {
-		return res, stackproto.Errorf(stackproto.CodeInvalid, "%s", scrub(loadMessage(err), a.secrets))
+		return res, err
 	}
 	meta := metaOf(a.content)
-	// The guard again, on the file as it will run: validation saw
-	// placeholders, and a secret's value can be a path.
-	refused, _, flagged := m.guard.check(p, a.s.dir)
-	if len(refused) > 0 {
-		return res, stackproto.Errorf(stackproto.CodeInvalid, "%s", scrub(refused[0].Message, a.secrets))
-	}
 
 	// 2. Plan.
 	em.step("Plan from the running containers")
@@ -317,12 +297,22 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 		m.removeNew(ctx, a, reason, &res, em)
 		return done()
 	}
+	m.rollBack(ctx, a, reason, &res, em, nil)
+	return done()
+}
+
+// rollBack is step 7 for an attempt that failed its gate: the previous
+// file as a new commit, pinned to the digests it last ran, through the gate
+// with the shorter soak; stuck if that fails too. keep, when set, adjusts
+// the previous file's project before it runs (an update keeps held
+// services on the image they run).
+func (m *Module) rollBack(ctx context.Context, a *attempt, reason string, res *stackproto.DeployResult, em emitter, keep func(*types.Project)) {
 	em.step("Roll back to " + short(a.head))
 	now, err := m.docker.Containers(ctx, a.s.name)
 	if err != nil {
 		now = nil // pin every service, as if none matched
 	}
-	back, pinned := pinImages(a.prev, recreatedOnly(ctx, a, a.prev, now, a.prevRefs))
+	back, pinned := pinImages(a.prev, m.recreatedOnly(ctx, a, a.prev, now, a.prevRefs))
 	rbSubject := fmt.Sprintf("Roll back %s: %s", a.s.name, reason)
 	if len(pinned) > 0 {
 		rbSubject += " (pinned " + strings.Join(pinned, ", ") + ")"
@@ -331,17 +321,20 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 		[][2]string{{trailerKind, stackproto.KindRollback}, {trailerStack, a.s.name}, {trailerActor, "chadash-node"}})
 	if err != nil {
 		res.Outcome, res.Reason = stackproto.OutcomeStuck, fmt.Sprintf("%s; and the rollback couldn't be committed: %v", reason, err)
-		return done()
+		return
 	}
 	res.RollbackCommit = rbCommit
 	bp, err := load(ctx, a.s, back, loadOptions{secrets: a.secrets})
 	if err != nil {
 		res.Outcome, res.Reason = stackproto.OutcomeStuck, fmt.Sprintf("%s; and the previous file no longer loads: %s", reason, loadMessage(err))
-		return done()
+		return
 	}
 	if refused, _, _ := m.guard.check(bp, a.s.dir); len(refused) > 0 {
 		res.Outcome, res.Reason = stackproto.OutcomeStuck, fmt.Sprintf("%s; and the node's policy refuses the previous file now: %s", reason, refused[0].Message)
-		return done()
+		return
+	}
+	if keep != nil {
+		keep(bp)
 	}
 	prevMeta := metaOf(a.prev)
 	rbSoak := pick(prevMeta.rollbackSoak, m.rollbackSoak)
@@ -349,12 +342,42 @@ func (m *Module) run(ctx context.Context, a *attempt, em emitter) (stackproto.De
 		res.Outcome = stackproto.OutcomeStuck
 		res.Reason = fmt.Sprintf("%s; and the rollback to %s failed too: %v", reason, short(a.head), err)
 		em.step("Stuck: the rollback failed too")
-		return done()
+		return
 	}
 	res.Outcome = stackproto.OutcomeRolledBack
 	res.Reason = fmt.Sprintf("%s. Rolled back to %s on its own, and it's healthy again.", strings.TrimSuffix(reason, "."), short(a.head))
 	em.step("Rolled back and healthy")
-	return done()
+}
+
+// loadAttempt is step 1: validate the attempt's file, load it with the
+// secrets, and hold it to the guard as it will run. It returns the project
+// and the root-equivalent features the guard flagged.
+func (m *Module) loadAttempt(ctx context.Context, a *attempt, em emitter) (*types.Project, []string, error) {
+	em.step("Validate the file")
+	v := validate(ctx, a.s, a.content, m.guard)
+	if !v.OK {
+		for _, msg := range v.Messages {
+			if msg.Severity == stackproto.SeverityError {
+				return nil, nil, stackproto.Errorf(stackproto.CodeInvalid, "%s", msg.Message)
+			}
+		}
+	}
+	for _, name := range v.Secrets {
+		if _, ok := a.secrets[name]; !ok {
+			return nil, nil, stackproto.Errorf(stackproto.CodeInvalid, "The secret %q wasn't sent with the deploy.", name)
+		}
+	}
+	p, err := load(ctx, a.s, a.content, loadOptions{secrets: a.secrets})
+	if err != nil {
+		return nil, nil, stackproto.Errorf(stackproto.CodeInvalid, "%s", scrub(loadMessage(err), a.secrets))
+	}
+	// The guard again, on the file as it will run: validation saw
+	// placeholders, and a secret's value can be a path.
+	refused, _, flagged := m.guard.check(p, a.s.dir)
+	if len(refused) > 0 {
+		return nil, nil, stackproto.Errorf(stackproto.CodeInvalid, "%s", scrub(refused[0].Message, a.secrets))
+	}
+	return p, flagged, nil
 }
 
 // removeNew undoes a brand-new stack's failed first deploy: there's no
@@ -381,11 +404,13 @@ func (m *Module) removeNew(ctx context.Context, a *attempt, reason string, res *
 }
 
 // recreatedOnly keeps the pins of the services that rolling back to content
-// recreates anyway. A service whose running container already matches
-// content (the attempt didn't touch it) would only be recreated for a
-// digest it already runs, and its file would keep the pin for good, so it
-// goes unpinned. When content can't be planned, every pin stays.
-func recreatedOnly(ctx context.Context, a *attempt, content string, running []Container, refs map[string]string) map[string]string {
+// recreates anyway, or that run another digest than their pin (an update
+// moved them with the file unchanged). A service whose running container
+// already matches content and its pin (the attempt didn't touch it) would
+// only be recreated for a digest it already runs, and its file would keep
+// the pin for good, so it goes unpinned. When content can't be planned,
+// every pin stays.
+func (m *Module) recreatedOnly(ctx context.Context, a *attempt, content string, running []Container, refs map[string]string) map[string]string {
 	if len(refs) == 0 || running == nil {
 		return refs
 	}
@@ -397,13 +422,27 @@ func recreatedOnly(ctx context.Context, a *attempt, content string, running []Co
 	if err != nil {
 		return refs
 	}
+	runs, err := m.docker.ImageRefs(ctx, a.s.name)
+	if err != nil {
+		runs = nil // by the plan alone
+	}
 	out := map[string]string{}
 	for _, sp := range plan {
-		if ref, ok := refs[sp.Name]; ok && sp.Action != stackproto.ActionUnchanged {
+		ref, ok := refs[sp.Name]
+		if !ok {
+			continue
+		}
+		if sp.Action != stackproto.ActionUnchanged || runs[sp.Name] != "" && digestPart(runs[sp.Name]) != digestPart(ref) {
 			out[sp.Name] = ref
 		}
 	}
 	return out
+}
+
+// digestPart is a digest reference's digest: "nginx@sha256:…" → "sha256:…".
+func digestPart(ref string) string {
+	_, d, _ := strings.Cut(ref, "@")
+	return d
 }
 
 func pick(override, def time.Duration) time.Duration {

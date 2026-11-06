@@ -33,6 +33,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"dash.cha.sh/internal/node"
+	noderegistry "dash.cha.sh/internal/node/registry"
 	"dash.cha.sh/internal/stackproto"
 )
 
@@ -101,6 +102,15 @@ type Options struct {
 	MaxFetch         int64
 	AllowFileRemotes bool
 
+	// Registry answers stack.update.check: what each tag's registry has
+	// now, by a HEAD (the docker module's registry.Checker, so both share
+	// one cache). Nil: Docker's, when it answers for a registry too (the
+	// test fake), else a checker of its own with Logins.
+	Registry ImageRegistry
+	// Logins are the node's registry logins, for that checker of its own.
+	// Pulls take theirs from the Docker seam (SDK.Logins).
+	Logins *noderegistry.Logins
+
 	// Now and Sleep are for tests.
 	Now   func() time.Time
 	Sleep func(ctx context.Context, d time.Duration) error
@@ -134,6 +144,8 @@ type Module struct {
 	selfNext time.Time // when to ask again
 
 	git *remotes // stack.remote.check and stack.fetch (remote.go)
+
+	images ImageRegistry // stack.update.check (update.go)
 }
 
 var _ node.Module = (*Module)(nil)
@@ -202,6 +214,14 @@ func New(o Options) (*Module, error) {
 		return nil, err
 	}
 	m.git = newRemotes(o, m.log)
+	m.images = o.Registry
+	if m.images == nil {
+		if r, ok := o.Docker.(ImageRegistry); ok {
+			m.images = r
+		} else {
+			m.images = &noderegistry.Checker{Client: noderegistry.Client{HTTP: noderegistry.NewHTTPClient(), Logins: o.Logins}, Now: m.now}
+		}
+	}
 	m.cleanStaging()
 	return m, nil
 }
@@ -238,6 +258,11 @@ func (m *Module) Verbs() []node.Verb {
 		verb(stackproto.VerbRestart, stackproto.PermDeploy, m.restart),
 		verb(stackproto.VerbDown, stackproto.PermDeploy, m.down),
 		verb(stackproto.VerbRemove, stackproto.PermRemove, m.remove),
+
+		// Update a stack's images with its file unchanged (v0.5, wave 32b;
+		// update.go).
+		verb(stackproto.VerbUpdateCheck, stackproto.PermDeploy, m.updateCheck),
+		verb(stackproto.VerbUpdate, stackproto.PermDeploy, m.update),
 	}
 }
 

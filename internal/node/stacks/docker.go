@@ -11,6 +11,9 @@ type (
 	Event     = dockerapi.Event
 	// SelfUpdater recreates the hub's container (stack.selfupdate).
 	SelfUpdater = dockerapi.SelfUpdater
+	// ImageRegistry answers what a tag's registry has now
+	// (stack.update.check).
+	ImageRegistry = dockerapi.Registry
 )
 
 // ErrUnchecked marks a preflight that couldn't reach a registry.

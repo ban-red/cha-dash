@@ -44,6 +44,11 @@ const (
 	VerbRestart = "stack.restart"
 	VerbDown    = "stack.down"
 	VerbRemove  = "stack.remove"
+
+	// v0.5 (plan 16, wave 32b): update a stack's images with its file
+	// unchanged. Both need PermDeploy.
+	VerbUpdateCheck = "stack.update.check"
+	VerbUpdate      = "stack.update"
 )
 
 // Local policy permissions (policy.yaml's stacks.allow: read, deploy,
@@ -82,6 +87,7 @@ const (
 	KindAccept     = "accept" // accepting edits made outside Cha Dash
 	KindSelfUpdate = "self-update"
 	KindRemove     = "remove" // stack.remove: the stack's file left the repo
+	KindUpdate     = "update" // stack.update: new images, the file unchanged (an empty commit)
 	KindOther      = "other"
 )
 
@@ -360,6 +366,10 @@ type ServicePlan struct {
 	Pull   bool   `json:"pull,omitempty"` // its image will be pulled first
 	Image  string `json:"image,omitempty"`
 	Reason string `json:"reason,omitempty"`
+	// From and To are stack.update's: the digest the service ran and the
+	// one it runs after ("sha256:…").
+	From string `json:"from,omitempty"`
+	To   string `json:"to,omitempty"`
 }
 
 // ── stack.deploy and stack.rollback ──────────────────────────────────────
@@ -486,6 +496,75 @@ type LifecycleResult struct {
 	// root, whose folder is deleted.
 	FilesKept string `json:"files_kept,omitempty"`
 }
+
+// ── stack.update.check and stack.update ─────────────────────────────────
+
+// UpdateCheckRequest asks which of a managed stack's images moved in
+// their registries, without pulling: a HEAD for each tag's manifest, with
+// the node's registry logins where it has one. Fresh asks again even when
+// an answer is cached.
+type UpdateCheckRequest struct {
+	Name  string `json:"name"`
+	Fresh bool   `json:"fresh,omitempty"`
+}
+
+// UpdateCheck is the answer: one entry per service in the committed file.
+type UpdateCheck struct {
+	Name     string      `json:"name"`
+	Head     string      `json:"head"` // the stack's last commit, for ExpectHead
+	Services []ImageMove `json:"services"`
+}
+
+// ImageMove is one service's image: the digest it runs and the registry's
+// for the same tag now.
+type ImageMove struct {
+	Service string `json:"service"`
+	Image   string `json:"image"`             // the reference in the file ("nginx:1.27")
+	Current string `json:"current,omitempty"` // the digest the running container has
+	Latest  string `json:"latest,omitempty"`  // the registry's digest for the tag now
+	Moved   bool   `json:"moved"`             // both known and different
+	// Reason says why it can't move or isn't known, a sentence: pinned by
+	// digest in the file, built locally, held, the registry unreachable,
+	// or a login it needs ("ghcr.io needs a login, and this node has none
+	// for it."). Never a credential.
+	Reason string `json:"reason,omitempty"`
+	// Login is the registry's login on this node: "" (none needed, or
+	// unknown), "needed" (it asked for one and the node has none) or
+	// "used" (the node logged in with its own).
+	Login string `json:"login,omitempty"`
+}
+
+// Registry logins (ImageMove.Login).
+const (
+	LoginNeeded = "needed"
+	LoginUsed   = "used"
+)
+
+// UpdateRequest updates a managed stack's images through the deploy's
+// pipeline with the file unchanged: pull each service's tag, recreate only
+// those whose digest moved, hold the health gate, and on failure roll back
+// to the digests they ran (pinned, a rollback commit). It commits with no
+// file change (KindUpdate, a Chadash-Previous-Image trailer per moved
+// service), so the history shows it and a rollback to the commit before
+// returns the old digests. Services, when set, limits it to those; Hold
+// keeps services on their image as in DeployRequest. Expect is the digests
+// the hub planned (service → Latest): a service whose pull gets another
+// one still updates, and the result's plan says so. Nothing moved:
+// OutcomeUnchanged, and no commit.
+type UpdateRequest struct {
+	Name       string            `json:"name"`
+	ExpectHead string            `json:"expect_head,omitempty"`
+	Services   []string          `json:"services,omitempty"`
+	Expect     map[string]string `json:"expect,omitempty"`
+	Secrets    Secrets           `json:"secrets"`
+	Hold       []string          `json:"hold,omitempty"`
+	By         string            `json:"by,omitempty"`
+	Via        string            `json:"via,omitempty"`
+	Ref        string            `json:"ref,omitempty"`
+}
+
+// stack.update answers a DeployResult: Plan.Services lists the services
+// recreated, each with From and To.
 
 // ── stack.remote.check and stack.fetch ───────────────────────────────────
 

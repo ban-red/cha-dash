@@ -71,6 +71,25 @@ func TestStacksSyncPolicy(t *testing.T) {
 	}
 }
 
+// images.registries names the registries the node may log in to: hosts
+// or host:port, nothing else, and none by default.
+func TestImagesRegistriesPolicy(t *testing.T) {
+	if p := DefaultPolicy(); len(p.Images.Registries) != 0 {
+		t.Fatalf("default registries %v: none may get a login by default", p.Images.Registries)
+	}
+	p, err := ParsePolicy([]byte("images:\n  registries: [ghcr.io, 'registry.lab.example:5000', docker.io, 10.20.0.5]\n"))
+	if err != nil || len(p.Images.Registries) != 4 || !p.Allows("images.check") {
+		t.Fatalf("registries: %v %+v", err, p.Images)
+	}
+	for _, bad := range []string{
+		"''", "https://ghcr.io", "ghcr.io/acme", "user@ghcr.io", "'ghcr.io:0'", "'ghcr io'", "'ghcr.io?x=1'",
+	} {
+		if _, err := ParsePolicy([]byte("images: { registries: [" + bad + "] }\n")); err == nil || !strings.Contains(err.Error(), "images.registries") {
+			t.Errorf("registry %s: %v", bad, err)
+		}
+	}
+}
+
 func TestParsePolicy(t *testing.T) {
 	k, _ := nodeproto.GenerateKey()
 	pin := nodeproto.PinOf(k)

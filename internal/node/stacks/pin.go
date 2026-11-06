@@ -81,6 +81,7 @@ func childValue(m *yaml.Node, key string) *yaml.Node {
 // name the same repository.
 func sameRepo(image, ref string) bool {
 	repo, _, _ := strings.Cut(ref, "@")
+	image, _, _ = strings.Cut(image, "@") // "nginx:1.27@sha256:…" is nginx too
 	return normalRepo(stripTag(image)) == normalRepo(repo)
 }
 

@@ -26,6 +26,7 @@ import (
 //	CHADASH_NODE_TOKEN         (none)                     a join token, cdj_<secret>.<hub pin> (Settings → Nodes → Add node)
 //	CHADASH_NODE_TOKEN_FILE    (none)                     a file holding the join token (a Docker secret, say)
 //	CHADASH_NODE_DOCKER_HOST   unix:///var/run/docker.sock
+//	CHADASH_NODE_DOCKER_CONFIG <dir>/docker-config.json registry logins (a Docker config file; images.registries picks which are used)
 //	CHADASH_NODE_HEALTH_FILE   /tmp/chadash-node.health
 //	CHADASH_NODE_LOG_LEVEL     info                       debug, info, warn, error
 //	CHADASH_NODE_LOG_FORMAT    text                       text or json
@@ -42,9 +43,11 @@ type config struct {
 	Token      string
 	TokenFile  string
 	DockerHost string
-	HealthFile string
-	LogLevel   slog.Level
-	LogFormat  string
+	// DockerConfig is the Docker config file holding registry logins.
+	DockerConfig string
+	HealthFile   string
+	LogLevel     slog.Level
+	LogFormat    string
 	// SelfUpdate grants stacks.selfupdate on top of the default policy (no
 	// policy file): deploy/compose.yaml sets it for the node beside the hub.
 	SelfUpdate bool
@@ -75,6 +78,7 @@ func loadConfig(getenv func(string) string) (config, error) {
 		LogFormat: strings.ToLower(env("LOG_FORMAT", "text")),
 	}
 	c.PolicyPath = env("POLICY", filepath.Join(c.Dir, "policy.yaml"))
+	c.DockerConfig = env("DOCKER_CONFIG", filepath.Join(c.Dir, "docker-config.json"))
 	var errs []error
 	switch su := strings.ToLower(env("SELFUPDATE", "false")); su {
 	case "true", "1", "yes":

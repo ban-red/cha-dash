@@ -26,6 +26,8 @@ The node's stacks module. Cha Dash owns compose stacks on the host the node runs
 | `stack.restart` | `stacks.deploy` | `compose restart`, then the deploy's gate (every container running, and healthy where it has a check, within `wait`, then the soak). It only reports: `healthy`, and the services that failed in `unhealthy`. Nothing rolls back |
 | `stack.down` | `stacks.deploy` | `compose down`: the containers and the project's networks go. Named volumes always stay (`volumes_kept`), and the stack stays managed at its commit |
 | `stack.remove` | `stacks.remove` | Down, then the stack leaves the repo as a commit (`Chadash-Kind: remove`), so the history keeps it and `stack.rollback` restores it. In the root its folder is deleted, everything in it (`.env` and data beside the file too); a drifted file is refused (`drift`) rather than lose the edits. Adopted in place, its files stay where they are (`files_kept`) and only its registration and shadow copy go. Named volumes stay unless `volumes` is set, then they're removed (`volumes_removed`). Off by default |
+| `stack.update.check` | `stacks.deploy` | For each service of the committed file, the digest its container runs (`current`, its image's repo digest) and the one its tag's registry has now (`latest`, a `HEAD` for the manifest, kept 6 hours as `image.check` keeps it; `fresh` asks again after a minute), and `moved`. Nothing is pulled. A service pinned by digest in the file, built locally, held, or with no container says why in `reason`; a registry that needs a login says "ghcr.io needs a login, and this node has none for it." (`login: needed`), and `login: used` when the node logged in |
+| `stack.update` | `stacks.deploy` | New images, the file unchanged (see "Updating a stack"). Answers a `DeployResult` whose plan lists the services recreated, each with `from` and `to` digests |
 | `stack.adopt` | `stacks.adopt` | Adopt in place: commit a root directory, or register an external path and start its shadow history. Nothing moves and nothing restarts. On a drifted stack it accepts the edits made outside Cha Dash |
 | `stack.unadopt` | `stacks.adopt` | Stop versioning a stack. Its files and containers stay as they are |
 | `stack.remote.check` | `stacks.sync` | A branch's tip on a git remote, listed without fetching. Over SSH it also returns the host key the server presented, for the hub to pin |
@@ -75,6 +77,24 @@ Other rules:
 - One operation per stack at a time (`busy`). The lifecycle verbs hold the same lock, check `expect_head` the same way, and refuse (`protected`) Cha Dash's own stack and a stack with any container `docker.protect` names, since they touch every container. A name that isn't a stack is `not_found`; one that exists but isn't adopted is `not_managed`.
 - `expect_head` refuses a deploy planned against an older commit (`conflict`).
 - A file on disk that differs from its last commit refuses a deploy (`drift`) until the edits are accepted with `stack.adopt`.
+
+## Updating a stack
+
+`stack.update {name, expect_head, services?, hold?, expect?, secrets, by, via, ref}` (`update.go`) takes a managed stack through the deploy's steps with its committed file:
+
+1. **Validate** the committed file, loaded with the secrets the request carries.
+2. **Plan**: the services to update are the running ones on a registry tag, limited to `services` when set, without those in `hold`. Pinned by digest, built locally (no repo digest) and held services are left alone, and a service whose container runs a held digest stays on it.
+3. **Preflight**: the dry run, as for a deploy.
+4. **Pull** those tags, before any commit (pulling changes no container). A failed pull is `blocked`, and a registry that wants a login the node hasn't got says so in its sentence. The services whose image digest moved are the update; the plan lists only them, with `from` and `to`. A digest other than `expect` (what the hub planned from the check) still updates, and the plan's reason says so. Nothing moved: `unchanged`, and no commit. A service outside the update whose tag moved anyway (it shares the image) is kept on the digest it runs.
+5. **Commit** with no file change (`Chadash-Kind: update`, a `Chadash-Previous-Image` trailer per moved service): `Update media: web sha256:abc1234 → sha256:def5678 · by sam via web · t_…`.
+6. **Up --wait** recreates what moved (Compose compares each container's image digest), then the **health gate**.
+7. **Roll back** on failure: the file pinned to the digests the moved services ran, as a rollback commit, through the gate; `stuck` if that fails too.
+
+A later `stack.rollback` to the commit before an update pins the old digests from the update's trailers: a rollback keeps the pin of a service that runs another digest than its pin, even when its config is unchanged. It refuses what a deploy refuses (`busy`, `conflict`, `protected` for Cha Dash's own stack or a moved service's container in `docker.protect`, `not_managed`, `not_found`, `invalid`), a drifted file (`drift`: an update runs the committed file, not the edited one), and a stack with no containers (`not_deployed`). `stack.update.check` refuses the same, but takes no lock and no head.
+
+## Private registries
+
+The node logs in to a registry only when the policy lists it in `images.registries` and its Docker config file has a login for it (`/etc/chadash-node/docker-config.json`, `CHADASH_NODE_DOCKER_CONFIG`; `internal/node/registry`). Deploy, rollback and update pulls and the dry run use those logins: `SDK.Logins` gives the Compose SDK a config file holding only them, never the host's own `~/.docker`. `stack.update.check` logs in through the same checker as `image.check`. A login never reaches the hub: replies, progress, errors, logs and commits carry the sentence "<registry> needs a login, and this node has none for it." at most.
 
 ## What a stack may do on the host
 
@@ -127,7 +147,7 @@ Unknown keys and bad values are warnings, never errors.
 
 ## Tests
 
-`go test` needs no daemon. `stackstest.Docker` is a fake that behaves by image name (`…unhealthy…`, `…crashloop…`, `…exits…`, `…missing…`) and stamps Compose's real config hashes. The tests cover:
+`go test` needs no daemon. `stackstest.Docker` is a fake that behaves by image name (`…unhealthy…`, `…crashloop…`, `…exits…`, `…missing…`) and stamps Compose's real config hashes. It has a registry too: `Push` moves a tag (optionally to an image that turns unhealthy or exits), `Pull` brings it to the engine, and `Up` recreates a container whose digest differs, as Compose does. The tests cover:
 - the validator, safe secret substitution, and the hash planner, including foreign hashes meaning "recreate everything once";
 - digest pinning, and history and rollback commits;
 - blocked, stuck, and a new stack that fails;
@@ -138,6 +158,7 @@ Unknown keys and bad values are warnings, never errors.
 - git remotes: a fetch from a local repository over `file://` (go-git's in-process server), a new commit, a shared cache, the size, byte and time limits, pruning idle caches, redirects outside the allowlist, the URL and allowlist refusals, scrubbed errors, the auth each credential kind builds and SSH host-key pinning, and the `Chadash-Source` trailer;
 - secrets never on disk;
 - moving from another tool's file and from an in-place stack, supplied content, every rewrite, and each refusal (`move_test.go`); symlinked and FIFO files refused, and staging outside the stacks (`move_files_test.go`);
+- updates (`update_test.go`): the check before and after a tag moves, an update recreating only the moved service as an empty commit with its trailer, nothing moved (no commit), a rollback to the commit before it bringing the old digest back, a broken image rolled back pinned, `services` and `hold`, pinned and local images, a registry that needs a login (the check's sentence, the update blocked), secrets, and each refusal of both verbs;
 - self-update: a good image, a bad one rolled back, the node's own image and other refusals, the policy grant, and the result while it runs and after the node stopped mid-update (`selfupdate_test.go`); no registry digest to roll back to, and stopped leftovers of earlier recreates (`selfupdate_refs_test.go`).
 
 **The Done-when scenario** is `TestBadDeployRollsBackOnItsOwn`. v1 is healthy. v2 fails its healthcheck, or crash-loops. The gate catches it, and v1 comes back as a new commit pinned to its digest, comments kept. The failed attempt stays in the history, and a good deploy works afterwards. `internal/stacks`'s `TestScenarioBadDeployRollsBackOnItsOwn` runs the same scenario end to end through the action engine.
@@ -152,5 +173,8 @@ Unknown keys and bad values are warnings, never errors.
 - the dry run blocking a missing tag, with no commit and the container untouched;
 - a new stack whose first deploy fails being taken down, its file removed;
 - the lifecycle (`lifecycle_engine_test.go`): stop keeps the same containers, stopped, and the list says stopped without drift; start runs the same ones; restart passes the gate; down removes the containers and the network and keeps the named volume; a never-healthy service fails restart's gate and nothing is rolled back; remove deletes the folder as a commit, keeps the volume, and a rollback restores it; remove with volumes removes them.
+
+- updates (`update_engine_test.go`): a stack on a tag, a new image pushed to it, the check saying it moved, the update recreating only that service, a never-healthy image on the tag rolled back to the digest that ran, and a rollback to the commit before the update running the first digest again;
+- a private registry behind htpasswd: blocked at the dry run with the login sentence when `images.registries` doesn't list it (the config's login is never sent), deployed, checked (`login: used`) and updated when it does, and the password in no reply, progress line, error, log line or commit.
 
 Not covered yet, each a test to write rather than a run to make: hash parity between `compose.ServiceHash` on a project loaded from memory and labels the CLI stamped; the "couldn't check" classification of registry errors; `docker compose ls` showing node-deployed stacks at their paths; external paths seen from the node's container; self-update (`PullImage`, `RecreateImage`) recreating a container with its labels, networks and volumes; a move of a project another tool started from a host path.

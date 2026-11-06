@@ -28,6 +28,7 @@ import (
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/node"
 	"dash.cha.sh/internal/node/docker"
+	"dash.cha.sh/internal/node/registry"
 	"dash.cha.sh/internal/node/stacks"
 	"dash.cha.sh/internal/nodeproto"
 )
@@ -85,8 +86,8 @@ Commands:
   version      print the build version
 
 Settings are CHADASH_NODE_* environment variables: HUB, NAME, DIR, POLICY,
-PAIRING, PAIRING_FILE, TOKEN, TOKEN_FILE, DOCKER_HOST, HEALTH_FILE, LOG_LEVEL,
-LOG_FORMAT, SELFUPDATE.
+PAIRING, PAIRING_FILE, TOKEN, TOKEN_FILE, DOCKER_HOST, DOCKER_CONFIG,
+HEALTH_FILE, LOG_LEVEL, LOG_FORMAT, SELFUPDATE.
 See deploy/README.md.
 `)
 }
@@ -154,7 +155,20 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	dm, err := docker.New(docker.Options{Host: cfg.DockerHost, Policy: policy, Log: log.With("module", "docker")})
+	// Registry logins: the mounted Docker config, for the registries the
+	// policy's images.registries lists only. Pulls, image.check and
+	// stack.update.check use them; the hub never sees them.
+	logins := registry.NewLogins(cfg.DockerConfig, policy.Images.Registries, log.With("module", "registry"))
+	// The Docker CLI library the Compose SDK uses would read logins from
+	// this variable for any registry, around images.registries.
+	if os.Getenv("DOCKER_AUTH_CONFIG") != "" {
+		log.Warn("DOCKER_AUTH_CONFIG is ignored: the node takes registry logins from its Docker config file, for the registries images.registries lists")
+		os.Unsetenv("DOCKER_AUTH_CONFIG")
+	}
+	if len(policy.Images.Registries) > 0 {
+		log.Info("registry logins allowed", "registries", strings.Join(policy.Images.Registries, ","), "config", cfg.DockerConfig)
+	}
+	dm, err := docker.New(docker.Options{Host: cfg.DockerHost, Policy: policy, Logins: logins, Log: log.With("module", "docker")})
 	if err != nil {
 		return err
 	}
@@ -165,10 +179,13 @@ func runNode(ctx context.Context, cfg config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	sdk.Logins = logins
 	// The node's own project is asked for lazily, and again until Docker
 	// answers, so a slow daemon at start doesn't leave it deployable.
 	sm, err := stacks.New(stacks.Options{
 		Root: policy.Stacks.Root, Docker: sdk, SelfProject: dm.SelfProject, SelfUpdate: dm,
+		// One registry cache for image.check and stack.update.check.
+		Registry: dm.Registry(), Logins: logins,
 		ProtectContainer: policy.Protected,
 		Guard:            stackGuard(ctx, cfg, policy, dm, log),
 		PrivateDirs:      []string{cfg.Dir, cfg.identityDir(), filepath.Dir(cfg.PairingFile)},

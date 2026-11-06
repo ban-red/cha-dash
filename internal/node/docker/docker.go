@@ -43,6 +43,7 @@ import (
 	"github.com/moby/moby/client"
 
 	"dash.cha.sh/internal/node"
+	"dash.cha.sh/internal/node/registry"
 	"dash.cha.sh/internal/nodeproto"
 )
 
@@ -62,6 +63,10 @@ type Options struct {
 	// default hostname), always protected. Empty: the hostname is used when
 	// it looks like a container ID.
 	SelfID string
+	// Logins are the registry logins the node may use (the Docker config
+	// file, filtered by images.registries) for pulls and image.check. Nil:
+	// none.
+	Logins *registry.Logins
 	Log    *slog.Logger
 }
 
@@ -72,11 +77,12 @@ type Module struct {
 	self   string
 	log    *slog.Logger
 	now    func() time.Time
-	tags   tagCache // image.check's registry answers
-	// registry is a domain's registry API origin (registryBase; tests
-	// point it at a fake), and regHTTP the client image.check asks it with.
+	logins *registry.Logins
+	// check asks registries for image.check and keeps their answers;
+	// registry is a domain's API origin it uses (registry.BaseFor; tests
+	// point it at a fake).
+	check    *registry.Checker
 	registry func(domain string) string
-	regHTTP  *http.Client
 	// poll and sleep pace container.update's gate (tests shorten them).
 	poll  time.Duration
 	sleep func(context.Context, time.Duration) error
@@ -108,8 +114,10 @@ func New(o Options) (*Module, error) {
 			self = h
 		}
 	}
-	return &Module{cli: cli, policy: o.Policy, self: self, log: o.Log, now: time.Now, poll: time.Second, sleep: sleepCtx,
-		registry: registryBase, regHTTP: &http.Client{Timeout: registryTimeout, Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, ForceAttemptHTTP2: true, TLSHandshakeTimeout: 10 * time.Second}}}, nil
+	m := &Module{cli: cli, policy: o.Policy, self: self, log: o.Log, now: time.Now, poll: time.Second, sleep: sleepCtx,
+		logins: o.Logins, registry: registry.BaseFor}
+	m.check = m.newChecker()
+	return m, nil
 }
 
 // SelfProject is the compose project the node's own container belongs to

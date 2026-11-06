@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/distribution/reference"
+
+	"dash.cha.sh/internal/node/registry"
 )
 
 // Docker is everything the stacks module asks of the Docker daemon,
@@ -50,6 +53,19 @@ type Docker interface {
 	// pullable digest reference ("nginx@sha256:…"), for pinning rollbacks.
 	// Services whose image has no registry digest are left out.
 	ImageRefs(ctx context.Context, project string) (map[string]string, error)
+	// ImageDigest is the registry digest reference ("nginx@sha256:…") of
+	// the image the engine has for image ("nginx:1.27"), as a pull left
+	// it: what a container created from image now would run. "" when the
+	// engine has no such image, or it has no registry digest (built or
+	// loaded locally).
+	ImageDigest(ctx context.Context, image string) (string, error)
+}
+
+// Registry answers what a tag's registry has for it now, without pulling:
+// a HEAD for its manifest (registry.Checker, with the node's logins and
+// its cache). stack.update.check asks it. stackstest.Docker fakes it.
+type Registry interface {
+	Ask(ctx context.Context, tagged reference.NamedTagged, fresh bool) registry.Answer
 }
 
 // SelfUpdater is what Cha Dash updating itself asks of Docker beyond

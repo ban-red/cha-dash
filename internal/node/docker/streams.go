@@ -242,17 +242,17 @@ func (m *Module) pull(ctx context.Context, req json.RawMessage, emit func(json.R
 		return nil, nodeproto.Errorf(nodeproto.CodeConflict, "%s was created from an image ID, not a tag, so there's nothing to pull", strings.TrimPrefix(c.Name, "/"))
 	}
 	before := m.imageID(ctx, ref)
-	pr, err := m.cli.ImagePull(ctx, ref, client.ImagePullOptions{})
+	pr, err := m.cli.ImagePull(ctx, ref, m.pullOptions(ref))
 	if err != nil {
-		return nil, mapErr(err)
+		return nil, m.pullError(ref, mapErr(err))
 	}
 	defer pr.Close()
 	for msg, err := range pr.JSONMessages(ctx) {
 		if err != nil {
-			return nil, mapErr(err)
+			return nil, m.pullError(ref, mapErr(err))
 		}
 		if msg.Error != nil {
-			return nil, nodeproto.Errorf(nodeproto.CodeFailed, "pulling %s: %s", ref, msg.Error.Message)
+			return nil, m.pullError(ref, nodeproto.Errorf(nodeproto.CodeFailed, "pulling %s: %s", ref, msg.Error.Message))
 		}
 		p := pullProgress{Status: msg.Status, Layer: msg.ID}
 		if msg.Progress != nil {

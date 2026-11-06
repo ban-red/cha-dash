@@ -40,8 +40,16 @@ func TestConfig(t *testing.T) {
 		t.Fatalf("CHADASH_NODE_SELFUPDATE=true: %+v %v", c, err)
 	}
 	c, _ = loadConfig(envOf(map[string]string{"CHADASH_NODE_DIR": "/srv/node/", "CHADASH_NODE_HUB": "wss://dash.lab.example/node"}))
-	if c.PolicyPath != "/srv/node/policy.yaml" || c.identityDir() != "/srv/node/identity" {
+	if c.PolicyPath != "/srv/node/policy.yaml" || c.identityDir() != "/srv/node/identity" || c.DockerConfig != "/srv/node/docker-config.json" {
 		t.Fatalf("dir %+v", c)
+	}
+	// The registry logins' file: in the node's directory, or where
+	// CHADASH_NODE_DOCKER_CONFIG says.
+	if c, _ := loadConfig(envOf(nil)); c.DockerConfig != "/etc/chadash-node/docker-config.json" {
+		t.Fatalf("docker config %q", c.DockerConfig)
+	}
+	if c, _ := loadConfig(envOf(map[string]string{"CHADASH_NODE_DOCKER_CONFIG": "/run/secrets/docker.json"})); c.DockerConfig != "/run/secrets/docker.json" {
+		t.Fatalf("docker config %q", c.DockerConfig)
 	}
 }
 

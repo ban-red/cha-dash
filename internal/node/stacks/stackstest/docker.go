@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/distribution/reference"
 	"github.com/docker/compose/v5/pkg/compose"
 
+	"dash.cha.sh/internal/node/registry"
 	"dash.cha.sh/internal/node/stacks/dockerapi"
 )
 
@@ -26,6 +28,11 @@ import (
 // registry (the dry run refuses it); anything else runs, healthy when it
 // has a healthcheck. Config hashes are Compose's own (compose.ServiceHash),
 // as the real daemon's labels would be.
+//
+// It has a registry too (dockerapi.Registry): each tag has a digest,
+// Digest(image) until Push moves it. Pull brings a tag's digest to the
+// engine, and Up recreates a service whose container runs another digest
+// than the engine has for its image, as Compose does.
 type Docker struct {
 	mu       sync.Mutex
 	projects map[string]*project
@@ -42,12 +49,23 @@ type Docker struct {
 	// and renamed <name>-chadash-old-<n>, as a recreate does when removing
 	// it fails.
 	LeaveOld bool
-	ups      int
-	vols     map[string][]string // project → its named volumes, kept by Down
-	stopped  map[string]string   // container ID → its health when Stop stopped it
-	calls    []string
-	envs     []map[string]map[string]string
-	next     int
+	// FailPull makes every Pull fail with it.
+	FailPull error
+	// LoginNeeded lists registries ("ghcr.io") that want a login this node
+	// hasn't got: Ask, Pull and the dry run say so.
+	LoginNeeded []string
+	remote      map[string]string // tag (normalised) → the registry's digest reference
+	local       map[string]string // tag (normalised) → the engine's, after a pull
+	digests     map[string]string // container ID → the digest reference it runs
+	pushes      int
+	behave      map[string]string // digest reference → "unhealthy" or "exits" (Push)
+	asked       []string
+	ups         int
+	vols        map[string][]string // project → its named volumes, kept by Down
+	stopped     map[string]string   // container ID → its health when Stop stopped it
+	calls       []string
+	envs        []map[string]map[string]string
+	next        int
 }
 
 type project struct {
@@ -109,11 +127,61 @@ func (f *Docker) DryRun(_ context.Context, p *types.Project) error {
 		return fmt.Errorf("%w: dial tcp: lookup registry.example: no such host", dockerapi.ErrUnchecked)
 	}
 	for _, name := range sortedKeys(p.Services) {
-		if img := p.Services[name].Image; strings.Contains(img, "missing") {
+		img := p.Services[name].Image
+		if strings.Contains(img, "missing") {
 			return fmt.Errorf("pull access denied for %s: manifest unknown", img)
+		}
+		if d := f.loginNeeded(img); d != "" {
+			return errors.New(registry.NeedsLogin(d))
 		}
 	}
 	return nil
+}
+
+// loginNeeded is the registry of image when it's in LoginNeeded; f.mu is
+// held.
+func (f *Docker) loginNeeded(image string) string {
+	n, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return ""
+	}
+	if d := reference.Domain(n); slices.Contains(f.LoginNeeded, d) {
+		return d
+	}
+	return ""
+}
+
+// key is an image's tag as the fake registry files it:
+// "docker.io/library/nginx:1.27". A pinned reference is its own key.
+func key(image string) string {
+	n, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return image
+	}
+	return reference.TagNameOnly(n).String()
+}
+
+// localDigest is the digest reference the engine has for image; f.mu is
+// held. "" without repo digests.
+func (f *Docker) localDigest(image string) string {
+	if f.NoRepoDigests {
+		return ""
+	}
+	if strings.Contains(image, "@") {
+		return Digest(image)
+	}
+	if d, ok := f.local[key(image)]; ok {
+		return d
+	}
+	return Digest(image)
+}
+
+// runs is the digest reference a container runs; f.mu is held.
+func (f *Docker) runs(c *dockerapi.Container) string {
+	if d, ok := f.digests[c.ID]; ok {
+		return d
+	}
+	return Digest(c.Image)
 }
 
 // Pull implements dockerapi.Docker.
@@ -121,8 +189,21 @@ func (f *Docker) Pull(_ context.Context, p *types.Project, services []string, pr
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, "pull "+p.Name+" "+strings.Join(services, ","))
+	if f.FailPull != nil {
+		return f.FailPull
+	}
 	for _, s := range services {
-		progress(dockerapi.Event{ID: p.Services[s].Image, Text: "Pulled", Status: "done"})
+		img := p.Services[s].Image
+		if d := f.loginNeeded(img); d != "" {
+			return errors.New(registry.NeedsLogin(d))
+		}
+		if r, ok := f.remote[key(img)]; ok && !strings.Contains(img, "@") {
+			if f.local == nil {
+				f.local = map[string]string{}
+			}
+			f.local[key(img)] = r
+		}
+		progress(dockerapi.Event{ID: img, Text: "Pulled", Status: "done"})
 	}
 	return nil
 }
@@ -173,7 +254,8 @@ func (f *Docker) Up(_ context.Context, p *types.Project, _ time.Duration, progre
 		if err != nil {
 			return err
 		}
-		if c := byService[name]; c != nil && c.ConfigHash == h {
+		want := f.localDigest(svc.Image)
+		if c := byService[name]; c != nil && c.ConfigHash == h && (f.NoRepoDigests || f.runs(c) == want) {
 			next = append(next, c)
 			continue
 		}
@@ -182,10 +264,16 @@ func (f *Docker) Up(_ context.Context, p *types.Project, _ time.Duration, progre
 		}
 		f.next++
 		c := &dockerapi.Container{ID: fmt.Sprintf("c%d", f.next), Name: p.Name + "-" + name + "-1", Service: name, Image: svc.Image, State: "running", ConfigHash: h}
-		switch {
-		case strings.Contains(svc.Image, "unhealthy"):
+		if want != "" {
+			if f.digests == nil {
+				f.digests = map[string]string{}
+			}
+			f.digests[c.ID] = want
+		}
+		switch b := f.behave[want]; {
+		case strings.Contains(svc.Image, "unhealthy"), b == "unhealthy":
 			c.Health = "unhealthy"
-		case strings.Contains(svc.Image, "exits"):
+		case strings.Contains(svc.Image, "exits"), b == "exits":
 			c.State, c.ExitCode = "exited", 1
 		case svc.HealthCheck != nil:
 			c.Health = "healthy"
@@ -300,10 +388,73 @@ func (f *Docker) ImageRefs(_ context.Context, name string) (map[string]string, e
 	out := map[string]string{}
 	if p := f.projects[name]; p != nil && !f.NoRepoDigests {
 		for _, c := range p.containers {
-			out[c.Service] = Digest(c.Image)
+			out[c.Service] = f.runs(c)
 		}
 	}
 	return out, nil
+}
+
+// ImageDigest implements dockerapi.Docker: Digest(image), or what the
+// last pull of its tag brought.
+func (f *Docker) ImageDigest(_ context.Context, image string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.localDigest(image), nil
+}
+
+// ── the registry (dockerapi.Registry) ────────────────────────────────────
+
+var _ dockerapi.Registry = (*Docker)(nil)
+
+// Ask implements dockerapi.Registry: the tag's digest, Digest(image) until
+// Push moves it. "…missing…" has no such tag; a registry in LoginNeeded
+// wants a login.
+func (f *Docker) Ask(_ context.Context, tagged reference.NamedTagged, _ bool) registry.Answer {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	k := tagged.String()
+	f.asked = append(f.asked, k)
+	if d := reference.Domain(tagged); slices.Contains(f.LoginNeeded, d) {
+		return registry.Answer{Reason: registry.NeedsLogin(d), Login: registry.LoginNeeded}
+	}
+	if strings.Contains(k, "missing") {
+		return registry.Answer{Reason: "Its registry doesn't have that tag any more."}
+	}
+	r, ok := f.remote[k]
+	if !ok {
+		r = Digest(reference.FamiliarString(tagged))
+	}
+	_, d, _ := strings.Cut(r, "@")
+	return registry.Answer{Digest: d}
+}
+
+// Push moves image's tag in the registry to a new digest, as pushing a new
+// build would, and returns its digest reference. The engine keeps the old
+// one until a pull. behaves, when given, is how a container of the new
+// digest behaves, as an image name would say: "unhealthy" or "exits".
+func (f *Docker) Push(image string, behaves ...string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pushes++
+	if f.remote == nil {
+		f.remote = map[string]string{}
+	}
+	ref := Digest(fmt.Sprintf("%s#%d", image, f.pushes)) // the tag goes, "#n" with it
+	f.remote[key(image)] = ref
+	if len(behaves) > 0 {
+		if f.behave == nil {
+			f.behave = map[string]string{}
+		}
+		f.behave[ref] = behaves[0]
+	}
+	return ref
+}
+
+// Asked is the tags Ask was asked about, normalised.
+func (f *Docker) Asked() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.asked)
 }
 
 // Digest is the fake registry's digest reference for an image:

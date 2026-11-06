@@ -24,10 +24,10 @@ import (
 // change Cha Dash makes to a stack is a commit, and the commit message
 // carries trailers the module reads back:
 //
-//	Chadash-Kind: deploy | rollback | adopt | unadopt | accept | self-update
+//	Chadash-Kind: deploy | rollback | adopt | unadopt | accept | self-update | remove | update
 //	Chadash-Stack: media
 //	Chadash-Actor: sam
-//	Chadash-Previous-Image: web=nginx@sha256:…   (one per service, on deploys)
+//	Chadash-Previous-Image: web=nginx@sha256:…   (one per service, on deploys; per moved service, on updates)
 //	Chadash-Source: https://git.example/ops/stacks@<sha>   (deploys a git sync started)
 //	Chadash-Moved-From: /srv/media/compose.yaml   (on an adopt that moved the file into the root)
 //
@@ -385,7 +385,7 @@ func toCommit(c *object.Commit) stackproto.Commit {
 	subject, _, _ := strings.Cut(c.Message, "\n")
 	kind := trailer(c.Message, trailerKind)
 	switch kind {
-	case stackproto.KindDeploy, stackproto.KindRollback, stackproto.KindAdopt, stackproto.KindUnadopt, stackproto.KindAccept, stackproto.KindSelfUpdate, stackproto.KindRemove:
+	case stackproto.KindDeploy, stackproto.KindRollback, stackproto.KindAdopt, stackproto.KindUnadopt, stackproto.KindAccept, stackproto.KindSelfUpdate, stackproto.KindRemove, stackproto.KindUpdate:
 	default:
 		kind = stackproto.KindOther
 	}

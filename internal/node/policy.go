@@ -126,8 +126,15 @@ func (s StacksPolicy) Denies(feature string) bool { return slices.Contains(s.Den
 // the Update Center knows when a tag has moved. It changes nothing, but it
 // is network traffic from this host, so it has its own grant: allow: []
 // turns it off.
+//
+// Registries names the registries the node may log in to, as host or
+// host:port ("ghcr.io", "registry.lab.example:5000"; Docker Hub is
+// docker.io), with the logins in the Docker config file mounted at
+// /etc/chadash-node/docker-config.json. A login for a registry not listed
+// is never sent, to it or to anyone. Empty (the default) sends none.
 type ImagesPolicy struct {
-	Allow []string `yaml:"allow"`
+	Allow      []string `yaml:"allow"`
+	Registries []string `yaml:"registries"`
 }
 
 // HostPolicy is the host section.
@@ -251,6 +258,11 @@ func (p Policy) Validate() error {
 	for _, r := range p.Stacks.Remotes {
 		if err := validRemote(r); err != nil {
 			errs = append(errs, fmt.Errorf("policy: stacks.remotes: %q %w", r, err))
+		}
+	}
+	for _, r := range p.Images.Registries {
+		if err := validRemote(r); err != nil {
+			errs = append(errs, fmt.Errorf("policy: images.registries: %q %w", r, err))
 		}
 	}
 	if p.Hub.Pin != "" && !nodeproto.ValidPin(p.Hub.Pin) {

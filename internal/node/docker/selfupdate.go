@@ -19,17 +19,17 @@ import (
 // PullImage pulls ref and returns the digest reference it resolved to, from
 // the pulled image's RepoDigests.
 func (m *Module) PullImage(ctx context.Context, ref string, progress func(string)) (string, error) {
-	pr, err := m.cli.ImagePull(ctx, ref, client.ImagePullOptions{})
+	pr, err := m.cli.ImagePull(ctx, ref, m.pullOptions(ref))
 	if err != nil {
-		return "", mapErr(err)
+		return "", m.pullError(ref, mapErr(err))
 	}
 	defer pr.Close()
 	for msg, err := range pr.JSONMessages(ctx) {
 		if err != nil {
-			return "", mapErr(err)
+			return "", m.pullError(ref, mapErr(err))
 		}
 		if msg.Error != nil {
-			return "", fmt.Errorf("pulling %s: %s", ref, msg.Error.Message)
+			return "", m.pullError(ref, fmt.Errorf("pulling %s: %s", ref, msg.Error.Message))
 		}
 		if msg.Status != "" && msg.Progress == nil {
 			progress(strings.TrimSpace(msg.ID + " " + msg.Status))

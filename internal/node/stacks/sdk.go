@@ -9,11 +9,17 @@ import (
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/distribution/reference"
 	"github.com/docker/cli/cli/command"
+	"github.com/docker/cli/cli/config/configfile"
+	clitypes "github.com/docker/cli/cli/config/types"
 	"github.com/docker/cli/cli/flags"
 	"github.com/docker/compose/v5/pkg/api"
 	"github.com/docker/compose/v5/pkg/compose"
 	"github.com/moby/moby/client"
+
+	noderegistry "dash.cha.sh/internal/node/registry"
 )
 
 // SDK is Docker through the Compose SDK, in process: no docker CLI, the
@@ -22,6 +28,11 @@ import (
 // bun run test:engine), not by a plain `go test`.
 type SDK struct {
 	cli command.Cli
+	// Logins are the registry logins pulls and the dry run may use (the
+	// node's Docker config, filtered by images.registries). Nil: none.
+	// The Compose SDK never sees the host's own ~/.docker config, so no
+	// other login is ever sent.
+	Logins *noderegistry.Logins
 }
 
 var _ Docker = (*SDK)(nil)
@@ -51,7 +62,58 @@ func (d *SDK) service(progress func(Event), dryRun bool) (api.Compose, error) {
 	if dryRun {
 		opts = append(opts, compose.WithDryRun)
 	}
-	return compose.NewComposeService(d.cli, opts...)
+	return compose.NewComposeService(loginCli{d.cli, d.configFile()}, opts...)
+}
+
+// loginCli is the Docker CLI with the node's logins as its config file:
+// Compose asks it for a registry's login on every pull, and the dry run's
+// registry lookups too.
+type loginCli struct {
+	command.Cli
+	cf *configfile.ConfigFile
+}
+
+func (c loginCli) ConfigFile() *configfile.ConfigFile { return c.cf }
+
+// configFile is a config file holding only the logins the node may use, a
+// new one per operation so a `docker login` on the host counts at once.
+func (d *SDK) configFile() *configfile.ConfigFile {
+	cf := configfile.New("")
+	for host, lg := range d.Logins.All() {
+		addr := noderegistry.ServerAddress(host)
+		cf.AuthConfigs[addr] = clitypes.AuthConfig{Username: lg.Username, Password: lg.Password, ServerAddress: addr}
+	}
+	return cf
+}
+
+// loginError says a refusal for a missing login in the registry sentence:
+// the registry of the first image, among those the error names or else
+// all of them, whose registry wants a login. Anything else passes through.
+func (d *SDK) loginError(p *types.Project, services []string, err error) error {
+	if err == nil || !noderegistry.IsAuthError(err) {
+		return err
+	}
+	if len(services) == 0 {
+		services = sortedKeys(p.Services)
+	}
+	var domains []string
+	for _, s := range services {
+		n, perr := reference.ParseNormalizedNamed(p.Services[s].Image)
+		if perr != nil {
+			continue
+		}
+		dom := reference.Domain(n)
+		if strings.Contains(err.Error(), dom) || strings.Contains(err.Error(), reference.FamiliarName(n)) {
+			domains = append([]string{dom}, domains...)
+		} else {
+			domains = append(domains, dom)
+		}
+	}
+	if len(domains) == 0 {
+		return err
+	}
+	_, have := d.Logins.For(domains[0])
+	return &noderegistry.LoginError{Registry: domains[0], Had: have}
 }
 
 // Projects implements Docker.
@@ -102,6 +164,12 @@ func (d *SDK) Containers(ctx context.Context, project string) ([]Container, erro
 			return nil, err
 		}
 		ct.RestartCount = info.Container.RestartCount
+		// The list names the image by ID once its tag has moved (a pull
+		// for an update, say); the config keeps the reference it was
+		// created from.
+		if cfg := info.Container.Config; cfg != nil && cfg.Image != "" {
+			ct.Image = cfg.Image
+		}
 		// Compose's list can leave Health empty, say while a container
 		// restarts, and empty reads as "no healthcheck". Inspect knows.
 		if st := info.Container.State; st != nil && st.Health != nil {
@@ -134,7 +202,7 @@ func (d *SDK) DryRun(ctx context.Context, p *types.Project) error {
 		if unreachable(err) {
 			return fmt.Errorf("%w: %v", ErrUnchecked, err)
 		}
-		return err
+		return d.loginError(p, nil, err)
 	}
 	return nil
 }
@@ -160,7 +228,7 @@ func (d *SDK) Pull(ctx context.Context, p *types.Project, services []string, pro
 	if err != nil {
 		return err
 	}
-	return svc.Pull(ctx, sub, api.PullOptions{Quiet: true})
+	return d.loginError(p, services, svc.Pull(ctx, sub, api.PullOptions{Quiet: true}))
 }
 
 // Up implements Docker.
@@ -169,7 +237,7 @@ func (d *SDK) Up(ctx context.Context, p *types.Project, wait time.Duration, prog
 	if err != nil {
 		return err
 	}
-	return svc.Up(ctx, p, upOptions(p, wait))
+	return d.loginError(p, nil, svc.Up(ctx, p, upOptions(p, wait)))
 }
 
 // Down implements Docker.
@@ -258,14 +326,36 @@ func (d *SDK) ImageRefs(ctx context.Context, project string) (map[string]string,
 		if err != nil {
 			continue // removed since, or never pulled from a registry
 		}
+		ref := c.Image
+		if cfg := info.Container.Config; cfg != nil && cfg.Image != "" {
+			ref = cfg.Image // as in Containers: the list's may be an ID
+		}
 		for _, rd := range img.RepoDigests {
-			if sameRepo(c.Image, rd) {
+			if sameRepo(ref, rd) {
 				out[c.Service] = rd
 				break
 			}
 		}
 	}
 	return out, nil
+}
+
+// ImageDigest implements Docker: the repo digest of the image the engine
+// has for the reference, for the same repository.
+func (d *SDK) ImageDigest(ctx context.Context, image string) (string, error) {
+	img, err := d.cli.Client().ImageInspect(ctx, image)
+	if cerrdefs.IsNotFound(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	for _, rd := range img.RepoDigests {
+		if sameRepo(image, rd) {
+			return rd, nil
+		}
+	}
+	return "", nil
 }
 
 // events adapts Compose's event processor to a progress callback.
