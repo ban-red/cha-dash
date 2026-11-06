@@ -247,7 +247,10 @@ func (in *instance) soft(ctx context.Context, part, what string, err error) (ok,
 func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	now := in.d.Now()
 	in.notes = nil
-	if in.ad == nil || in.due("rare", rareEvery, now) {
+	// A sync someone asked for (Check now, or PVE's webhook) reads every
+	// tier now: a backup that just finished shows on this sync.
+	due := func(tier string, every time.Duration) bool { return want.Refresh || in.due(tier, every, now) }
+	if in.ad == nil || due("rare", rareEvery) {
 		if err := in.refreshRare(ctx, now); err != nil {
 			return err
 		}
@@ -256,12 +259,12 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	if err := in.get(ctx, "/cluster/resources", nil, &res); err != nil {
 		return err
 	}
-	if in.due("recent", recentEvery, now) {
+	if due("recent", recentEvery) {
 		if err := in.refreshRecent(ctx, now); err != nil {
 			return err
 		}
 	}
-	if in.due("slow", slowEvery, now) {
+	if due("slow", slowEvery) {
 		if err := in.refreshNodes(ctx, res, now); err != nil {
 			return err
 		}
@@ -270,7 +273,7 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 	if !want.Watched {
 		every = configIdleEvery
 	}
-	if in.due("config", every, now) || in.configChanged() {
+	if due("config", every) || in.configChanged() {
 		if err := in.refreshConfig(ctx, res, nil, want, now); err != nil {
 			return err
 		}
@@ -279,7 +282,7 @@ func (in *instance) Sync(ctx context.Context, want integration.Interest) error {
 			return err
 		}
 	}
-	if in.due("backup", backupEvery, now) || in.backupFinished() {
+	if due("backup", backupEvery) || in.backupFinished() {
 		if err := in.refreshBackups(ctx, now); err != nil {
 			return err
 		}

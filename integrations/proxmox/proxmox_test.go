@@ -750,6 +750,50 @@ func TestBackupRecovers(t *testing.T) {
 	}
 }
 
+// TestRefreshReadsNow: a sync someone asked for (Check now, or PVE's
+// webhook) reads tasks and backups at once, not at their tiers' pace. A
+// run that ended seconds after the last sync resolves its incident on that
+// sync, not at the next poll minutes later.
+func TestRefreshReadsNow(t *testing.T) {
+	srv, h, in := connect(t, "pluto")
+	syncOK(t, in, integrationtest.Watched)
+	if _, ok := h.Incident("backup.backup-8ef1991a-dabd"); !ok {
+		t.Fatal("no incident to resolve")
+	}
+	// Just before the job's next scheduled run, an ordinary poll; then the
+	// run ends seconds later.
+	h.Advance(time.Unix(1791104400, 0).Sub(h.Now()))
+	syncOK(t, in, integrationtest.Watched)
+	srv.take()
+	at := h.Now().Unix()
+	b, _ := os.ReadFile(filepath.Join(srv.dir, "cluster/tasks.json"))
+	var tasks struct {
+		Data []map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(b, &tasks); err != nil {
+		t.Fatal(err)
+	}
+	next := map[string]any{"type": "vzdump", "id": "", "node": "pluto", "user": "root@pam", "status": "OK",
+		"starttime": at + 2, "endtime": at + 12, "upid": "UPID:pluto:00400000:07000000:6AC21990:vzdump::root@pam:"}
+	tasks.Data = append([]map[string]any{next}, tasks.Data...)
+	nb, _ := json.Marshal(tasks)
+	srv.set("/cluster/tasks", 200, string(nb))
+
+	h.Advance(20 * time.Second)
+	refresh := integrationtest.Watched
+	refresh.Refresh = true
+	syncOK(t, in, refresh)
+	got := srv.take()
+	for _, want := range []string{"/version", "/cluster/status", "/cluster/tasks", "/nodes/pluto/status", "/storage", "/cluster/backup"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("a refresh didn't read %s", want)
+		}
+	}
+	if inc, _ := h.Incident("backup.backup-8ef1991a-dabd"); inc.Status != integration.StatusResolved {
+		t.Fatalf("incident after a refresh = %+v", inc)
+	}
+}
+
 func anys(v any) []any { s, _ := v.([]any); return s }
 
 // edit rewrites one captured response's data.

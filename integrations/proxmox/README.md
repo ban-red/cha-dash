@@ -37,7 +37,7 @@ pveum acl modify / --tokens 'chadash@pve!dash' --roles PVEAuditor
 
 ## What it reads, and how often
 
-The live tier is every sync; the coordinator polls every **15 s** while someone watches (pvestatd refreshes every 10 s, so never faster) and every **5 min** otherwise. The other tiers run when due.
+The live tier is every sync; the coordinator polls every **15 s** while someone watches (pvestatd refreshes every 10 s, so never faster) and every **5 min** otherwise. The other tiers run when due, except on a sync someone asked for (Check now, or a [notification](#notifications)), which reads every tier at once.
 
 | Tier | Every | Calls | For |
 |---|---|---|---|
