@@ -93,10 +93,10 @@ Each open item in [14b](14b-v0.4-manual-tests.md), and where it goes.
 | 1 | A rollout scheduled into a window runs in it, incidents don't notify, the leftover one notifies at the end plus grace | **Done:** `TestScheduledRolloutRunsWhenTheHubClockReachesItsWindow`, `TestScheduledRollout`, `TestWindows`, `TestExpectedInAWindowWaitsForItsEnd`, `TestAttentionAfterAWindowWaitsItsGrace`. Left for `e2e:system`: the chain through the real hub (window, rollout, incident, notification) | 2 |
 | 2–3 | Cancel a rollout; a rolled-back digest isn't retried | **Done:** `TestCancelRunningRollout`, `TestRejectedDigests` (already there); the rollback itself on a real engine: `TestEngineContainerUpdate` | 2, 3 |
 | 4 | Release notes as plain text, links only into the repository | **Done:** `TestGithubRepo` (Authelia's `/tree/<ref>`), `TestSanitizeNotes`, `TestReleaseNotes` (already there) | 1 |
-| 5 | PVE apt rows with `Sys.Modify`; Unraid "can't check" | Fixtures for a token with and without the grant | 2 |
-| 6 | PBS Verify now and its result | Recorded PBS exchanges for the verify task and its status | 2 |
-| 7 | Coverage after a guest joins a job | The simulator changes a job; the next sync's coverage row changes | 2 |
-| 8 | Unraid flash backup status | A design question, not a test: decided from Unraid's API schema; if a scope can read it, fixtures for both | 1 |
+| 5 | PVE apt rows with `Sys.Modify`; Unraid "can't check" | **Done:** `TestAptRowsWithSysModify`, `TestAptRowsHiddenFromAnAuditor`, `TestUnraidOSRowCantCheck` (`internal/updates`): the real integrations on recorded and synthetic fixtures (`proxmox/sys-modify/`), through to the Update Center's rows. An auditor's host has no apt row; the reason is the instance's `updates_hidden` warning | 2 |
+| 6 | PBS Verify now and its result | **Done:** `TestVerifyNowExchange`: the action, its task followed to the end, and the next sync's datastore, for a pass and a failure. The exchanges are hand-written in PBS's shapes (`pbs/actions/verify-*.json`) until Verify now runs against a real PBS | 2 |
+| 7 | Coverage after a guest joins a job | **Done:** `TestCoverageAfterAJobChange`, through `backups.Compute`. It found the 14b wording wrong: an edited job shows at the backup tier's pace (about 15 minutes), or at once on Check now, since a job edit makes no task and no notification | 2 |
+| 8 | Unraid flash backup status | **Settled, nothing to build:** `flash` has only `id`, `guid`, `vendor`, `product` on API 4.37.5, and the only flash backup operation is a mutation that starts one. No scope reads a backup's state ([Unraid limits](../../integrations/unraid/README.md#limits)) | 1 |
 | 9 | A PVE backup failure through the webhook within a minute | **Done:** `TestSystemPVEHookOpensTheIncident` (the hook's POST, the hub's refresh, the open incident in the Inbox, with the hub's clock still), beside `TestHookAcceptsTheSecretAndOnlySyncs` and `TestStandalone90`. It found that Proxmox ignored `Interest.Refresh`, so a notification soon after a poll changed nothing; `TestRefreshReadsNow` covers the fix | 1, 2, 4 |
 | 10 | A week of timeline on a resource | **Done:** `TestTimelineMergesHealthChangesFromHistory` (the incident, the action and health changes from a real history recorder, in order), with `TestMergeOrderForOneResource` and `TestTimelineRoute` | 2 |
 | 11 | The morning digest at its time, quiet on a quiet day | **Done:** `TestDigestArrivesAtItsTimeOnTheHubClock` (test clock, ntfy capture, Web Push decrypted); `TestDigestSaysNothingOnAQuietDay` | 2 |
@@ -107,7 +107,7 @@ Each open item in [14b](14b-v0.4-manual-tests.md), and where it goes.
 | 16 | The installer | H7 | CI |
 | 17 | The LXC script | H7 shim | CI |
 | 18 | Specs against live instances | `spec test` against recorded answers (layer 2); `live:verify` for drift (layer 5) | 2, 5 |
-| 19 | A community spec's actions stay off until turned on | A fixture community repository served by `httptest` | 2 |
+| 19 | A community spec's actions stay off until turned on | **Done:** `TestCommunitySpecActionsWaitForTheOwner`: a community repository and the app served by `httptest`, the spec installed through the API, its actions refused until turned on for that version's actions, off again when they change, and kept across a restart | 2 |
 
 14b's "Done" items stay as history. Its status becomes "superseded by 17".
 
