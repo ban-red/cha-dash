@@ -237,6 +237,13 @@ func stepLabel(doc graph.Doc, st RolloutStep, snapped map[string]bool) string {
 	if st.State == StepSkipped {
 		return msg.New("updates.step_skip", "name", where, "reason", st.Reason).Text()
 	}
+	if len(st.Members) > 0 {
+		names := make([]string, len(st.Members))
+		for i, m := range st.Members {
+			names[i] = m.Name
+		}
+		return msg.New("updates.step_stack", "name", where, "containers", strings.Join(names, ", ")).Text()
+	}
 	switch st.Snapshot {
 	case SnapshotGit:
 		return msg.New("updates.step_git", "name", where).Text()
@@ -375,8 +382,14 @@ func (s *Service) runSteps(ctx context.Context, actor action.Actor, ro *Rollout,
 			if failed.Code == "rolled_back" {
 				// Remember the digest, so the next Update all doesn't try
 				// the same broken image again.
-				if err := s.Reject(context.WithoutCancel(ctx), st.Target, st.To, failed.Message, ro.ID); err != nil {
-					s.log.Warn("updates: remember a rolled-back digest", "target", st.Target, "err", err)
+				rejects := []StepMember{{Target: st.Target, To: st.To}}
+				if len(st.Members) > 0 {
+					rejects = st.Members // a stack: each of its containers
+				}
+				for _, m := range rejects {
+					if err := s.Reject(context.WithoutCancel(ctx), m.Target, m.To, failed.Message, ro.ID); err != nil {
+						s.log.Warn("updates: remember a rolled-back digest", "target", m.Target, "err", err)
+					}
 				}
 			}
 			continue
@@ -823,6 +836,9 @@ func (s *Service) failedItem(ro Rollout) {
 	for _, st := range ro.Steps {
 		if st.State == StepRolledBack {
 			back, target = st.Name, cmp.Or(st.Target, integration.HubResource)
+			if len(st.Members) > 0 {
+				target = st.Members[0].Target // a stack's container: the graph has it
+			}
 			break
 		}
 	}

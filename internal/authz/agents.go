@@ -59,9 +59,10 @@ type TargetFacts struct {
 }
 
 // AgentForbiddenAction reports whether agents may never propose action:
-// owned stacks (settings) and the hub itself (chadash.*).
+// owned stacks (settings, stack.update included) and the hub itself
+// (chadash.*).
 func AgentForbiddenAction(action string) bool {
-	return settingsAction(action) || strings.HasPrefix(action, "chadash.")
+	return strings.HasPrefix(action, "stack.") || strings.HasPrefix(action, "chadash.")
 }
 
 // ValidAgentScope checks a scope an agent token of a user with role may

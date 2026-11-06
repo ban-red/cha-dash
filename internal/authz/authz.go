@@ -760,6 +760,9 @@ func (p *Policy) T4Enabled(ctx context.Context) ([]string, error) {
 
 // settingsAction reports whether an action changes settings rather than
 // operating the lab: owned stacks (stack.deploy, stack.rollback, stack.adopt,
-// stack.unadopt) are Settings in the Roles table, so admin+ whatever their
-// tier, although an operator may run other T2 actions.
-func settingsAction(id string) bool { return strings.HasPrefix(id, "stack.") }
+// stack.unadopt and the rest) are Settings in the Roles table, so admin+
+// whatever their tier, although an operator may run other T2 actions.
+// stack.update is the exception: it puts newer images on a stack with its
+// file unchanged, what docker.container.update does for one container, so
+// an operator's rollout can update an owned stack as one.
+func settingsAction(id string) bool { return strings.HasPrefix(id, "stack.") && id != "stack.update" }

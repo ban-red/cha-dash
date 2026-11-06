@@ -70,6 +70,17 @@ type RolloutStep struct {
 	// To is the image digest it updates to, as planned: a newer one
 	// changes the plan's hash.
 	To string `json:"to,omitempty"`
+	// Members are a stack step's containers (stack.update on an owned
+	// stack): its rows, each with the digest it updates to. A stack is
+	// updated as one, never one container from under its compose file.
+	Members []StepMember `json:"members,omitempty"`
+}
+
+// StepMember is one container a stack step updates.
+type StepMember struct {
+	Target string `json:"target"`
+	Name   string `json:"name"`
+	To     string `json:"to,omitempty"`
 }
 
 // Rollout is one row of rollouts.

@@ -89,6 +89,11 @@ func (s *Service) Plan(ctx context.Context, targets []string) (RolloutPlan, erro
 		st := RolloutStep{Target: r.Resource, Name: r.Name, Host: r.Host, To: r.Latest, State: StepPending}
 		if r.Update != nil {
 			st.Action = r.Update.ID
+			if r.Update.ID == StackUpdate {
+				// Its stack's step: the stack is the target, the container a member.
+				st.Target, st.Name, st.To = r.Update.Target, r.Stack, ""
+				st.Members = []StepMember{{Target: r.Resource, Name: r.Name, To: r.Latest}}
+			}
 		}
 		switch {
 		case r.Kind != KindImage:
@@ -118,6 +123,7 @@ func (s *Service) Plan(ctx context.Context, targets []string) (RolloutPlan, erro
 			found[t] = true
 		}
 	}
+	run = byStack(run)
 	run, ordered := orderSteps(doc, run)
 	s.snapshots(ctx, doc, rows, run)
 	p := RolloutPlan{Steps: append(run, skip...), Tier: action.T0, Ordered: ordered}
@@ -129,6 +135,27 @@ func (s *Service) Plan(ctx context.Context, targets []string) (RolloutPlan, erro
 	}
 	p.Hash = planHash(p.Steps)
 	return p, nil
+}
+
+// byStack folds the steps of an owned stack's containers into one step on
+// the stack, where its first container was: stack.update pulls every
+// moved image of the stack and recreates them together.
+func byStack(steps []RolloutStep) []RolloutStep {
+	out := make([]RolloutStep, 0, len(steps))
+	at := map[string]int{}
+	for _, st := range steps {
+		if st.Action != StackUpdate {
+			out = append(out, st)
+			continue
+		}
+		if i, ok := at[st.Target]; ok {
+			out[i].Members = append(out[i].Members, st.Members...)
+			continue
+		}
+		at[st.Target] = len(out)
+		out = append(out, st)
+	}
+	return out
 }
 
 // rejectedReason says why a row is left out: the digest it rolled back
@@ -155,10 +182,11 @@ func planHash(steps []RolloutStep) string {
 	type h struct {
 		Target, Action, Snapshot, Guest, To string
 		State                               StepState
+		Members                             []StepMember `json:",omitempty"`
 	}
 	hs := make([]h, len(steps))
 	for i, s := range steps {
-		hs[i] = h{s.Target, s.Action, s.Snapshot, s.Guest, s.To, s.State}
+		hs[i] = h{s.Target, s.Action, s.Snapshot, s.Guest, s.To, s.State, s.Members}
 	}
 	b, _ := json.Marshal(hs)
 	sum := sha256.Sum256(b)
@@ -200,6 +228,9 @@ func orderSteps(doc graph.Doc, steps []RolloutStep) ([]RolloutStep, bool) {
 	index := map[graph.RID]int{} // a step's container (canonical) → its position
 	for i, st := range steps {
 		index[canon(graph.RID(st.Target))] = i
+		for _, m := range st.Members {
+			index[canon(graph.RID(m.Target))] = i
+		}
 	}
 	deps := make([][]int, len(steps)) // i depends on deps[i]
 	for _, rel := range doc.Relations {
@@ -306,6 +337,10 @@ func (s *Service) snapshots(ctx context.Context, doc graph.Doc, rows []Row, step
 	owned := map[string]bool{} // node + project → owned
 	for i := range steps {
 		st := &steps[i]
+		if st.Action == StackUpdate {
+			st.Snapshot = SnapshotGit // the stack's commit, and update commits again
+			continue
+		}
 		r := byID[st.Target]
 		if r.Stack != "" && s.ownedStack != nil {
 			node := ""

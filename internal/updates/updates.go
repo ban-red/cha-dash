@@ -263,6 +263,7 @@ func (s *Service) List(ctx context.Context) ([]Row, error) {
 	}
 	now := s.now()
 	rows := []Row{}
+	owned := map[string]bool{} // node + project → owned, asked once per List
 	for id, r := range doc.Resources {
 		if r.Kind != "container" {
 			continue
@@ -299,6 +300,13 @@ func (s *Service) List(ctx context.Context) ([]Row, error) {
 			}
 		}
 		row.Update, row.Why = updater(row)
+		if row.Update != nil && row.Kind == KindImage {
+			if t := s.ownedTarget(ctx, doc, row, owned); t != "" {
+				// A container of an owned stack updates with its stack, so
+				// the compose file and the commit stay the truth.
+				row.Update = &Action{ID: StackUpdate, Target: t}
+			}
+		}
 		if row.Source != "" && row.State == integration.UpdateAvailable {
 			row.Risk = s.notes.risk(row.Source, row.Version)
 		}
@@ -320,6 +328,35 @@ func (h Hold) active(now time.Time, latest string) bool {
 		return true
 	}
 	return now.Before(h.Until) && (h.Digest == "" || latest == "" || latest == h.Digest)
+}
+
+// StackUpdate is internal/stacks' action that updates an owned stack's
+// images with its file unchanged.
+const StackUpdate = "stack.update"
+
+// ownedTarget is the owned stack a row's container belongs to, as the
+// stacks' action target (stack:<node>/<project>), or "".
+func (s *Service) ownedTarget(ctx context.Context, doc graph.Doc, r Row, owned map[string]bool) string {
+	if r.Stack == "" || s.ownedStack == nil {
+		return ""
+	}
+	node := ""
+	if e := doc.Resources[graph.RID(r.Engine)]; e != nil {
+		node = stringAttr(e.Attrs, "node")
+	}
+	if node == "" {
+		return ""
+	}
+	key := node + "\x00" + r.Stack
+	ok, seen := owned[key]
+	if !seen {
+		ok = s.ownedStack(ctx, node, r.Stack)
+		owned[key] = ok
+	}
+	if !ok {
+		return ""
+	}
+	return "stack:" + node + "/" + r.Stack
 }
 
 // updater picks the action that updates a row's container, by how it's

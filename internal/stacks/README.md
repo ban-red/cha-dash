@@ -29,7 +29,7 @@ Node errors map to HTTP:
 - an offline node → `503 node_unavailable`;
 - anything else → `502 node_error`.
 
-**Why these roles.** The Roles table puts stacks under Settings, admin+. Listing names and status is a read, so viewers get it. A stack's files are admin+ because compose files, adopted ones especially, often hold credentials in plain text. The actions are admin+ too: `authz.Decide` treats every `stack.*` scope as a setting, although an operator may run other T2 actions.
+**Why these roles.** The Roles table puts stacks under Settings, admin+. Listing names and status is a read, so viewers get it. A stack's files are admin+ because compose files, adopted ones especially, often hold credentials in plain text. The actions are admin+ too: `authz.Decide` treats every `stack.*` scope as a setting, although an operator may run other T2 actions. `stack.update` is the exception, operator+: it changes images, not the file, as `docker.container.update` does, so an operator's rollout can update an owned stack. Agents never propose any `stack.*` action.
 
 ## Actions
 
@@ -45,10 +45,12 @@ Node errors map to HTTP:
 | `stack.restart` | T1 | same. The health gate only reports | none |
 | `stack.down` | T2 | same. Containers and networks go, volumes stay | `stack.start`, which deploys the same commit |
 | `stack.remove` | T3, typed | same, `{"volumes", "confirm_volumes"}`: deleting the volumes needs the name in `confirm_volumes` too. Needs `stacks.remove` in the node's policy, off by default | `stack.rollback` to the last commit, which restores the file (not its `.env`) and deploys it |
+| `stack.update` | T2 | same, `{"services"?}` | `stack.rollback` to the commit before, which returns the images it ran |
 | `chadash.update` | T3 | `node:<id>`, `{"image"}` (a tag of `ghcr.io/ban-red/chadash`) | none. It resumes after the hub restarts |
 
 How the actions work:
 - **Lifecycle** (`lifecycle.go`): each plan lists the containers, what depends on them in the Home Graph, and for down and remove the volumes kept or deleted. Each refuses a protected stack and one Cha Dash doesn't manage, and the ones that make no sense in the stack's state (stop a stopped stack, restart one with no containers). Their target's state also hashes the status, containers and volumes. Remove refuses a stack edited outside Cha Dash, since deleting the folder would lose the edits, and a node whose policy doesn't allow it says how to turn it on.
+- **Update** (`update.go`): Resolve asks the node `stack.update.check`, so the plan names each moved service with its old and new digest, and leaves the held ones and the current ones as they are; the target's state hashes those digests, so a tag that moves again between plan and approval is a changed plan. Execute sends the head's granted secrets (as a rollback does), the held services and the planned digests; the node commits with the file unchanged. A login the node lacks for a registry comes back as the check's sentence, never a credential: the hub never holds registry logins.
 - **Two writers** (`writers.go`): a stack's detail and list entry name Dockhand, Komodo or Arcane stacks in the Home Graph with the same project name (`also_managed_by`). Those APIs don't say which host, so it matches by name only. It's a warning; deploys go ahead.
 - **Resolve** reads the stack from its node. For a deploy it also validates and plans the draft, so the plan's steps name the services ("Pull nginx:1.28", "Recreate web …", the gate, "roll back on its own"). The result travels in `Target.Ref`.
 - **The target's state** hashes the head commit, managed, drift and the draft's SHA-256. An approval after anyone saves a new draft or deploys is `409 plan_changed`.

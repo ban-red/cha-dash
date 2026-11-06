@@ -82,6 +82,17 @@ func TestStackActionsAreAdminOnly(t *testing.T) {
 			t.Errorf("%s deploying a stack: %v", role, err)
 		}
 	}
+	// Updating a stack's images is the Update Center's, which operators run;
+	// the viewer and household tiers still refuse it, and agents never propose it.
+	if err := Decide(Actor{Kind: KindUser, Role: auth.RoleOperator}, Request{Scope: "stack.update", Tier: T2}, env); err != nil {
+		t.Errorf("an operator updating a stack's images: %v", err)
+	}
+	if err := Decide(Actor{Kind: KindUser, Role: auth.RoleViewer}, Request{Scope: "stack.update", Tier: T2}, env); !errors.Is(err, ErrForbidden) {
+		t.Errorf("a viewer updating a stack's images: %v", err)
+	}
+	if !AgentForbiddenAction("stack.update") || !AgentForbiddenAction("stack.stop") {
+		t.Error("agents never propose stack actions")
+	}
 	if err := Decide(Actor{Kind: KindUser, Role: auth.RoleOperator}, Request{Scope: "docker.container.restart", Tier: T2}, env); err != nil {
 		t.Errorf("operators keep other T2 actions: %v", err)
 	}

@@ -177,13 +177,24 @@ func TestPlanSnapshots(t *testing.T) {
 	if p.Steps[0].Snapshot != SnapshotPVE || p.Steps[0].Guest != "proxmox:i_p/qemu/101" || asked != "proxmox.guest.snapshot.create proxmox:i_p/qemu/101" {
 		t.Fatalf("pve = %+v (asked %q)", p.Steps[0], asked)
 	}
-	// The containers are in the media project; owned, its commit comes first.
+	// The containers are in the media project. Owned, it updates as one
+	// step, stack.update on the stack, and its commit is the snapshot.
 	e.upsert(graph.Resource{ID: "docker:i_a/engine", Kind: "engine", Name: "pvedocker", Attrs: map[string]any{"node": "pvedocker"}})
 	e.upsert(graph.Resource{ID: "docker:i_a/stack/media", Kind: "stack", Name: "media"})
 	e.s.ownedStack = func(_ context.Context, node, project string) bool { return node == "pvedocker" && project == "media" }
 	p = e.plan()
-	if p.Steps[0].Snapshot != SnapshotGit || p.Steps[1].Snapshot != SnapshotGit {
-		t.Fatalf("git = %+v", p.Steps)
+	if len(p.Steps) != 1 || p.Steps[0].Snapshot != SnapshotGit || p.Steps[0].Action != StackUpdate || p.Steps[0].Target != "stack:pvedocker/media" ||
+		p.Steps[0].Name != "media" || len(p.Steps[0].Members) != 2 {
+		t.Fatalf("one stack step = %+v", p.Steps)
+	}
+	rows, err := e.s.List(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		if r.Update == nil || r.Update.ID != StackUpdate || r.Update.Target != "stack:pvedocker/media" {
+			t.Errorf("%s's update should be its stack's: %+v", r.Name, r.Update)
+		}
 	}
 }
 
@@ -217,6 +228,17 @@ func (f *fakeUpdates) defs() []action.Def {
 				f.record("update " + r.Target.Name)
 				if r.Target.Name == f.fail {
 					return action.Fail("rolled_back", r.Target.Name+" didn't come up healthy, so its previous image is back.")
+				}
+				return nil
+			}},
+		{ID: StackUpdate, Targets: []string{"stack"}, Tier: action.T2,
+			Resolve: func(_ context.Context, target string) (action.Target, error) {
+				return action.Target{ID: target, Kind: "stack", Name: strings.TrimPrefix(target, "stack:")}, nil
+			},
+			Execute: func(_ context.Context, r action.Request, _ *action.TaskRun) error {
+				f.record("stack.update " + r.Target.ID)
+				if r.Target.ID == f.fail {
+					return action.Fail("rolled_back", "web didn't come up healthy, so the stack's previous images are back.")
 				}
 				return nil
 			}},
@@ -349,6 +371,37 @@ func TestRolloutStopsAtTheFirstFailure(t *testing.T) {
 	var ref *action.Refusal
 	if !errors.As(err, &ref) || ref.Code != "precondition" || !strings.Contains(ref.Message, "changed since you looked") {
 		t.Fatalf("stale hash = %v", err)
+	}
+}
+
+// An owned stack's containers update as one stack.update step. When it
+// rolls back, each of its containers remembers the digest, so the next
+// Update all leaves them out.
+func TestRolloutUpdatesAStackAsOne(t *testing.T) {
+	e := newEnv(t)
+	for _, n := range []string{"sonarr", "radarr"} {
+		e.container(n, integration.UpdateAvailable, "sha256:"+n)
+	}
+	e.upsert(graph.Resource{ID: "docker:i_a/engine", Kind: "engine", Name: "pvedocker", Attrs: map[string]any{"node": "pvedocker"}})
+	e.upsert(graph.Resource{ID: "docker:i_a/stack/media", Kind: "stack", Name: "media"})
+	e.s.ownedStack = func(_ context.Context, node, project string) bool { return project == "media" }
+	f := &fakeUpdates{fail: "stack:pvedocker/media"}
+	eng, _ := e.engine(f)
+	_, task := rollout(t, eng, operator, `{}`)
+	if task.State != action.StateFailed || !slices.Equal(f.got(), []string{"stack.update stack:pvedocker/media"}) {
+		t.Fatalf("task %+v, calls %v", task.Error, f.got())
+	}
+	rows, err := e.s.List(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		if r.State != StateRolledBack || r.Rejected == nil || r.Rejected.Digest != "sha256:"+r.Name {
+			t.Errorf("%s: %s %+v", r.Name, r.State, r.Rejected)
+		}
+	}
+	if p := e.plan(); len(p.Runnable()) != 0 {
+		t.Errorf("a rolled-back stack is left out: %+v", p.Steps)
 	}
 }
 

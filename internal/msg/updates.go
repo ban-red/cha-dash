@@ -57,6 +57,7 @@ func init() {
 		"updates.step_scheduled":          "Nothing runs now. It runs in {window}, from {at}, if the plan is still the same then.",
 		"updates.step_unordered":          "Their dependencies don't give an order (a cycle, or one Cha Dash doesn't know), so they update in the list's order.",
 		"updates.step_git":                "Update {name}. Its stack's files are already a commit to go back to.",
+		"updates.step_stack":              "Update the stack {name} as one: {containers}. A rollback returns the images they run now.",
 		"updates.step_pve":                "Snapshot {guest} in Proxmox, then update {name}.",
 		"updates.step_pve_again":          "Update {name}. The snapshot of {guest} covers it.",
 		"updates.step_none":               "Update {name}. No snapshot is possible first.",

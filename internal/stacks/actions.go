@@ -39,7 +39,8 @@ const deployTimeout = 30 * time.Minute
 //	stack.adopt     T1  adopt a running project in place (or accept edits made outside); undo un-adopts
 //	stack.unadopt   T1  stop managing a stack; nothing on disk or in Docker changes; undo adopts
 //
-// and stop, start, restart, down and remove (lifecycle.go).
+// and stop, start, restart, down and remove (lifecycle.go), and update
+// (update.go).
 //
 // Targets are stack:<node>/<name>. Each Resolve reads the stack from its
 // node, so a plan shows the real services and an approval re-checks that
@@ -119,7 +120,7 @@ func (s *Service) Actions() []action.Def {
 			},
 			Execute: s.executeUnadopt,
 		},
-	}, s.lifecycleActions()...)
+	}, append(s.lifecycleActions(), s.updateAction())...)
 }
 
 // ── the resolved target ──────────────────────────────────────────────────
@@ -150,6 +151,10 @@ type targetRef struct {
 	// Removed is a rollback's target that stack.remove took out of the
 	// root: the node restores it from the commit.
 	Removed bool `json:"removed,omitempty"`
+	// For stack.update: each service's image, the node's answer, and the
+	// services held on their image.
+	Moves []stackproto.ImageMove `json:"moves,omitempty"`
+	Held  []string               `json:"held,omitempty"`
 }
 
 func refOf(r action.Request) targetRef {
@@ -210,6 +215,17 @@ func (s *Service) resolveFor(id string) func(ctx context.Context, target string)
 		state := []string{ref.Head, fmt.Sprint(ref.Managed), fmt.Sprint(ref.Drift)}
 		if isLifecycle(id) {
 			state = append(state, ref.Status, strings.Join(ref.Containers, ","), strings.Join(ref.Volumes, ","))
+		}
+		if id == ActionUpdate && ref.Exists && ref.Managed && ref.Protected == "" && !ref.Drift {
+			var check stackproto.UpdateCheck
+			if err := s.call(ctx, node, stackproto.VerbUpdateCheck, stackproto.UpdateCheckRequest{Name: name}, &check, s.timeout, nil); err != nil {
+				return action.Target{}, action.Unavailable(firstSentence(err), "")
+			}
+			ref.Moves, ref.Held = check.Services, s.held(ctx, node, name)
+			for _, m := range ref.Moves {
+				state = append(state, m.Service+"="+m.Current+">"+m.Latest)
+			}
+			state = append(state, strings.Join(ref.Held, ","))
 		}
 		if id == ActionDeploy {
 			draft, err := s.draft(ctx, node, name)
