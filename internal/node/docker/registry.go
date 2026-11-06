@@ -30,8 +30,8 @@ func (m *Module) Registry() *registry.Checker { return m.check }
 // through Docker for a registry the node can't reach itself.
 func (m *Module) newChecker() *registry.Checker {
 	return &registry.Checker{
-		Client: registry.Client{Base: func(d string) string { return m.registry(d) }, HTTP: registry.NewHTTPClient(), Logins: m.logins},
-		Now:    func() time.Time { return m.now() },
+		Base: func(d string) string { return m.registry(d) }, HTTP: registry.NewHTTPClient(), Logins: m.logins,
+		Now: func() time.Time { return m.now() },
 		Fallback: func(ctx context.Context, ref string) (string, error) {
 			opts := client.DistributionInspectOptions{}
 			if n, err := reference.ParseNormalizedNamed(ref); err == nil {

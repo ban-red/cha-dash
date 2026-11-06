@@ -67,8 +67,7 @@ func IsAuthError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var le *LoginError
-	if errors.As(err, &le) {
+	if _, ok := errors.AsType[*LoginError](err); ok {
 		return true
 	}
 	s := strings.ToLower(err.Error())

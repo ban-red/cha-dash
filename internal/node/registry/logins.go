@@ -131,7 +131,7 @@ func (l *Logins) EncodedAuth(domain string) string {
 	if !ok {
 		return ""
 	}
-	b, _ := json.Marshal(lg.withServer(ServerAddress(domain)))
+	b, _ := json.Marshal(lg.withServer(ServerAddress(domain))) //nolint:gosec // G117: X-Registry-Auth carries the login to the local Docker Engine, its only use
 	return base64.URLEncoding.EncodeToString(b)
 }
 

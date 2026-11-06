@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -51,9 +52,7 @@ func newCommunityRepo(t *testing.T) *communityRepo {
 	repo.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		repo.mu.Lock()
 		files := fstest.MapFS{}
-		for k, v := range repo.fs {
-			files[k] = v
-		}
+		maps.Copy(files, repo.fs)
 		repo.mu.Unlock()
 		http.FileServerFS(files).ServeHTTP(w, r)
 	}))

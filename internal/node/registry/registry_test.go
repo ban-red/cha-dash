@@ -242,7 +242,7 @@ func TestCheckerLogins(t *testing.T) {
 	f := newFakeRegistry(t, false)
 	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
 	path := filepath.Join(t.TempDir(), "docker-config.json")
-	c := &Checker{Client: Client{Base: func(string) string { return f.srv.URL }, Logins: NewLogins(path, []string{f.host()}, nil)}, Now: func() time.Time { return now }}
+	c := &Checker{Base: func(string) string { return f.srv.URL }, Logins: NewLogins(path, []string{f.host()}, nil), Now: func() time.Time { return now }}
 	ref := tagged(t, f.host()+"/app:1")
 	a := c.Ask(context.Background(), ref, false)
 	if a.Digest != "" || a.Login != LoginNeeded || a.Reason != NeedsLogin(f.host()) {

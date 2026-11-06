@@ -219,7 +219,7 @@ func New(o Options) (*Module, error) {
 		if r, ok := o.Docker.(ImageRegistry); ok {
 			m.images = r
 		} else {
-			m.images = &noderegistry.Checker{Client: noderegistry.Client{HTTP: noderegistry.NewHTTPClient(), Logins: o.Logins}, Now: m.now}
+			m.images = &noderegistry.Checker{HTTP: noderegistry.NewHTTPClient(), Logins: o.Logins, Now: m.now}
 		}
 	}
 	m.cleanStaging()
