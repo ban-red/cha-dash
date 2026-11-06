@@ -164,6 +164,12 @@ Each wave ships its tests with it: every node verb at layer 3 (a real Docker Eng
 - Two writers in the Inbox: the warning is on the stack's page and list only. It matches Dockhand, Komodo and Arcane stacks by name, since their APIs don't say which host; labels and Dockge aren't checked.
 - Remove deletes the stack's folder, `.env` included, which git doesn't keep: a restore brings the file back, not the `.env`. The plan's step says so.
 
+**32b, as built (2026-11-05).** `stack.update.check` and `stack.update` on the node, with engine tests for an update, a broken push rolling back pinned, a rollback to the commit before, and a registry behind a login (`TestEngineStackUpdate`, `TestEnginePrivateRegistry`, which also checks the password is in no frame, log or commit). Logins live in `internal/node/registry`. The hub's `stack.update` (T2, operator+), Settings → Updates folding an owned stack's containers into one step, and the web's Update buttons. Still open from 32b:
+- After an update rolls back, the file stays pinned to the old digests, as a deploy's rollback leaves it; checks then say "pinned by digest" until someone deploys the file unpinned.
+- Compose's dry run builds its own Docker CLI with the host's default config; the registry calls use the node's login-only config, but an auth value it computes and throws away comes from the host's. The node's container has no `~/.docker`, so only a dev machine is affected.
+- Credential helpers (`credsStore`, `credHelpers`) aren't read: a host that uses one needs `docker --config <dir> login` into a plain file.
+- An update that rolls back outside a rollout doesn't mark its containers' digests as rolled back (a rollout does).
+
 ---
 
 ## Done when
