@@ -67,6 +67,13 @@ bun run test:engine                          # every package with engine tests (
 bun run test:engine ./internal/node/stacks/  # one package
 ```
 
+**Live verify** ([`internal/liveverify`](internal/liveverify/README.md)) runs the integrations once against a real lab, read-only, with the credentials in `.env.local`, and fails when an answer no longer has a field the recorded fixtures have. It's for the maintainer's lab, never CI.
+
+```sh
+bun run live:verify                          # every instance in .env.local
+bun run live:verify proxmox/pluto            # one
+```
+
 **End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, the safety ladder on the action engine, and passkeys (Chromium's virtual authenticator, on `localhost`). Playwright's test runner needs Node.js (any current LTS); nothing else here does.
 
 ```sh

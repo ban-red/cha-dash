@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -41,6 +42,7 @@ var (
 	tlsMode   = flag.String("tls", "tofu", "TLS mode for https sources: verify, tofu or insecure")
 	rawDir    = flag.String("raw", "", "where the full results go (default ~/.local/share/chadash-spikes/live-verify/<time>)")
 	from      = flag.String("from", "", "summarize a saved run's raw results again, offline (TestFrom)")
+	recorded  = flag.String("fixtures", fixtures, "the recorded fixtures to compare with")
 )
 
 // target is one instance to verify.
@@ -70,7 +72,7 @@ func TestLive(t *testing.T) {
 	dir := *rawDir
 	if dir == "" {
 		home, _ := os.UserHomeDir()
-		dir = filepath.Join(home, ".local", "share", "chadash-spikes", "live-verify", time.Now().Format("20060102-150405"))
+		dir = filepath.Join(home, ".local", "share", "chadash", "live-verify", time.Now().Format("20060102-150405"))
 	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
@@ -96,6 +98,11 @@ func verify(t *testing.T, x target, dir string) {
 		fmt.Fprintf(out, "   config:    INVALID %v\n", fieldNames(errs))
 		fmt.Println(out.String())
 		return
+	}
+	routes, compare := ByIntegration[x.integ]
+	capture := &Capture{Route: routes.Route}
+	if compare {
+		h.Wrap = capture.Wrap
 	}
 	inst := h.Connect(integ, x.config, x.secrets)
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
@@ -171,6 +178,25 @@ func verify(t *testing.T, x target, dir string) {
 	inbox := decoded(isnap)
 	raw["inbox"] = inbox
 	fmt.Fprintf(out, "   incidents: %s\n", incidentSummary(inbox))
+	if compare {
+		rec, err := loadFor(routes, x.label)
+		if err != nil {
+			fmt.Fprintf(out, "   drift:     no recording of this instance to compare with\n")
+		} else {
+			dr := capture.Against(rec.Routes)
+			raw["drift"] = dr // added fields name what the lab has: raw results only
+			raw["recorded_version"] = rec.Version
+			fmt.Fprintf(out, "   drift:     %s\n", driftSummary(dr))
+			if rec.Version != "" && res.Version != "" && !strings.Contains(res.Version, rec.Version) {
+				fmt.Fprintf(out, "   recorded:  on %s; it runs %s now\n", rec.Version, res.Version)
+			}
+			if n := drifted(dr); n > 0 {
+				t.Errorf("%s: its answers no longer match the recorded fixtures on %d routes; record new ones", x.label, n)
+			}
+		}
+	} else {
+		fmt.Fprintf(out, "   drift:     no recordings to compare for %s yet\n", x.integ)
+	}
 	raw["stored_config_keys"] = keys(h.StoredConfig())
 	raw["logs"] = h.Logs()
 
@@ -179,6 +205,62 @@ func verify(t *testing.T, x target, dir string) {
 		_ = os.WriteFile(filepath.Join(dir, name), b, 0o600)
 	}
 	fmt.Println(out.String())
+}
+
+// loadFor reads the recording for an instance label, matching testdata's
+// folder names without their dashes: "proxmox/jupiternas" (PVE_JUPITERNAS_URL)
+// is proxmox/jupiter-nas.
+func loadFor(r Routes, label string) (Recording, error) {
+	integ, name, _ := strings.Cut(label, "/")
+	plain := func(s string) string { return strings.NewReplacer("-", "", "_", "").Replace(strings.ToLower(s)) }
+	if dirs, err := os.ReadDir(filepath.Join(*recorded, integ)); err == nil {
+		for _, d := range dirs {
+			if d.IsDir() && plain(d.Name()) == plain(name) {
+				name = d.Name()
+			}
+		}
+	}
+	return r.Load(*recorded, name)
+}
+
+// drifted counts the routes whose recorded fields are gone or changed.
+func drifted(res Result) int {
+	n := 0
+	for _, d := range res.Routes {
+		if !d.Empty() {
+			n++
+		}
+	}
+	return n
+}
+
+// driftSummary prints what the recording has and the lab no longer does.
+// Every name in it comes from the recording, which is sanitized; fields
+// only the lab has are counted, never named.
+func driftSummary(res Result) string {
+	head := fmt.Sprintf("%d routes compared", res.Compared)
+	if res.Unseen > 0 {
+		head += fmt.Sprintf(" · %d asked with no recording", res.Unseen)
+	}
+	added := 0
+	var lines []string
+	for _, route := range slices.Sorted(maps.Keys(res.Routes)) {
+		d := res.Routes[route]
+		added += len(d.Added)
+		for _, f := range d.Removed {
+			lines = append(lines, route+"  gone: "+f)
+		}
+		for _, f := range d.Changed {
+			lines = append(lines, route+"  type: "+f)
+		}
+	}
+	if added > 0 {
+		head += fmt.Sprintf(" · %d new fields (named in the raw results)", added)
+	}
+	if len(lines) == 0 {
+		return "none · " + head
+	}
+	return fmt.Sprintf("%d fields · %s\n              %s", len(lines), head, strings.Join(lines, "\n              "))
 }
 
 // TestSummaries checks the summary code on a local check, offline: one

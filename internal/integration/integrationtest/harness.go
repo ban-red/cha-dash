@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"maps"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -41,6 +42,9 @@ type Harness struct {
 	// RootCAs are trusted in tls mode verify (e.g. an httptest TLS server's
 	// certificate). Set before Connect.
 	RootCAs *x509.CertPool
+	// Wrap, when set, wraps the transport of every HTTP client the instance
+	// gets, to read its requests and answers. Set before Connect.
+	Wrap func(http.RoundTripper) http.RoundTripper
 	// State is the instance's key-value state, in memory. Every Connect of
 	// the harness shares it, so connecting again is a restart.
 	State integration.State
@@ -132,7 +136,7 @@ func (h *Harness) Connect(integ integration.Integration, config map[string]any, 
 	h.mu.Unlock()
 	cfg := integration.Config{InstanceID: h.ID, Name: "Test", Values: full}
 	deps, _, release := runtime.NewDeps(runtime.DepsOptions{
-		Config: cfg, Emit: h.Emitter, Now: h.Now, RootCAs: h.RootCAs, State: h.State, Nodes: h.Nodes,
+		Config: cfg, Emit: h.Emitter, Now: h.Now, RootCAs: h.RootCAs, State: h.State, Nodes: h.Nodes, Wrap: h.Wrap,
 		Log: slog.New(slog.NewTextHandler(&lockedWriter{h: h}, &slog.HandlerOptions{Level: slog.LevelDebug})),
 		UpdateConfig: func(_ context.Context, mutate func(map[string]any)) error {
 			h.mu.Lock()

@@ -590,6 +590,9 @@ type DepsOptions struct {
 	State integration.State
 	// Nodes is Deps.Nodes. Nil: no nodes.
 	Nodes integration.NodeCaller
+	// Wrap, when set, wraps every HTTP client's transport: a test reads
+	// what an instance asked and got (internal/liveverify). Nil in the hub.
+	Wrap func(http.RoundTripper) http.RoundTripper
 }
 
 // NewDeps builds the Deps an instance gets: its own HTTP client with the
@@ -640,6 +643,9 @@ func NewDeps(o DepsOptions) (integration.Deps, *Client, func()) {
 		c, err := NewHTTPClient(co)
 		if err != nil {
 			return nil, err
+		}
+		if o.Wrap != nil {
+			c.Transport = o.Wrap(c.Transport)
 		}
 		mu.Lock()
 		clients = append(clients, c)
