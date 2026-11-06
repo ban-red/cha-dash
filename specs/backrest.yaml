@@ -1,0 +1,187 @@
+# Backrest: its backup plans, their last run and what they back up. Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# docs/specs.md, "Backup targets". Fixture test: backrest_test.go, against
+# testdata/backrest/ (synthetic, from Backrest v1.14.1's source).
+#
+# Backrest's API is Connect RPC: POST /v1.Backrest/<Method> with a JSON body.
+# It takes HTTP basic auth on every call, so the secret is the header's
+# value made ahead of time (base64 of user:password): a spec can't encode
+# it, and signing in for a token (Login, a JWT for 7 days) is a handshake a
+# spec can't do.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: backrest
+  name: Backrest
+  icon: backrest
+  version: 0.1.0
+  tier: bronze
+  category: hosts
+  capabilities: [backups.targets]
+
+config:
+  basic_auth: { type: secret, title: Basic auth, required: true, description: "user:password in base64, for a Backrest user (printf 'user:password' | base64)" }
+  host: { type: string, title: Host it backs up, pattern: '^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$', description: "The address or name of the machine whose folders Backrest backs up; default the URL's host" }
+  path_map: { type: string, title: Path map, pattern: '^/[^:]*:/[^:]*$', max_length: 200, description: "Backrest's folder and the host's, when Backrest runs in a container: /userdata:/mnt/user" }
+
+source:
+  headers:
+    Authorization: "Basic {{ secret.basic_auth }}"
+  timeout: 20s
+
+# GetSummaryDashboard walks Backrest's whole operation log.
+every: 300s
+
+requests:
+  # The plans, with their paths and schedules. The config Backrest sends is
+  # sanitized (no repository passwords); only the plans are kept.
+  cfg:
+    method: POST
+    path: /v1.Backrest/GetConfig
+    body: '{}'
+    extract:
+      plans: plans
+      instance: instance
+  # Per plan: the recent backups (newest first), the next one, the size of
+  # the newest good one, and Backrest's own overdue flag per day.
+  summary:
+    method: POST
+    path: /v1.Backrest/GetSummaryDashboard
+    body: '{}'
+    extract:
+      plans: planSummaries
+  # The last 100 operations, for a failed backup's message.
+  ops:
+    method: POST
+    path: /v1.Backrest/GetOperations
+    body: '{"lastN": "100"}'
+    optional: true
+    extract:
+      list: operations
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: |
+      len(filter(summary.plans ?? [], {
+        find(.recentBackups?.status ?? [], {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) in ["STATUS_ERROR", "STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"] ||
+          (last(.historyLast30days ?? [])?.overdue ?? false)
+      })) > 0 ? "attention" : "ok"
+    reason: |
+      join(map(filter(summary.plans ?? [], {
+        find(.recentBackups?.status ?? [], {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) in ["STATUS_ERROR", "STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"] ||
+          (last(.historyLast30days ?? [])?.overdue ?? false)
+      }), {
+        .id + (find(.recentBackups?.status ?? [], {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) in ["STATUS_ERROR", "STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"] ? " failed" : " is overdue")
+      }), ", ")
+    attrs:
+      type: '"backrest"'
+      instance: cfg.instance
+      plans: 'cfg.plans == nil ? nil : len(cfg.plans)'
+    caps: [backups.targets]
+    links:
+      - { title: Backrest, url: config.url }
+
+  # One target per plan, the first 50, keyed by the plan's ID.
+  - id: plan
+    each: cfg.plans
+    key: item.id
+    part_of: app
+    kind: backup_target
+    name: item.id
+    caps: [backups.targets]
+    state: |
+      let st = find(summary.plans ?? [], {.id == item.id})?.recentBackups?.status ?? [];
+      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+      len(st) > 0 && st[0] == "STATUS_INPROGRESS" ? "running" :
+        (i < 0 ? "never" : (st[i] == "STATUS_SUCCESS" ? "ok" : (st[i] == "STATUS_WARNING" ? "warning" : "failed")))
+    health: |
+      let s = find(summary.plans ?? [], {.id == item.id});
+      let st = s?.recentBackups?.status ?? [];
+      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+      i >= 0 && st[i] == "STATUS_ERROR" ? "down" :
+        ((i >= 0 && st[i] in ["STATUS_WARNING", "STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"]) || (last(s?.historyLast30days ?? [])?.overdue ?? false) ? "attention" :
+          (i < 0 ? "unknown" : "ok"))
+    reason: |
+      let s = find(summary.plans ?? [], {.id == item.id});
+      let st = s?.recentBackups?.status ?? [];
+      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+      let err = findLast(ops.list ?? [], {.planId == item.id && .operationBackup != nil && .status == "STATUS_ERROR"})?.displayMessage ?? "";
+      i >= 0 && st[i] == "STATUS_ERROR" ? (err != "" ? "The last backup failed: " + split(err, "\n")[0] : "The last backup failed") :
+        (i >= 0 && st[i] in ["STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"] ? "The last backup was cancelled" :
+          ((last(s?.historyLast30days ?? [])?.overdue ?? false) ? "No good backup within its schedule" :
+            (i >= 0 && st[i] == "STATUS_WARNING" ? "The last backup finished with warnings" :
+              (i < 0 ? "No backup has run yet" : ""))))
+    attrs:
+      type: '"backrest.plan"'
+      repository: item.repo
+      paths: item.paths ?? []
+      backup.covers: |
+        let pm = config.path_map ?? "";
+        let from = pm == "" ? "" : trimSuffix(split(pm, ":")[0], "/");
+        let to = pm == "" ? "" : trimSuffix(split(pm, ":")[1], "/");
+        let host = (config.host ?? "") != "" ? config.host : split(split(split(config.url, "://")[1], "/")[0], ":")[0];
+        map(item.paths ?? [], {
+          let p = #;
+          let under = pm != "" && (p == from || hasPrefix(p, from + "/"));
+          {host: host, path: under ? ((to + trimPrefix(p, from)) == "" ? "/" : to + trimPrefix(p, from)) : p}
+        })
+      # Backrest's cron, or its interval in words the coverage map reads.
+      backup.schedule: |
+        item.schedule == nil || item.schedule.disabled == true ? nil :
+          ((item.schedule.cron ?? "") != "" ? item.schedule.cron :
+            ((item.schedule.maxFrequencyHours ?? 0) > 0 && item.schedule.maxFrequencyHours <= 24 ? "hourly" :
+              ((item.schedule.maxFrequencyDays ?? 0) == 1 ? "daily" :
+                ((item.schedule.maxFrequencyDays ?? 0) == 7 ? "weekly" : nil))))
+      backup.enabled: 'item.schedule != nil && item.schedule.disabled != true'
+      backup.last_status: |
+        let st = find(summary.plans ?? [], {.id == item.id})?.recentBackups?.status ?? [];
+        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+        i < 0 ? nil : (st[i] in ["STATUS_SUCCESS", "STATUS_WARNING"] ? "ok" : "failed")
+      # When the newest finished backup ended: its start plus its duration.
+      backup.last_at: |
+        let rb = find(summary.plans ?? [], {.id == item.id})?.recentBackups;
+        let st = rb?.status ?? [];
+        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+        i < 0 ? nil : (date("1970-01-01T00:00:00Z") + duration(string(int(rb.timestampMs[i]) + int(rb.durationMs[i])) + "ms")).Format("2006-01-02T15:04:05Z07:00")
+      backup.last_ok: |
+        let rb = find(summary.plans ?? [], {.id == item.id})?.recentBackups;
+        let j = findIndex(rb?.status ?? [], {# in ["STATUS_SUCCESS", "STATUS_WARNING"]}) ?? -1;
+        j < 0 ? nil : (date("1970-01-01T00:00:00Z") + duration(string(int(rb.timestampMs[j]) + int(rb.durationMs[j])) + "ms")).Format("2006-01-02T15:04:05Z07:00")
+      backup.last_error: |
+        let st = find(summary.plans ?? [], {.id == item.id})?.recentBackups?.status ?? [];
+        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+        let err = findLast(ops.list ?? [], {.planId == item.id && .operationBackup != nil && .status == "STATUS_ERROR"})?.displayMessage ?? "";
+        i >= 0 && st[i] == "STATUS_ERROR" && err != "" ? split(err, "\n")[0] : nil
+      backup.next_at: |
+        let n = find(summary.plans ?? [], {.id == item.id})?.nextBackupTimeMs;
+        n == nil ? nil : (date("1970-01-01T00:00:00Z") + duration(string(int(n)) + "ms")).Format("2006-01-02T15:04:05Z07:00")
+      # What the newest good backup read (restic's total bytes processed).
+      size_bytes: |
+        let b = find(summary.plans ?? [], {.id == item.id})?.protectedBytes;
+        b == nil ? nil : int(b)
+      overdue: 'last(find(summary.plans ?? [], {.id == item.id})?.historyLast30days ?? [])?.overdue ?? false'
+
+metrics:
+  - { resource: app, key: backups, value: 'cfg.plans == nil ? nil : float(len(cfg.plans))', unit: count, max: 500, band: [0, 500] }
+  - resource: app
+    key: backups.failed
+    value: |
+      summary.plans == nil ? nil : float(len(filter(summary.plans, {
+        find(.recentBackups?.status ?? [], {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) in ["STATUS_ERROR", "STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"]
+      })))
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1
+  - resource: app
+    key: backups.stale
+    value: 'summary.plans == nil ? nil : float(len(filter(summary.plans, {last(.historyLast30days ?? [])?.overdue ?? false})))'
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1

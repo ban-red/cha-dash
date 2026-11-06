@@ -1,0 +1,52 @@
+{
+  "modno": 14,
+  "version": 4,
+  "instance": "nas",
+  "repos": [
+    {
+      "id": "nas-b2",
+      "uri": "b2:backups-example:nas",
+      "guid": "3f0c9e2a7b5d41c8a6e2f91d0b7c4e58",
+      "env": ["B2_ACCOUNT_ID=${B2_ACCOUNT_ID}", "B2_ACCOUNT_KEY=${B2_ACCOUNT_KEY}"],
+      "prunePolicy": { "schedule": { "maxFrequencyDays": 30, "clock": "CLOCK_LAST_RUN_TIME" }, "maxUnusedPercent": 10 },
+      "checkPolicy": { "schedule": { "maxFrequencyDays": 30, "clock": "CLOCK_LAST_RUN_TIME" }, "structureOnly": true },
+      "autoUnlock": false
+    },
+    {
+      "id": "local",
+      "uri": "/repos/local",
+      "guid": "9a41d2c07e6b4f35b8c1e2d3f4a5b6c7"
+    }
+  ],
+  "plans": [
+    {
+      "id": "appdata-nightly",
+      "repo": "nas-b2",
+      "paths": ["/userdata/appdata"],
+      "excludes": ["*.log", "/userdata/appdata/plex/Library/Application Support/Plex Media Server/Cache"],
+      "schedule": { "cron": "0 3 * * *", "clock": "CLOCK_LOCAL" },
+      "retention": { "policyTimeBucketed": { "daily": 7, "weekly": 4, "monthly": 6 } }
+    },
+    {
+      "id": "photos-weekly",
+      "repo": "nas-b2",
+      "paths": ["/userdata/photos", "/userdata/flash"],
+      "schedule": { "maxFrequencyDays": 7, "clock": "CLOCK_LAST_RUN_TIME" },
+      "retention": { "policyKeepLastN": 8 }
+    },
+    {
+      "id": "docs-hourly",
+      "repo": "local",
+      "paths": ["/userdata/documents"],
+      "schedule": { "maxFrequencyHours": 1, "clock": "CLOCK_LAST_RUN_TIME" },
+      "retention": { "policyTimeBucketed": { "hourly": 24, "daily": 14 } }
+    },
+    {
+      "id": "archive-manual",
+      "repo": "local",
+      "paths": ["/userdata/archive"],
+      "schedule": { "disabled": true }
+    }
+  ],
+  "auth": { "users": [ { "name": "chadash" } ] }
+}

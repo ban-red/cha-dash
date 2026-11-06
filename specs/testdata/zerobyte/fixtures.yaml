@@ -1,0 +1,6 @@
+# The answers chadash spec test serves for zerobyte.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/zerobyte.yaml specs/testdata/zerobyte
+config: { host: 10.20.30.40, path_map: "/data:/mnt/user" }
+secrets: { api_key: fake-zerobyte-api-key }
+answers:
+  backups: backups.json

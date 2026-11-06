@@ -1,0 +1,57 @@
+{
+  "localUsername": "root",
+  "localHost": "nas",
+  "multiUser": true,
+  "sources": [
+    {
+      "source": { "host": "nas", "userName": "root", "path": "/data/appdata" },
+      "status": "IDLE",
+      "schedule": { "timeOfDay": [ { "hour": 3, "min": 0 } ], "runMissed": true },
+      "lastSnapshot": {
+        "id": "a3f1c9e27b5d4e8f0a1b2c3d4e5f6a7b",
+        "source": { "host": "nas", "userName": "root", "path": "/data/appdata" },
+        "description": "",
+        "startTime": "2026-11-06T03:00:04.512338104Z",
+        "endTime": "2026-11-06T03:04:41.209107331Z",
+        "stats": { "totalSize": 48318382080, "excludedTotalSize": 0, "fileCount": 182311, "cachedFiles": 181097, "nonCachedFiles": 1214, "dirCount": 20311, "excludedFileCount": 0, "excludedDirCount": 0, "ignoredErrorCount": 0, "errorCount": 0 },
+        "rootEntry": { "name": "appdata", "type": "d", "mode": "0755", "mtime": "2026-11-06T02:59:58.1Z", "obj": "k4e1f0a2b9c8d7e6f5a4b3c2d1e0f9a8b", "summ": { "size": 48318382080, "files": 182311, "symlinks": 12, "dirs": 20311, "maxTime": "2026-11-06T02:59:58.1Z", "numFailed": 0 } }
+      },
+      "nextSnapshotTime": "2026-11-07T03:00:00Z"
+    },
+    {
+      "source": { "host": "nas", "userName": "root", "path": "/data/photos" },
+      "status": "IDLE",
+      "schedule": { "intervalSeconds": 86400 },
+      "lastSnapshot": {
+        "id": "b7d2e4f6081a3c5e7f9b1d3f5a7c9e1b",
+        "source": { "host": "nas", "userName": "root", "path": "/data/photos" },
+        "description": "",
+        "startTime": "2026-11-05T23:00:01.004Z",
+        "endTime": "2026-11-05T23:10:37.881Z",
+        "stats": { "totalSize": 510027366400, "excludedTotalSize": 0, "fileCount": 96012, "cachedFiles": 95990, "nonCachedFiles": 22, "dirCount": 1204, "excludedFileCount": 0, "excludedDirCount": 0, "ignoredErrorCount": 0, "errorCount": 2 },
+        "rootEntry": { "name": "photos", "type": "d", "mode": "0755", "mtime": "2026-11-05T19:12:40Z", "obj": "k9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d", "summ": { "size": 510027366400, "files": 96012, "symlinks": 0, "dirs": 1204, "maxTime": "2026-11-05T19:12:40Z", "numFailed": 2, "errors": [ { "path": "2026/10/IMG_0412.HEIC", "error": "open /data/photos/2026/10/IMG_0412.HEIC: permission denied" }, { "path": "2026/10/IMG_0413.HEIC", "error": "open /data/photos/2026/10/IMG_0413.HEIC: permission denied" } ] } }
+      },
+      "nextSnapshotTime": "2026-11-06T23:10:37.881Z"
+    },
+    {
+      "source": { "host": "nas", "userName": "root", "path": "/data/documents" },
+      "status": "IDLE",
+      "schedule": { "cron": [ "0 */6 * * *" ] },
+      "lastSnapshot": {
+        "id": "c1e3a5c7e9f1b3d5f7a9c1e3a5c7e9f1",
+        "source": { "host": "nas", "userName": "root", "path": "/data/documents" },
+        "description": "",
+        "startTime": "2026-11-02T18:00:00.512Z",
+        "endTime": "2026-11-02T18:01:12.044Z",
+        "stats": { "totalSize": 5208257207, "excludedTotalSize": 0, "fileCount": 18234, "cachedFiles": 18220, "nonCachedFiles": 14, "dirCount": 911, "excludedFileCount": 0, "excludedDirCount": 0, "ignoredErrorCount": 0, "errorCount": 0 },
+        "rootEntry": { "name": "documents", "type": "d", "mode": "0755", "mtime": "2026-11-02T17:41:09Z", "obj": "kd5f7a9c1e3a5c7e9f1b3d5f7a9c1e3a5", "summ": { "size": 5208257207, "files": 18234, "symlinks": 0, "dirs": 911, "maxTime": "2026-11-02T17:41:09Z", "numFailed": 0 } }
+      },
+      "nextSnapshotTime": "2026-11-06T06:00:00Z"
+    },
+    {
+      "source": { "host": "workstation", "userName": "backup", "path": "/srv/projects" },
+      "status": "REMOTE",
+      "schedule": { "manual": true }
+    }
+  ]
+}

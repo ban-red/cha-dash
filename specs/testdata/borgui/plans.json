@@ -1,0 +1,311 @@
+{
+  "backup_plans": [
+    {
+      "id": 1,
+      "name": "Appdata nightly",
+      "description": "",
+      "enabled": true,
+      "source_type": "local",
+      "source_ssh_connection_id": null,
+      "source_directories": [
+        "/local/mnt/user/appdata"
+      ],
+      "source_locations": [
+        {
+          "source_type": "local",
+          "source_ssh_connection_id": null,
+          "agent_machine_id": null,
+          "paths": [
+            "/local/mnt/user/appdata"
+          ]
+        }
+      ],
+      "exclude_patterns": [
+        "*.tmp"
+      ],
+      "database_template_id": null,
+      "archive_name_template": "{plan_name}-{now}",
+      "compression": "lz4",
+      "custom_flags": null,
+      "check_extra_flags": null,
+      "upload_ratelimit_kib": null,
+      "upload_ratelimit_schedule_policies": [],
+      "repository_run_mode": "series",
+      "max_parallel_repositories": 1,
+      "failure_behavior": "continue",
+      "schedule_enabled": true,
+      "schedule_mode": "cron",
+      "availability_check_interval_minutes": null,
+      "min_success_interval_minutes": null,
+      "cron_expression": "0 2 * * *",
+      "timezone": "UTC",
+      "last_run": "2026-11-06T02:00:00.104211+00:00",
+      "next_run": "2026-11-07T02:00:00+00:00",
+      "repository_count": 2,
+      "repositories": [
+        {
+          "id": 1,
+          "repository_id": 1,
+          "enabled": true,
+          "execution_order": 0,
+          "compression_source": "plan",
+          "compression_override": null,
+          "custom_flags_override": null,
+          "upload_ratelimit_kib_override": null,
+          "failure_behavior_override": null,
+          "repository": {
+            "id": 1,
+            "name": "nas-offsite",
+            "path": "ssh://borg@storage.home.example:22/./nas",
+            "borg_version": 1,
+            "mode": "full",
+            "repository_type": "ssh",
+            "connection_id": 2,
+            "execution_target": "server",
+            "executor_type": "server",
+            "agent_machine_id": null
+          }
+        },
+        {
+          "id": 2,
+          "repository_id": 2,
+          "enabled": true,
+          "execution_order": 0,
+          "compression_source": "plan",
+          "compression_override": null,
+          "custom_flags_override": null,
+          "upload_ratelimit_kib_override": null,
+          "failure_behavior_override": null,
+          "repository": {
+            "id": 2,
+            "name": "local-usb",
+            "path": "/local/mnt/disks/usb-backup/borg",
+            "borg_version": 1,
+            "mode": "full",
+            "repository_type": "local",
+            "connection_id": null,
+            "execution_target": "server",
+            "executor_type": "server",
+            "agent_machine_id": null
+          }
+        }
+      ],
+      "created_at": "2026-03-14T10:12:44.218311+00:00",
+      "updated_at": "2026-10-01T08:00:00.000000+00:00"
+    },
+    {
+      "id": 2,
+      "name": "Pi config",
+      "description": "",
+      "enabled": true,
+      "source_type": "remote",
+      "source_ssh_connection_id": 3,
+      "source_directories": [
+        "/etc",
+        "/home/pi"
+      ],
+      "source_locations": [
+        {
+          "source_type": "remote",
+          "source_ssh_connection_id": 3,
+          "agent_machine_id": null,
+          "paths": [
+            "/etc",
+            "/home/pi"
+          ]
+        }
+      ],
+      "exclude_patterns": [
+        "*.tmp"
+      ],
+      "database_template_id": null,
+      "archive_name_template": "{plan_name}-{now}",
+      "compression": "lz4",
+      "custom_flags": null,
+      "check_extra_flags": null,
+      "upload_ratelimit_kib": null,
+      "upload_ratelimit_schedule_policies": [],
+      "repository_run_mode": "series",
+      "max_parallel_repositories": 1,
+      "failure_behavior": "continue",
+      "schedule_enabled": true,
+      "schedule_mode": "cron",
+      "availability_check_interval_minutes": null,
+      "min_success_interval_minutes": null,
+      "cron_expression": "30 1 * * *",
+      "timezone": "UTC",
+      "last_run": "2026-11-06T01:30:00.051002+00:00",
+      "next_run": "2026-11-07T01:30:00+00:00",
+      "repository_count": 1,
+      "repositories": [
+        {
+          "id": 3,
+          "repository_id": 1,
+          "enabled": true,
+          "execution_order": 0,
+          "compression_source": "plan",
+          "compression_override": null,
+          "custom_flags_override": null,
+          "upload_ratelimit_kib_override": null,
+          "failure_behavior_override": null,
+          "repository": {
+            "id": 1,
+            "name": "nas-offsite",
+            "path": "ssh://borg@storage.home.example:22/./nas",
+            "borg_version": 1,
+            "mode": "full",
+            "repository_type": "ssh",
+            "connection_id": 2,
+            "execution_target": "server",
+            "executor_type": "server",
+            "agent_machine_id": null
+          }
+        }
+      ],
+      "created_at": "2026-03-14T10:12:44.218311+00:00",
+      "updated_at": "2026-10-01T08:00:00.000000+00:00"
+    },
+    {
+      "id": 3,
+      "name": "Media weekly",
+      "description": "",
+      "enabled": true,
+      "source_type": "local",
+      "source_ssh_connection_id": null,
+      "source_directories": [
+        "/local/mnt/user/media/music",
+        "/local/mnt/user/media/books"
+      ],
+      "source_locations": [
+        {
+          "source_type": "local",
+          "source_ssh_connection_id": null,
+          "agent_machine_id": null,
+          "paths": [
+            "/local/mnt/user/media/music",
+            "/local/mnt/user/media/books"
+          ]
+        }
+      ],
+      "exclude_patterns": [
+        "*.tmp"
+      ],
+      "database_template_id": null,
+      "archive_name_template": "{plan_name}-{now}",
+      "compression": "lz4",
+      "custom_flags": null,
+      "check_extra_flags": null,
+      "upload_ratelimit_kib": null,
+      "upload_ratelimit_schedule_policies": [],
+      "repository_run_mode": "series",
+      "max_parallel_repositories": 1,
+      "failure_behavior": "continue",
+      "schedule_enabled": true,
+      "schedule_mode": "cron",
+      "availability_check_interval_minutes": null,
+      "min_success_interval_minutes": null,
+      "cron_expression": "0 4 * * 0",
+      "timezone": "UTC",
+      "last_run": "2026-10-25T04:00:00.420117+00:00",
+      "next_run": "2026-11-08T04:00:00+00:00",
+      "repository_count": 1,
+      "repositories": [
+        {
+          "id": 4,
+          "repository_id": 2,
+          "enabled": true,
+          "execution_order": 0,
+          "compression_source": "plan",
+          "compression_override": null,
+          "custom_flags_override": null,
+          "upload_ratelimit_kib_override": null,
+          "failure_behavior_override": null,
+          "repository": {
+            "id": 2,
+            "name": "local-usb",
+            "path": "/local/mnt/disks/usb-backup/borg",
+            "borg_version": 1,
+            "mode": "full",
+            "repository_type": "local",
+            "connection_id": null,
+            "execution_target": "server",
+            "executor_type": "server",
+            "agent_machine_id": null
+          }
+        }
+      ],
+      "created_at": "2026-03-14T10:12:44.218311+00:00",
+      "updated_at": "2026-10-01T08:00:00.000000+00:00"
+    },
+    {
+      "id": 4,
+      "name": "Laptop",
+      "description": "",
+      "enabled": true,
+      "source_type": "agent",
+      "source_ssh_connection_id": null,
+      "source_directories": [
+        "/home/backup/projects"
+      ],
+      "source_locations": [
+        {
+          "source_type": "agent",
+          "source_ssh_connection_id": null,
+          "agent_machine_id": 7,
+          "paths": [
+            "/home/backup/projects"
+          ]
+        }
+      ],
+      "exclude_patterns": [
+        "*.tmp"
+      ],
+      "database_template_id": null,
+      "archive_name_template": "{plan_name}-{now}",
+      "compression": "lz4",
+      "custom_flags": null,
+      "check_extra_flags": null,
+      "upload_ratelimit_kib": null,
+      "upload_ratelimit_schedule_policies": [],
+      "repository_run_mode": "series",
+      "max_parallel_repositories": 1,
+      "failure_behavior": "continue",
+      "schedule_enabled": false,
+      "schedule_mode": "cron",
+      "availability_check_interval_minutes": null,
+      "min_success_interval_minutes": null,
+      "cron_expression": null,
+      "timezone": "UTC",
+      "last_run": null,
+      "next_run": null,
+      "repository_count": 1,
+      "repositories": [
+        {
+          "id": 5,
+          "repository_id": 1,
+          "enabled": true,
+          "execution_order": 0,
+          "compression_source": "plan",
+          "compression_override": null,
+          "custom_flags_override": null,
+          "upload_ratelimit_kib_override": null,
+          "failure_behavior_override": null,
+          "repository": {
+            "id": 1,
+            "name": "nas-offsite",
+            "path": "ssh://borg@storage.home.example:22/./nas",
+            "borg_version": 1,
+            "mode": "full",
+            "repository_type": "ssh",
+            "connection_id": 2,
+            "execution_target": "server",
+            "executor_type": "server",
+            "agent_machine_id": null
+          }
+        }
+      ],
+      "created_at": "2026-03-14T10:12:44.218311+00:00",
+      "updated_at": "2026-10-01T08:00:00.000000+00:00"
+    }
+  ]
+}

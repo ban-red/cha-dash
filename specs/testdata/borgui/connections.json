@@ -1,0 +1,49 @@
+{
+  "success": true,
+  "connections": [
+    {
+      "id": 2,
+      "ssh_key_id": 1,
+      "ssh_key_name": "borg-ui",
+      "host": "storage.home.example",
+      "username": "borg",
+      "port": 22,
+      "use_sftp_mode": true,
+      "use_sudo": false,
+      "default_path": "/./",
+      "ssh_path_prefix": null,
+      "mount_point": null,
+      "status": "connected",
+      "shell_restricted": true,
+      "last_test": "2026-11-06T00:00:01.000000+00:00",
+      "last_success": "2026-11-06T00:00:01.000000+00:00",
+      "error_message": null,
+      "storage": null,
+      "host_key_verified": true,
+      "host_key_fingerprint": "SHA256:Zm9vYmFyYmF6cXV4ZmFrZWZpbmdlcnByaW50MDAwMA",
+      "created_at": "2026-03-14T10:00:00.000000+00:00"
+    },
+    {
+      "id": 3,
+      "ssh_key_id": 1,
+      "ssh_key_name": "borg-ui",
+      "host": "10.20.30.51",
+      "username": "pi",
+      "port": 22,
+      "use_sftp_mode": true,
+      "use_sudo": true,
+      "default_path": "/",
+      "ssh_path_prefix": null,
+      "mount_point": null,
+      "status": "failed",
+      "shell_restricted": false,
+      "last_test": "2026-11-06T01:30:31.000000+00:00",
+      "last_success": "2026-11-05T01:31:12.000000+00:00",
+      "error_message": "Connection refused",
+      "storage": null,
+      "host_key_verified": true,
+      "host_key_fingerprint": "SHA256:YmF6cXV4Zm9vYmFyZmFrZWZpbmdlcnByaW50MTExMQ",
+      "created_at": "2026-04-02T18:30:00.000000+00:00"
+    }
+  ]
+}

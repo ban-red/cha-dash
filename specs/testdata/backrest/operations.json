@@ -1,0 +1,72 @@
+{
+  "operations": [
+    {
+      "id": "1777000000000001",
+      "modno": "3",
+      "flowId": "8770",
+      "repoId": "local",
+      "repoGuid": "9a41d2c07e6b4f35b8c1e2d3f4a5b6c7",
+      "planId": "docs-hourly",
+      "instanceId": "nas",
+      "snapshotId": "4e1f0a2b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f",
+      "status": "STATUS_SUCCESS",
+      "unixTimeStartMs": "1793743200000",
+      "unixTimeEndMs": "1793743241000",
+      "operationBackup": { "lastStatus": { "summary": { "filesNew": "3", "filesChanged": "11", "dataAdded": "1048576", "totalFilesProcessed": "18234", "totalBytesProcessed": "5208257207", "snapshotId": "4e1f0a2b" } } }
+    },
+    {
+      "id": "1777000000000002",
+      "modno": "4",
+      "flowId": "8795",
+      "repoId": "nas-b2",
+      "repoGuid": "3f0c9e2a7b5d41c8a6e2f91d0b7c4e58",
+      "planId": "photos-weekly",
+      "instanceId": "nas",
+      "status": "STATUS_ERROR",
+      "unixTimeStartMs": "1793844000000",
+      "unixTimeEndMs": "1793844004100",
+      "displayMessage": "repository is already locked by PID 4123 on backrest by root\nunable to create lock in backend",
+      "operationBackup": {}
+    },
+    {
+      "id": "1777000000000003",
+      "modno": "2",
+      "flowId": "8796",
+      "repoId": "nas-b2",
+      "repoGuid": "3f0c9e2a7b5d41c8a6e2f91d0b7c4e58",
+      "planId": "photos-weekly",
+      "instanceId": "nas",
+      "status": "STATUS_ERROR",
+      "unixTimeStartMs": "1793844005000",
+      "unixTimeEndMs": "1793844006000",
+      "displayMessage": "forget skipped: the backup failed",
+      "operationForget": {}
+    },
+    {
+      "id": "1777000000000004",
+      "modno": "6",
+      "flowId": "8812",
+      "repoId": "nas-b2",
+      "repoGuid": "3f0c9e2a7b5d41c8a6e2f91d0b7c4e58",
+      "planId": "appdata-nightly",
+      "instanceId": "nas",
+      "snapshotId": "a7c3e1f9b2d4068e5f1a3c7b9d2e4f6081a3c5e7f9b1d3f5a7c9e1b3d5f7a9c1",
+      "status": "STATUS_SUCCESS",
+      "unixTimeStartMs": "1793934000000",
+      "unixTimeEndMs": "1793934312000",
+      "operationBackup": { "lastStatus": { "summary": { "filesNew": "214", "filesChanged": "1022", "dataAdded": "702545920", "totalFilesProcessed": "182311", "totalBytesProcessed": "48318382080", "snapshotId": "a7c3e1f9" } } }
+    },
+    {
+      "id": "1777000000000005",
+      "modno": "1",
+      "flowId": "8813",
+      "repoId": "local",
+      "repoGuid": "9a41d2c07e6b4f35b8c1e2d3f4a5b6c7",
+      "planId": "docs-hourly",
+      "instanceId": "nas",
+      "status": "STATUS_INPROGRESS",
+      "unixTimeStartMs": "1793944680000",
+      "operationBackup": { "lastStatus": { "status": { "percentDone": 0.12, "totalFiles": "18240", "totalBytes": "5208300000", "filesDone": "2210", "bytesDone": "624996000" } } }
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+# Kopia: the snapshot sources its server schedules, their last snapshot
+# and what they back up. Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# docs/specs.md, "Backup targets". Fixture test: kopia_test.go, against
+# testdata/kopia/ (synthetic, from Kopia v0.23.1's source).
+#
+# Kopia's UI API (/api/v1/sources) wants a CSRF token from the page it
+# serves, which a spec can't fetch. Its server-control API
+# (/api/v1/control/sources) answers the same list without one, with HTTP
+# basic auth as the server-control user: the secret is that header's value
+# made ahead of time (base64 of user:password), since a spec can't encode it.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: kopia
+  name: Kopia
+  icon: kopia
+  version: 0.1.0
+  tier: bronze
+  category: hosts
+  capabilities: [backups.targets]
+
+config:
+  basic_auth: { type: secret, title: Basic auth, required: true, description: "server-control:password in base64, from kopia server start --server-control-password (printf 'server-control:password' | base64)" }
+  host: { type: string, title: Host it backs up, pattern: '^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$', description: "The address or name of the machine whose folders Kopia backs up; default each source's own host name" }
+  path_map: { type: string, title: Path map, pattern: '^/[^:]*:/[^:]*$', max_length: 200, description: "Kopia's folder and the host's, when Kopia runs in a container: /data:/mnt/user" }
+
+source:
+  headers:
+    Authorization: "Basic {{ secret.basic_auth }}"
+  timeout: 15s
+
+every: 300s
+
+requests:
+  # Every source the server knows: its schedule, its newest snapshot and
+  # when the next one is due.
+  sources:
+    path: /api/v1/control/sources
+    extract:
+      list: sources
+      host: localHost
+      user: localUsername
+      multiuser: multiUser
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: |
+      len(filter(sources.list ?? [], {
+        .status == "FAILED" ||
+          (.lastSnapshot != nil && ((.lastSnapshot.incomplete ?? "") != "" || (.lastSnapshot.rootEntry?.summ?.numFailed ?? 0) > 0 || (.lastSnapshot.stats?.errorCount ?? 0) > 0)) ||
+          (.lastSnapshot != nil && .schedule?.manual != true && now() - date(.lastSnapshot.endTime) > duration(string(
+          (.schedule?.intervalSeconds ?? 0) > 0 ? max(26, int(.schedule.intervalSeconds / 3600) + 24) :
+            (len(.schedule?.cron ?? []) > 0 && len(split(.schedule.cron[0], " ")) == 5 ?
+              (split(.schedule.cron[0], " ")[3] != "*" ? 8808 :
+                (split(.schedule.cron[0], " ")[2] != "*" && !(split(.schedule.cron[0], " ")[2] startsWith "*/") ? 768 :
+                  (split(.schedule.cron[0], " ")[4] in ["*", "?"] ? 26 : 192))) :
+              (len(.schedule?.timeOfDay ?? []) > 0 ? 26 : 1000000))) + "h"))
+      })) > 0 ? "attention" : "ok"
+    reason: |
+      join(map(filter(sources.list ?? [], {
+        .status == "FAILED" ||
+          (.lastSnapshot != nil && ((.lastSnapshot.incomplete ?? "") != "" || (.lastSnapshot.rootEntry?.summ?.numFailed ?? 0) > 0 || (.lastSnapshot.stats?.errorCount ?? 0) > 0)) ||
+          (.lastSnapshot != nil && .schedule?.manual != true && now() - date(.lastSnapshot.endTime) > duration(string(
+          (.schedule?.intervalSeconds ?? 0) > 0 ? max(26, int(.schedule.intervalSeconds / 3600) + 24) :
+            (len(.schedule?.cron ?? []) > 0 && len(split(.schedule.cron[0], " ")) == 5 ?
+              (split(.schedule.cron[0], " ")[3] != "*" ? 8808 :
+                (split(.schedule.cron[0], " ")[2] != "*" && !(split(.schedule.cron[0], " ")[2] startsWith "*/") ? 768 :
+                  (split(.schedule.cron[0], " ")[4] in ["*", "?"] ? 26 : 192))) :
+              (len(.schedule?.timeOfDay ?? []) > 0 ? 26 : 1000000))) + "h"))
+      }), {
+        .source.userName + "@" + .source.host + ":" + .source.path + (
+          .status == "FAILED" ||
+          (.lastSnapshot != nil && ((.lastSnapshot.incomplete ?? "") != "" || (.lastSnapshot.rootEntry?.summ?.numFailed ?? 0) > 0 || (.lastSnapshot.stats?.errorCount ?? 0) > 0)) ? " failed" : " is overdue")
+      }), ", ")
+    attrs:
+      type: '"kopia"'
+      host: sources.host
+      sources: 'sources.list == nil ? nil : len(sources.list)'
+    caps: [backups.targets]
+    links:
+      - { title: Kopia, url: config.url }
+
+  # One target per source, the first 50. The key is Kopia's user@host:path
+  # with anything but letters, digits, dots and dashes as _, at most 64.
+  - id: source
+    each: sources.list
+    key: |
+      let k = join(map(split(item.source.userName + "@" + item.source.host + item.source.path, ""), {# matches "^[A-Za-z0-9.-]$" ? # : "_"}), "");
+      len(k) > 64 ? k[len(k) - 64:] : k
+    part_of: app
+    kind: backup_target
+    name: item.source.userName + "@" + item.source.host + ":" + item.source.path
+    caps: [backups.targets]
+    # Kopia's status: idle, pending, uploading, paused, failed (it couldn't
+    # read the policy or the snapshots) or remote (another client's source).
+    state: lower(item.status ?? "unknown")
+    health: |
+      let ls = item.lastSnapshot;
+      let failed = item.status == "FAILED" || (ls != nil && ((ls.incomplete ?? "") != "" || (ls.rootEntry?.summ?.numFailed ?? 0) > 0 || (ls.stats?.errorCount ?? 0) > 0));
+      let sc = item.schedule ?? {};
+      let f = len(sc.cron ?? []) > 0 ? split(sc.cron[0], " ") : [];
+      let hours = sc.manual == true ? 0 :
+        ((sc.intervalSeconds ?? 0) > 0 ? max(26, int(sc.intervalSeconds / 3600) + 24) :
+          (len(f) == 5 ? (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192))) :
+            (len(sc.timeOfDay ?? []) > 0 ? 26 : 0)));
+      failed ? "down" :
+        (ls == nil ? "unknown" :
+          (hours > 0 && now() - date(ls.endTime) > duration(string(hours) + "h") ? "attention" : "ok"))
+    reason: |
+      let ls = item.lastSnapshot;
+      let sc = item.schedule ?? {};
+      let f = len(sc.cron ?? []) > 0 ? split(sc.cron[0], " ") : [];
+      let hours = sc.manual == true ? 0 :
+        ((sc.intervalSeconds ?? 0) > 0 ? max(26, int(sc.intervalSeconds / 3600) + 24) :
+          (len(f) == 5 ? (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192))) :
+            (len(sc.timeOfDay ?? []) > 0 ? 26 : 0)));
+      item.status == "FAILED" ? "Kopia couldn't read this source's policy or snapshots" :
+        (ls == nil ? (sc.manual == true ? "No snapshot yet; it runs only by hand" : "No snapshot yet") :
+          ((ls.incomplete ?? "") != "" ? "The last snapshot is incomplete: " + ls.incomplete :
+            ((ls.rootEntry?.summ?.numFailed ?? 0) > 0 || (ls.stats?.errorCount ?? 0) > 0 ?
+              "The last snapshot had errors" + (len(ls.rootEntry?.summ?.errors ?? []) > 0 ? ": " + ls.rootEntry.summ.errors[0].error : "") :
+              (hours > 0 && now() - date(ls.endTime) > duration(string(hours) + "h") ? "No snapshot within its schedule" : ""))))
+    attrs:
+      type: '"kopia.source"'
+      user: item.source.userName
+      source_host: item.source.host
+      path: item.source.path
+      backup.covers: |
+        let pm = config.path_map ?? "";
+        let from = pm == "" ? "" : trimSuffix(split(pm, ":")[0], "/");
+        let to = pm == "" ? "" : trimSuffix(split(pm, ":")[1], "/");
+        let p = item.source.path;
+        let under = pm != "" && (p == from || hasPrefix(p, from + "/"));
+        [{host: (config.host ?? "") != "" ? config.host : item.source.host, path: under ? ((to + trimPrefix(p, from)) == "" ? "/" : to + trimPrefix(p, from)) : p}]
+      # Kopia's cron, or its interval or times of day in words.
+      backup.schedule: |
+        let sc = item.schedule ?? {};
+        sc.manual == true ? nil :
+          (len(sc.cron ?? []) > 0 ? sc.cron[0] :
+            ((sc.intervalSeconds ?? 0) > 0 && sc.intervalSeconds <= 3600 ? "hourly" :
+              ((sc.intervalSeconds ?? 0) > 0 && sc.intervalSeconds <= 86400 ? "daily" :
+                ((sc.intervalSeconds ?? 0) == 604800 ? "weekly" :
+                  (len(sc.timeOfDay ?? []) > 0 ? "daily" : nil)))))
+      backup.manual: 'item.schedule?.manual == true'
+      backup.last_status: |
+        let ls = item.lastSnapshot;
+        ls == nil ? nil : ((ls.incomplete ?? "") != "" || (ls.rootEntry?.summ?.numFailed ?? 0) > 0 || (ls.stats?.errorCount ?? 0) > 0 ? "failed" : "ok")
+      backup.last_at: 'item.lastSnapshot == nil ? nil : date(item.lastSnapshot.endTime).UTC().Format("2006-01-02T15:04:05Z07:00")'
+      # Kopia reports only the newest snapshot, so a good one is known only
+      # while it's the newest.
+      backup.last_ok: |
+        let ls = item.lastSnapshot;
+        ls == nil || (ls.incomplete ?? "") != "" || (ls.rootEntry?.summ?.numFailed ?? 0) > 0 || (ls.stats?.errorCount ?? 0) > 0 ? nil : date(ls.endTime).UTC().Format("2006-01-02T15:04:05Z07:00")
+      backup.last_error: |
+        let ls = item.lastSnapshot;
+        ls == nil ? nil :
+          ((ls.incomplete ?? "") != "" ? "incomplete: " + ls.incomplete :
+            (len(ls.rootEntry?.summ?.errors ?? []) > 0 ? ls.rootEntry.summ.errors[0].error :
+              ((ls.rootEntry?.summ?.numFailed ?? 0) > 0 || (ls.stats?.errorCount ?? 0) > 0 ? string(int(ls.stats?.errorCount ?? ls.rootEntry.summ.numFailed)) + " files failed" : nil)))
+      backup.next_at: 'item.nextSnapshotTime == nil ? nil : date(item.nextSnapshotTime).UTC().Format("2006-01-02T15:04:05Z07:00")'
+      size_bytes: 'item.lastSnapshot?.rootEntry?.summ?.size ?? item.lastSnapshot?.stats?.totalSize'
+      files: 'item.lastSnapshot?.rootEntry?.summ?.files ?? item.lastSnapshot?.stats?.fileCount'
+
+metrics:
+  - { resource: app, key: backups, value: 'sources.list == nil ? nil : float(len(sources.list))', unit: count, max: 500, band: [0, 500] }
+  - resource: app
+    key: backups.failed
+    value: |
+      sources.list == nil ? nil : float(len(filter(sources.list, {
+        .status == "FAILED" ||
+          (.lastSnapshot != nil && ((.lastSnapshot.incomplete ?? "") != "" || (.lastSnapshot.rootEntry?.summ?.numFailed ?? 0) > 0 || (.lastSnapshot.stats?.errorCount ?? 0) > 0))
+      })))
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1
+  - resource: app
+    key: backups.stale
+    value: |
+      sources.list == nil ? nil : float(len(filter(sources.list, {
+        !(.status == "FAILED" ||
+          (.lastSnapshot != nil && ((.lastSnapshot.incomplete ?? "") != "" || (.lastSnapshot.rootEntry?.summ?.numFailed ?? 0) > 0 || (.lastSnapshot.stats?.errorCount ?? 0) > 0))) &&
+          (.lastSnapshot != nil && .schedule?.manual != true && now() - date(.lastSnapshot.endTime) > duration(string(
+          (.schedule?.intervalSeconds ?? 0) > 0 ? max(26, int(.schedule.intervalSeconds / 3600) + 24) :
+            (len(.schedule?.cron ?? []) > 0 && len(split(.schedule.cron[0], " ")) == 5 ?
+              (split(.schedule.cron[0], " ")[3] != "*" ? 8808 :
+                (split(.schedule.cron[0], " ")[2] != "*" && !(split(.schedule.cron[0], " ")[2] startsWith "*/") ? 768 :
+                  (split(.schedule.cron[0], " ")[4] in ["*", "?"] ? 26 : 192))) :
+              (len(.schedule?.timeOfDay ?? []) > 0 ? 26 : 1000000))) + "h"))
+      })))
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1

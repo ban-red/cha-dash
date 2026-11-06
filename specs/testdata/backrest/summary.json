@@ -1,0 +1,100 @@
+{
+  "repoSummaries": [
+    {
+      "id": "nas-b2",
+      "backupsFailed30days": "1",
+      "backupsSuccessLast30days": "31",
+      "bytesScannedLast30days": "1450000000000",
+      "bytesAddedLast30days": "21474836480",
+      "bytesScannedAvg": "45312500000",
+      "bytesAddedAvg": "671088640",
+      "nextBackupTimeMs": "1794020400000",
+      "protectedBytes": "48318382080"
+    },
+    {
+      "id": "local",
+      "backupsSuccessLast30days": "212",
+      "bytesScannedLast30days": "1104150528000",
+      "bytesAddedLast30days": "3221225472",
+      "bytesScannedAvg": "5208257207",
+      "bytesAddedAvg": "15194459",
+      "protectedBytes": "5208257207"
+    }
+  ],
+  "planSummaries": [
+    {
+      "id": "appdata-nightly",
+      "backupsSuccessLast30days": "30",
+      "bytesScannedLast30days": "1449551462400",
+      "bytesAddedLast30days": "20132659200",
+      "bytesScannedAvg": "48318382080",
+      "bytesAddedAvg": "671088640",
+      "nextBackupTimeMs": "1794020400000",
+      "recentBackups": {
+        "flowId": ["8812", "8790"],
+        "timestampMs": ["1793934000000", "1793847600000"],
+        "durationMs": ["312000", "298000"],
+        "status": ["STATUS_SUCCESS", "STATUS_SUCCESS"],
+        "bytesAdded": ["702545920", "655360000"]
+      },
+      "protectedBytes": "48318382080",
+      "historyLast30days": [
+        { "timestampMs": "1793750400000", "bytesAdded": "640000000", "bytesScanned": "48100000000", "statusCounts": [ { "status": "STATUS_SUCCESS", "count": "1" } ] },
+        { "timestampMs": "1793836800000", "bytesAdded": "655360000", "bytesScanned": "48200000000", "statusCounts": [ { "status": "STATUS_SUCCESS", "count": "1" } ] },
+        { "timestampMs": "1793923200000", "bytesAdded": "702545920", "bytesScanned": "48318382080", "statusCounts": [ { "status": "STATUS_SUCCESS", "count": "1" } ] }
+      ]
+    },
+    {
+      "id": "photos-weekly",
+      "backupsFailed30days": "1",
+      "backupsSuccessLast30days": "4",
+      "bytesScannedLast30days": "2040109465600",
+      "bytesAddedLast30days": "1342177280",
+      "bytesScannedAvg": "408021893120",
+      "bytesAddedAvg": "268435456",
+      "nextBackupTimeMs": "1794448800000",
+      "recentBackups": {
+        "flowId": ["8795", "8601"],
+        "timestampMs": ["1793844000000", "1793239200000"],
+        "durationMs": ["4100", "5412000"],
+        "status": ["STATUS_ERROR", "STATUS_SUCCESS"],
+        "bytesAdded": ["0", "335544320"]
+      },
+      "protectedBytes": "510027366400",
+      "historyLast30days": [
+        { "timestampMs": "1793750400000" },
+        { "timestampMs": "1793836800000", "statusCounts": [ { "status": "STATUS_ERROR", "count": "1" } ] },
+        { "timestampMs": "1793923200000" }
+      ]
+    },
+    {
+      "id": "docs-hourly",
+      "backupsSuccessLast30days": "182",
+      "bytesScannedLast30days": "947912704000",
+      "bytesAddedLast30days": "2147483648",
+      "bytesScannedAvg": "5208311560",
+      "bytesAddedAvg": "11799360",
+      "nextBackupTimeMs": "1793947200000",
+      "recentBackups": {
+        "flowId": ["8813", "8770"],
+        "timestampMs": ["1793944680000", "1793743200000"],
+        "durationMs": ["1000", "41000"],
+        "status": ["STATUS_INPROGRESS", "STATUS_SUCCESS"],
+        "bytesAdded": ["0", "1048576"]
+      },
+      "protectedBytes": "5208257207",
+      "historyLast30days": [
+        { "timestampMs": "1793664000000", "bytesAdded": "52428800", "bytesScanned": "114581929554", "statusCounts": [ { "status": "STATUS_SUCCESS", "count": "22" } ] },
+        { "timestampMs": "1793750400000", "overdue": true },
+        { "timestampMs": "1793836800000", "overdue": true },
+        { "timestampMs": "1793923200000", "statusCounts": [ { "status": "STATUS_INPROGRESS", "count": "1" } ], "overdue": true }
+      ]
+    },
+    {
+      "id": "archive-manual",
+      "historyLast30days": [ { "timestampMs": "1793923200000" } ]
+    }
+  ],
+  "configPath": "/config/config.json",
+  "dataPath": "/data"
+}

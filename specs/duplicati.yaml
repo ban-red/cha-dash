@@ -1,0 +1,185 @@
+# Duplicati 2: its backup jobs, their last run and what they back up. Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# docs/specs.md, "Backup targets". Fixture test: duplicati_test.go, against
+# testdata/duplicati/ (synthetic, from Duplicati v2.4.1.0's source).
+#
+# Duplicati's server API signs in with a password for a short-lived token
+# and a refresh cookie, a handshake a spec can't do. It also issues a
+# "forever token" (ten years) once per start when it runs with
+# --webservice-enable-forever-token: that's the token this spec takes.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: duplicati
+  name: Duplicati
+  icon: duplicati
+  version: 0.1.0
+  tier: bronze
+  category: hosts
+  capabilities: [backups.targets]
+
+config:
+  token: { type: secret, title: Forever token, required: true, description: "From duplicati-server-util issue-forever-token, with the server started with --webservice-enable-forever-token" }
+  host: { type: string, title: Host it backs up, pattern: '^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$', description: "The address or name of the machine whose folders Duplicati backs up; default the URL's host" }
+  path_map: { type: string, title: Path map, pattern: '^/[^:]*:/[^:]*$', max_length: 200, description: "Duplicati's folder and the host's, when Duplicati runs in a container: /source:/" }
+
+source:
+  headers:
+    Authorization: "Bearer {{ secret.token }}"
+  timeout: 15s
+
+every: 300s
+
+requests:
+  system:
+    path: /api/v1/systeminfo
+    optional: true
+    extract:
+      version: ServerVersion
+  # Every job with its schedule (null when it runs by hand) and Duplicati's
+  # metadata: the last good run, the last error, the sizes. Target URLs come
+  # masked and aren't kept.
+  backups:
+    path: /api/v1/backups
+    extract:
+      list: "@this"
+
+version: system.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    # Failed: Duplicati's last error is newer than its last finished backup
+    # (its dates are yyyyMMddTHHmmssZ, which sort as text).
+    health: |
+      len(filter(backups.list ?? [], {
+        (.Backup.Metadata?.LastErrorDate ?? "") > (.Backup.Metadata?.LastBackupFinished ?? "") ||
+          (.Schedule != nil && (.Schedule.Repeat ?? "") matches "^[0-9]+[A-Za-z]$" && (.Backup.Metadata?.LastBackupFinished ?? "") != "" &&
+            now() - date(.Backup.Metadata.LastBackupFinished, "20060102T150405Z07:00") > duration(string(
+              hasSuffix(.Schedule.Repeat, "D") ? max(26, int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 24 + 24) :
+                (hasSuffix(.Schedule.Repeat, "W") ? int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 168 + 24 :
+                  (hasSuffix(.Schedule.Repeat, "M") ? int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 768 :
+                    (hasSuffix(.Schedule.Repeat, "Y") ? 8808 : 26)))) + "h"))
+      })) > 0 ? "attention" : "ok"
+    reason: |
+      join(map(filter(backups.list ?? [], {
+        (.Backup.Metadata?.LastErrorDate ?? "") > (.Backup.Metadata?.LastBackupFinished ?? "") ||
+          (.Schedule != nil && (.Schedule.Repeat ?? "") matches "^[0-9]+[A-Za-z]$" && (.Backup.Metadata?.LastBackupFinished ?? "") != "" &&
+            now() - date(.Backup.Metadata.LastBackupFinished, "20060102T150405Z07:00") > duration(string(
+              hasSuffix(.Schedule.Repeat, "D") ? max(26, int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 24 + 24) :
+                (hasSuffix(.Schedule.Repeat, "W") ? int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 168 + 24 :
+                  (hasSuffix(.Schedule.Repeat, "M") ? int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 768 :
+                    (hasSuffix(.Schedule.Repeat, "Y") ? 8808 : 26)))) + "h"))
+      }), {.Backup.Name + ((.Backup.Metadata?.LastErrorDate ?? "") > (.Backup.Metadata?.LastBackupFinished ?? "") ? " failed" : " is overdue")}), ", ")
+    attrs:
+      type: '"duplicati"'
+      version: system.version
+      jobs: 'backups.list == nil ? nil : len(backups.list)'
+    caps: [backups.targets]
+    links:
+      - { title: Duplicati, url: config.url }
+
+  # One target per job, the first 50, keyed by Duplicati's job ID.
+  - id: job
+    each: backups.list
+    key: item.Backup.ID
+    part_of: app
+    kind: backup_target
+    name: item.Backup.Name
+    caps: [backups.targets]
+    state: |
+      let m = item.Backup.Metadata ?? {};
+      (m.LastErrorDate ?? "") > (m.LastBackupFinished ?? "") ? "failed" :
+        ((m.LastBackupFinished ?? "") == "" ? "never" : "ok")
+    health: |
+      let m = item.Backup.Metadata ?? {};
+      let r = item.Schedule?.Repeat ?? "";
+      let n = len(r) > 1 && trimSuffix(r, r[len(r) - 1:]) matches "^[0-9]+$" ? int(trimSuffix(r, r[len(r) - 1:])) : 1;
+      let hours = r == "" ? 0 :
+        (hasSuffix(r, "D") ? max(26, n * 24 + 24) : (hasSuffix(r, "W") ? n * 168 + 24 : (hasSuffix(r, "M") ? n * 768 : (hasSuffix(r, "Y") ? 8808 : 26))));
+      (m.LastErrorDate ?? "") > (m.LastBackupFinished ?? "") ? "down" :
+        ((m.LastBackupFinished ?? "") == "" ? "unknown" :
+          (hours > 0 && now() - date(m.LastBackupFinished, "20060102T150405Z07:00") > duration(string(hours) + "h") ? "attention" : "ok"))
+    reason: |
+      let m = item.Backup.Metadata ?? {};
+      let r = item.Schedule?.Repeat ?? "";
+      let n = len(r) > 1 && trimSuffix(r, r[len(r) - 1:]) matches "^[0-9]+$" ? int(trimSuffix(r, r[len(r) - 1:])) : 1;
+      let hours = r == "" ? 0 :
+        (hasSuffix(r, "D") ? max(26, n * 24 + 24) : (hasSuffix(r, "W") ? n * 168 + 24 : (hasSuffix(r, "M") ? n * 768 : (hasSuffix(r, "Y") ? 8808 : 26))));
+      (m.LastErrorDate ?? "") > (m.LastBackupFinished ?? "") ?
+        ((m.LastErrorMessage ?? "") != "" ? "The last run failed: " + split(m.LastErrorMessage, "\n")[0] : "The last run failed") :
+        ((m.LastBackupFinished ?? "") == "" ? (item.Schedule == nil ? "No backup has run yet; it runs only by hand" : "No backup has run yet") :
+          (hours > 0 && now() - date(m.LastBackupFinished, "20060102T150405Z07:00") > duration(string(hours) + "h") ? "No backup within its schedule" : ""))
+    attrs:
+      type: '"duplicati.job"'
+      description: '(item.Backup.Description ?? "") != "" ? item.Backup.Description : nil'
+      sources: item.Backup.Sources ?? []
+      # Only absolute paths: Duplicati's %MY_DOCUMENTS% and the like name no
+      # host folder.
+      backup.covers: |
+        let pm = config.path_map ?? "";
+        let from = pm == "" ? "" : trimSuffix(split(pm, ":")[0], "/");
+        let to = pm == "" ? "" : trimSuffix(split(pm, ":")[1], "/");
+        let host = (config.host ?? "") != "" ? config.host : split(split(split(config.url, "://")[1], "/")[0], ":")[0];
+        map(filter(item.Backup.Sources ?? [], {# startsWith "/"}), {
+          let p = len(#) > 1 ? trimSuffix(#, "/") : #;
+          let under = pm != "" && (p == from || hasPrefix(p, from + "/"));
+          {host: host, path: under ? ((to + trimPrefix(p, from)) == "" ? "/" : to + trimPrefix(p, from)) : p}
+        })
+      backup.schedule: |
+        let r = item.Schedule?.Repeat ?? "";
+        r == "" ? nil :
+          (hasSuffix(r, "h") || hasSuffix(r, "m") || hasSuffix(r, "s") || r == "1D" ? (r == "1D" ? "daily" : "hourly") :
+            (r == "1W" ? "weekly" : (r == "1M" ? "monthly" : (r == "1Y" ? "yearly" : nil))))
+      repeat: item.Schedule?.Repeat
+      backup.last_status: |
+        let m = item.Backup.Metadata ?? {};
+        (m.LastErrorDate ?? "") > (m.LastBackupFinished ?? "") ? "failed" : ((m.LastBackupFinished ?? "") == "" ? nil : "ok")
+      backup.last_at: |
+        let m = item.Backup.Metadata ?? {};
+        let at = (m.LastErrorDate ?? "") > (m.LastBackupFinished ?? "") ? m.LastErrorDate : (m.LastBackupFinished ?? "");
+        at == "" ? nil : date(at, "20060102T150405Z07:00").Format("2006-01-02T15:04:05Z07:00")
+      backup.last_ok: |
+        let at = item.Backup.Metadata?.LastBackupFinished ?? "";
+        at == "" ? nil : date(at, "20060102T150405Z07:00").Format("2006-01-02T15:04:05Z07:00")
+      backup.last_error: |
+        let m = item.Backup.Metadata ?? {};
+        (m.LastErrorDate ?? "") > (m.LastBackupFinished ?? "") && (m.LastErrorMessage ?? "") != "" ? split(m.LastErrorMessage, "\n")[0] : nil
+      # Duplicati sets the schedule's time to the next run after each one.
+      backup.next_at: |
+        let t = item.Schedule?.Time ?? "";
+        t == "" ? nil : date(t matches "(Z|[+-][0-9]{2}:[0-9]{2})$" ? t : t + "Z").UTC().Format("2006-01-02T15:04:05Z07:00")
+      # What the last backup read, and what the destination holds.
+      size_bytes: '(item.Backup.Metadata?.SourceFilesSize ?? "") != "" ? int(item.Backup.Metadata.SourceFilesSize) : nil'
+      stored_bytes: '(item.Backup.Metadata?.TargetFilesSize ?? "") != "" ? int(item.Backup.Metadata.TargetFilesSize) : nil'
+      versions: '(item.Backup.Metadata?.BackupListCount ?? "") != "" ? int(item.Backup.Metadata.BackupListCount) : nil'
+
+metrics:
+  - { resource: app, key: backups, value: 'backups.list == nil ? nil : float(len(backups.list))', unit: count, max: 500, band: [0, 500] }
+  - resource: app
+    key: backups.failed
+    value: 'backups.list == nil ? nil : float(len(filter(backups.list, {(.Backup.Metadata?.LastErrorDate ?? "") > (.Backup.Metadata?.LastBackupFinished ?? "")})))'
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1
+  - resource: app
+    key: backups.stale
+    value: |
+      backups.list == nil ? nil : float(len(filter(backups.list, {
+        (.Backup.Metadata?.LastErrorDate ?? "") <= (.Backup.Metadata?.LastBackupFinished ?? "") &&
+          (.Schedule != nil && (.Schedule.Repeat ?? "") matches "^[0-9]+[A-Za-z]$" && (.Backup.Metadata?.LastBackupFinished ?? "") != "" &&
+            now() - date(.Backup.Metadata.LastBackupFinished, "20060102T150405Z07:00") > duration(string(
+              hasSuffix(.Schedule.Repeat, "D") ? max(26, int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 24 + 24) :
+                (hasSuffix(.Schedule.Repeat, "W") ? int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 168 + 24 :
+                  (hasSuffix(.Schedule.Repeat, "M") ? int(.Schedule.Repeat[:len(.Schedule.Repeat) - 1]) * 768 :
+                    (hasSuffix(.Schedule.Repeat, "Y") ? 8808 : 26)))) + "h"))
+      })))
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1

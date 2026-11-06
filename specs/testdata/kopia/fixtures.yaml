@@ -1,0 +1,6 @@
+# The answers chadash spec test serves for kopia.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/kopia.yaml specs/testdata/kopia
+config: { path_map: "/data:/mnt/user" }
+secrets: { basic_auth: c2VydmVyLWNvbnRyb2w6ZmFrZS1rb3BpYS1wYXNzd29yZA== }
+answers:
+  sources: sources.json

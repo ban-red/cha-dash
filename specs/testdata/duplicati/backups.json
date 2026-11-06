@@ -1,0 +1,164 @@
+[
+  {
+    "Backup": {
+      "ID": "1",
+      "ExternalID": null,
+      "Name": "Appdata",
+      "Description": "Container config, nightly",
+      "Tags": [],
+      "TargetURL": "b2://backups-example/appdata?auth-username=000aabbccddeeff0000000001&auth-password=**********",
+      "ConnectionStringID": -1,
+      "OperationType": "Backup",
+      "DBPath": "/data/Duplicati/QWERTYUIOP.sqlite",
+      "DBPathExists": true,
+      "Sources": ["/source/mnt/user/appdata/"],
+      "Settings": [
+        { "Name": "encryption-module", "Value": "aes", "Filter": "" },
+        { "Name": "compression-module", "Value": "zip", "Filter": "" },
+        { "Name": "dblock-size", "Value": "50mb", "Filter": "" },
+        { "Name": "retention-policy", "Value": "1W:1D,4W:1W,12M:1M", "Filter": "" }
+      ],
+      "Filters": [ { "Order": 0, "Include": false, "Expression": "*.log" } ],
+      "Metadata": {
+        "LastBackupDate": "20261106T030000Z",
+        "BackupListCount": "34",
+        "TotalQuotaSpace": "0",
+        "FreeQuotaSpace": "0",
+        "AssignedQuotaSpace": "-1",
+        "TargetFilesSize": "39728447488",
+        "TargetFilesCount": "1532",
+        "TargetFilesetsCount": "34",
+        "TargetSizeString": "37.00 GB",
+        "SourceFilesSize": "48318382080",
+        "SourceFilesCount": "182311",
+        "SourceSizeString": "45.00 GB",
+        "LastBackupStarted": "20261106T030000Z",
+        "LastBackupFinished": "20261106T030437Z",
+        "LastBackupDuration": "00:04:37.1180000",
+        "LastCompactFinished": "20261101T031502Z"
+      },
+      "IsTemporary": false,
+      "IsUnencryptedOrPassphraseStored": false,
+      "AdditionalTargetURLs": []
+    },
+    "Schedule": {
+      "ID": 1,
+      "Tags": ["ID=1"],
+      "Time": "2026-11-07T03:00:00Z",
+      "Repeat": "1D",
+      "LastRun": "2026-11-06T03:00:00Z",
+      "Rule": "AllowedWeekDays=Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday",
+      "AllowedDays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    }
+  },
+  {
+    "Backup": {
+      "ID": "2",
+      "ExternalID": null,
+      "Name": "Photos",
+      "Description": "",
+      "Tags": ["media"],
+      "TargetURL": "s3://backups-example/photos?s3-server-name=s3.storage.example&auth-username=fake-access-key&auth-password=**********",
+      "ConnectionStringID": -1,
+      "OperationType": "Backup",
+      "DBPath": "/data/Duplicati/ASDFGHJKLZ.sqlite",
+      "DBPathExists": true,
+      "Sources": ["/source/mnt/user/photos/", "/source/boot/"],
+      "Settings": [ { "Name": "encryption-module", "Value": "aes", "Filter": "" } ],
+      "Filters": [],
+      "Metadata": {
+        "LastBackupDate": "20261030T020000Z",
+        "BackupListCount": "12",
+        "TargetFilesSize": "498216714240",
+        "TargetFilesCount": "9512",
+        "TargetSizeString": "464.00 GB",
+        "SourceFilesSize": "510027366400",
+        "SourceFilesCount": "96012",
+        "SourceSizeString": "475.00 GB",
+        "LastBackupStarted": "20261030T020000Z",
+        "LastBackupFinished": "20261030T032811Z",
+        "LastBackupDuration": "01:28:11.0040000",
+        "LastErrorDate": "20261106T020112Z",
+        "LastErrorMessage": "The remote server returned an error: (403) Forbidden."
+      },
+      "IsTemporary": false,
+      "IsUnencryptedOrPassphraseStored": false,
+      "AdditionalTargetURLs": []
+    },
+    "Schedule": {
+      "ID": 2,
+      "Tags": ["ID=2"],
+      "Time": "2026-11-13T02:00:00Z",
+      "Repeat": "1W",
+      "LastRun": "2026-11-06T02:00:00Z",
+      "Rule": "AllowedWeekDays=Friday",
+      "AllowedDays": ["Friday"]
+    }
+  },
+  {
+    "Backup": {
+      "ID": "3",
+      "ExternalID": null,
+      "Name": "Documents",
+      "Description": "",
+      "Tags": [],
+      "TargetURL": "file:///backups/documents",
+      "ConnectionStringID": -1,
+      "OperationType": "Backup",
+      "DBPath": "/data/Duplicati/ZXCVBNMQWE.sqlite",
+      "DBPathExists": true,
+      "Sources": ["/source/mnt/user/documents/", "%MY_DOCUMENTS%"],
+      "Settings": [],
+      "Filters": [],
+      "Metadata": {
+        "LastBackupDate": "20261102T040000Z",
+        "BackupListCount": "61",
+        "TargetFilesSize": "4831838208",
+        "TargetFilesCount": "211",
+        "TargetSizeString": "4.50 GB",
+        "SourceFilesSize": "5208257207",
+        "SourceFilesCount": "18234",
+        "SourceSizeString": "4.85 GB",
+        "LastBackupStarted": "20261102T040000Z",
+        "LastBackupFinished": "20261102T040212Z",
+        "LastBackupDuration": "00:02:12.5000000",
+        "LastErrorDate": "20261012T040005Z",
+        "LastErrorMessage": "Found 1 files that are missing from the remote storage, please run repair"
+      },
+      "IsTemporary": false,
+      "IsUnencryptedOrPassphraseStored": false,
+      "AdditionalTargetURLs": []
+    },
+    "Schedule": {
+      "ID": 3,
+      "Tags": ["ID=3"],
+      "Time": "2026-11-03T04:00:00Z",
+      "Repeat": "1D",
+      "LastRun": "2026-11-02T04:00:00Z",
+      "Rule": "",
+      "AllowedDays": []
+    }
+  },
+  {
+    "Backup": {
+      "ID": "4",
+      "ExternalID": null,
+      "Name": "Scratch",
+      "Description": "Run by hand",
+      "Tags": [],
+      "TargetURL": "file:///backups/scratch",
+      "ConnectionStringID": -1,
+      "OperationType": "Backup",
+      "DBPath": "/data/Duplicati/POIUYTREWQ.sqlite",
+      "DBPathExists": false,
+      "Sources": ["/source/mnt/user/scratch/"],
+      "Settings": [],
+      "Filters": [],
+      "Metadata": {},
+      "IsTemporary": false,
+      "IsUnencryptedOrPassphraseStored": true,
+      "AdditionalTargetURLs": []
+    },
+    "Schedule": null
+  }
+]

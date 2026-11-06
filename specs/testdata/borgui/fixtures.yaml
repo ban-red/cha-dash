@@ -1,0 +1,9 @@
+# The answers chadash spec test serves for borgui.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/borgui.yaml specs/testdata/borgui
+config: { host: 10.20.30.40, path_map: "/local:/" }
+secrets: { token: borgui_fakefakefakefakefakefakefake }
+answers:
+  info: info.json
+  plans: plans.json
+  runs: runs.json
+  connections: connections.json

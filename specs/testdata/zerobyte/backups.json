@@ -1,0 +1,296 @@
+[
+  {
+    "id": 1,
+    "shortId": "a1b2c3",
+    "name": "Appdata",
+    "volumeId": 1,
+    "repositoryId": "r_9f2c1a7e",
+    "enabled": true,
+    "cronExpression": "0 3 * * *",
+    "retentionPolicy": {
+      "keepDaily": 7,
+      "keepWeekly": 4
+    },
+    "excludePatterns": [
+      "**/cache"
+    ],
+    "excludeIfPresent": null,
+    "includePaths": [
+      "/nextcloud",
+      "/vaultwarden/"
+    ],
+    "includePatterns": null,
+    "oneFileSystem": false,
+    "customResticParams": null,
+    "compressionMode": null,
+    "backupWebhooks": null,
+    "maxRetries": 2,
+    "retryDelay": 15,
+    "lastBackupAt": 1793934400000,
+    "lastBackupStatus": "success",
+    "lastBackupError": null,
+    "nextBackupAt": 1794020400000,
+    "createdAt": 1769940000000,
+    "updatedAt": 1790848800000,
+    "volume": {
+      "id": 1,
+      "shortId": "v1appd",
+      "name": "appdata",
+      "config": {
+        "backend": "directory",
+        "path": "/data/appdata"
+      },
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000,
+      "lastHealthCheck": 1793944500000,
+      "type": "directory",
+      "status": "mounted",
+      "lastError": null,
+      "provisioningId": null,
+      "autoRemount": true,
+      "agentId": "local",
+      "sourceKind": "managed",
+      "trustedRootId": null,
+      "relativePath": null,
+      "sourceLocation": null
+    },
+    "repository": {
+      "id": "r_9f2c1a7e",
+      "shortId": "k3m9x2",
+      "name": "b2-offsite",
+      "type": "s3",
+      "config": {
+        "backend": "s3",
+        "endpoint": "https://s3.storage.example",
+        "bucket": "backups-example"
+      },
+      "compressionMode": "auto",
+      "status": "healthy",
+      "lastChecked": 1793923200000,
+      "lastError": null,
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000
+    }
+  },
+  {
+    "id": 2,
+    "shortId": "d4e5f6",
+    "name": "NAS photos",
+    "volumeId": 2,
+    "repositoryId": "r_9f2c1a7e",
+    "enabled": true,
+    "cronExpression": "30 2 * * *",
+    "retentionPolicy": {
+      "keepDaily": 7,
+      "keepWeekly": 4
+    },
+    "excludePatterns": [
+      "**/cache"
+    ],
+    "excludeIfPresent": null,
+    "includePaths": null,
+    "includePatterns": null,
+    "oneFileSystem": false,
+    "customResticParams": null,
+    "compressionMode": null,
+    "backupWebhooks": null,
+    "maxRetries": 2,
+    "retryDelay": 15,
+    "lastBackupAt": 1793932265000,
+    "lastBackupStatus": "error",
+    "lastBackupError": "Fatal: unable to create lock in backend: repository is already locked exclusively by PID 2211 on zerobyte by root\nthe `unlock` command can be used to remove stale locks",
+    "nextBackupAt": 1794018600000,
+    "createdAt": 1769940000000,
+    "updatedAt": 1790848800000,
+    "volume": {
+      "id": 2,
+      "shortId": "v2phot",
+      "name": "photos",
+      "config": {
+        "backend": "nfs",
+        "server": "10.20.30.12",
+        "exportPath": "/volume1/photos",
+        "port": 2049,
+        "version": "4.1",
+        "readOnly": true
+      },
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000,
+      "lastHealthCheck": 1793944500000,
+      "type": "nfs",
+      "status": "mounted",
+      "lastError": null,
+      "provisioningId": null,
+      "autoRemount": true,
+      "agentId": "local",
+      "sourceKind": "managed",
+      "trustedRootId": null,
+      "relativePath": null,
+      "sourceLocation": null
+    },
+    "repository": {
+      "id": "r_9f2c1a7e",
+      "shortId": "k3m9x2",
+      "name": "b2-offsite",
+      "type": "s3",
+      "config": {
+        "backend": "s3",
+        "endpoint": "https://s3.storage.example",
+        "bucket": "backups-example"
+      },
+      "compressionMode": "auto",
+      "status": "healthy",
+      "lastChecked": 1793923200000,
+      "lastError": null,
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000
+    }
+  },
+  {
+    "id": 3,
+    "shortId": "g7h8i9",
+    "name": "Documents",
+    "volumeId": 3,
+    "repositoryId": "r_9f2c1a7e",
+    "enabled": true,
+    "cronExpression": "0 */6 * * *",
+    "retentionPolicy": {
+      "keepDaily": 7,
+      "keepWeekly": 4
+    },
+    "excludePatterns": [
+      "**/cache"
+    ],
+    "excludeIfPresent": null,
+    "includePaths": null,
+    "includePatterns": null,
+    "oneFileSystem": false,
+    "customResticParams": null,
+    "compressionMode": null,
+    "backupWebhooks": null,
+    "maxRetries": 2,
+    "retryDelay": 15,
+    "lastBackupAt": 1793642652000,
+    "lastBackupStatus": "warning",
+    "lastBackupError": "1 file could not be read: /srv/documents/locked.db",
+    "nextBackupAt": 1793966400000,
+    "createdAt": 1769940000000,
+    "updatedAt": 1790848800000,
+    "volume": {
+      "id": 3,
+      "shortId": "v3docs",
+      "name": "documents",
+      "config": null,
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000,
+      "lastHealthCheck": 1793944500000,
+      "type": null,
+      "status": "mounted",
+      "lastError": null,
+      "provisioningId": null,
+      "autoRemount": true,
+      "agentId": "local",
+      "sourceKind": "filesystem",
+      "trustedRootId": "local-filesystem",
+      "relativePath": "srv/documents",
+      "sourceLocation": {
+        "machine": "workstation",
+        "location": "Local filesystem",
+        "path": "/srv/documents"
+      }
+    },
+    "repository": {
+      "id": "r_9f2c1a7e",
+      "shortId": "k3m9x2",
+      "name": "b2-offsite",
+      "type": "s3",
+      "config": {
+        "backend": "s3",
+        "endpoint": "https://s3.storage.example",
+        "bucket": "backups-example"
+      },
+      "compressionMode": "auto",
+      "status": "healthy",
+      "lastChecked": 1793923200000,
+      "lastError": null,
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000
+    }
+  },
+  {
+    "id": 4,
+    "shortId": "j1k2l3",
+    "name": "Office share",
+    "volumeId": 4,
+    "repositoryId": "r_9f2c1a7e",
+    "enabled": false,
+    "cronExpression": "0 1 * * 6",
+    "retentionPolicy": {
+      "keepDaily": 7,
+      "keepWeekly": 4
+    },
+    "excludePatterns": [
+      "**/cache"
+    ],
+    "excludeIfPresent": null,
+    "includePaths": null,
+    "includePatterns": null,
+    "oneFileSystem": false,
+    "customResticParams": null,
+    "compressionMode": null,
+    "backupWebhooks": null,
+    "maxRetries": 2,
+    "retryDelay": 15,
+    "lastBackupAt": null,
+    "lastBackupStatus": null,
+    "lastBackupError": null,
+    "nextBackupAt": null,
+    "createdAt": 1769940000000,
+    "updatedAt": 1790848800000,
+    "volume": {
+      "id": 4,
+      "shortId": "v4smb1",
+      "name": "office",
+      "config": {
+        "backend": "smb",
+        "server": "10.20.30.13",
+        "share": "office",
+        "username": "backup",
+        "guest": false,
+        "mapToContainerUidGid": false,
+        "vers": "auto",
+        "port": 445
+      },
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000,
+      "lastHealthCheck": 1793944500000,
+      "type": "smb",
+      "status": "mounted",
+      "lastError": null,
+      "provisioningId": null,
+      "autoRemount": true,
+      "agentId": "local",
+      "sourceKind": "managed",
+      "trustedRootId": null,
+      "relativePath": null,
+      "sourceLocation": null
+    },
+    "repository": {
+      "id": "r_9f2c1a7e",
+      "shortId": "k3m9x2",
+      "name": "b2-offsite",
+      "type": "s3",
+      "config": {
+        "backend": "s3",
+        "endpoint": "https://s3.storage.example",
+        "bucket": "backups-example"
+      },
+      "compressionMode": "auto",
+      "status": "healthy",
+      "lastChecked": 1793923200000,
+      "lastError": null,
+      "createdAt": 1769940000000,
+      "updatedAt": 1790848800000
+    }
+  }
+]

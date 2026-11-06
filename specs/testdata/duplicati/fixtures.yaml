@@ -1,0 +1,7 @@
+# The answers chadash spec test serves for duplicati.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/duplicati.yaml specs/testdata/duplicati
+config: { host: 10.20.30.40, path_map: "/source:/" }
+secrets: { token: fake-duplicati-forever-token }
+answers:
+  system: systeminfo.json
+  backups: backups.json

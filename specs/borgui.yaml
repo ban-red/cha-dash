@@ -1,0 +1,194 @@
+# borg-ui (karanhudia/borg-ui), a web UI for Borg: its backup plans, their
+# last run and what they back up. Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# docs/specs.md, "Backup targets". Fixture test: borgui_test.go, against
+# testdata/borgui/ (synthetic, from borg-ui v2.4.6's source).
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: borgui
+  name: borg-ui
+  aliases: [Borg UI]
+  icon: borg
+  version: 0.1.0
+  tier: bronze
+  category: hosts
+  capabilities: [backups.targets]
+
+config:
+  token: { type: secret, title: API token, required: true, description: "From Settings → API tokens in borg-ui (it starts borgui_)" }
+  host: { type: string, title: Host it backs up, pattern: '^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$', description: "The address or name of the machine borg-ui runs on, whose local folders it backs up; default the URL's host" }
+  path_map: { type: string, title: Path map, default: "/local:/", pattern: '^/[^:]*:/[^:]*$', max_length: 200, description: "borg-ui's folder and the host's: its container mounts the host's / at /local; /:/ when it doesn't run in a container" }
+
+# borg-ui reads X-Borg-Authorization before Authorization, so a reverse
+# proxy can keep Authorization for itself.
+source:
+  headers:
+    X-Borg-Authorization: "Bearer {{ secret.token }}"
+  timeout: 15s
+
+every: 300s
+
+requests:
+  # Public.
+  info:
+    path: /api/system/info
+    optional: true
+    extract:
+      version: app_version
+  # Every plan the token's user may view, with its sources and schedule.
+  plans:
+    path: /api/backup-plans/
+    extract:
+      list: backup_plans
+  # The 50 newest runs of those plans, newest first.
+  runs:
+    path: /api/backup-plans/runs
+    query: { limit: "50" }
+    extract:
+      list: runs
+  # For the hosts of remote (SSH) sources.
+  connections:
+    path: /api/ssh-keys/connections
+    optional: true
+    extract:
+      list: connections
+
+version: 'info.version != nil && info.version != "unknown" ? trimPrefix(info.version, "v") : nil'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: |
+      len(filter(plans.list ?? [], {
+        let p = #;
+        let ok = find(runs.list ?? [], {.backup_plan_id == p.id && .status in ["completed", "completed_with_warnings"]});
+        let f = split(p.cron_expression ?? "", " ");
+        let hours = p.schedule_enabled != true || len(f) != 5 ? 0 :
+          (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+        find(runs.list ?? [], {.backup_plan_id == p.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]})?.status in ["failed", "partial", "cancelled"] || (hours > 0 && ok != nil && now() - date(ok.completed_at) > duration(string(hours) + "h"))
+      })) > 0 ? "attention" : "ok"
+    reason: |
+      join(map(filter(plans.list ?? [], {
+        let p = #;
+        let ok = find(runs.list ?? [], {.backup_plan_id == p.id && .status in ["completed", "completed_with_warnings"]});
+        let f = split(p.cron_expression ?? "", " ");
+        let hours = p.schedule_enabled != true || len(f) != 5 ? 0 :
+          (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+        find(runs.list ?? [], {.backup_plan_id == p.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]})?.status in ["failed", "partial", "cancelled"] || (hours > 0 && ok != nil && now() - date(ok.completed_at) > duration(string(hours) + "h"))
+      }), {
+        let q = #;
+        q.name + (find(runs.list ?? [], {.backup_plan_id == q.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]})?.status in ["failed", "partial", "cancelled"] ? " failed" : " is overdue")
+      }), ", ")
+    attrs:
+      type: '"borgui"'
+      version: 'info.version != nil && info.version != "unknown" ? trimPrefix(info.version, "v") : nil'
+      plans: 'plans.list == nil ? nil : len(plans.list)'
+    caps: [backups.targets]
+    links:
+      - { title: borg-ui, url: config.url }
+
+  # One target per plan, the first 50, keyed by borg-ui's plan ID.
+  - id: plan
+    each: plans.list
+    key: string(int(item.id))
+    part_of: app
+    kind: backup_target
+    name: item.name
+    caps: [backups.targets]
+    state: |
+      let lr = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]});
+      let now_ = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["pending", "running"]});
+      now_ != nil ? "running" : (lr == nil ? (item.last_run == nil ? "never" : "unknown") : lr.status)
+    health: |
+      let lr = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]});
+      let ok = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings"]});
+      let f = split(item.cron_expression ?? "", " ");
+      let hours = item.schedule_enabled != true || len(f) != 5 ? 0 :
+        (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+      lr?.status == "failed" ? "down" :
+        (lr?.status in ["partial", "cancelled", "completed_with_warnings"] ? "attention" :
+          (lr == nil ? "unknown" :
+            (hours > 0 && ok != nil && now() - date(ok.completed_at) > duration(string(hours) + "h") ? "attention" : "ok")))
+    reason: |
+      let lr = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]});
+      let ok = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings"]});
+      let f = split(item.cron_expression ?? "", " ");
+      let hours = item.schedule_enabled != true || len(f) != 5 ? 0 :
+        (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+      lr?.status in ["failed", "partial"] ?
+        ((lr.status == "partial" ? "Some repositories failed" : "The last run failed") + ((lr.error_message ?? "") != "" ? ": " + split(lr.error_message, "\n")[0] : "")) :
+        (lr?.status == "cancelled" ? "The last run was cancelled" :
+          (lr?.status == "completed_with_warnings" ? "The last run finished with warnings" :
+            (lr == nil ? (item.last_run == nil ? "No backup has run yet" : "No finished run among the 50 newest") :
+              (hours > 0 && ok != nil && now() - date(ok.completed_at) > duration(string(hours) + "h") ? "No good backup within its schedule" : ""))))
+    attrs:
+      type: '"borgui.plan"'
+      description: '(item.description ?? "") != "" ? item.description : nil'
+      source_type: item.source_type
+      repositories: 'map(filter(item.repositories ?? [], {.enabled && .repository != nil}), {.repository.name})'
+      # Local sources are on borg-ui's host, under the path map; remote ones
+      # on their SSH connection's host, as written. An agent's machine isn't
+      # named in this API, so its sources cover nothing.
+      backup.covers: |
+        let pm = config.path_map ?? "/local:/";
+        let from = pm == "" ? "" : trimSuffix(split(pm, ":")[0], "/");
+        let to = pm == "" ? "" : trimSuffix(split(pm, ":")[1], "/");
+        let host = (config.host ?? "") != "" ? config.host : split(split(split(config.url, "://")[1], "/")[0], ":")[0];
+        flatten(map(item.source_locations ?? [], {
+          let loc = #;
+          let conn = loc.source_type == "remote" ? find(connections.list ?? [], {.id == loc.source_ssh_connection_id}) : nil;
+          loc.source_type == "local" ? map(loc.paths ?? [], {
+            let p = len(#) > 1 ? trimSuffix(#, "/") : #;
+            let under = pm != "" && (p == from || hasPrefix(p, from + "/"));
+            {host: host, path: under ? ((to + trimPrefix(p, from)) == "" ? "/" : to + trimPrefix(p, from)) : p}
+          }) : (conn != nil ? map(loc.paths ?? [], {{host: conn.host, path: #}}) : [])
+        }))
+      backup.schedule: 'item.schedule_enabled == true && (item.cron_expression ?? "") != "" ? item.cron_expression : nil'
+      backup.enabled: item.schedule_enabled == true
+      backup.last_status: |
+        let lr = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]});
+        lr == nil ? nil : (lr.status in ["completed", "completed_with_warnings"] ? "ok" : "failed")
+      backup.last_at: |
+        let lr = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]});
+        lr?.completed_at == nil ? nil : date(lr.completed_at).UTC().Format("2006-01-02T15:04:05Z07:00")
+      backup.last_ok: |
+        let ok = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings"]});
+        ok?.completed_at == nil ? nil : date(ok.completed_at).UTC().Format("2006-01-02T15:04:05Z07:00")
+      backup.last_error: |
+        let lr = find(runs.list ?? [], {.backup_plan_id == item.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]});
+        lr?.status in ["failed", "partial"] && (lr.error_message ?? "") != "" ? split(lr.error_message, "\n")[0] : nil
+      backup.next_at: 'item.schedule_enabled == true && item.next_run != nil ? date(item.next_run).UTC().Format("2006-01-02T15:04:05Z07:00") : nil'
+
+metrics:
+  - { resource: app, key: backups, value: 'plans.list == nil ? nil : float(len(plans.list))', unit: count, max: 500, band: [0, 500] }
+  - resource: app
+    key: backups.failed
+    value: |
+      plans.list == nil ? nil : float(len(filter(plans.list, {
+        let p = #;
+        find(runs.list ?? [], {.backup_plan_id == p.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]})?.status in ["failed", "partial", "cancelled"]
+      })))
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1
+  - resource: app
+    key: backups.stale
+    value: |
+      plans.list == nil ? nil : float(len(filter(plans.list, {
+        let p = #;
+        let ok = find(runs.list ?? [], {.backup_plan_id == p.id && .status in ["completed", "completed_with_warnings"]});
+        let f = split(p.cron_expression ?? "", " ");
+        let hours = p.schedule_enabled != true || len(f) != 5 ? 0 :
+          (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+        !(find(runs.list ?? [], {.backup_plan_id == p.id && .status in ["completed", "completed_with_warnings", "failed", "partial", "cancelled"]})?.status in ["failed", "partial", "cancelled"]) && (hours > 0 && ok != nil && now() - date(ok.completed_at) > duration(string(hours) + "h"))
+      })))
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1

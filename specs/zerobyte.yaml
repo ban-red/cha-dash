@@ -1,0 +1,160 @@
+# Zerobyte (nicotsx/zerobyte), backup automation on restic: its backup
+# schedules, their last run and the volumes they back up. Read only.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# docs/specs.md, "Backup targets". Fixture test: zerobyte_test.go, against
+# testdata/zerobyte/ (synthetic, from Zerobyte v0.44.0's source).
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: zerobyte
+  name: Zerobyte
+  icon: zerobyte
+  version: 0.1.0
+  tier: bronze
+  category: hosts
+  capabilities: [backups.targets]
+
+config:
+  api_key: { type: secret, title: API key, required: true, description: "From Settings → API keys in Zerobyte" }
+  host: { type: string, title: Host it backs up, pattern: '^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$', description: "The address or name of the machine Zerobyte runs on, whose directory volumes it backs up; default the URL's host" }
+  path_map: { type: string, title: Path map, pattern: '^/[^:]*:/[^:]*$', max_length: 200, description: "Zerobyte's folder and the host's, for directory volumes mounted into its container: /data:/mnt/user" }
+
+# Zerobyte takes an API key only on /api/v1 routes.
+source:
+  headers:
+    X-Api-Key: "{{ secret.api_key }}"
+  timeout: 15s
+
+every: 300s
+
+requests:
+  # Every schedule in the key's organization, with its volume and
+  # repository. Volume configs can hold an SMB or SFTP password; only the
+  # fields below are read.
+  backups:
+    path: /api/v1/backups
+    extract:
+      list: "@this"
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: |
+      len(filter(backups.list ?? [], {
+        let f = split(.cronExpression ?? "", " ");
+        let hours = .enabled != true || len(f) != 5 ? 0 :
+          (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+        .lastBackupStatus == "error" ||
+          (hours > 0 && .lastBackupStatus in ["success", "warning"] && .lastBackupAt != nil &&
+            now() - (date("1970-01-01T00:00:00Z") + duration(string(int(.lastBackupAt)) + "ms")) > duration(string(hours) + "h"))
+      })) > 0 ? "attention" : "ok"
+    reason: |
+      join(map(filter(backups.list ?? [], {
+        let f = split(.cronExpression ?? "", " ");
+        let hours = .enabled != true || len(f) != 5 ? 0 :
+          (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+        .lastBackupStatus == "error" ||
+          (hours > 0 && .lastBackupStatus in ["success", "warning"] && .lastBackupAt != nil &&
+            now() - (date("1970-01-01T00:00:00Z") + duration(string(int(.lastBackupAt)) + "ms")) > duration(string(hours) + "h"))
+      }), {.name + (.lastBackupStatus == "error" ? " failed" : " is overdue")}), ", ")
+    attrs:
+      type: '"zerobyte"'
+      schedules: 'backups.list == nil ? nil : len(backups.list)'
+    caps: [backups.targets]
+    links:
+      - { title: Zerobyte, url: config.url }
+
+  # One target per schedule, the first 50, keyed by its short ID.
+  - id: schedule
+    each: backups.list
+    key: item.shortId
+    part_of: app
+    kind: backup_target
+    name: item.name
+    caps: [backups.targets]
+    state: |
+      item.lastBackupStatus == "in_progress" ? "running" :
+        (item.lastBackupStatus == "error" ? "failed" :
+          (item.lastBackupStatus in ["success", "warning"] ? item.lastBackupStatus : (item.enabled ? "never" : "disabled")))
+    health: |
+      let f = split(item.cronExpression ?? "", " ");
+      let hours = item.enabled != true || len(f) != 5 ? 0 :
+        (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+      let stale = hours > 0 && item.lastBackupStatus in ["success", "warning"] && item.lastBackupAt != nil &&
+        now() - (date("1970-01-01T00:00:00Z") + duration(string(int(item.lastBackupAt)) + "ms")) > duration(string(hours) + "h");
+      item.lastBackupStatus == "error" ? "down" :
+        (stale || item.lastBackupStatus == "warning" ? "attention" :
+          (item.lastBackupStatus == "success" ? "ok" : (item.enabled ? "unknown" : "ok")))
+    reason: |
+      let f = split(item.cronExpression ?? "", " ");
+      let hours = item.enabled != true || len(f) != 5 ? 0 :
+        (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+      let stale = hours > 0 && item.lastBackupStatus in ["success", "warning"] && item.lastBackupAt != nil &&
+        now() - (date("1970-01-01T00:00:00Z") + duration(string(int(item.lastBackupAt)) + "ms")) > duration(string(hours) + "h");
+      item.lastBackupStatus == "error" ? ((item.lastBackupError ?? "") != "" ? "The last backup failed: " + split(item.lastBackupError, "\n")[0] : "The last backup failed") :
+        (stale ? "No good backup within its schedule" :
+          (item.lastBackupStatus == "warning" ? "The last backup finished with warnings" + ((item.lastBackupError ?? "") != "" ? ": " + split(item.lastBackupError, "\n")[0] : "") :
+            (item.lastBackupStatus == nil ? (item.enabled ? "No backup has run yet" : "Turned off, and it hasn't run") : "")))
+    attrs:
+      type: '"zerobyte.schedule"'
+      volume: item.volume?.name
+      volume_type: 'item.volume?.sourceKind == "filesystem" ? "filesystem" : item.volume?.config?.backend'
+      repository: item.repository?.name
+      # What the volume is: a directory on Zerobyte's host (under the path
+      # map), an NFS export or an SFTP folder on its server, or a folder on
+      # an agent's machine. Include paths narrow it, relative to the volume.
+      # SMB, WebDAV and rclone volumes name no host folder, so they cover
+      # nothing.
+      backup.covers: |
+        let pm = config.path_map ?? "";
+        let from = pm == "" ? "" : trimSuffix(split(pm, ":")[0], "/");
+        let to = pm == "" ? "" : trimSuffix(split(pm, ":")[1], "/");
+        let host = (config.host ?? "") != "" ? config.host : split(split(split(config.url, "://")[1], "/")[0], ":")[0];
+        let v = item.volume ?? {};
+        let c = v.config ?? {};
+        let mapped = c.backend == "directory" && pm != "" && (c.path == from || hasPrefix(c.path, from + "/")) ?
+          ((to + trimPrefix(c.path, from)) == "" ? "/" : to + trimPrefix(c.path, from)) : c.path;
+        let root = v.sourceKind == "filesystem" && v.sourceLocation != nil ? {host: v.sourceLocation.machine, path: v.sourceLocation.path} :
+          (c.backend == "directory" ? {host: host, path: mapped} :
+            (c.backend == "nfs" ? {host: c.server, path: c.exportPath} :
+              (c.backend == "sftp" ? {host: c.host, path: c.path} : nil)));
+        root == nil ? [] :
+          (len(item.includePaths ?? []) == 0 ? [root] :
+            map(item.includePaths, {{host: root.host, path: trimSuffix(root.path, "/") + "/" + trimSuffix(trimPrefix(#, "/"), "/")}}))
+      backup.schedule: 'item.enabled && (item.cronExpression ?? "") != "" ? item.cronExpression : nil'
+      backup.enabled: item.enabled
+      backup.last_status: 'item.lastBackupStatus in ["success", "warning"] ? "ok" : (item.lastBackupStatus == "error" ? "failed" : nil)'
+      backup.last_at: 'item.lastBackupAt == nil || item.lastBackupStatus == "in_progress" ? nil : (date("1970-01-01T00:00:00Z") + duration(string(int(item.lastBackupAt)) + "ms")).Format("2006-01-02T15:04:05Z07:00")'
+      # Zerobyte keeps only the newest run, so a good one is known only
+      # while it's the newest.
+      backup.last_ok: 'item.lastBackupAt == nil || item.lastBackupStatus not in ["success", "warning"] ? nil : (date("1970-01-01T00:00:00Z") + duration(string(int(item.lastBackupAt)) + "ms")).Format("2006-01-02T15:04:05Z07:00")'
+      backup.last_error: 'item.lastBackupStatus == "error" && (item.lastBackupError ?? "") != "" ? split(item.lastBackupError, "\n")[0] : nil'
+      backup.next_at: 'item.enabled && item.nextBackupAt != nil ? (date("1970-01-01T00:00:00Z") + duration(string(int(item.nextBackupAt)) + "ms")).Format("2006-01-02T15:04:05Z07:00") : nil'
+
+metrics:
+  - { resource: app, key: backups, value: 'backups.list == nil ? nil : float(len(backups.list))', unit: count, max: 500, band: [0, 500] }
+  - resource: app
+    key: backups.failed
+    value: 'backups.list == nil ? nil : float(len(filter(backups.list, {.lastBackupStatus == "error"})))'
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1
+  - resource: app
+    key: backups.stale
+    value: |
+      backups.list == nil ? nil : float(len(filter(backups.list, {
+        let f = split(.cronExpression ?? "", " ");
+        let hours = .enabled != true || len(f) != 5 ? 0 :
+          (f[3] != "*" ? 8808 : (f[2] != "*" && !(f[2] startsWith "*/") ? 768 : (f[4] in ["*", "?"] ? 26 : 192)));
+        hours > 0 && .lastBackupStatus in ["success", "warning"] && .lastBackupAt != nil &&
+          now() - (date("1970-01-01T00:00:00Z") + duration(string(int(.lastBackupAt)) + "ms")) > duration(string(hours) + "h")
+      })))
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1

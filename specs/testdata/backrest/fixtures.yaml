@@ -1,0 +1,8 @@
+# The answers chadash spec test serves for backrest.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/backrest.yaml specs/testdata/backrest
+config: { host: 10.20.30.40, path_map: "/userdata:/mnt/user" }
+secrets: { basic_auth: Y2hhZGFzaDpmYWtlLWJhY2tyZXN0LXBhc3N3b3Jk }
+answers:
+  cfg: config.json
+  summary: summary.json
+  ops: operations.json

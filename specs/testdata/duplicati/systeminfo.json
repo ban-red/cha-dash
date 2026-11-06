@@ -1,0 +1,23 @@
+{
+  "APIVersion": 1,
+  "PasswordPlaceholder": "**********",
+  "ServerVersion": "2.4.1.0",
+  "ServerVersionName": "v2.4.1.0-2.4.1.0_stable_2026-10-29",
+  "ServerVersionType": "Stable",
+  "StartedBy": "Server",
+  "DefaultUpdateChannel": "Stable",
+  "DefaultUsageReportLevel": "Information",
+  "ServerTime": "2026-11-06T06:00:00Z",
+  "OSType": "Linux",
+  "DirectorySeparator": "/",
+  "PathSeparator": ":",
+  "CaseSensitiveFilesystem": true,
+  "MachineName": "duplicati",
+  "PackageTypeId": "linux-x64-docker",
+  "UserName": "root",
+  "NewLine": "\n",
+  "CLRVersion": "10.0.0",
+  "OSVersion": "Unix 6.12.0",
+  "MonoVersion": null,
+  "MachineCapabilities": []
+}
