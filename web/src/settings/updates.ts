@@ -42,6 +42,7 @@ export interface UpdateRow {
   hold?: { kind: 'hold' | 'snooze'; until?: string; created_by?: string; created_at: string };
   /** The digest its last update rolled back from, and why; no rollout takes it until a newer one or Try again. */
   rejected?: { digest: string; reason?: string; rollout?: string; created_at: string };
+  /** The action that updates it. `stack.update` for a container of a stack Cha Dash owns: the stack updates as one. */
   update?: { id: string; target: string };
   why?: string;
   link?: { title: string; url: string };
@@ -214,4 +215,36 @@ export function windowProblem(w: WindowInput): string {
   if (!(len > 0)) return 'It has to end after it starts.';
   if (w.weekly && len > 7 * 24 * 3600_000) return 'A weekly window can’t be longer than a week.';
   return '';
+}
+
+/** The stack an update row updates with (its `stack.update` target), if any. */
+export function stackOf(r: Pick<UpdateRow, 'update'>): string | undefined {
+  return r.update?.id === 'stack.update' ? r.update.target : undefined;
+}
+
+/**
+ * A host's rows in list order, with an owned stack's rows together after a
+ * heading for the stack: it updates as one, so its rows have no Update of
+ * their own.
+ */
+export type UpdateItem = { kind: 'row'; row: UpdateRow } | { kind: 'stack'; target: string; name: string; rows: UpdateRow[] };
+
+export function updateItems(rows: UpdateRow[]): UpdateItem[] {
+  const out: UpdateItem[] = [];
+  const at = new Map<string, Extract<UpdateItem, { kind: 'stack' }>>();
+  for (const r of rows) {
+    const t = stackOf(r);
+    if (!t) {
+      out.push({ kind: 'row', row: r });
+      continue;
+    }
+    let item = at.get(t);
+    if (!item) {
+      item = { kind: 'stack', target: t, name: r.stack || t.slice(t.lastIndexOf('/') + 1), rows: [] };
+      at.set(t, item);
+      out.push(item);
+    }
+    item.rows.push(r);
+  }
+  return out;
 }

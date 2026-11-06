@@ -439,6 +439,8 @@ export interface RolloutStep {
   guest?: string;
   /** The image digest it updates to, as planned. */
   to?: string;
+  /** An owned stack's step (`stack.update`): the containers it updates as one. */
+  members?: { target: string; name: string; to?: string }[];
 }
 
 /** internal/updates `Rollout`. Times are RFC 3339. */

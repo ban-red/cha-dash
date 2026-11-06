@@ -401,9 +401,9 @@ describe('Settings → Stacks: one stack', () => {
 
   it('offers the lifecycle for the stack’s state, and Remove takes its volumes only with the name typed again', async () => {
     const at = (status: StackDetail['status']) => lifecycleOffers({ name: 'media', managed: true, protected: false, status }).map((o) => `${o.text} ${o.tier}`);
-    expect(at('running')).toEqual(['Stop T1', 'Restart T1', 'Take down T2', 'Remove T3']);
-    expect(at('stopped')).toEqual(['Start T1', 'Restart T1', 'Take down T2', 'Remove T3']);
-    expect(at('partial')).toEqual(['Stop T1', 'Start T1', 'Restart T1', 'Take down T2', 'Remove T3']);
+    expect(at('running')).toEqual(['Update T2', 'Stop T1', 'Restart T1', 'Take down T2', 'Remove T3']);
+    expect(at('stopped')).toEqual(['Update T2', 'Start T1', 'Restart T1', 'Take down T2', 'Remove T3']);
+    expect(at('partial')).toEqual(['Update T2', 'Stop T1', 'Start T1', 'Restart T1', 'Take down T2', 'Remove T3']);
     expect(at('down')).toEqual(['Start T1', 'Remove T3']);
     expect(lifecycleOffers({ name: 'media', managed: true, protected: false, status: 'down' })[0]!.label).toBe('Start media (deploys its last commit)');
     expect(lifecycleOffers({ name: 'chadash', managed: true, protected: true, status: 'running' })).toEqual([]);
@@ -418,7 +418,7 @@ describe('Settings → Stacks: one stack', () => {
     await settle();
     await settle();
     expect(w.find('[data-subject="stack:local/media"]').exists()).toBe(true);
-    expect(w.findAll('.skl button').map((b) => b.text())).toEqual(['StopT1', 'RestartT1', 'Take downT2', 'RemoveT3']);
+    expect(w.findAll('.skl button').map((b) => b.text())).toEqual(['UpdateT2', 'StopT1', 'RestartT1', 'Take downT2', 'RemoveT3']);
 
     const remove = () => w.find('button[aria-label="Remove media"]');
     await w.find('.skl-vols input[type="checkbox"]').setValue(true);

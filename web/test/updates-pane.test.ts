@@ -101,6 +101,29 @@ describe('Settings → Updates', () => {
     expect(hub.last('POST', '/api/updates/check')).toBeTruthy();
   });
 
+  it('puts an owned stack’s containers under the stack, with one Update for the stack', async () => {
+    const STACK = 'stack:pvedocker/media';
+    const body = {
+      updates: [
+        row('sonarr', { state: 'available', stack: 'media', update: { id: 'stack.update', target: STACK } }),
+        row('bazarr', { state: 'available', update: { id: 'docker.container.update', target: 'docker:i_a/container/bazarr' } }),
+        row('radarr', { state: 'available', stack: 'media', update: { id: 'stack.update', target: STACK } }),
+      ],
+    };
+    const { w, hub } = await pane('owner', body);
+    const items = w.findAll('section[aria-label="Updates on magpie"] .up-row').map((r) => r.find('.t').text());
+    expect(items).toEqual(['Stack media', 'sonarr media', 'radarr media', 'bazarr']);
+    // The stack's rows have no Update of their own; bazarr keeps its.
+    const labels = w.findAll('button').map((b) => b.attributes('aria-label'));
+    expect(labels).toContain('Update the stack media');
+    expect(labels).toContain('Update bazarr');
+    expect(labels).not.toContain('Update sonarr');
+    await w.findAll('button').find((b) => b.attributes('aria-label') === 'Update the stack media')!.trigger('click');
+    await flushPromises();
+    expect(hub.last('POST', '/api/actions/plan')?.body).toMatchObject({ action: 'stack.update', target: STACK });
+    expect(await axeViolations(w.element.parentElement!)).toEqual([]);
+  });
+
   it('shows a viewer the list without the buttons', async () => {
     const { w } = await pane('viewer');
     expect(w.findAll('.up-row').length).toBe(3);

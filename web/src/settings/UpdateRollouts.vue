@@ -121,7 +121,7 @@ function runNow(r: Rollout): void {
             <li v-for="s in r.steps" :key="s.target">
               <Glyph :kind="STEP_GLYPH[s.state]" />
               <span>
-                <b>{{ s.name || s.target }}</b><template v-if="s.host"> on {{ s.host }}</template> · {{ STEP_WORDS[s.state] }}
+                <b>{{ s.name || s.target }}</b><template v-if="s.members?.length"> (stack: {{ s.members.map((m) => m.name).join(', ') }})</template><template v-if="s.host"> on {{ s.host }}</template> · {{ STEP_WORDS[s.state] }}
                 <template v-if="s.snapshot === 'pve'"> · snapshot first</template>
                 <template v-else-if="s.snapshot === 'git'"> · stack committed</template>
                 <span v-if="s.reason" class="m"> · {{ s.reason }}</span>

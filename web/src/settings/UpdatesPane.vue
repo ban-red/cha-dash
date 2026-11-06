@@ -40,6 +40,8 @@ import {
   rolledBackWords,
   selectable,
   shortDigest,
+  stackOf,
+  updateItems,
   type RolloutPlan,
   type UpdateRow,
   type WindowView,
@@ -140,7 +142,15 @@ const groups = computed(() => {
     const k = r.host || r.engine;
     by.set(k, [...(by.get(k) ?? []), r]);
   }
-  return [...by.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([host, list]) => ({ host, rows: list }));
+  return [...by.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([host, list]) => {
+      // An owned stack's rows together, after a heading that updates the stack.
+      const items = updateItems(list);
+      const head = new Map<string, { target: string; name: string; rows: UpdateRow[] }>();
+      for (const it of items) if (it.kind === 'stack') head.set(it.rows[0]!.resource, it);
+      return { host, rows: items.flatMap((it) => (it.kind === 'row' ? [it.row] : it.rows)), head };
+    });
 });
 const available = computed(() => rows.value.filter((r) => r.state === 'available').length);
 const current = computed(() => rows.value.filter((r) => r.state === 'current').length);
@@ -166,6 +176,11 @@ async function checkNow(): Promise<void> {
 function update(r: UpdateRow): void {
   if (!r.update) return;
   void ui.runAction({ action: r.update.id, target: r.update.target, label: `Update ${r.name}`, tier: 'T2' });
+}
+
+/** Update an owned stack: every moved image of it, as one (stack.update). */
+function updateStack(s: { target: string; name: string }): void {
+  void ui.runAction({ action: 'stack.update', target: s.target, label: `Update the stack ${s.name}`, tier: 'T2' });
 }
 
 async function hold(r: UpdateRow, kind: 'hold' | 'snooze' | 'release'): Promise<void> {
@@ -307,7 +322,28 @@ const notesOpen = ref<Record<string, boolean>>({});
         <h3>{{ g.host }}</h3>
       </header>
       <ul class="st-list" :aria-label="`Updates on ${g.host}`">
-        <li v-for="r in g.rows" :key="r.resource">
+        <template v-for="r in g.rows" :key="r.resource">
+        <li v-if="g.head.get(r.resource)" class="up-stack">
+          <div class="st-row up-row">
+            <Glyph kind="attn" />
+            <span>
+              <span class="t">Stack {{ g.head.get(r.resource)!.name }}</span>
+              <span class="m">Its containers update as one, through the stack: the compose file stays the truth, and a rollback returns the images they run now.</span>
+            </span>
+            <span class="end up-acts">
+              <UiButton
+                v-if="canUpdate && g.head.get(r.resource)!.rows.some((x) => x.state === 'available')"
+                size="sm"
+                variant="primary"
+                :aria-label="`Update the stack ${g.head.get(r.resource)!.name}`"
+                @click="updateStack(g.head.get(r.resource)!)"
+              >
+                Update stack<span class="tier">T2</span>
+              </UiButton>
+            </span>
+          </div>
+        </li>
+        <li :class="{ 'up-member': !!stackOf(r) }">
           <div :class="['st-row', 'up-row', { pick: canUpdate && selectable(r) }]">
             <input
               v-if="canUpdate && selectable(r)"
@@ -348,7 +384,7 @@ const notesOpen = ref<Record<string, boolean>>({});
               >
                 Notes
               </UiButton>
-              <UiButton v-if="r.update && canUpdate && r.state === 'available'" size="sm" variant="primary" :aria-label="`Update ${r.name}`" @click="update(r)">
+              <UiButton v-if="r.update && !stackOf(r) && canUpdate && r.state === 'available'" size="sm" variant="primary" :aria-label="`Update ${r.name}`" @click="update(r)">
                 Update<span class="tier">T2</span>
               </UiButton>
               <UiButton
@@ -379,6 +415,7 @@ const notesOpen = ref<Record<string, boolean>>({});
           </details>
           <ReleaseNotes v-if="notesOn && notesOpen[r.resource]" :resource="r.resource" :name="r.name" />
         </li>
+        </template>
       </ul>
     </section>
 
@@ -424,6 +461,9 @@ const notesOpen = ref<Record<string, boolean>>({});
 </template>
 
 <style>
+.up-member > .up-row {
+  padding-inline-start: 24px;
+}
 .up-row {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }

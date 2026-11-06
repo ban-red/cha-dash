@@ -209,7 +209,7 @@ export const targetOf = (node: string, name: string) => `stack:${node}/${name}`;
 
 /** A whole-stack lifecycle action the stack's page offers (plan 16, wave 32a). */
 export interface LifecycleOffer {
-  action: 'stack.stop' | 'stack.start' | 'stack.restart' | 'stack.down' | 'stack.remove';
+  action: 'stack.update' | 'stack.stop' | 'stack.start' | 'stack.restart' | 'stack.down' | 'stack.remove';
   /** The button's word. */
   text: string;
   tier: Tier;
@@ -218,7 +218,8 @@ export interface LifecycleOffer {
 }
 
 /**
- * The lifecycle buttons for a stack's state: Stop while anything runs,
+ * The lifecycle buttons for a stack's state: Update (pull its tags and
+ * recreate what moved, the file unchanged) while it has containers, Stop while anything runs,
  * Start when it's stopped or down (down deploys its last commit), Restart
  * while it has containers, Take down while it has any, and Remove always.
  * None for a stack Cha Dash doesn't manage, or its own.
@@ -228,6 +229,7 @@ export function lifecycleOffers(d: Pick<StackDetail, 'name' | 'managed' | 'prote
   const n = d.name;
   const out: LifecycleOffer[] = [];
   const has = d.status !== 'down';
+  if (has) out.push({ action: 'stack.update', text: 'Update', tier: 'T2', label: `Update ${n} (pull its images, recreate what moved)` });
   if (d.status === 'running' || d.status === 'partial') out.push({ action: 'stack.stop', text: 'Stop', tier: 'T1', label: `Stop ${n}` });
   if (d.status !== 'running') {
     out.push({ action: 'stack.start', text: 'Start', tier: 'T1', label: d.status === 'down' ? `Start ${n} (deploys its last commit)` : `Start ${n}` });
