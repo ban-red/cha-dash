@@ -15,14 +15,18 @@ It was written against Dockhand with Hawser 0.2 in standard mode. Edge mode and 
 
 ## What Cha Dash doesn't do yet
 
-Keep Dockhand around, read-only, for these until Cha Dash has them:
-- A shell in a container. Exec is planned for v0.3.
-- Live, streaming logs. Cha Dash shows the last 50 lines.
-- CPU and memory per container.
-- Browsing images, volumes and networks, pruning, and vulnerability scans.
-- **"Pull and redeploy" for a whole stack.** Deploying an unchanged file does nothing. To update a stack whose images use `:latest`, Pull, then Recreate each container, or pin tags and change them in the file.
+Keep Dockhand around, read-only, for these until Cha Dash has them ([plan 16](../docs/plan/16-stacks-parity.md), in the order they block the move):
+- **"Pull and redeploy" for a whole stack.** Deploying an unchanged file does nothing. To update a stack whose images use `:latest`, Pull, then Recreate each container, or pin tags and change them in the file. Planned for 0.5.
+- **Private registries.** The node pulls without credentials. Planned for 0.5.
+- **Live, streaming logs.** Cha Dash shows the last 50 lines, and links to Dozzle when it runs. Planned for 0.5.
+- **A shell in a container.** Planned for 0.5.x, off by default.
+- **Browsing images, volumes and networks, and pruning.** Planned for 0.5.x. Vulnerability scans aren't planned.
 
-Dockhand's own settings don't come along: update schedules, registries and templates. Check them in Dockhand before you start. Private registries aren't supported yet: Cha Dash pulls without credentials.
+A whole stack stops, starts, restarts, goes down or is removed from its page, and each container shows its CPU and memory in its sheet.
+
+**One writer at a time.** While a stack is still in Dockhand, deploy it from one of them only. Cha Dash says so on the stack's page when it sees another manager's labels on it.
+
+Dockhand's own settings don't come along: update schedules, registries and templates. Check them in Dockhand before you start.
 
 ## Before you start
 
