@@ -9,7 +9,8 @@
  * name) keeps its sheet.
  *
  * Tabs: Overview, Actions (what the hub would plan here, by tier, through the
- * usual ladder), Logs (the last 50 lines, kept while the sheet is open),
+ * usual ladder), Logs (followed live for a container behind a node, LogView;
+ * otherwise the last 50 lines, kept while the sheet is open),
  * Metrics (CPU and memory, which sources read only while a sheet watches the
  * resource: `live.watchResource`), Related, Timeline (its incidents,
  * actions, health changes and maintenance windows: TimelineList, read when
@@ -20,7 +21,7 @@
  *
  * Its own chunk, mounted on first open and kept, so the exit can play.
  */
-import { computed, nextTick, ref, useId, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, ref, useId, watch } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import MiniGraph from '../ui/marks/MiniGraph.vue';
 import { copyText } from '../settings/recipe';
@@ -36,6 +37,7 @@ import { useUi } from '../stores/ui';
 import type { TileStatus } from './Tile.vue';
 import { navigate, settingsPath, stackPath } from '../lib/router';
 import { dozzleBase, dozzleLink, loadDozzle } from '../lib/dozzle';
+import { containerLogsUrl } from '../lib/logstream';
 import { containerRow, imageTag, rowName, updateWord, type ContainerRow } from '../widgets/containers';
 import { statusOf } from '../widgets/subject';
 import { fmtValue, metricWords, upFor } from '../widgets/read';
@@ -61,6 +63,9 @@ import {
 import UiButton from '../ui/Button.vue';
 import UiSheet from '../ui/Sheet.vue';
 import UiCloseButton from '../ui/CloseButton.vue';
+
+// Live logs: their own chunk, loaded when the Logs tab first opens.
+const LogView = defineAsyncComponent(() => import('./LogView.vue'));
 
 const live = useLive();
 const ui = useUi();
@@ -349,6 +354,16 @@ function showLogs(): void {
     },
   });
 }
+/**
+ * A container behind a node streams its logs (plan 16 · 4): the tab follows
+ * them live once opened, until the sheet closes or shows another resource.
+ * Other Docker sources keep the one-shot read.
+ */
+const liveLogsUrl = computed(() => {
+  const c = r.value;
+  if (c?.kind !== 'container' || !engine.value || attr(engine.value, 'via') !== 'node') return undefined;
+  return containerLogsUrl(c);
+});
 async function copyLogs(): Promise<void> {
   logCopied.value = await copyText((logLines.value?.lines ?? []).join('\n'));
 }
@@ -532,6 +547,12 @@ const tabs = computed(() => {
 });
 const tab = ref<Tab>('overview');
 watch(id, () => (tab.value = 'overview'));
+// Logs follow once their tab opens, and stop when the sheet shows another resource or closes.
+const logsFollowed = ref<string | undefined>();
+watch([tab, id], ([t, now]) => {
+  if (t === 'logs' && now) logsFollowed.value = now;
+  else if (logsFollowed.value !== now) logsFollowed.value = undefined;
+});
 watch(tabs, (t) => {
   if (!t.some((x) => x.id === tab.value)) tab.value = 'overview';
 });
@@ -730,8 +751,16 @@ watch(id, async (now, before) => {
         role="tabpanel"
         :aria-labelledby="`${uid}-tab-logs`"
       >
-        <p class="rs-hint top">The last 50 lines when you ask, newest at the bottom. Cha Dash doesn’t keep them: they go when you close this. Live logs come with v0.3.</p>
         <p v-if="!logOffer.available" class="rs-why">{{ logOffer.unavailable ?? 'Cha Dash can’t read these logs here yet.' }}</p>
+        <template v-if="liveLogsUrl">
+          <p class="rs-hint top">Followed live while this is open, newest at the bottom. Following stops after 30 minutes.</p>
+          <LogView v-if="logOffer.available && logsFollowed === id" :key="liveLogsUrl" :url="liveLogsUrl" :name="label(r) || id || ''" />
+          <div v-if="dozzle" class="rs-acts">
+            <UiButton variant="ghost" :href="dozzle" target="_blank" rel="noopener noreferrer">Live in Dozzle</UiButton>
+          </div>
+        </template>
+        <template v-else>
+        <p class="rs-hint top">The last 50 lines when you ask, newest at the bottom. Cha Dash doesn’t keep them: they go when you close this.</p>
         <div class="rs-acts">
           <UiButton :aria-disabled="!logOffer.available || live.stale.value || logBusy || undefined" :aria-busy="logBusy || undefined" @click="!logBusy && showLogs()">
             {{ logBusy ? 'Reading…' : logLines ? 'Show again' : 'Show the last 50 lines' }}
@@ -742,6 +771,7 @@ watch(id, async (now, before) => {
         <p class="sr" aria-live="polite">{{ logCopied ? 'Copied to the clipboard.' : logLines ? `${logLines.lines.length} lines.` : '' }}</p>
         <pre v-if="logLines?.lines.length" class="rs-log" tabindex="0" :aria-label="`Last lines of ${label(r)}’s log`">{{ logLines.lines.join('\n') }}</pre>
         <p v-else-if="logLines" class="rs-hint">No lines came back.</p>
+        </template>
       </section>
 
       <section

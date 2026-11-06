@@ -23,6 +23,7 @@ import ContainersWidget from '../src/widgets/ContainersWidget.vue';
 import { axeViolations } from './axe';
 import { engine, planFor, taskFor } from './fake-engine';
 import { fakeFetch } from './fake-fetch';
+import { fakeLogStreams } from './fake-logstream';
 import { harness } from './harness';
 
 beforeEach(() => {
@@ -367,7 +368,7 @@ const OFFERS = [
   { id: 'docker.container.logs', label: 'Show the logs of', tier: 'T0', available: true },
 ] as const;
 
-async function wave2(opts: { role?: string; audit?: unknown; states?: (url: URL) => unknown } = {}) {
+async function wave2(opts: { role?: string; audit?: unknown; states?: (url: URL) => unknown; data?: ReturnType<typeof home>; streams?: boolean } = {}) {
   const e = engine({ offers: { [SONARR]: OFFERS.map((o) => ({ ...o })) }, plan: (action) => (action.endsWith('.remove') ? { tier: 'T3' } : undefined) });
   const audit: unknown[] = [];
   const net = fakeFetch({
@@ -378,7 +379,8 @@ async function wave2(opts: { role?: string; audit?: unknown; states?: (url: URL)
     },
     ...(opts.states && { 'GET /api/history/states': (_b: unknown, url: URL) => ({ status: 200, body: opts.states!(url) }) }),
   });
-  const h = harness(home());
+  const logs = opts.streams ? fakeLogStreams() : undefined;
+  const h = harness(opts.data ?? home());
   if (opts.role) h.session.state.user = { id: 'u2', username: 'sam', role: opts.role };
   await flushPromises();
   h.ui.openSheet(SONARR);
@@ -391,7 +393,7 @@ async function wave2(opts: { role?: string; audit?: unknown; states?: (url: URL)
     await flushPromises();
     return panel().querySelector<HTMLElement>(`[role="tabpanel"][aria-labelledby$="-tab-${name.toLowerCase()}"]`)!;
   };
-  return { ...h, e, net, audit, panel, tabNamed, show };
+  return { ...h, e, net, logs, audit, panel, tabNamed, show };
 }
 
 describe('wave 2: acting from the sheet', () => {
@@ -459,25 +461,63 @@ describe('wave 2: acting from the sheet', () => {
 });
 
 describe('wave 2: logs in the tab', () => {
-  it('reads the last lines into the tab, not the log dialog, and keeps them while the sheet is open', async () => {
-    const { show, e, ws, ui } = await wave2();
-    const logs = await show('Logs');
-    expect(logs.textContent).toContain('Live logs come with v0.3');
-    logs.querySelector<HTMLButtonElement>('.rs-acts .btn')!.click();
+  it('follows a container behind a node live once the tab opens, and closing the sheet ends the stream', async () => {
+    const { show, logs, panel, ui } = await wave2({ streams: true });
+    // Nothing streams until the tab opens.
+    expect(logs!.streams).toHaveLength(0);
+    const tab = await show('Logs');
+    await vi.dynamicImportSettled();
     await flushPromises();
+    expect(logs!.streams).toHaveLength(1);
+    const s = logs!.last();
+    expect(s.url.pathname).toBe('/api/integrations/instances/i_d/logs');
+    expect(Object.fromEntries(s.url.searchParams)).toEqual({ resource: SONARR, tail: '200', follow: '1' });
+    s.line({ line: '[init] starting' });
+    s.line({ line: 'database is locked', stream: 'stderr' });
+    await flushPromises();
+    expect([...tab.querySelectorAll('.lv-l')].map((l) => l.textContent!.trim())).toEqual(['[init] starting', 'errstderr: database is locked']);
+    expect(tab.textContent).toContain('Followed live while this is open');
+    expect(await axeViolations(panel())).toEqual([]);
+    // Another tab keeps it following; another resource ends it.
+    await show('Overview');
+    expect(s.aborted).toBe(false);
+    ui.openSheet(DB);
+    await flushPromises();
+    expect(s.aborted).toBe(true);
+    expect(document.querySelector('.lv')).toBeNull();
+    // Back on sonarr's logs, then the sheet closes: that stream ends too.
+    ui.openSheet(SONARR);
+    await flushPromises();
+    await show('Logs');
+    await flushPromises();
+    expect(logs!.streams).toHaveLength(2);
+    ui.closeSheet();
+    await flushPromises();
+    expect(logs!.last().aborted).toBe(true);
+  });
+
+  it('keeps the one-shot read for Docker that isn’t behind a node, into the tab, not the log dialog', async () => {
+    const data = home({ [ENGINE]: { attrs: { endpoint: 'unix:///var/run/docker.sock', via: 'socket', access: 'raw', version: '29.6.2' } } });
+    const { show, e, ws, ui, logs } = await wave2({ data, streams: true });
+    const tab = await show('Logs');
+    expect(tab.textContent).toContain('The last 50 lines when you ask');
+    expect(tab.querySelector('.lv')).toBeNull();
+    tab.querySelector<HTMLButtonElement>('.rs-acts .btn')!.click();
+    await flushPromises();
+    expect(logs!.streams).toHaveLength(0);
     expect(e.plans.at(-1)).toEqual({ action: 'docker.container.logs', target: SONARR });
     const p = planFor('docker.container.logs', SONARR);
     const task = taskFor(p, { state: 'succeeded', reads_data: true, log: ['[init] starting', 'listening on :8989'] });
     ws.push({ op: 'diff', id: ws.subId('tasks'), seq: 2, patch: [{ op: 'add', path: toPointer('tasks', 'tasks', task.id), value: task }] });
     await flushPromises();
     expect(ui.state.taskLog).toBeUndefined();
-    const pre = logs.querySelector('pre.rs-log')!;
+    const pre = tab.querySelector('pre.rs-log')!;
     expect(pre.textContent).toBe('[init] starting\nlistening on :8989');
-    expect(logs.querySelector('.rs-acts .btn')!.textContent!.trim()).toBe('Show again');
+    expect(tab.querySelector('.rs-acts .btn')!.textContent!.trim()).toBe('Show again');
     // The hub dropping the task doesn't take the lines.
     ws.push({ op: 'diff', id: ws.subId('tasks'), seq: 3, patch: [{ op: 'remove', path: toPointer('tasks', 'tasks', task.id) }] });
     await flushPromises();
-    expect(logs.querySelector('pre.rs-log')!.textContent).toContain('listening on :8989');
+    expect(tab.querySelector('pre.rs-log')!.textContent).toContain('listening on :8989');
     // Another container: the lines go.
     ui.openSheet(DB);
     await flushPromises();

@@ -51,6 +51,7 @@ import UiField from '../ui/Field.vue';
 import StackSync from './StackSync.vue';
 import { editWhere, sourceWords, type SyncView } from './sync';
 import StackManage from './StackManage.vue';
+import StackLogs from './StackLogs.vue';
 
 const props = withDefaults(defineProps<{ node?: string; name?: string; fresh?: boolean; nodes?: StackNode[]; debounceMs?: number }>(), {
   node: '',
@@ -660,6 +661,9 @@ onBeforeUnmount(() => {
           </li>
         </ul>
       </section>
+
+      <!-- logs: managed stacks, Operator and up -->
+      <StackLogs v-if="detail && !fresh && detail.managed && ui.can.value.readData" :node="detail.node" :stack="detail.name" />
 
       <!-- history -->
       <section v-if="detail && !fresh" class="sk-block" :aria-labelledby="`${uid}-hist`">

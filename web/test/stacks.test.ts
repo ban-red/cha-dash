@@ -11,6 +11,7 @@ import { nextTick } from 'vue';
 import ConfirmDialog from '../src/components/ConfirmDialog.vue';
 import StacksPane from '../src/settings/StacksPane.vue';
 import SettingsSheet from '../src/settings/SettingsSheet.vue';
+import StackEditor from '../src/settings/StackEditor.vue';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { toPointer } from '../src/lib/jsonpatch';
 import { navigate } from '../src/lib/router';
@@ -19,6 +20,7 @@ import type { Task } from '../src/model/types';
 import { axeViolations } from './axe';
 import { engine, refuse, taskFor, planFor } from './fake-engine';
 import { fakeFetch, type Handler } from './fake-fetch';
+import { fakeLogStreams } from './fake-logstream';
 import { docs, withIncidents } from './fixtures';
 import { harness } from './harness';
 
@@ -479,6 +481,54 @@ describe('Settings → Stacks: one stack', () => {
     await settle();
     expect(f.last('PUT', '/api/stacks/local/web2')?.body).toMatchObject({ revision: 0 });
     expect(location.pathname).toBe('/settings/stacks/local/web2');
+  });
+});
+
+describe('Settings → Stacks: live logs', () => {
+  it('a managed stack follows all its services together, each line with its service; Stop ends the stream', async () => {
+    hub();
+    const logs = fakeLogStreams();
+    const h = open('/settings/stacks/local/media');
+    const w = h.mountIn(StacksPane);
+    await settle();
+    await settle();
+    const section = () => w.find('.sk-logs');
+    expect(section().find('h4').text()).toBe('Logs');
+    // Nothing streams until asked.
+    expect(logs.streams).toHaveLength(0);
+    await section().findAll('button').find((b) => b.text() === 'Follow the logs')!.trigger('click');
+    await settle();
+    expect(logs.streams).toHaveLength(1);
+    const s = logs.last();
+    expect(s.url.pathname + s.url.search).toBe('/api/stacks/local/media/logs?tail=200&follow=1');
+    s.line({ line: 'ready', service: 'web' });
+    s.line({ line: 'checkpoint starting', service: 'db', stream: 'stderr' });
+    await settle();
+    expect(section().findAll('.lv-l').map((l) => l.find('.lv-svc').text())).toEqual(['web', 'db']);
+    expect(await axeViolations()).toEqual([]);
+    await section().findAll('button').find((b) => b.text() === 'Stop following')!.trigger('click');
+    await settle();
+    expect(s.aborted).toBe(true);
+    expect(section().find('.lv').exists()).toBe(false);
+  });
+
+  it('isn’t offered for a stack Cha Dash doesn’t manage, or to a viewer', async () => {
+    hub({ 'GET /api/stacks/local/media': { status: 200, body: media({ managed: false }) } });
+    const h = open('/settings/stacks/local/media');
+    const w = h.mountIn(StacksPane);
+    await settle();
+    await settle();
+    expect(w.find('.sk-svc').exists()).toBe(true);
+    expect(w.find('.sk-logs').exists()).toBe(false);
+
+    hub();
+    const v = open('/settings/stacks/local/media');
+    v.session.state.user = { id: 'u2', username: 'sam', role: 'viewer' };
+    const ed = v.mountIn(StackEditor, { node: 'local', name: 'media', nodes: NODES });
+    await settle();
+    await settle();
+    expect(ed.find('.sk-svc').exists()).toBe(true);
+    expect(ed.find('.sk-logs').exists()).toBe(false);
   });
 });
 
