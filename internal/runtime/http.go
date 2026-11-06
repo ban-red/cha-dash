@@ -31,6 +31,7 @@ import (
 //	POST   /api/integrations/instances/{id}/refresh     202: sync now (Check now); 409 not_running
 //	GET    /api/integrations/instances/{id}/diagnostics diagnostics, secrets redacted
 //	GET    /api/integrations/instances/{id}/picture?resource=<rid>&h=<px>  the resource's picture (image/jpeg, webp or png)
+//	GET    /api/integrations/instances/{id}/logs?resource=<rid>&tail=<n|all>&follow=1  the resource's log, as server-sent events
 //	POST   /api/integrations/authorize/{integration}      start a sign-in → {id, code, url, expires_at, interval_s}
 //	GET    /api/integrations/authorize/{integration}/{id} {status: pending|done|expired|failed, expires_at?, secrets?, error?}
 //
@@ -54,6 +55,7 @@ func (m *Manager) Register(mux *http.ServeMux, wrap func(http.Handler) http.Hand
 	mux.Handle("POST /api/integrations/instances/{id}/refresh", h(m.handleRefresh))
 	mux.Handle("GET /api/integrations/instances/{id}/diagnostics", h(m.handleDiagnostics))
 	mux.Handle("GET /api/integrations/instances/{id}/picture", h(m.handlePicture))
+	mux.Handle("GET /api/integrations/instances/{id}/logs", h(m.handleLogs))
 	mux.Handle("POST /api/integrations/authorize/{integration}", h(m.handleAuthBegin))
 	mux.Handle("GET /api/integrations/authorize/{integration}/{id}", h(m.handleAuthPoll))
 }

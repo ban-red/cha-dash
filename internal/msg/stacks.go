@@ -4,6 +4,7 @@ package msg
 // their webhooks, and moves between nodes.
 func init() {
 	register(map[string]string{
+		"stacks.no_logs": "{stack} has no containers, so there's no log to show.",
 		// Paths and bodies.
 		"stacks.no_node":           "There's no such node.",
 		"stacks.bad_stack_name":    "A stack name uses lowercase letters, digits, - and _, starting with a letter or digit.",

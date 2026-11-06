@@ -51,6 +51,7 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 	mux.Handle("PUT /api/stacks/secrets/{name}", session(http.HandlerFunc(s.handlePutSecret)))
 	mux.Handle("DELETE /api/stacks/secrets/{name}", session(http.HandlerFunc(s.handleDeleteSecret)))
 	mux.Handle("GET /api/stacks/{node}/{stack}", session(http.HandlerFunc(s.handleGet)))
+	mux.Handle("GET /api/stacks/{node}/{stack}/logs", session(http.HandlerFunc(s.handleLogs)))
 	mux.Handle("PUT /api/stacks/{node}/{stack}", session(http.HandlerFunc(s.handlePutDraft)))
 	mux.Handle("DELETE /api/stacks/{node}/{stack}/draft", session(http.HandlerFunc(s.handleDeleteDraft)))
 	mux.Handle("POST /api/stacks/{node}/{stack}/validate", session(http.HandlerFunc(s.handleValidate)))

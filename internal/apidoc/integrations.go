@@ -41,6 +41,7 @@ func init() {
 		"POST /api/integrations/instances/{id}/refresh":      {Summary: "Poll an instance now.", Status: 202},
 		"GET /api/integrations/instances/{id}/diagnostics":   {Summary: "An instance's diagnostics, as a JSON attachment without secrets.", Resp: runtime.Diagnostics{}},
 		"GET /api/integrations/instances/{id}/picture":       {Summary: "A camera's latest frame.", Media: "image/*"},
+		"GET /api/integrations/instances/{id}/logs":          {Summary: "A resource's log, followed live, as server-sent events.", Media: "text/event-stream"},
 		"POST /api/integrations/authorize/{integration}":     {Summary: "Start signing in to an integration's upstream (a device code or a link).", Resp: runtime.AuthStart{}},
 		"GET /api/integrations/authorize/{integration}/{id}": {Summary: "Poll a sign-in; when done, it carries the new credential once.", Resp: runtime.AuthStatus{}},
 	})

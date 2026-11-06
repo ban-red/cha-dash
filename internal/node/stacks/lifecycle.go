@@ -76,7 +76,7 @@ func (m *Module) after(ctx context.Context, name string) stackproto.LifecycleRes
 	}
 	slices.SortFunc(cs, func(a, b Container) int { return strings.Compare(a.Service+a.Name, b.Service+b.Name) })
 	for _, c := range cs {
-		res.Services = append(res.Services, stackproto.Service{Name: c.Service, Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
+		res.Services = append(res.Services, stackproto.Service{Name: c.Service, Container: strings.TrimPrefix(c.Name, "/"), Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
 	}
 	return res
 }

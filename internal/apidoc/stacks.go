@@ -132,6 +132,7 @@ func init() {
 		"PUT /api/stacks/secrets/{name}":              {Summary: "Set a stack secret.", Body: secretValue{}},
 		"DELETE /api/stacks/secrets/{name}":           {Summary: "Remove a stack secret."},
 		"GET /api/stacks/{node}/{stack}":              {Summary: "A stack: its compose file, draft, history and services.", Resp: &stacks.StackDetail{}},
+		"GET /api/stacks/{node}/{stack}/logs":         {Summary: "Every container of the stack's log, interleaved and followed live, as server-sent events.", Media: "text/event-stream"},
 		"PUT /api/stacks/{node}/{stack}":              {Summary: "Save a draft of a stack's compose file.", Body: draftRequest{}, Resp: draftBody{}, Fail: map[int]any{409: draftConflict{}}, Errors: []string{"protected", "synced"}},
 		"DELETE /api/stacks/{node}/{stack}/draft":     {Summary: "Discard a stack's draft."},
 		"POST /api/stacks/{node}/{stack}/validate":    {Summary: "Check a compose file on the node, without saving it.", Body: contentBody{}, Resp: &stacks.Validation{}},

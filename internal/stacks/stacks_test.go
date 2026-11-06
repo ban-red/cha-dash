@@ -44,6 +44,9 @@ type localCaller struct {
 	// fake, when set, answers a verb instead of the module (ok true): a
 	// git remote the tests control (sync_test.go).
 	fake func(node, verb string, req json.RawMessage) (reply json.RawMessage, ok bool, err error)
+	// stream, when set, answers a verb with progress items instead of
+	// the module (ok true): the docker module's container.logs.
+	stream func(node, verb string, req json.RawMessage, progress func(json.RawMessage)) (reply json.RawMessage, ok bool, err error)
 }
 
 func (c *localCaller) Call(ctx context.Context, nodeID, verb string, req any, progress func(json.RawMessage)) (json.RawMessage, error) {
@@ -59,8 +62,16 @@ func (c *localCaller) Call(ctx context.Context, nodeID, verb string, req any, pr
 	}
 	c.mu.Lock()
 	c.sent = append(c.sent, verb+" "+string(raw))
-	fake := c.fake
+	fake, stream := c.fake, c.stream
 	c.mu.Unlock()
+	if stream != nil {
+		if out, ok, err := stream(nodeID, verb, raw, progress); ok {
+			if err != nil {
+				return nil, errors.New("node " + nodeID + ": " + err.Error())
+			}
+			return out, nil
+		}
+	}
 	if fake != nil {
 		if out, ok, err := fake(nodeID, verb, raw); ok {
 			if err != nil {

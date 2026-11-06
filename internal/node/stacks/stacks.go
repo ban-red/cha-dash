@@ -760,7 +760,7 @@ func (m *Module) get(ctx context.Context, req stackproto.GetRequest, _ emitter) 
 	cs, _ := m.containers(ctx, s.name)
 	slices.SortFunc(cs, func(a, b Container) int { return strings.Compare(a.Service+a.Name, b.Service+b.Name) })
 	for _, c := range cs {
-		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
+		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Container: strings.TrimPrefix(c.Name, "/"), Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
 	}
 	out.Volumes = m.volumes(ctx, s.name)
 	out.ProtectedReason = m.protectedReason(s.name, []string{out.Content}, cs)
@@ -827,7 +827,7 @@ func (m *Module) protectedRunning(ctx context.Context, name string) (stackproto.
 	out.Status, out.Services, out.Running = status(cs)
 	slices.SortFunc(cs, func(a, b Container) int { return strings.Compare(a.Service+a.Name, b.Service+b.Name) })
 	for _, c := range cs {
-		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
+		out.Containers = append(out.Containers, stackproto.Service{Name: c.Service, Container: strings.TrimPrefix(c.Name, "/"), Image: c.Image, State: c.State, Health: healthOf(c), Restarts: c.RestartCount})
 	}
 	// Its self-updates are in the stacks repo under its name.
 	if hist, err := m.repo.history(name, name+"/"+composeNames[0], historyLimit); err == nil {

@@ -10,6 +10,7 @@ func init() {
 
 		"integrations.bad_picture_height": "h must be a whole number of pixels",
 		"integrations.no_picture":         "there's no picture of that resource",
+		"integrations.no_logs":            "there's no log of that resource here",
 
 		"integrations.no_sign_in":            "this integration has no sign-in flow; paste the credential instead",
 		"integrations.sign_in_gone":          "no such sign-in; it may have finished or expired",

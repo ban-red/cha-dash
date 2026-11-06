@@ -273,6 +273,9 @@ var Routes = []Route{
 	{Pattern: "GET /api/integrations/instances/{id}/diagnostics", Access: Admin},
 	// A camera's latest frame: whoever sees the board sees its cameras.
 	{Pattern: "GET /api/integrations/instances/{id}/picture", Access: SignedIn, Token: ScopeGraphRead},
+	// A log can hold anything a container prints, secrets included: operators
+	// and up, as docker.container.logs is, in a session only.
+	{Pattern: "GET /api/integrations/instances/{id}/logs", Access: Operator},
 	{Pattern: "POST /api/integrations/authorize/{integration}", Access: Admin},
 	{Pattern: "GET /api/integrations/authorize/{integration}/{id}", Access: Admin},
 
@@ -366,6 +369,8 @@ var Routes = []Route{
 	{Pattern: "PUT /api/stacks/secrets/{name}", Access: Admin},
 	{Pattern: "DELETE /api/stacks/secrets/{name}", Access: Admin},
 	{Pattern: "GET /api/stacks/{node}/{stack}", Access: Admin},
+	// Its containers' logs, followed: operators and up, as a container's log is.
+	{Pattern: "GET /api/stacks/{node}/{stack}/logs", Access: Operator},
 	{Pattern: "PUT /api/stacks/{node}/{stack}", Access: Admin},
 	{Pattern: "DELETE /api/stacks/{node}/{stack}/draft", Access: Admin},
 	{Pattern: "POST /api/stacks/{node}/{stack}/validate", Access: Admin},

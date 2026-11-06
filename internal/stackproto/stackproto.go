@@ -281,11 +281,13 @@ type EnvInfo struct {
 
 // Service is one running service's state.
 type Service struct {
-	Name     string `json:"name"`
-	Image    string `json:"image"`
-	State    string `json:"state"`
-	Health   string `json:"health"` // healthy, unhealthy, starting, none (no healthcheck)
-	Restarts int    `json:"restarts"`
+	Name string `json:"name"`
+	// Container is its container's name ("media-web-1"), for its log.
+	Container string `json:"container,omitempty"`
+	Image     string `json:"image"`
+	State     string `json:"state"`
+	Health    string `json:"health"` // healthy, unhealthy, starting, none (no healthcheck)
+	Restarts  int    `json:"restarts"`
 }
 
 // ── stack.validate ───────────────────────────────────────────────────────

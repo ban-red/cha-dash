@@ -598,3 +598,25 @@ func TestNodeTransportNotConnected(t *testing.T) {
 		t.Fatalf("offline node classified %s %v %q: %v", code, class, msg, err)
 	}
 }
+
+// A container's log streams through its node; a resource that isn't one
+// of this instance's containers has none.
+func TestNodeLogs(t *testing.T) {
+	h := integrationtest.New(t)
+	h.Nodes = newFakeNode(t, newFake(t, raw))
+	inst := h.Connect(Integration{}, map[string]any{"endpoint": "node://local"}, nil)
+	syncOK(t, inst)
+	ls := inst.(integration.LogStreamer)
+	var got []integration.LogLine
+	if err := ls.Logs(t.Context(), "docker:i_test/container/sonarr", integration.LogOptions{Tail: 5}, func(l integration.LogLine) { got = append(got, l) }); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Line != "hello from the container" || got[0].Stream != "stdout" {
+		t.Fatalf("lines %+v", got)
+	}
+	for _, rid := range []string{"docker:other/container/sonarr", "docker:i_test/engine", "docker:i_test/container/../x"} {
+		if err := ls.Logs(t.Context(), rid, integration.LogOptions{}, func(integration.LogLine) {}); err != integration.ErrNoLogs {
+			t.Errorf("%s: %v", rid, err)
+		}
+	}
+}
