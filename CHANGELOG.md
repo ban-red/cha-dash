@@ -39,7 +39,7 @@ The first release of v0.5, Glance: Cha Dash goes on the wall. A display is a boa
 
 ### Fixed
 
-- **Specs on the armv7 image.** `int()` in a spec was 32 bits there, so a byte count or a time in Unix milliseconds overflowed it. It's 64 bits on every build now.
+- **Specs on the armv7 image.** Whole-number arithmetic in a spec was 32 bits there, so a byte count or a time in Unix milliseconds overflowed. `int()` is now exact to 2^53 on every build.
 - **Rolling back a container update on Docker's containerd image store.** When the new image failed its health gate, putting the old one back failed with "No such image", and the container was left stuck. The node now pulls the old image again by its digest, or uses it by ID.
 - **Step-up with any of your passkeys.** With two or more passkeys, confirming it's you before a risky action failed with "That didn't confirm it's you". Now any of them works.
 - **Proxmox: a webhook notification or Check now reads tasks and backups at once.** Before, they waited for their own pace (a minute for tasks, 15 minutes for backups), so a failed backup that PVE reported right after a poll showed only at the next idle poll, up to 5 minutes later.

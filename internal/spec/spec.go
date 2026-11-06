@@ -40,6 +40,7 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"math"
 	"path"
 	"regexp"
 	"slices"
@@ -581,45 +582,55 @@ func fieldSchema(f field) (*integration.Schema, error) {
 	return s, nil
 }
 
-// int64Builtin is expr-lang's int() at 64 bits on every build. Its own is
-// Go's int, 32 bits on the armv7 image, where a byte count or Unix
-// milliseconds overflow it. Otherwise it's the same: a number truncates
-// toward zero, a string parses as a whole number.
-var int64Builtin = expr.Function("int", func(params ...any) (any, error) {
-	switch v := params[0].(type) {
-	case int:
-		return int64(v), nil
-	case int8:
-		return int64(v), nil
-	case int16:
-		return int64(v), nil
-	case int32:
-		return int64(v), nil
-	case int64:
-		return v, nil
-	case uint:
-		return int64(v), nil
-	case uint8:
-		return int64(v), nil
-	case uint16:
-		return int64(v), nil
-	case uint32:
-		return int64(v), nil
-	case uint64:
-		return int64(v), nil
-	case float32:
-		return int64(v), nil
-	case float64:
-		return int64(v), nil
-	case string:
-		n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid operation: int(%q)", v)
+// Whole numbers on every build. expr-lang does integer arithmetic in Go's
+// int, 32 bits on the armv7 image, where a byte count or Unix milliseconds
+// overflow it, even in int(a) + int(b). So int() gives a whole float64,
+// exact to 2^53, and string() writes one without an exponent, as it does
+// an int. Otherwise they're expr-lang's own: int() truncates toward zero
+// and parses a string as a whole number.
+var (
+	intBuiltin = expr.Function("int", func(params ...any) (any, error) {
+		switch v := params[0].(type) {
+		case int:
+			return float64(v), nil
+		case int8:
+			return float64(v), nil
+		case int16:
+			return float64(v), nil
+		case int32:
+			return float64(v), nil
+		case int64:
+			return float64(v), nil
+		case uint:
+			return float64(v), nil
+		case uint8:
+			return float64(v), nil
+		case uint16:
+			return float64(v), nil
+		case uint32:
+			return float64(v), nil
+		case uint64:
+			return float64(v), nil
+		case float32:
+			return math.Trunc(float64(v)), nil
+		case float64:
+			return math.Trunc(v), nil
+		case string:
+			n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid operation: int(%q)", v)
+			}
+			return float64(n), nil
 		}
-		return n, nil
-	}
-	return nil, fmt.Errorf("invalid operation: int(%T)", params[0])
-}, new(func(any) int64))
+		return nil, fmt.Errorf("invalid operation: int(%T)", params[0])
+	}, new(func(any) float64))
+	stringBuiltin = expr.Function("string", func(params ...any) (any, error) {
+		if v, ok := params[0].(float64); ok && v == math.Trunc(v) && math.Abs(v) < 1<<53 {
+			return strconv.FormatFloat(v, 'f', -1, 64), nil
+		}
+		return fmt.Sprintf("%v", params[0]), nil
+	}, new(func(any) string))
+)
 
 // compileEnv is what every expression sees at compile time; requests add
 // their names.
@@ -633,7 +644,7 @@ func (s *Spec) compileEnv() map[string]any {
 
 // compileExpr compiles one expression in env, with the version's semantics.
 func (s *Spec) compileExpr(env map[string]any, src string) (*vm.Program, error) {
-	opts := []expr.Option{expr.Env(env), expr.MaxNodes(500), int64Builtin}
+	opts := []expr.Option{expr.Env(env), expr.MaxNodes(500), intBuiltin, stringBuiltin}
 	if s.beta {
 		opts = append(opts, expr.Patch(minusOne{}))
 	}

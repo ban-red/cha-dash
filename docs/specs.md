@@ -146,7 +146,7 @@ resources:
 
 - Requests go only under the instance's URL: an absolute path, no `..`, no other host. Responses must be JSON and at most 1 MiB.
 - Secrets go only into the headers, queries and request bodies the spec names, never into paths, and never into errors or logs.
-- Expressions are [expr-lang](https://expr-lang.org), compiled at load: a typo fails `spec lint`, not a sync. They see the config (secrets left out), the instance and what the requests extracted, nothing else. `int()` is 64 bits on every build, so a byte count or Unix milliseconds fit on the armv7 image too.
+- Expressions are [expr-lang](https://expr-lang.org), compiled at load: a typo fails `spec lint`, not a sync. They see the config (secrets left out), the instance and what the requests extracted, nothing else. `int()` gives a whole number exact to 2^53 on every build, and `string()` writes it without an exponent, so byte counts and Unix milliseconds work on the armv7 image too, where Go's int is 32 bits.
 - At most 16 actions, each with its tier (T0 to T4). The hub's roles, step-ups and approvals apply to them as to any action.
 - A 401 or 403 is a Repair on the secret; a 404 or 410 is "the API changed", unless one of the spec's repairs explains it.
 
