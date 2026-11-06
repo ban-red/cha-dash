@@ -20,6 +20,7 @@
     "e2e": "bun run --filter @chadash/web e2e",
     "test:engine": "bun scripts/test-engine.ts",
     "live:verify": "bun scripts/live-verify.ts",
+    "cutover:check": "bun scripts/cutover-check.ts",
     "typecheck": "bun run --filter '*' typecheck",
     "typecheck:next": "bun run --filter @chadash/typecheck typecheck:next",
     "lint": "oxlint && bun --bun eslint . --cache",
