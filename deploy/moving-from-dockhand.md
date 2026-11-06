@@ -15,16 +15,17 @@ It was written against Dockhand with Hawser 0.2 in standard mode. Edge mode and 
 
 ## What Cha Dash doesn't do yet
 
-Keep Dockhand around, read-only, for these until Cha Dash has them ([plan 16](../docs/plan/16-stacks-parity.md), in the order they block the move):
-- **"Pull and redeploy" for a whole stack.** Deploying an unchanged file does nothing. To update a stack whose images use `:latest`, Pull, then Recreate each container, or pin tags and change them in the file. Planned for 0.5.
-- **Private registries.** The node pulls without credentials. Planned for 0.5.
-- **Live, streaming logs.** Cha Dash shows the last 50 lines, and links to Dozzle when it runs. Planned for 0.5.
+Keep Dockhand around, read-only, for these until Cha Dash has them ([plan 16](../docs/plan/16-stacks-parity.md)):
 - **A shell in a container.** Planned for 0.5.x, off by default.
 - **Browsing images, volumes and networks, and pruning.** Planned for 0.5.x. Vulnerability scans aren't planned.
 
-A whole stack stops, starts, restarts, goes down or is removed from its page, and each container shows its CPU and memory in its sheet.
+What Dockhand did that Cha Dash now does too:
+- **Pull and redeploy.** **Update** on a stack's page pulls each service's tag and recreates only what moved, through the health gate, and rolls back to the old images if it fails. Settings → Updates updates a stack as one.
+- **Private registries.** Log in on the Docker host, mount the Docker config into the node and list the registry in its `images.registries` (see **Private registries** in the [deploy guide](README.md)). The login never leaves the host.
+- **Live logs.** A container's Logs tab follows live, and a stack's page shows all its services' logs together. Dozzle links stay.
+- **Stop, start, restart, take down and remove** a whole stack from its page. Each container shows its CPU and memory in its sheet.
 
-**One writer at a time.** While a stack is still in Dockhand, deploy it from one of them only. Cha Dash says so on the stack's page when it sees another manager's labels on it.
+**One writer at a time.** While a stack is still in Dockhand, deploy it from one of them only. When Dockhand also lists a stack with the same name, the stack's page says so and the list shows "also in Dockhand".
 
 Dockhand's own settings don't come along: update schedules, registries and templates. Check them in Dockhand before you start.
 
@@ -93,11 +94,13 @@ When every stack on a host is adopted and has deployed through Cha Dash at least
 1. Remove the environment from Dockhand. Its copies of the files stay on Dockhand's host as a backup.
 2. Stop Hawser on that host (`docker compose down` in its folder). That also closes port 2376, which passed the whole Docker API through.
 
-Move Dockhand's own host last, through the hub's node if they share a host. Then retire Dockhand.
+Move Dockhand's own host last, through the hub's node if they share a host.
+
+Then check the host: `bun run cutover:check <node>` in a checkout of this repository reads the host's Docker API and the hub's stack list, and changes nothing. It fails on any project Cha Dash doesn't manage, one last brought up from another tool's file, a stack edited outside Cha Dash, another manager listing the same stack, and any container that isn't running healthy. It needs `DOCKER_<NODE>_URL`, `CHADASH_LAB_URL` and an API token with `graph.read` in `CHADASH_LAB_TOKEN`, in `.env.local`. Keep Dockhand stopped, not removed, for a week; then retire it.
 
 ## Going back
 
-Unadopt each stack: run the `stack.unadopt` action on it (`POST /api/actions/plan`, then approve; Settings has no button for it yet). Its files and containers stay as they are. Then stop the node, start Hawser again, and Dockhand carries on from its own copies.
+Un-adopt each stack: **Un-adopt** on its page in Settings → Stacks. Its files and containers stay as they are. Then stop the node, start Hawser again, and Dockhand carries on from its own copies.
 
 ## When something doesn't look right
 
@@ -108,3 +111,11 @@ Unadopt each stack: run the `stack.unadopt` action on it (`POST /api/actions/pla
 | `protected` when planning | The stack would recreate a container the node's policy protects (`docker.protect`), or Cha Dash itself |
 | A deploy is refused with `drift` | The file was edited on disk after adopting. Choose "Accept edits made outside Cha Dash" in the editor, or put the file back |
 | Validation refuses a bind | The guard keeps stacks off the node's own files and the Docker socket. Other host paths are allowed, and flagged |
+
+## Moving from Dockge
+
+Dockge keeps each stack as `<stacks dir>/<name>/compose.yaml` on the Docker host, which is the layout Cha Dash uses. Two ways in:
+- **Adopt in place.** Run a node on the host and adopt each project where it is, from Settings → Stacks. The files stay in Dockge's folder.
+- **Point the node at Dockge's folder.** Set the node's `stacks.root` to Dockge's stacks directory (often `/opt/stacks`). Each stack is then in the root already, and adopting it starts its history there.
+
+Either way, stop Dockge before you deploy from Cha Dash: one writer at a time. `bun run cutover:check` checks the host afterwards, as above.

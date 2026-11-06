@@ -170,6 +170,11 @@ Each wave ships its tests with it: every node verb at layer 3 (a real Docker Eng
 - Credential helpers (`credsStore`, `credHelpers`) aren't read: a host that uses one needs `docker --config <dir> login` into a plain file.
 - An update that rolls back outside a rollout doesn't mark its containers' digests as rolled back (a rollout does).
 
+**32c, as built (2026-11-05).** Live logs: `integration.LogStreamer`, the hub's two event-stream routes (`httpx.Follow`: the 30-minute end on the hub's clock, tested by moving it), the web's `LogView` (fetch with a stream, at most 10,000 lines, tested over 30 minutes of fake time). The cutover's step 1 and 2 (the guide, Moving from Dockge) and step 4's script, `bun run cutover:check`, with its unit tests. Still open from 32c:
+- Step 3, adopting or moving pvedocker's 16 stacks, writes to the lab: it needs the maintainer's go-ahead per wave, and the lab hub on a build with 32a–32c.
+- `cutover:check` needs `CHADASH_LAB_URL` and `CHADASH_LAB_TOKEN` (graph.read) in `.env.local`, which aren't there yet. It doesn't check each stack's plan says "No changes" (that's an admin session); drift and the compose labels stand in.
+- The browser half of the layer 4 test (Playwright against a real node) is still to build for 32a–32c.
+
 ---
 
 ## Done when
