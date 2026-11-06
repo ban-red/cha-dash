@@ -1,0 +1,37 @@
+{
+  "data": [
+    {
+      "Arch": "amd64",
+      "Description": "This package contains the Proxmox Virtual Environment management tools.",
+      "OldVersion": "9.0.9",
+      "Origin": "Proxmox",
+      "Package": "pve-manager",
+      "Priority": "optional",
+      "Section": "admin",
+      "Title": "Proxmox Virtual Environment Management Tools",
+      "Version": "9.0.11"
+    },
+    {
+      "Arch": "amd64",
+      "Description": "Contains the standard libraries that are used by nearly all programs on the system.",
+      "OldVersion": "2.41-12",
+      "Origin": "Debian",
+      "Package": "libc6",
+      "Priority": "optional",
+      "Section": "libs",
+      "Title": "GNU C Library: Shared libraries",
+      "Version": "2.41-12+deb13u1"
+    },
+    {
+      "Arch": "amd64",
+      "Description": "Full virtualization on x86 hardware, as Proxmox ships it.",
+      "OldVersion": "10.0.2-4",
+      "Origin": "Proxmox",
+      "Package": "pve-qemu-kvm",
+      "Priority": "optional",
+      "Section": "admin",
+      "Title": "Full virtualization on x86 hardware",
+      "Version": "10.1.2-1"
+    }
+  ]
+}

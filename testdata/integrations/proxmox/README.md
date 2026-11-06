@@ -39,6 +39,8 @@ The fixtures are sanitized (scheme below). A leak check scanned them for every r
 | `jupiter-nas` | 9.2.21 | standalone | Debian LXC · VM 101 (running) | Re-recorded on 2026-11-06 after the host's upgrade from 8.4, which `live:verify` found: `network` resources instead of `sdn`, `memhost`, the guest agent readable. Still **no backup job**: both guests are in `not-backed-up`. The 8.4 recording stays as `jupiter-nas-84` |
 | `jupiter-nas-84` | 8.4.21 | standalone | Debian LXC · VM 101 in **`internal-error`** | VM 101 holds 21 GB of the host's 33.5 GB, which explains the host's 95% memory. `qmreboot` timed out, then `qmreset`. **No backup job at all**: both guests are in `not-backed-up` |
 
+Beside the recordings, three directories are **synthetic**, written by hand: `actions/` (answers to writes), `webhook/` (PVE's notification payloads) and `sys-modify/` (pluto with a token that has `Sys.Modify`, and its pending packages). Each has a README.
+
 ## What each fixture shows
 
 | Fixture | What it's for |
