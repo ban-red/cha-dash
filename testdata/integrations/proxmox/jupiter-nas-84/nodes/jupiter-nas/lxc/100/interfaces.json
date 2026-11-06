@@ -1,0 +1,68 @@
+{
+  "data": [
+    {
+      "hardware-address": "00:00:00:00:00:00",
+      "hwaddr": "00:00:00:00:00:00",
+      "inet": "127.0.0.1/8",
+      "inet6": "::1/128",
+      "ip-addresses": [
+        {
+          "ip-address": "127.0.0.1",
+          "ip-address-type": "inet",
+          "prefix": "8"
+        },
+        {
+          "ip-address": "::1",
+          "ip-address-type": "inet6",
+          "prefix": "128"
+        }
+      ],
+      "name": "lo"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:42",
+      "hwaddr": "BC:24:11:00:00:42",
+      "inet": "10.0.11.198/24",
+      "ip-addresses": [
+        {
+          "ip-address": "10.0.11.198",
+          "ip-address-type": "inet",
+          "prefix": "24"
+        }
+      ],
+      "name": "eth0"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:43",
+      "hwaddr": "BC:24:11:00:00:43",
+      "inet": "172.18.0.1/16",
+      "ip-addresses": [
+        {
+          "ip-address": "172.18.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        }
+      ],
+      "name": "br-12e3b37216ac"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:44",
+      "hwaddr": "BC:24:11:00:00:44",
+      "inet": "172.17.0.1/16",
+      "ip-addresses": [
+        {
+          "ip-address": "172.17.0.1",
+          "ip-address-type": "inet",
+          "prefix": "16"
+        }
+      ],
+      "name": "docker0"
+    },
+    {
+      "hardware-address": "BC:24:11:00:00:45",
+      "hwaddr": "BC:24:11:00:00:45",
+      "ip-addresses": [],
+      "name": "vethfcdf380"
+    }
+  ]
+}

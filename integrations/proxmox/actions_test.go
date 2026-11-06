@@ -750,7 +750,7 @@ func TestHubGuestFromAddresses(t *testing.T) {
 // TestGuestErrorOffersHardStop: the internal-error incident's alternative is
 // the engine's hard stop.
 func TestGuestErrorOffersHardStop(t *testing.T) {
-	_, h, in := connect(t, "jupiter-nas")
+	_, h, in := connect(t, "jupiter-nas-84")
 	syncOK(t, in, integrationtest.Watched)
 	inc, ok := h.Incident("guest.101")
 	if !ok || len(inc.Alternatives) != 1 || inc.Alternatives[0].ID != actStop || inc.Alternatives[0].Tier != "T2" || inc.Alternatives[0].Target != pid("qemu/101") {

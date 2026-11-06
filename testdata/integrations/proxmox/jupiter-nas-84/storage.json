@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "content": "rootdir,images",
+      "digest": "94ec9239233160e23c7117e15999a8534852cbb9",
+      "mountpoint": "/store-5",
+      "pool": "store-5",
+      "storage": "vm-101",
+      "type": "zfspool"
+    },
+    {
+      "content": "images,rootdir",
+      "digest": "94ec9239233160e23c7117e15999a8534852cbb9",
+      "storage": "local-lvm",
+      "thinpool": "data",
+      "type": "lvmthin",
+      "vgname": "pve"
+    },
+    {
+      "content": "rootdir,images",
+      "digest": "94ec9239233160e23c7117e15999a8534852cbb9",
+      "mountpoint": "/store-5",
+      "pool": "store-5",
+      "storage": "store-4",
+      "type": "zfspool"
+    },
+    {
+      "content": "vztmpl,backup,iso",
+      "digest": "94ec9239233160e23c7117e15999a8534852cbb9",
+      "path": "/var/lib/vz",
+      "storage": "local",
+      "type": "dir"
+    },
+    {
+      "content": "images,rootdir",
+      "digest": "94ec9239233160e23c7117e15999a8534852cbb9",
+      "mountpoint": "/store-5",
+      "pool": "store-5",
+      "storage": "store-3",
+      "type": "zfspool"
+    }
+  ]
+}

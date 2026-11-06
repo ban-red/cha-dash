@@ -4,968 +4,968 @@
       {
         "id": "node/jupiter-nas",
         "metric": "uptime",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 7547825
+        "value": 10402461
       },
       {
         "id": "node/jupiter-nas",
         "metric": "net_in",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 53712860798
+        "value": 69692175162
       },
       {
         "id": "node/jupiter-nas",
         "metric": "net_out",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 220918608356
+        "value": 242235978093
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg1",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 0.39
+        "value": 0.78
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg5",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 0.35
+        "value": 0.73
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg15",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 0.33
+        "value": 0.82
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_max",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 8
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_current",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 0.0448639037067433
+        "value": 0.11375
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_iowait",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 0.000547120776911503
+        "value": 0.000625
       },
       {
         "id": "node/jupiter-nas",
         "metric": "mem_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 33536110592
       },
       {
         "id": "node/jupiter-nas",
         "metric": "mem_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 31967014912
+        "value": 31859122176
       },
       {
         "id": "node/jupiter-nas",
         "metric": "swap_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 8589930496
       },
       {
         "id": "node/jupiter-nas",
         "metric": "swap_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 486801408
+        "value": 935591936
       },
       {
         "id": "node/jupiter-nas",
         "metric": "disk_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 100861726720
       },
       {
         "id": "node/jupiter-nas",
         "metric": "disk_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 16591187968
+        "value": 20881846272
       },
       {
         "id": "qemu/101",
         "metric": "cpu_current",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 0.000182051773924718
+        "value": 0.117185788625043
       },
       {
         "id": "qemu/101",
         "metric": "mem_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 21108531200
+        "value": 22656233472
       },
       {
         "id": "qemu/101",
         "metric": "disk_read",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 19285005252
+        "value": 28176359190
       },
       {
         "id": "qemu/101",
         "metric": "disk_write",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 242314964480
+        "value": 284546234880
       },
       {
         "id": "qemu/101",
         "metric": "net_in",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 40407093609
+        "value": 52972702575
       },
       {
         "id": "qemu/101",
         "metric": "net_out",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 212960471396
+        "value": 233409006515
       },
       {
         "id": "qemu/101",
         "metric": "uptime",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 6492488
+        "value": 9347123
       },
       {
         "id": "qemu/101",
         "metric": "cpu_max",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 6
       },
       {
         "id": "qemu/101",
         "metric": "mem_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 25769803776
       },
       {
         "id": "qemu/101",
         "metric": "disk_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 386010185728
       },
       {
         "id": "lxc/100",
         "metric": "cpu_current",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 0.000491530598628533
+        "value": 0.00084342633621658
       },
       {
         "id": "lxc/100",
         "metric": "mem_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 80031744
+        "value": 69664768
       },
       {
         "id": "lxc/100",
         "metric": "disk_read",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 4342448128
+        "value": 9822744576
       },
       {
         "id": "lxc/100",
         "metric": "disk_write",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 4113391616
+        "value": 5969600512
       },
       {
         "id": "lxc/100",
         "metric": "net_in",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 26724900365
+        "value": 35338388556
       },
       {
         "id": "lxc/100",
         "metric": "net_out",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "derive",
-        "value": 911647183
+        "value": 4110214651
       },
       {
         "id": "lxc/100",
         "metric": "disk_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 2996137984
+        "value": 3019706368
       },
       {
         "id": "lxc/100",
         "metric": "uptime",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 6492495
+        "value": 9347131
       },
       {
         "id": "lxc/100",
         "metric": "cpu_max",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 4
       },
       {
         "id": "lxc/100",
         "metric": "mem_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 8489271296
       },
       {
         "id": "lxc/100",
         "metric": "disk_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 67049664512
       },
       {
-        "id": "storage/jupiter-nas/store-3",
-        "metric": "disk_total",
-        "timestamp": 1791076824,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/store-3",
-        "metric": "disk_used",
-        "timestamp": 1791076824,
-        "type": "gauge",
-        "value": 9882232708450
-      },
-      {
-        "id": "storage/jupiter-nas/store-4",
-        "metric": "disk_total",
-        "timestamp": 1791076824,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/store-4",
-        "metric": "disk_used",
-        "timestamp": 1791076824,
-        "type": "gauge",
-        "value": 9882232708450
-      },
-      {
-        "id": "storage/jupiter-nas/vm-101",
-        "metric": "disk_total",
-        "timestamp": 1791076824,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/vm-101",
-        "metric": "disk_used",
-        "timestamp": 1791076824,
-        "type": "gauge",
-        "value": 9882232708450
-      },
-      {
         "id": "storage/jupiter-nas/local-lvm",
         "metric": "disk_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 852878163968
       },
       {
         "id": "storage/jupiter-nas/local-lvm",
         "metric": "disk_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 229850665189
+        "value": 237355993032
+      },
+      {
+        "id": "storage/jupiter-nas/store-4",
+        "metric": "disk_total",
+        "timestamp": 1793931459,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/store-4",
+        "metric": "disk_used",
+        "timestamp": 1793931459,
+        "type": "gauge",
+        "value": 9884658904354
+      },
+      {
+        "id": "storage/jupiter-nas/vm-101",
+        "metric": "disk_total",
+        "timestamp": 1793931459,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/vm-101",
+        "metric": "disk_used",
+        "timestamp": 1793931459,
+        "type": "gauge",
+        "value": 9884658904354
+      },
+      {
+        "id": "storage/jupiter-nas/store-3",
+        "metric": "disk_total",
+        "timestamp": 1793931459,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/store-3",
+        "metric": "disk_used",
+        "timestamp": 1793931459,
+        "type": "gauge",
+        "value": 9884658904354
       },
       {
         "id": "storage/jupiter-nas/local",
         "metric": "disk_total",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
         "value": 100861726720
       },
       {
         "id": "storage/jupiter-nas/local",
         "metric": "disk_used",
-        "timestamp": 1791076824,
+        "timestamp": 1793931459,
         "type": "gauge",
-        "value": 16591187968
+        "value": 20881846272
       },
       {
         "id": "node/jupiter-nas",
         "metric": "uptime",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 7547835
+        "value": 10402470
       },
       {
         "id": "node/jupiter-nas",
         "metric": "net_in",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 53712893260
+        "value": 69692214224
       },
       {
         "id": "node/jupiter-nas",
         "metric": "net_out",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 220918608356
+        "value": 242235978369
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg1",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 0.4
+        "value": 0.74
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg5",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 0.35
+        "value": 0.72
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg15",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 0.33
+        "value": 0.82
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_max",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 8
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_current",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 0.0411837237977805
+        "value": 0.115150677356926
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_iowait",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 0.000369913686806412
+        "value": 0.000276472214542438
       },
       {
         "id": "node/jupiter-nas",
         "metric": "mem_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 33536110592
       },
       {
         "id": "node/jupiter-nas",
         "metric": "mem_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 31972745216
+        "value": 31859912704
       },
       {
         "id": "node/jupiter-nas",
         "metric": "swap_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 8589930496
       },
       {
         "id": "node/jupiter-nas",
         "metric": "swap_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 486801408
+        "value": 935591936
       },
       {
         "id": "node/jupiter-nas",
         "metric": "disk_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 100861726720
       },
       {
         "id": "node/jupiter-nas",
         "metric": "disk_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 16591187968
+        "value": 20881846272
       },
       {
         "id": "qemu/101",
         "metric": "cpu_current",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 0.000164136826062106
+        "value": 0.118762188601541
       },
       {
         "id": "qemu/101",
         "metric": "mem_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 21108531200
+        "value": 22659674112
       },
       {
         "id": "qemu/101",
         "metric": "disk_read",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 19285005252
+        "value": 28176359190
       },
       {
         "id": "qemu/101",
         "metric": "disk_write",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 242314964480
+        "value": 284546238976
       },
       {
         "id": "qemu/101",
         "metric": "net_in",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 40407093609
+        "value": 52972741637
       },
       {
         "id": "qemu/101",
         "metric": "net_out",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 212960471396
+        "value": 233409006791
       },
       {
         "id": "qemu/101",
         "metric": "uptime",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 6492498
+        "value": 9347133
       },
       {
         "id": "qemu/101",
         "metric": "cpu_max",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 6
       },
       {
         "id": "qemu/101",
         "metric": "mem_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 25769803776
       },
       {
         "id": "qemu/101",
         "metric": "disk_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 386010185728
       },
       {
         "id": "lxc/100",
         "metric": "cpu_current",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 0.000590888328368844
+        "value": 0.000387335667029348
       },
       {
         "id": "lxc/100",
         "metric": "mem_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 80031744
+        "value": 69664768
       },
       {
         "id": "lxc/100",
         "metric": "disk_read",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 4342448128
+        "value": 9822744576
       },
       {
         "id": "lxc/100",
         "metric": "disk_write",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 4113391616
+        "value": 5969600512
       },
       {
         "id": "lxc/100",
         "metric": "net_in",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 26724933317
+        "value": 35338427080
       },
       {
         "id": "lxc/100",
         "metric": "net_out",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "derive",
-        "value": 911647183
+        "value": 4110214651
       },
       {
         "id": "lxc/100",
         "metric": "disk_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 2996137984
+        "value": 3019706368
       },
       {
         "id": "lxc/100",
         "metric": "uptime",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 6492505
+        "value": 9347140
       },
       {
         "id": "lxc/100",
         "metric": "cpu_max",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 4
       },
       {
         "id": "lxc/100",
         "metric": "mem_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 8489271296
       },
       {
         "id": "lxc/100",
         "metric": "disk_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 67049664512
       },
       {
-        "id": "storage/jupiter-nas/store-3",
-        "metric": "disk_total",
-        "timestamp": 1791076834,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/store-3",
-        "metric": "disk_used",
-        "timestamp": 1791076834,
-        "type": "gauge",
-        "value": 9882232708450
-      },
-      {
-        "id": "storage/jupiter-nas/local",
-        "metric": "disk_total",
-        "timestamp": 1791076834,
-        "type": "gauge",
-        "value": 100861726720
-      },
-      {
-        "id": "storage/jupiter-nas/local",
-        "metric": "disk_used",
-        "timestamp": 1791076834,
-        "type": "gauge",
-        "value": 16591187968
-      },
-      {
         "id": "storage/jupiter-nas/local-lvm",
         "metric": "disk_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
         "value": 852878163968
       },
       {
         "id": "storage/jupiter-nas/local-lvm",
         "metric": "disk_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 229850665189
-      },
-      {
-        "id": "storage/jupiter-nas/vm-101",
-        "metric": "disk_total",
-        "timestamp": 1791076834,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/vm-101",
-        "metric": "disk_used",
-        "timestamp": 1791076834,
-        "type": "gauge",
-        "value": 9882232708450
+        "value": 237355993032
       },
       {
         "id": "storage/jupiter-nas/store-4",
         "metric": "disk_total",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 23115780995200
+        "value": 23115781138048
       },
       {
         "id": "storage/jupiter-nas/store-4",
         "metric": "disk_used",
-        "timestamp": 1791076834,
+        "timestamp": 1793931469,
         "type": "gauge",
-        "value": 9882232708450
+        "value": 9884658904354
+      },
+      {
+        "id": "storage/jupiter-nas/store-3",
+        "metric": "disk_total",
+        "timestamp": 1793931469,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/store-3",
+        "metric": "disk_used",
+        "timestamp": 1793931469,
+        "type": "gauge",
+        "value": 9884658904354
+      },
+      {
+        "id": "storage/jupiter-nas/vm-101",
+        "metric": "disk_total",
+        "timestamp": 1793931469,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/vm-101",
+        "metric": "disk_used",
+        "timestamp": 1793931469,
+        "type": "gauge",
+        "value": 9884658904354
+      },
+      {
+        "id": "storage/jupiter-nas/local",
+        "metric": "disk_total",
+        "timestamp": 1793931469,
+        "type": "gauge",
+        "value": 100861726720
+      },
+      {
+        "id": "storage/jupiter-nas/local",
+        "metric": "disk_used",
+        "timestamp": 1793931469,
+        "type": "gauge",
+        "value": 20881846272
       },
       {
         "id": "node/jupiter-nas",
         "metric": "uptime",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 7547846
+        "value": 10402480
       },
       {
         "id": "node/jupiter-nas",
         "metric": "net_in",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 53712938874
+        "value": 69692239711
       },
       {
         "id": "node/jupiter-nas",
         "metric": "net_out",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 220918608356
+        "value": 242235978937
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg1",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 0.5
+        "value": 0.85
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg5",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 0.37
+        "value": 0.75
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_avg15",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 0.34
+        "value": 0.82
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_max",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 8
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_current",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 0.0430492167262859
+        "value": 0.106136820925553
       },
       {
         "id": "node/jupiter-nas",
         "metric": "cpu_iowait",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 0.000493400764771185
+        "value": 0.000377263581488934
       },
       {
         "id": "node/jupiter-nas",
         "metric": "mem_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 33536110592
       },
       {
         "id": "node/jupiter-nas",
         "metric": "mem_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 31970164736
+        "value": 31867666432
       },
       {
         "id": "node/jupiter-nas",
         "metric": "swap_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 8589930496
       },
       {
         "id": "node/jupiter-nas",
         "metric": "swap_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 486801408
+        "value": 935591936
       },
       {
         "id": "node/jupiter-nas",
         "metric": "disk_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 100861726720
       },
       {
         "id": "node/jupiter-nas",
         "metric": "disk_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 16591192064
+        "value": 20881846272
       },
       {
         "id": "qemu/101",
         "metric": "cpu_current",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 0
+        "value": 0.10815996208604
       },
       {
         "id": "qemu/101",
         "metric": "mem_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 21108531200
+        "value": 22661632000
       },
       {
         "id": "qemu/101",
         "metric": "disk_read",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 19285005252
+        "value": 28176359190
       },
       {
         "id": "qemu/101",
         "metric": "disk_write",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 242314964480
+        "value": 284546238976
       },
       {
         "id": "qemu/101",
         "metric": "net_in",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 40407093609
+        "value": 52972767124
       },
       {
         "id": "qemu/101",
         "metric": "net_out",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 212960471396
+        "value": 233409007359
       },
       {
         "id": "qemu/101",
         "metric": "uptime",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 6492508
+        "value": 9347143
       },
       {
         "id": "qemu/101",
         "metric": "cpu_max",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 6
       },
       {
         "id": "qemu/101",
         "metric": "mem_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 25769803776
       },
       {
         "id": "qemu/101",
         "metric": "disk_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 386010185728
       },
       {
         "id": "lxc/100",
         "metric": "cpu_current",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 0.000689547422595234
+        "value": 0.000711713522747074
       },
       {
         "id": "lxc/100",
         "metric": "mem_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 80031744
+        "value": 69664768
       },
       {
         "id": "lxc/100",
         "metric": "disk_read",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 4342448128
+        "value": 9822744576
       },
       {
         "id": "lxc/100",
         "metric": "disk_write",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 4113391616
+        "value": 5969600512
       },
       {
         "id": "lxc/100",
         "metric": "net_in",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 26724978441
+        "value": 35338451877
       },
       {
         "id": "lxc/100",
         "metric": "net_out",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "derive",
-        "value": 911647183
+        "value": 4110214651
       },
       {
         "id": "lxc/100",
         "metric": "disk_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 2996137984
+        "value": 3019706368
       },
       {
         "id": "lxc/100",
         "metric": "uptime",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 6492515
+        "value": 9347150
       },
       {
         "id": "lxc/100",
         "metric": "cpu_max",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 4
       },
       {
         "id": "lxc/100",
         "metric": "mem_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 8489271296
       },
       {
         "id": "lxc/100",
         "metric": "disk_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 67049664512
       },
       {
-        "id": "storage/jupiter-nas/vm-101",
-        "metric": "disk_total",
-        "timestamp": 1791076844,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/vm-101",
-        "metric": "disk_used",
-        "timestamp": 1791076844,
-        "type": "gauge",
-        "value": 9882232708450
-      },
-      {
-        "id": "storage/jupiter-nas/store-4",
-        "metric": "disk_total",
-        "timestamp": 1791076844,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/store-4",
-        "metric": "disk_used",
-        "timestamp": 1791076844,
-        "type": "gauge",
-        "value": 9882232708450
-      },
-      {
         "id": "storage/jupiter-nas/local-lvm",
         "metric": "disk_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 852878163968
       },
       {
         "id": "storage/jupiter-nas/local-lvm",
         "metric": "disk_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 229850665189
+        "value": 237355993032
+      },
+      {
+        "id": "storage/jupiter-nas/vm-101",
+        "metric": "disk_total",
+        "timestamp": 1793931479,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/vm-101",
+        "metric": "disk_used",
+        "timestamp": 1793931479,
+        "type": "gauge",
+        "value": 9884658904354
+      },
+      {
+        "id": "storage/jupiter-nas/store-3",
+        "metric": "disk_total",
+        "timestamp": 1793931479,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/store-3",
+        "metric": "disk_used",
+        "timestamp": 1793931479,
+        "type": "gauge",
+        "value": 9884658904354
+      },
+      {
+        "id": "storage/jupiter-nas/store-4",
+        "metric": "disk_total",
+        "timestamp": 1793931479,
+        "type": "gauge",
+        "value": 23115781138048
+      },
+      {
+        "id": "storage/jupiter-nas/store-4",
+        "metric": "disk_used",
+        "timestamp": 1793931479,
+        "type": "gauge",
+        "value": 9884658904354
       },
       {
         "id": "storage/jupiter-nas/local",
         "metric": "disk_total",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
         "value": 100861726720
       },
       {
         "id": "storage/jupiter-nas/local",
         "metric": "disk_used",
-        "timestamp": 1791076844,
+        "timestamp": 1793931479,
         "type": "gauge",
-        "value": 16591192064
-      },
-      {
-        "id": "storage/jupiter-nas/store-3",
-        "metric": "disk_total",
-        "timestamp": 1791076844,
-        "type": "gauge",
-        "value": 23115780995200
-      },
-      {
-        "id": "storage/jupiter-nas/store-3",
-        "metric": "disk_used",
-        "timestamp": 1791076844,
-        "type": "gauge",
-        "value": 9882232708450
+        "value": 20881846272
       }
     ]
   }

@@ -1,7 +1,7 @@
 {
   "data": [
     {
-      "by_id_link": "/dev/disk/by-id/nvme-Netac_NVMe_SSD_1TB_FAKESERIAL0012_1",
+      "by_id_link": "/dev/disk/by-id/nvme-Netac_NVMe_SSD_1TB_FAKESERIAL0012",
       "devpath": "/dev/nvme0n1",
       "gpt": 1,
       "health": "PASSED",

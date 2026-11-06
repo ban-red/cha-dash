@@ -285,7 +285,7 @@ func TestTestReadsGrants(t *testing.T) {
 		version string
 		privs   int
 	}{
-		"pluto": {"9.0.9", 7}, "minig5": {"8.4.19", 6}, "mars": {"9.1.5", 7}, "io": {"9.2.20", 7}, "jupiter-nas": {"8.4.21", 6},
+		"pluto": {"9.0.9", 7}, "minig5": {"8.4.19", 6}, "mars": {"9.1.5", 7}, "io": {"9.2.20", 7}, "jupiter-nas": {"9.2.21", 7}, "jupiter-nas-84": {"8.4.21", 6},
 	} {
 		t.Run(inst, func(t *testing.T) {
 			srv, _, in := connect(t, inst)
@@ -607,9 +607,10 @@ func TestPassthroughConflict(t *testing.T) {
 }
 
 // TestInternalError: jupiter-nas VM 101 is in internal-error, holding most
-// of the host's memory; nothing on the host is backed up.
+// of the host's memory; nothing on the host is backed up. Recorded on PVE
+// 8.4 (jupiter-nas-84); the host runs 9.2 now, with VM 101 well again.
 func TestInternalError(t *testing.T) {
-	srv, h, in := connect(t, "jupiter-nas")
+	srv, h, in := connect(t, "jupiter-nas-84")
 	syncOK(t, in, integrationtest.Watched)
 	if u := srv.unknownPaths(); len(u) > 0 {
 		t.Fatalf("asked for uncaptured paths: %v", u)

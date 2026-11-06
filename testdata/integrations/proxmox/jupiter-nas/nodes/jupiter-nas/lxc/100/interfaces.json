@@ -20,8 +20,8 @@
       "name": "lo"
     },
     {
-      "hardware-address": "BC:24:11:00:00:42",
-      "hwaddr": "BC:24:11:00:00:42",
+      "hardware-address": "BC:24:11:00:00:58",
+      "hwaddr": "BC:24:11:00:00:58",
       "inet": "10.0.11.198/24",
       "ip-addresses": [
         {
@@ -33,8 +33,8 @@
       "name": "eth0"
     },
     {
-      "hardware-address": "BC:24:11:00:00:43",
-      "hwaddr": "BC:24:11:00:00:43",
+      "hardware-address": "BC:24:11:00:00:59",
+      "hwaddr": "BC:24:11:00:00:59",
       "inet": "172.18.0.1/16",
       "ip-addresses": [
         {
@@ -46,8 +46,8 @@
       "name": "br-12e3b37216ac"
     },
     {
-      "hardware-address": "BC:24:11:00:00:44",
-      "hwaddr": "BC:24:11:00:00:44",
+      "hardware-address": "BC:24:11:00:00:5A",
+      "hwaddr": "BC:24:11:00:00:5A",
       "inet": "172.17.0.1/16",
       "ip-addresses": [
         {
@@ -59,8 +59,8 @@
       "name": "docker0"
     },
     {
-      "hardware-address": "BC:24:11:00:00:45",
-      "hwaddr": "BC:24:11:00:00:45",
+      "hardware-address": "BC:24:11:00:00:5B",
+      "hwaddr": "BC:24:11:00:00:5B",
       "ip-addresses": [],
       "name": "vethfcdf380"
     }

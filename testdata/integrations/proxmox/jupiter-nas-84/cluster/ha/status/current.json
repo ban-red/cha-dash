@@ -1,0 +1,11 @@
+{
+  "data": [
+    {
+      "id": "quorum",
+      "node": "jupiter-nas",
+      "quorate": 1,
+      "status": "OK",
+      "type": "quorum"
+    }
+  ]
+}

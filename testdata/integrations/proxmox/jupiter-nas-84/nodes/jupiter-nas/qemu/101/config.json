@@ -1,0 +1,33 @@
+{
+  "data": {
+    "agent": "1",
+    "bios": "ovmf",
+    "boot": "order=scsi0;ide2",
+    "cipassword": "**********",
+    "ciuser": "user-1",
+    "cores": 6,
+    "cpu": "host,flags=+aes",
+    "digest": "7685a76524eb1236e8ec223a7dabe4db896798e5",
+    "efidisk0": "vm-101:vm-101-disk-0,size=4M",
+    "hostpci0": "0000:00:02,x-vga=1",
+    "ide2": "vm-101:vm-101-cloudinit,media=cdrom",
+    "ipconfig0": "ip=dhcp",
+    "localtime": 1,
+    "machine": "q35",
+    "memory": "24576",
+    "meta": "creation-qemu=8.1.5,ctime=1714943124",
+    "name": "vm-101",
+    "net0": "virtio=BC:24:11:00:00:46,bridge=vmbr0,queues=6",
+    "numa": 0,
+    "ostype": "l26",
+    "scsi0": "local-lvm:vm-101-disk-0,discard=on,size=368128M",
+    "scsihw": "virtio-scsi-pci",
+    "serial0": "socket",
+    "smbios1": "uuid=00000000-0000-4000-8000-000000000018",
+    "sockets": 1,
+    "tablet": 0,
+    "tags": "tag-1",
+    "unused0": "vm-101:vm-101-disk-1",
+    "vmgenid": "00000000-0000-4000-8000-000000000019"
+  }
+}

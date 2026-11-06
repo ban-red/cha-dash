@@ -1,0 +1,64 @@
+{
+  "data": [
+    {
+      "active": 1,
+      "avail": 13233548286750,
+      "content": "images,rootdir",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "store-3",
+      "total": 23115780995200,
+      "type": "zfspool",
+      "used": 9882232708450,
+      "used_fraction": 0.427510223881341
+    },
+    {
+      "active": 1,
+      "avail": 13233548286750,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "vm-101",
+      "total": 23115780995200,
+      "type": "zfspool",
+      "used": 9882232708450,
+      "used_fraction": 0.427510223881341
+    },
+    {
+      "active": 1,
+      "avail": 13233548286750,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "store-4",
+      "total": 23115780995200,
+      "type": "zfspool",
+      "used": 9882232708450,
+      "used_fraction": 0.427510223881341
+    },
+    {
+      "active": 1,
+      "avail": 79099736064,
+      "content": "vztmpl,backup,iso",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local",
+      "total": 100861726720,
+      "type": "dir",
+      "used": 16591253504,
+      "used_fraction": 0.16449503735008
+    },
+    {
+      "active": 1,
+      "avail": 623027498779,
+      "content": "rootdir,images",
+      "enabled": 1,
+      "shared": 0,
+      "storage": "local-lvm",
+      "total": 852878163968,
+      "type": "lvmthin",
+      "used": 229850665189,
+      "used_fraction": 0.269499999999559
+    }
+  ]
+}

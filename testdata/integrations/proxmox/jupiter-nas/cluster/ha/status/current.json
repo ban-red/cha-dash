@@ -6,6 +6,13 @@
       "quorate": 1,
       "status": "OK",
       "type": "quorum"
+    },
+    {
+      "armed-state": "standby",
+      "id": "fencing",
+      "node": "jupiter-nas",
+      "status": "standby (CRM watchdog standby)",
+      "type": "fencing"
     }
   ]
 }

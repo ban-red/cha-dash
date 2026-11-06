@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "name": "jupiter-nas-debian",
+      "type": "lxc",
+      "vmid": 100
+    },
+    {
+      "name": "vm-101",
+      "type": "qemu",
+      "vmid": 101
+    }
+  ]
+}

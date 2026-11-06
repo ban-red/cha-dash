@@ -142,7 +142,7 @@ func ask(t *testing.T, c *Capture, base string, paths []string) {
 // Each recording, asked again through the capture, matches itself: the
 // comparison finds no drift where there is none.
 func TestARecordingMatchesItself(t *testing.T) {
-	for _, name := range []string{"pluto", "minig5", "mars", "io", "jupiter-nas"} {
+	for _, name := range []string{"pluto", "minig5", "mars", "io", "jupiter-nas", "jupiter-nas-84"} {
 		rec, err := loadPVE(fixtures, name)
 		if err != nil {
 			t.Fatal(err)
@@ -158,8 +158,8 @@ func TestARecordingMatchesItself(t *testing.T) {
 	if rec, err := loadDocker(fixtures, "jupiter"); err != nil || rec.Routes["/containers/{}/json"] == nil || rec.Version == "" {
 		t.Fatalf("docker/jupiter: %v %+v", err, rec.Version)
 	}
-	if rec, _ := loadPVE(fixtures, "jupiter-nas"); rec.Version != "8.4.21" {
-		t.Errorf("jupiter-nas was recorded on %q", rec.Version)
+	if rec, _ := loadPVE(fixtures, "jupiter-nas-84"); rec.Version != "8.4.21" {
+		t.Errorf("jupiter-nas-84 was recorded on %q", rec.Version)
 	}
 }
 

@@ -7,12 +7,14 @@
     "cpuinfo": {
       "cores": 4,
       "cpus": 8,
+      "family": "6",
       "flags": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault pti ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp vnmi ibpb_exit_to_user",
       "hvm": "1",
-      "mhz": "800.000",
+      "mhz": "3999.967",
       "model": "Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz",
       "sockets": 1,
-      "user_hz": 100
+      "user_hz": 100,
+      "vendor": "GenuineIntel"
     },
     "current-kernel": {
       "machine": "x86_64",
@@ -22,32 +24,33 @@
     },
     "idle": 0,
     "ksm": {
-      "shared": 2220032
+      "shared": 0
     },
     "kversion": "Linux 6.8.12-19-pve #1 SMP PREEMPT_DYNAMIC PMX 6.8.12-19 (2026-02-14T15:58Z)",
     "loadavg": [
-      "0.28",
-      "0.27",
-      "0.30"
+      "1.26",
+      "0.94",
+      "0.86"
     ],
     "memory": {
-      "free": 1002999808,
+      "available": 1489854464,
+      "free": 1273532416,
       "total": 33536110592,
-      "used": 31973720064
+      "used": 32046256128
     },
-    "pveversion": "pve-manager/8.4.21/2606ac850d46da29",
+    "pveversion": "pve-manager/9.2.21/4f6e0ac86f9e8c7f",
     "rootfs": {
-      "avail": 79099736064,
-      "free": 84270473216,
+      "avail": 74809143296,
+      "free": 79979880448,
       "total": 100861726720,
-      "used": 16591253504
+      "used": 20881846272
     },
     "swap": {
-      "free": 8104439808,
+      "free": 7654338560,
       "total": 8589930496,
-      "used": 485490688
+      "used": 935591936
     },
-    "uptime": 7548422,
+    "uptime": 10403062,
     "wait": 0
   }
 }

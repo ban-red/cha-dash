@@ -71,12 +71,18 @@ type TLSReport struct {
 	RootCAValidYears int    `json:"root_ca_valid_years,omitempty"`
 }
 
-func sanitizeAll(ins []Instance, rawDir, outDir string) error {
+// sanitizeAll writes every instance's fixtures, or with only just that one's.
+// The mapper always learns from every instance's capture, so the fakes in
+// one instance's fixtures match the others'.
+func sanitizeAll(ins []Instance, rawDir, outDir, only string) error {
 	m, err := buildMapper(ins, rawDir)
 	if err != nil {
 		return err
 	}
 	for _, in := range ins {
+		if only != "" && in.Name != only {
+			continue
+		}
 		if err := sanitizeInstance(m, in, rawDir, outDir); err != nil {
 			return fmt.Errorf("%s: %w", in.Name, err)
 		}

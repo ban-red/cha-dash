@@ -17,17 +17,17 @@
     "memory": "24576",
     "meta": "creation-qemu=8.1.5,ctime=1714943124",
     "name": "vm-101",
-    "net0": "virtio=BC:24:11:00:00:46,bridge=vmbr0,queues=6",
+    "net0": "virtio=BC:24:11:00:00:5C,bridge=vmbr0,queues=6",
     "numa": 0,
     "ostype": "l26",
     "scsi0": "local-lvm:vm-101-disk-0,discard=on,size=368128M",
     "scsihw": "virtio-scsi-pci",
     "serial0": "socket",
-    "smbios1": "uuid=00000000-0000-4000-8000-000000000018",
+    "smbios1": "uuid=00000000-0000-4000-8000-000000000019",
     "sockets": 1,
     "tablet": 0,
     "tags": "tag-1",
     "unused0": "vm-101:vm-101-disk-1",
-    "vmgenid": "00000000-0000-4000-8000-000000000019"
+    "vmgenid": "00000000-0000-4000-8000-000000000020"
   }
 }

@@ -1,6 +1,6 @@
 # Proxmox VE fixtures: dogfood lab
 
-Recorded responses from the owner's five PVE endpoints (six nodes, one of them a 2-node cluster), captured read-only on 2026-10-03 by [spike 4.1](../../../spikes/pve/README.md). They seed the v0.1 Proxmox integration's contract tests. Every request was a `GET` with a privilege-separated `PVEAuditor` token.
+Recorded responses from the owner's five PVE endpoints (six nodes, one of them a 2-node cluster), captured read-only on 2026-10-03 by [spike 4.1](../../../spikes/pve/README.md); `jupiter-nas` again on 2026-11-06. They seed the v0.1 Proxmox integration's contract tests. Every request was a `GET` with a privilege-separated `PVEAuditor` token.
 
 The fixtures are sanitized (scheme below). A leak check scanned them for every real value seen during capture and found none.
 
@@ -36,7 +36,8 @@ The fixtures are sanitized (scheme below). A leak check scanned them for every r
 | `minig5` | 8.4.19 | standalone | `haos` VM · 1 LXC (Docker inside) | **PVE 8 shapes**: no `memhost`, no `memory.available`, a 70-point day RRD, `sdn` resources. The guest agent returns **403** (`VM.Monitor`). Weekly backup only, the LXC isn't covered. `apt-get update` fails. The URL host isn't in the certificate's SAN |
 | `mars` | 9.1.5 | **cluster** `mars`: `mars-1`, `mars-2` | `pvedocker` LXC (**HA-managed**, rootfs on Ceph RBD) · `chadash-sandbox` LXC | One endpoint lists both nodes. Shared Ceph storage (`rbd`, `cephfs`) appears once per node. `/cluster/config/join` has both nodes' cert fingerprints. HA status (quorum, master, LRMs, `ct:101`). `network` resources (9.1+) instead of `sdn` |
 | `io` | 9.2.20 | standalone | Windows VM (GPU) · Linux VM (GPU, stopped) · `iolinux` VM (running) | **The nightly job fails every night**: VM 100 and VM 200 share GPU `0000:01:00`. The job writes to `local`, the node's own disk. VM 101 isn't in any job. `mem` > `maxmem` for `iolinux`. Whole NVMe disks passed through by `/dev/disk/by-id` |
-| `jupiter-nas` | 8.4.21 | standalone | Debian LXC · VM 101 in **`internal-error`** | VM 101 holds 21 GB of the host's 33.5 GB, which explains the host's 95% memory. `qmreboot` timed out, then `qmreset`. **No backup job at all**: both guests are in `not-backed-up` |
+| `jupiter-nas` | 9.2.21 | standalone | Debian LXC · VM 101 (running) | Re-recorded on 2026-11-06 after the host's upgrade from 8.4, which `live:verify` found: `network` resources instead of `sdn`, `memhost`, the guest agent readable. Still **no backup job**: both guests are in `not-backed-up`. The 8.4 recording stays as `jupiter-nas-84` |
+| `jupiter-nas-84` | 8.4.21 | standalone | Debian LXC · VM 101 in **`internal-error`** | VM 101 holds 21 GB of the host's 33.5 GB, which explains the host's 95% memory. `qmreboot` timed out, then `qmreset`. **No backup job at all**: both guests are in `not-backed-up` |
 
 ## What each fixture shows
 
@@ -113,3 +114,13 @@ go test ./...                                   # generic leak patterns; no lab 
 CI only tests the root module. The generic leak test (`TestFixturesHaveNoGenericLeaks`) should move into the v0.1 integration's tests, so that every fixture change is checked.
 
 The re-sanitized output is deterministic for the same captures.
+
+**One instance again** (when `bun run live:verify` finds it drifted): capture every instance, so the fakes are assigned as before, then write only that one, to a scratch folder first. Sanitizing writes over an instance's whole folder.
+
+```sh
+go run . -env ../../.env.local -tofu capture
+go run . -env ../../.env.local -only jupiter-nas -out /tmp/pve-out sanitize
+go run . -env ../../.env.local -out /tmp/pve-out leakcheck
+```
+
+Keep the old folder under another name (`jupiter-nas-84`) when a test needs the state it recorded. The leak check also scans the spike's own source, where the fake IPv6 scheme shares Proxmox's MAC prefix (`be24:11ff`) with real link-local addresses; that match isn't a leak.

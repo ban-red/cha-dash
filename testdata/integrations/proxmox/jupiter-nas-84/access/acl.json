@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "path": "/",
+      "propagate": 1,
+      "roleid": "PVEAuditor",
+      "type": "group",
+      "ugid": "api-ro-users"
+    },
+    {
+      "path": "/",
+      "propagate": 1,
+      "roleid": "PVEAuditor",
+      "type": "token",
+      "ugid": "api@pam!chadash"
+    }
+  ]
+}

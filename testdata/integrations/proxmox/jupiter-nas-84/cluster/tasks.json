@@ -1,0 +1,279 @@
+{
+  "data": [
+    {
+      "endtime": 1791013493,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1791013491,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0019F337:2C9C6DF6:6AC0B273:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790934354,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790934351,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0015E6BD:2C23AC09:6ABF7D4F:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790853831,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790853829,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0011C7DB:2BA8CE13:6ABE42C5:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790752429,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790752426,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:000C982B:2B0E1399:6ABCB6AA:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790683074,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790683071,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:00090B70:2AA43FC7:6ABBA7BF:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790584554,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790584552,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0004019C:2A0DEB9E:6ABA26E8:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790496534,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790496531,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:003F7F3D:29879CC0:6AB8CF13:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790411892,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790411889,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:003B2B46:29067553:6AB78471:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790332073,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790332071,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:003715AC:288CAA54:6AB64CA7:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790236254,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790236251,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:00322EFF:27FA74E5:6AB4D65B:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790148372,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790148369,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:002DAFFE:27745BE1:6AB37F11:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1790064853,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1790064850,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:00296A2F:26F4EB14:6AB238D2:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789979593,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789979590,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:00250567:2672D279:6AB0EBC6:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789893534,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789893531,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0020910A:25EF81C8:6AAF9B9B:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789817053,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789817049,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:001C962C:257ACE1B:6AAE70D9:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789720494,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789720491,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:001795B9:24E777F5:6AACF7AB:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789632432,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789632430,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0013128F:24611908:6AAB9FAE:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789557654,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789557651,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:000F38C3:23EEFE9F:6AAA7B93:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789466034,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789466031,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:000A7DE8:236331B6:6AA915AF:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789379814,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789379811,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:00060AA4:22DFA1EB:6AA7C4E3:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789297074,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789297071,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0001A887:22616184:6AA681AF:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789207074,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789207071,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:003CDB74:21D80D4E:6AA5221F:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789119593,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789119591,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:00385728:21529154:6AA3CC67:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1789032433,
+      "id": "",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1789032430,
+      "status": "OK",
+      "type": "aptupdate",
+      "upid": "UPID:jupiter-nas:0033D7B9:20CD9226:6AA277EE:aptupdate::root@pam:",
+      "user": "root@pam"
+    },
+    {
+      "endtime": 1788973811,
+      "id": "101",
+      "node": "jupiter-nas",
+      "saved": "1",
+      "starttime": 1788973811,
+      "status": "OK",
+      "type": "qmreset",
+      "upid": "UPID:jupiter-nas:002FEFAC:2074200E:6AA192F3:qmreset:101:root@pam:",
+      "user": "root@pam"
+    }
+  ]
+}

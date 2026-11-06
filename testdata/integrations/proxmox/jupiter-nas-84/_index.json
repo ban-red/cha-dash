@@ -1,0 +1,351 @@
+{
+  "instance": "jupiter-nas",
+  "captured_at": "2026-10-04T01:30Z",
+  "wall_ms": 14374.8,
+  "dropped_keys": {
+    "description": 2,
+    "lxc": 1,
+    "pem": 2
+  },
+  "requests": [
+    {
+      "path": "/version",
+      "file": "version.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 96.2,
+      "bytes": 73,
+      "wire_bytes": 73
+    },
+    {
+      "path": "/cluster/status",
+      "file": "cluster/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 164.5,
+      "bytes": 136,
+      "wire_bytes": 136
+    },
+    {
+      "path": "/nodes",
+      "file": "nodes.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 30.8,
+      "bytes": 350,
+      "wire_bytes": 350
+    },
+    {
+      "path": "/cluster/resources",
+      "file": "cluster/resources.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 16.3,
+      "bytes": 2203,
+      "wire_bytes": 768,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/tasks",
+      "file": "cluster/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 6.2,
+      "bytes": 5312,
+      "wire_bytes": 997,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/backup",
+      "file": "cluster/backup.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 6.5,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/cluster/backup-info/not-backed-up",
+      "file": "cluster/backup-info/not-backed-up.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 123.2,
+      "bytes": 110,
+      "wire_bytes": 110
+    },
+    {
+      "path": "/cluster/ha/status/current",
+      "file": "cluster/ha/status/current.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 34.8,
+      "bytes": 89,
+      "wire_bytes": 89
+    },
+    {
+      "path": "/cluster/config/join",
+      "file": "cluster/config/join.json",
+      "status": 424,
+      "reason": "node is not in a cluster, no join info available!",
+      "ms": 18.8,
+      "bytes": 75,
+      "wire_bytes": 75
+    },
+    {
+      "path": "/cluster/metrics/export",
+      "file": "cluster/metrics/export.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 60.6,
+      "bytes": 4755,
+      "wire_bytes": 822,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/cluster/metrics/export?history=1\u0026start-time=1791076816",
+      "file": "cluster/metrics/export.history-10m.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 105.4,
+      "bytes": 284763,
+      "wire_bytes": 21530,
+      "encoding": "gzip",
+      "trimmed": "kept the first 3 of 60 timestamps: 2760 → 138 points"
+    },
+    {
+      "path": "/pools",
+      "file": "pools.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 9.7,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/storage",
+      "file": "storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 13.9,
+      "bytes": 829,
+      "wire_bytes": 829
+    },
+    {
+      "path": "/access/permissions",
+      "file": "access/permissions.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 13.3,
+      "bytes": 851,
+      "wire_bytes": 851
+    },
+    {
+      "path": "/access/permissions?userid=api@pam",
+      "file": "access/permissions.owner.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 13.1,
+      "bytes": 851,
+      "wire_bytes": 851
+    },
+    {
+      "path": "/access/users/api@pam/token/chadash",
+      "file": "access/token.json",
+      "status": 403,
+      "reason": "Permission check failed",
+      "ms": 12.6,
+      "bytes": 51,
+      "wire_bytes": 51
+    },
+    {
+      "path": "/access/users/api@pam",
+      "file": "access/user.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 13.6,
+      "bytes": 105,
+      "wire_bytes": 105
+    },
+    {
+      "path": "/access/roles",
+      "file": "access/roles.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 5.8,
+      "bytes": 2710,
+      "wire_bytes": 553,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/access/acl",
+      "file": "access/acl.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 5.1,
+      "bytes": 186,
+      "wire_bytes": 186
+    },
+    {
+      "path": "/nodes/jupiter-nas/status",
+      "file": "nodes/jupiter-nas/status.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 21.7,
+      "bytes": 1521,
+      "wire_bytes": 951,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/tasks?limit=50\u0026source=all",
+      "file": "nodes/jupiter-nas/tasks.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 54.3,
+      "bytes": 11730,
+      "wire_bytes": 2496,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/storage",
+      "file": "nodes/jupiter-nas/storage.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 190.3,
+      "bytes": 1012,
+      "wire_bytes": 1012
+    },
+    {
+      "path": "/nodes/jupiter-nas/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/jupiter-nas/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 28.8,
+      "bytes": 20420,
+      "wire_bytes": 4048,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/rrddata?timeframe=day\u0026cf=AVERAGE",
+      "file": "nodes/jupiter-nas/rrddata.day.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 37.9,
+      "bytes": 21505,
+      "wire_bytes": 4708,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/disks/list",
+      "file": "nodes/jupiter-nas/disks/list.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 3703.5,
+      "bytes": 1628,
+      "wire_bytes": 559,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/apt/update",
+      "file": "nodes/jupiter-nas/apt/update.json",
+      "status": 403,
+      "reason": "Permission check failed (/nodes/jupiter-nas, Sys.Modify)",
+      "ms": 12.8,
+      "bytes": 84,
+      "wire_bytes": 84
+    },
+    {
+      "path": "/nodes/jupiter-nas/certificates/info",
+      "file": "nodes/jupiter-nas/certificates/info.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 32.8,
+      "bytes": 4987,
+      "wire_bytes": 3248,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/storage/local/content",
+      "file": "nodes/jupiter-nas/storage/local/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 45.7,
+      "bytes": 146,
+      "wire_bytes": 146
+    },
+    {
+      "path": "/nodes/jupiter-nas/storage/store-3/content",
+      "file": "nodes/jupiter-nas/storage/store-3/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 183.4,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/jupiter-nas/storage/local-lvm/content",
+      "file": "nodes/jupiter-nas/storage/local-lvm/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 226.2,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/jupiter-nas/storage/store-4/content",
+      "file": "nodes/jupiter-nas/storage/store-4/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 47.8,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/jupiter-nas/storage/vm-101/content",
+      "file": "nodes/jupiter-nas/storage/vm-101/content.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 51.7,
+      "bytes": 11,
+      "wire_bytes": 11
+    },
+    {
+      "path": "/nodes/jupiter-nas/lxc/100/config",
+      "file": "nodes/jupiter-nas/lxc/100/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 16.4,
+      "bytes": 1460,
+      "wire_bytes": 716,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/lxc/100/interfaces",
+      "file": "nodes/jupiter-nas/lxc/100/interfaces.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 64,
+      "bytes": 979,
+      "wire_bytes": 979
+    },
+    {
+      "path": "/nodes/jupiter-nas/lxc/100/rrddata?timeframe=hour\u0026cf=AVERAGE",
+      "file": "nodes/jupiter-nas/lxc/100/rrddata.hour.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 51.5,
+      "bytes": 14269,
+      "wire_bytes": 2422,
+      "encoding": "gzip"
+    },
+    {
+      "path": "/nodes/jupiter-nas/qemu/101/config",
+      "file": "nodes/jupiter-nas/qemu/101/config.json",
+      "status": 200,
+      "reason": "OK",
+      "ms": 29.6,
+      "bytes": 1150,
+      "wire_bytes": 736,
+      "encoding": "gzip"
+    }
+  ]
+}

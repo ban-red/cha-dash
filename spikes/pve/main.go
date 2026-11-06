@@ -40,7 +40,7 @@ func main() {
 	tofu := flag.Bool("tofu", false, "trust an instance's certificate on first use when no pin exists yet")
 	delay := flag.Duration("delay", 250*time.Millisecond, "minimum gap between requests to one instance")
 	timeout := flag.Duration("timeout", 15*time.Second, "per-request timeout")
-	only := flag.String("only", "", "capture just this instance")
+	only := flag.String("only", "", "capture or sanitize just this instance (sanitize still maps names from every capture)")
 	debug := flag.Bool("debug", false, "print each request (Authorization redacted)")
 	flag.Usage = func() { fmt.Fprint(os.Stderr, usage); flag.PrintDefaults() }
 	flag.Parse()
@@ -119,7 +119,7 @@ func main() {
 			fatal(err)
 		}
 	case "sanitize":
-		if err := sanitizeAll(needEnv(), *rawDir, *outDir); err != nil {
+		if err := sanitizeAll(needEnv(), *rawDir, *outDir, *only); err != nil {
 			fatal(err)
 		}
 	case "leakcheck":
