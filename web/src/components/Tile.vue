@@ -41,6 +41,7 @@ import { serviceIconUrl } from '../lib/serviceIcons';
 import { iconFor, iconMap, wantsIcon } from '../stores/icons';
 import { useUiIfAny } from '../stores/ui';
 import type { TileViews } from '../widgets/views';
+import { useLevel } from '../lib/level';
 
 export type TileStatus = 'ok' | 'attention' | 'down' | 'off' | 'maintenance' | 'repair' | 'unknown';
 
@@ -91,6 +92,9 @@ const emit = defineEmits<{ open: [] }>();
 const live = useLive();
 const tile = useTile();
 const ui = useUiIfAny();
+/** The level of detail the surface asks for (lib/level.ts): wall and ink tiles have no controls, so no view dots and no cog. */
+const level = useLevel();
+const controls = computed(() => level.value !== 'simplified' && level.value !== 'ink');
 
 /** A tile bound to an integration instance carries that instance's name, so renaming it in Settings renames the tile. */
 const boundName = computed(() => instanceName(tile.config.value?.bind?.instance));
@@ -110,7 +114,7 @@ const staleSince = computed(() => {
 });
 
 // Views: the dots, the swipe, and which way the new view slides in.
-const paging = computed(() => (views?.list.length ?? 0) > 1 && !loading);
+const paging = computed(() => (views?.list.length ?? 0) > 1 && !loading && controls.value);
 const viewIndex = computed(() => views?.list.findIndex((v) => v.id === views.current) ?? -1);
 const currentView = computed(() => (paging.value ? views?.list[viewIndex.value] : undefined));
 const slide = ref<'' | 'next' | 'prev'>('');
@@ -172,6 +176,7 @@ function onClickCapture(e: MouseEvent): void {
 const classes = computed(() => [
   'tile',
   `s-${size}`,
+  `lvl-${level.value}`,
   {
     'is-attn': status === 'attention',
     'is-down': status === 'down',
@@ -243,6 +248,7 @@ function onKey(e: KeyboardEvent) {
     :class="classes"
     :aria-label="label"
     :aria-busy="loading || undefined"
+    :data-level="level"
     :tabindex="clickable ? 0 : undefined"
     @click="onClick"
     @click.capture="onClickCapture"
@@ -269,7 +275,7 @@ function onKey(e: KeyboardEvent) {
         <span class="tgt">{{ tag }}</span>
       </span>
     </div>
-    <TileCog :name="shownName" />
+    <TileCog v-if="controls" :name="shownName" />
     <template v-if="loading">
       <span class="skel"></span>
       <span class="skel"></span>

@@ -285,7 +285,7 @@ const stamp = computed(() => (frozen.value ? `last frame ${hhmm(live.offlineAt.v
           </template>
         </component>
       </div>
-      <div v-if="controls.length" class="cam-ctl" role="group" :aria-label="`${label(main)} controls`">
+      <div v-if="controls.length" class="cam-ctl" data-control role="group" :aria-label="`${label(main)} controls`">
         <button
           v-for="x in controls"
           :key="x.key"

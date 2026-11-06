@@ -842,3 +842,80 @@ button.li:hover .t {
 :root[data-theme='paper'] .cam-cap {
   font: italic 400 13px/1.2 var(--font-head);
 }
+
+/* ───────────── Levels of detail (lib/level.ts) ─────────────
+   The surface picks the level; these rules make it from the parts every
+   widget is built of: .v the value, .sub and .kv the secondary facts, .tf
+   the foot, .list the rows. Controls a widget marks data-control, its
+   buttons (.btn) and its text buttons (.linkish) are controls. */
+
+/* Compact, the phone: the value, its context, one action. */
+.tile.lvl-compact .kv,
+.tile.lvl-compact .sub ~ .sub {
+  display: none;
+}
+.tile.lvl-compact .list > .li:nth-child(n + 4) {
+  display: none;
+}
+
+/* Simplified, a wall or a TV: bigger type, no controls, the one number. */
+.tile.lvl-simplified .th {
+  font-size: var(--type-body);
+}
+.tile.lvl-simplified .v {
+  font-size: var(--type-value-lg);
+}
+.tile.lvl-simplified .v.sm {
+  font-size: var(--type-value);
+}
+.tile.lvl-simplified .lab,
+.tile.lvl-simplified .sub {
+  font-size: var(--type-body);
+}
+.tile.lvl-simplified :is(.kv, .tf, .sub ~ .sub),
+.tile.lvl-simplified .list > .li:nth-child(n + 4) {
+  display: none;
+}
+:is(.tile.lvl-simplified, .tile.lvl-ink) :is([data-control], .btn, .linkish) {
+  display: none;
+}
+/* Nothing on a wall or on paper is pressed: rows read as text. */
+:is(.tile.lvl-simplified, .tile.lvl-ink) > :not(.th) {
+  pointer-events: none;
+}
+
+/* Ink, e-ink and print: one colour, no motion, absolute times (format.ts).
+   States keep their glyphs and words; the frame says which by its line. */
+.tile.lvl-ink {
+  filter: grayscale(1);
+  transition: none;
+  animation: none;
+}
+.tile.lvl-ink *,
+.tile.lvl-ink *::before,
+.tile.lvl-ink *::after {
+  transition: none !important;
+  animation: none !important;
+}
+.tile.lvl-ink.is-attn {
+  --tile-border-width: 2px;
+  --tile-border-color: var(--text-2);
+}
+.tile.lvl-ink.is-down {
+  --tile-border-width: 3px;
+  --tile-border-color: var(--text);
+}
+.tile.lvl-ink.is-stale {
+  border-style: dashed;
+}
+
+/* Printing a board is the ink level's look; its times stay as on screen. */
+@media print {
+  .tile {
+    filter: grayscale(1);
+    transition: none;
+  }
+  .tile :is([data-control], .btn, .linkish, .tile-views, .tile-cog) {
+    display: none;
+  }
+}

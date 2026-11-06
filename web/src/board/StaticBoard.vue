@@ -35,11 +35,14 @@ import {
 } from '@chadash/layout';
 import { useBreakpoint } from './useBreakpoint';
 import { isFresh } from '../import/fresh';
+import { provideLevel, type Level } from '../lib/level';
 
-const { board, breakpoint: forced } = defineProps<{
+const { board, breakpoint: forced, level } = defineProps<{
   board: Board;
   /** Pin a breakpoint (tests, previews). Otherwise it follows the board's width. */
   breakpoint?: Breakpoint | undefined;
+  /** The level of detail (lib/level.ts): a display's. Otherwise compact at the phone breakpoint, else full. */
+  level?: Level | undefined;
 }>();
 
 defineSlots<{
@@ -50,6 +53,7 @@ defineSlots<{
 const root = ref<HTMLElement | null>(null);
 const { breakpoint: measured } = useBreakpoint(root);
 const bp = computed<Breakpoint>(() => forced ?? measured.value);
+provideLevel(() => level ?? (bp.value === 'phone' ? 'compact' : 'full'));
 // Every section gets a header track: the app's section slot always draws one.
 const layout = computed(() => deriveLayout(board, bp.value, { headers: 'always' }));
 const columns = computed(() => BREAKPOINT_COLUMNS[bp.value]);

@@ -14,6 +14,7 @@
  * browser's real clock.
  */
 import { computed } from 'vue';
+import { useLevel } from '../lib/level';
 import type { SizeId } from '@chadash/layout';
 import { clockParts, getDisplayTimeZone, hhmm, longDate, monogram, shortDate } from '../lib/format';
 import { useLive } from '../stores/live';
@@ -75,15 +76,17 @@ const other = computed(() => {
 const tile = useTile();
 const name = computed(() => tile.config.value?.name ?? 'Clock');
 const label = computed(() => `${name.value}, ${time.value}, ${longDate(live.now.value)}${other.value ? `; ${other.value.city} ${other.value.t}` : ''}`);
+/** The surface's level of detail (lib/level.ts). */
+const level = useLevel();
 </script>
 
 <template>
-  <article :class="['tile', `s-${size}`, 'w-clockt']" :aria-label="label">
+  <article :class="['tile', `s-${size}`, `lvl-${level}`, 'w-clockt']" :data-level="level" :aria-label="label">
     <div v-if="!tile.config.value?.chromeless" class="th">
       <span class="mono" aria-hidden="true">{{ name === 'Clock' ? 'CL' : monogram(name) }}</span>
       <span class="tn">{{ name }}</span>
     </div>
-    <TileCog :name="name" />
+    <TileCog v-if="level !== 'simplified' && level !== 'ink'" :name="name" />
     <template v-if="size === 'glyph'">
       <time class="gv clock-face" :datetime="iso">{{ time }}</time>
       <div class="gl">{{ shortDate(live.now.value).split(' ')[0] }}</div>

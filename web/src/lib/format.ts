@@ -5,6 +5,7 @@
  * fake 0.
  */
 
+import { currentLevel } from './level';
 import { ref } from 'vue';
 
 export const UNKNOWN = '—';
@@ -140,11 +141,16 @@ export function duration(ms: number): string {
   return h % 24 ? `${d}d ${h % 24}h` : `${d}d`;
 }
 
-/** "4m ago", "just now", or the absolute time when it's more than a week. */
+/**
+ * "4m ago", "just now", or the absolute time when it's more than a week.
+ * At the ink level (lib/level.ts), which isn't redrawn as time passes, it's
+ * always absolute: "at 14:05", or "Sat 3 Oct" when not within the day.
+ */
 export function ago(v: string | number | Date | undefined, now: number): string {
   const d = toDate(v);
   if (!d) return UNKNOWN;
   const ms = now - d.getTime();
+  if (currentLevel() === 'ink') return Math.abs(ms) < 20 * 3_600_000 ? `at ${hhmm(d)}` : shortDate(d);
   if (ms < 45_000) return 'just now';
   if (ms > 7 * 86_400_000) return shortDate(d);
   return `${duration(ms).split(' ')[0]} ago`;

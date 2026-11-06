@@ -83,7 +83,7 @@ function reconnect(): void {
     <span class="w-note-body">
       <ClampText :text="text" :title="title" :glyph="line.glyph" :href="href" />
       <span v-if="'reconnect' in line && line.reconnect">
-        <button v-if="fixable" type="button" :title="demoFix ? 'Runs in the Demo Home' : undefined" @click.stop="reconnect">Reconnect</button>
+        <button v-if="fixable" type="button" data-control :title="demoFix ? 'Runs in the Demo Home' : undefined" @click.stop="reconnect">Reconnect</button>
         <template v-else>Ask an admin to reconnect it.</template>
       </span>
     </span>

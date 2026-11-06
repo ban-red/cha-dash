@@ -14,6 +14,7 @@ import type { SizeId } from '@chadash/layout';
 import WidgetHost from '../src/widgets/WidgetHost.vue';
 import { preloadWidgets } from '../src/widgets/registry';
 import { setDisplayTimeZone } from '../src/lib/format';
+import { LEVELS, provideLevel, type Level } from '../src/lib/level';
 import { itemId, WIDGETS } from '../src/model/widgets';
 import { axeViolations } from './axe';
 import { fakeFetch } from './fake-fetch';
@@ -30,10 +31,13 @@ const TARGETS: Record<string, string> = {
   storage: 'pve:owl/storage/local-lvm',
 };
 
-/** A tile in its page: always inside the front page's <main>. */
+/** A tile in its page: always inside the front page's <main>, at the level its surface gives (lib/level.ts; full by default). */
 export const InMain = defineComponent({
-  props: { item: { type: Object, required: true }, size: { type: String, required: true } },
-  setup: (props) => () => h('main', [h(WidgetHost, { item: props.item as { id: string; type: string }, size: props.size as SizeId })]),
+  props: { item: { type: Object, required: true }, size: { type: String, required: true }, level: { type: String, default: 'full' } },
+  setup: (props) => {
+    provideLevel(() => props.level as Level);
+    return () => h('main', [h(WidgetHost, { item: props.item as { id: string; type: string }, size: props.size as SizeId })]);
+  },
 });
 
 const EMPTY = { graph: { resources: {}, relations: {} }, metrics: { series: {} }, inbox: { now: withIncidents.now, incidents: {} } };
@@ -95,6 +99,41 @@ export function axeWidgets(n: number, of: number) {
         }
         expect(problems).toEqual([]);
       }, 30_000); // every size, state and widget runs axe: Panel and Column made that longer
+    }
+  });
+}
+
+/**
+ * Shard `n` of `of` of the levels sweep: every widget at the compact,
+ * simplified and ink levels, at its smallest and largest sizes, in each
+ * state. Full is the sweep above.
+ */
+export function axeLevels(n: number, of: number) {
+  describe('every widget passes axe at every level of detail', () => {
+    for (const [type, spec] of Object.entries(WIDGETS).filter((_, i) => i % of === n - 1)) {
+      it(type, async () => {
+        const problems: string[] = [];
+        const sizes = [...new Set([spec.sizes[0], spec.sizes[spec.sizes.length - 1]])] as SizeId[];
+        for (const level of LEVELS.filter((l) => l !== 'full')) {
+          for (const state of STATES) {
+            for (const size of sizes) {
+              const h = harness(state.data);
+              if (state.stale) h.ws.drop();
+              const target = spec.bound ? (TARGETS[type] ?? Object.keys(docs(withIncidents).graph.resources)[0]) : undefined;
+              const w = h.mountIn(InMain, { item: { id: itemId(type, target), type }, size, level });
+              await flushPromises();
+              await nextTick();
+              const tile = w.element.querySelector('.tile');
+              if (tile && !tile.classList.contains(`lvl-${level}`)) problems.push(`${level}, ${state.name}, ${size}: the tile isn't marked lvl-${level}`);
+              for (const v of await axeViolations(w.element.parentElement ?? document.body)) problems.push(`${level}, ${state.name}, ${size}: ${v}`);
+              w.unmount();
+              h.live.stop();
+              document.body.innerHTML = '';
+            }
+          }
+        }
+        expect(problems).toEqual([]);
+      }, 60_000);
     }
   });
 }
