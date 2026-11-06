@@ -9,6 +9,7 @@
 |---|---|---|
 | `0.3.0/` | v0.3.0 | 22 |
 | `0.4.0/` | v0.4.0 | 28 |
+| `0.5.0/` | v0.5.0 | 31 |
 
 Each folder holds:
 - `chadash.sql` and `history.sql`, the databases as `sqlite3 .dump` text. Text, not `.db` files, because the repo ignores `*.db` and `*.key` to keep real data directories out. The test rebuilds the databases from the dumps.

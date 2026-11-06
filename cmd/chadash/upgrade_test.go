@@ -70,7 +70,7 @@ func TestUpgradeFromReleasedVersions(t *testing.T) {
 	}
 	fresh.Close()
 
-	for _, version := range []string{"0.3.0", "0.4.0"} {
+	for _, version := range []string{"0.3.0", "0.4.0", "0.5.0"} {
 		t.Run(version, func(t *testing.T) {
 			dir := oldDataDir(t, version)
 			before := schemaVersion(t, filepath.Join(dir, "chadash.db"))
