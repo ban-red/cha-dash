@@ -1,0 +1,41 @@
+{
+	"response": {
+		"stats": {
+			"totalQueries": 48210,
+			"totalNoError": 39876,
+			"totalServerFailure": 212,
+			"totalNxDomain": 8098,
+			"totalRefused": 24,
+			"totalAuthoritative": 3120,
+			"totalRecursive": 15402,
+			"totalCached": 21655,
+			"totalBlocked": 8033,
+			"totalDropped": 0,
+			"totalClients": 23,
+			"zones": 12,
+			"cachedEntries": 18422,
+			"allowedZones": 6,
+			"blockedZones": 14,
+			"allowListZones": 0,
+			"blockListZones": 412870
+		},
+		"mainChartData": {
+			"labelFormat": "MM/DD HH:00",
+			"labels": ["2026-11-05T08:00:00.0000000Z", "2026-11-05T09:00:00.0000000Z"],
+			"datasets": [
+				{ "label": "Total", "backgroundColor": "rgba(102, 153, 255, 0.1)", "borderColor": "rgb(102, 153, 255)", "borderWidth": 2, "fill": true, "data": [2010, 1987] },
+				{ "label": "Blocked", "backgroundColor": "rgba(255, 165, 0, 0.1)", "borderColor": "rgb(255, 165, 0)", "borderWidth": 2, "fill": true, "data": [331, 340] }
+			]
+		},
+		"topClients": [
+			{ "name": "10.20.30.41", "domain": "laptop.home.example", "hits": 9120, "rateLimited": false }
+		],
+		"topDomains": [
+			{ "name": "time.home.example", "hits": 3210 }
+		],
+		"topBlockedDomains": [
+			{ "name": "ads.tracker.example", "hits": 1402 }
+		]
+	},
+	"status": "ok"
+}

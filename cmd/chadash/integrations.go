@@ -16,6 +16,7 @@ import (
 	_ "dash.cha.sh/integrations/lidarr"         // Lidarr: queue, wanted, calendar
 	_ "dash.cha.sh/integrations/nextcloud"      // Nextcloud: users, files, free space
 	_ "dash.cha.sh/integrations/npm"            // Nginx Proxy Manager: proxy hosts
+	_ "dash.cha.sh/integrations/nut"            // Network UPS Tools: UPS status and runtime over upsd's TCP protocol
 	_ "dash.cha.sh/integrations/nzbget"         // NZBGet: speed, queue
 	_ "dash.cha.sh/integrations/opnsense"       // OPNsense WAN traffic (counters + SSE)
 	_ "dash.cha.sh/integrations/pbs"            // Proxmox Backup Server
@@ -28,6 +29,7 @@ import (
 	_ "dash.cha.sh/integrations/sonarr"         // Sonarr: queue, wanted, calendar
 	_ "dash.cha.sh/integrations/traefik"        // Traefik routers, services and backends
 	_ "dash.cha.sh/integrations/transmission"   // Transmission: speeds, torrents
+	_ "dash.cha.sh/integrations/unifi"          // UniFi Network: devices, clients, WAN health (session login)
 	_ "dash.cha.sh/integrations/unraid"         // Unraid API (GraphQL)
 	_ "dash.cha.sh/integrations/uptimekuma"     // Uptime Kuma: a status page's monitors
 	_ "dash.cha.sh/integrations/weather"        // weather from Open-Meteo (keyless)

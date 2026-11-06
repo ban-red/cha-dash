@@ -1,0 +1,24 @@
+{
+	"response": {
+		"stats": {
+			"totalQueries": 1987,
+			"totalNoError": 1650,
+			"totalServerFailure": 9,
+			"totalNxDomain": 327,
+			"totalRefused": 1,
+			"totalAuthoritative": 130,
+			"totalRecursive": 640,
+			"totalCached": 890,
+			"totalBlocked": 340,
+			"totalDropped": 0,
+			"totalClients": 17,
+			"zones": 12,
+			"cachedEntries": 18422,
+			"allowedZones": 6,
+			"blockedZones": 14,
+			"allowListZones": 0,
+			"blockListZones": 412870
+		}
+	},
+	"status": "ok"
+}

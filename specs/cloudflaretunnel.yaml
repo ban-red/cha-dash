@@ -1,0 +1,111 @@
+# Cloudflare Tunnel: an account's tunnels (cloudflared) and the state of
+# their connections to Cloudflare's edge.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# test: cloudflaretunnel_test.go, against testdata/cloudflaretunnel/
+# (synthetic). Notes in recipes/cloudflaretunnel.md.
+#
+# The instance URL is Cloudflare's API, https://api.cloudflare.com/client/v4.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: cloudflaretunnel
+  name: Cloudflare Tunnel
+  icon: cloudflare
+  version: 0.1.0
+  tier: bronze
+  category: network
+  capabilities: [net.tunnel]
+
+config:
+  token: { type: secret, title: API token, required: true, description: "An account API token with only Cloudflare Tunnel Read (Cloudflare One Connector: cloudflared Read)" }
+  account_id: { type: string, title: Account ID, required: true, pattern: '^[0-9a-f]{32}$', description: "On the account's overview page in Cloudflare's dashboard, under API" }
+
+source:
+  headers:
+    Authorization: "Bearer {{ secret.token }}"
+  timeout: 15s
+
+every: 120s
+
+requests:
+  # Tunnels that aren't deleted, the first 50. Cloudflare works out each
+  # one's status from its connectors: healthy, degraded, down or inactive.
+  tunnels:
+    path: /accounts/{{ config.account_id }}/cfd_tunnel
+    query: { is_deleted: "false", per_page: "50" }
+    extract:
+      success: success
+      error: errors.0.message
+      list: result
+      total: result_info.total_count
+
+repairs:
+  # Cloudflare answers a bad token with a 403 (an auth Repair before this
+  # runs); this catches an error reported inside a 200.
+  - when: 'tunnels.success == false'
+    code: api_changed
+    message: '"Cloudflare answered with an error: " + string(tunnels.error ?? "no message")'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: |
+      len(filter(tunnels.list ?? [], {.status == "down"})) > 0 ? "attention" :
+        (len(filter(tunnels.list ?? [], {.status == "degraded"})) > 0 ? "attention" : "ok")
+    reason: |
+      let down = map(filter(tunnels.list ?? [], {.status == "down"}), {.name});
+      let degraded = map(filter(tunnels.list ?? [], {.status == "degraded"}), {.name});
+      join(filter([
+        len(down) == 0 ? "" : join(down, ", ") + (len(down) == 1 ? " is down" : " are down"),
+        len(degraded) == 0 ? "" : join(degraded, ", ") + (len(degraded) == 1 ? " is degraded" : " are degraded")
+      ], {# != ""}), "; ")
+    attrs:
+      type: '"cloudflaretunnel"'
+      tunnels: 'tunnels.total ?? (tunnels.list == nil ? nil : len(tunnels.list))'
+    caps: [net.tunnel]
+    links:
+      - { title: Cloudflare, url: config.url }
+
+  # One resource per tunnel, keyed by its UUID (stable across renames).
+  - id: tunnel
+    each: 'sortBy(tunnels.list ?? [], .name ?? "")'
+    key: item.id
+    part_of: app
+    kind: tunnel
+    name: item.name ?? item.id
+    state: 'item.status in ["healthy", "degraded"] ? "online" : (item.status == "down" ? "offline" : (item.status == "inactive" ? "inactive" : "unknown"))'
+    health: 'item.status == "healthy" ? "ok" : (item.status == "degraded" ? "attention" : (item.status == "down" ? "down" : "unknown"))'
+    reason: |
+      item.status == "degraded" ? "Cloudflare reports it degraded: it serves traffic, but a connector or connection isn't healthy" :
+        (item.status == "down" ? "No connector is connected to Cloudflare" + ((item.conns_inactive_at ?? "") != "" ? " since " + date(item.conns_inactive_at).Format("2006-01-02 15:04") + " UTC" : "") :
+          (item.status == "inactive" ? "It has never run" : ""))
+    attrs:
+      type: '"cloudflaretunnel.tunnel"'
+      status: item.status
+      config_src: '(item.config_src ?? "") != "" ? item.config_src : nil'
+      created_at: '(item.created_at ?? "") != "" ? item.created_at : nil'
+      active_at: '(item.conns_active_at ?? "") != "" ? item.conns_active_at : nil'
+      inactive_at: '(item.conns_inactive_at ?? "") != "" ? item.conns_inactive_at : nil'
+      # The list's connections are deprecated and may come back empty, so
+      # these are left out then rather than 0. Connectors' public IPs
+      # (origin_ip) aren't read.
+      connections: 'len(item.connections ?? []) > 0 ? len(item.connections) : nil'
+      connectors: 'len(item.connections ?? []) > 0 ? len(uniq(map(item.connections, {.client_id ?? ""}))) : nil'
+      colos: 'len(item.connections ?? []) > 0 ? sort(uniq(map(item.connections, {.colo_name ?? ""}))) : nil'
+      client_version: 'len(item.connections ?? []) > 0 && (item.connections[0].client_version ?? "") != "" ? item.connections[0].client_version : nil'
+    caps: [net.tunnel]
+
+metrics:
+  - { resource: app, key: tunnels, value: 'tunnels.list == nil ? nil : float(tunnels.total ?? len(tunnels.list))', unit: count, max: 1000, band: [0, 1000] }
+  - { resource: app, key: tunnels.healthy, value: 'tunnels.list == nil ? nil : float(len(filter(tunnels.list, {.status == "healthy"})))', unit: count, max: 1000, band: [0, 1000] }
+  - resource: app
+    key: tunnels.down
+    value: 'tunnels.list == nil ? nil : float(len(filter(tunnels.list, {.status == "down"})))'
+    unit: count
+    max: 100
+    band: [0, 0]
+    warn: 1
+    crit: 1

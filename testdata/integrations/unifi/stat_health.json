@@ -1,0 +1,10 @@
+{
+  "meta": {"rc": "ok"},
+  "data": [
+    {"subsystem": "wlan", "num_user": 9, "num_guest": 2, "num_iot": 0, "tx_bytes-r": 182340, "rx_bytes-r": 40210, "status": "ok", "num_ap": 2, "num_adopted": 2, "num_disabled": 0, "num_disconnected": 1, "num_pending": 1},
+    {"subsystem": "wan", "num_gw": 1, "num_adopted": 1, "num_disconnected": 0, "num_pending": 0, "status": "ok", "wan_ip": "192.0.2.10", "gateways": ["192.0.2.1"], "netmask": "255.255.255.0", "nameservers": ["192.0.2.53"], "num_sta": 26, "tx_bytes-r": 312500, "rx_bytes-r": 5250000, "gw_mac": "00:00:5e:00:53:01", "gw_name": "Cloud Gateway", "gw_version": "4.0.21.27000", "gw_system-stats": {"cpu": "11.8", "mem": "54.2", "uptime": "1209600"}, "isp_name": "Example ISP", "isp_organization": "Example ISP"},
+    {"subsystem": "www", "status": "ok", "tx_bytes-r": 312500, "rx_bytes-r": 5250000, "latency": 12, "uptime": 1209000, "drops": 2, "xput_up": 48.3, "xput_down": 487.9, "speedtest_status": "Idle", "speedtest_lastrun": 1791014400, "speedtest_ping": 11, "gw_mac": "00:00:5e:00:53:01"},
+    {"subsystem": "lan", "lan_ip": "10.0.40.1", "status": "ok", "num_user": 15, "num_guest": 0, "num_iot": 0, "tx_bytes-r": 920000, "rx_bytes-r": 410000, "num_sw": 1, "num_adopted": 1, "num_disconnected": 0, "num_pending": 0},
+    {"subsystem": "vpn", "status": "unknown", "remote_user_enabled": false, "remote_user_num_active": 0, "remote_user_num_inactive": 0, "remote_user_rx_bytes": 0, "remote_user_tx_bytes": 0, "site_to_site_enabled": false}
+  ]
+}

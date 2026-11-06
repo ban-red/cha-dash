@@ -1,0 +1,6 @@
+{
+	"status": "error",
+	"errorMessage": "Access was denied.",
+	"stackTrace": "   at DnsServerCore.WebServiceApi.Dashboard(...)",
+	"innerErrorMessage": null
+}

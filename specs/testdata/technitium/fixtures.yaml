@@ -1,0 +1,7 @@
+# The answers chadash spec test serves for technitium.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/technitium.yaml specs/testdata/technitium
+secrets: { token: fake0technitium0token0000000000000000000000000000000000000000000 }
+answers:
+  session: session.json
+  day: stats_day.json
+  hour: stats_hour.json

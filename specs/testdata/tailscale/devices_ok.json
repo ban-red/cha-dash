@@ -1,0 +1,23 @@
+{
+  "devices": [
+    {
+      "addresses": ["100.101.12.4", "fd7a:115c:a1e0::1a01:c04"],
+      "id": "40110000000001",
+      "nodeId": "nEGRET1CNTRL",
+      "user": "owner@home.example",
+      "name": "egret.tail1a2b3c.ts.net",
+      "hostname": "egret",
+      "clientVersion": "1.90.6",
+      "updateAvailable": false,
+      "os": "linux",
+      "created": "2025-03-14T09:12:44Z",
+      "connectedToControl": true,
+      "keyExpiryDisabled": true,
+      "expires": "0001-01-01T00:00:00Z",
+      "authorized": true,
+      "isExternal": false,
+      "tags": ["tag:server"],
+      "isEphemeral": false
+    }
+  ]
+}

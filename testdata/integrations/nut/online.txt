@@ -1,0 +1,34 @@
+# One UPS on mains power, fully charged. Written from the NUT network
+# protocol docs and the usbhid-ups variable names; not recorded.
+> VER
+< Network UPS Tools upsd 2.8.2 - https://www.networkupstools.org/
+> LIST UPS
+< BEGIN LIST UPS
+< UPS rack "Rack UPS"
+< END LIST UPS
+> LIST VAR rack
+< BEGIN LIST VAR rack
+< VAR rack battery.charge "100"
+< VAR rack battery.charge.low "20"
+< VAR rack battery.runtime "2730"
+< VAR rack battery.runtime.low "180"
+< VAR rack battery.type "PbAc"
+< VAR rack device.mfr "EATON"
+< VAR rack device.model "5P 1550"
+< VAR rack device.serial "FAKE00000001"
+< VAR rack device.type "ups"
+< VAR rack driver.name "usbhid-ups"
+< VAR rack driver.version "2.8.2"
+< VAR rack input.voltage "231.4"
+< VAR rack input.voltage.nominal "230"
+< VAR rack output.voltage "230.0"
+< VAR rack ups.beeper.status "enabled"
+< VAR rack ups.firmware "02.08.0010"
+< VAR rack ups.load "23"
+< VAR rack ups.mfr "EATON"
+< VAR rack ups.model "5P 1550"
+< VAR rack ups.realpower "251"
+< VAR rack ups.realpower.nominal "1100"
+< VAR rack ups.status "OL"
+< VAR rack ups.test.result "Done and passed"
+< END LIST VAR rack

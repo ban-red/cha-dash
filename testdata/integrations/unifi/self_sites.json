@@ -1,0 +1,7 @@
+{
+  "meta": {"rc": "ok"},
+  "data": [
+    {"_id": "650000000000000000000001", "anonymous_id": "00000000-0000-4000-8000-000000000003", "name": "default", "desc": "Default", "attr_hidden_id": "default", "attr_no_delete": true, "role": "readonly", "role_hotspot": false, "device_count": 5},
+    {"_id": "650000000000000000000002", "anonymous_id": "00000000-0000-4000-8000-000000000004", "name": "x7k2p9qd", "desc": "Workshop", "role": "readonly", "role_hotspot": false, "device_count": 1}
+  ]
+}

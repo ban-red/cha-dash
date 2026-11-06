@@ -1,0 +1,24 @@
+# The same UPS four minutes into a power cut: on battery, discharging.
+# Written from the protocol docs; not recorded.
+> VER
+< Network UPS Tools upsd 2.8.2 - https://www.networkupstools.org/
+> LIST UPS
+< BEGIN LIST UPS
+< UPS rack "Rack UPS"
+< END LIST UPS
+> LIST VAR rack
+< BEGIN LIST VAR rack
+< VAR rack battery.charge "81"
+< VAR rack battery.charge.low "20"
+< VAR rack battery.runtime "1860"
+< VAR rack battery.type "PbAc"
+< VAR rack device.mfr "EATON"
+< VAR rack device.model "5P 1550"
+< VAR rack driver.name "usbhid-ups"
+< VAR rack input.voltage "0.0"
+< VAR rack input.voltage.nominal "230"
+< VAR rack ups.load "24"
+< VAR rack ups.realpower "262"
+< VAR rack ups.realpower.nominal "1100"
+< VAR rack ups.status "OB DISCHRG"
+< END LIST VAR rack

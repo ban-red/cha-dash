@@ -1,0 +1,30 @@
+{
+	"displayName": "Cha Dash",
+	"username": "chadash",
+	"isSsoUser": false,
+	"totpEnabled": false,
+	"token": "fake0technitium0token0000000000000000000000000000000000000000000",
+	"info": {
+		"version": "15.6.2",
+		"uptimestamp": "2026-10-28T06:12:40.1234567Z",
+		"dnsServerDomain": "dns1.home.example",
+		"clusterInitialized": false,
+		"defaultRecordTtl": 3600,
+		"useSoaSerialDateScheme": false,
+		"dnssecValidation": true,
+		"permissions": {
+			"Dashboard": { "canView": true, "canModify": false, "canDelete": false },
+			"Zones": { "canView": false, "canModify": false, "canDelete": false },
+			"Cache": { "canView": false, "canModify": false, "canDelete": false },
+			"Allowed": { "canView": false, "canModify": false, "canDelete": false },
+			"Blocked": { "canView": false, "canModify": false, "canDelete": false },
+			"Apps": { "canView": false, "canModify": false, "canDelete": false },
+			"DnsClient": { "canView": false, "canModify": false, "canDelete": false },
+			"Settings": { "canView": false, "canModify": false, "canDelete": false },
+			"DhcpServer": { "canView": false, "canModify": false, "canDelete": false },
+			"Administration": { "canView": false, "canModify": false, "canDelete": false },
+			"Logs": { "canView": false, "canModify": false, "canDelete": false }
+		}
+	},
+	"status": "ok"
+}

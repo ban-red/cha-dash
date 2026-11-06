@@ -1,0 +1,36 @@
+# Three UPSes on one upsd: one on mains and charging (no description, no
+# realpower), one needing a new battery, and one whose driver lost the
+# UPS. Written from the protocol docs; not recorded.
+> VER
+< Network UPS Tools upsd 2.8.2 - https://www.networkupstools.org/
+> LIST UPS
+< BEGIN LIST UPS
+< UPS desk "Unavailable"
+< UPS closet "Closet \"network\" UPS"
+< UPS garage "Garage UPS"
+< END LIST UPS
+> LIST VAR desk
+< BEGIN LIST VAR desk
+< VAR desk battery.charge "64"
+< VAR desk battery.runtime "1500"
+< VAR desk device.mfr "American Power Conversion"
+< VAR desk device.model "Back-UPS ES 700G"
+< VAR desk driver.name "usbhid-ups"
+< VAR desk input.voltage "121.0"
+< VAR desk input.voltage.nominal "120"
+< VAR desk ups.load "9"
+< VAR desk ups.realpower.nominal "405"
+< VAR desk ups.status "OL CHRG"
+< END LIST VAR desk
+> LIST VAR closet
+< BEGIN LIST VAR closet
+< VAR closet battery.charge "100"
+< VAR closet battery.runtime "540"
+< VAR closet device.model "Smart-UPS 750"
+< VAR closet driver.name "apcsmart"
+< VAR closet input.voltage "229.0"
+< VAR closet ups.load "41"
+< VAR closet ups.status "OL RB"
+< END LIST VAR closet
+> LIST VAR garage
+< ERR DATA-STALE

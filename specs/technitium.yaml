@@ -1,0 +1,114 @@
+# Technitium DNS Server: query and blocked counts from its dashboard, and
+# whether upstream resolution is failing.
+#
+# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# test: technitium_test.go, against testdata/technitium/ (synthetic). Notes
+# in recipes/technitium.md.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: technitium
+  name: Technitium DNS
+  icon: technitium
+  version: 0.1.0
+  tier: bronze
+  category: network
+  capabilities: [dns.filter]
+
+config:
+  token: { type: secret, title: API token, required: true, description: "A token for a user that may only view the dashboard: Administration → Sessions → Create Token" }
+  servfail_warn: { type: integer, title: Failed queries before attention (%), default: 5, min: 1, max: 100 }
+
+# From 15.0 Technitium reads the token from this header; the token query
+# parameter is only kept for old clients, so the secret stays out of URLs.
+source:
+  headers:
+    Authorization: "Bearer {{ secret.token }}"
+  timeout: 10s
+
+every: 60s
+
+# Technitium answers 200 to everything and says how it went in status: ok,
+# error or invalid-token.
+requests:
+  # The token's session: it checks the token, and says the version.
+  session:
+    path: /api/user/session/get
+    extract:
+      status: status
+      message: errorMessage
+      version: info.version
+      up_since: info.uptimestamp
+  # The last 24 hours, the same window as Pi-hole's and AdGuard Home's tiles.
+  day:
+    path: /api/dashboard/stats/get
+    query: { type: LastDay, utc: "true" }
+    extract:
+      status: status
+      message: errorMessage
+      queries: response.stats.totalQueries
+      blocked: response.stats.totalBlocked
+      servfail: response.stats.totalServerFailure
+      cached: response.stats.totalCached
+      clients: response.stats.totalClients
+      zones: response.stats.zones
+      cache_entries: response.stats.cachedEntries
+      blocked_zones: response.stats.blockedZones
+      blocklist_zones: response.stats.blockListZones
+  # The last hour, for health: a resolver failing now shouldn't wait a day.
+  hour:
+    path: /api/dashboard/stats/get
+    query: { type: LastHour, utc: "true" }
+    extract:
+      status: status
+      queries: response.stats.totalQueries
+      servfail: response.stats.totalServerFailure
+
+version: session.version
+
+repairs:
+  - when: 'session.status == "invalid-token"'
+    code: auth
+    message: '"Technitium rejected the token: it may have been deleted, or the server is older than 15.0, which reads it from the Authorization header."'
+  - when: 'day.status == "error" && string(day.message ?? "") matches "(?i)access|denied|permission"'
+    code: auth
+    message: '"The token''s user may not view the dashboard. Give it Dashboard: View in Administration → Permissions."'
+  - when: '(session.status ?? "ok") != "ok" || (day.status ?? "ok") != "ok" || (hour.status ?? "ok") != "ok"'
+    code: api_changed
+    message: '"Technitium answered with an error: " + string(day.message ?? session.message ?? "no message")'
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: '(hour.queries ?? 0) >= 50 && float(hour.servfail ?? 0) * 100 / float(hour.queries) >= float(config.servfail_warn ?? 5) ? "attention" : "ok"'
+    reason: |
+      (hour.queries ?? 0) >= 50 && float(hour.servfail ?? 0) * 100 / float(hour.queries) >= float(config.servfail_warn ?? 5) ?
+        string(round(float(hour.servfail) * 100 / float(hour.queries))) + "% of queries in the last hour failed to resolve (SERVFAIL)" : ""
+    attrs:
+      type: '"technitium"'
+      version: session.version
+      up_since: session.up_since
+      clients: day.clients
+      zones: day.zones
+      cache_entries: day.cache_entries
+    caps: [dns.filter]
+    links:
+      - { title: Technitium DNS, url: config.url }
+
+metrics:
+  - { resource: app, key: queries.24h, value: 'day.queries == nil ? nil : float(day.queries)', unit: count, max: 10000000, band: [0, 50000] }
+  - { resource: app, key: blocked.24h, value: 'day.blocked == nil ? nil : float(day.blocked)', unit: count, max: 10000000, band: [0, 15000] }
+  - { resource: app, key: blocked.pct, value: 'day.queries == nil || day.queries == 0 ? nil : round(float(day.blocked ?? 0) * 1000 / float(day.queries)) / 10', unit: '%', max: 100, band: [5, 35] }
+  - { resource: app, key: cached.pct, value: 'day.queries == nil || day.queries == 0 ? nil : round(float(day.cached ?? 0) * 1000 / float(day.queries)) / 10', unit: '%', max: 100, band: [30, 100] }
+  # Domains blocked by the block lists plus those blocked by hand.
+  - { resource: app, key: blocklist, value: 'day.blocklist_zones == nil ? nil : float(day.blocklist_zones + (day.blocked_zones ?? 0))', unit: count, max: 10000000, band: [50000, 5000000] }
+  - resource: app
+    key: servfail.pct
+    value: 'hour.queries == nil || hour.queries == 0 ? nil : round(float(hour.servfail ?? 0) * 1000 / float(hour.queries)) / 10'
+    unit: '%'
+    max: 100
+    band: [0, 1]
+    warn: 5
+    crit: 20

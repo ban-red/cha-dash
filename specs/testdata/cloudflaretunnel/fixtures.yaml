@@ -1,0 +1,7 @@
+# The answers chadash spec test serves for cloudflaretunnel.yaml, by request
+# name (internal/spec/spectest):
+# chadash spec test specs/cloudflaretunnel.yaml specs/testdata/cloudflaretunnel
+config: { account_id: 0123456789abcdef0123456789abcdef }
+secrets: { token: fake-cloudflare-token-0123456789abcdefghijklmn }
+answers:
+  tunnels: tunnels.json

@@ -1,0 +1,10 @@
+{
+  "meta": {"rc": "ok"},
+  "data": [
+    {"subsystem": "wlan", "num_user": 4, "num_guest": 0, "num_iot": 0, "tx_bytes-r": 1200, "rx_bytes-r": 800, "status": "ok", "num_ap": 1, "num_adopted": 1, "num_disabled": 0, "num_disconnected": 0, "num_pending": 0},
+    {"subsystem": "wan", "num_gw": 0, "num_adopted": 0, "num_disconnected": 0, "num_pending": 0, "status": "unknown"},
+    {"subsystem": "www", "status": "unknown"},
+    {"subsystem": "lan", "status": "unknown", "num_user": 0, "num_guest": 0, "num_sw": 0, "num_adopted": 0, "num_disconnected": 0, "num_pending": 0},
+    {"subsystem": "vpn", "status": "unknown"}
+  ]
+}

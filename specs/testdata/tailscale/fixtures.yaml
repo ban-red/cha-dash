@@ -1,0 +1,5 @@
+# The answers chadash spec test serves for tailscale.yaml, by request name
+# (internal/spec/spectest): chadash spec test specs/tailscale.yaml specs/testdata/tailscale
+secrets: { api_key: tskey-api-kFAKE1CNTRL-0123456789abcdefFAKEFAKEFAKEFAKE }
+answers:
+  devices: devices.json
