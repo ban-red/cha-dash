@@ -38,6 +38,22 @@ export interface StackSummary {
   drift: boolean;
   draft: boolean;
   head: Commit | null;
+  /** Other managers listing a stack of this name: deploy from one only. */
+  also_managed_by?: OtherManager[];
+}
+
+/** Another stack manager (Dockhand, Komodo, Arcane) with a stack of the same name. */
+export interface OtherManager {
+  manager: string;
+  resource: string;
+}
+
+/** "Dockhand also manages media" or "Dockhand and Komodo also manage media". */
+export function twoWriters(name: string, others: OtherManager[] | undefined): string {
+  const names = [...new Set((others ?? []).map((o) => o.manager))];
+  if (!names.length) return '';
+  const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `${who} also manage${names.length === 1 ? 's' : ''} a stack named ${name}: deploy it from one of them only.`;
 }
 
 export interface Detected {
@@ -118,6 +134,8 @@ export interface StackDetail {
   sync?: SyncView | null;
   /** Where stack.move copied the file from, while that copy is still there. */
   moved_from?: string | null;
+  /** Other managers listing a stack of this name: deploy from one only. */
+  also_managed_by?: OtherManager[];
 }
 
 export type Severity = 'error' | 'warning' | 'info';

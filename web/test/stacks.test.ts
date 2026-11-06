@@ -14,7 +14,7 @@ import SettingsSheet from '../src/settings/SettingsSheet.vue';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { toPointer } from '../src/lib/jsonpatch';
 import { navigate } from '../src/lib/router';
-import type { StackDetail, StackNode, Validation } from '../src/settings/stacks';
+import { twoWriters, type StackDetail, type StackNode, type Validation } from '../src/settings/stacks';
 import type { Task } from '../src/model/types';
 import { axeViolations } from './axe';
 import { engine, refuse, taskFor, planFor } from './fake-engine';
@@ -376,6 +376,27 @@ describe('Settings → Stacks: one stack', () => {
     await accept.trigger('click');
     await settle();
     expect(e.plans).toEqual([{ action: 'stack.adopt', target: 'stack:local/media' }]);
+  });
+
+  it('names another manager that also lists the stack: deploy from one of them only', async () => {
+    hub({
+      'GET /api/stacks/local/media': {
+        status: 200,
+        body: media({ also_managed_by: [{ manager: 'Dockhand', resource: 'dockhand:i_dh/stack/media' }, { manager: 'Komodo', resource: 'komodo:i_ko/stack/1' }] }),
+      },
+    });
+    const h = open('/settings/stacks/local/media');
+    const w = h.mountIn(StacksPane);
+    await settle();
+    await settle();
+    const note = w.findAll('[role="note"]').find((n) => n.text().includes('also manage'));
+    expect(note?.text()).toBe('Dockhand and Komodo also manage a stack named media: deploy it from one of them only.');
+    // Deploy stays possible: it's a warning, not a refusal.
+    expect(w.find('.sk-deploy').exists()).toBe(true);
+    expect(twoWriters('media', [])).toBe('');
+    expect(twoWriters('media', [{ manager: 'Dockhand', resource: 'a' }, { manager: 'Dockhand', resource: 'b' }])).toBe(
+      'Dockhand also manages a stack named media: deploy it from one of them only.',
+    );
   });
 
   it('says when the node is offline, and when the stack doesn’t exist', async () => {

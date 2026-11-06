@@ -123,6 +123,9 @@ type httpError struct {
 type StackView struct {
 	stackproto.Summary
 	Draft bool `json:"draft"`
+	// AlsoManagedBy names other managers that list a stack of this name
+	// (two writers); empty when none.
+	AlsoManagedBy []OtherManager `json:"also_managed_by"`
 }
 
 func (s *Service) handleList(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +178,7 @@ func (s *Service) nodeView(ctx context.Context, n Node) NodeView {
 		v.Root = list.Root
 		for _, st := range list.Stacks {
 			_, has := drafts[st.Name]
-			v.Stacks = append(v.Stacks, StackView{Summary: st, Draft: has})
+			v.Stacks = append(v.Stacks, StackView{Summary: st, Draft: has, AlsoManagedBy: s.alsoManagedBy(st.Name)})
 			delete(drafts, st.Name)
 		}
 		if det.Projects != nil {
@@ -191,7 +194,7 @@ func (s *Service) nodeView(ctx context.Context, n Node) NodeView {
 		if v.Root != "" {
 			sum.Path = strings.TrimSuffix(v.Root, "/") + "/" + name
 		}
-		v.Stacks = append(v.Stacks, StackView{Summary: sum, Draft: true})
+		v.Stacks = append(v.Stacks, StackView{Summary: sum, Draft: true, AlsoManagedBy: s.alsoManagedBy(name)})
 	}
 	slices.SortFunc(v.Stacks, func(a, b StackView) int { return strings.Compare(a.Name, b.Name) })
 	return v
@@ -234,6 +237,9 @@ type StackDetail struct {
 	// MovedFrom is where stack.move copied the file from, while that copy
 	// is still there; null otherwise.
 	MovedFrom *string `json:"moved_from"`
+	// AlsoManagedBy names other managers that list a stack of this name:
+	// deploy from one of them only. Empty when none.
+	AlsoManagedBy []OtherManager `json:"also_managed_by"`
 }
 
 func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, error) {
@@ -255,6 +261,7 @@ func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, 
 		Node: node, Name: name, Path: st.Path, File: st.File, Location: st.Location, Managed: st.Managed, Exists: exists,
 		Protected: st.Protected, Drift: st.Drift, Status: st.Status, Content: st.Content, Env: st.Env, Meta: st.Meta,
 		Services: st.Containers, History: st.History, Head: st.Head, Draft: draft,
+		AlsoManagedBy: s.alsoManagedBy(name),
 	}
 	if st.ProtectedReason != "" {
 		d.ProtectedReason = &st.ProtectedReason

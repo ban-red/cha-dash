@@ -39,6 +39,7 @@ import {
   serviceWords,
   statusWords,
   targetOf,
+  twoWriters,
   validateStack,
   type HistoryEntry,
   type StackDetail,
@@ -94,6 +95,8 @@ async function load(): Promise<void> {
 }
 
 const isProtected = computed(() => !!detail.value?.protected);
+/** Another manager (Dockhand, Komodo, Arcane) lists a stack of this name. */
+const writers = computed(() => (detail.value ? twoWriters(detail.value.name, detail.value.also_managed_by) : ''));
 const protectedWords = computed(() => detail.value?.protected_reason || PROTECTED_WORDS);
 /** A stack that follows git is edited in git: the file here is read-only. */
 const synced = computed(() => detail.value?.sync ?? null);
@@ -468,6 +471,7 @@ onBeforeUnmount(() => {
       </p>
       <div v-if="isProtected" class="st-note sk-prot" role="note"><Glyph kind="lock" /><span>{{ protectedWords }}. You can read it and see what would change; Update Cha Dash, in Stacks, changes its image.</span></div>
       <div v-if="synced" class="st-note sk-synced" role="note"><Glyph kind="link" /><span>This stack follows git. {{ editWhere(synced) }}</span></div>
+      <div v-if="detail && writers" class="st-note attn" role="note"><Glyph kind="attn" /><span>{{ writers }}</span></div>
       <StackManage v-if="detail && !fresh" :detail="detail" :busy="running" />
       <div v-if="detail?.drift && !isProtected" class="st-note attn" role="note">
         <Glyph kind="attn" />

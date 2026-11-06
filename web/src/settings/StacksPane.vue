@@ -25,7 +25,7 @@ import { ago } from '../lib/format';
 import { hubWords, isDone } from '../lib/actions';
 import { navigate, stackPath, view } from '../lib/router';
 import { useUi } from '../stores/ui';
-import { PROTECTED_WORDS, STATUS_GLYPH, listStacks, statusWords, targetOf, type Detected, type StackNode } from './stacks';
+import { PROTECTED_WORDS, STATUS_GLYPH, listStacks, statusWords, targetOf, twoWriters, type Detected, type StackNode } from './stacks';
 import UiButton from '../ui/Button.vue';
 
 const ui = useUi();
@@ -138,6 +138,7 @@ onMounted(load);
                   {{ s.name }}
                   <span v-if="s.protected" class="chip sk-protected"><Glyph kind="lock" />{{ PROTECTED_WORDS }}</span>
                   <span v-if="s.drift" class="chip sk-drift"><Glyph kind="attn" />edited outside Cha Dash</span>
+                  <span v-if="s.also_managed_by?.length" class="chip sk-drift" :title="twoWriters(s.name, s.also_managed_by)"><Glyph kind="attn" />also in {{ [...new Set(s.also_managed_by.map((o) => o.manager))].join(', ') }}</span>
                   <span v-if="s.draft" class="chip">draft</span>
                 </span>
                 <span class="m">
