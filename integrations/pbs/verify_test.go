@@ -1,7 +1,11 @@
 package pbs
 
 import (
+	"encoding/json"
 	"net/url"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -155,5 +159,121 @@ func TestVerifyResultSurvivesARestart(t *testing.T) {
 	syncOK(t, third, integrationtest.Watched)
 	if m := res(t, h, "datastore/mars"); m.Attrs["verify_now"] != nil {
 		t.Fatalf("mars from an unreadable state = %+v", m.Attrs)
+	}
+}
+
+// verifyExchange is a recorded Verify now run (testdata/integrations/pbs/
+// actions/verify-*.json, synthetic): what POST /admin/datastore/{store}/verify
+// answers, the task's status reads in order, and its log.
+type verifyExchange struct {
+	Store string `json:"store"`
+	Start struct {
+		Data string `json:"data"`
+	} `json:"start"`
+	Status []json.RawMessage `json:"status"`
+	Log    json.RawMessage   `json:"log"`
+}
+
+func (x *verifyExchange) upid() string { return x.Start.Data }
+
+// replayVerify makes f answer the next verify of the exchange's datastore
+// from the file.
+func replayVerify(t *testing.T, f *fakePBS, file string) *verifyExchange {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(fixtures, "actions", file))
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := &verifyExchange{}
+	if err := json.Unmarshal(b, x); err != nil || x.Store == "" || !strings.HasPrefix(x.upid(), "UPID:") || len(x.Status) < 2 {
+		t.Fatalf("%s: %+v, %v", file, x, err)
+	}
+	f.mu.Lock()
+	f.exchanges[x.Store] = x
+	f.mu.Unlock()
+	return x
+}
+
+// The whole exchange (14b item 6): Verify now starts PBS's verify task with
+// the control token, follows its log and status to the end, reads the
+// status back, and the next sync of the read instance shows the result on
+// the datastore. A pass replaces the verify job's failure there; a failed
+// run is the datastore's reason.
+func TestVerifyNowExchange(t *testing.T) {
+	t.Cleanup(func() { verified.Clear() })
+	_, h, in := connect(t)
+	f := newFakePBS(t)
+	acts := h.Actions(Integration{}, map[string]any{"url": f.URL, "tls": map[string]any{"mode": "insecure"},
+		"token_id": fixtureTok, "control_token_id": controlTok},
+		map[string]string{"token_secret": fakeSecret, "control_token_secret": controlSecret})
+
+	// Before: store-2's weekly verify job failed on Oct 3; mars has none.
+	syncOK(t, in, integrationtest.Watched)
+	s := res(t, h, "datastore/store-2")
+	if s.Attrs["verify_now"] != nil || okState(s.Attrs["verify_state"].(string)) || !strings.Contains(s.Attrs["health.reason"].(string), "verification failed") {
+		t.Fatalf("store-2 before = %+v", s.Attrs)
+	}
+	if m := res(t, h, "datastore/mars"); m.Attrs["verify_state"] != nil || strings.Contains(m.Attrs["health.reason"].(string), "verification") {
+		t.Fatalf("mars before = %+v", m.Attrs)
+	}
+
+	// A pass.
+	ok := replayVerify(t, f, "verify-ok.json")
+	done := acts.Run(ActVerify, storeTarget("store-2"), nil)
+	if done.State != action.StateSucceeded {
+		t.Fatalf("task = %+v", done)
+	}
+	f.writes.Expect(t, integrationtest.Write{Method: "POST", Path: "/api2/json/admin/datastore/store-2/verify", Form: url.Values{}})
+	if !slices.Contains(done.Log, "verify store-2:vm/100/2026-10-03T03:00:02Z") || !slices.Contains(done.Log, "TASK OK") {
+		t.Fatalf("log = %q", done.Log)
+	}
+	f.mu.Lock()
+	reads := f.tasks[ok.upid()]
+	f.mu.Unlock()
+	if reads < 3 { // running, stopped, and Verify's read back
+		t.Fatalf("status reads = %d", reads)
+	}
+	if ev := acts.LastEvent(); ev.Action != ActVerify || ev.Target != storeTarget("store-2") || ev.Tier != "T1" || ev.Result != "ok" {
+		t.Fatalf("event = %+v", ev)
+	}
+	syncOK(t, in, integrationtest.Watched)
+	s = res(t, h, "datastore/store-2")
+	if s.Attrs["verify_now"] != true || s.Attrs["verify_state"] != "OK" || s.Attrs["verify_last"] != h.Now().UTC().Format(time.RFC3339) || s.Attrs["verify_group"] != nil {
+		t.Fatalf("store-2 after a pass = %+v", s.Attrs)
+	}
+	if r := s.Attrs["health.reason"].(string); strings.Contains(r, "verification failed") || !strings.Contains(r, "% used") {
+		t.Fatalf("store-2 reason = %q", r)
+	}
+
+	// A failed run, a minute later.
+	h.Advance(time.Minute)
+	bad := replayVerify(t, f, "verify-failed.json")
+	exit := "verification failed - please check the log for details"
+	done = acts.Run(ActVerify, storeTarget("mars"), nil)
+	if done.State != action.StateFailed || done.Error == nil || !strings.Contains(done.Error.Message, "couldn't verify mars") || !strings.Contains(done.Error.Message, exit) {
+		t.Fatalf("failed task = %+v", done)
+	}
+	if !slices.Contains(done.Log, "Failed to verify the following snapshots/groups:") {
+		t.Fatalf("log = %q", done.Log)
+	}
+	f.writes.Expect(t, integrationtest.Write{Method: "POST", Path: "/api2/json/admin/datastore/mars/verify", Form: url.Values{}})
+	f.mu.Lock()
+	reads = f.tasks[bad.upid()]
+	f.mu.Unlock()
+	if reads < 2 {
+		t.Fatalf("status reads = %d", reads)
+	}
+	if ev := acts.LastEvent(); ev.Action != ActVerify || ev.Result != "failed" {
+		t.Fatalf("event = %+v", ev)
+	}
+	syncOK(t, in, integrationtest.Watched)
+	m := res(t, h, "datastore/mars")
+	if m.Attrs["verify_now"] != true || m.Attrs["verify_state"] != exit || m.Health != graph.HealthAttention ||
+		!strings.Contains(m.Attrs["health.reason"].(string), "verification failed "+day(h.Now())) {
+		t.Fatalf("mars after a failure = %+v %s", m.Attrs, m.Health)
+	}
+	// store-2 keeps its pass.
+	if s := res(t, h, "datastore/store-2"); s.Attrs["verify_state"] != "OK" {
+		t.Fatalf("store-2 = %+v", s.Attrs)
 	}
 }

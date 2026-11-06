@@ -1,0 +1,55 @@
+{
+  "store": "mars",
+  "start": {
+    "data": "UPID:jupiter:000031B7:05F5E400:00000015:6AC1AC54:verify:mars:chadash-control@pbs!control:"
+  },
+  "status": [
+    {
+      "data": {
+        "upid": "UPID:jupiter:000031B7:05F5E400:00000015:6AC1AC54:verify:mars:chadash-control@pbs!control:",
+        "node": "jupiter",
+        "pid": 12727,
+        "pstart": 100000000,
+        "starttime": 1791077460,
+        "type": "verify",
+        "id": "mars",
+        "user": "chadash-control@pbs",
+        "tokenid": "control",
+        "status": "running"
+      }
+    },
+    {
+      "data": {
+        "upid": "UPID:jupiter:000031B7:05F5E400:00000015:6AC1AC54:verify:mars:chadash-control@pbs!control:",
+        "node": "jupiter",
+        "pid": 12727,
+        "pstart": 100000000,
+        "starttime": 1791077460,
+        "type": "verify",
+        "id": "mars",
+        "user": "chadash-control@pbs",
+        "tokenid": "control",
+        "status": "stopped",
+        "exitstatus": "verification failed - please check the log for details"
+      }
+    }
+  ],
+  "log": {
+    "total": 13,
+    "data": [
+      {"n": 1, "t": "verify datastore mars"},
+      {"n": 2, "t": "found 1 groups"},
+      {"n": 3, "t": "verify group mars:ct/101 (1 snapshots)"},
+      {"n": 4, "t": "verify mars:ct/101/2026-10-03T03:04:09Z"},
+      {"n": 5, "t": "  check pct.conf.blob"},
+      {"n": 6, "t": "  check root.pxar.didx"},
+      {"n": 7, "t": "can't verify chunk, load failed - store 'mars', unable to load chunk '0000000000000000000000000000000000000000000000000000000000000a01' - No such file or directory (os error 2)"},
+      {"n": 8, "t": "  verified 611.02/1520.40 MiB in 9.12 seconds, speed 67.00/166.71 MiB/s (1 errors)"},
+      {"n": 9, "t": "verify mars:ct/101/2026-10-03T03:04:09Z/root.pxar.didx failed: chunks could not be verified"},
+      {"n": 10, "t": "percentage done: 100.00% (1/1 groups)"},
+      {"n": 11, "t": "Failed to verify the following snapshots/groups:"},
+      {"n": 12, "t": "\tct/101/2026-10-03T03:04:09Z"},
+      {"n": 13, "t": "TASK ERROR: verification failed - please check the log for details"}
+    ]
+  }
+}

@@ -45,11 +45,17 @@ type fakePBS struct {
 	lacks map[string][]string
 	// jobsHidden hides every prune job from the control token alone.
 	jobsHidden bool
+	// exchanges replay a recorded verify run per datastore (verify_test.go):
+	// the UPID POST /verify answers, the task's status reads in order, and
+	// its log. byUPID finds them again for the task's reads.
+	exchanges map[string]*verifyExchange
+	byUPID    map[string]*verifyExchange
 }
 
 func newFakePBS(t *testing.T) *fakePBS {
 	t.Helper()
-	f := &fakePBS{maintenance: map[string]string{}, tasks: map[string]int{}, exit: "OK", lacks: map[string][]string{}}
+	f := &fakePBS{maintenance: map[string]string{}, tasks: map[string]int{}, exit: "OK", lacks: map[string][]string{},
+		exchanges: map[string]*verifyExchange{}, byUPID: map[string]*verifyExchange{}}
 	var jobs struct {
 		Data []map[string]any `json:"data"`
 	}
@@ -74,6 +80,12 @@ func (f *fakePBS) reply(w http.ResponseWriter, status int, data any, msg string)
 		body["message"] = msg
 	}
 	json.NewEncoder(w).Encode(body)
+}
+
+func (f *fakePBS) raw(w http.ResponseWriter, body json.RawMessage) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(body)
 }
 
 func (f *fakePBS) serve(w http.ResponseWriter, r *http.Request) {
@@ -141,6 +153,12 @@ func (f *fakePBS) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		f.n++
 		store := strings.TrimSuffix(strings.TrimPrefix(path, "/admin/datastore/"), "/verify")
+		if x := f.exchanges[store]; x != nil {
+			f.byUPID[x.upid()] = x
+			f.tasks[x.upid()] = 0
+			f.reply(w, 200, x.Start.Data, "")
+			return
+		}
 		upid := fmt.Sprintf(`UPID:jupiter:%08X:05F5E400:00000000:6AC0AF00:verify:%s:%s:`, 0x3000+f.n, store, controlTok)
 		f.tasks[upid] = 0
 		f.reply(w, 200, upid, "")
@@ -151,6 +169,15 @@ func (f *fakePBS) serve(w http.ResponseWriter, r *http.Request) {
 		n, ok := f.tasks[upid]
 		if !ok {
 			f.reply(w, 404, nil, "no such task")
+			return
+		}
+		if x := f.byUPID[upid]; x != nil {
+			if sub == "log" {
+				f.raw(w, x.Log)
+				return
+			}
+			f.tasks[upid] = n + 1
+			f.raw(w, x.Status[min(n, len(x.Status)-1)])
 			return
 		}
 		if sub == "log" {

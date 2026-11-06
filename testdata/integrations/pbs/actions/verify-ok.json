@@ -1,0 +1,55 @@
+{
+  "store": "store-2",
+  "start": {
+    "data": "UPID:jupiter:000031A2:05F5E400:00000014:6AC1AC18:verify:store\\x2d2:chadash-control@pbs!control:"
+  },
+  "status": [
+    {
+      "data": {
+        "upid": "UPID:jupiter:000031A2:05F5E400:00000014:6AC1AC18:verify:store\\x2d2:chadash-control@pbs!control:",
+        "node": "jupiter",
+        "pid": 12706,
+        "pstart": 100000000,
+        "starttime": 1791077400,
+        "type": "verify",
+        "id": "store-2",
+        "user": "chadash-control@pbs",
+        "tokenid": "control",
+        "status": "running"
+      }
+    },
+    {
+      "data": {
+        "upid": "UPID:jupiter:000031A2:05F5E400:00000014:6AC1AC18:verify:store\\x2d2:chadash-control@pbs!control:",
+        "node": "jupiter",
+        "pid": 12706,
+        "pstart": 100000000,
+        "starttime": 1791077400,
+        "type": "verify",
+        "id": "store-2",
+        "user": "chadash-control@pbs",
+        "tokenid": "control",
+        "status": "stopped",
+        "exitstatus": "OK"
+      }
+    }
+  ],
+  "log": {
+    "total": 13,
+    "data": [
+      {"n": 1, "t": "verify datastore store-2"},
+      {"n": 2, "t": "found 2 groups"},
+      {"n": 3, "t": "verify group store-2:vm/100 (2 snapshots)"},
+      {"n": 4, "t": "verify store-2:vm/100/2026-10-03T03:00:02Z"},
+      {"n": 5, "t": "  check qemu-server.conf.blob"},
+      {"n": 6, "t": "  check drive-scsi0.img.fidx"},
+      {"n": 7, "t": "  verified 1843.27/4096.00 MiB in 21.04 seconds, speed 87.61/194.68 MiB/s (0 errors)"},
+      {"n": 8, "t": "verify store-2:vm/100/2026-10-02T03:00:01Z"},
+      {"n": 9, "t": "  check qemu-server.conf.blob"},
+      {"n": 10, "t": "  check drive-scsi0.img.fidx"},
+      {"n": 11, "t": "  verified 1839.90/4096.00 MiB in 20.87 seconds, speed 88.16/196.26 MiB/s (0 errors)"},
+      {"n": 12, "t": "percentage done: 100.00% (2/2 groups)"},
+      {"n": 13, "t": "TASK OK"}
+    ]
+  }
+}
