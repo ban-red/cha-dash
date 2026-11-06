@@ -586,9 +586,16 @@ checks); an **instance** is one configured connection to it. The framework
 owns the boilerplate, so an integration only connects, tests, and turns what it
 reads into facts.
 
-**Bundled:** 41 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, Docker through chadash-node, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential. Seerr, a spec, approves and declines requests (spec actions, below).
-- **Tier 0** (`integrations/<id>`, 28 with `checks` and `weather`): adguard, audiobookshelf, caddy, checks, docker, frigate, homeassistant, ical, immich, jellyfin, lidarr, nextcloud, npm, nzbget, opnsense, pbs, pihole, plex, prowlarr, proxmox, qbittorrent, radarr, sonarr, traefik, transmission, unraid, uptimekuma, weather.
-- **Tier 1 specs** (`specs/<id>.yaml`, 14): arcane, bazarr, beszel, dockhand, gatus, karakeep, komodo, linkding, mealie, paperlessngx, sabnzbd, seerr (also Overseerr and Jellyseerr, as `aliases`), speedtesttracker, tautulli.
+**Bundled:** 52 integrations plus weather. All read. From v0.2 some also act (see each README's Actions): Proxmox VE and Proxmox Backup Server once given a control token (guest power, snapshots and backups; pruning a datastore), Unraid in control mode, Docker through chadash-node, and qBittorrent, Sonarr, Radarr, Lidarr, Home Assistant (allow-listed scripts), Pi-hole and AdGuard Home with their one credential. Seerr, a spec, approves and declines requests (spec actions, below).
+- **Tier 0** (`integrations/<id>`, 31 with `checks` and `weather`): adguard, audiobookshelf, caddy, checks, docker, frigate, homeassistant, ical, immich, jellyfin, lidarr, nextcloud, npm, nut, nzbget, opnsense, pbs, pihole, plex, prowlarr, proxmox, qbittorrent, radarr, sonarr, traefik, transmission, truenas, unifi, unraid, uptimekuma, weather.
+- **Tier 1 specs** (`specs/<id>.yaml`, 22): arcane, backrest, bazarr, beszel, borgui, cloudflaretunnel, dockhand, duplicati, gatus, karakeep, komodo, kopia, linkding, mealie, paperlessngx, sabnzbd, seerr (also Overseerr and Jellyseerr, as `aliases`), speedtesttracker, tailscale, tautulli, technitium, zerobyte.
+- v0.5's sources (waves 35 and 36):
+  - **truenas** (TrueNAS 25.04 and later, WebSocket JSON-RPC): pools and their health, datasets, disks, apps, and snapshot and replication tasks; push replications are backup targets (`backup.covers`).
+  - **nut** (upsd's TCP protocol): each UPS's charge, runtime, load and voltage; a low battery is an incident.
+  - **unifi** (a View Only account's session): devices, client counts and WAN health.
+  - Specs: **tailscale**, **cloudflaretunnel**, **technitium**, and the backup tools **backrest**, **kopia**, **duplicati**, **borgui** and **zerobyte**.
+
+  None runs in the maintainer's lab: their fixtures are written from upstream docs and source, not recorded, and `live:verify` can't check them yet.
 - v0.4's Reach sources (wave 30, Arcane and Dockhand in wave 31) are beszel (host metrics, with a token made ahead of time: PocketBase's password sign-in is a handshake a spec can't do), komodo, arcane and dockhand (the stacks they manage, read only) and gatus (its endpoints as checks). Each passes `chadash spec test` on its fixtures folder (`spectest.TestRunReachSources`).
 - v0.2's breadth set (wave 8) is lidarr, transmission, nzbget, nextcloud, audiobookshelf, paperlessngx and speedtesttracker, plus seerr covering Overseerr and Jellyseerr. `cmd/chadash`'s `TestIntegrationsLinkedIn` lists every ID; `TestEveryIntegrationHasARecipe` checks each has a recipe.
 

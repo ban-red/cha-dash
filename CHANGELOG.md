@@ -18,6 +18,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A test clock, for automated tests only.** With `CHADASH_TEST_CLOCK=true`, which needs `CHADASH_TEST_AUTOMATION`, `POST /api/test/clock` with the automation key moves the hub's clock forward. Maintenance windows, scheduled rollouts, notification grace, the morning digest, approval expiry and the Demo Home's day all see the new time at once. It never goes back, and every move is logged. Never on a hub that holds anything real.
 
 - **Wall displays.** Settings → Displays makes a link for a wall tablet or a TV that shows one board, with no menus and no sign-in. It dims when nothing changes, turns warmer at night, and wakes with the one line that changed when an incident needs you. Acknowledged incidents show who's on them and don't wake it. Quiet hours keep it dark at night except for an incident that's down. It moves a few pixels now and then against burn-in, and says how old its data is if it loses the hub. A display reads only its board's incidents and backups, and what household sees of the rest. It can't act, and Remove signs it out at once. The [displays guide](https://github.com/ban-red/cha-dash/blob/main/docs/displays.md) sets one up on Fully Kiosk, a Raspberry Pi or an iPad.
+- **TrueNAS.** Pools and their health, datasets, disks, apps, and snapshot and replication tasks, read only, from TrueNAS 25.04 on. A degraded pool or a failed replication is an incident, and push replications count toward backup coverage.
+- **UPSes through NUT.** Each UPS's charge, runtime, load and voltage from upsd. On battery shows as attention, and a low battery opens an incident.
+- **UniFi, Tailscale, Cloudflare Tunnel and Technitium.**
+  - UniFi: devices, clients and WAN health. A WAN that's down is an incident.
+  - Tailscale: devices and keys about to expire.
+  - Cloudflare Tunnel: tunnels and their health.
+  - Technitium: DNS queries, blocked and failing.
+- **Backup tools.** Backrest, Kopia, Duplicati, borg-ui and Zerobyte show each job's last run and what it covers, so Settings → Backups credits what they back up. A failed run is down, an overdue one attention.
+- **Home Assistant reads Cha Dash.** A custom integration ([contrib/homeassistant](https://github.com/ban-red/cha-dash/tree/main/contrib/homeassistant)) makes a Problem sensor, the home's health and counts, read with an `inbox.read` token from the new `GET /api/summary`. An automation can flash a light when something breaks.
+- **The config schema.** `GET /api/config/schema.json` lists every setting the hub and chadash-node take, flags and environment variables alike, with a version.
+- **Release provenance.** From the next release, images, binaries and checksums carry SLSA Build Level 3 provenance: `gh attestation verify` checks them, beside cosign.
 - **TV and e-ink displays.** A display is a wall tablet, a TV or an e-ink screen. A TV shows the board larger, the remote's arrow keys move between tiles, and the tile in focus shows its details, so nothing needs a mouse. An e-ink screen is one colour with no motion, shows times as "at 14:05", and is never dimmed.
 - **Levels of detail.** Every widget now draws at four levels: in full at a desk; compact on a phone, with the main value, its context and one action; simplified on a wall or a TV, with bigger numbers and no controls; and ink for e-ink and print. Printing a board gives the ink look.
 
