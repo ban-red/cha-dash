@@ -59,7 +59,7 @@ func TestSchemaTakesEveryBundledSpec(t *testing.T) {
 
 	seerr, _ := fs.ReadFile(FS, "seerr.yaml")
 	for what, c := range map[string]struct{ from, to string }{
-		"api version":       {"apiVersion: chadash/v1alpha1", "apiVersion: chadash/v1"},
+		"api version":       {"apiVersion: chadash/v1beta1", "apiVersion: chadash/v1"},
 		"unknown key":       {"\nevery: ", "\nevry: 60s\nevery: "},
 		"typo in a request": {"    optional: true", "    optinal: true"},
 		"tier":              {"tier: bronze", "tier: platinum"},

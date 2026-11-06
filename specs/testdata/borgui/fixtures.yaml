@@ -7,3 +7,4 @@ answers:
   plans: plans.json
   runs: runs.json
   connections: connections.json
+now: 2026-11-06T06:00:00Z # the moment these fixtures were written for; the clock now() reads

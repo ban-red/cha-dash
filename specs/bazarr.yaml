@@ -1,10 +1,10 @@
 # Bazarr: subtitles still wanted for episodes and movies, and Bazarr's own
 # health issues, named, with a link to where Bazarr lists them.
 #
-# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# Format: chadash/v1beta1 (docs/specs.md); see
 # internal/README.md, "Tier 1 specs". Fixture test: bazarr_test.go, against
 # testdata/bazarr/ (synthetic). Notes in README.md.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: bazarr

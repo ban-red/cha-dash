@@ -8,4 +8,4 @@
 | `devices_ok.json` | The same | One connected device with key expiry off |
 | `unauthorized.json` | The 401 | Tailscale's `{"message"}` error |
 
-The spec compares dates with the clock, so `tailscale_test.go` moves `lastSeen` and `expires` to around now before serving `devices.json`. Not checked against a live tailnet: that a key-expiry-disabled device's `expires` is the zero time (the spec handles a missing one too), and the 401's message.
+The spec compares dates with the clock. Its dates are for 2026-11-06 06:00 UTC, the clock `tailscale_test.go` and `fixtures.yaml` (`now`) set: the spec is v1beta1, so `now()` is the hub's clock. Not checked against a live tailnet: that a key-expiry-disabled device's `expires` is the zero time (the spec handles a missing one too), and the 401's message.

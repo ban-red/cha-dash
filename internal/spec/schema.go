@@ -3,6 +3,7 @@ package spec
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -12,24 +13,36 @@ import (
 // shape: keys, types and the few enums. What Parse checks beyond that
 // (templates, patterns, expressions, secrets in paths) stays Parse's.
 //
-// A spec is YAML; validate it as the JSON it decodes to.
-func Schema() []byte {
-	schemaOnce.Do(func() {
-		s := schemaOf(reflect.TypeFor[file]())
-		s["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-		s["title"] = "Cha Dash integration spec, " + APIVersion
-		props := s["properties"].(map[string]any)
-		props["apiVersion"] = map[string]any{"const": APIVersion}
-		props["kind"] = map[string]any{"const": "Integration"}
-		s["required"] = []string{"apiVersion", "kind", "meta"}
-		schemaJSON, _ = json.MarshalIndent(s, "", "  ")
-	})
-	return schemaJSON
+// A spec is YAML; validate it as the JSON it decodes to. Schema is the
+// current version's (APIVersion); SchemaFor is any of Versions'.
+func Schema() []byte { return SchemaFor(APIVersion) }
+
+// SchemaFor is the schema of one of Versions, or nil. The versions share a
+// shape: what v1beta1 changed is what expressions mean, not the keys.
+func SchemaFor(version string) []byte {
+	if !slices.Contains(Versions, version) {
+		return nil
+	}
+	schemaMu.Lock()
+	defer schemaMu.Unlock()
+	if b, ok := schemaJSON[version]; ok {
+		return b
+	}
+	s := schemaOf(reflect.TypeFor[file]())
+	s["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+	s["title"] = "Cha Dash integration spec, " + version
+	props := s["properties"].(map[string]any)
+	props["apiVersion"] = map[string]any{"const": version}
+	props["kind"] = map[string]any{"const": "Integration"}
+	s["required"] = []string{"apiVersion", "kind", "meta"}
+	b, _ := json.MarshalIndent(s, "", "  ")
+	schemaJSON[version] = b
+	return b
 }
 
 var (
-	schemaOnce sync.Once
-	schemaJSON []byte
+	schemaMu   sync.Mutex
+	schemaJSON = map[string][]byte{}
 )
 
 // keyed are the collections written as a mapping from a name to an entry

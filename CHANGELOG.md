@@ -31,6 +31,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Release provenance.** From the next release, images, binaries and checksums carry SLSA Build Level 3 provenance: `gh attestation verify` checks them, beside cosign.
 - **TV and e-ink displays.** A display is a wall tablet, a TV or an e-ink screen. A TV shows the board larger, the remote's arrow keys move between tiles, and the tile in focus shows its details, so nothing needs a mouse. An e-ink screen is one colour with no motion, shows times as "at 14:05", and is never dimmed.
 - **Levels of detail.** Every widget now draws at four levels: in full at a desk; compact on a phone, with the main value, its context and one action; simplified on a wall or a TV, with bigger numbers and no controls; and ink for e-ink and print. Printing a board gives the ink look.
+- **Spec format `chadash/v1beta1`.** A config field's default applies when it's unset, `now()` is the hub's clock (pinned in `spec test` with `now:` in `fixtures.yaml`), and `findIndex` returns -1 when nothing matches. `chadash spec migrate` rewrites a `v1alpha1` spec and keeps its comments, `spec lint` lists what would change, and the hub migrates installed specs when it starts. `v1alpha1` still loads through v0.5.x. `chadash spec new <id>` starts a spec that already passes `spec test`.
 
 ### Fixed
 

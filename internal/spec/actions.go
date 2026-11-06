@@ -34,7 +34,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 	"github.com/tidwall/gjson"
 	"go.yaml.in/yaml/v3"
@@ -173,12 +172,13 @@ func (s *Spec) compileActions() error {
 	if len(f.Targets) > maxTargets || len(f.Actions) > maxActions {
 		return fmt.Errorf("a spec has at most %d targets and %d actions", maxTargets, maxActions)
 	}
-	base := map[string]any{"config": map[string]any{}, "instance": map[string]any{}, "target": map[string]any{}}
+	base := s.compileEnv()
+	base["target"] = map[string]any{}
 	compileIn := func(env map[string]any, where, src string) (*vm.Program, error) {
 		if strings.TrimSpace(src) == "" {
 			return nil, nil
 		}
-		p, err := expr.Compile(src, expr.Env(env), expr.MaxNodes(500))
+		p, err := s.compileExpr(env, src)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", where, err)
 		}
@@ -313,7 +313,8 @@ func (s *Spec) compileActions() error {
 		if len(w.Body) > 0 && w.Method == http.MethodDelete {
 			return fmt.Errorf("%s.request: a DELETE has no body", where)
 		}
-		env := map[string]any{"config": map[string]any{}, "instance": map[string]any{}, "target": map[string]any{}, "params": map[string]any{}}
+		env := s.compileEnv()
+		env["target"], env["params"] = map[string]any{}, map[string]any{}
 		for k, src := range w.Body {
 			if k == "" || src == "" {
 				return fmt.Errorf("%s.request.body: every key needs an expression", where)

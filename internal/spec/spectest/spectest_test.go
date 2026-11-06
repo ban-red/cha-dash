@@ -31,7 +31,7 @@ func TestLintProblems(t *testing.T) {
 	for what, c := range map[string]struct{ from, to, want string }{
 		"a typo in a request": {"    extract:\n      version: version", "    extrat:\n      version: version", "extrat"},
 		"a secret in a path":  {"path: /api/tags/", "path: /api/tags/{{ secret.token }}", "secret"},
-		"not YAML":            {"apiVersion: chadash/v1alpha1", "apiVersion: [", "YAML"},
+		"not YAML":            {"apiVersion: chadash/v1beta1", "apiVersion: [", "YAML"},
 	} {
 		bad := strings.Replace(src, c.from, c.to, 1)
 		if bad == src {
@@ -55,7 +55,7 @@ func TestRunLinkding(t *testing.T) {
 	}
 	got := out.String()
 	for _, want := range []string{
-		"linkding 0.1.0 (Linkding), chadash/v1alpha1",
+		"linkding 0.1.0 (Linkding), chadash/v1beta1",
 		"Test: ok, version 1.42.0",
 		"Sync: ok",
 		"server       GET /health  200 health.json, asked",
@@ -136,5 +136,52 @@ func TestRunFailures(t *testing.T) {
 	}
 	if _, err := Run(t.Context(), b, dir, &out); err == nil || !strings.Contains(err.Error(), `"nothing"`) {
 		t.Fatalf("an answer for no request = %v", err)
+	}
+}
+
+// A v1alpha1 spec still lints clean, against v1alpha1's schema: the
+// bundled Linkding with its old apiVersion.
+func TestLintV1Alpha1(t *testing.T) {
+	b, _ := fs.ReadFile(specs.FS, "linkding.yaml")
+	old := strings.Replace(string(b), "apiVersion: chadash/v1beta1", "apiVersion: chadash/v1alpha1", 1)
+	if p := Lint([]byte(old)); len(p) > 0 {
+		t.Fatalf("v1alpha1: %q", p)
+	}
+	if p := Lint([]byte(strings.Replace(old, "chadash/v1alpha1", "chadash/v1", 1))); len(p) == 0 || !strings.Contains(strings.Join(p, "\n"), "chadash/v1beta1") {
+		t.Fatalf("an unknown version: %q", p)
+	}
+}
+
+// now: in fixtures.yaml pins a v1beta1 spec's clock: Tailscale's devices
+// are judged against the moment its fixtures were written for, so the
+// expired key and the one expiring in 5 days are both seen, every run.
+func TestRunPinnedClock(t *testing.T) {
+	b, _ := fs.ReadFile(specs.FS, "tailscale.yaml")
+	var out strings.Builder
+	ok, err := Run(t.Context(), b, "../../../specs/testdata/tailscale", &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"Clock: 2026-11-06T06:00:00Z, from fixtures.yaml",
+		"tailscale:i_spec/app  app \"Test\"  running, attention",
+		"health.reason = \"1 key has expired; 1 key expires within 14 days\"",
+		"tailscale:i_spec/device/nHERON2CNTRL  host \"heron\"  online, attention",
+		"\nPASS\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %q in\n%s", want, got)
+		}
+	}
+	if !ok {
+		t.Fatalf("failed:\n%s", got)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "fixtures.yaml"), []byte("now: yesterday\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(t.Context(), b, dir, &out); err == nil || !strings.Contains(err.Error(), "fixtures.yaml") {
+		t.Fatalf("a bad now = %v", err)
 	}
 }

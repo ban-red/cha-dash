@@ -34,9 +34,10 @@ func borgui(t *testing.T, dir string) *app {
 func TestBorgUI(t *testing.T) {
 	integ := bundled(t, "borgui", "borg-ui", "token")
 	importerShape(t, integ, "http://10.20.30.40:8081", "token")
-	srv := borgui(t, shiftedFixtures(t, "testdata/borgui")).start()
+	srv := borgui(t, "testdata/borgui").start()
 	url := srv.URL + "/borg"
 	h := integrationtest.New(t)
+	at(h, backupFixturesNow)
 	// path_map is left to its default, /local:/.
 	inst := h.Connect(integ, map[string]any{"url": url, "host": "10.20.30.40"}, map[string]string{"token": borguiToken})
 	if res := inst.Test(t.Context()); !res.OK || res.Version != "2.4.6" {
@@ -57,9 +58,9 @@ func TestBorgUI(t *testing.T) {
 		"backup.covers":      covers("10.20.30.40", "/mnt/user/appdata"),
 		"backup.schedule":    "0 2 * * *",
 		"backup.last_status": "ok",
-		"backup.last_at":     shifted("2026-11-06T02:41:07Z"),
-		"backup.last_ok":     shifted("2026-11-06T02:41:07Z"),
-		"backup.next_at":     shifted("2026-11-07T02:00:00Z"),
+		"backup.last_at":     "2026-11-06T02:41:07Z",
+		"backup.last_ok":     "2026-11-06T02:41:07Z",
+		"backup.next_at":     "2026-11-07T02:00:00Z",
 		"repositories":       []any{"nas-offsite", "local-usb"},
 	})
 	// A remote source: its SSH connection's host, its paths as written.
@@ -67,15 +68,15 @@ func TestBorgUI(t *testing.T) {
 		"The last run failed: Remote source unavailable: ssh: connect to host 10.20.30.51 port 22: Connection refused", map[string]any{
 			"backup.covers":      covers("10.20.30.51", "/etc", "/home/pi"),
 			"backup.last_status": "failed",
-			"backup.last_at":     shifted("2026-11-06T01:30:31Z"),
-			"backup.last_ok":     shifted("2026-11-05T01:31:12Z"),
+			"backup.last_at":     "2026-11-06T01:30:31Z",
+			"backup.last_ok":     "2026-11-05T01:31:12Z",
 			"backup.last_error":  "Remote source unavailable: ssh: connect to host 10.20.30.51 port 22: Connection refused",
 		})
 	// Weekly, a skipped run since, and the last good one twelve days ago.
 	checkTarget(t, h, a, "borgui:i_test/plan/3", "Media weekly", "completed", integration.HealthAttention, "No good backup within its schedule", map[string]any{
 		"backup.covers":   covers("10.20.30.40", "/mnt/user/media/music", "/mnt/user/media/books"),
 		"backup.schedule": "0 4 * * 0",
-		"backup.last_ok":  shifted("2026-10-25T05:12:44Z"),
+		"backup.last_ok":  "2026-10-25T05:12:44Z",
 	})
 	// An agent's machine isn't named, so it covers nothing; no schedule.
 	checkTarget(t, h, a, "borgui:i_test/plan/4", "Laptop", "never", integration.HealthUnknown, "No backup has run yet",
@@ -86,9 +87,10 @@ func TestBorgUI(t *testing.T) {
 
 	// Without the SSH connections (a user who may not list them), a remote
 	// source covers nothing rather than a guess.
-	up := borgui(t, shiftedFixtures(t, "testdata/borgui"))
+	up := borgui(t, "testdata/borgui")
 	up.set("/api/ssh-keys/connections", "")
 	h2 := integrationtest.New(t)
+	at(h2, backupFixturesNow)
 	if err := h2.Connect(integ, map[string]any{"url": up.start().URL + "/borg", "host": "10.20.30.40"}, map[string]string{"token": borguiToken}).Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)
 	}

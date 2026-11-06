@@ -13,6 +13,7 @@
 //	answers:
 //	  server: health.json            # a file, answered with a 200
 //	  stats: { status: 401 }         # a status, with an optional file
+//	now: 2026-11-06T06:00:00Z        # the clock (v1beta1's now()); default the wall clock
 //
 // Fixtures are recorded answers with personal data taken out; they're
 // served on 127.0.0.1 only.
@@ -66,7 +67,11 @@ func Lint(b []byte) []string {
 	if err := yaml.Unmarshal(b, &v); err != nil {
 		return []string{"It isn't YAML: " + err.Error()}
 	}
-	schema, err := compiled()
+	version := spec.APIVersion
+	if m, ok := v.(map[string]any); ok && m["apiVersion"] == spec.V1Alpha1 {
+		version = spec.V1Alpha1
+	}
+	schema, err := compiled(version)
 	if err != nil {
 		return []string{"The schema didn't compile: " + err.Error()}
 	}
@@ -93,26 +98,31 @@ func Lint(b []byte) []string {
 }
 
 var (
-	schemaOnce sync.Once
-	schemaC    *jsonschema.Schema
-	schemaErr  error
+	schemaMu sync.Mutex
+	schemaC  = map[string]*jsonschema.Schema{}
 )
 
-func compiled() (*jsonschema.Schema, error) {
-	schemaOnce.Do(func() {
-		doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(spec.Schema()))
-		if err != nil {
-			schemaErr = err
-			return
-		}
-		c := jsonschema.NewCompiler()
-		if err := c.AddResource("spec.json", doc); err != nil {
-			schemaErr = err
-			return
-		}
-		schemaC, schemaErr = c.Compile("spec.json")
-	})
-	return schemaC, schemaErr
+// compiled is a format version's published schema, compiled once.
+func compiled(version string) (*jsonschema.Schema, error) {
+	schemaMu.Lock()
+	defer schemaMu.Unlock()
+	if c, ok := schemaC[version]; ok {
+		return c, nil
+	}
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(spec.SchemaFor(version)))
+	if err != nil {
+		return nil, err
+	}
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource("spec.json", doc); err != nil {
+		return nil, err
+	}
+	sc, err := c.Compile("spec.json")
+	if err != nil {
+		return nil, err
+	}
+	schemaC[version] = sc
+	return sc, nil
 }
 
 var english = message.NewPrinter(language.English)
@@ -135,6 +145,9 @@ type fixtures struct {
 	Config  map[string]any    `yaml:"config"`
 	Secrets map[string]string `yaml:"secrets"`
 	Answers map[string]answer `yaml:"answers"`
+	// Now pins the clock a v1beta1 spec's now() reads, so time-based
+	// health is tested with the fixtures' own dates.
+	Now *time.Time `yaml:"now"`
 }
 
 type answer struct {
@@ -248,7 +261,10 @@ func Run(ctx context.Context, specYAML []byte, dir string, w io.Writer) (bool, e
 		return false, fmt.Errorf("the fixtures' config doesn't fit the spec: %s", strings.Join(msgs, "; "))
 	}
 
-	now := time.Date(2026, 10, 3, 14, 5, 0, 0, time.UTC)
+	now := time.Now().UTC()
+	if f.Now != nil {
+		now = f.Now.UTC()
+	}
 	clock := func() time.Time { return now }
 	set := topics.New(graph.New(), now)
 	em := runtime.NewEmitter(set, instanceID, clock)
@@ -264,7 +280,15 @@ func Run(ctx context.Context, specYAML []byte, dir string, w io.Writer) (bool, e
 	defer inst.Close()
 
 	ok := true
-	fmt.Fprintf(w, "%s %s (%s), %s\n\n", m.ID, m.Version, m.Name, spec.APIVersion)
+	fmt.Fprintf(w, "%s %s (%s), %s\n", m.ID, m.Version, m.Name, s.APIVersion())
+	switch {
+	case s.APIVersion() == spec.V1Alpha1:
+		fmt.Fprintf(w, "Clock: the wall clock (a %s spec's now() reads it; %s's reads the hub's)\n\n", spec.V1Alpha1, spec.V1Beta1)
+	case f.Now != nil:
+		fmt.Fprintf(w, "Clock: %s, from fixtures.yaml\n\n", now.Format(time.RFC3339))
+	default:
+		fmt.Fprintf(w, "Clock: now (set now: in fixtures.yaml to pin it)\n\n")
+	}
 
 	res := inst.Test(ctx)
 	if res.OK {

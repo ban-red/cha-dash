@@ -1,12 +1,12 @@
 # Cloudflare Tunnel: an account's tunnels (cloudflared) and the state of
 # their connections to Cloudflare's edge.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs". Fixture
 # test: cloudflaretunnel_test.go, against testdata/cloudflaretunnel/
 # (synthetic). Notes in recipes/cloudflaretunnel.md.
 #
 # The instance URL is Cloudflare's API, https://api.cloudflare.com/client/v4.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: cloudflaretunnel

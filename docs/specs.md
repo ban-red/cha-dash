@@ -1,14 +1,31 @@
 # Writing an integration spec
 
-A spec is a YAML file that teaches Cha Dash to read a service's HTTP API: what to ask for, what to publish, and, if you want, a few actions. The hub runs it with its spec engine. Nine integrations ship as specs ([`specs/`](../specs/README.md)); [`seerr.yaml`](../specs/seerr.yaml) is the fullest example.
+A spec is a YAML file that teaches Cha Dash to read a service's HTTP API: what to ask for, what to publish, and, if you want, a few actions. The hub runs it with its spec engine. Twenty-two integrations ship as specs ([`specs/`](../specs/README.md)); [`seerr.yaml`](../specs/seerr.yaml) is the fullest example.
 
-The format is `chadash/v1alpha1`, public since v0.3 ([ADR-0025](adr/0025-spec-format-public-as-v1alpha1.md)). "Alpha" means it can still change, but only by a new `apiVersion` with a migration; a hub loads the old version for at least one minor release after.
+The format is `chadash/v1beta1`, since v0.5. It has been public since v0.3 ([ADR-0025](adr/0025-spec-format-public-as-v1alpha1.md)), and it changes only by a new `apiVersion` with a migration; a hub loads the old version for at least one minor release after. `v1` comes at 1.0.
+
+## Start one
+
+```sh
+chadash spec new myapp
+```
+
+writes the community repository's layout for a spec called `myapp`:
+
+| File | What |
+|---|---|
+| `myapp/spec.yaml` | A `v1beta1` spec with one request, the app resource every spec publishes, a config field with a default and a metric, with `TODO`s to replace |
+| `myapp/fixtures/fixtures.yaml`, `myapp/fixtures/status.json` | The answer `spec test` serves, and `now:`, the clock |
+| `myapp/recipe.md` | How the owner makes a credential with only the access the spec needs |
+| `myapp/README.md` | What the spec shows, and the version you tested |
+
+`chadash spec test myapp/spec.yaml myapp/fixtures` passes as it is. Change the request to your app's, record its answer, and work from there. `spec new` refuses an ID the hub wouldn't take (2 to 32 lowercase letters and digits, starting with a letter) and any file that exists already; `-dir <folder>` writes somewhere other than here.
 
 ## Check it as you write
 
-- **The schema.** Every hub serves the format's JSON Schema at `/api/specs/schema/v1alpha1.json`. Point your editor at it, for example with a first line `# yaml-language-server: $schema=https://<your hub>/api/specs/schema/v1alpha1.json`.
-- **`chadash spec lint <spec.yaml>`** checks the schema and the rules the hub applies when it loads a spec: patterns, templates, where secrets may go, expressions that compile.
-- **`chadash spec test <spec.yaml> <fixtures/>`** runs the spec against recorded answers on a local fake upstream, prints the resources and metrics it publishes, and checks what every spec must publish. Neither command needs a running hub.
+- **The schema.** Every hub serves the format's JSON Schema at `/api/specs/schema/v1beta1.json` (and `v1alpha1.json`). Point your editor at it, for example with a first line `# yaml-language-server: $schema=https://<your hub>/api/specs/schema/v1beta1.json`.
+- **`chadash spec lint <spec.yaml>`** checks the schema and the rules the hub applies when it loads a spec: patterns, templates, where secrets may go, expressions that compile. For a `v1alpha1` spec it passes and lists what `v1beta1` changes.
+- **`chadash spec test <spec.yaml> <fixtures/>`** runs the spec against recorded answers on a local fake upstream, prints the resources and metrics it publishes, and checks what every spec must publish. None of the commands needs a running hub.
 
 Run them from the hub's image: `docker run --rm -v "$PWD:/w" -w /w ghcr.io/ban-red/chadash spec lint my.yaml`.
 
@@ -22,11 +39,35 @@ secrets: { token: fake-token } # each defaults to "fake-<name>"
 answers:
   server: health.json          # a file, answered with a 200
   stats: { status: 401 }       # a status, with an optional file
+now: 2026-11-06T06:00:00Z      # what now() returns; leave it out for the wall clock
 ```
+
+Pin `now` when the spec judges dates against the clock (a backup's age, a key's expiry): the fixtures' dates then mean the same on any day.
 
 Record the answers from your own instance, then take out anything personal: names, titles, addresses, tokens. The community repository refuses fixtures with real data.
 
 `spec test` passes when the connection test passes, every request that isn't `optional` has an answer, and the spec publishes `<id>:<instance>/app`: kind `app`, named after the instance, state `running`, with `attrs.type` set to the spec's ID, one link to the configured URL, and the instance monitoring it.
+
+## From v1alpha1
+
+`v1beta1` keeps every key; three things expressions mean changed, each one a workaround `v1alpha1` specs repeated:
+
+| | `v1alpha1` | `v1beta1` |
+|---|---|---|
+| A config field with a `default`, left unset | null in expressions, `<nil>` in a template, so specs wrote `(config.days ?? 14)` | the default, in both |
+| `now()` | the wall clock, so tests moved fixture dates to today | the hub's clock: the same in a running hub; `spec test` pins it with `now:` |
+| `findIndex`, `findLastIndex` with no match | null, so specs wrote `findIndex(…) ?? -1` | -1 |
+
+`now` can't be a request's name in `v1beta1`. An unset field without a default is `""` in a template.
+
+```sh
+chadash spec lint my.yaml      # ok, and what v1beta1 changes
+chadash spec migrate my.yaml   # rewrites it in place
+```
+
+`spec migrate` keeps your comments and layout. It bumps `apiVersion` and drops only what `v1beta1` makes redundant: `?? <value>` after a config field whose default is that value (and the parentheses that held only that), and `?? -1` after a `findIndex`. What it can't decide it lists for you to check: a field with a default read another way (`config.days == nil`), a fallback that isn't the default (never used now), a `findIndex` compared with nil, and `now()`.
+
+A hub migrates installed `v1alpha1` specs itself, at start and on install, and their instances keep running. `v1alpha1` specs still load through v0.5.x.
 
 ## Install it
 
@@ -39,11 +80,12 @@ Installed specs live in the hub's database, so a backup carries them.
 ## The format
 
 ```yaml
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta: { id: seerr, name: Seerr, aliases: [Overseerr, Jellyseerr], icon: seerr, version: 0.1.0, tier: bronze, category: media, capabilities: [media.requests] }
 config:                           # url and tls are always added; types: string, url, secret, integer, number, boolean
   api_key: { type: secret, title: API key, required: true }
+  pending_warn: { type: integer, title: Pending before attention, default: 20 }   # unset: the default
 source:
   headers: { X-Api-Key: "{{ secret.api_key }}" }   # templates: config.x, secret.x, instance.id, instance.name
   timeout: 10s                    # per request, at most 30s
@@ -54,13 +96,13 @@ requests:                         # run in order, GET (or POST with body)
     query: { take: "1" }          # optional; secrets allowed (kept out of errors)
     extract: { pending: pending } # name → gjson path; missing is null
     optional: false               # true: a failure leaves the values null instead of failing the sync
-version: status.version           # an expression over {config, instance, <request>: {<name>: value}}
+version: status.version           # an expression over {config, instance, <request>: {<name>: value}}; now() is the hub's clock
 resources:
   - id: app                       # the resource is <spec id>:<instance id>/app
     kind: app
     name: instance.name
     state: '"running"'
-    health: '(counts.pending ?? 0) > 20 ? "attention" : "ok"'   # ok, attention, down, unknown, maintenance
+    health: '(counts.pending ?? 0) >= config.pending_warn ? "attention" : "ok"'   # ok, attention, down, unknown, maintenance
     attrs: { version: status.version }                          # null results are left out
     caps: [media.requests]
     links: [{ title: Seerr, url: config.url }]
@@ -110,4 +152,4 @@ resources:
 
 ## Share it
 
-The community repository is `ban-red/cha-dash-specs`: one folder per spec with its YAML, recorded fixtures (required), a README and a recipe for a least-privilege credential. CI runs `spec lint` and `spec test`, and a maintainer reviews every pull request. Cha Dash doesn't fetch from it yet: copy a spec into Settings.
+The community repository is `ban-red/cha-dash-specs`: one folder per spec with its YAML, recorded fixtures (required), a README and a recipe for a least-privilege credential, the layout `chadash spec new` writes. CI runs `spec lint` and `spec test`, and a maintainer reviews every pull request. Cha Dash doesn't fetch from it yet: copy a spec into Settings.

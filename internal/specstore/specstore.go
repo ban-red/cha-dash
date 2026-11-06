@@ -12,6 +12,13 @@
 //
 // An ID a bundled spec or a Go integration uses is refused, and a spec
 // with instances can't be removed until they go.
+//
+// A spec in the old format, chadash/v1alpha1, is migrated to v1beta1
+// (spec.Migrate) when it's installed and, for one stored by an older hub,
+// at start: the row keeps the migrated YAML, its instances keep running on
+// it, and its actions keep their switch, since the migration changes no
+// action's method, path or tier. One that doesn't migrate loads as it is:
+// v1alpha1 loads through v0.5.x.
 package specstore
 
 import (
@@ -254,6 +261,9 @@ func (s *Service) Load(ctx context.Context) error {
 		return err
 	}
 	for _, r := range rows {
+		if y, ok := s.migrate(ctx, r); ok {
+			r.yaml = y
+		}
 		// The same checks as an install: a rule this hub added since, or an
 		// integration it now bundles under the same ID, keeps it out.
 		var err error
@@ -280,6 +290,38 @@ func (s *Service) Load(ctx context.Context) error {
 		s.mu.Unlock()
 	}
 	return nil
+}
+
+// upgrade is yaml in the current format: a v1alpha1 spec migrated, or yaml
+// as it is (already current, or one Migrate can't read, which Check then
+// refuses or loads as v1alpha1).
+func upgrade(yaml string) (string, []string, bool) {
+	sp, err := spec.Parse([]byte(yaml))
+	if err != nil || sp.APIVersion() != spec.V1Alpha1 {
+		return yaml, nil, false
+	}
+	out, changes, err := spec.Migrate([]byte(yaml))
+	if err != nil || len(out) > MaxYAML {
+		return yaml, nil, false
+	}
+	return string(out), changes, true
+}
+
+// migrate rewrites a stored v1alpha1 spec's row as v1beta1, keeping its
+// actions' switch, and returns the YAML it stored.
+func (s *Service) migrate(ctx context.Context, r row) (string, bool) {
+	y, changes, ok := upgrade(r.yaml)
+	if !ok {
+		return "", false
+	}
+	sum := sha256.Sum256([]byte(y))
+	if _, err := s.st.Writer().ExecContext(ctx, `UPDATE installed_specs SET yaml = ?, sha256 = ?, updated_at = ? WHERE spec_id = ? AND sha256 = ?`,
+		y, hex.EncodeToString(sum[:]), s.now().UnixMilli(), r.specID, r.sum); err != nil {
+		s.log.Warn("specstore: an installed spec didn't migrate; it loads as "+spec.V1Alpha1, "spec", r.specID, "err", err)
+		return "", false
+	}
+	s.log.Info("specstore: migrated an installed spec to "+spec.V1Beta1, "spec", r.specID, "changes", len(changes))
+	return y, true
 }
 
 // errBundledNow is a stored spec whose ID the hub now has built in.
@@ -390,6 +432,9 @@ func (s *Service) Check(ctx context.Context, yaml string, replace bool) (*spec.S
 func (s *Service) Install(ctx context.Context, yaml, source, userID string, replace bool) (_ Installed, replaced bool, _ error) {
 	s.writing.Lock()
 	defer s.writing.Unlock()
+	if len(yaml) <= MaxYAML {
+		yaml, _, _ = upgrade(yaml) // what's stored and run is v1beta1
+	}
 	sp, pv, err := s.Check(ctx, yaml, replace)
 	if err != nil {
 		return Installed{}, false, err

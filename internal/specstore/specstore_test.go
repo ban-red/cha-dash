@@ -2,12 +2,16 @@ package specstore
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +19,7 @@ import (
 	"dash.cha.sh/internal/action"
 	"dash.cha.sh/internal/audit"
 	"dash.cha.sh/internal/authz"
+	"dash.cha.sh/internal/graph"
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/integration/integrationtest"
 	"dash.cha.sh/internal/spec"
@@ -363,5 +368,106 @@ func TestBundledLater(t *testing.T) {
 	}
 	if _, m, ok := e.reg.Get("mylinks"); !ok || m.Installed {
 		t.Fatal("removing the row unregistered the bundled integration")
+	}
+}
+
+// An installed v1alpha1 spec, stored by an older hub, migrates to v1beta1
+// at start and keeps working: the row holds the migrated YAML, its actions
+// keep their switch, and its instance syncs the same before and after.
+func TestInstalledV1Alpha1Migrates(t *testing.T) {
+	e := newEnv(t)
+	b, err := os.ReadFile(filepath.Join("..", "spec", "testdata", "v1alpha1", "seerr.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := strings.ReplaceAll(string(b), "seerr", "myseerr")
+	if !strings.Contains(old, "apiVersion: chadash/v1alpha1") || !strings.Contains(old, "(config.pending_warn ?? 20)") {
+		t.Fatal("not the v1alpha1 Seerr")
+	}
+	sum := sha256.Sum256([]byte(old))
+	if _, err := e.st.Writer().Exec(`INSERT INTO installed_specs (id, spec_id, yaml, sha256, source, actions_on, installed_by, installed_at, updated_at)
+		VALUES ('isp_old', 'myseerr', ?, ?, '', 1, 'u_owner', 1, 1)`, old, hex.EncodeToString(sum[:])); err != nil {
+		t.Fatal(err)
+	}
+
+	// Seerr's synthetic fixtures; 3 pending is under the default 20.
+	dir := filepath.Join("..", "..", "specs", "testdata", "seerr")
+	mux := http.NewServeMux()
+	for route, file := range map[string]string{"GET /api/v1/status": "status.json", "GET /api/v1/request/count": "request_count.json", "GET /api/v1/request": "request_pending.json"} {
+		body, err := os.ReadFile(filepath.Join(dir, file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		mux.HandleFunc(route, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(body)
+		})
+	}
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	h := integrationtest.New(t)
+	syncWith := func(integ integration.Integration, want string) graph.Resource {
+		t.Helper()
+		inst := h.Connect(integ, map[string]any{"url": srv.URL}, map[string]string{"api_key": "fake-key"})
+		if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
+			t.Fatalf("%s: %v", want, err)
+		}
+		r, ok := h.Resource("myseerr:i_test/app")
+		if !ok || r.Health != integration.HealthOK || r.Attrs["type"] != "myseerr" {
+			t.Fatalf("%s: app %+v", want, r)
+		}
+		return r
+	}
+	syncOnce := func(want string) graph.Resource {
+		t.Helper()
+		integ, m, ok := e.reg.Get("myseerr")
+		if !ok || !m.Installed {
+			t.Fatal("myseerr isn't registered")
+		}
+		if v := integ.(installed).APIVersion(); v != want {
+			t.Fatalf("registered as %s, want %s", v, want)
+		}
+		return syncWith(integ, want)
+	}
+	// What the v1alpha1 spec publishes, as the older hub ran it.
+	sp, err := spec.Parse([]byte(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := syncWith(sp, spec.V1Alpha1)
+
+	// The hub starts: Load migrates the row.
+	e.restart()
+	list, err := e.s.List(t.Context())
+	if err != nil || len(list) != 1 {
+		t.Fatal(list, err)
+	}
+	v := list[0]
+	if !strings.Contains(v.YAML, "apiVersion: chadash/v1beta1") || strings.Contains(v.YAML, "?? 20") || v.Error != "" || !v.ActionsOn || !v.UpdatedAt.After(v.InstalledAt) {
+		t.Fatalf("after start: %+v", v)
+	}
+	now := sha256.Sum256([]byte(v.YAML))
+	if v.SHA256 != hex.EncodeToString(now[:]) || v.SHA256 == hex.EncodeToString(sum[:]) || !strings.Contains(v.YAML, "# ") {
+		t.Fatalf("the row's sha256 and comments: %s", v.SHA256)
+	}
+	after := syncOnce(spec.V1Beta1)
+	if after.State != before.State || after.Health != before.Health || !reflect.DeepEqual(after.Attrs, before.Attrs) {
+		t.Fatalf("v1alpha1 published %+v, v1beta1 %+v", before, after)
+	}
+
+	// Another start finds nothing to migrate and runs the same.
+	e.restart()
+	if again, _ := e.s.List(t.Context()); again[0].SHA256 != v.SHA256 || !again[0].ActionsOn {
+		t.Fatalf("migrated twice: %+v", again[0])
+	}
+	if r := syncOnce(spec.V1Beta1); r.Attrs["health.reason"] != after.Attrs["health.reason"] || r.State != after.State {
+		t.Fatalf("%+v, then %+v", after, r)
+	}
+
+	// Installing a v1alpha1 spec stores it as v1beta1.
+	other := strings.ReplaceAll(old, "myseerr", "myseerr2")
+	got, _, err := e.s.Install(t.Context(), other, "", "u_owner", false)
+	if err != nil || !strings.Contains(got.YAML, "apiVersion: chadash/v1beta1") || strings.Contains(got.YAML, "?? 20") {
+		t.Fatalf("install v1alpha1: %v %.300s", err, got.YAML)
 	}
 }

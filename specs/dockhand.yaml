@@ -1,10 +1,10 @@
 # Dockhand: the compose stacks on one of its environments, and their state.
 # Read only.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs". Fixture
 # test: dockhand_test.go, against testdata/dockhand/ (synthetic, from
 # Dockhand v1.0.56's source). Notes in README.md.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: dockhand

@@ -1,6 +1,6 @@
 # Backrest: its backup plans, their last run and what they back up. Read only.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs" and
 # docs/specs.md, "Backup targets". Fixture test: backrest_test.go, against
 # testdata/backrest/ (synthetic, from Backrest v1.14.1's source).
 #
@@ -9,7 +9,7 @@
 # value made ahead of time (base64 of user:password): a spec can't encode
 # it, and signing in for a token (Login, a JWT for 7 days) is a handshake a
 # spec can't do.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: backrest
@@ -95,20 +95,20 @@ resources:
     caps: [backups.targets]
     state: |
       let st = find(summary.plans ?? [], {.id == item.id})?.recentBackups?.status ?? [];
-      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]});
       len(st) > 0 && st[0] == "STATUS_INPROGRESS" ? "running" :
         (i < 0 ? "never" : (st[i] == "STATUS_SUCCESS" ? "ok" : (st[i] == "STATUS_WARNING" ? "warning" : "failed")))
     health: |
       let s = find(summary.plans ?? [], {.id == item.id});
       let st = s?.recentBackups?.status ?? [];
-      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]});
       i >= 0 && st[i] == "STATUS_ERROR" ? "down" :
         ((i >= 0 && st[i] in ["STATUS_WARNING", "STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"]) || (last(s?.historyLast30days ?? [])?.overdue ?? false) ? "attention" :
           (i < 0 ? "unknown" : "ok"))
     reason: |
       let s = find(summary.plans ?? [], {.id == item.id});
       let st = s?.recentBackups?.status ?? [];
-      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+      let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]});
       let err = findLast(ops.list ?? [], {.planId == item.id && .operationBackup != nil && .status == "STATUS_ERROR"})?.displayMessage ?? "";
       i >= 0 && st[i] == "STATUS_ERROR" ? (err != "" ? "The last backup failed: " + split(err, "\n")[0] : "The last backup failed") :
         (i >= 0 && st[i] in ["STATUS_SYSTEM_CANCELLED", "STATUS_USER_CANCELLED"] ? "The last backup was cancelled" :
@@ -139,21 +139,21 @@ resources:
       backup.enabled: 'item.schedule != nil && item.schedule.disabled != true'
       backup.last_status: |
         let st = find(summary.plans ?? [], {.id == item.id})?.recentBackups?.status ?? [];
-        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]});
         i < 0 ? nil : (st[i] in ["STATUS_SUCCESS", "STATUS_WARNING"] ? "ok" : "failed")
       # When the newest finished backup ended: its start plus its duration.
       backup.last_at: |
         let rb = find(summary.plans ?? [], {.id == item.id})?.recentBackups;
         let st = rb?.status ?? [];
-        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]});
         i < 0 ? nil : (date("1970-01-01T00:00:00Z") + duration(string(int(rb.timestampMs[i]) + int(rb.durationMs[i])) + "ms")).Format("2006-01-02T15:04:05Z07:00")
       backup.last_ok: |
         let rb = find(summary.plans ?? [], {.id == item.id})?.recentBackups;
-        let j = findIndex(rb?.status ?? [], {# in ["STATUS_SUCCESS", "STATUS_WARNING"]}) ?? -1;
+        let j = findIndex(rb?.status ?? [], {# in ["STATUS_SUCCESS", "STATUS_WARNING"]});
         j < 0 ? nil : (date("1970-01-01T00:00:00Z") + duration(string(int(rb.timestampMs[j]) + int(rb.durationMs[j])) + "ms")).Format("2006-01-02T15:04:05Z07:00")
       backup.last_error: |
         let st = find(summary.plans ?? [], {.id == item.id})?.recentBackups?.status ?? [];
-        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]}) ?? -1;
+        let i = findIndex(st, {# not in ["STATUS_INPROGRESS", "STATUS_PENDING", "STATUS_UNKNOWN"]});
         let err = findLast(ops.list ?? [], {.planId == item.id && .operationBackup != nil && .status == "STATUS_ERROR"})?.displayMessage ?? "";
         i >= 0 && st[i] == "STATUS_ERROR" && err != "" ? split(err, "\n")[0] : nil
       backup.next_at: |

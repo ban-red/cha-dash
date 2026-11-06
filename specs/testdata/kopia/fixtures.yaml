@@ -4,3 +4,4 @@ config: { path_map: "/data:/mnt/user" }
 secrets: { basic_auth: c2VydmVyLWNvbnRyb2w6ZmFrZS1rb3BpYS1wYXNzd29yZA== }
 answers:
   sources: sources.json
+now: 2026-11-06T06:00:00Z # the moment these fixtures were written for; the clock now() reads

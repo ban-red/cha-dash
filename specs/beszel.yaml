@@ -1,6 +1,6 @@
 # Beszel: the systems its agents report, with their CPU, memory and disk.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs". Fixture
 # test: beszel_test.go, against testdata/beszel/ (synthetic). Notes in
 # README.md.
 #
@@ -8,7 +8,7 @@
 # (auth-with-password, then the token it returns) is a handshake a spec
 # can't do, so this spec takes a token made ahead of time: PocketBase's
 # Impersonate, for a read-only Beszel user, with a long duration.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: beszel
@@ -75,11 +75,11 @@ resources:
     state: 'item.status == "up" ? "online" : (item.status == "down" ? "offline" : (item.status == "paused" ? "paused" : "unknown"))'
     health: |
       item.status == "down" ? "down" :
-        (item.status == "up" && (item.info.dp ?? 0) >= (config.disk_warn ?? 90) ? "attention" :
+        (item.status == "up" && (item.info.dp ?? 0) >= config.disk_warn ? "attention" :
           (item.status in ["up", "paused"] ? "ok" : "unknown"))
     reason: |
       item.status == "down" ? "Beszel's agent isn't answering" :
-        (item.status == "up" && (item.info.dp ?? 0) >= (config.disk_warn ?? 90) ? "Its disk is " + string(round(item.info.dp)) + "% full" : "")
+        (item.status == "up" && (item.info.dp ?? 0) >= config.disk_warn ? "Its disk is " + string(round(item.info.dp)) + "% full" : "")
     attrs:
       type: '"beszel.system"'
       hostname: '(item.info.h ?? "") != "" ? item.info.h : nil'

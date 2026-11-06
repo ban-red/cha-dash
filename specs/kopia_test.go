@@ -23,9 +23,10 @@ func kopia(t *testing.T, dir string) *app {
 func TestKopia(t *testing.T) {
 	integ := bundled(t, "kopia", "Kopia", "basic_auth")
 	importerShape(t, integ, "http://10.20.30.40:51515", "basic_auth")
-	srv := kopia(t, shiftedFixtures(t, "testdata/kopia")).start()
+	srv := kopia(t, "testdata/kopia").start()
 	url := srv.URL + "/kopia"
 	h := integrationtest.New(t)
+	at(h, backupFixturesNow)
 	inst := h.Connect(integ, map[string]any{"url": url, "path_map": "/data:/mnt/user"}, map[string]string{"basic_auth": kopiaAuth[len("Basic "):]})
 	if res := inst.Test(t.Context()); !res.OK {
 		t.Fatalf("test = %+v", res)
@@ -47,8 +48,8 @@ func TestKopia(t *testing.T) {
 		"backup.covers":      covers("nas", "/mnt/user/appdata"),
 		"backup.schedule":    "daily",
 		"backup.last_status": "ok",
-		"backup.last_at":     shifted("2026-11-06T03:04:41Z"),
-		"backup.next_at":     shifted("2026-11-07T03:00:00Z"),
+		"backup.last_at":     "2026-11-06T03:04:41Z",
+		"backup.next_at":     "2026-11-07T03:00:00Z",
 		"size_bytes":         48318382080.0,
 		"files":              182311.0,
 		"backup.manual":      false,
@@ -78,6 +79,7 @@ func TestKopia(t *testing.T) {
 
 	// A host set in the config names every source's machine.
 	h2 := integrationtest.New(t)
+	at(h2, backupFixturesNow)
 	inst2 := h2.Connect(integ, map[string]any{"url": url, "host": "10.20.30.40"}, map[string]string{"basic_auth": kopiaAuth[len("Basic "):]})
 	if err := inst2.Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)

@@ -1,6 +1,6 @@
 # Duplicati fixtures
 
-**Synthetic.** Responses for `specs/duplicati.yaml`, written by hand from Duplicati v2.4.1.0's source ([duplicati/duplicati](https://github.com/duplicati/duplicati)): the routes in `Duplicati/WebserverCore/Endpoints/V1` (`Backups.cs`, `SystemInfo.cs`, `Auth.cs` for the forever token), the DTOs in `WebserverCore/Dto` (JSON with C# names: `PropertyNamingPolicy = null`), the list in `WebserverCore/Services/BackupListService.cs`, and the metadata keys and their `yyyyMMddTHHmmssK` dates in `Library/RestAPI/Runner.cs`. No real instance was contacted; names, buckets and sizes are made up, and passwords are masked as Duplicati masks them. Times are for 2026-11-06 06:00 UTC; the fixture test moves them to now.
+**Synthetic.** Responses for `specs/duplicati.yaml`, written by hand from Duplicati v2.4.1.0's source ([duplicati/duplicati](https://github.com/duplicati/duplicati)): the routes in `Duplicati/WebserverCore/Endpoints/V1` (`Backups.cs`, `SystemInfo.cs`, `Auth.cs` for the forever token), the DTOs in `WebserverCore/Dto` (JSON with C# names: `PropertyNamingPolicy = null`), the list in `WebserverCore/Services/BackupListService.cs`, and the metadata keys and their `yyyyMMddTHHmmssK` dates in `Library/RestAPI/Runner.cs`. No real instance was contacted; names, buckets and sizes are made up, and passwords are masked as Duplicati masks them. Times are for 2026-11-06 06:00 UTC, the clock the fixture test and `fixtures.yaml` (`now`) set.
 
 | File | Request | Notes |
 |---|---|---|

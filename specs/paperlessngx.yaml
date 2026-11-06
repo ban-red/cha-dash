@@ -1,9 +1,9 @@
 # Paperless-ngx: how many documents there are, and how many wait in the inbox.
 #
-# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# Format: chadash/v1beta1 (docs/specs.md); see
 # internal/README.md, "Tier 1 specs". Fixture test: paperlessngx_test.go,
 # against testdata/paperlessngx/ (synthetic). Notes in README.md.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: paperlessngx
@@ -51,8 +51,8 @@ resources:
     kind: app
     name: instance.name
     state: '"running"'
-    health: '(stats.inbox ?? 0) >= (config.inbox_warn ?? 50) ? "attention" : "ok"'
-    reason: '(stats.inbox ?? 0) >= (config.inbox_warn ?? 50) ? string(stats.inbox) + " documents are waiting in the inbox" : ""'
+    health: '(stats.inbox ?? 0) >= config.inbox_warn ? "attention" : "ok"'
+    reason: '(stats.inbox ?? 0) >= config.inbox_warn ? string(stats.inbox) + " documents are waiting in the inbox" : ""'
     attrs:
       type: '"paperlessngx"'
       version: status.version

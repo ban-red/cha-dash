@@ -22,9 +22,10 @@ func duplicati(t *testing.T, dir string) *app {
 func TestDuplicati(t *testing.T) {
 	integ := bundled(t, "duplicati", "Duplicati", "token")
 	importerShape(t, integ, "http://10.20.30.40:8200", "token")
-	srv := duplicati(t, shiftedFixtures(t, "testdata/duplicati")).start()
+	srv := duplicati(t, "testdata/duplicati").start()
 	url := srv.URL + "/duplicati"
 	h := integrationtest.New(t)
+	at(h, backupFixturesNow)
 	inst := h.Connect(integ, map[string]any{"url": url, "host": "10.20.30.40", "path_map": "/source:/"}, map[string]string{"token": duplicatiToken})
 	if res := inst.Test(t.Context()); !res.OK || res.Version != "2.4.1.0" {
 		t.Fatalf("test = %+v", res)
@@ -44,9 +45,9 @@ func TestDuplicati(t *testing.T) {
 		"backup.covers":      covers("10.20.30.40", "/mnt/user/appdata"),
 		"backup.schedule":    "daily",
 		"backup.last_status": "ok",
-		"backup.last_at":     shifted("2026-11-06T03:04:37Z"),
-		"backup.last_ok":     shifted("2026-11-06T03:04:37Z"),
-		"backup.next_at":     shifted("2026-11-07T03:00:00Z"),
+		"backup.last_at":     "2026-11-06T03:04:37Z",
+		"backup.last_ok":     "2026-11-06T03:04:37Z",
+		"backup.next_at":     "2026-11-07T03:00:00Z",
 		"size_bytes":         48318382080.0,
 		"stored_bytes":       39728447488.0,
 		"versions":           34.0,
@@ -57,8 +58,8 @@ func TestDuplicati(t *testing.T) {
 			"backup.covers":      covers("10.20.30.40", "/mnt/user/photos", "/boot"),
 			"backup.schedule":    "weekly",
 			"backup.last_status": "failed",
-			"backup.last_at":     shifted("2026-11-06T02:01:12Z"),
-			"backup.last_ok":     shifted("2026-10-30T03:28:11Z"),
+			"backup.last_at":     "2026-11-06T02:01:12Z",
+			"backup.last_ok":     "2026-10-30T03:28:11Z",
 			"backup.last_error":  "The remote server returned an error: (403) Forbidden.",
 		})
 	// An old error, a good run since, but nothing for days on a daily job;
@@ -86,9 +87,10 @@ func TestDuplicatiFailures(t *testing.T) {
 		t.Fatalf("wrong token: %+v", res)
 	}
 	// Without systeminfo the version is unknown, and the jobs still read.
-	up := duplicati(t, shiftedFixtures(t, "testdata/duplicati"))
+	up := duplicati(t, "testdata/duplicati")
 	up.set("/api/v1/systeminfo", "")
 	h := integrationtest.New(t)
+	at(h, backupFixturesNow)
 	inst := h.Connect(integ, map[string]any{"url": up.start().URL + "/duplicati"}, map[string]string{"token": duplicatiToken})
 	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)

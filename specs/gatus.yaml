@@ -1,9 +1,9 @@
 # Gatus: its endpoints' latest results, as checks.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs". Fixture
 # test: gatus_test.go, against testdata/gatus/ (synthetic). Notes in
 # README.md.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: gatus

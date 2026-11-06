@@ -1,10 +1,10 @@
 # borg-ui (karanhudia/borg-ui), a web UI for Borg: its backup plans, their
 # last run and what they back up. Read only.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs" and
 # docs/specs.md, "Backup targets". Fixture test: borgui_test.go, against
 # testdata/borgui/ (synthetic, from borg-ui v2.4.6's source).
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: borgui
@@ -134,7 +134,7 @@ resources:
       # on their SSH connection's host, as written. An agent's machine isn't
       # named in this API, so its sources cover nothing.
       backup.covers: |
-        let pm = config.path_map ?? "/local:/";
+        let pm = config.path_map;
         let from = pm == "" ? "" : trimSuffix(split(pm, ":")[0], "/");
         let to = pm == "" ? "" : trimSuffix(split(pm, ":")[1], "/");
         let host = (config.host ?? "") != "" ? config.host : split(split(split(config.url, "://")[1], "/")[0], ":")[0];

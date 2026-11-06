@@ -191,8 +191,8 @@ async function remove(s: Installed): Promise<void> {
 
     <div v-if="adding" class="is-add">
       <p class="m">
-        A spec is a YAML file in the <span class="st-mono">chadash/v1alpha1</span> format, from the community repository or your own. Check it first: Cha Dash
-        shows what it reads and what it could change.
+        A spec is a YAML file in the <span class="st-mono">chadash/v1beta1</span> format, from the community repository or your own; one in the older
+        <span class="st-mono">chadash/v1alpha1</span> is migrated as it's installed. Check it first: Cha Dash shows what it reads and what it could change.
       </p>
       <div class="st-acts">
         <UiButton size="sm" :disabled="busy" @click="picker?.click()">Choose a file</UiButton>
@@ -203,7 +203,7 @@ async function remove(s: Installed): Promise<void> {
           v-bind="control"
           :value="yaml"
           rows="10"
-          placeholder="apiVersion: chadash/v1alpha1&#10;kind: Integration&#10;…"
+          placeholder="apiVersion: chadash/v1beta1&#10;kind: Integration&#10;…"
           spellcheck="false"
           autocapitalize="off"
           autocomplete="off"

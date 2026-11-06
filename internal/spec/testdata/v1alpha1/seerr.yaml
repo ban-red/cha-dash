@@ -1,0 +1,189 @@
+# Seerr (Overseerr, Jellyseerr): media requests waiting for approval.
+#
+# One spec for all three. Seerr is the merged successor of Overseerr and
+# Jellyseerr, and the two endpoints read here (/api/v1/status and
+# /api/v1/request/count) are the same in every one of them, so Overseerr 1.x
+# and Jellyseerr 1.x and 2.x connect as Seerr. The Homepage importer maps its
+# overseerr and jellyseerr widgets here.
+#
+# From v0.2 it also acts: approve (T1) or decline (T2) a pending request.
+# Pending requests are published as kind media_request at the same IDs the
+# actions take (seerr:<instance>/request/<id>), so ⌘K finds them and lists
+# Approve and Decline.
+#
+# The sample Tier 1 spec. Format: chadash/v1alpha1, internal and unstable
+# until v1.0; see internal/README.md, "Tier 1 specs".
+# The fixture test is specs_test.go, against testdata/seerr/.
+apiVersion: chadash/v1alpha1
+kind: Integration
+meta:
+  id: seerr
+  name: Seerr
+  aliases: [Overseerr, Jellyseerr]
+  icon: seerr
+  version: 0.1.0
+  tier: bronze
+  category: media
+  capabilities: [media.requests]
+
+# url and tls are added to every spec.
+config:
+  api_key: { type: secret, title: API key, required: true, description: "Settings → General → API Key" }
+  pending_warn: { type: integer, title: Pending requests before attention, default: 20, min: 1, max: 1000 }
+
+source:
+  headers:
+    X-Api-Key: "{{ secret.api_key }}"
+  timeout: 10s
+
+every: 60s
+
+requests:
+  status:
+    path: /api/v1/status
+    extract:
+      version: version
+      update_available: updateAvailable
+  counts:
+    path: /api/v1/request/count
+    extract:
+      pending: pending
+      approved: approved
+      processing: processing
+      available: available
+      total: total
+  # The oldest pending requests, for the media_request resources. Optional:
+  # the app still reads if the list fails.
+  pending:
+    path: /api/v1/request
+    query: { take: "20", skip: "0", filter: pending, sort: added }
+    extract:
+      items: results
+    optional: true
+  # Where its Sonarr, Radarr and media server are, for uses. The settings
+  # carry their API keys too; only these paths are read. Optional, and
+  # Plex's and Jellyfin's only answer when that's the media server.
+  sonarr:
+    path: /api/v1/settings/sonarr
+    extract:
+      servers: '@this.#.{name,hostname,port,useSsl,baseUrl}'
+    optional: true
+  radarr:
+    path: /api/v1/settings/radarr
+    extract:
+      servers: '@this.#.{name,hostname,port,useSsl,baseUrl}'
+    optional: true
+  plex:
+    path: /api/v1/settings/plex
+    extract: { name: name, ip: ip, port: port, ssl: useSsl }
+    optional: true
+  jellyfin:
+    path: /api/v1/settings/jellyfin
+    extract: { name: name, ip: ip, port: port, ssl: useSsl, base: urlBase }
+    optional: true
+
+version: status.version
+
+resources:
+  - id: app
+    kind: app
+    name: instance.name
+    state: '"running"'
+    health: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? "attention" : "ok"'
+    reason: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? string(counts.pending) + " requests are waiting for approval" : ""'
+    attrs:
+      type: '"seerr"'
+      version: status.version
+      update_available: status.update_available
+      # Its Sonarr and Radarr servers and its media server, by address
+      # (integration.Use).
+      uses: |
+        concat(
+          map(sonarr.servers ?? [], {{role: "series manager", name: #.name,
+            url: (#.useSsl == true ? "https" : "http") + "://" + #.hostname + ":" + string(#.port ?? 8989) + (#.baseUrl ?? "")}}),
+          map(radarr.servers ?? [], {{role: "movie manager", name: #.name,
+            url: (#.useSsl == true ? "https" : "http") + "://" + #.hostname + ":" + string(#.port ?? 7878) + (#.baseUrl ?? "")}}),
+          plex.ip == nil || plex.ip == "" ? [] : [{role: "media server", name: plex.name ?? "Plex",
+            url: (plex.ssl == true ? "https" : "http") + "://" + plex.ip + ":" + string(plex.port ?? 32400)}],
+          jellyfin.ip == nil || jellyfin.ip == "" ? [] : [{role: "media server", name: jellyfin.name ?? "Jellyfin",
+            url: (jellyfin.ssl == true ? "https" : "http") + "://" + jellyfin.ip + ":" + string(jellyfin.port ?? 8096) + (jellyfin.base ?? "")}]
+        )
+    caps: [media.requests]
+    links:
+      - { title: Seerr, url: config.url }
+  # One per pending request (at most 50). Seerr's list carries no title
+  # (its own UI asks TMDB), so a request is named by type, number and who
+  # asked.
+  - id: request
+    each: pending.items
+    key: string(item.id)
+    part_of: app
+    kind: media_request
+    name: '(item.type == "tv" ? "TV" : "Movie") + " request #" + string(item.id) + (item.requestedBy?.displayName != nil ? " by " + item.requestedBy.displayName : "")'
+    state: '"pending"'
+    attrs:
+      media_type: item.type
+      requested_by: item.requestedBy?.displayName
+      requested_at: item.createdAt
+      is4k: item.is4k
+    links:
+      - { title: Requests, url: 'trimSuffix(config.url, "/") + "/requests?filter=pending"' }
+
+metrics:
+  - { resource: app, key: requests.pending, value: counts.pending, unit: count, max: 100, band: [0, 5] }
+  - { resource: app, key: requests.processing, value: counts.processing, unit: count, max: 100, band: [0, 10] }
+  - { resource: app, key: requests.available, value: counts.available, unit: count, max: 10000, band: [0, 10000] }
+
+repairs:
+  - when: 'status.version != nil && status.version startsWith "0."'
+    code: unsupported_version
+    message: '"Seerr " + status.version + " is older than this spec supports (1.0 or later)."'
+
+# Actions (v0.2). A target is addressed by its param, checked against the
+# anchored pattern before anything is sent; the read resolves it and gives
+# the values preconditions and verify use. Seerr's one API key acts as an
+# administrator, so there's no separate control credential. See
+# internal/README.md, "Tier 1 specs", for the format.
+targets:
+  request:
+    kind: media_request
+    pattern: '^[1-9][0-9]{0,9}$'
+    read:
+      path: /api/v1/request/{{ target.id }}
+      extract:
+        status: status            # 1 pending, 2 approved, 3 declined, 4 failed, 5 completed
+        type: type
+        requested_by: requestedBy.displayName
+    name: '(target.type == "tv" ? "TV" : "Movie") + " request #" + target.id + (target.requested_by != nil ? " by " + target.requested_by : "")'
+    state: string(target.status)
+
+actions:
+  - id: seerr.request.approve
+    target: request
+    title: Approve
+    tier: T1
+    preconditions:
+      - { when: 'target.status == 2', message: 'target.name + " is already approved."' }
+      - { when: 'target.status == 3', message: 'target.name + " was declined. It can be requested again in Seerr."' }
+      - { when: 'target.status != 1', message: 'target.name + " isn''t waiting for approval any more."' }
+    request:
+      method: POST
+      path: /api/v1/request/{{ target.id }}/approve
+    verify:
+      until: 'target.status in [2, 5]'
+      message: '"Seerr didn''t mark " + target.name + " approved."'
+  # Declining is T2: Seerr tells the person who asked, and it can't be taken
+  # back from here (they'd have to request it again).
+  - id: seerr.request.decline
+    target: request
+    title: Decline
+    tier: T2
+    preconditions:
+      - { when: 'target.status == 3', message: 'target.name + " is already declined."' }
+      - { when: 'target.status != 1', message: 'target.name + " isn''t waiting for approval any more."' }
+    request:
+      method: POST
+      path: /api/v1/request/{{ target.id }}/decline
+    verify:
+      until: 'target.status == 3'
+      message: '"Seerr didn''t mark " + target.name + " declined."'

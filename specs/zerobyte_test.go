@@ -19,9 +19,10 @@ func zerobyte(t *testing.T, dir string) *app {
 func TestZerobyte(t *testing.T) {
 	integ := bundled(t, "zerobyte", "Zerobyte", "api_key")
 	importerShape(t, integ, "http://10.20.30.40:4096", "api_key")
-	srv := zerobyte(t, shiftedFixtures(t, "testdata/zerobyte")).start()
+	srv := zerobyte(t, "testdata/zerobyte").start()
 	url := srv.URL + "/zerobyte"
 	h := integrationtest.New(t)
+	at(h, backupFixturesNow)
 	inst := h.Connect(integ, map[string]any{"url": url, "host": "10.20.30.40", "path_map": "/data:/mnt/user"}, map[string]string{"api_key": zerobyteKey})
 	if res := inst.Test(t.Context()); !res.OK {
 		t.Fatalf("test = %+v", res)
@@ -42,9 +43,9 @@ func TestZerobyte(t *testing.T) {
 		"backup.covers":      covers("10.20.30.40", "/mnt/user/appdata/nextcloud", "/mnt/user/appdata/vaultwarden"),
 		"backup.schedule":    "0 3 * * *",
 		"backup.last_status": "ok",
-		"backup.last_at":     shifted("2026-11-06T03:06:40Z"),
-		"backup.last_ok":     shifted("2026-11-06T03:06:40Z"),
-		"backup.next_at":     shifted("2026-11-07T03:00:00Z"),
+		"backup.last_at":     "2026-11-06T03:06:40Z",
+		"backup.last_ok":     "2026-11-06T03:06:40Z",
+		"backup.next_at":     "2026-11-07T03:00:00Z",
 		"volume":             "appdata",
 		"volume_type":        "directory",
 		"repository":         "b2-offsite",
@@ -54,7 +55,7 @@ func TestZerobyte(t *testing.T) {
 		"The last backup failed: Fatal: unable to create lock in backend: repository is already locked exclusively by PID 2211 on zerobyte by root", map[string]any{
 			"backup.covers":      covers("10.20.30.12", "/volume1/photos"),
 			"backup.last_status": "failed",
-			"backup.last_at":     shifted("2026-11-06T02:31:05Z"),
+			"backup.last_at":     "2026-11-06T02:31:05Z",
 			"backup.last_error":  "Fatal: unable to create lock in backend: repository is already locked exclusively by PID 2211 on zerobyte by root",
 		})
 	if r, _ := h.Resource("zerobyte:i_test/schedule/d4e5f6"); r.Attrs["backup.last_ok"] != nil {

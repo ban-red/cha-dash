@@ -5,7 +5,7 @@
 //	chadash import        apply a Home file, or preview it with --dry-run
 //	chadash audit verify  walk the audit log's hash chain and report the first break
 //	chadash bans          list addresses banned after wrong passwords; bans clear <ip> lifts one
-//	chadash spec          lint or test an integration spec, with no hub
+//	chadash spec          lint, test, migrate or start an integration spec, with no hub
 //	chadash healthcheck   exit 0 if the local hub answers /healthz (for Docker HEALTHCHECK)
 //	chadash version       print the build version
 package main
@@ -70,6 +70,8 @@ Commands:
                 lifts one (works while the hub is stopped too)
   spec lint     check integration specs against the schema and load rules
   spec test     run a spec against recorded answers and print what it publishes
+  spec migrate  rewrite v1alpha1 specs as v1beta1, keeping comments
+  spec new      start a spec, its fixtures and a recipe that pass spec test
   healthcheck   check the local hub's /healthz; exit 0 if healthy, 1 if not
   version       print the build version
 

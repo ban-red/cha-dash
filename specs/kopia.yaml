@@ -1,7 +1,7 @@
 # Kopia: the snapshot sources its server schedules, their last snapshot
 # and what they back up. Read only.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs" and
 # docs/specs.md, "Backup targets". Fixture test: kopia_test.go, against
 # testdata/kopia/ (synthetic, from Kopia v0.23.1's source).
 #
@@ -10,7 +10,7 @@
 # (/api/v1/control/sources) answers the same list without one, with HTTP
 # basic auth as the server-control user: the secret is that header's value
 # made ahead of time (base64 of user:password), since a spec can't encode it.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: kopia

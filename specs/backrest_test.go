@@ -3,11 +3,7 @@ package specs
 import (
 	"io/fs"
 	"net/http"
-	"os"
-	"path/filepath"
 	"reflect"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,72 +15,10 @@ import (
 
 // backupFixturesNow is the moment the backup tools' fixtures (backrest,
 // kopia, duplicati, borgui, zerobyte) were written for: their last runs,
-// next runs and overdue plans are relative to it.
+// next runs and overdue plans are relative to it. The specs are v1beta1, so
+// now() is the harness clock: the tests set it here (at), and spec test
+// reads it from each fixtures.yaml's now.
 var backupFixturesNow = time.Date(2026, 11, 6, 6, 0, 0, 0, time.UTC)
-
-// backupShift is how far the shifted fixtures move, fixed once so that
-// shiftedFixtures and shifted agree.
-var backupShift = time.Since(backupFixturesNow).Truncate(time.Second)
-
-var (
-	fixtureRFC3339 = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})`)
-	fixtureCompact = regexp.MustCompile(`\b\d{8}T\d{6}Z\b`)
-	fixtureMillis  = regexp.MustCompile(`\b1[78]\d{11}\b`)
-)
-
-// shiftedFixtures copies a fixtures folder with every timestamp moved by
-// the time since backupFixturesNow, so a spec that judges staleness against
-// the clock sees the runs as recent as they were written: RFC 3339 times,
-// Duplicati's 20261105T031208Z and Unix milliseconds.
-func shiftedFixtures(t *testing.T, dir string) string {
-	t.Helper()
-	shift := backupShift
-	out := t.TempDir()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		if filepath.Ext(e.Name()) != ".json" {
-			continue
-		}
-		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		b = fixtureRFC3339.ReplaceAllFunc(b, func(m []byte) []byte {
-			at, err := time.Parse(time.RFC3339Nano, string(m))
-			if err != nil {
-				t.Fatalf("%s: %s", e.Name(), m)
-			}
-			return []byte(at.Add(shift).Format(time.RFC3339Nano))
-		})
-		b = fixtureCompact.ReplaceAllFunc(b, func(m []byte) []byte {
-			at, err := time.Parse("20060102T150405Z07:00", string(m))
-			if err != nil {
-				t.Fatalf("%s: %s", e.Name(), m)
-			}
-			return []byte(at.Add(shift).UTC().Format("20060102T150405Z07:00"))
-		})
-		b = fixtureMillis.ReplaceAllFunc(b, func(m []byte) []byte {
-			ms, _ := strconv.ParseInt(string(m), 10, 64)
-			return []byte(strconv.FormatInt(ms+shift.Milliseconds(), 10))
-		})
-		if err := os.WriteFile(filepath.Join(out, e.Name()), b, 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return out
-}
-
-// shifted is a fixture time as the shifted fixtures have it.
-func shifted(at string) string {
-	ts, err := time.Parse(time.RFC3339, at)
-	if err != nil {
-		panic(err)
-	}
-	return ts.Add(backupShift).UTC().Format(time.RFC3339)
-}
 
 // checkTarget checks a backup target's kind, state, health, reason and attrs.
 func checkTarget(t *testing.T, h *integrationtest.Harness, app, rid, name, state, health, reason string, attrs map[string]any) {
@@ -161,9 +95,10 @@ func backrest(t *testing.T, dir string) *app {
 func TestBackrest(t *testing.T) {
 	integ := bundled(t, "backrest", "Backrest", "basic_auth")
 	importerShape(t, integ, "http://10.20.30.40:9898", "basic_auth")
-	srv := backrest(t, shiftedFixtures(t, "testdata/backrest")).start()
+	srv := backrest(t, "testdata/backrest").start()
 	url := srv.URL + "/backrest"
 	h := integrationtest.New(t)
+	at(h, backupFixturesNow)
 	inst := h.Connect(integ, map[string]any{"url": url, "host": "10.20.30.40", "path_map": "/userdata:/mnt/user"}, map[string]string{"basic_auth": backrestAuth[len("Basic "):]})
 	if res := inst.Test(t.Context()); !res.OK {
 		t.Fatalf("test = %+v", res)
@@ -184,9 +119,9 @@ func TestBackrest(t *testing.T) {
 		"backup.covers":      covers("10.20.30.40", "/mnt/user/appdata"),
 		"backup.schedule":    "0 3 * * *",
 		"backup.last_status": "ok",
-		"backup.last_at":     shifted("2026-11-06T03:05:12Z"),
-		"backup.last_ok":     shifted("2026-11-06T03:05:12Z"),
-		"backup.next_at":     shifted("2026-11-07T03:00:00Z"),
+		"backup.last_at":     "2026-11-06T03:05:12Z",
+		"backup.last_ok":     "2026-11-06T03:05:12Z",
+		"backup.next_at":     "2026-11-07T03:00:00Z",
 		"backup.enabled":     true,
 		"size_bytes":         48318382080.0,
 		"repository":         "nas-b2",
@@ -199,8 +134,8 @@ func TestBackrest(t *testing.T) {
 			"backup.covers":      covers("10.20.30.40", "/mnt/user/photos", "/mnt/user/flash"),
 			"backup.schedule":    "weekly",
 			"backup.last_status": "failed",
-			"backup.last_at":     shifted("2026-11-05T02:00:04Z"),
-			"backup.last_ok":     shifted("2026-10-29T03:30:12Z"),
+			"backup.last_at":     "2026-11-05T02:00:04Z",
+			"backup.last_ok":     "2026-10-29T03:30:12Z",
 			"backup.last_error":  "repository is already locked by PID 4123 on backrest by root",
 		})
 	// Running now, but nothing good for days: Backrest marks today overdue.
@@ -208,7 +143,7 @@ func TestBackrest(t *testing.T) {
 		"No good backup within its schedule", map[string]any{
 			"backup.schedule":    "hourly",
 			"backup.last_status": "ok",
-			"backup.last_ok":     shifted("2026-11-03T22:00:41Z"),
+			"backup.last_ok":     "2026-11-03T22:00:41Z",
 			"overdue":            true,
 		})
 	// Never run, schedule off.
@@ -226,10 +161,11 @@ func TestBackrest(t *testing.T) {
 // own paths; without the operations, a failure has no message.
 func TestBackrestDefaults(t *testing.T) {
 	integ, _, _ := integration.Default.Get("backrest")
-	up := backrest(t, shiftedFixtures(t, "testdata/backrest"))
+	up := backrest(t, "testdata/backrest")
 	up.set("/v1.Backrest/GetOperations", "")
 	srv := up.start()
 	h := integrationtest.New(t)
+	at(h, backupFixturesNow)
 	inst := h.Connect(integ, map[string]any{"url": srv.URL + "/backrest"}, map[string]string{"basic_auth": backrestAuth[len("Basic "):]})
 	if err := inst.Sync(t.Context(), integrationtest.Watched); err != nil {
 		t.Fatal(err)

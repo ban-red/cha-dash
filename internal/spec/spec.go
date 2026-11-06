@@ -4,10 +4,21 @@
 // health and repairs with expr-lang expressions, which are pure and always
 // terminate.
 //
-// The format (apiVersion chadash/v1alpha1) is internal and unstable: it's
-// how Cha Dash writes its own simple integrations from v0.1, and it may
-// change until it's frozen for the community at v1.0. It's documented in
-// internal/README.md; specs/seerr.yaml is a worked example.
+// The format is public and versioned (ADR-0025): chadash/v1beta1 is the
+// current one, and chadash/v1alpha1 keeps loading, with its own semantics,
+// through v0.5.x. Migrate rewrites a v1alpha1 spec as v1beta1 (migrate.go).
+// It changes only by a new apiVersion until it's frozen as v1 at 1.0. It's
+// documented in docs/specs.md and internal/README.md; specs/seerr.yaml is a
+// worked example.
+//
+// What v1beta1 changed, from writing the bundled specs in v1alpha1:
+//   - a config field's default is its value when the instance leaves it
+//     unset, in expressions and templates (v1alpha1: null, and "<nil>" in a
+//     template), so `config.x ?? 14` beside `default: 14` isn't needed;
+//   - now() is the hub's clock (integration.Deps.Now), not the wall clock,
+//     so a test can pin it instead of moving fixture dates to the present;
+//   - findIndex and findLastIndex return -1 when nothing matches
+//     (v1alpha1: null, hence `?? -1` after each).
 //
 // Safety: requests only go to the instance's configured origin, with its TLS
 // policy, without leaving it on redirects; responses are capped at 1 MiB and
@@ -24,6 +35,7 @@ package spec
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -35,14 +47,23 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/ast"
 	"github.com/expr-lang/expr/vm"
 	"go.yaml.in/yaml/v3"
 
 	"dash.cha.sh/internal/integration"
 )
 
-// APIVersion is the only format version this engine reads.
-const APIVersion = "chadash/v1alpha1"
+// The format versions this engine reads. APIVersion is the current one,
+// which spec new and spec migrate write.
+const (
+	V1Alpha1   = "chadash/v1alpha1"
+	V1Beta1    = "chadash/v1beta1"
+	APIVersion = V1Beta1
+)
+
+// Versions are the format versions this engine reads, oldest first.
+var Versions = []string{V1Alpha1, V1Beta1}
 
 // Limits.
 const (
@@ -208,6 +229,8 @@ type repairTpl struct {
 // Spec is a parsed, compiled spec. It implements integration.Integration.
 type Spec struct {
 	f        file
+	beta     bool           // v1beta1's semantics (see the package doc)
+	defaults map[string]any // v1beta1: non-secret config defaults, as JSON has them
 	manifest integration.Manifest
 	secrets  map[string]bool
 	timeout  time.Duration
@@ -266,13 +289,13 @@ func Parse(b []byte) (*Spec, error) {
 }
 
 func compile(f file) (*Spec, error) {
-	if f.APIVersion != APIVersion {
-		return nil, fmt.Errorf("apiVersion must be %s", APIVersion)
+	if !slices.Contains(Versions, f.APIVersion) {
+		return nil, fmt.Errorf("apiVersion must be %s (or %s, which still loads)", APIVersion, V1Alpha1)
 	}
 	if f.Kind != "Integration" {
 		return nil, errors.New("kind must be Integration")
 	}
-	s := &Spec{f: f, secrets: map[string]bool{}, timeout: DefaultTimeout}
+	s := &Spec{f: f, beta: f.APIVersion == V1Beta1, secrets: map[string]bool{}, timeout: DefaultTimeout}
 	if f.Source.Timeout != "" {
 		d, err := time.ParseDuration(f.Source.Timeout)
 		if err != nil || d <= 0 || d > MaxTimeout {
@@ -309,6 +332,12 @@ func compile(f file) (*Spec, error) {
 			s.secrets[fl.Name] = true
 		} else {
 			plain[fl.Name] = true
+			if s.beta && fl.Default != nil {
+				if s.defaults == nil {
+					s.defaults = map[string]any{}
+				}
+				s.defaults[fl.Name] = jsonValue(fl.Default)
+			}
 		}
 	}
 	caps := make([]integration.Capability, len(f.Meta.Capabilities))
@@ -362,7 +391,7 @@ func compile(f file) (*Spec, error) {
 	if len(f.Requests) == 0 || len(f.Requests) > maxRequests {
 		return nil, fmt.Errorf("a spec needs 1–%d requests", maxRequests)
 	}
-	env := map[string]any{"config": map[string]any{}, "instance": map[string]any{}}
+	env := s.compileEnv()
 	seen := map[string]bool{}
 	for i := range f.Requests {
 		r := &f.Requests[i]
@@ -370,6 +399,8 @@ func compile(f file) (*Spec, error) {
 		switch {
 		case !nameRE.MatchString(r.Name) || slices.Contains(reserved, r.Name):
 			return nil, fmt.Errorf("%s: request names are lowercase identifiers, not %s", where, strings.Join(reserved, ", "))
+		case s.beta && r.Name == "now":
+			return nil, fmt.Errorf("%s: now is the clock in %s; name the request something else", where, V1Beta1)
 		case seen[r.Name]:
 			return nil, fmt.Errorf("%s: listed twice", where)
 		case !strings.HasPrefix(r.Path, "/") || strings.HasPrefix(r.Path, "//") || strings.ContainsAny(r.Path, "#\\") || strings.Contains(r.Path, ".."):
@@ -413,7 +444,7 @@ func compile(f file) (*Spec, error) {
 		if strings.TrimSpace(src) == "" {
 			return nil, nil
 		}
-		p, err := expr.Compile(src, expr.Env(env), expr.MaxNodes(500))
+		p, err := s.compileExpr(env, src)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", where, err)
 		}
@@ -548,6 +579,54 @@ func fieldSchema(f field) (*integration.Schema, error) {
 	s.Description, s.Default = f.Description, f.Default
 	return s, nil
 }
+
+// compileEnv is what every expression sees at compile time; requests add
+// their names.
+func (s *Spec) compileEnv() map[string]any {
+	env := map[string]any{"config": map[string]any{}, "instance": map[string]any{}}
+	if s.beta {
+		env["now"] = time.Now // the type; the instance's clock at run time
+	}
+	return env
+}
+
+// compileExpr compiles one expression in env, with the version's semantics.
+func (s *Spec) compileExpr(env map[string]any, src string) (*vm.Program, error) {
+	opts := []expr.Option{expr.Env(env), expr.MaxNodes(500)}
+	if s.beta {
+		opts = append(opts, expr.Patch(minusOne{}))
+	}
+	return expr.Compile(src, opts...)
+}
+
+// minusOne makes findIndex and findLastIndex -1 when nothing matches
+// (v1beta1), as findIndex(…) ?? -1: expr-lang's own answer is nil.
+type minusOne struct{}
+
+func (minusOne) Visit(n *ast.Node) {
+	b, ok := (*n).(*ast.BuiltinNode)
+	if !ok || (b.Name != "findIndex" && b.Name != "findLastIndex") {
+		return
+	}
+	ast.Patch(n, &ast.BinaryNode{Operator: "??", Left: b, Right: &ast.IntegerNode{Value: -1}})
+}
+
+// jsonValue is v as encoding/json decodes it, the way an instance's config
+// arrives: a YAML default of 14 is 14.0, like the owner's 14.
+func jsonValue(v any) any {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return v
+	}
+	var out any
+	if json.Unmarshal(b, &out) != nil {
+		return v
+	}
+	return out
+}
+
+// APIVersion is the format version the spec is written in.
+func (s *Spec) APIVersion() string { return s.f.APIVersion }
 
 func cmp(a, b string) string {
 	if a == "" {

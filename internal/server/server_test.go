@@ -119,11 +119,14 @@ func TestEndToEnd(t *testing.T) {
 	if resp := e.request(t, c, "GET", "/", nil, nil); resp.StatusCode != 200 {
 		t.Fatalf("placeholder: %d", resp.StatusCode)
 	}
-	// The spec format's schema needs no session.
-	if resp := e.request(t, c, "GET", "/api/specs/schema/v1alpha1.json", nil, nil); resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "application/schema+json" {
-		t.Fatalf("spec schema: %d %s", resp.StatusCode, resp.Header.Get("Content-Type"))
-	} else if b, _ := io.ReadAll(resp.Body); !strings.Contains(string(b), `"const": "chadash/v1alpha1"`) {
-		t.Fatalf("spec schema body: %.200s", b)
+	// The spec format's schemas need no session: v1beta1's, and v1alpha1's,
+	// which still loads.
+	for _, v := range []string{"v1beta1", "v1alpha1"} {
+		if resp := e.request(t, c, "GET", "/api/specs/schema/"+v+".json", nil, nil); resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "application/schema+json" {
+			t.Fatalf("spec schema %s: %d %s", v, resp.StatusCode, resp.Header.Get("Content-Type"))
+		} else if b, _ := io.ReadAll(resp.Body); !strings.Contains(string(b), `"const": "chadash/`+v+`"`) {
+			t.Fatalf("spec schema %s body: %.200s", v, b)
+		}
 	}
 	// So does the OpenAPI document.
 	if resp := e.request(t, c, "GET", "/api/openapi.json", nil, nil); resp.StatusCode != 200 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {

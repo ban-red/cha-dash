@@ -34,14 +34,8 @@ func (s *Spec) ConnectGated(_ context.Context, cfg integration.Config, d integra
 		return nil, &integration.ConfigError{Message: "url must be an http:// or https:// URL"}
 	}
 	base.RawQuery, base.Fragment = "", ""
-	in := &instance{s: s, cfg: cfg, d: d, base: base, plain: map[string]any{}, secret: map[string]string{}, writes: writes}
-	for k, v := range cfg.Values {
-		if s.secrets[k] {
-			in.secret[k], _ = v.(string)
-		} else {
-			in.plain[k] = v
-		}
-	}
+	in := s.newInstance(cfg)
+	in.d, in.base, in.writes = d, base, writes
 	if len(s.actions) > 0 {
 		return actor{in}, nil
 	}
@@ -56,6 +50,35 @@ type instance struct {
 	plain  map[string]any    // non-secret config: expressions may read it
 	secret map[string]string // secret values: templates only
 	writes func() bool       // installed specs: whether POST requests may run
+}
+
+// newInstance splits the config into what expressions may read and the
+// secrets, which only templates may; v1beta1 fills unset fields with their
+// defaults.
+func (s *Spec) newInstance(cfg integration.Config) *instance {
+	in := &instance{s: s, cfg: cfg, plain: map[string]any{}, secret: map[string]string{}}
+	for k, v := range cfg.Values {
+		if s.secrets[k] {
+			in.secret[k], _ = v.(string)
+		} else {
+			in.plain[k] = v
+		}
+	}
+	for k, v := range s.defaults {
+		if in.plain[k] == nil {
+			in.plain[k] = v
+		}
+	}
+	return in
+}
+
+// now is the instance's clock: the framework's, or the wall clock when
+// there's none (a probe).
+func (in *instance) now() time.Time {
+	if in.d.Now != nil {
+		return in.d.Now()
+	}
+	return time.Now()
 }
 
 // WritesOff is the repair an installed spec's instance shows while its
@@ -76,7 +99,11 @@ func (in *instance) expand(text string) string {
 		case "secret":
 			return in.secret[sub[2]]
 		case "config":
-			return fmt.Sprint(in.plain[sub[2]])
+			v, ok := in.plain[sub[2]]
+			if !ok && in.s.beta {
+				return "" // v1alpha1 wrote "<nil>"
+			}
+			return fmt.Sprint(v)
 		case "instance":
 			if sub[2] == "id" {
 				return in.key()
@@ -88,10 +115,14 @@ func (in *instance) expand(text string) string {
 }
 
 func (in *instance) env() map[string]any {
-	return map[string]any{
+	env := map[string]any{
 		"config":   in.plain,
 		"instance": map[string]any{"id": in.key(), "name": in.cfg.Name},
 	}
+	if in.s.beta {
+		env["now"] = in.now
+	}
+	return env
 }
 
 // fetch runs the requests in order and returns the expression environment

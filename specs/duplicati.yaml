@@ -1,6 +1,6 @@
 # Duplicati 2: its backup jobs, their last run and what they back up. Read only.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs" and
 # docs/specs.md, "Backup targets". Fixture test: duplicati_test.go, against
 # testdata/duplicati/ (synthetic, from Duplicati v2.4.1.0's source).
 #
@@ -8,7 +8,7 @@
 # and a refresh cookie, a handshake a spec can't do. It also issues a
 # "forever token" (ten years) once per start when it runs with
 # --webservice-enable-forever-token: that's the token this spec takes.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: duplicati

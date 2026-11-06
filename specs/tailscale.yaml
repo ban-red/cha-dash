@@ -1,13 +1,13 @@
 # Tailscale: the tailnet's devices, whether they're connected, when they
 # were last seen and when their keys expire.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs". Fixture
 # test: tailscale_test.go, against testdata/tailscale/ (synthetic). Notes in
 # recipes/tailscale.md.
 #
 # The instance URL is Tailscale's API, https://api.tailscale.com. The tailnet
 # is "-", the API key's own tailnet.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: tailscale
@@ -44,16 +44,16 @@ resources:
     name: instance.name
     state: '"running"'
     health: |
-      let warn = now() + duration(string((config.expiry_warn_days ?? 14) * 24) + "h");
+      let warn = now() + duration(string(config.expiry_warn_days * 24) + "h");
       len(filter(devices.list ?? [], {!(.isExternal ?? false) && !(.keyExpiryDisabled ?? false) && (.expires ?? "0001") > "0002" && date(.expires) <= warn})) > 0 ? "attention" : "ok"
     reason: |
-      let warn = now() + duration(string((config.expiry_warn_days ?? 14) * 24) + "h");
+      let warn = now() + duration(string(config.expiry_warn_days * 24) + "h");
       let mine = filter(devices.list ?? [], {!(.isExternal ?? false) && !(.keyExpiryDisabled ?? false) && (.expires ?? "0001") > "0002"});
       let expired = len(filter(mine, {date(.expires) <= now()}));
       let soon = len(filter(mine, {date(.expires) > now() && date(.expires) <= warn}));
       join(filter([
         expired == 0 ? "" : (expired == 1 ? "1 key has expired" : string(expired) + " keys have expired"),
-        soon == 0 ? "" : (soon == 1 ? "1 key expires" : string(soon) + " keys expire") + " within " + string(config.expiry_warn_days ?? 14) + " days"
+        soon == 0 ? "" : (soon == 1 ? "1 key expires" : string(soon) + " keys expire") + " within " + string(config.expiry_warn_days) + " days"
       ], {# != ""}), "; ")
     attrs:
       type: '"tailscale"'
@@ -75,17 +75,17 @@ resources:
     health: |
       let exp = !(item.keyExpiryDisabled ?? false) && (item.expires ?? "0001") > "0002" ? date(item.expires) : nil;
       exp != nil && exp <= now() ? "down" :
-        (exp != nil && exp <= now() + duration(string((config.expiry_warn_days ?? 14) * 24) + "h") ? "attention" :
+        (exp != nil && exp <= now() + duration(string(config.expiry_warn_days * 24) + "h") ? "attention" :
           (item.authorized == false ? "attention" :
-            (!(item.connectedToControl ?? false) && (item.lastSeen ?? "") != "" && date(item.lastSeen) < now() - duration(string((config.stale_days ?? 7) * 24) + "h") ? "attention" : "ok")))
+            (!(item.connectedToControl ?? false) && (item.lastSeen ?? "") != "" && date(item.lastSeen) < now() - duration(string(config.stale_days * 24) + "h") ? "attention" : "ok")))
     reason: |
       let exp = !(item.keyExpiryDisabled ?? false) && (item.expires ?? "0001") > "0002" ? date(item.expires) : nil;
       let days = exp == nil ? 0 : int((exp - now()).Hours() / 24);
       let gone = (item.lastSeen ?? "") == "" ? 0 : int((now() - date(item.lastSeen)).Hours() / 24);
       exp != nil && exp <= now() ? "Its key expired on " + exp.Format("2006-01-02") + ", so it's off the tailnet until it signs in again" :
-        (exp != nil && exp <= now() + duration(string((config.expiry_warn_days ?? 14) * 24) + "h") ? (days < 1 ? "Its key expires within a day" : "Its key expires in " + string(days) + (days == 1 ? " day" : " days")) :
+        (exp != nil && exp <= now() + duration(string(config.expiry_warn_days * 24) + "h") ? (days < 1 ? "Its key expires within a day" : "Its key expires in " + string(days) + (days == 1 ? " day" : " days")) :
           (item.authorized == false ? "It's waiting for approval in the admin console" :
-            (!(item.connectedToControl ?? false) && gone >= (config.stale_days ?? 7) ? "Not seen for " + string(gone) + " days" : "")))
+            (!(item.connectedToControl ?? false) && gone >= config.stale_days ? "Not seen for " + string(gone) + " days" : "")))
     attrs:
       type: '"tailscale.device"'
       hostname: '(item.name ?? "") != "" ? item.name : nil'
@@ -107,7 +107,7 @@ metrics:
     key: keys.expiring
     value: |
       devices.list == nil ? nil : float(len(filter(devices.list, {!(.isExternal ?? false) && !(.keyExpiryDisabled ?? false) && (.expires ?? "0001") > "0002" &&
-        date(.expires) <= now() + duration(string((config.expiry_warn_days ?? 14) * 24) + "h")})))
+        date(.expires) <= now() + duration(string(config.expiry_warn_days * 24) + "h")})))
     unit: count
     max: 100
     band: [0, 0]

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"dash.cha.sh/internal/integration"
 	"dash.cha.sh/internal/integration/integrationtest"
@@ -149,6 +150,12 @@ func checkSeries(t *testing.T, h *integrationtest.Harness, id string, want map[s
 			t.Errorf("%s unit = %v, want %s", metric, se["unit"], u)
 		}
 	}
+}
+
+// at sets the harness clock to when, the moment a fixture was written for:
+// a v1beta1 spec's now() is the framework's clock.
+func at(h *integrationtest.Harness, when time.Time) {
+	h.Advance(when.Sub(h.Now()))
 }
 
 // classify runs a sync and classifies its error.

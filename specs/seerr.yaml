@@ -11,10 +11,10 @@
 # actions take (seerr:<instance>/request/<id>), so ⌘K finds them and lists
 # Approve and Decline.
 #
-# The sample Tier 1 spec. Format: chadash/v1alpha1, internal and unstable
-# until v1.0; see internal/README.md, "Tier 1 specs".
+# The sample Tier 1 spec. Format: chadash/v1beta1; see docs/specs.md and
+# internal/README.md, "Tier 1 specs".
 # The fixture test is specs_test.go, against testdata/seerr/.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: seerr
@@ -89,8 +89,8 @@ resources:
     kind: app
     name: instance.name
     state: '"running"'
-    health: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? "attention" : "ok"'
-    reason: '(counts.pending ?? 0) >= (config.pending_warn ?? 20) ? string(counts.pending) + " requests are waiting for approval" : ""'
+    health: '(counts.pending ?? 0) >= config.pending_warn ? "attention" : "ok"'
+    reason: '(counts.pending ?? 0) >= config.pending_warn ? string(counts.pending) + " requests are waiting for approval" : ""'
     attrs:
       type: '"seerr"'
       version: status.version

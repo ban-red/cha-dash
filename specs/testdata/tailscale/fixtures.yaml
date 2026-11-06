@@ -3,3 +3,4 @@
 secrets: { api_key: tskey-api-kFAKE1CNTRL-0123456789abcdefFAKEFAKEFAKEFAKE }
 answers:
   devices: devices.json
+now: 2026-11-06T06:00:00Z # the moment these fixtures were written for; the clock now() reads

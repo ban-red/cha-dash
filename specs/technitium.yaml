@@ -1,10 +1,10 @@
 # Technitium DNS Server: query and blocked counts from its dashboard, and
 # whether upstream resolution is failing.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs". Fixture
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs". Fixture
 # test: technitium_test.go, against testdata/technitium/ (synthetic). Notes
 # in recipes/technitium.md.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: technitium
@@ -82,9 +82,9 @@ resources:
     kind: app
     name: instance.name
     state: '"running"'
-    health: '(hour.queries ?? 0) >= 50 && float(hour.servfail ?? 0) * 100 / float(hour.queries) >= float(config.servfail_warn ?? 5) ? "attention" : "ok"'
+    health: '(hour.queries ?? 0) >= 50 && float(hour.servfail ?? 0) * 100 / float(hour.queries) >= float(config.servfail_warn) ? "attention" : "ok"'
     reason: |
-      (hour.queries ?? 0) >= 50 && float(hour.servfail ?? 0) * 100 / float(hour.queries) >= float(config.servfail_warn ?? 5) ?
+      (hour.queries ?? 0) >= 50 && float(hour.servfail ?? 0) * 100 / float(hour.queries) >= float(config.servfail_warn) ?
         string(round(float(hour.servfail) * 100 / float(hour.queries))) + "% of queries in the last hour failed to resolve (SERVFAIL)" : ""
     attrs:
       type: '"technitium"'

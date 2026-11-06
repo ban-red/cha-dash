@@ -28,14 +28,7 @@ type Probe struct {
 // Probes are the spec's requests, in order, for these config values
 // (secrets included) and this instance, as Connect would fill them.
 func (s *Spec) Probes(cfg integration.Config) []Probe {
-	in := &instance{s: s, cfg: cfg, plain: map[string]any{}, secret: map[string]string{}}
-	for k, v := range cfg.Values {
-		if s.secrets[k] {
-			in.secret[k], _ = v.(string)
-		} else {
-			in.plain[k] = v
-		}
-	}
+	in := s.newInstance(cfg)
 	out := make([]Probe, 0, len(s.f.Requests))
 	for _, r := range s.f.Requests {
 		p := in.expand(r.Path)

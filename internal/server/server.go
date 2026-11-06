@@ -235,11 +235,16 @@ func New(d Deps) (http.Handler, error) {
 	mux.Handle("GET /api/version", d.Auth.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"version": buildinfo.Version, "commit": buildinfo.Commit})
 	})))
-	// The spec format's schema, for spec authors and their editors. It's the
-	// same for every hub of a version, so it needs no session.
+	// The spec format's schemas, for spec authors and their editors: the
+	// current version and v1alpha1, which still loads. They're the same for
+	// every hub of a version, so they need no session.
+	mux.HandleFunc("GET /api/specs/schema/v1beta1.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/schema+json")
+		_, _ = w.Write(spec.SchemaFor(spec.V1Beta1))
+	})
 	mux.HandleFunc("GET /api/specs/schema/v1alpha1.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/schema+json")
-		_, _ = w.Write(spec.Schema())
+		_, _ = w.Write(spec.SchemaFor(spec.V1Alpha1))
 	})
 	// The config schema (internal/config): every setting the hub and
 	// chadash-node take, the same for every hub of a version.

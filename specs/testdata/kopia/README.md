@@ -1,6 +1,6 @@
 # Kopia fixtures
 
-**Synthetic.** Responses for `specs/kopia.yaml`, written by hand from Kopia v0.23.1's source ([kopia/kopia](https://github.com/kopia/kopia)): the control API in `internal/server/server.go` (`/api/v1/control/sources`, basic auth as the server-control user, no CSRF token), `serverapi.SourcesResponse` and `SourceStatus` in `internal/serverapi/serverapi.go`, the snapshot manifest in `snapshot/manifest.go` and `snapshot/stats.go`, the directory summary in `fs/entry.go`, and the scheduling policy in `snapshot/policy/scheduling_policy.go`. No real instance was contacted; hosts, paths and sizes are made up. Times are for 2026-11-06 06:00 UTC; the fixture test moves them to now.
+**Synthetic.** Responses for `specs/kopia.yaml`, written by hand from Kopia v0.23.1's source ([kopia/kopia](https://github.com/kopia/kopia)): the control API in `internal/server/server.go` (`/api/v1/control/sources`, basic auth as the server-control user, no CSRF token), `serverapi.SourcesResponse` and `SourceStatus` in `internal/serverapi/serverapi.go`, the snapshot manifest in `snapshot/manifest.go` and `snapshot/stats.go`, the directory summary in `fs/entry.go`, and the scheduling policy in `snapshot/policy/scheduling_policy.go`. No real instance was contacted; hosts, paths and sizes are made up. Times are for 2026-11-06 06:00 UTC, the clock the fixture test and `fixtures.yaml` (`now`) set.
 
 | File | Request | Notes |
 |---|---|---|

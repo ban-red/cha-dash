@@ -1,9 +1,9 @@
 # Mealie: the household's recipes, categories and tags.
 #
-# Format: chadash/v1alpha1, internal and unstable until v1.0; see
+# Format: chadash/v1beta1 (docs/specs.md); see
 # internal/README.md, "Tier 1 specs". Fixture test: mealie_test.go, against
 # testdata/mealie/ (synthetic). Notes in README.md.
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: mealie

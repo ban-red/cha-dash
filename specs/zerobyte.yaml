@@ -1,10 +1,10 @@
 # Zerobyte (nicotsx/zerobyte), backup automation on restic: its backup
 # schedules, their last run and the volumes they back up. Read only.
 #
-# Format: chadash/v1alpha1; see internal/README.md, "Tier 1 specs" and
+# Format: chadash/v1beta1; see internal/README.md, "Tier 1 specs" and
 # docs/specs.md, "Backup targets". Fixture test: zerobyte_test.go, against
 # testdata/zerobyte/ (synthetic, from Zerobyte v0.44.0's source).
-apiVersion: chadash/v1alpha1
+apiVersion: chadash/v1beta1
 kind: Integration
 meta:
   id: zerobyte
