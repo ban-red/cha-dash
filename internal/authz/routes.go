@@ -481,6 +481,8 @@ var Routes = []Route{
 	// call them too; the web app uses the socket.
 	{Pattern: "GET /api/graph", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /api/inbox", Access: SignedIn, Token: ScopeInboxRead},
+	// The home at a glance, for Home Assistant's integration (W4).
+	{Pattern: "GET /api/summary", Access: SignedIn, Token: ScopeInboxRead},
 	// Acknowledging an incident (wave 31): operator and up, in a session,
 	// audited. Never a token or an agent (internal/incidents/http.go).
 	{Pattern: "POST /api/inbox/{id}/acknowledge", Access: Operator},

@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Cha Dash",
+        "description": "Make an API token in Cha Dash under Settings → API tokens with the Inbox read scope (inbox.read), then paste it here.",
+        "data": { "url": "Cha Dash's address", "token": "API token", "verify_ssl": "Check its certificate" }
+      }
+    },
+    "error": {
+      "invalid_url": "Give the address with http:// or https://.",
+      "invalid_auth": "Cha Dash refused that token. It needs the inbox.read scope.",
+      "cannot_connect": "Couldn't reach Cha Dash at that address."
+    },
+    "abort": { "already_configured": "This Cha Dash is already set up." }
+  }
+}

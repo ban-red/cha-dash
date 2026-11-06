@@ -131,9 +131,10 @@ func init() {
 		"PUT /api/specs/installed/{id}/actions": {Summary: "Turn a spec's actions on (for the version reviewed; needs a step-up) or off.", Body: specActions{}, Resp: specstore.Installed{}, Fail: map[int]any{409: specProblem{}}},
 	})
 	add("reads", map[string]Op{
-		"GET /api/graph":  {Summary: "The Home Graph as your role sees it.", Resp: graphBody{}},
-		"GET /api/inbox":  {Summary: "The Inbox as your role sees it.", Resp: inboxBody{}},
-		"GET /api/causes": {Summary: "One resource's cause hints, with their paths.", Query: []Param{{Name: "resource", Desc: "A resource ID.", Required: true}}, Resp: causesBody{}},
+		"GET /api/graph":   {Summary: "The Home Graph as your role sees it.", Resp: graphBody{}},
+		"GET /api/inbox":   {Summary: "The Inbox as your role sees it.", Resp: inboxBody{}},
+		"GET /api/summary": {Summary: "The home at a glance, for Home Assistant: its health, open problems counted, the worst five, and updates waiting.", Resp: summaryBody{}},
+		"GET /api/causes":  {Summary: "One resource's cause hints, with their paths.", Query: []Param{{Name: "resource", Desc: "A resource ID.", Required: true}}, Resp: causesBody{}},
 		"GET /api/history": {Summary: "Metrics history: points of up to 20 series over a range.", Resp: historyBody{}, Query: []Param{
 			{Name: "series", Desc: "<resource>#<metric>, 1 to 20 times.", Required: true, Many: true},
 			{Name: "from", Desc: "Unix milliseconds; 24 hours before to by default."}, {Name: "to", Desc: "Unix milliseconds; now by default."},
@@ -145,4 +146,27 @@ func init() {
 			{Name: "from", Desc: "Unix milliseconds; 24 hours before to by default."}, {Name: "to", Desc: "Unix milliseconds; now by default."},
 			{Name: "points", Desc: "1 to 288."}}},
 	})
+}
+
+// summaryBody mirrors server.Summary (GET /api/summary).
+type summaryBody struct {
+	Now       string `json:"now"`
+	Health    string `json:"health"` // ok, attention or down
+	Incidents struct {
+		Open         int `json:"open"`
+		Down         int `json:"down"`
+		Attention    int `json:"attention"`
+		Acknowledged int `json:"acknowledged"`
+	} `json:"incidents"`
+	Top []struct {
+		ID             string `json:"id"`
+		Title          string `json:"title"`
+		Severity       string `json:"severity"`
+		Target         string `json:"target,omitempty"`
+		OpenedAt       string `json:"opened_at,omitempty"`
+		AcknowledgedBy string `json:"acknowledged_by,omitempty"`
+	} `json:"top"`
+	Updates *struct {
+		Available int `json:"available"`
+	} `json:"updates"` // null below viewer
 }

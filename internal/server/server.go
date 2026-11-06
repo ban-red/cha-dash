@@ -293,6 +293,7 @@ func New(d Deps) (http.Handler, error) {
 	tokens.Register(mux, session)
 	if d.Topics != nil {
 		registerReads(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log), BackupsView(boards.New(d.Store), d.Topics.Graph, d.Log))
+		registerSummary(mux, session, d.Topics, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log), d.Updates, d.Log)
 		registerHistory(mux, session, d.History, d.Topics.Graph)
 		registerTimeline(mux, session, timelineSources(d.Incidents, d.Audit, d.History, d.Store, d.Topics.Graph, d.Actions),
 			d.Topics.Graph, InboxView(boards.New(d.Store), d.Topics.Graph, d.Log))
