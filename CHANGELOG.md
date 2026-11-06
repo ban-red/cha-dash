@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-06
+
+The first release of v0.5, Glance: Cha Dash goes on the wall. A display is a board for a wall tablet, a TV or an e-ink screen, with no menus and no sign-in. It stays dim while nothing is wrong, wakes when an incident needs you, and can't act. Every widget now has four levels of detail, from a desk down to e-ink and print. Stacks reach parity with a stack manager: stop, start, update, private registries and live logs. Eleven new sources join: TrueNAS, UPSes through NUT, UniFi, Tailscale, Cloudflare Tunnel, Technitium, and five backup tools. Home Assistant can read Cha Dash's health as entities. Specs move to the `chadash/v1beta1` format, and releases are built to SLSA Build Level 3.
+
+**On upgrade,** back up first ([how](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md#backing-up)) and update both images, the hub and every node. The database migrates on start, and installed specs move to `v1beta1` on their own. `v1alpha1` specs still load through v0.5.x: run `chadash spec migrate` on any you keep elsewhere. UniFi takes an `https://` address only. To check a release's provenance, `gh attestation verify` now takes `--signer-workflow`, as the release notes show.
+
 ### Added
 
 - **Stop, start, restart, take down and remove a whole stack.** A managed stack's page in Settings → Stacks has the buttons, the list has Stop or Start, and ⌘K offers them on the stack's page. Stop, Start and Restart are T1; Start on a stack with no containers deploys its last commit, and Restart holds the health gate and reports what failed it without rolling back. Take down (T2) removes the containers and networks and keeps the volumes; its undo starts the stack again. Remove (T3, type the name) takes the stack down and deletes its folder as a commit, so the undo restores it from history; its `.env` isn't in git and doesn't come back. Its volumes stay unless you tick them and type the name again. Remove needs `remove` in the node's `stacks.allow`, off by default. Cha Dash's own stack and anything `docker.protect` names are refused.
@@ -14,9 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Live logs.** A container's Logs tab follows its log as it's written, for a Docker host through chadash-node: pause, a search that highlights, stderr told apart, and Download for the last 10,000 lines. A stack's page shows all its services' logs together, each line tagged with its service. Operators and up, as before; nothing is kept, and a followed log stops after 30 minutes. Dozzle links stay.
 - **`bun run cutover:check`**, for moving off another stack manager: it reads a Docker host and the hub's stack list, changes nothing, and fails on any project Cha Dash doesn't manage, one last brought up from another tool's file, and any container that isn't healthy. The Dockhand guide now has a section on moving from Dockge.
 - **A warning when another manager has the same stack.** When Dockhand, Komodo or Arcane lists a stack with the name of one Cha Dash manages, the stack's page says to deploy it from one of them only, and the list shows "also in Dockhand". It matches by name, so a stack of that name on another host is named too.
-
 - **A test clock, for automated tests only.** With `CHADASH_TEST_CLOCK=true`, which needs `CHADASH_TEST_AUTOMATION`, `POST /api/test/clock` with the automation key moves the hub's clock forward. Maintenance windows, scheduled rollouts, notification grace, the morning digest, approval expiry and the Demo Home's day all see the new time at once. It never goes back, and every move is logged. Never on a hub that holds anything real.
-
 - **Wall displays.** Settings → Displays makes a link for a wall tablet or a TV that shows one board, with no menus and no sign-in. It dims when nothing changes, turns warmer at night, and wakes with the one line that changed when an incident needs you. Acknowledged incidents show who's on them and don't wake it. Quiet hours keep it dark at night except for an incident that's down. It moves a few pixels now and then against burn-in, and says how old its data is if it loses the hub. A display reads only its board's incidents and backups, and what household sees of the rest. It can't act, and Remove signs it out at once. Its link works once: the device swaps it for a secret of its own, and New link moves the display to another device. The [displays guide](https://github.com/ban-red/cha-dash/blob/main/docs/displays.md) sets one up on Fully Kiosk, a Raspberry Pi or an iPad.
 - **TrueNAS.** Pools and their health, datasets, disks, apps, and snapshot and replication tasks, read only, from TrueNAS 25.04 on. A degraded pool or a failed replication is an incident, and push replications count toward backup coverage.
 - **UPSes through NUT.** Each UPS's charge, runtime, load and voltage from upsd. On battery shows as attention, and a low battery opens an incident.
@@ -28,13 +32,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Backup tools.** Backrest, Kopia, Duplicati, borg-ui and Zerobyte show each job's last run and what it covers, so Settings → Backups credits what they back up. A failed run is down, an overdue one attention.
 - **Home Assistant reads Cha Dash.** A custom integration ([contrib/homeassistant](https://github.com/ban-red/cha-dash/tree/main/contrib/homeassistant)) makes a Problem sensor, the home's health and counts, read with an `inbox.read` token from the new `GET /api/summary`. An automation can flash a light when something breaks.
 - **The config schema.** `GET /api/config/schema.json` lists every setting the hub and chadash-node take, flags and environment variables alike, with a version.
-- **Release provenance.** From the next release, images, binaries and checksums carry SLSA Build Level 3 provenance: `gh attestation verify` checks them, beside cosign.
+- **Release provenance.** From this release, images, binaries and checksums carry SLSA Build Level 3 provenance: `gh attestation verify` checks them, beside cosign.
 - **TV and e-ink displays.** A display is a wall tablet, a TV or an e-ink screen. A TV shows the board larger, the remote's arrow keys move between tiles, and the tile in focus shows its details, so nothing needs a mouse. An e-ink screen is one colour with no motion, shows times as "at 14:05", and is never dimmed.
 - **Levels of detail.** Every widget now draws at four levels: in full at a desk; compact on a phone, with the main value, its context and one action; simplified on a wall or a TV, with bigger numbers and no controls; and ink for e-ink and print. Printing a board gives the ink look.
 - **Spec format `chadash/v1beta1`.** A config field's default applies when it's unset, `now()` is the hub's clock (pinned in `spec test` with `now:` in `fixtures.yaml`), and `findIndex` returns -1 when nothing matches. `chadash spec migrate` rewrites a `v1alpha1` spec and keeps its comments, `spec lint` lists what would change, and the hub migrates installed specs when it starts. `v1alpha1` still loads through v0.5.x. `chadash spec new <id>` starts a spec that already passes `spec test`.
 
 ### Fixed
 
+- **Step-up with any of your passkeys.** With two or more passkeys, confirming it's you before a risky action failed with "That didn't confirm it's you". Now any of them works.
 - **Proxmox: a webhook notification or Check now reads tasks and backups at once.** Before, they waited for their own pace (a minute for tasks, 15 minutes for backups), so a failed backup that PVE reported right after a poll showed only at the next idle poll, up to 5 minutes later.
 
 ## [0.4.0] - 2026-11-01
@@ -508,7 +513,8 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0
 [0.3.0-beta.3]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0-beta.3
