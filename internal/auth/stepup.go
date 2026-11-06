@@ -299,6 +299,15 @@ func (s *Service) handleStepUp(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, "passkey relying party", err)
 		return
 	}
+	// The ceremony allowed every passkey the user has here, and the check
+	// wants the user to own each of them: give it them all, not only the
+	// one presented.
+	all, err := s.userCredentials(ctx, id.User.ID, cer.rp.ID)
+	if err != nil {
+		s.internalError(w, "passkey lookup failed", err)
+		return
+	}
+	pu.creds = all
 	cred, err := wa.ValidateLogin(pu, cer.session, parsed)
 	if err != nil {
 		fail(describe(err), nil)
