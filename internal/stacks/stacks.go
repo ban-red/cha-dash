@@ -29,6 +29,7 @@ import (
 	"dash.cha.sh/internal/httpx"
 	"dash.cha.sh/internal/livedoc"
 	"dash.cha.sh/internal/msg"
+	"dash.cha.sh/internal/nodeproto"
 	"dash.cha.sh/internal/nodes"
 	"dash.cha.sh/internal/stackproto"
 	"dash.cha.sh/internal/store"
@@ -224,6 +225,13 @@ func statusOf(err error) (int, string, string) {
 		return http.StatusGatewayTimeout, "node_timeout", "The node didn't answer in time."
 	}
 	e := stackproto.ErrorFrom(err)
+	if e == nil && nodeproto.CodeOf(err) == nodeproto.CodeForbidden {
+		var ne *nodeproto.Error
+		if errors.As(err, &ne) && ne.Message != "" {
+			m := sentence(ne.Message)
+			return http.StatusForbidden, "forbidden", strings.ToUpper(m[:1]) + m[1:]
+		}
+	}
 	if e == nil {
 		return http.StatusBadGateway, "node_error", "The node couldn't do that: " + err.Error()
 	}

@@ -240,6 +240,9 @@ type StackDetail struct {
 	// AlsoManagedBy names other managers that list a stack of this name:
 	// deploy from one of them only. Empty when none.
 	AlsoManagedBy []OtherManager `json:"also_managed_by"`
+	// Volumes are the project's named volumes now, by their Docker names:
+	// what down keeps and remove may delete.
+	Volumes []string `json:"volumes"`
 }
 
 func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, error) {
@@ -271,6 +274,10 @@ func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, 
 	}
 	if d.Meta == nil {
 		d.Meta = map[string]any{}
+	}
+	d.Volumes = st.Volumes
+	if d.Volumes == nil {
+		d.Volumes = []string{}
 	}
 	if d.Services == nil {
 		d.Services = []stackproto.Service{}

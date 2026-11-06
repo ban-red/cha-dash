@@ -40,9 +40,16 @@ Node errors map to HTTP:
 | `stack.adopt` | T1 | same | `stack.unadopt` (none when it accepts edits) |
 | `stack.unadopt` | T1 | same | `stack.adopt` |
 | `stack.move` | T1 | same, `{"from_path"}` | `stack.unadopt`, which leaves the moved copy, the old file and the containers alone |
+| `stack.stop` | T1 | same | `stack.start` |
+| `stack.start` | T1 | same. With no containers (never up, or taken down) it deploys the last commit | `stack.stop` |
+| `stack.restart` | T1 | same. The health gate only reports | none |
+| `stack.down` | T2 | same. Containers and networks go, volumes stay | `stack.start`, which deploys the same commit |
+| `stack.remove` | T3, typed | same, `{"volumes", "confirm_volumes"}`: deleting the volumes needs the name in `confirm_volumes` too. Needs `stacks.remove` in the node's policy, off by default | `stack.rollback` to the last commit, which restores the file (not its `.env`) and deploys it |
 | `chadash.update` | T3 | `node:<id>`, `{"image"}` (a tag of `ghcr.io/ban-red/chadash`) | none. It resumes after the hub restarts |
 
 How the actions work:
+- **Lifecycle** (`lifecycle.go`): each plan lists the containers, what depends on them in the Home Graph, and for down and remove the volumes kept or deleted. Each refuses a protected stack and one Cha Dash doesn't manage, and the ones that make no sense in the stack's state (stop a stopped stack, restart one with no containers). Their target's state also hashes the status, containers and volumes. Remove refuses a stack edited outside Cha Dash, since deleting the folder would lose the edits, and a node whose policy doesn't allow it says how to turn it on.
+- **Two writers** (`writers.go`): a stack's detail and list entry name Dockhand, Komodo or Arcane stacks in the Home Graph with the same project name (`also_managed_by`). Those APIs don't say which host, so it matches by name only. It's a warning; deploys go ahead.
 - **Resolve** reads the stack from its node. For a deploy it also validates and plans the draft, so the plan's steps name the services ("Pull nginx:1.28", "Recreate web …", the gate, "roll back on its own"). The result travels in `Target.Ref`.
 - **The target's state** hashes the head commit, managed, drift and the draft's SHA-256. An approval after anyone saves a new draft or deploys is `409 plan_changed`.
 - **Blast radius** is the graph's `stack` resources for the project (the Docker integration's `docker:<key>/stack/<name>`) and `GraphImpact` from each.

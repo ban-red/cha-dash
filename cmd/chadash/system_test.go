@@ -304,3 +304,89 @@ func TestSystemRolloutRunsInItsWindow(t *testing.T) {
 		t.Fatalf("after the rollout the container runs %s (running %v), want v2", c.Config.Image, c.State.Running)
 	}
 }
+
+// A whole stack's lifecycle through the hub's API, on the real node and
+// engine: stop, start, restart, take down, and start again (which deploys
+// its last commit). Remove is T3, typed and stepped up, and the node's
+// default policy refuses it: stacks.remove is off unless the host turns it
+// on (the node's engine tests remove and restore with it on).
+func TestSystemStackLifecycle(t *testing.T) {
+	s := newSystem(t)
+	reg := s.e.Registry()
+	s.e.Push(reg, reg.Ref("app", "1"), testengine.Healthy, "1")
+	stack := s.e.Project("life")
+	target := "stack:" + s.nodeID + "/" + stack
+	s.saveDraft(stack, fmt.Sprintf("services:\n  web:\n    image: %s\n", reg.Ref("app", "1")))
+	if task := s.run("stack.deploy", target); task["state"] != "succeeded" {
+		t.Fatalf("deploy: %v", task)
+	}
+	status := func() string {
+		code, body := s.do(s.c, "GET", "/api/stacks/"+s.nodeID+"/"+stack, nil, nil)
+		var d struct {
+			Status string `json:"status"`
+		}
+		if code != http.StatusOK || json.Unmarshal(body, &d) != nil {
+			t.Fatalf("detail: %d %s", code, body)
+		}
+		return d.Status
+	}
+	for _, step := range []struct{ action, want string }{
+		{"stack.stop", "stopped"},
+		{"stack.start", "running"},
+		{"stack.restart", "running"},
+		{"stack.down", "down"},
+		{"stack.start", "running"}, // deploys the last commit
+	} {
+		if task := s.run(step.action, target); task["state"] != "succeeded" {
+			t.Fatalf("%s: %v", step.action, task)
+		}
+		if got := status(); got != step.want {
+			t.Fatalf("after %s the stack is %s, want %s", step.action, got, step.want)
+		}
+	}
+
+	// Remove: typed, after a step-up; the node's policy refuses it.
+	code, body := s.do(s.c, "POST", "/api/actions/plan", map[string]any{"action": "stack.remove", "target": target, "params": map[string]any{}}, nil)
+	var plan struct {
+		ID          string `json:"id"`
+		Hash        string `json:"hash"`
+		Tier        string `json:"tier"`
+		ConfirmText string `json:"confirm_text"`
+	}
+	if code != http.StatusOK || json.Unmarshal(body, &plan) != nil || plan.Tier != "T3" || plan.ConfirmText != stack {
+		t.Fatalf("plan remove: %d %s", code, body)
+	}
+	if code, body := s.do(s.c, "POST", "/api/plans/"+plan.ID+"/approve", map[string]string{"hash": plan.Hash, "typed": "wrong"}, nil); code == http.StatusAccepted {
+		t.Fatalf("approved with the wrong name: %s", body)
+	}
+	if code, body := s.do(s.c, "POST", "/api/auth/step-up", map[string]string{"password": "correct horse battery staple"}, nil); code != http.StatusOK {
+		t.Fatalf("step-up: %d %s", code, body)
+	}
+	code, body = s.do(s.c, "POST", "/api/plans/"+plan.ID+"/approve", map[string]string{"hash": plan.Hash, "typed": stack}, nil)
+	var ok struct {
+		Task struct {
+			ID string `json:"id"`
+		} `json:"task"`
+	}
+	if code != http.StatusAccepted || json.Unmarshal(body, &ok) != nil {
+		t.Fatalf("approve remove: %d %s", code, body)
+	}
+	deadline := time.Now().Add(time.Minute)
+	for {
+		_, body = s.do(s.c, "GET", "/api/tasks/"+ok.Task.ID, nil, nil)
+		var task map[string]any
+		_ = json.Unmarshal(body, &task)
+		if st, _ := task["state"].(string); st == "failed" {
+			if !strings.Contains(fmt.Sprint(task["error"]), "code:forbidden") || !strings.Contains(fmt.Sprint(task["error"]), "add remove to stacks.allow") {
+				t.Fatalf("remove should be refused by the node's policy: %v", task)
+			}
+			break
+		} else if st == "succeeded" || time.Now().After(deadline) {
+			t.Fatalf("remove: %v", task)
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	if got := status(); got != "running" {
+		t.Fatalf("a refused remove leaves the stack %s", got)
+	}
+}

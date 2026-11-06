@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -40,11 +39,13 @@ const deployTimeout = 30 * time.Minute
 //	stack.adopt     T1  adopt a running project in place (or accept edits made outside); undo un-adopts
 //	stack.unadopt   T1  stop managing a stack; nothing on disk or in Docker changes; undo adopts
 //
+// and stop, start, restart, down and remove (lifecycle.go).
+//
 // Targets are stack:<node>/<name>. Each Resolve reads the stack from its
 // node, so a plan shows the real services and an approval re-checks that
 // nothing changed in between.
 func (s *Service) Actions() []action.Def {
-	return []action.Def{
+	return append([]action.Def{
 		{
 			ID: ActionDeploy, Title: "Deploy", Targets: []string{"stack"}, Tier: action.T2, Async: true, Timeout: deployTimeout,
 			Resolve:       s.resolveFor(ActionDeploy),
@@ -118,7 +119,7 @@ func (s *Service) Actions() []action.Def {
 			},
 			Execute: s.executeUnadopt,
 		},
-	}
+	}, s.lifecycleActions()...)
 }
 
 // ── the resolved target ──────────────────────────────────────────────────
@@ -139,6 +140,16 @@ type targetRef struct {
 	Problem       string           `json:"problem,omitempty"` // why it can't run, a sentence
 	Plan          *stackproto.Plan `json:"plan,omitempty"`
 	Soak          string           `json:"soak,omitempty"`
+	// For the lifecycle actions: the stack's status, its containers and
+	// named volumes now, and where its file is.
+	Status     string   `json:"status,omitempty"`
+	Containers []string `json:"containers,omitempty"`
+	Volumes    []string `json:"volumes,omitempty"`
+	Location   string   `json:"location,omitempty"`
+	Path       string   `json:"path,omitempty"`
+	// Removed is a rollback's target that stack.remove took out of the
+	// root: the node restores it from the commit.
+	Removed bool `json:"removed,omitempty"`
 }
 
 func refOf(r action.Request) targetRef {
@@ -167,7 +178,12 @@ func (s *Service) resolveFor(id string) func(ctx context.Context, target string)
 		case errors.As(err, new(errNodeUnknown)):
 			return action.Target{}, action.ErrNotFound
 		case e != nil && e.Code == stackproto.CodeNotFound:
-			if id != ActionDeploy {
+			switch id {
+			case ActionDeploy:
+			case ActionRollback:
+				// Removed from the root: its history still has it.
+				ref.Managed, ref.Removed = true, true
+			default:
 				return action.Target{}, action.ErrNotFound
 			}
 		case err != nil:
@@ -184,8 +200,17 @@ func (s *Service) resolveFor(id string) func(ctx context.Context, target string)
 			if soak, ok := st.Meta["soak"].(string); ok {
 				ref.Soak = soak
 			}
+			if isLifecycle(id) {
+				ref.Status, ref.Location, ref.Path, ref.Volumes = st.Status, st.Location, st.Path, st.Volumes
+				for _, c := range st.Containers {
+					ref.Containers = append(ref.Containers, c.Name)
+				}
+			}
 		}
 		state := []string{ref.Head, fmt.Sprint(ref.Managed), fmt.Sprint(ref.Drift)}
+		if isLifecycle(id) {
+			state = append(state, ref.Status, strings.Join(ref.Containers, ","), strings.Join(ref.Volumes, ","))
+		}
 		if id == ActionDeploy {
 			draft, err := s.draft(ctx, node, name)
 			if err != nil {
@@ -285,6 +310,9 @@ func (s *Service) rollbackPreconditions(_ context.Context, r action.Request) err
 		return err
 	}
 	c := commitOf(r)
+	if ref.Removed {
+		return nil // the node checks the commit is the stack's
+	}
 	if !ref.Managed {
 		return action.Precondition(fmt.Sprintf("%s isn't managed by Cha Dash, so it has no history to roll back to.", ref.Stack))
 	}
@@ -486,23 +514,10 @@ func (s *Service) executeRollback(ctx context.Context, r action.Request, run *ac
 		// admin resumes it, rather than deploying the tip again.
 		s.holdForRollback(ctx, ref.Node, ref.Stack, commit, r.Actor.Name)
 	}
-	// The old version may reference other secrets than today's file. Its
-	// text and its list of names come from the node, so the hub sends only
-	// names an earlier deploy already granted to this stack on this node.
-	var old stackproto.Stack
-	if err := s.call(ctx, ref.Node, stackproto.VerbGet, stackproto.GetRequest{Stack: ref.Stack, At: commit}, &old, s.timeout, nil); err != nil {
-		return nodeFail(err)
-	}
-	names := sortedUnique(append(slices.Clone(old.Secrets), secretRefs(old.Content)...))
-	var notGranted errSecretNotGranted
-	if err := s.grantedOnly(ctx, ref.Node, ref.Stack, names); errors.As(err, &notGranted) {
-		return action.Fail("secret_not_granted", notGranted.Error())
-	} else if err != nil {
-		return err
-	}
-	secrets, err := s.resolveSecrets(ctx, names)
+	// The old version may reference other secrets than today's file.
+	_, secrets, err := s.versionAt(ctx, ref, commit)
 	if err != nil {
-		return action.Fail("secret_missing", firstSentenceOf(err))
+		return err
 	}
 	defer clear(secrets)
 	var res stackproto.DeployResult
