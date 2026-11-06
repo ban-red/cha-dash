@@ -243,13 +243,17 @@ func TestInstallStamped(t *testing.T) {
 	}
 }
 
-// release.yml attaches install.sh, stamped, and lists it in SHA256SUMS.
+// The release workflow attaches install.sh, stamped, and lists it in
+// SHA256SUMS. release-build.yml, the reusable workflow it calls, stamps it.
 func TestReleaseAttachesTheInstaller(t *testing.T) {
-	b, err := os.ReadFile("../.github/workflows/release.yml")
-	if err != nil {
-		t.Fatal(err)
+	var wf string
+	for _, name := range []string{"release.yml", "release-build.yml"} {
+		b, err := os.ReadFile("../.github/workflows/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wf += string(b)
 	}
-	wf := string(b)
 	for _, want := range []string{
 		`sed -e "s/__CHADASH_RELEASE_TAG__/$TAG/" -e "s/__CHADASH_COMPOSE_SHA256__/$compose_sha/" ../deploy/install.sh > install.sh`,
 		`compose_sha=$(sha256sum ../deploy/compose.yaml | cut -d' ' -f1)`,
@@ -257,7 +261,7 @@ func TestReleaseAttachesTheInstaller(t *testing.T) {
 		`"chadash-node-$VERSION-linux-armv7" install.sh; do`,
 	} {
 		if !strings.Contains(wf, want) {
-			t.Errorf("release.yml doesn't have %q", want)
+			t.Errorf("the release workflows don't have %q", want)
 		}
 	}
 }

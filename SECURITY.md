@@ -24,7 +24,7 @@ You'll get an acknowledgement within a few days. Once a fix is ready, we'll coor
 
 Before 1.0, only the newest minor line is maintained. When 0.5.0 ships, 0.4 stops getting fixes, so upgrade to the newest release.
 
-Release images and binaries are signed with cosign (keyless, GitHub OIDC) and published with an SBOM and build provenance. [docs/beta.md](docs/beta.md) shows how to verify them.
+Release images and binaries are signed with cosign (keyless, GitHub OIDC) and published with an SBOM and build provenance. [docs/beta.md](docs/beta.md) shows how to verify them. They also have GitHub artifact attestations (SLSA Build Level 3), checked with `gh attestation verify oci://ghcr.io/ban-red/chadash:<version> --repo ban-red/cha-dash`.
 
 ## Design commitments
 

@@ -170,7 +170,8 @@ The maintainer cuts releases by pushing a version tag. [`.github/workflows/relea
 | Job | What it does | Permissions |
 |---|---|---|
 | Prepare | Checks the tag (`vMAJOR.MINOR.PATCH`, optionally `-beta.N` or `-rc.N`), works out the image tags, and fails early if `CHANGELOG.md` has no section for the version, or its summary still says `TODO(summary)` | `contents: read` |
-| Build and push | The binaries from the Dockerfile's `binary` stage (linux amd64, arm64 and armv7; darwin amd64 and arm64) and `node-binary` stage (linux only), checked and summed into `SHA256SUMS`; smoke-tested linux/amd64 hub and node images; then both pushed for linux/amd64, arm64 and arm/v7 to `ghcr.io/ban-red/chadash` and `ghcr.io/ban-red/chadash-node`, with provenance and SBOMs | `contents: read`, `packages: write` |
+| Build and push | In [`release-build.yml`](.github/workflows/release-build.yml), a reusable workflow. The binaries from the Dockerfile's `binary` stage (linux amd64, arm64 and armv7; darwin amd64 and arm64) and `node-binary` stage (linux only), checked and summed into `SHA256SUMS`; smoke-tested linux/amd64 hub and node images; then both pushed for linux/amd64, arm64 and arm/v7 to `ghcr.io/ban-red/chadash` and `ghcr.io/ban-red/chadash-node`, with provenance and SBOMs | `contents: read`, `packages: write` |
+| Attest | Also in `release-build.yml`: GitHub artifact attestations for both images (by digest, pushed to ghcr.io) and for every release file | `packages: write`, `id-token: write`, `attestations: write`, `actions: read` |
 | Sign | cosign keyless signing of both images (by digest) and of `SHA256SUMS`, each verified straight after | `packages: write`, `id-token: write`, `actions: read` |
 | Draft release | The draft, marked prerelease for `-beta` and `-rc`: notes from `CHANGELOG.md` plus install and verify instructions, with the binaries, `SHA256SUMS` and its signature attached | `contents: write`, `actions: read` |
 
@@ -181,6 +182,15 @@ The node image gets the same tags as the hub.
 | `v0.1.0-beta.2` | `0.1.0-beta.2`, `beta` |
 | `v0.1.0-rc.1` | `0.1.0-rc.1` |
 | `v0.1.0` | `0.1.0`, `0.1`, and `latest` if it's the newest stable tag |
+
+**Attestations.** The build and the attestations run in a reusable workflow, so the attestations are signed with `release-build.yml`'s identity rather than `release.yml`'s, and the build runs in jobs the caller can't step into. That is SLSA Build Level 3. Both images, every binary, `install.sh` and `SHA256SUMS` are attested. The release notes show how to check them:
+
+```sh
+gh attestation verify oci://ghcr.io/ban-red/chadash:0.5.0 --repo ban-red/cha-dash
+gh attestation verify chadash-0.5.0-linux-amd64 --repo ban-red/cha-dash
+```
+
+cosign signing stays in `release.yml`, so the `cosign verify` identity in the notes, `install.sh` and the docs doesn't change.
 
 **Cutting a beta:**
 

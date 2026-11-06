@@ -24,7 +24,7 @@
 # POSIX sh, so it runs under dash, busybox and bash alike; shellcheck-clean.
 set -eu
 
-# The release workflow writes its tag here (release.yml, "Check and name the
+# The release workflow writes its tag here (release-build.yml, "Check and name the
 # binaries"); in a checkout it stays a placeholder and --tag is required.
 STAMPED_TAG='__CHADASH_RELEASE_TAG__'
 # And deploy/compose.yaml's SHA-256 at that tag, so the file fetched from

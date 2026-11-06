@@ -1,0 +1,382 @@
+name: Release build
+
+# Called by release.yml, and only by it: builds the binaries and pushes the
+# hub and node images, then attests them. A reusable workflow, so the
+# attestations are signed with this file's identity
+# (.github/workflows/release-build.yml@<tag>), not the caller's. The build
+# runs in a job the calling workflow can't change or step into, which is what
+# SLSA Build Level 3 asks of a build platform. cosign signing stays in
+# release.yml, so `cosign verify` still names release.yml.
+#
+# Like release.yml: every action is pinned by commit SHA with the release in
+# a comment, checkouts keep no credentials, and each job asks for only the
+# permissions it uses.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, as v0.5.0-beta.1
+        type: string
+        required: true
+      version:
+        description: The tag without its v
+        type: string
+        required: true
+      image:
+        description: The hub image, without a tag
+        type: string
+        required: true
+      node_image:
+        description: The node image, without a tag
+        type: string
+        required: true
+      tags:
+        description: The hub image's tags, one per line
+        type: string
+        required: true
+      node_tags:
+        description: The node image's tags, one per line
+        type: string
+        required: true
+    outputs:
+      digest:
+        description: The hub image's index digest
+        value: ${{ jobs.build.outputs.digest }}
+      node_digest:
+        description: The node image's index digest
+        value: ${{ jobs.build.outputs.node_digest }}
+
+permissions: {}
+
+# As in release.yml: a release is built from the tag alone.
+cache-mode: none
+
+env:
+  IMAGE: ${{ inputs.image }}
+  NODE_IMAGE: ${{ inputs.node_image }}
+
+defaults:
+  run:
+    shell: bash                 # -eo pipefail
+
+jobs:
+  # The binaries, then a smoke-tested image, then the multi-platform push.
+  # All three builds share this job's BuildKit cache, so the linux binaries
+  # attached to the release are the ones inside the image. Nothing comes from
+  # CI's cache: a release is built from the tag alone.
+  build:
+    name: Build and push
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write           # push to ghcr.io
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+      node_digest: ${{ steps.push-node.outputs.digest }}
+    env:
+      TAG: ${{ inputs.tag }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false          # only for `go version -m`; nothing compiles on the runner
+
+      - name: Build the binaries
+        # The Dockerfile's binary stage: the SPA, then the hub with it
+        # embedded, CGO_ENABLED=0, stamped with the tag and the commit. Go
+        # cross-compiles every platform, so there's no emulation. darwin
+        # builds are for development on a Mac; Docker is the way to run it.
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: binary
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,darwin/amd64,darwin/arm64
+          outputs: type=local,dest=out
+          provenance: false
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Build the node binaries
+        # The node runs on a Docker host, so linux only.
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: node-binary
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          outputs: type=local,dest=out-node
+          provenance: false
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Check and name the binaries
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          # buildx writes one folder per platform: out/linux_arm_v7/chadash.
+          declare -A names=(
+            [linux_amd64]=linux-amd64 [linux_arm64]=linux-arm64 [linux_arm_v7]=linux-armv7
+            [darwin_amd64]=darwin-amd64 [darwin_arm64]=darwin-arm64
+          )
+          mkdir dist
+          for dir in "${!names[@]}"; do
+            src="out/$dir/chadash"
+            [ -f "$src" ] || fail "No $src. buildx wrote: $(ls out | tr '\n' ' ')"
+            name="chadash-$VERSION-${names[$dir]}"
+            install -m 0755 "$src" "dist/$name"
+
+            os=${dir%%_*}; rest=${dir#*_}; arch=${rest%%_*}
+            settings=$(go version -m "dist/$name" | awk '$1 == "build" { $1 = ""; print substr($0, 2) }')
+            # -tags=webui exactly: the SPA is in, and devlogin isn't.
+            for want in "GOOS=$os" "GOARCH=$arch" CGO_ENABLED=0 -tags=webui; do
+              grep -qxF -e "$want" <<<"$settings" || fail "$name wasn't built with $want"
+            done
+            if [ "$dir" = linux_arm_v7 ]; then
+              grep -qxF GOARM=7 <<<"$settings" || fail "$name wasn't built with GOARM=7"
+            fi
+            # -trimpath keeps -ldflags out of the build info, so look for the
+            # stamped strings themselves (-X stores them as string data).
+            for want in "$TAG" "$GITHUB_SHA"; do
+              grep -qaF -e "$want" "dist/$name" || fail "$name isn't stamped with $want"
+            done
+          done
+          # The runner is linux/amd64: run that one.
+          got=$("dist/chadash-$VERSION-linux-amd64" version)
+          echo "$got"
+          [[ "$got" == "chadash $TAG (commit $GITHUB_SHA, "* ]] || fail "version printed '$got'"
+
+          # chadash-node, the same checks without the SPA's tag.
+          declare -A nodes=([linux_amd64]=linux-amd64 [linux_arm64]=linux-arm64 [linux_arm_v7]=linux-armv7)
+          for dir in "${!nodes[@]}"; do
+            src="out-node/$dir/chadash-node"
+            [ -f "$src" ] || fail "No $src. buildx wrote: $(ls out-node | tr '\n' ' ')"
+            name="chadash-node-$VERSION-${nodes[$dir]}"
+            install -m 0755 "$src" "dist/$name"
+            rest=${dir#*_}; arch=${rest%%_*}
+            settings=$(go version -m "dist/$name" | awk '$1 == "build" { $1 = ""; print substr($0, 2) }')
+            for want in GOOS=linux "GOARCH=$arch" CGO_ENABLED=0; do
+              grep -qxF -e "$want" <<<"$settings" || fail "$name wasn't built with $want"
+            done
+            if [ "$dir" = linux_arm_v7 ]; then
+              grep -qxF GOARM=7 <<<"$settings" || fail "$name wasn't built with GOARM=7"
+            fi
+            for want in "$TAG" "$GITHUB_SHA"; do
+              grep -qaF -e "$want" "dist/$name" || fail "$name isn't stamped with $want"
+            done
+          done
+          got=$("dist/chadash-node-$VERSION-linux-amd64" version)
+          echo "$got"
+          [[ "$got" == "chadash-node $TAG (commit $GITHUB_SHA, "* ]] || fail "the node's version printed '$got'"
+
+          cd dist
+          # The one-line installer (deploy/install.sh), stamped with this
+          # release's tag. It's in SHA256SUMS, so the signed checksums cover it.
+          # And deploy/compose.yaml's hash, which it checks the fetched file against.
+          compose_sha=$(sha256sum ../deploy/compose.yaml | cut -d' ' -f1)
+          sed -e "s/__CHADASH_RELEASE_TAG__/$TAG/" -e "s/__CHADASH_COMPOSE_SHA256__/$compose_sha/" ../deploy/install.sh > install.sh
+          grep -qxF "STAMPED_TAG='$TAG'" install.sh || fail "install.sh isn't stamped with $TAG"
+          grep -qxF "STAMPED_COMPOSE_SHA256='$compose_sha'" install.sh || fail "install.sh isn't stamped with compose.yaml's hash"
+          chmod 0755 install.sh
+          sha256sum chadash-* install.sh > SHA256SUMS
+          cat SHA256SUMS
+          { echo "### Binaries"; echo; echo '```'; cat SHA256SUMS; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chadash-binaries
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build the linux/amd64 image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: chadash:release
+          provenance: false
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Smoke test
+        # As ci.yml runs it, the way deploy/compose.yaml does: read-only, no
+        # capabilities, a fresh /data. It must turn healthy, say it's on
+        # first run, and say which release it is.
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          got=$(docker run --rm chadash:release version)
+          [[ "$got" == "chadash $TAG (commit $GITHUB_SHA, "* ]] || fail "the image's version is '$got'"
+          docker run -d --name chadash-smoke -p 127.0.0.1:3696:3696 \
+            --read-only --tmpfs /tmp:size=64m,mode=1777 \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            chadash:release
+          healthy=
+          for _ in $(seq 30); do
+            if docker exec chadash-smoke /chadash healthcheck 2>/dev/null; then healthy=1; break; fi
+            sleep 1
+          done
+          logs=$(docker logs chadash-smoke 2>&1)
+          echo "$logs"
+          docker rm -f chadash-smoke >/dev/null
+          [ -n "$healthy" ] || fail "The hub never passed its healthcheck"
+          grep -q 'first run: no owner account yet' <<<"$logs" || fail "No first-run note in the logs"
+          if grep -q 'dev login is built in' <<<"$logs"; then fail "The image was built with -tags devlogin"; fi
+
+      - name: Build the linux/amd64 node image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: node
+          platforms: linux/amd64
+          load: true
+          tags: chadash-node:release
+          provenance: false
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            COMMIT=${{ github.sha }}
+      - name: Node smoke test
+        # As ci.yml runs it: it must start, wait for a pairing token and pass
+        # its healthcheck, and say which release it is.
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          got=$(docker run --rm chadash-node:release version)
+          [[ "$got" == "chadash-node $TAG (commit $GITHUB_SHA, "* ]] || fail "the node image's version is '$got'"
+          docker run -d --name node-smoke --user 0:0 --group-add 65532 \
+            --read-only --tmpfs /tmp:size=16m,mode=1777 \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            chadash-node:release
+          healthy=
+          for _ in $(seq 30); do
+            if docker exec node-smoke /chadash-node healthcheck 2>/dev/null; then healthy=1; break; fi
+            sleep 1
+          done
+          logs=$(docker logs node-smoke 2>&1)
+          echo "$logs"
+          docker rm -f node-smoke >/dev/null
+          [ -n "$healthy" ] || fail "The node never passed its healthcheck"
+
+      - name: Sign in to ghcr.io
+        env:
+          TOKEN: ${{ github.token }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build and push the image
+        id: push
+        # linux/arm/v7 is best-effort (ADR-0016) but published like the
+        # others. Provenance (SLSA, mode=max) and an SPDX SBOM are attached
+        # to the image index as attestations.
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          tags: ${{ inputs.tags }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            COMMIT=${{ github.sha }}
+          # The Dockerfile's labels are per platform; ghcr.io reads a
+          # multi-platform image's description from the index.
+          annotations: |
+            index:org.opencontainers.image.title=Cha Dash
+            index:org.opencontainers.image.description=The front page of your home: a self-hosted homelab dashboard
+            index:org.opencontainers.image.source=https://github.com/ban-red/cha-dash
+            index:org.opencontainers.image.licenses=AGPL-3.0-or-later
+            index:org.opencontainers.image.version=${{ inputs.version }}
+            index:org.opencontainers.image.revision=${{ github.sha }}
+      - name: Build and push the node image
+        id: push-node
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: node
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          tags: ${{ inputs.node_tags }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            COMMIT=${{ github.sha }}
+          annotations: |
+            index:org.opencontainers.image.title=Cha Dash node
+            index:org.opencontainers.image.description=Cha Dash's node: Docker control and owned stacks on one host, within its local policy
+            index:org.opencontainers.image.source=https://github.com/ban-red/cha-dash
+            index:org.opencontainers.image.licenses=AGPL-3.0-or-later
+            index:org.opencontainers.image.version=${{ inputs.version }}
+            index:org.opencontainers.image.revision=${{ github.sha }}
+      - name: Summary
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+          TAGS: ${{ inputs.tags }}
+          NODE_DIGEST: ${{ steps.push-node.outputs.digest }}
+          NODE_TAGS: ${{ inputs.node_tags }}
+        run: |
+          { echo "### Image"; echo; echo "\`$IMAGE@$DIGEST\`"; echo; sed 's/^/- `/; s/$/`/' <<<"$TAGS"; } >> "$GITHUB_STEP_SUMMARY"
+          { echo "### Node image"; echo; echo "\`$NODE_IMAGE@$NODE_DIGEST\`"; echo; sed 's/^/- `/; s/$/`/' <<<"$NODE_TAGS"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Sign out of ghcr.io
+        if: always()
+        run: docker logout ghcr.io
+
+
+  # GitHub artifact attestations: SLSA provenance for both images (stored in
+  # ghcr.io next to them) and for every release file, signed through
+  # Sigstore with this workflow's identity. Its own job, so the build steps
+  # above never hold an OIDC token.
+  attest:
+    name: Attest
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write           # the image attestations are stored next to the images
+      id-token: write           # the OIDC token for the Sigstore certificate
+      attestations: write       # record the attestations in this repository
+      actions: read             # download this run's binaries
+    env:
+      DIGEST: ${{ needs.build.outputs.digest }}
+      NODE_DIGEST: ${{ needs.build.outputs.node_digest }}
+    steps:
+      - name: Check the digests
+        run: |
+          [[ "$DIGEST" == sha256:* ]] || { echo "::error::No image digest from the build job"; exit 1; }
+          [[ "$NODE_DIGEST" == sha256:* ]] || { echo "::error::No node image digest from the build job"; exit 1; }
+      - name: Download the binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name chadash-binaries --dir "$RUNNER_TEMP/binaries"
+          cd "$RUNNER_TEMP/binaries"
+          sha256sum -c SHA256SUMS
+          ls -l
+      - name: Attest the binaries
+        # One attestation naming every file: the binaries, install.sh and
+        # SHA256SUMS itself.
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/binaries/*
+      - name: Sign in to ghcr.io
+        env:
+          TOKEN: ${{ github.token }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Attest the image
+        # By digest: the index every tag of this release points at.
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ inputs.image }}
+          subject-digest: ${{ needs.build.outputs.digest }}
+          push-to-registry: true
+      - name: Attest the node image
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ inputs.node_image }}
+          subject-digest: ${{ needs.build.outputs.node_digest }}
+          push-to-registry: true
+      - name: Sign out of ghcr.io
+        if: always()
+        run: docker logout ghcr.io
