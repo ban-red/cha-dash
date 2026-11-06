@@ -11,7 +11,7 @@ name: chadash
 
 services:
   chadash:
-    image: ghcr.io/ban-red/chadash:latest
+    image: ghcr.io/ban-red/chadash:latest@sha256:70509d846c6a441660aa4e010aa708ee88f0d08197f2787677fa00875618c4c5
     restart: unless-stopped
     ports:
       - "3696:3696"
@@ -37,7 +37,7 @@ services:
   # pair. It holds the Docker socket; the hub never does. Delete this service
   # if you don't want Cha Dash to see this host's containers.
   chadash-node:
-    image: ghcr.io/ban-red/chadash-node:latest
+    image: ghcr.io/ban-red/chadash-node:latest@sha256:dfb252e9ee7422f1072e4297cf9069fa21134523a4c2ade20d52c0366d760c23
     restart: unless-stopped
     depends_on: [chadash]
     # The socket's group differs from host to host, so the node runs as uid 0
