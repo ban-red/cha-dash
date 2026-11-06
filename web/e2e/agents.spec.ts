@@ -4,12 +4,14 @@ import { addAuthenticator, addPasskey, signInWithPassword, stepUpWithPasskey } f
 // An AI agent through MCP, with no agent and no person (H5 in
 // docs/plan/17-test-automation.md; 14b's manual test 13): a scripted MCP
 // client speaks the streamable HTTP transport to /mcp with an agent token,
-// proposes a restart and withdraws another; the owner approves the first
+// proposes a T2 action and withdraws a second proposal; the owner approves the first
 // in the Inbox with a hold and a passkey (the virtual authenticator). The
 // audit has both sides. The client is plain JSON-RPC, the protocol Claude
 // Desktop and other clients speak; no SDK is linked.
 
 const protocolVersion = '2025-06-18';
+// The Demo Home's T2 actions; the token may propose any of them.
+const t2Actions = ['pve.guest.restart', 'pbs.datastore.prune', 'container.update'];
 const json = { Accept: 'application/json', 'Content-Type': 'application/json' };
 
 type Structured = Record<string, unknown>;
@@ -52,7 +54,7 @@ test('an agent proposes over MCP; the owner approves with a hold and a passkey',
   expect(on.ok(), await on.text()).toBe(true);
   const made = await page.request.post('/api/tokens', {
     headers: json,
-    data: { name: 'e2e agent', kind: 'agent', scopes: ['graph.read', 'inbox.read', 'propose:docker.container.restart'], expires_in_days: 1 },
+    data: { name: 'e2e agent', kind: 'agent', scopes: ['graph.read', 'inbox.read', ...t2Actions.map((a) => `propose:${a}`)], expires_in_days: 1 },
   });
   expect(made.status(), await made.text()).toBe(201);
   const { secret } = (await made.json()) as { secret: string };
@@ -70,26 +72,29 @@ test('an agent proposes over MCP; the owner approves with a hold and a passkey',
   const tools = (await mcp.send('tools/list')).body as { result: { tools: { name: string }[] } };
   expect(tools.result.tools.map((t) => t.name)).toEqual(expect.arrayContaining(['search', 'get_resource', 'propose', 'get_proposal', 'withdraw']));
 
-  // A container the agent can propose a restart on.
-  const found = await mcp.call('search', { query: '', kind: 'container', limit: 50 });
-  const containers = (found.structured.resources as { id: string }[]) ?? [];
-  expect(containers.length).toBeGreaterThan(1);
-  const restartable: string[] = [];
-  for (const c of containers) {
+  // A T2 action the agent may propose, on whatever the Demo Home offers it.
+  const found = await mcp.call('search', { query: '', limit: 50 });
+  const resources = (found.structured.resources as { id: string }[]) ?? [];
+  expect(resources.length).toBeGreaterThan(1);
+  let pick: { action: string; target: string } | undefined;
+  for (const c of resources) {
     const r = await mcp.call('get_resource', { resource: c.id });
     const offers = (r.structured.actions as { action: string; available: boolean; tier: string }[]) ?? [];
-    if (offers.some((o) => o.action === 'docker.container.restart' && o.available && o.tier === 'T2')) restartable.push(c.id);
-    if (restartable.length === 2) break;
+    const o = offers.find((x) => t2Actions.includes(x.action) && x.available && x.tier === 'T2');
+    if (o) {
+      pick = { action: o.action, target: c.id };
+      break;
+    }
   }
-  expect(restartable, 'two containers whose restart is a T2 the agent may propose').toHaveLength(2);
-  const [target, other] = restartable as [string, string];
+  expect(pick, 'a T2 action the agent may propose').toBeTruthy();
+  const { action, target } = pick as { action: string; target: string };
 
   // Propose one, withdraw a second: neither runs by itself.
-  const proposed = await mcp.call('propose', { action: 'docker.container.restart', target, rationale: 'e2e: it stopped answering.' });
+  const proposed = await mcp.call('propose', { action, target, rationale: 'e2e: it stopped answering.' });
   expect(proposed.isError, JSON.stringify(proposed.structured)).toBe(false);
   const proposal = proposed.structured.proposal as { id: string; state: string };
   expect(proposal.state).toBe('awaiting_approval');
-  const second = await mcp.call('propose', { action: 'docker.container.restart', target: other, rationale: 'e2e: to be withdrawn.' });
+  const second = await mcp.call('propose', { action, target, rationale: 'e2e: to be withdrawn.' });
   const secondID = (second.structured.proposal as { id: string }).id;
   const withdrawn = await mcp.call('withdraw', { proposal: secondID, reason: 'e2e: not needed.' });
   expect(withdrawn.isError).toBe(false);
