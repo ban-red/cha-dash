@@ -50,7 +50,7 @@ resources:
 func TestIntArithmeticIsFloat(t *testing.T) {
 	for src, want := range map[string]any{
 		"int(2147483647) + 1":              float64(2147483648),
-		"int(1794020400000) + int(500)":    float64(1794020400500),
+		"int(1794020400000.0) + int(500)":  float64(1794020400500),
 		"string(int(48318382080.7))":       "48318382080",
 		"string(1.5)":                      "1.5",
 		"string(int(-3.9))":                "-3",
