@@ -270,12 +270,13 @@ jobs:
         run: bun run test:engine
 
   # The release binary with the SPA embedded, on the Demo Home, in a real
-  # browser (web/e2e): first run, the front page on desktop and phone, axe in
-  # every theme, the command bar, and the safety ladder on the action engine.
+  # browser (web/e2e): first run, the front page on desktop, a Pixel, an
+  # iPhone and an iPad (WebKit), axe in every theme, the command bar, the
+  # installable app offline, and the safety ladder on the action engine.
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -292,9 +293,9 @@ jobs:
         run: |
           bun run build
           CGO_ENABLED=0 go build -tags webui -trimpath -o chadash ./cmd/chadash
-      - name: Install Chromium for Playwright
+      - name: Install Chromium and WebKit for Playwright
         working-directory: web
-        run: bunx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium webkit
       - name: End-to-end tests
         run: bun run e2e
       - name: Keep the report and traces

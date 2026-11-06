@@ -74,11 +74,11 @@ bun run live:verify                          # every instance in .env.local
 bun run live:verify proxmox/pluto            # one
 ```
 
-**End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, the safety ladder on the action engine, and passkeys (Chromium's virtual authenticator, on `localhost`). Playwright's test runner needs Node.js (any current LTS); nothing else here does.
+**End-to-end tests** ([`web/e2e/`](web/e2e/)) drive the release binary in a real browser on the Demo Home: the first run, the front page on desktop and phone, axe in every theme, the command bar, the safety ladder on the action engine, passkeys (Chromium's virtual authenticator, on `localhost`), the installable app with the network cut, and the front page in WebKit on an iPhone and an iPad. Playwright's test runner needs Node.js (any current LTS); nothing else here does.
 
 ```sh
 bun run build && CGO_ENABLED=0 go build -tags webui -o chadash ./cmd/chadash   # the binary they test
-(cd web && bunx playwright install chromium)                                  # once
+(cd web && bunx playwright install chromium webkit)                           # once
 bun run e2e          # starts the hub on 127.0.0.1:3698 with a fresh data directory
 ```
 

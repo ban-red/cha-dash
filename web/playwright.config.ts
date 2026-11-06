@@ -37,6 +37,22 @@ export default defineConfig({
       dependencies: ['first-run'],
       testMatch: /front-page\.spec\.ts/,
     },
+    // Safari's engine on an iPhone and an iPad (H6 in
+    // docs/plan/17-test-automation.md): the front page and axe, as on the
+    // Pixel. The PWA checks (pwa.spec.ts) run in Chromium: Playwright's
+    // WebKit doesn't run service workers.
+    {
+      name: 'iphone',
+      use: { ...devices['iPhone 15'], storageState: owner },
+      dependencies: ['first-run'],
+      testMatch: /front-page\.spec\.ts/,
+    },
+    {
+      name: 'ipad',
+      use: { ...devices['iPad Pro 11'], storageState: owner },
+      dependencies: ['first-run'],
+      testMatch: /front-page\.spec\.ts/,
+    },
     // Chromium's virtual authenticator (e2e/webauthn.ts): passkeys, and an
     // agent's proposal approved with one. On localhost:
     // a relying party ID can't be an IP address. Last, so the owner's new
@@ -44,7 +60,7 @@ export default defineConfig({
     {
       name: 'passkey',
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
-      dependencies: ['desktop', 'phone'],
+      dependencies: ['desktop', 'phone', 'iphone', 'ipad'],
       testMatch: /(passkey|agents)\.spec\.ts/,
     },
   ],

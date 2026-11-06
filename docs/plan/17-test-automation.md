@@ -70,9 +70,11 @@ A scripted MCP client in the system tests, using the official TypeScript SDK as 
 
 Playwright's WebKit project with iPhone and iPad sizes beside Chromium's Pixel, the PWA's install manifest and service worker checked, and offline behaviour tested with the network cut. A real handset adds nothing a test can't see, so there's no device test.
 
+**Written** (2026-11-06), to run in CI's End-to-end job (it needs the release build): `iphone` and `ipad` projects (WebKit) run the front page and axe in every theme, as the Pixel does. `web/e2e/pwa.spec.ts` checks the manifest and that each icon is what it says (type and PNG size), that the service worker keeps the shell and never `/api` or `/ws`, and that the page opens on its last-known state with the network cut, then reconnects. The PWA checks run in Chromium: Playwright's WebKit doesn't run service workers.
+
 ### H7 · Install and upgrade
 
-- **Installer:** CI runs `install.sh` in a clean `debian:trixie` container with Docker-in-Docker, against a release built in the same job: digests pinned, a tampered `compose.yaml` and a wrong-tag signature refused.
+- **Installer:** CI runs `install.sh` in a clean `debian:trixie` container with Docker-in-Docker, against a release built in the same job: digests pinned, a tampered `compose.yaml` and a wrong-tag signature refused. **Not as written** (2026-11-06): the script names GitHub's URLs, ghcr.io and the release workflow's signing identity, so an image built in a CI job can't pass its cosign check. A real run needs a published release that ships `install.sh`; v0.3.0 doesn't. Until then the fake-PATH tests in `deploy/install_test.go` cover the refusals (layer 1).
 - **LXC script:** runs against a `pct`/`pvesh` shim that records the calls and checks them against a fixture; what it does inside the CT runs in a Debian container. **Built** (2026-11-06), changed: `deploy/lxc_engine_test.go` runs both scripts in a Debian 13 container with fakes and a stand-in `build.func`. The real `build.func` (what calls `pct`) is community-scripts' code, fetched from their repository; the tests never run it, so there's no `pct` shim. They check our part: the install, the update, and a bad release tag refused.
 - **Upgrades** (already in v0.5): the current build on 0.3.0 and 0.4.0 data directories. **Built** (2026-11-06): `TestUpgradeFromReleasedVersions` in `cmd/chadash`, a layer 4 test in process. Each data directory was written by its release's own code, a test in a worktree at its tag, so no old build is needed.
 
