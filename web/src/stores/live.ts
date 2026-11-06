@@ -25,6 +25,8 @@ import { rewind } from '../model/history';
 import { cursor } from './cursor';
 
 export const TOPICS = ['graph', 'metrics', 'inbox', 'tasks', 'causes', 'backups'] as const;
+/** A wall display's socket serves everything but `tasks` (views/DisplayPage.vue). */
+export const DISPLAY_TOPICS = ['graph', 'metrics', 'inbox', 'causes', 'backups'] as const;
 
 export type FixState = 'sending' | 'accepted' | 'failed';
 
@@ -41,6 +43,10 @@ export interface FixStatus {
 
 export interface LiveOptions {
   url?: string;
+  /** The socket's same-origin path when `url` isn't given: `/ws` (a session), or `/api/display/ws` (a wall display). */
+  path?: string;
+  /** The topics to subscribe to. Default TOPICS. */
+  topics?: readonly string[];
   createSocket?: WebSocketFactory;
   backoff?: BackoffOptions;
   now?: () => number;
@@ -86,8 +92,8 @@ export function createLive(opts: LiveOptions = {}) {
   let checking = false;
 
   const client = new RealtimeClient({
-    url: opts.url ?? (() => sameOriginWs('/ws')),
-    topics: TOPICS,
+    url: opts.url ?? (() => sameOriginWs(opts.path ?? '/ws')),
+    topics: opts.topics ?? TOPICS,
     doc,
     ...(opts.createSocket ? { createSocket: opts.createSocket } : {}),
     ...(opts.backoff ? { backoff: opts.backoff } : {}),

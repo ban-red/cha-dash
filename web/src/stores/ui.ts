@@ -38,7 +38,7 @@ import { prefersReducedMotion } from '../lib/motion';
 import { repairTarget } from '../model/integrations';
 import { NODE_REVIEW, UPDATE_REVIEW } from '../model/inbox';
 import { label } from '../model/graph';
-import { permissions } from '../model/roles';
+import { permissions, type Permissions } from '../model/roles';
 import { hasSheet } from '../model/sheets';
 import { resourceLinks, safeUrl, type Action, type Incident } from '../model/types';
 import { createActions, type ActionRequest, type ConfirmRequest, type StepUpRequest, type TaskLog, type ToastAction } from './actions';
@@ -72,6 +72,12 @@ export interface UiHooks {
   role?: () => string | undefined;
   /** Poll interval for tasks on a hub without the `tasks` topic (tests shorten it). */
   pollMs?: number;
+  /**
+   * A wall display (views/DisplayPage.vue): no session, so nothing opens. The
+   * Inbox, sheets, the Atlas, Settings, dialogs and actions are all no-ops,
+   * and `can` allows nothing beyond reading the board.
+   */
+  readOnly?: boolean;
 }
 
 export interface Runnable {
@@ -112,7 +118,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
   });
   let nextToast = 1;
   /** What the viewer's role may see and do. The hub enforces it; this only hides. */
-  const can = computed(() => permissions(hooks.role?.()));
+  const can = computed(() => (hooks.readOnly ? readOnlyPermissions() : permissions(hooks.role?.())));
 
   function toast(text: string, tone: Toast['tone'] = 'ok', ms = 5000, action?: ToastAction): void {
     const t: Toast = { id: nextToast++, text, tone };
@@ -366,7 +372,7 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     await hooks.signOut?.();
   }
 
-  return {
+  const ui = {
     state,
     can,
     toast,
@@ -438,6 +444,31 @@ export function createUi(live: Live, hooks: UiHooks = {}) {
     reveal,
     signOut,
   };
+  if (hooks.readOnly) {
+    const none = () => undefined;
+    Object.assign(ui, {
+      openInbox: none,
+      openSheet: none,
+      openAtlas: none,
+      openSettings: none,
+      openPalette: none,
+      openTileSettings: none,
+      reconnect: none,
+      act: none,
+      reveal: none,
+      showNote: none,
+      openCameraEvent: none,
+      openHomePanel: none,
+      runAction: async () => undefined,
+      answer: async () => false,
+    });
+  }
+  return ui;
+}
+
+/** A wall display's permissions: read the board, nothing else. */
+function readOnlyPermissions(): Permissions {
+  return { ...permissions('household'), inbox: false, settings: false, panes: [], act: () => false };
 }
 
 export type Ui = ReturnType<typeof createUi>;

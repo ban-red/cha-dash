@@ -21,6 +21,8 @@
  * channels and rules, the first-run wizard) answers 403 below admin, and is
  * never shown there.
  *
+ * Wall displays (Settings → Displays) are admin and owner only, like users.
+ *
  * Every role also manages its own API tokens (a token never exceeds its
  * user's role), so API tokens is open below admin too. The owner sees and
  * revokes everyone's tokens, admins everyone's but the owner's; both approve the plans tokens leave
@@ -91,7 +93,7 @@ export function permissions(role: string | undefined): Permissions {
   const admin = r === 'owner' || r === 'admin';
   // Below admin, Updates and Backups come last: a path the role can't open falls back to the first pane, Security.
   const panes: SettingsPane[] = admin
-    ? ['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'security', 'general']
+    ? ['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'displays', 'security', 'general']
     : r === 'household'
       ? ['security', 'notifications', 'tokens', 'general', 'timeline']
       : ['security', 'notifications', 'tokens', 'general', 'updates', 'backups', 'timeline'];

@@ -14,6 +14,10 @@
  * A tile bound to an instance with no cached icon falls back to the bundled
  * logo of its integration, and any tile whose name says a service ("Sonarr",
  * "Plex Media Server") to that service's logo (lib/serviceIcons.ts).
+ *
+ * A wall display has no session, so it can't read /api/icons: its page seeds
+ * the map from GET /api/display (`seedDisplayIcons`), and every path points
+ * at /api/display/icons/<id>, the route its credential may read.
  */
 import { computed, shallowRef } from 'vue';
 import { api } from '../lib/api';
@@ -28,7 +32,7 @@ export interface IconMap {
 }
 
 const EMPTY: IconMap = { by_icon: {}, by_origin: {}, by_instance: {} };
-const PATH = /^\/api\/icons\/ic_[a-z0-9]{8,64}(\?v=[0-9a-f]{1,64})?$/;
+const PATH = /^\/api\/(?:display\/)?icons\/ic_[a-z0-9]{8,64}(\?v=[0-9a-f]{1,64})?$/;
 
 const map = shallowRef<IconMap>(EMPTY);
 let loading: Promise<void> | undefined;
@@ -53,6 +57,20 @@ export function loadIcons(): Promise<void> {
       map.value = EMPTY; // an older hub, or offline: monograms
     });
   return loading;
+}
+
+/**
+ * A wall display's icon map (from GET /api/display), served from
+ * /api/display/icons/<id>. Counts as loaded: the board never asks /api/icons.
+ */
+export function seedDisplayIcons(m: Partial<IconMap> | undefined): void {
+  const toDisplay = (v: unknown) => {
+    const out: Record<string, string> = {};
+    for (const [k, p] of Object.entries(clean(v))) out[k] = p.replace(/^\/api\/icons\//, '/api/display/icons/');
+    return out;
+  };
+  map.value = { by_icon: toDisplay(m?.by_icon), by_origin: toDisplay(m?.by_origin), by_instance: toDisplay(m?.by_instance) };
+  loading = Promise.resolve();
 }
 
 /** For tests: forget the loaded map. */

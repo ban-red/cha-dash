@@ -28,10 +28,14 @@
  *   /settings/audit                    the audit log (owner, admin)
  *   /settings/notifications            this device's notifications; channels, rules, the delivery log (owner, admin)
  *   /settings/tokens                   API tokens: your own (the owner: everyone's; admins: all but the owner's)
+ *   /settings/displays                 wall displays: make a sign-in link, rename, quiet hours, revoke (owner, admin)
  *   /settings/security                 the security level, step-up, passkeys
  *
  * Settings is a layer over the front page, not a separate app, so the board,
  * the realtime socket and the Inbox stay put underneath it.
+ *
+ *   /display/{board}#cdd_…             a wall display (views/DisplayPage.vue): no session, no chrome.
+ *                                      The secret in the fragment is claimed once, then dropped.
  */
 import { computed, shallowRef } from 'vue';
 
@@ -54,13 +58,15 @@ export type SettingsPane =
   | 'audit'
   | 'notifications'
   | 'tokens'
+  | 'displays'
   | 'security'
   | 'general';
 
-const PANES: readonly string[] = ['stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'security', 'general'];
+const PANES: readonly string[] = ['stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'displays', 'security', 'general'];
 
 export type View =
   | { name: 'front'; board?: string }
+  | { name: 'display'; board: string }
   | { name: 'settings'; pane: SettingsPane; id?: string; add?: string };
 
 function read(): Route {
@@ -81,6 +87,7 @@ export function resolve(r: Route): View {
     return { name: 'front' };
   }
   if (parts[0] === 'boards' && parts[1]) return { name: 'front', board: parts[1] };
+  if (parts[0] === 'display') return { name: 'display', board: parts[1] ?? '' };
   if (parts[0] !== 'settings') return { name: 'front' };
   const pane = (PANES.includes(parts[1] ?? '') ? parts[1] : 'integrations') as SettingsPane;
   if (pane === 'stacks') {
@@ -167,6 +174,19 @@ function frontPath(path: string, atlas: string | undefined, sheet: string | unde
 export function stackPath(node?: string, name?: string): string {
   if (!node || !name) return '/settings/stacks';
   return `/settings/stacks/${encodeURIComponent(node)}/${encodeURIComponent(name)}`;
+}
+
+/**
+ * A wall display's sign-in secret from the fragment (`#cdd_…`), taken once:
+ * the fragment is dropped from the address bar and history at once, so the
+ * secret is never kept, logged or sent anywhere but the claim.
+ */
+export function takeDisplaySecret(): string | undefined {
+  if (typeof location === 'undefined') return undefined;
+  const hash = location.hash.replace(/^#/, '');
+  if (!hash) return undefined;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  return /^cdd_[A-Za-z0-9_]+$/.test(hash) ? hash : undefined;
 }
 
 let started = false;

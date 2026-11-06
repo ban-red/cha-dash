@@ -542,7 +542,7 @@ describe('roles', () => {
       expect(p(r).decide).toBe(false);
     }
     expect(p('admin').integrations && p('admin').decide).toBe(true);
-    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'security', 'general']);
+    expect(p('admin').panes).toEqual(['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'displays', 'security', 'general']);
     expect(p('admin').securitySettings).toBe(false);
     expect(p('owner').securitySettings).toBe(true);
     expect(p('someone-new').role).toBe('viewer');
@@ -598,7 +598,7 @@ describe('roles', () => {
   it('⌘K lists the Users and Audit panes for owners and admins only; everyone gets their passkeys', () => {
     const d = { openInbox: vi.fn(), toggleEdit: vi.fn(), openBoard: vi.fn(), reveal: vi.fn(), openSettings: vi.fn(), addIntegration: vi.fn(), setTheme: vi.fn(), signOut: vi.fn() };
     const ids = (role: string) => buildCommands({ can: permissions(role), do: d }).filter((c) => c.group === 'Settings').map((c) => c.id);
-    expect(ids('admin')).toEqual(['settings:integrations', 'settings:stacks', 'settings:import', 'settings:import:discover', 'settings:import:history', 'settings:backup', 'settings:users', 'settings:audit', 'settings:notifications', 'settings:tokens', 'settings:security', 'settings:general']);
+    expect(ids('admin')).toEqual(['settings:integrations', 'settings:stacks', 'settings:import', 'settings:import:discover', 'settings:import:history', 'settings:backup', 'settings:users', 'settings:audit', 'settings:notifications', 'settings:tokens', 'settings:displays', 'settings:security', 'settings:general']);
     expect(ids('operator')).toEqual(['settings:notifications', 'settings:tokens', 'settings:security', 'settings:general']);
     expect(ids('household')).toEqual(['settings:notifications', 'settings:tokens', 'settings:security', 'settings:general']);
   });

@@ -3,7 +3,7 @@
  * Settings: a sheet over the front page, not a separate admin app
  * (02 · Experience → Surfaces). The route picks the pane:
  * /settings/integrations, /settings/stacks, /settings/nodes, /settings/updates, /settings/backups, /settings/import, /settings/backup, /settings/history,
- * /settings/users, /settings/audit, /settings/notifications, /settings/tokens,
+ * /settings/users, /settings/audit, /settings/notifications, /settings/tokens, /settings/displays,
  * /settings/security, /settings/general. The board, the
  * socket and the Inbox stay live underneath; Esc or the scrim goes back.
  *
@@ -35,6 +35,7 @@ const UsersPane = defineAsyncComponent(() => import('./UsersPane.vue'));
 const AuditPane = defineAsyncComponent(() => import('./AuditPane.vue'));
 const NotificationsPane = defineAsyncComponent(() => import('./NotificationsPane.vue'));
 const TokensPane = defineAsyncComponent(() => import('./TokensPane.vue'));
+const DisplaysPane = defineAsyncComponent(() => import('./DisplaysPane.vue'));
 
 const ui = useUi();
 
@@ -56,6 +57,7 @@ const ALL_PANES: { id: SettingsPane; label: string; note: string }[] = [
   { id: 'audit', label: 'Audit', note: 'who did what' },
   { id: 'notifications', label: 'Notifications', note: 'push, ntfy, webhooks' },
   { id: 'tokens', label: 'API tokens', note: 'scripts and automations' },
+  { id: 'displays', label: 'Displays', note: 'wall screens, one board each' },
   { id: 'security', label: 'Security', note: 'level, step-up, passkeys' },
 ];
 const PANES = computed(() =>
@@ -68,7 +70,7 @@ const GROUPS: { label: string; ids: SettingsPane[] }[] = [
   { label: 'This device', ids: ['general'] },
   { label: 'Connect', ids: ['integrations', 'stacks', 'nodes', 'updates', 'backups', 'import'] },
   { label: 'Keep', ids: ['backup', 'history', 'timeline'] },
-  { label: 'People & access', ids: ['users', 'tokens', 'security', 'notifications', 'audit'] },
+  { label: 'People & access', ids: ['users', 'tokens', 'displays', 'security', 'notifications', 'audit'] },
 ];
 const NAV = computed(() =>
   GROUPS.map((g) => ({ label: g.label, panes: g.ids.flatMap((id) => PANES.value.filter((p) => p.id === id)) })).filter((g) => g.panes.length),
@@ -93,6 +95,7 @@ const TITLES: Record<SettingsPane, string> = {
   audit: 'Audit',
   notifications: 'Notifications',
   tokens: 'API tokens',
+  displays: 'Displays',
   security: 'Security',
   general: 'General',
 };
@@ -171,6 +174,7 @@ onBeforeUnmount(() => {
             <AuditPane v-else-if="pane === 'audit'" />
             <NotificationsPane v-else-if="pane === 'notifications'" />
             <TokensPane v-else-if="pane === 'tokens'" />
+            <DisplaysPane v-else-if="pane === 'displays'" />
             <GeneralPane v-else-if="pane === 'general'" />
             <SecurityPane v-else />
           </div>

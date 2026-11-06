@@ -251,6 +251,7 @@ export function buildCommands(ctx: CommandContext): Command[] {
     { id: 'settings:audit', group: 'Settings', label: 'Settings: Audit', keywords: 'log history who did what actions', run: () => d.openSettings('audit') },
     { id: 'settings:notifications', group: 'Settings', label: 'Settings: Notifications', keywords: 'push ntfy webhook alerts phone devices', run: () => d.openSettings('notifications') },
     { id: 'settings:tokens', group: 'Settings', label: 'Settings: API tokens', keywords: 'api bearer script automation curl scopes', run: () => d.openSettings('tokens') },
+    { id: 'settings:displays', group: 'Settings', label: 'Settings: Displays', keywords: 'wall tablet kiosk screen tv display', run: () => d.openSettings('displays') },
     { id: 'settings:security', group: 'Settings', label: 'Settings: Security', keywords: 'passkeys webauthn touch id face id step-up', run: () => d.openSettings('security') },
     { id: 'settings:general', group: 'Settings', label: 'Settings: General', keywords: 'time format 12 hour 24 hour clock am pm display device', run: () => d.openSettings('general') },
   );

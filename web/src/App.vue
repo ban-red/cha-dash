@@ -5,28 +5,38 @@
  * and the passkey offer are their own chunks. When the hub can't be reached
  * but this device kept a last-known snapshot, the front page opens on it
  * (session.state.offline) instead of the unreachable door.
+ *
+ * A wall display (/display/<board>, views/DisplayPage.vue) comes before the
+ * doors: it has no session, so nothing here asks the hub about one.
  */
 import { defineAsyncComponent, onMounted } from 'vue';
 import Glyph from './ui/marks/Glyph.vue';
 import LoginView from './views/LoginView.vue';
 import SetupView from './views/SetupView.vue';
 import { takeInlineSnapshot } from './lib/inline';
-import { startRouter } from './lib/router';
+import { startRouter, view } from './lib/router';
 import { createSession, provideSession } from './stores/session';
 import UiButton from './ui/Button.vue';
 
 const FrontPage = defineAsyncComponent(() => import('./views/FrontPage.vue'));
 const PasskeyOffer = defineAsyncComponent(() => import('./views/PasskeyOffer.vue'));
+const DisplayPage = defineAsyncComponent(() => import('./views/DisplayPage.vue'));
+
+// A display page stays one: it never navigates to the signed-in app.
+const display = view.value.name === 'display' ? view.value : undefined;
 
 // Signed in, the hub inlines the first board's snapshot: the front page renders from it at once.
 const session = createSession({ inline: takeInlineSnapshot() });
 provideSession(session);
 startRouter();
-onMounted(() => void session.refresh());
+onMounted(() => {
+  if (!display) void session.refresh();
+});
 </script>
 
 <template>
-  <main v-if="session.state.phase === 'loading'" class="door" aria-busy="true"><span class="caps">Cha Dash</span></main>
+  <DisplayPage v-if="display" :board="display.board" />
+  <main v-else-if="session.state.phase === 'loading'" class="door" aria-busy="true"><span class="caps">Cha Dash</span></main>
   <SetupView v-else-if="session.state.phase === 'setup'" />
   <LoginView v-else-if="session.state.phase === 'login'" />
   <PasskeyOffer v-else-if="session.state.phase === 'ready' && session.state.offerPasskey" />
