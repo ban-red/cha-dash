@@ -8,6 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Stop, start, restart, take down and remove a whole stack.** A managed stack's page in Settings → Stacks has the buttons, the list has Stop or Start, and ⌘K offers them on the stack's page. Stop, Start and Restart are T1; Start on a stack with no containers deploys its last commit, and Restart holds the health gate and reports what failed it without rolling back. Take down (T2) removes the containers and networks and keeps the volumes; its undo starts the stack again. Remove (T3, type the name) takes the stack down and deletes its folder as a commit, so the undo restores it from history; its `.env` isn't in git and doesn't come back. Its volumes stay unless you tick them and type the name again. Remove needs `remove` in the node's `stacks.allow`, off by default. Cha Dash's own stack and anything `docker.protect` names are refused.
+- **A warning when another manager has the same stack.** When Dockhand, Komodo or Arcane lists a stack with the name of one Cha Dash manages, the stack's page says to deploy it from one of them only, and the list shows "also in Dockhand". It matches by name, so a stack of that name on another host is named too.
+
 - **A test clock, for automated tests only.** With `CHADASH_TEST_CLOCK=true`, which needs `CHADASH_TEST_AUTOMATION`, `POST /api/test/clock` with the automation key moves the hub's clock forward. Maintenance windows, scheduled rollouts, notification grace, the morning digest, approval expiry and the Demo Home's day all see the new time at once. It never goes back, and every move is logged. Never on a hub that holds anything real.
 
 ### Fixed

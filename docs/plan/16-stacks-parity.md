@@ -159,6 +159,11 @@ Each wave ships its tests with it: every node verb at layer 3 (a real Docker Eng
 | 32c | Live logs (4); lab cutover steps 3–4, with a go-ahead (an operation, checked by its script) |
 | v0.5.x | Images, volumes and networks (6); exec (5) with its own security review |
 
+**32a, as built (2026-11-05).** The five verbs and actions are in, with engine tests (`internal/node/stacks/lifecycle_engine_test.go`), hub tests over the node module, a system test through the hub's API on a real node (`TestSystemStackLifecycle`), and web tests for the buttons and ⌘K. Still open from 32a:
+- The browser half of the layer 4 test: Playwright's hub has no node yet, so nothing drives the stack page's buttons against a real one. It needs a node beside the e2e hub.
+- Two writers in the Inbox: the warning is on the stack's page and list only. It matches Dockhand, Komodo and Arcane stacks by name, since their APIs don't say which host; labels and Dockge aren't checked.
+- Remove deletes the stack's folder, `.env` included, which git doesn't keep: a restore brings the file back, not the `.env`. The plan's step says so.
+
 ---
 
 ## Done when
