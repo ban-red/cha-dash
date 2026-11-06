@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/moby/client"
 
+	"dash.cha.sh/internal/node/registry"
 	"dash.cha.sh/internal/nodeproto"
 )
 
@@ -47,6 +48,10 @@ func (m *Module) PullImage(ctx context.Context, ref string, progress func(string
 		if r, _, _ := strings.Cut(rd, "@"); r == repo {
 			return rd, nil
 		}
+	}
+	// The containerd image store: the pulled image's own digest.
+	if d := registry.Digest(nil, img.Descriptor, repo); d != "" {
+		return repo + "@" + d, nil
 	}
 	return "", fmt.Errorf("%s has no registry digest for %s", ref, repo)
 }

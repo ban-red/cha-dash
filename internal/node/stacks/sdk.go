@@ -113,7 +113,7 @@ func (d *SDK) loginError(p *types.Project, services []string, err error) error {
 		return err
 	}
 	_, have := d.Logins.For(domains[0])
-	return &noderegistry.LoginError{Registry: domains[0], Had: have}
+	return noderegistry.LoginErrorFor(err, domains[0], have)
 }
 
 // Projects implements Docker.
@@ -336,6 +336,13 @@ func (d *SDK) ImageRefs(ctx context.Context, project string) (map[string]string,
 				break
 			}
 		}
+		if _, ok := out[c.Service]; !ok {
+			// The containerd image store keeps no RepoDigests once the tag
+			// moves on; the image's own digest is the registry's.
+			if d := noderegistry.Digest(nil, img.Descriptor, stripTag(strings.SplitN(ref, "@", 2)[0])); d != "" {
+				out[c.Service] = stripTag(strings.SplitN(ref, "@", 2)[0]) + "@" + d
+			}
+		}
 	}
 	return out, nil
 }
@@ -354,6 +361,10 @@ func (d *SDK) ImageDigest(ctx context.Context, image string) (string, error) {
 		if sameRepo(image, rd) {
 			return rd, nil
 		}
+	}
+	repo := stripTag(strings.SplitN(image, "@", 2)[0])
+	if d := noderegistry.Digest(nil, img.Descriptor, repo); d != "" {
+		return repo + "@" + d, nil
 	}
 	return "", nil
 }

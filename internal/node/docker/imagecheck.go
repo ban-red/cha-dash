@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/client"
 
 	"dash.cha.sh/internal/node"
+	"dash.cha.sh/internal/node/registry"
 )
 
 // The update states image.check answers (integration.ImageUpdate's).
@@ -104,6 +105,13 @@ func (m *Module) checkOne(ctx context.Context, c container.InspectResponse, fres
 			if dg, ok := d.(reference.Digested); ok {
 				have = append(have, dg.Digest().String())
 			}
+		}
+	}
+	if len(have) == 0 {
+		// The containerd image store drops RepoDigests once the tag moves
+		// on; the image's own digest is still the registry's.
+		if d := registry.Digest(nil, img.Descriptor, tagged.Name()); d != "" {
+			have = []string{d}
 		}
 	}
 	if len(have) == 0 {

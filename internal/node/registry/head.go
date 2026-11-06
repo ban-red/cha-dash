@@ -41,13 +41,29 @@ var (
 type LoginError struct {
 	Registry string
 	Had      bool
+	// Maybe is Docker's "repository does not exist or may require 'docker
+	// login'": a registry such as Docker Hub answers the same for an image
+	// that isn't there as for one behind a login.
+	Maybe bool
 }
 
 func (e *LoginError) Error() string {
-	if e.Had {
+	switch {
+	case e.Maybe && e.Had:
+		return "Docker couldn't pull it from " + e.Registry + ": the image isn't there, or this node's login for it isn't enough."
+	case e.Maybe:
+		return "Docker couldn't pull it from " + e.Registry + ": the image isn't there, or it needs a login this node hasn't got."
+	case e.Had:
 		return LoginRefused(e.Registry)
 	}
 	return NeedsLogin(e.Registry)
+}
+
+// LoginErrorFor is the LoginError for err, a refusal IsAuthError
+// recognised, from the registry domain; had is whether the node has a
+// login for it.
+func LoginErrorFor(err error, domain string, had bool) *LoginError {
+	return &LoginError{Registry: domain, Had: had, Maybe: strings.Contains(strings.ToLower(err.Error()), "repository does not exist")}
 }
 
 // NeedsLogin is the sentence for a registry that wants a login the node

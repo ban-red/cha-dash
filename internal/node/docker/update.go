@@ -10,6 +10,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/moby/moby/client"
 
+	"dash.cha.sh/internal/node/registry"
 	"dash.cha.sh/internal/nodeproto"
 )
 
@@ -73,13 +74,8 @@ func (m *Module) update(ctx context.Context, req json.RawMessage, emit func(json
 	// knows it, else by ID.
 	prev := old.Image
 	if img, err := m.cli.ImageInspect(ctx, old.Image); err == nil {
-		for _, rd := range img.RepoDigests {
-			if d, err := reference.ParseNormalizedNamed(rd); err == nil && d.Name() == tagged.Name() {
-				if dg, ok := d.(reference.Digested); ok {
-					prev = tag + "@" + dg.Digest().String()
-					break
-				}
-			}
+		if d := registry.Digest(img.RepoDigests, img.Descriptor, tagged.Name()); d != "" {
+			prev = tag + "@" + d
 		}
 	}
 	out["previous"] = prev

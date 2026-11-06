@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Fake credentials only.
@@ -255,5 +256,41 @@ func TestCheckerLogins(t *testing.T) {
 	writeConfig(t, path, map[string]any{"auths": map[string]any{f.host(): map[string]string{"auth": b64(user + ":" + password)}}})
 	if a := c.Ask(context.Background(), ref, false); a.Digest != digest || a.Login != LoginUsed {
 		t.Fatalf("a login appeared: %+v", a)
+	}
+}
+
+// Digest reads RepoDigests, else the containerd store's descriptor; the
+// classic store's image with none was built on the host.
+func TestDigest(t *testing.T) {
+	const d1, d2 = "sha256:1111111111111111111111111111111111111111111111111111111111111111", "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+	desc := &ocispec.Descriptor{Digest: d2}
+	for _, c := range []struct {
+		name, want string
+		rds        []string
+		desc       *ocispec.Descriptor
+	}{
+		{"nginx", d1, []string{"nginx@" + d1}, desc},
+		{"docker.io/library/nginx", d1, []string{"nginx@" + d1}, nil},
+		{"127.0.0.1:5000/app", d2, []string{"127.0.0.1:5000/other@" + d1}, desc}, // another repository: the image itself
+		{"127.0.0.1:5000/app", "", []string{"127.0.0.1:5000/other@" + d1}, nil},
+		{"127.0.0.1:5000/app", d2, nil, desc}, // the containerd store, its tag moved on
+		{"127.0.0.1:5000/app", "", nil, nil},  // the classic store: built on the host
+		{"Not A Name", "", nil, desc},
+	} {
+		if got := Digest(c.rds, c.desc, c.name); got != c.want {
+			t.Errorf("Digest(%v, %v, %q) = %q, want %q", c.rds, c.desc != nil, c.name, got, c.want)
+		}
+	}
+}
+
+// Docker Hub says the same for a missing image as for a private one: the
+// sentence says both.
+func TestLoginErrorFor(t *testing.T) {
+	missing := fmt.Errorf("pull access denied for sha256, repository does not exist or may require 'docker login'")
+	if got := LoginErrorFor(missing, "docker.io", false).Error(); got != "Docker couldn't pull it from docker.io: the image isn't there, or it needs a login this node hasn't got." {
+		t.Errorf("missing or private: %q", got)
+	}
+	if got := LoginErrorFor(fmt.Errorf("unauthorized: authentication required"), "ghcr.io", false).Error(); got != NeedsLogin("ghcr.io") {
+		t.Errorf("a plain 401: %q", got)
 	}
 }

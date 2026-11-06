@@ -109,7 +109,31 @@ func (m *Module) stop(ctx context.Context, req stackproto.LifecycleRequest, em e
 	if err := m.docker.Stop(ctx, req.Name, eventLine(em)); err != nil {
 		return stackproto.LifecycleResult{}, fmt.Errorf("stop %s: %w", req.Name, err)
 	}
+	m.settle(ctx, req.Name, func(cs []Container) bool {
+		return !slices.ContainsFunc(cs, func(c Container) bool { return c.State == "running" || c.State == "restarting" })
+	})
 	return m.after(ctx, req.Name), nil
+}
+
+// settleFor bounds how long a lifecycle verb waits for Docker's list to
+// show what the verb did.
+const settleFor = 30 * time.Second
+
+// settle waits, up to settleFor, until the stack's containers as Docker
+// lists them satisfy done: Compose can return while the engine still
+// lists a container it's stopping (seen on a CI runner's engine), and the
+// result should say what is, not what was.
+func (m *Module) settle(ctx context.Context, name string, done func([]Container) bool) {
+	start := m.now()
+	for {
+		cs, ok := m.containers(ctx, name)
+		if !ok || done(cs) || m.now().Sub(start) >= settleFor {
+			return
+		}
+		if m.sleep(ctx, m.poll) != nil {
+			return
+		}
+	}
 }
 
 func (m *Module) start(ctx context.Context, req stackproto.LifecycleRequest, em emitter) (stackproto.LifecycleResult, error) {
@@ -250,6 +274,7 @@ func (m *Module) down(ctx context.Context, req stackproto.LifecycleRequest, em e
 	if err := m.docker.Down(ctx, req.Name, eventLine(em)); err != nil {
 		return stackproto.LifecycleResult{}, fmt.Errorf("take %s down: %w", req.Name, err)
 	}
+	m.settle(ctx, req.Name, func(cs []Container) bool { return len(cs) == 0 })
 	res := m.after(ctx, req.Name)
 	res.VolumesKept = m.volumes(ctx, req.Name)
 	return res, nil

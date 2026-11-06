@@ -68,5 +68,5 @@ func (m *Module) pullError(ref string, err error) error {
 	}
 	domain := reference.Domain(n)
 	_, have := m.logins.For(domain)
-	return nodeproto.Errorf(nodeproto.CodeFailed, "%s", fmt.Sprint(&registry.LoginError{Registry: domain, Had: have}))
+	return nodeproto.Errorf(nodeproto.CodeFailed, "%s", fmt.Sprint(registry.LoginErrorFor(err, domain, have)))
 }

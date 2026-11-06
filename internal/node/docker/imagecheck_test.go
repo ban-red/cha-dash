@@ -43,6 +43,14 @@ func TestImageCheck(t *testing.T) {
 	f.add(&fakeContainer{Name: "old", Image: "nginx:1.25", ImageID: image("f", "nginx@"+digest("6")), State: "exited"})
 	// What container.update leaves: the tag with the digest it pulled.
 	f.add(&fakeContainer{Name: "updated", Image: "lscr.io/linuxserver/sonarr:4@" + digest("7"), ImageID: image("g", "lscr.io/linuxserver/sonarr@"+digest("7"))})
+	// The containerd image store: the tag moved on, so no RepoDigests, but
+	// the image's descriptor is the digest the registry served.
+	f.add(&fakeContainer{Name: "moved", Image: "127.0.0.1:5000/app:1", ImageID: image("h")})
+	if f.descriptors == nil {
+		f.descriptors = map[string]string{}
+	}
+	f.descriptors[digest("h")] = digest("8")
+	f.registry["127.0.0.1:5000/app:1"] = digest("9")
 	f.registry["lscr.io/linuxserver/sonarr:4"] = digest("7")
 	f.registry["docker.io/library/nginx:1.27"] = digest("2")
 	f.registry["ghcr.io/example/private:1"] = "401"
@@ -64,8 +72,8 @@ func TestImageCheck(t *testing.T) {
 		return by
 	}
 	got := check()
-	if _, ok := got["old"]; ok || len(got) != 6 {
-		t.Fatalf("checked %v, want the six running containers", slices.Sorted(func(yield func(string) bool) {
+	if _, ok := got["old"]; ok || len(got) != 7 {
+		t.Fatalf("checked %v, want the seven running containers", slices.Sorted(func(yield func(string) bool) {
 			for k := range got {
 				yield(k)
 			}
@@ -73,6 +81,9 @@ func TestImageCheck(t *testing.T) {
 	}
 	if u := got["sonarr"]; u.State != updateAvailable || u.Current != digest("1") || u.Latest != digest("7") || !u.CheckedAt.Equal(now) || u.Image != "lscr.io/linuxserver/sonarr:4" {
 		t.Errorf("sonarr: %+v", u)
+	}
+	if u := got["moved"]; u.State != updateAvailable || u.Current != digest("8") || u.Latest != digest("9") {
+		t.Errorf("moved, on the containerd store: %+v", u)
 	}
 	if u := got["updated"]; u.State != updateCurrent || u.Latest != digest("7") {
 		t.Errorf("updated: %+v, want its tag checked", u)
@@ -91,7 +102,7 @@ func TestImageCheck(t *testing.T) {
 		}
 	}
 	slices.Sort(f.asked)
-	if !slices.Equal(f.asked, []string{"docker.io/library/nginx:1.27", "ghcr.io/example/private:1", "lscr.io/linuxserver/sonarr:4"}) {
+	if !slices.Equal(f.asked, []string{"127.0.0.1:5000/app:1", "docker.io/library/nginx:1.27", "ghcr.io/example/private:1", "lscr.io/linuxserver/sonarr:4"}) {
 		t.Fatalf("asked %q: only tags with a registry digest go to a registry", f.asked)
 	}
 	// Each a HEAD with no credentials but Docker Hub's anonymous token, and
@@ -114,7 +125,7 @@ func TestImageCheck(t *testing.T) {
 	// After it, the registries are asked again, and a moved tag shows.
 	f.registry["docker.io/library/nginx:1.27"] = digest("8")
 	now = now.Add(2 * time.Minute)
-	if got := check(); got["web"].State != updateAvailable || got["web"].Latest != digest("8") || len(f.asked) != 3 {
+	if got := check(); got["web"].State != updateAvailable || got["web"].Latest != digest("8") || len(f.asked) != 4 {
 		t.Fatalf("after %s: web %+v, asked %q", CheckEvery, got["web"], f.asked)
 	}
 
@@ -141,12 +152,12 @@ func TestImageCheck(t *testing.T) {
 		}
 	}
 	fresh()
-	if len(f.asked) != 3 {
+	if len(f.asked) != 4 {
 		t.Fatalf("a fresh check asked %q", f.asked)
 	}
 	now = now.Add(30 * time.Second)
 	fresh()
-	if len(f.asked) != 3 {
+	if len(f.asked) != 4 {
 		t.Fatalf("a second fresh check within %s asked %q", freshAfter, f.asked)
 	}
 

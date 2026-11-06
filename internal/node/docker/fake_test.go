@@ -26,6 +26,7 @@ type fakeDocker struct {
 	images      map[string]string         // tag → image ID
 	imageCfg    map[string]map[string]any // image ID → its Config, as inspect gives it
 	repoDigests map[string][]string       // image ID → its RepoDigests
+	descriptors map[string]string         // image ID → its descriptor's digest, as the containerd image store gives it
 	registry    map[string]string         // tag → its digest, "401" (needs a login) or "" (no such tag)
 	asked       []string                  // the tags the fake registry was asked about (fakeRegistry)
 	inspected   []string                  // the tags Docker's /distribution was asked about
@@ -321,7 +322,11 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 			jsonOut(w, 404, map[string]string{"message": "No such image: " + ref})
 			return
 		}
-		jsonOut(w, 200, map[string]any{"Id": id, "Config": f.imageCfg[id], "RepoDigests": f.repoDigests[id]})
+		out := map[string]any{"Id": id, "Config": f.imageCfg[id], "RepoDigests": f.repoDigests[id]}
+		if d := f.descriptors[id]; d != "" {
+			out["Descriptor"] = map[string]any{"mediaType": "application/vnd.oci.image.index.v1+json", "digest": d, "size": 1}
+		}
+		jsonOut(w, 200, out)
 	case strings.HasPrefix(path, "/distribution/") && strings.HasSuffix(path, "/json"):
 		ref := strings.TrimSuffix(strings.TrimPrefix(path, "/distribution/"), "/json")
 		f.inspected = append(f.inspected, ref)
