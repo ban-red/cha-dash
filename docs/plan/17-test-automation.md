@@ -73,7 +73,7 @@ Playwright's WebKit project with iPhone and iPad sizes beside Chromium's Pixel, 
 ### H7 · Install and upgrade
 
 - **Installer:** CI runs `install.sh` in a clean `debian:trixie` container with Docker-in-Docker, against a release built in the same job: digests pinned, a tampered `compose.yaml` and a wrong-tag signature refused.
-- **LXC script:** runs against a `pct`/`pvesh` shim that records the calls and checks them against a fixture; what it does inside the CT runs in a Debian container.
+- **LXC script:** runs against a `pct`/`pvesh` shim that records the calls and checks them against a fixture; what it does inside the CT runs in a Debian container. **Built** (2026-11-06), changed: `deploy/lxc_engine_test.go` runs both scripts in a Debian 13 container with fakes and a stand-in `build.func`. The real `build.func` (what calls `pct`) is community-scripts' code, fetched from their repository; the tests never run it, so there's no `pct` shim. They check our part: the install, the update, and a bad release tag refused.
 - **Upgrades** (already in v0.5): the current build on 0.3.0 and 0.4.0 data directories. **Built** (2026-11-06): `TestUpgradeFromReleasedVersions` in `cmd/chadash`, a layer 4 test in process. Each data directory was written by its release's own code, a test in a worktree at its tag, so no old build is needed.
 
 ### H8 · The agent's loop

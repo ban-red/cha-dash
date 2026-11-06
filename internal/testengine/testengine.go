@@ -27,6 +27,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"maps"
 	"net/http"
 	"net/netip"
@@ -47,6 +48,9 @@ import (
 const (
 	Busybox       = "busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"
 	RegistryImage = "registry:3@sha256:d4032d4cc323c1731c707931ecada07a53076eac38e3b61ae57533f170f2c6c3"
+	// Debian is Debian 13, what the LXC script makes, for scripts that
+	// run on a Debian host (RunOnce).
+	Debian = "debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2"
 )
 
 // Label marks everything a run starts; its value is the run's ID.
@@ -160,6 +164,57 @@ func (e *Engine) Start(name, image string, extra map[string]string) string {
 		e.t.Fatalf("start %s: %v", name, err)
 	}
 	return res.ID
+}
+
+// RunOnce runs cmd in a new container of this run from image, as root,
+// with files (absolute path → content; executable when the path is under
+// a bin directory or ends in .sh) copied in first. It waits for the
+// command to exit and returns its output, stdout and stderr together, and
+// its exit code. The container stays until the run's cleanup.
+func (e *Engine) RunOnce(name, image string, files map[string][]byte, cmd ...string) (string, int) {
+	e.t.Helper()
+	e.Pull(image)
+	ctx, cancel := e.Ctx()
+	defer cancel()
+	res, err := e.Cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Name:   ProjectPrefix + e.Run + "-" + name,
+		Config: &container.Config{Image: image, Labels: e.Labels(), Cmd: cmd, Tty: true, User: "0"},
+	})
+	if err != nil {
+		e.t.Fatalf("create %s: %v", name, err)
+	}
+	var buf bytes.Buffer
+	w := tar.NewWriter(&buf)
+	for _, path := range slices.Sorted(maps.Keys(files)) {
+		mode := int64(0o644)
+		if strings.Contains(path, "/bin/") || strings.HasSuffix(path, ".sh") {
+			mode = 0o755
+		}
+		_ = w.WriteHeader(&tar.Header{Name: strings.TrimPrefix(path, "/"), Mode: mode, Size: int64(len(files[path]))})
+		_, _ = w.Write(files[path])
+	}
+	_ = w.Close()
+	if _, err := e.Cli.CopyToContainer(ctx, res.ID, client.CopyToContainerOptions{DestinationPath: "/", Content: &buf}); err != nil {
+		e.t.Fatalf("copy into %s: %v", name, err)
+	}
+	wait := e.Cli.ContainerWait(ctx, res.ID, client.ContainerWaitOptions{Condition: container.WaitConditionNextExit})
+	if _, err := e.Cli.ContainerStart(ctx, res.ID, client.ContainerStartOptions{}); err != nil {
+		e.t.Fatalf("start %s: %v", name, err)
+	}
+	var code int
+	select {
+	case r := <-wait.Result:
+		code = int(r.StatusCode)
+	case err := <-wait.Error:
+		e.t.Fatalf("wait for %s: %v", name, err)
+	}
+	logs, err := e.Cli.ContainerLogs(ctx, res.ID, client.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+	if err != nil {
+		e.t.Fatalf("logs of %s: %v", name, err)
+	}
+	defer logs.Close()
+	out, _ := io.ReadAll(logs)
+	return strings.ReplaceAll(string(out), "\r\n", "\n"), code
 }
 
 // Inspect inspects a container.

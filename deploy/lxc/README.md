@@ -18,4 +18,4 @@ A draft of a [community-scripts/ProxmoxVE](https://github.com/community-scripts/
 2. Add the JSON file their website reads (`frontend/public/json/chadash.json`: name, description, resources, default credentials none, the port, the documentation link).
 3. Try it on a test Proxmox VE host, then open the pull request there.
 
-Both scripts are shellcheck-clean as bash. Nothing here runs in this repository's CI: they need their `build.func` and a Proxmox host.
+Both scripts are shellcheck-clean as bash. `TestEngineLXC…` ([`../lxc_engine_test.go`](../lxc_engine_test.go), an engine test, in CI's Engine job) runs them unchanged in a Debian 13 container, as root, with fakes for `curl`, `apt-get`, `jq`, `dpkg` and `docker`, and a stand-in for `build.func` (never the real one). It checks the calls each makes: the install, the update of an install in `/opt/chadash`, an update with no install, and a malformed release tag refused before anything is fetched with it. What `build.func` itself does on the Proxmox host (`pct create` and the rest) is theirs and isn't tested here.
