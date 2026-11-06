@@ -17,6 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **A test clock, for automated tests only.** With `CHADASH_TEST_CLOCK=true`, which needs `CHADASH_TEST_AUTOMATION`, `POST /api/test/clock` with the automation key moves the hub's clock forward. Maintenance windows, scheduled rollouts, notification grace, the morning digest, approval expiry and the Demo Home's day all see the new time at once. It never goes back, and every move is logged. Never on a hub that holds anything real.
 
+- **Wall displays.** Settings → Displays makes a link for a wall tablet or a TV that shows one board, with no menus and no sign-in. It dims when nothing changes, turns warmer at night, and wakes with the one line that changed when an incident needs you. Acknowledged incidents show who's on them and don't wake it. Quiet hours keep it dark at night except for an incident that's down. It moves a few pixels now and then against burn-in, and says how old its data is if it loses the hub. A display reads only its board's incidents and backups, and what household sees of the rest. It can't act, and Remove signs it out at once. The [displays guide](https://github.com/ban-red/cha-dash/blob/main/docs/displays.md) sets one up on Fully Kiosk, a Raspberry Pi or an iPad.
+
 ### Fixed
 
 - **Proxmox: a webhook notification or Check now reads tasks and backups at once.** Before, they waited for their own pace (a minute for tasks, 15 minutes for backups), so a failed backup that PVE reported right after a poll showed only at the next idle poll, up to 5 minutes later.

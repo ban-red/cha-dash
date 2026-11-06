@@ -24,6 +24,7 @@ const guide = [
       { text: 'Upgrade and back up', link: '/upgrade' },
       { text: 'Unraid', link: '/unraid' },
       { text: 'User guide', link: '/guide' },
+      { text: 'Wall displays', link: '/displays' },
     ],
   },
   {

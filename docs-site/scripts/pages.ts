@@ -24,6 +24,7 @@ export const UPGRADE_SECTIONS = ['Upgrading', 'Backing up', 'Uninstalling'];
 export const PROSE: { source: string; route: string; title: string; optional?: boolean }[] = [
   { source: 'deploy/unraid/README.md', route: '/unraid', title: 'Unraid' },
   { source: 'docs/beta.md', route: '/guide', title: 'User guide' },
+  { source: 'docs/displays.md', route: '/displays', title: 'Wall displays' },
   { source: 'docs/specs.md', route: '/specs', title: 'Writing specs' },
   { source: 'SECURITY.md', route: '/security', title: 'Security model' },
   { source: 'docs/threat-model.md', route: '/threat-model', title: 'Threat model' },
