@@ -443,7 +443,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="st-section sk-editor" aria-labelledby="ske-h">
+  <section class="st-section sk-editor" aria-labelledby="ske-h" :data-subject="detail && !fresh ? target : undefined" :data-subject-name="name">
     <a class="st-crumb" :href="stackPath()" @click.prevent="navigate(stackPath(), { replace: true })">‹ Stacks</a>
 
     <!-- the header -->

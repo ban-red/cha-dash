@@ -25,7 +25,7 @@ import { ago } from '../lib/format';
 import { hubWords, isDone } from '../lib/actions';
 import { navigate, stackPath, view } from '../lib/router';
 import { useUi } from '../stores/ui';
-import { PROTECTED_WORDS, STATUS_GLYPH, listStacks, statusWords, targetOf, twoWriters, type Detected, type StackNode } from './stacks';
+import { PROTECTED_WORDS, STATUS_GLYPH, lifecycleOffers, listStacks, statusWords, targetOf, twoWriters, type Detected, type LifecycleOffer, type StackNode, type StackSummary } from './stacks';
 import UiButton from '../ui/Button.vue';
 
 const ui = useUi();
@@ -60,6 +60,16 @@ function adopt(n: StackNode, d: Detected): void {
   void ui.runAction({ action: 'stack.adopt', target: targetOf(n.node, d.name), label: `Adopt ${d.name}`, tier: 'T1' });
 }
 const canAdopt = computed(() => ui.can.value.act('T1'));
+
+/** The list's one lifecycle button per stack: Stop while it runs, Start when it doesn't. */
+function toggleOf(s: StackSummary): LifecycleOffer | undefined {
+  if (!canAdopt.value || !s.head) return undefined;
+  return lifecycleOffers({ ...s, managed: true }).find((o) => o.action === 'stack.stop' || o.action === 'stack.start');
+}
+
+function runOffer(n: StackNode, s: StackSummary, o: LifecycleOffer): void {
+  void ui.runAction({ action: o.action, target: targetOf(n.node, s.name), label: o.label, tier: o.tier });
+}
 
 // A stack task finishing (deploy, rollback, adopt, undo) changes the list.
 const doneStackTasks = computed(() =>
@@ -150,6 +160,9 @@ onMounted(load);
               </span>
               <span class="end" aria-hidden="true">›</span>
             </a>
+            <UiButton v-if="n.online && toggleOf(s)" class="sk-toggle" size="sm" variant="ghost" :aria-label="toggleOf(s)!.label" @click="runOffer(n, s, toggleOf(s)!)">
+              {{ toggleOf(s)!.text }}<span class="tier">T1</span>
+            </UiButton>
           </li>
         </ul>
 
@@ -187,6 +200,15 @@ onMounted(load);
 </template>
 
 <style>
+.st-list li:has(> .sk-toggle) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.st-list li:has(> .sk-toggle) > .sk-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .sk-row {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }

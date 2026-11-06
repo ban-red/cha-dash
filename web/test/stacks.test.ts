@@ -14,7 +14,7 @@ import SettingsSheet from '../src/settings/SettingsSheet.vue';
 import { setDisplayTimeZone } from '../src/lib/format';
 import { toPointer } from '../src/lib/jsonpatch';
 import { navigate } from '../src/lib/router';
-import { twoWriters, type StackDetail, type StackNode, type Validation } from '../src/settings/stacks';
+import { lifecycleOffers, removeParams, twoWriters, type StackDetail, type StackNode, type Validation } from '../src/settings/stacks';
 import type { Task } from '../src/model/types';
 import { axeViolations } from './axe';
 import { engine, refuse, taskFor, planFor } from './fake-engine';
@@ -397,6 +397,49 @@ describe('Settings → Stacks: one stack', () => {
     expect(twoWriters('media', [{ manager: 'Dockhand', resource: 'a' }, { manager: 'Dockhand', resource: 'b' }])).toBe(
       'Dockhand also manages a stack named media: deploy it from one of them only.',
     );
+  });
+
+  it('offers the lifecycle for the stack’s state, and Remove takes its volumes only with the name typed again', async () => {
+    const at = (status: StackDetail['status']) => lifecycleOffers({ name: 'media', managed: true, protected: false, status }).map((o) => `${o.text} ${o.tier}`);
+    expect(at('running')).toEqual(['Stop T1', 'Restart T1', 'Take down T2', 'Remove T3']);
+    expect(at('stopped')).toEqual(['Start T1', 'Restart T1', 'Take down T2', 'Remove T3']);
+    expect(at('partial')).toEqual(['Stop T1', 'Start T1', 'Restart T1', 'Take down T2', 'Remove T3']);
+    expect(at('down')).toEqual(['Start T1', 'Remove T3']);
+    expect(lifecycleOffers({ name: 'media', managed: true, protected: false, status: 'down' })[0]!.label).toBe('Start media (deploys its last commit)');
+    expect(lifecycleOffers({ name: 'chadash', managed: true, protected: true, status: 'running' })).toEqual([]);
+    expect(lifecycleOffers({ name: 'loose', managed: false, protected: false, status: 'running' })).toEqual([]);
+    expect(removeParams('media', false, '')).toEqual({});
+    expect(removeParams('media', true, 'medi')).toBeNull();
+    expect(removeParams('media', true, ' media ')).toEqual({ volumes: true, confirm_volumes: 'media' });
+
+    const { e } = hub({ 'GET /api/stacks/local/media': { status: 200, body: media({ volumes: ['media_data'] }) } });
+    const h = open('/settings/stacks/local/media');
+    const w = h.mountIn(StacksPane);
+    await settle();
+    await settle();
+    expect(w.find('[data-subject="stack:local/media"]').exists()).toBe(true);
+    expect(w.findAll('.skl button').map((b) => b.text())).toEqual(['StopT1', 'RestartT1', 'Take downT2', 'RemoveT3']);
+
+    const remove = () => w.find('button[aria-label="Remove media"]');
+    await w.find('.skl-vols input[type="checkbox"]').setValue(true);
+    expect(remove().attributes('disabled')).toBeDefined();
+    await w.find('.skl-vols input[autocomplete="off"]').setValue('media');
+    expect(remove().attributes('disabled')).toBeUndefined();
+    await remove().trigger('click');
+    await settle();
+    expect(e.plans.at(-1)).toEqual({ action: 'stack.remove', target: 'stack:local/media', params: { volumes: true, confirm_volumes: 'media' } });
+  });
+
+  it('the list stops a running stack and starts a stopped one, one button each', async () => {
+    const { e } = hub();
+    const h = open('/settings/stacks');
+    const w = h.mountIn(StacksPane);
+    await settle();
+    // media runs; dns has never been deployed by Cha Dash (no head); chadash is protected.
+    expect(w.findAll('.sk-toggle').map((b) => b.attributes('aria-label'))).toEqual(['Stop media']);
+    await w.find('.sk-toggle').trigger('click');
+    await settle();
+    expect(e.plans).toEqual([{ action: 'stack.stop', target: 'stack:local/media' }]);
   });
 
   it('says when the node is offline, and when the stack doesn’t exist', async () => {

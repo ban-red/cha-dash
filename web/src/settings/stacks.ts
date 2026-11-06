@@ -15,6 +15,7 @@
  * safety ladder like any other. Only the Stacks chunk imports this file.
  */
 import { ApiError, api } from '../lib/api';
+import type { Tier } from '../model/types';
 import type { GlyphKind } from '../ui/marks/Glyph.vue';
 import type { SyncView } from './sync';
 
@@ -136,6 +137,8 @@ export interface StackDetail {
   moved_from?: string | null;
   /** Other managers listing a stack of this name: deploy from one only. */
   also_managed_by?: OtherManager[];
+  /** The project's named volumes now: what down keeps and remove may delete. */
+  volumes?: string[];
 }
 
 export type Severity = 'error' | 'warning' | 'info';
@@ -203,6 +206,43 @@ export const STACK_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/;
 export const SECRET_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 export const targetOf = (node: string, name: string) => `stack:${node}/${name}`;
+
+/** A whole-stack lifecycle action the stack's page offers (plan 16, wave 32a). */
+export interface LifecycleOffer {
+  action: 'stack.stop' | 'stack.start' | 'stack.restart' | 'stack.down' | 'stack.remove';
+  /** The button's word. */
+  text: string;
+  tier: Tier;
+  /** The plan's label, and the button's accessible name. */
+  label: string;
+}
+
+/**
+ * The lifecycle buttons for a stack's state: Stop while anything runs,
+ * Start when it's stopped or down (down deploys its last commit), Restart
+ * while it has containers, Take down while it has any, and Remove always.
+ * None for a stack Cha Dash doesn't manage, or its own.
+ */
+export function lifecycleOffers(d: Pick<StackDetail, 'name' | 'managed' | 'protected' | 'status'>): LifecycleOffer[] {
+  if (!d.managed || d.protected) return [];
+  const n = d.name;
+  const out: LifecycleOffer[] = [];
+  const has = d.status !== 'down';
+  if (d.status === 'running' || d.status === 'partial') out.push({ action: 'stack.stop', text: 'Stop', tier: 'T1', label: `Stop ${n}` });
+  if (d.status !== 'running') {
+    out.push({ action: 'stack.start', text: 'Start', tier: 'T1', label: d.status === 'down' ? `Start ${n} (deploys its last commit)` : `Start ${n}` });
+  }
+  if (has) out.push({ action: 'stack.restart', text: 'Restart', tier: 'T1', label: `Restart ${n}` });
+  if (has) out.push({ action: 'stack.down', text: 'Take down', tier: 'T2', label: `Take ${n} down (its volumes stay)` });
+  out.push({ action: 'stack.remove', text: 'Remove', tier: 'T3', label: `Remove ${n}` });
+  return out;
+}
+
+/** stack.remove's params: the volumes go only with the name typed again. */
+export function removeParams(name: string, volumes: boolean, typed: string): { volumes?: true; confirm_volumes?: string } | null {
+  if (!volumes) return {};
+  return typed.trim() === name ? { volumes: true, confirm_volumes: typed.trim() } : null;
+}
 
 export const PROTECTED_WORDS = 'Cha Dash’s own stack · view only';
 

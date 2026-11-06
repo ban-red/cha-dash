@@ -168,6 +168,25 @@ describe('the command bar’s Run group', () => {
     expect(await axeViolations()).toEqual([]);
   });
 
+  it('on a page about one thing that isn’t a graph resource (a stack’s page), offers its actions', async () => {
+    const STACK = 'stack:local/media';
+    const e = engine({ offers: { [STACK]: [{ id: 'stack.stop', label: 'Stop media', tier: 'T1', available: true }] } });
+    fakeFetch({ ...e.routes, 'GET /api/integrations/instances': { status: 200, body: [] } });
+    const h = harness(docs(withIncidents));
+    const page = document.createElement('section');
+    page.dataset['subject'] = STACK;
+    page.dataset['subjectName'] = 'media';
+    document.body.append(page);
+    h.ui.openPalette();
+    h.mountIn(CommandPalette);
+    await vi.waitFor(() => expect(e.listed).toEqual([STACK]));
+    await flushPromises();
+    expect(runGroup()?.querySelector('.grp')?.textContent).toBe('Run on media');
+    options().find((o) => o.textContent?.includes('Stop media'))!.click();
+    await flushPromises();
+    expect(e.plans).toEqual([{ action: 'stack.stop', target: STACK }]);
+  });
+
   it('below admin, never asks for the integrations, and leaves out what the role can’t run', async () => {
     const { hub, input, e } = await open({ role: 'viewer' });
     expect(hub.calls.some((c) => c.path.startsWith('/api/integrations'))).toBe(false);

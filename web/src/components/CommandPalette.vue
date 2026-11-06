@@ -80,7 +80,10 @@ const subject = computed<string | undefined>(() => {
   const top = searchCommands(commands.value, query.value)[0]?.items[0];
   return top?.id.startsWith('resource:') ? top.id.slice('resource:'.length) : undefined;
 });
-const subjectName = computed(() => (subject.value ? label(live.graph.value?.resources[subject.value]) || subject.value : ''));
+const pageSubjectName = ref('');
+const subjectName = computed(() =>
+  subject.value ? label(live.graph.value?.resources[subject.value]) || (subject.value === focused.value && pageSubjectName.value) || subject.value : '',
+);
 
 // What the hub would plan on the subject: asked once per resource, a moment after it settles.
 watch(
@@ -159,6 +162,14 @@ function resourceOf(el: Element | null): string | undefined {
   return item && at > 0 ? item.slice(at + 1) : undefined;
 }
 
+/** The subject a page names with data-subject: the focused one's, else the only one shown. */
+function pageSubject(el: Element | null): string | undefined {
+  const near = el instanceof HTMLElement ? el.closest<HTMLElement>('[data-subject]') : null;
+  const page = near ?? document.querySelector<HTMLElement>('[data-subject]');
+  pageSubjectName.value = page?.dataset['subjectName'] ?? '';
+  return page?.dataset['subject'] || undefined;
+}
+
 function onKey(e: KeyboardEvent) {
   switch (e.key) {
     case 'ArrowDown':
@@ -209,6 +220,9 @@ onMounted(() => {
   lastFocus = document.activeElement;
   const r = resourceOf(lastFocus);
   if (r && live.graph.value?.resources[r]) focused.value = r;
+  // A page about one thing that isn't a graph resource (a stack's page)
+  // names it, so its actions are offered too.
+  else focused.value = pageSubject(lastFocus);
   input.value?.focus();
   // Integrations are admin settings: below admin the hub answers 403, so don't ask.
   if (ui.can.value.integrations) void loadInstances().catch(() => undefined);
