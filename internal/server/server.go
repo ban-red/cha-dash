@@ -92,6 +92,7 @@ import (
 	"dash.cha.sh/internal/buildinfo"
 	"dash.cha.sh/internal/correlate"
 	"dash.cha.sh/internal/demo"
+	"dash.cha.sh/internal/displays"
 	"dash.cha.sh/internal/export"
 	"dash.cha.sh/internal/firstpaint"
 	"dash.cha.sh/internal/history"
@@ -132,6 +133,10 @@ type Deps struct {
 	// it's a *realtime.Hub, sign-outs and account changes close the sockets
 	// they end (build it with Recheck: SocketRecheck for the timer half).
 	Realtime http.Handler
+	// DisplaySocket is the displays' WebSocket hub (GET /api/display/ws),
+	// whose topics are narrowed to each display's board (DisplaySource).
+	// Nil leaves the route answering 404.
+	DisplaySocket http.Handler
 	// Web serves the SPA (webui.New in the hub). Nil serves Placeholder.
 	Web     http.Handler
 	Proxies httpx.Proxies
@@ -406,6 +411,10 @@ func New(d Deps) (http.Handler, error) {
 	if d.Icons != nil {
 		d.Icons.Register(mux, session, d.Log)
 	}
+	if hub, ok := d.DisplaySocket.(*realtime.Hub); ok {
+		closeDisplaySockets(d.Auth, hub)
+	}
+	(&displays.Service{Auth: d.Auth, Boards: bs, Icons: d.Icons, Socket: d.DisplaySocket, Audit: rec, Log: d.Log}).Register(mux, session)
 	if d.PVEHooks != nil {
 		d.PVEHooks.Audit = rec
 		d.PVEHooks.Register(mux, session)
@@ -506,7 +515,10 @@ var noCompress = []string{"/api/auth", "/api/setup", "/api/integrations/authoriz
 	// A node join token, shown once when it's made.
 	"/api/nodes/tokens",
 	// A deploy webhook's secret, shown once when it's made or rotated.
-	"/api/stacks/hooks"}
+	"/api/stacks/hooks",
+	// A display's secret, shown once when it's made, and taken in once by
+	// the claim.
+	"/api/displays", "/api/display/claim"}
 
 // noCompressSuffix are API paths ending so that carry a secret: an
 // instance's PVE webhook secret, shown once when it's made or rotated.

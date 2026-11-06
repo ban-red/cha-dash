@@ -92,6 +92,15 @@ const iconCSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 
 var extOf = map[string]string{TypePNG: "png", TypeSVG: "svg", TypeICO: "ico", TypeWebP: "webp"}
 
+// Serve answers a request for one icon, by the {id} path value: what
+// GET /api/icons/{id} and a display's GET /api/display/icons/{id} serve.
+func (s *Service) Serve(w http.ResponseWriter, r *http.Request, log *slog.Logger) {
+	if log == nil {
+		log = s.log
+	}
+	s.serve(w, r, log)
+}
+
 func (s *Service) serve(w http.ResponseWriter, r *http.Request, log *slog.Logger) {
 	id := r.PathValue("id")
 	if !idRE.MatchString(id) {

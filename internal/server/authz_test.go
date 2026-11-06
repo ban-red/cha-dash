@@ -316,6 +316,24 @@ func TestRouteMatrix(t *testing.T) {
 			}
 			continue
 		}
+		if row.Access == authz.DisplayToken {
+			// A display's credential only (TestDisplays calls it with one):
+			// no credential, every session, every API token and a token with
+			// a session cookie are all 401 invalid_display.
+			probes := map[string]*http.Client{"anonymous": anon, "mixed": mixed}
+			for role, c := range clients {
+				probes[role] = c
+			}
+			for role, c := range tokens {
+				probes[role+"'s token"] = c
+			}
+			for who, c := range probes {
+				if status, code, b := hit(c); status != http.StatusUnauthorized || code != "invalid_display" {
+					t.Errorf("%s as %s: %d %s, want 401 invalid_display", row.Pattern, who, status, b)
+				}
+			}
+			continue
+		}
 		if row.Access == authz.Public {
 			if status == http.StatusUnauthorized {
 				t.Errorf("%s is public but asked for a session", row.Pattern)

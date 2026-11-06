@@ -45,6 +45,12 @@ const (
 	// person's role satisfies one. What the agent may read and propose
 	// there is the policy's, per call.
 	AgentToken
+	// DisplayToken routes answer a display's credential only (wave 33):
+	// its cookie, scoped to /api/display, or `Bearer cdd_…`. Guard admits
+	// nothing else there, no session and no API token, and a display's
+	// credential counts for nothing on any other route. No person's role
+	// satisfies one. What the display reads is its one board's.
+	DisplayToken
 )
 
 func (a Access) String() string {
@@ -67,6 +73,8 @@ func (a Access) String() string {
 		return "signature"
 	case AgentToken:
 		return "agent token"
+	case DisplayToken:
+		return "display"
 	}
 	return "unknown"
 }
@@ -88,7 +96,7 @@ func (a Access) Allows(role string) bool {
 	case Owner:
 		return r >= rank(auth.RoleOwner)
 	}
-	return false // NodeKey, Signature, AgentToken: never a person
+	return false // NodeKey, Signature, AgentToken, DisplayToken: never a person
 }
 
 func (a Access) refusal() msg.M {
@@ -228,6 +236,19 @@ var Routes = []Route{
 	{Pattern: "GET /api/boards", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /api/boards/{id}/layout", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /ws", Access: SignedIn},
+
+	// Displays (wave 33): admins make and revoke them; a display reads its
+	// one board through its own routes, under /api/display, where its
+	// cookie is scoped. The claim takes the secret in its body and checks
+	// it itself.
+	{Pattern: "GET /api/displays", Access: Admin},
+	{Pattern: "POST /api/displays", Access: Admin},
+	{Pattern: "PATCH /api/displays/{id}", Access: Admin},
+	{Pattern: "DELETE /api/displays/{id}", Access: Admin},
+	{Pattern: "POST /api/display/claim", Access: Public},
+	{Pattern: "GET /api/display", Access: DisplayToken},
+	{Pattern: "GET /api/display/ws", Access: DisplayToken},
+	{Pattern: "GET /api/display/icons/{id}", Access: DisplayToken},
 	{Pattern: "GET /api/demo", Access: SignedIn, Token: ScopeGraphRead},
 	{Pattern: "GET /api/boards/{id}/discovery", Access: Viewer, Token: ScopeGraphRead},
 	{Pattern: "PUT /api/boards/{id}/layout", Access: Admin},
@@ -583,6 +604,12 @@ func GuardWith(mux *http.ServeMux, a *auth.Service, log *slog.Logger, opts Guard
 			agentRoute(mux, a, w, r)
 			return
 		}
+		if route.Access == DisplayToken {
+			// A display's credential, and nothing else: auth.RequireDisplay
+			// reads no session cookie and no API token.
+			a.RequireDisplay(mux).ServeHTTP(w, r)
+			return
+		}
 		if _, ok := auth.BearerToken(r); ok {
 			// An API token: it alone is the credential, whatever cookie
 			// came with it, and only on /api/ routes.
@@ -671,7 +698,7 @@ func TokenRoute(route Route, role string, scopes []string) error {
 	switch {
 	case route.Access == Public:
 		return nil
-	case route.Token == "" || route.Access == NodeKey || route.Access == Signature || route.Access == AgentToken:
+	case route.Token == "" || route.Access == NodeKey || route.Access == Signature || route.Access == AgentToken || route.Access == DisplayToken:
 		return refuse(ErrSessionOnly, msg.New("authz.session_only"))
 	case !route.Access.Allows(role):
 		return forbid(route.Access.tokenRefusal())

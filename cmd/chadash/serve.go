@@ -116,7 +116,7 @@ func runServer(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 			<-done
 		}()
 	}
-	return server.Serve(ctx, ln, a.handler, log, a.hub.Close)
+	return server.Serve(ctx, ln, a.handler, log, a.closeSockets)
 }
 
 // app is the wired hub, minus the listener, so tests can mount it on httptest.
@@ -128,6 +128,8 @@ type app struct {
 	topics  *topics.Set
 	demo    *demo.Driver // nil outside demo mode
 	hub     *realtime.Hub
+	// displayHub serves displays' sockets (GET /api/display/ws).
+	displayHub *realtime.Hub
 	// integrations runs the integration instances. In demo mode they write
 	// to integrationTopics, a private set nobody subscribes to, so real
 	// instances never reach the Demo Home; otherwise that's topics.
@@ -655,6 +657,15 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		// account changes close it at once: server.New wires that).
 		Recheck: server.SocketRecheck(authSvc),
 	})
+	// Displays' sockets: the topics a board shows, narrowed to each
+	// display's board, rechecked every minute and closed at once when the
+	// display is revoked.
+	displayHub := realtime.New(watch.Source(server.DisplaySource(tp, bs, g, log)), realtime.Options{
+		OriginPatterns: cfg.AllowedOrigins,
+		Server:         "chadash/" + buildinfo.Version,
+		Log:            log,
+		Recheck:        server.DisplaySocketRecheck(authSvc),
+	})
 	// Tiles' icons, fetched and served by the hub (the CSP keeps tiles from
 	// loading them). Never fetched in demo mode, which reads nothing real.
 	icn := icons.New(icons.Options{Store: st, Log: log.With("component", "icons"), Fetch: !cfg.Demo, Now: clk.Now})
@@ -663,6 +674,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		Store:          st,
 		Auth:           authSvc,
 		Realtime:       hub,
+		DisplaySocket:  displayHub,
 		Web:            webui.New(),
 		Proxies:        proxies,
 		ProxyCheck:     proxyCheck,
@@ -695,7 +707,7 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 		return nil, err
 	}
 
-	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, integrations: mgr, integrationTopics: itp, correlator: corr, actions: eng, nodes: nodeHub,
+	a := &app{handler: h, store: st, vault: v, graph: g, topics: tp, demo: drv, hub: hub, displayHub: displayHub, integrations: mgr, integrationTopics: itp, correlator: corr, actions: eng, nodes: nodeHub,
 		history: rec, historyStore: hst}
 	bg, stop := context.WithCancel(ctx)
 	a.stop = stop
@@ -731,13 +743,21 @@ func newApp(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *app, e
 	return a, nil
 }
 
+// closeSockets closes every realtime socket, people's and displays'.
+func (a *app) closeSockets() {
+	a.hub.Close()
+	if a.displayHub != nil {
+		a.displayHub.Close()
+	}
+}
+
 func (a *app) close() error {
 	a.stop()
 	a.integrations.Close()
 	a.bg.Wait()
 	a.actions.Close() // running tasks record how they ended before the store closes
 	a.nodes.Close()
-	a.hub.Close()
+	a.closeSockets()
 	var errs []error
 	if a.history != nil {
 		// The instances have stopped, so this is the last of their samples.

@@ -104,6 +104,9 @@ func lastAudit(t *testing.T, st *store.Store, action string) (audit.Event, bool)
 // provenElsewhere names, for audited routes this file doesn't call, the
 // test that shows them recording their action.
 var provenElsewhere = map[string]string{
+	"POST /api/displays":                               "TestDisplays",
+	"PATCH /api/displays/{id}":                         "TestDisplays",
+	"DELETE /api/displays/{id}":                        "TestDisplays",
 	"POST /api/auth/passkeys/register/finish":          "auth.TestAuthEvents (the event) and TestAuthEventsAudited (its record)",
 	"PATCH /api/auth/passkeys/{id}":                    "auth.TestAuthEvents and TestAuthEventsAudited",
 	"DELETE /api/auth/passkeys/{id}":                   "auth.TestAuthEvents and TestAuthEventsAudited",

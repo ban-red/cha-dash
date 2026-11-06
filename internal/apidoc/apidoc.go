@@ -145,6 +145,8 @@ func Document() map[string]any {
 					"description": "A signed-in session's cookie. Unsafe requests also need a same-origin request."},
 				"token": map[string]any{"type": "http", "scheme": "bearer",
 					"description": "An API token (cdt_…), on /api/ routes whose x-chadash-scope isn't empty."},
+				"display": map[string]any{"type": "apiKey", "in": "cookie", "name": "chadash_display",
+					"description": "A display's cookie, set by POST /api/display/claim and sent only under /api/display. A script may send the display's secret (cdd_…) as a bearer token instead."},
 			},
 			"responses": map[string]any{
 				"Error": map[string]any{"description": "An error.",
@@ -249,6 +251,10 @@ func operation(s *schemas, route authz.Route, op Op, method, path string) map[st
 		// An agent token, never a session or a plain API token.
 		o["x-chadash-scope"] = "agent"
 		o["security"] = []any{map[string]any{"token": []string{}}}
+	case authz.DisplayToken:
+		// A display's cookie (or Bearer cdd_…), never a session or an API token.
+		o["x-chadash-scope"] = "display"
+		o["security"] = []any{map[string]any{"display": []string{}}}
 	default:
 		o["x-chadash-scope"] = route.Token
 		sec := []any{map[string]any{"session": []string{}}}
@@ -284,6 +290,8 @@ func access(a authz.Access) string {
 		return "signature"
 	case authz.AgentToken:
 		return "agent_token"
+	case authz.DisplayToken:
+		return "display"
 	}
 	panic(fmt.Sprintf("apidoc: unknown access %d", a))
 }

@@ -116,6 +116,11 @@ func TestAgentTokenMatrix(t *testing.T) {
 				if status != http.StatusBadRequest {
 					t.Errorf("%s with %s's agent token: %d %s, want the handler's 400", row.Pattern, who, status, b)
 				}
+			case row.Access == authz.DisplayToken:
+				// A display's routes read no API or agent token.
+				if status != http.StatusUnauthorized || code != "invalid_display" {
+					t.Errorf("%s with %s's agent token: %d %s, want 401 invalid_display", row.Pattern, who, status, b)
+				}
 			case !strings.HasPrefix(path, "/api/"):
 				if status != http.StatusUnauthorized {
 					t.Errorf("%s with %s's agent token: %d %s, want 401", row.Pattern, who, status, b)

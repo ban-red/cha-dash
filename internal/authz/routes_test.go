@@ -156,7 +156,7 @@ func TestEveryRouteHasARow(t *testing.T) {
 		if _, ok := found[r.Pattern]; !ok && !r.Optional {
 			t.Errorf("routes.go lists %q, but nothing registers it: remove the row, or mark it Optional if another track adds it", r.Pattern)
 		}
-		if r.Access < Public || r.Access > AgentToken {
+		if r.Access < Public || r.Access > DisplayToken {
 			t.Errorf("%q: access %d", r.Pattern, r.Access)
 		}
 	}

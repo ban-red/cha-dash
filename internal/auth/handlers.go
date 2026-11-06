@@ -20,6 +20,9 @@ type Identity struct {
 	Session Session
 	// Token is the API token the request carried; nil for a session.
 	Token *TokenRef
+	// Display is the display the request came from (RequireDisplay): it
+	// has no User, Session or Token, and reads one board.
+	Display *DisplayRef
 	// IP is the client address, behind trusted proxies, for audit records.
 	IP string
 }
