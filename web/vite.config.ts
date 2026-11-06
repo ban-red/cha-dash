@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import type { Plugin } from 'vite';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 const here = import.meta.dirname;
 
@@ -86,6 +86,8 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     include: ['test/**/*.test.ts'],
+    // Visual regression runs in a real browser: vitest.visual.config.ts.
+    exclude: [...configDefaults.exclude, 'test/visual/**'],
     setupFiles: ['test/setup.ts'],
     restoreMocks: true,
     // axe and the bigger mounts take seconds when bun run check runs the Go

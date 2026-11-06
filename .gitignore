@@ -57,3 +57,7 @@ web/e2e/.auth/
 web/e2e/.hub.log
 web/test-results/
 web/playwright-report/
+# Visual regression (web/vitest.visual.config.ts): local references and diffs.
+# Only CI's references, in web/test/visual/__screenshots__/, are committed.
+web/test/visual/.local/
+web/test/visual/.diffs/

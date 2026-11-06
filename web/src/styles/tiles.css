@@ -868,6 +868,10 @@ button.li:hover .t {
 .tile.lvl-simplified .v.sm {
   font-size: var(--type-value);
 }
+/* A word ("Not connected") keeps its size: only numbers grow. */
+.tile.lvl-simplified .v.sm.word {
+  font-size: var(--type-title-2);
+}
 .tile.lvl-simplified .lab,
 .tile.lvl-simplified .sub {
   font-size: var(--type-body);
