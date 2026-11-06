@@ -90,6 +90,14 @@ func TestRegistryLogins(t *testing.T) {
 	if a := f.pullAuth["other.registry.example/example/private:1"]; a != "" {
 		t.Fatalf("a registry not in images.registries got a login: %q", a)
 	}
+	// The containerd image store words the same refusal as "may require
+	// 'docker login'"; the registry's own answer makes it the sentence again.
+	f.containerdStore = true
+	_, err = run("container.pull", map[string]string{"id": "other"})
+	if err == nil || err.Error() != "other.registry.example needs a login, and this node has none for it." {
+		t.Fatalf("pull refused in the containerd store's words: %v", err)
+	}
+	f.containerdStore = false
 
 	// image.check logs in to ghcr.io (the token for the login) and not to
 	// the other.

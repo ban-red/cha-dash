@@ -22,15 +22,15 @@ import (
 func (m *Module) PullImage(ctx context.Context, ref string, progress func(string)) (string, error) {
 	pr, err := m.cli.ImagePull(ctx, ref, m.pullOptions(ref))
 	if err != nil {
-		return "", m.pullError(ref, mapErr(err))
+		return "", m.pullError(ctx, ref, mapErr(err))
 	}
 	defer pr.Close()
 	for msg, err := range pr.JSONMessages(ctx) {
 		if err != nil {
-			return "", m.pullError(ref, mapErr(err))
+			return "", m.pullError(ctx, ref, mapErr(err))
 		}
 		if msg.Error != nil {
-			return "", m.pullError(ref, fmt.Errorf("pulling %s: %s", ref, msg.Error.Message))
+			return "", m.pullError(ctx, ref, fmt.Errorf("pulling %s: %s", ref, msg.Error.Message))
 		}
 		if msg.Status != "" && msg.Progress == nil {
 			progress(strings.TrimSpace(msg.ID + " " + msg.Status))
@@ -67,7 +67,30 @@ func (m *Module) RecreateImage(ctx context.Context, id, image string, progress f
 // even when the one it replaces isn't running, since that is usually the
 // update that crashed (dockerapi.SelfUpdater).
 func (m *Module) RollbackImage(ctx context.Context, id, image string, progress func(string)) (string, error) {
-	return m.recreateImage(ctx, id, image, true, progress)
+	return m.recreateImage(ctx, id, m.backImage(ctx, image, progress), true, progress)
+}
+
+// backImage is image, the repo@digest a rollback puts back, as Docker can
+// find it. The containerd image store drops that name once the tag moves
+// to the new image, though it keeps the image: pull it by digest (its
+// layers are here; the registry gives its manifest), or else, with no
+// registry, name it by its digest, which that store uses as its ID.
+func (m *Module) backImage(ctx context.Context, image string, progress func(string)) string {
+	if _, err := m.cli.ImageInspect(ctx, image); err == nil {
+		return image
+	}
+	_, digest, ok := strings.Cut(image, "@")
+	if !ok {
+		return image
+	}
+	progress("Pull " + image)
+	if _, err := m.PullImage(ctx, image, progress); err == nil {
+		return image
+	}
+	if _, err := m.cli.ImageInspect(ctx, digest); err == nil {
+		return digest
+	}
+	return image
 }
 
 func (m *Module) recreateImage(ctx context.Context, id, image string, start bool, progress func(string)) (string, error) {

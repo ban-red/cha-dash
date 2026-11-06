@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **Specs on the armv7 image.** `int()` in a spec was 32 bits there, so a byte count or a time in Unix milliseconds overflowed: Backrest, Duplicati and Zerobyte failed or called a fresh backup overdue. It's 64 bits on every build now.
+- **Rolling back a container update on Docker's containerd image store.** When the new image failed its health gate, putting the old one back failed with "No such image", and the container was left stuck. The node now pulls the old image again by its digest, or uses it by ID.
+- **A registry that needs a login, on Docker's containerd image store.** A pull without the login said the image might not exist; it says the registry needs a login again.
+
 ## [0.5.0] - 2026-11-06
 
 The first release of v0.5, Glance: Cha Dash goes on the wall. A display is a board for a wall tablet, a TV or an e-ink screen, with no menus and no sign-in. It stays dim while nothing is wrong, wakes when an incident needs you, and can't act. Every widget now has four levels of detail, from a desk down to e-ink and print. Stacks reach parity with a stack manager: stop, start, update, private registries and live logs. Eleven new sources join: TrueNAS, UPSes through NUT, UniFi, Tailscale, Cloudflare Tunnel, Technitium, and five backup tools. Home Assistant can read Cha Dash's health as entities. Specs move to the `chadash/v1beta1` format, and releases are built to SLSA Build Level 3.

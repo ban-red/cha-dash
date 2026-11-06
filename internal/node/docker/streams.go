@@ -244,15 +244,15 @@ func (m *Module) pull(ctx context.Context, req json.RawMessage, emit func(json.R
 	before := m.imageID(ctx, ref)
 	pr, err := m.cli.ImagePull(ctx, ref, m.pullOptions(ref))
 	if err != nil {
-		return nil, m.pullError(ref, mapErr(err))
+		return nil, m.pullError(ctx, ref, mapErr(err))
 	}
 	defer pr.Close()
 	for msg, err := range pr.JSONMessages(ctx) {
 		if err != nil {
-			return nil, m.pullError(ref, mapErr(err))
+			return nil, m.pullError(ctx, ref, mapErr(err))
 		}
 		if msg.Error != nil {
-			return nil, m.pullError(ref, nodeproto.Errorf(nodeproto.CodeFailed, "pulling %s: %s", ref, msg.Error.Message))
+			return nil, m.pullError(ctx, ref, nodeproto.Errorf(nodeproto.CodeFailed, "pulling %s: %s", ref, msg.Error.Message))
 		}
 		p := pullProgress{Status: msg.Status, Layer: msg.ID}
 		if msg.Progress != nil {

@@ -40,6 +40,10 @@ type fakeDocker struct {
 	busyVols    []string // volumes DELETE /volumes refuses as in use
 	logs        []fakeLog
 	tty         bool
+	// containerdStore: as Docker's containerd image store, a repo@digest
+	// name isn't kept once its tag moves on; only a pull by digest names it.
+	containerdStore bool
+	pulled          []string // the refs pulled, in order
 }
 
 type fakeLog struct {
@@ -79,8 +83,52 @@ func (f *fakeDocker) imageID(ref string) string {
 	if id, ok := f.images[ref]; ok {
 		return id
 	}
+	if id, ok := f.images[digestOnly(ref)]; ok {
+		return id
+	}
+	if !f.containerdStore {
+		if id := f.byRepoDigest(ref); id != "" {
+			return id
+		}
+	}
 	if tag, _, ok := strings.Cut(ref, "@"); ok {
 		return f.images[tag]
+	}
+	return ""
+}
+
+// digestOnly is repo:tag@digest as repo@digest, else "".
+func digestOnly(ref string) string {
+	named, d, ok := strings.Cut(ref, "@")
+	if !ok {
+		return ""
+	}
+	if i := strings.LastIndexByte(named, ':'); i > strings.LastIndexByte(named, '/') {
+		named = named[:i]
+	}
+	return named + "@" + d
+}
+
+// byRepoDigest is the image ref (repo:tag@digest or repo@digest) names by
+// its RepoDigests or descriptor, or "".
+func (f *fakeDocker) byRepoDigest(ref string) string {
+	named, d, ok := strings.Cut(ref, "@")
+	if !ok {
+		return ""
+	}
+	repo := named
+	if i := strings.LastIndexByte(repo, ':'); i > strings.LastIndexByte(repo, '/') {
+		repo = repo[:i]
+	}
+	for id, rds := range f.repoDigests {
+		if slices.Contains(rds, repo+"@"+d) {
+			return id
+		}
+	}
+	for id, desc := range f.descriptors {
+		if desc == d {
+			return id
+		}
 	}
 	return ""
 }
@@ -287,9 +335,12 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
 	case path == "/images/create" && r.Method == http.MethodPost:
 		ref := r.URL.Query().Get("fromImage")
-		if tag := r.URL.Query().Get("tag"); tag != "" {
+		if tag := r.URL.Query().Get("tag"); strings.HasPrefix(tag, "sha256:") {
+			ref += "@" + tag
+		} else if tag != "" {
 			ref += ":" + tag
 		}
+		f.pulled = append(f.pulled, ref)
 		w.Header().Set("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
 		if f.pullAuth == nil {
@@ -303,16 +354,35 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 		// A private image pulls only with a login, as a registry with
 		// htpasswd answers.
 		if strings.Contains(ref, "private") && r.Header.Get("X-Registry-Auth") == "" {
+			if f.containerdStore {
+				// The containerd store words a 401 as Docker Hub's "maybe".
+				jsonOut(w, 500, map[string]string{"message": "pull access denied for " + ref + ", repository does not exist or may require 'docker login'"})
+				return
+			}
 			jsonOut(w, 500, map[string]string{"message": "Head \"https://" + ref + "\": no basic auth credentials"})
 			return
 		}
 		enc.Encode(map[string]any{"status": "Pulling from library/" + ref, "id": "latest"})
 		enc.Encode(map[string]any{"status": "Downloading", "id": "abc", "progressDetail": map[string]int{"current": 5, "total": 10}})
 		enc.Encode(map[string]any{"status": "Status: Downloaded newer image for " + ref})
-		f.images[strings.TrimPrefix(strings.TrimPrefix(ref, "docker.io/library/"), "docker.io/")] = "sha256:" + strings.Repeat("2", 64)
+		short := strings.TrimPrefix(strings.TrimPrefix(ref, "docker.io/library/"), "docker.io/")
+		if id := f.byRepoDigest(short); id != "" {
+			f.images[short] = id // by digest: the image the registry calls that
+			break
+		}
+		f.images[short] = "sha256:" + strings.Repeat("2", 64)
 	case len(parts) >= 3 && parts[0] == "images" && parts[len(parts)-1] == "json":
 		ref := strings.Join(parts[1:len(parts)-1], "/")
 		id, ok := f.images[ref]
+		if !ok {
+			// repo:tag@digest is looked up by its digest.
+			id, ok = f.images[digestOnly(ref)]
+		}
+		if !ok && !f.containerdStore {
+			// The classic store finds repo@digest through RepoDigests.
+			id = f.byRepoDigest(ref)
+			ok = id != ""
+		}
 		_, hasCfg := f.imageCfg[ref]
 		_, hasDigests := f.repoDigests[ref]
 		if !ok && (hasCfg || hasDigests) {

@@ -58,7 +58,7 @@ func (m *Module) pullOptions(ref string) client.ImagePullOptions {
 
 // pullError says a refused pull in the registry sentence when the registry
 // wants a login, and passes anything else through.
-func (m *Module) pullError(ref string, err error) error {
+func (m *Module) pullError(ctx context.Context, ref string, err error) error {
 	if err == nil || !registry.IsAuthError(err) {
 		return err
 	}
@@ -68,5 +68,15 @@ func (m *Module) pullError(ref string, err error) error {
 	}
 	domain := reference.Domain(n)
 	_, have := m.logins.For(domain)
-	return nodeproto.Errorf(nodeproto.CodeFailed, "%s", fmt.Sprint(registry.LoginErrorFor(err, domain, have)))
+	le := registry.LoginErrorFor(err, domain, have)
+	// Docker's containerd image store words a registry's 401 as "repository
+	// does not exist or may require 'docker login'", the same as a missing
+	// image on Docker Hub. image.check's own question to the registry tells
+	// them apart, so ask it (its answer is kept, so this is rarely a request).
+	if le.Maybe && !have {
+		if tagged, ok := n.(reference.NamedTagged); ok && m.check.Ask(ctx, tagged, false).Login == registry.LoginNeeded {
+			le.Maybe = false
+		}
+	}
+	return nodeproto.Errorf(nodeproto.CodeFailed, "%s", fmt.Sprint(le))
 }
