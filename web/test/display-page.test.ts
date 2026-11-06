@@ -22,7 +22,7 @@ import { fakeFetch, type Handler } from './fake-fetch';
 import { FakeSocket, factory } from './fake-socket';
 import { docs, withIncidents } from './fixtures';
 
-const SECRET = 'cdd_aaaaaaaaaaaaaaaaaaaaaaaaaa_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+const SECRET = 'cdc_aaaaaaaaaaaaaaaaaaaaaaaaaa_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const NOW = Date.parse(withIncidents.now); // 14:05 UTC
 const MIN = 60_000;
 
@@ -113,7 +113,7 @@ describe('signing a display in', () => {
     // The secret is gone from the address, and kept nowhere.
     expect(location.hash).toBe('');
     expect(location.pathname).toBe('/display/brd_home');
-    expect(setItem.mock.calls.flat().join(' ')).not.toContain('cdd_');
+    expect(setItem.mock.calls.flat().join(' ')).not.toContain('cdc_');
     // Never a session route.
     expect(f.calls.map((c) => c.path).filter((p) => !p.startsWith('/api/display'))).toEqual([]);
     // Tile icons come from the display's own route.

@@ -285,9 +285,9 @@ jobs:
             echo "Both images, every binary and \`SHA256SUMS\` also have a GitHub artifact attestation: SLSA Build Level 3 provenance from the reusable build workflow. Check one with the [GitHub CLI](https://cli.github.com/):"
             echo
             echo '```sh'
-            echo "gh attestation verify oci://$IMAGE:$VERSION --repo $GITHUB_REPOSITORY"
-            echo "gh attestation verify oci://$NODE_IMAGE:$VERSION --repo $GITHUB_REPOSITORY"
-            echo "gh attestation verify chadash-$VERSION-linux-amd64 --repo $GITHUB_REPOSITORY"
+            echo "gh attestation verify oci://$IMAGE:$VERSION --repo $GITHUB_REPOSITORY --signer-workflow $GITHUB_REPOSITORY/.github/workflows/release-build.yml --source-ref refs/tags/$TAG"
+            echo "gh attestation verify oci://$NODE_IMAGE:$VERSION --repo $GITHUB_REPOSITORY --signer-workflow $GITHUB_REPOSITORY/.github/workflows/release-build.yml --source-ref refs/tags/$TAG"
+            echo "gh attestation verify chadash-$VERSION-linux-amd64 --repo $GITHUB_REPOSITORY --signer-workflow $GITHUB_REPOSITORY/.github/workflows/release-build.yml --source-ref refs/tags/$TAG"
             echo '```'
             echo
             echo "The image also carries build provenance and an SBOM: \`docker buildx imagetools inspect $IMAGE:$VERSION --format '{{ json .Provenance }}'\` (or \`.SBOM\`)."

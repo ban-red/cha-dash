@@ -22,7 +22,7 @@ test('a display shows its board with no chrome, and its credential opens nothing
   const made = await page.request.post('/api/displays', { headers: json, data: { name: 'e2e hall tablet', board: board.id, quiet: null } });
   expect(made.status(), await made.text()).toBe(201);
   const { display, secret } = (await made.json()) as { display: { id: string; name: string; board: { id: string } }; secret: string };
-  expect(secret).toMatch(/^cdd_/);
+  expect(secret).toMatch(/^cdc_/);
   expect(display.board.id).toBe(board.id);
 
   // A screen with no session opens the link.
@@ -57,6 +57,11 @@ test('a display shows its board with no chrome, and its credential opens nothing
   expect(cookie!.httpOnly).toBe(true);
   expect(cookie!.sameSite).toBe('Strict');
   expect((await tab.request.get('/api/display')).status()).toBe(200);
+  // The link was good once: the cookie holds a different secret, and a
+  // second claim with the code is refused.
+  expect(cookie!.value).not.toContain(secret);
+  const again = await (await browser.newContext()).request.post('/api/display/claim', { headers: json, data: { token: secret } });
+  expect(again.status()).toBe(401);
 
   // Session routes refuse it: with the context's cookies, with the cookie sent by hand, and with the secret as a bearer.
   expect((await tab.request.get('/api/graph')).status()).toBe(401);

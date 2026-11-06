@@ -47,5 +47,21 @@ class ParseTest(unittest.TestCase):
                 summary.parse(bad)
 
 
+
+class CheckURLTest(unittest.TestCase):
+    def test_https_anywhere(self):
+        self.assertIsNone(summary.check_url("https://dash.home.example"))
+
+    def test_http_only_to_a_local_ip(self):
+        self.assertIsNone(summary.check_url("http://192.168.1.10:3696"))
+        self.assertIsNone(summary.check_url("http://127.0.0.1:3696"))
+        self.assertEqual(summary.check_url("http://dash.home.example"), "insecure_url")
+        self.assertEqual(summary.check_url("http://203.0.113.9"), "insecure_url")
+
+    def test_not_an_address(self):
+        for url in ("dash.home.example", "ftp://dash.home.example", "https://", "https://u:p@dash.home.example"):
+            self.assertEqual(summary.check_url(url), "invalid_url", url)
+
+
 if __name__ == "__main__":
     unittest.main()

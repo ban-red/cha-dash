@@ -21,7 +21,7 @@ An acknowledged problem that's down leaves health at `attention`, not `down`: so
 
 1. In Cha Dash, **Settings → API tokens → New token**, with the **Inbox read** scope (`inbox.read`) and nothing else.
 2. Copy `custom_components/chadash` into Home Assistant's `config/custom_components/`, then restart Home Assistant.
-3. **Settings → Devices & services → Add integration → Cha Dash**, then give its address (`https://dash.example.home`) and the token.
+3. **Settings → Devices & services → Add integration → Cha Dash**, then give its address (`https://dash.example.home`) and the token. It takes https, or plain http only to a local IP address, since the token rides every request. When the token is revoked, Home Assistant asks for a new one.
 
 ## An automation
 

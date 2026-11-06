@@ -7,14 +7,46 @@ internal/README.md and its OpenAPI document.
 
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 HEALTHS = ("ok", "attention", "down")
 
 
 class SummaryError(ValueError):
     """The hub's answer isn't a summary."""
+
+
+# The ranges plain http may go to: loopback, private, link-local, CGNAT and
+# unique-local. Python's is_private also counts documentation ranges.
+LOCAL_NETS = tuple(
+    ipaddress.ip_network(n)
+    for n in ("127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10", "::1/128", "fc00::/7", "fe80::/10")
+)
+
+
+def check_url(url: str) -> str | None:
+    """Why Cha Dash's address won't do, as a form error key, or None.
+
+    The API token rides every request, so it takes https, or plain http
+    only to an IP address on this machine or the local network, where
+    there's often no certificate to check.
+    """
+    try:
+        u = urlsplit(url)
+    except ValueError:
+        return "invalid_url"
+    if u.scheme not in ("http", "https") or not u.hostname or u.username or u.password:
+        return "invalid_url"
+    if u.scheme == "https":
+        return None
+    try:
+        ip = ipaddress.ip_address(u.hostname)
+    except ValueError:
+        return "insecure_url"
+    return None if any(ip in net for net in LOCAL_NETS) else "insecure_url"
 
 
 @dataclass(frozen=True)

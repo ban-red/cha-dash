@@ -55,7 +55,7 @@ type console struct {
 
 func newConsole(t *testing.T, standalone bool) *console {
 	c := &console{t: t, standalone: standalone, health: "stat_health.json", role: "readonly"}
-	c.Server = httptest.NewServer(http.HandlerFunc(c.serve))
+	c.Server = httptest.NewTLSServer(http.HandlerFunc(c.serve))
 	t.Cleanup(c.Close)
 	return c
 }
@@ -167,7 +167,7 @@ func (c *console) serve(w http.ResponseWriter, r *http.Request) {
 
 func connect(t *testing.T, h *integrationtest.Harness, c *console, extra map[string]any, password string) integration.Instance {
 	t.Helper()
-	cfg := map[string]any{"url": c.URL, "tls": map[string]any{"mode": "verify"}, "username": user}
+	cfg := map[string]any{"url": c.URL, "tls": map[string]any{"mode": "tofu"}, "username": user}
 	if c.standalone {
 		cfg["platform"] = PlatformStandalone
 	}
@@ -225,6 +225,7 @@ func TestValidate(t *testing.T) {
 		"no password":  {map[string]any{"url": "https://10.0.40.1", "username": "u"}, nil, "/password"},
 		"no username":  {map[string]any{"url": "https://10.0.40.1"}, secrets, "/username"},
 		"ftp":          {map[string]any{"url": "ftp://10.0.40.1", "username": "u"}, secrets, "/url"},
+		"plain http":   {map[string]any{"url": "http://10.0.40.1", "username": "u"}, secrets, "/url"},
 		"bad site":     {map[string]any{"url": "https://10.0.40.1", "username": "u", "site": "a/b"}, secrets, "/site"},
 		"bad platform": {map[string]any{"url": "https://10.0.40.1", "username": "u", "platform": "cloud"}, secrets, "/platform"},
 	} {
@@ -446,9 +447,9 @@ func TestRepairs(t *testing.T) {
 		t.Fatalf("wrong platform = %v", err)
 	}
 	// Not UniFi at all.
-	other := httptest.NewServer(http.NotFoundHandler())
+	other := httptest.NewTLSServer(http.NotFoundHandler())
 	defer other.Close()
-	err = h.Connect(Integration{}, map[string]any{"url": other.URL, "username": user}, map[string]string{"password": pass}).Sync(t.Context(), integration.Interest{})
+	err = h.Connect(Integration{}, map[string]any{"url": other.URL, "tls": map[string]any{"mode": "tofu"}, "username": user}, map[string]string{"password": pass}).Sync(t.Context(), integration.Interest{})
 	if !errors.As(err, &re) || re.Code != integration.CodeAPIChanged {
 		t.Fatalf("not UniFi = %v", err)
 	}

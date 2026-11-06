@@ -34,7 +34,7 @@
  * Settings is a layer over the front page, not a separate app, so the board,
  * the realtime socket and the Inbox stay put underneath it.
  *
- *   /display/{board}#cdd_…             a wall display (views/DisplayPage.vue): no session, no chrome.
+ *   /display/{board}#cdc_…             a wall display (views/DisplayPage.vue): no session, no chrome.
  *                                      The secret in the fragment is claimed once, then dropped.
  */
 import { computed, shallowRef } from 'vue';
@@ -177,16 +177,17 @@ export function stackPath(node?: string, name?: string): string {
 }
 
 /**
- * A wall display's sign-in secret from the fragment (`#cdd_…`), taken once:
- * the fragment is dropped from the address bar and history at once, so the
- * secret is never kept, logged or sent anywhere but the claim.
+ * A wall display's claim code from the fragment (`#cdc_…`), taken once: the
+ * fragment is dropped from the address bar and history at once, so the code
+ * is never kept, logged or sent anywhere but the claim. It works once, and
+ * the claim swaps it for a device secret only the display's cookie holds.
  */
 export function takeDisplaySecret(): string | undefined {
   if (typeof location === 'undefined') return undefined;
   const hash = location.hash.replace(/^#/, '');
   if (!hash) return undefined;
   history.replaceState(history.state, '', location.pathname + location.search);
-  return /^cdd_[A-Za-z0-9_]+$/.test(hash) ? hash : undefined;
+  return /^cdc_[A-Za-z0-9_]+$/.test(hash) ? hash : undefined;
 }
 
 let started = false;

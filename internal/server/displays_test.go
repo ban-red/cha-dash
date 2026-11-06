@@ -104,7 +104,7 @@ func TestDisplays(t *testing.T) {
 		Secret string
 	}
 	json.Unmarshal(b, &made)
-	if status != http.StatusCreated || !strings.HasPrefix(made.Secret, "cdd_") || made.Display.Board.ID != board || made.Display.Quiet == nil || made.Display.Quiet.Start != "22:00" {
+	if status != http.StatusCreated || !strings.HasPrefix(made.Secret, "cdc_") || made.Display.Board.ID != board || made.Display.Quiet == nil || made.Display.Quiet.Start != "22:00" {
 		t.Fatalf("POST /api/displays: %d %s", status, b)
 	}
 	if ev, ok := lastAudit(t, store, "displays.create"); !ok || ev.Result != audit.OK || ev.Target != "display:"+made.Display.ID {
@@ -125,7 +125,7 @@ func TestDisplays(t *testing.T) {
 	// /api/display only.
 	jar, _ := cookiejar.New(nil)
 	device := &http.Client{Jar: jar}
-	if status, code, _ := e.call(t, device, "POST", "/api/display/claim", map[string]string{"token": "cdd_" + strings.Repeat("a", 26) + "_" + strings.Repeat("A", 52)}); status != 401 || code != "invalid_display" {
+	if status, code, _ := e.call(t, device, "POST", "/api/display/claim", map[string]string{"token": "cdc_" + strings.Repeat("a", 26) + "_" + strings.Repeat("A", 52)}); status != 401 || code != "invalid_display" {
 		t.Fatalf("a wrong secret: %d %s", status, code)
 	}
 	resp := e.request(t, device, "POST", "/api/display/claim", map[string]string{"token": made.Secret}, nil)
@@ -138,8 +138,17 @@ func TestDisplays(t *testing.T) {
 			cookie = c
 		}
 	}
-	if cookie == nil || cookie.Path != "/api/display" || !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode || cookie.MaxAge < 300*24*3600 {
+	if cookie == nil || cookie.Path != "/api/display" || !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode || cookie.MaxAge < 300*24*3600 ||
+		!strings.HasPrefix(cookie.Value, "cdd_") || cookie.Value == made.Secret {
 		t.Fatalf("the display cookie: %+v", cookie)
+	}
+	secret := cookie.Value
+	// The link works once, and its claim is audited as the display.
+	if status, code, _ := e.call(t, &http.Client{}, "POST", "/api/display/claim", map[string]string{"token": made.Secret}); status != 401 || code != "invalid_display" {
+		t.Fatalf("claiming the link again: %d %s", status, code)
+	}
+	if ev, ok := lastAudit(t, store, "displays.claim"); !ok || ev.Result != audit.OK || ev.Actor.Kind != "display" || ev.Actor.ID != made.Display.ID {
+		t.Fatalf("displays.claim: %+v", ev)
 	}
 	status, _, b = e.call(t, device, "GET", "/api/display", nil)
 	var read struct {
@@ -154,7 +163,7 @@ func TestDisplays(t *testing.T) {
 		t.Fatalf("GET /api/display: %d %s", status, b)
 	}
 	// The secret as a bearer token works too, for scripts.
-	if status, _, b := e.raw(t, &http.Client{}, "GET", "/api/display", nil, map[string]string{"Authorization": "Bearer " + made.Secret}); status != 200 {
+	if status, _, b := e.raw(t, &http.Client{}, "GET", "/api/display", nil, map[string]string{"Authorization": "Bearer " + secret}); status != 200 {
 		t.Fatalf("GET /api/display with Bearer cdd_: %d %s", status, b)
 	}
 
@@ -162,8 +171,8 @@ func TestDisplays(t *testing.T) {
 	// token, counts for nothing on every other route; a session counts for
 	// nothing on the display's.
 	creds := map[string]map[string]string{
-		"cookie": {"Cookie": auth.DisplayCookie + "=" + made.Secret},
-		"bearer": {"Authorization": "Bearer " + made.Secret},
+		"cookie": {"Cookie": auth.DisplayCookie + "=" + secret},
+		"bearer": {"Authorization": "Bearer " + secret},
 	}
 	checked := 0
 	for _, row := range authz.Routes {
@@ -256,6 +265,20 @@ func TestDisplays(t *testing.T) {
 		t.Fatalf("sub tasks: %v", f)
 	}
 
+	// A new link: the device on the old one keeps reading until it's claimed.
+	status, _, b = e.call(t, owner, "POST", "/api/displays/"+made.Display.ID+"/link", nil)
+	var relink struct{ Secret string }
+	json.Unmarshal(b, &relink)
+	if status != 200 || !strings.HasPrefix(relink.Secret, "cdc_") || relink.Secret == made.Secret {
+		t.Fatalf("a new link: %d %s", status, b)
+	}
+	if ev, ok := lastAudit(t, store, "displays.link"); !ok || ev.Result != audit.OK {
+		t.Fatalf("displays.link: %+v", ev)
+	}
+	if status, _, _ := e.call(t, device, "GET", "/api/display", nil); status != 200 {
+		t.Fatalf("the device on the old link before the new one is claimed: %d", status)
+	}
+
 	// Revoking ends the socket and every read.
 	if status, _, b := e.call(t, owner, "DELETE", "/api/displays/"+made.Display.ID, nil); status != http.StatusNoContent {
 		t.Fatalf("DELETE: %d %s", status, b)
@@ -278,7 +301,7 @@ func TestDisplays(t *testing.T) {
 		t.Fatalf("revoking twice: %d", status)
 	}
 	for _, ev := range auditEvents(t, store) {
-		if strings.Contains(string(ev.Params), made.Secret) || strings.Contains(ev.Target, made.Secret) {
+		if strings.Contains(string(ev.Params), made.Secret) || strings.Contains(ev.Target, made.Secret) || strings.Contains(string(ev.Params), secret) {
 			t.Fatalf("an audit record carries the secret: %+v", ev)
 		}
 	}

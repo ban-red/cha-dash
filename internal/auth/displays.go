@@ -8,12 +8,15 @@ package auth
 // secrets; which routes a display may call is internal/authz's table, and
 // what its board shows is the server's.
 //
-// A display's secret is `cdd_<id>_<secret>`, shaped like an API token's
-// (26 and 52 base32 characters) and stored the same way, as a SHA-256. A
-// device presents it once, from the link's fragment, to
-// POST /api/display/claim, which sets the chadash_display cookie on
-// Path=/api/display: the browser never sends it anywhere else. A script may
-// send it as `Authorization: Bearer cdd_…` to the same routes.
+// A display's link carries a claim code, `cdc_<id>_<secret>`, good once and
+// for ClaimTTL. A device presents it from the link's fragment to
+// POST /api/display/claim, which swaps it for the display's device secret,
+// `cdd_<id>_<secret>`, and sets that in the chadash_display cookie on
+// Path=/api/display: the browser never sends it anywhere else, and nobody
+// ever sees it. Both are shaped like an API token (26 and 52 base32
+// characters) and stored the same way, as a SHA-256. A new link for a
+// display signs out the device that had it. A script may send the device
+// secret as `Authorization: Bearer cdd_…` to the same routes.
 
 import (
 	"context"
@@ -24,6 +27,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
@@ -33,8 +37,14 @@ import (
 	"dash.cha.sh/internal/msg"
 )
 
-// DisplayPrefix starts every display's secret.
+// DisplayPrefix starts every display's device secret.
 const DisplayPrefix = "cdd_"
+
+// ClaimPrefix starts every display's claim code, the one-time part of its link.
+const ClaimPrefix = "cdc_"
+
+// ClaimTTL is how long a display's link can be claimed.
+const ClaimTTL = 24 * time.Hour
 
 // displayIDPrefix starts a display's public ID.
 const displayIDPrefix = "dsp_"
@@ -56,10 +66,14 @@ var (
 	ErrDisplayRevoked  = errors.New("auth: display revoked")
 	ErrDisplayNotFound = errors.New("auth: no such display")
 	ErrNoSuchBoard     = errors.New("auth: no such board")
+	// ErrBadClaim: the claim code is unknown, wrong, used, expired or its
+	// display revoked; the client learns nothing more.
+	ErrBadClaim = errors.New("auth: invalid display link")
 )
 
-// EventDisplayRevoked: a display was revoked. Subject is its ID, UserID
-// who revoked it. Its sockets close at once.
+// EventDisplayRevoked: a display was revoked, or its link was claimed
+// again (a new device took it over). Subject is its ID, UserID who revoked
+// it. Its sockets close at once.
 const EventDisplayRevoked EventKind = "display.revoked"
 
 // Quiet is a display's quiet hours, HH:MM to HH:MM in the hub's local time;
@@ -104,6 +118,9 @@ type Display struct {
 	LastSeenAt *time.Time `json:"last_seen_at"`
 	LastSeenIP string     `json:"last_seen_ip,omitempty"`
 	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+	// LinkExpiresAt is when its unclaimed link stops working; nil once
+	// claimed.
+	LinkExpiresAt *time.Time `json:"link_expires_at,omitempty"`
 }
 
 // DisplayRef is the display behind a request, on its Identity.
@@ -111,6 +128,9 @@ type DisplayRef struct {
 	ID      string
 	Name    string
 	BoardID string
+	// hash is the device secret's, so a socket notices when a new link
+	// replaced it.
+	hash []byte
 }
 
 var displaySecretRE = regexp.MustCompile(`^cdd_([a-z2-7]{26})_([A-Z2-7]{52})$`)
@@ -138,8 +158,8 @@ func validateDisplayName(name string) (string, error) {
 }
 
 // CreateDisplay stores a new display of boardID, made by userID, and
-// returns it with its secret, which is never stored or shown again.
-// ErrNoSuchBoard when the board doesn't exist.
+// returns it with its claim code, which is never stored or shown again and
+// works once, for ClaimTTL. ErrNoSuchBoard when the board doesn't exist.
 func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID string, style Style, quiet *Quiet) (Display, string, error) {
 	name, err := validateDisplayName(name)
 	if err != nil {
@@ -152,7 +172,9 @@ func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID strin
 		return Display{}, "", err
 	}
 	short := strings.ToLower(rand.Text())
-	secret := DisplayPrefix + short + "_" + rand.Text() + rand.Text()
+	// The device secret nobody holds until the link is claimed.
+	unclaimed := DisplayPrefix + short + "_" + rand.Text() + rand.Text()
+	code := ClaimPrefix + short + "_" + rand.Text() + rand.Text()
 	id := displayIDPrefix + short
 	now := s.now().UnixMilli()
 	var qs, qe sql.NullString
@@ -171,8 +193,8 @@ func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID strin
 		if userID != "" {
 			by = sql.NullString{String: userID, Valid: true}
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO displays (id, name, board_id, token_hash, quiet_start, quiet_end, style, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, name, boardID, tokenHash(secret), qs, qe, string(style), by, now)
+		_, err := tx.ExecContext(ctx, `INSERT INTO displays (id, name, board_id, token_hash, claim_hash, claim_expires_at, quiet_start, quiet_end, style, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, name, boardID, tokenHash(unclaimed), tokenHash(code), now+ClaimTTL.Milliseconds(), qs, qe, string(style), by, now)
 		return err
 	})
 	if err != nil {
@@ -183,19 +205,40 @@ func (s *Service) CreateDisplay(ctx context.Context, userID, name, boardID strin
 		return Display{}, "", err
 	}
 	s.log.Info("display created", "display", id, "board", boardID)
-	return d, secret, nil
+	return d, code, nil
 }
 
-const displayQuery = `SELECT d.id, d.name, d.board_id, b.title, d.quiet_start, d.quiet_end, d.style, COALESCE(u.username, ''), d.created_at, d.last_seen_at, d.last_seen_ip, d.revoked_at
-	FROM displays d JOIN boards b ON b.id = d.board_id LEFT JOIN users u ON u.id = d.created_by`
+// NewDisplayLink gives a display a new claim code, for ClaimTTL, in place
+// of any it had. The device holding it keeps working until the new link is
+// claimed. A revoked display is ErrDisplayNotFound.
+func (s *Service) NewDisplayLink(ctx context.Context, id string) (Display, string, error) {
+	short, ok := strings.CutPrefix(id, displayIDPrefix)
+	if !ok {
+		return Display{}, "", ErrDisplayNotFound
+	}
+	code := ClaimPrefix + short + "_" + rand.Text() + rand.Text()
+	res, err := s.st.Writer().ExecContext(ctx, `UPDATE displays SET claim_hash = ?, claim_expires_at = ? WHERE id = ? AND revoked_at IS NULL`,
+		tokenHash(code), s.now().Add(ClaimTTL).UnixMilli(), id)
+	if err != nil {
+		return Display{}, "", fmt.Errorf("auth: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return Display{}, "", ErrDisplayNotFound
+	}
+	d, err := s.GetDisplay(ctx, id)
+	return d, code, err
+}
+
+const displayQuery = `SELECT d.id, d.name, COALESCE(d.board_id, ''), COALESCE(b.title, ''), d.quiet_start, d.quiet_end, d.style, COALESCE(u.username, ''), d.created_at, d.last_seen_at, d.last_seen_ip, d.revoked_at, d.claim_expires_at
+	FROM displays d LEFT JOIN boards b ON b.id = d.board_id LEFT JOIN users u ON u.id = d.created_by`
 
 func scanDisplay(sc scanner) (Display, error) {
 	var d Display
 	var qs, qe, ip sql.NullString
 	var style string
 	var created int64
-	var seen, revoked sql.NullInt64
-	if err := sc.Scan(&d.ID, &d.Name, &d.BoardID, &d.BoardName, &qs, &qe, &style, &d.CreatedBy, &created, &seen, &ip, &revoked); err != nil {
+	var seen, revoked, claim sql.NullInt64
+	if err := sc.Scan(&d.ID, &d.Name, &d.BoardID, &d.BoardName, &qs, &qe, &style, &d.CreatedBy, &created, &seen, &ip, &revoked, &claim); err != nil {
 		return Display{}, err
 	}
 	if qs.Valid && qe.Valid {
@@ -203,7 +246,7 @@ func scanDisplay(sc scanner) (Display, error) {
 	}
 	d.Style = Style(style)
 	d.CreatedAt = time.UnixMilli(created).UTC()
-	d.LastSeenAt, d.RevokedAt = msTime(seen), msTime(revoked)
+	d.LastSeenAt, d.RevokedAt, d.LinkExpiresAt = msTime(seen), msTime(revoked), msTime(claim)
 	d.LastSeenIP = ip.String
 	return d, nil
 }
@@ -301,7 +344,7 @@ func (s *Service) RevokeDisplay(ctx context.Context, id, by string) (Display, bo
 	if by != "" {
 		byv = sql.NullString{String: by, Valid: true}
 	}
-	res, err := s.st.Writer().ExecContext(ctx, `UPDATE displays SET revoked_at = ?, revoked_by = ? WHERE id = ? AND revoked_at IS NULL`,
+	res, err := s.st.Writer().ExecContext(ctx, `UPDATE displays SET revoked_at = ?, revoked_by = ?, claim_hash = NULL, claim_expires_at = NULL WHERE id = ? AND revoked_at IS NULL`,
 		s.now().UnixMilli(), byv, id)
 	if err != nil {
 		return Display{}, false, fmt.Errorf("auth: %w", err)
@@ -321,7 +364,9 @@ func (s *Service) RevokeDisplay(ctx context.Context, id, by string) (Display, bo
 // dummyDisplayHash is compared against when a display's ID is unknown.
 var dummyDisplayHash = tokenHash(DisplayPrefix + strings.Repeat("a", 26) + "_" + strings.Repeat("A", 52))
 
-// AuthenticateDisplay checks a presented display secret and returns the
+var claimCodeRE = regexp.MustCompile(`^cdc_([a-z2-7]{26})_([A-Z2-7]{52})$`)
+
+// AuthenticateDisplay checks a presented device secret and returns the
 // identity it reads as: no user, no session, only the display. Errors:
 // ErrBadDisplay (malformed, unknown or a wrong secret), and, only when the
 // secret matched, ErrDisplayRevoked. ip is recorded as where it was last
@@ -334,7 +379,8 @@ func (s *Service) AuthenticateDisplay(ctx context.Context, presented, ip string)
 	id := displayIDPrefix + m[1]
 	var (
 		stored        []byte
-		name, board   string
+		name          string
+		board         sql.NullString
 		seen, revoked sql.NullInt64
 	)
 	err := s.st.Reader().QueryRowContext(ctx, `SELECT token_hash, name, board_id, last_seen_at, revoked_at FROM displays WHERE id = ?`, id).
@@ -346,10 +392,11 @@ func (s *Service) AuthenticateDisplay(ctx context.Context, presented, ip string)
 	if err != nil {
 		return Identity{}, fmt.Errorf("auth: %w", err)
 	}
-	if subtle.ConstantTimeCompare(tokenHash(presented), stored) != 1 {
+	hash := tokenHash(presented)
+	if subtle.ConstantTimeCompare(hash, stored) != 1 {
 		return Identity{}, ErrBadDisplay
 	}
-	if revoked.Valid {
+	if revoked.Valid || !board.Valid {
 		return Identity{}, ErrDisplayRevoked
 	}
 	now := s.now()
@@ -359,24 +406,70 @@ func (s *Service) AuthenticateDisplay(ctx context.Context, presented, ip string)
 			s.log.Warn("could not record a display's use", "display", id, "err", err)
 		}
 	}
-	return Identity{Display: &DisplayRef{ID: id, Name: name, BoardID: board}, IP: ip}, nil
+	return Identity{Display: &DisplayRef{ID: id, Name: name, BoardID: board.String, hash: hash}, IP: ip}, nil
+}
+
+// ClaimDisplay swaps a display's claim code for a new device secret, once:
+// the code is cleared, and the device that held the display before is
+// signed out (EventDisplayRevoked closes its sockets). ErrBadClaim for a
+// code that is malformed, unknown, wrong, used or expired, or a display
+// revoked.
+func (s *Service) ClaimDisplay(ctx context.Context, code, ip string) (Identity, string, error) {
+	m := claimCodeRE.FindStringSubmatch(code)
+	if m == nil {
+		return Identity{}, "", ErrBadClaim
+	}
+	id := displayIDPrefix + m[1]
+	hash := tokenHash(code)
+	secret := DisplayPrefix + m[1] + "_" + rand.Text() + rand.Text()
+	var name, board string
+	err := s.st.WriteTx(ctx, func(tx *sql.Tx) error {
+		var stored []byte
+		var expires sql.NullInt64
+		var b sql.NullString
+		err := tx.QueryRowContext(ctx, `SELECT claim_hash, claim_expires_at, name, board_id FROM displays WHERE id = ? AND revoked_at IS NULL`, id).Scan(&stored, &expires, &name, &b)
+		if errors.Is(err, sql.ErrNoRows) {
+			subtle.ConstantTimeCompare(hash, dummyDisplayHash)
+			return ErrBadClaim
+		}
+		if err != nil {
+			return err
+		}
+		if stored == nil || subtle.ConstantTimeCompare(hash, stored) != 1 || !expires.Valid || expires.Int64 <= s.now().UnixMilli() || !b.Valid {
+			return ErrBadClaim
+		}
+		board = b.String
+		_, err = tx.ExecContext(ctx, `UPDATE displays SET token_hash = ?, claim_hash = NULL, claim_expires_at = NULL, last_seen_at = ?, last_seen_ip = ? WHERE id = ?`,
+			tokenHash(secret), s.now().UnixMilli(), ip, id)
+		return err
+	})
+	if err != nil {
+		return Identity{}, "", err
+	}
+	s.log.Info("display link claimed", "display", id)
+	s.emit(Event{Kind: EventDisplayRevoked, Subject: id})
+	return Identity{Display: &DisplayRef{ID: id, Name: name, BoardID: board, hash: tokenHash(secret)}, IP: ip}, secret, nil
 }
 
 // DisplayStillValid reports whether the display an identity read as is
-// still there and not revoked: a display's socket asks every minute.
+// still there, not revoked, and still on the device secret it read with:
+// a display's socket asks every minute.
 func (s *Service) DisplayStillValid(ctx context.Context, id Identity) (bool, error) {
 	if id.Display == nil {
 		return false, nil
 	}
-	var one int
-	err := s.st.Reader().QueryRowContext(ctx, `SELECT 1 FROM displays WHERE id = ? AND revoked_at IS NULL`, id.Display.ID).Scan(&one)
+	var stored []byte
+	err := s.st.Reader().QueryRowContext(ctx, `SELECT token_hash FROM displays WHERE id = ? AND revoked_at IS NULL AND board_id IS NOT NULL`, id.Display.ID).Scan(&stored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	return subtle.ConstantTimeCompare(stored, id.Display.hash) == 1, nil
 }
 
-// DisplayCredential returns the display secret r carries: a
+// DisplayCredential returns the device secret r carries: a
 // `Bearer cdd_…` header, else the display cookie.
 func DisplayCredential(r *http.Request) (string, bool) {
 	scheme, value, ok := strings.Cut(r.Header.Get("Authorization"), " ")
@@ -392,9 +485,11 @@ func DisplayCredential(r *http.Request) (string, bool) {
 }
 
 // RequireDisplay authenticates r's display credential and attaches its
-// Identity, or answers 401 invalid_display (429 once a client has failed
-// too often, on the same budget as bad API tokens). A session cookie or an
-// API token counts for nothing here.
+// Identity, or answers 401 invalid_display. A secret that matches always
+// gets through; only failures draw on the per-client budget (shared with
+// bad API tokens), and once it's spent they get 429. So someone guessing
+// behind the same address never locks a real display out. A session
+// cookie or an API token counts for nothing here.
 func (s *Service) RequireDisplay(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		presented, ok := DisplayCredential(r)
@@ -402,59 +497,76 @@ func (s *Service) RequireDisplay(next http.Handler) http.Handler {
 			httpx.Say(w, http.StatusUnauthorized, "invalid_display", msg.New("displays.signed_out"))
 			return
 		}
-		id, ok := s.checkDisplay(w, r, presented)
-		if !ok {
+		ip := s.proxies.ClientIP(r)
+		id, err := s.AuthenticateDisplay(r.Context(), presented, ip.String())
+		if err == nil {
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)))
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, id)))
+		if !errors.Is(err, ErrBadDisplay) && !errors.Is(err, ErrDisplayRevoked) {
+			s.log.Error("display lookup failed", "err", err)
+			httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
+			return
+		}
+		if s.spendFailure(w, ip) {
+			return
+		}
+		s.clearDisplayCookie(w, r)
+		if errors.Is(err, ErrDisplayRevoked) {
+			httpx.Say(w, http.StatusUnauthorized, "invalid_display", msg.New("displays.revoked"))
+			return
+		}
+		httpx.Say(w, http.StatusUnauthorized, "invalid_display", msg.New("displays.signed_out"))
 	})
 }
 
-// checkDisplay authenticates presented for r, answering the refusal itself.
-func (s *Service) checkDisplay(w http.ResponseWriter, r *http.Request, presented string) (Identity, bool) {
-	ip := s.proxies.ClientIP(r)
+// spendFailure draws a failure from ip's budget, answering 429 (and
+// reporting true) once it's spent.
+func (s *Service) spendFailure(w http.ResponseWriter, ip netip.Addr) bool {
 	key := "token|" + httpx.ClientKey(ip)
 	if wait := s.tokenFailures.Wait(key); wait > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 		httpx.Say(w, http.StatusTooManyRequests, "rate_limited", msg.New("auth.token_rate_limited"))
-		return Identity{}, false
+		return true
 	}
-	id, err := s.AuthenticateDisplay(r.Context(), presented, ip.String())
-	switch {
-	case err == nil:
-		return id, true
-	case errors.Is(err, ErrDisplayRevoked):
-		s.tokenFailures.Allow(key)
-		s.clearDisplayCookie(w, r)
-		httpx.Say(w, http.StatusUnauthorized, "invalid_display", msg.New("displays.revoked"))
-	case errors.Is(err, ErrBadDisplay):
-		s.tokenFailures.Allow(key)
-		s.clearDisplayCookie(w, r)
-		httpx.Say(w, http.StatusUnauthorized, "invalid_display", msg.New("displays.signed_out"))
-	default:
-		s.log.Error("display lookup failed", "err", err)
-		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
-	}
-	return Identity{}, false
+	s.tokenFailures.Allow(key)
+	return false
 }
 
-// HandleDisplayClaim serves POST /api/display/claim {"token"}: a device
-// presents the secret from its link once, and gets the display cookie
-// (204). The secret travels in the body, never in a URL.
-func (s *Service) HandleDisplayClaim(w http.ResponseWriter, r *http.Request) {
+// HandleDisplayClaim answers POST /api/display/claim {"token"}: a device
+// presents the claim code from its link, and gets the display's new device
+// secret in its cookie (204). The code travels in the body, never in a
+// URL. It returns the display's identity when the claim went through, for
+// the caller to audit; ok false means it answered a refusal.
+func (s *Service) HandleDisplayClaim(w http.ResponseWriter, r *http.Request) (Identity, bool) {
 	var req struct {
 		Token string `json:"token"`
 	}
 	if !httpx.DecodeJSON(w, r, &req) {
-		return
+		return Identity{}, false
 	}
-	req.Token = strings.TrimSpace(req.Token)
-	if _, ok := s.checkDisplay(w, r, req.Token); !ok {
-		return
+	ip := s.proxies.ClientIP(r)
+	key := "token|" + httpx.ClientKey(ip)
+	if wait := s.tokenFailures.Wait(key); wait > 0 {
+		// A claim is rare: guessing codes is what the budget is for.
+		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+		httpx.Say(w, http.StatusTooManyRequests, "rate_limited", msg.New("auth.token_rate_limited"))
+		return Identity{}, false
+	}
+	id, secret, err := s.ClaimDisplay(r.Context(), strings.TrimSpace(req.Token), ip.String())
+	switch {
+	case errors.Is(err, ErrBadClaim):
+		s.tokenFailures.Allow(key)
+		httpx.Say(w, http.StatusUnauthorized, "invalid_display", msg.New("displays.link_used"))
+		return Identity{}, false
+	case err != nil:
+		s.log.Error("claiming a display failed", "err", err)
+		httpx.Say(w, http.StatusInternalServerError, "internal", msg.New("hub.internal_error"))
+		return Identity{}, false
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     DisplayCookie,
-		Value:    req.Token,
+		Value:    secret,
 		Path:     DisplayPath,
 		MaxAge:   int(displayCookieAge / time.Second),
 		Expires:  s.now().Add(displayCookieAge),
@@ -463,6 +575,7 @@ func (s *Service) HandleDisplayClaim(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	w.WriteHeader(http.StatusNoContent)
+	return id, true
 }
 
 func (s *Service) clearDisplayCookie(w http.ResponseWriter, r *http.Request) {

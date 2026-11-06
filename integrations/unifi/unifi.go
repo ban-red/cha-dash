@@ -79,7 +79,9 @@ func (Integration) ValidateConfig(cfg integration.Config) []integration.FieldErr
 
 func baseOf(raw string) (*url.URL, error) {
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
+	// https only: the login sends the account's password, and the session
+	// cookie and CSRF token ride every read.
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
 		return nil, errors.New("must be the console's https:// address, without a user name")
 	}
 	u.RawQuery, u.Fragment = "", ""

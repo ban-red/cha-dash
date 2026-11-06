@@ -11,6 +11,7 @@ func init() {
 		"displays.not_found":  "There's no such display.",
 		"displays.signed_out": "This display isn't signed in. Make a new link for it in Settings → Displays.",
 		"displays.revoked":    "This display was removed in Settings → Displays. Make a new link to show a board here again.",
+		"displays.link_used":  "This link was used already or has expired. Make a new link for the display in Settings → Displays.",
 		"displays.only":       "Only a display's own link reaches this.",
 	})
 }

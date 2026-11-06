@@ -25,9 +25,14 @@ async def fetch_summary(session: aiohttp.ClientSession, url: str, token: str, ve
         headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         ssl=None if verify_ssl else False,
         timeout=aiohttp.ClientTimeout(total=10),
+        # A redirect could carry the token somewhere else: the hub never
+        # sends one for the summary, so one is an error.
+        allow_redirects=False,
     ) as resp:
         if resp.status in (401, 403):
             raise ConfigEntryAuthFailed("Cha Dash refused the API token")
+        if 300 <= resp.status < 400:
+            raise SummaryError("Cha Dash's address redirects; give the address it redirects to")
         resp.raise_for_status()
         return parse(await resp.json())
 

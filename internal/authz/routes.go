@@ -199,6 +199,7 @@ var Routes = []Route{
 	{Pattern: "GET /api/auth/oidc/start", Access: Public},
 	{Pattern: "GET /api/auth/oidc/callback", Access: Public},
 	// The spec format's JSON Schema: the same for every hub of a version.
+	{Pattern: "GET /api/specs/schema/v1beta1.json", Access: Public},
 	{Pattern: "GET /api/specs/schema/v1alpha1.json", Access: Public},
 	{Pattern: "GET /api/config/schema.json", Access: Public},
 	// The API's OpenAPI document (internal/apidoc): generated from this
@@ -246,6 +247,7 @@ var Routes = []Route{
 	{Pattern: "POST /api/displays", Access: Admin},
 	{Pattern: "PATCH /api/displays/{id}", Access: Admin},
 	{Pattern: "DELETE /api/displays/{id}", Access: Admin},
+	{Pattern: "POST /api/displays/{id}/link", Access: Admin},
 	{Pattern: "POST /api/display/claim", Access: Public},
 	{Pattern: "GET /api/display", Access: DisplayToken},
 	{Pattern: "GET /api/display/ws", Access: DisplayToken},

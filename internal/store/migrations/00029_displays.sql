@@ -4,7 +4,8 @@
 -- A display is a wall tablet or a TV showing one board, with nobody at it.
 -- It isn't an API token: a token acts as its user with that user's role,
 -- and a display has neither. Its secret, cdd_<id>_<secret>, reads one
--- board and nothing else; only its SHA-256 is stored. Revoked displays
+-- board's incidents and backups and what household sees of the rest
+-- (internal/server/displays.go); only its SHA-256 is stored. Revoked displays
 -- stay, so audit records resolve.
 
 -- +goose Up

@@ -10,7 +10,7 @@
  *   GET  /api/display/icons/{id}      → tile icons
  *
  * The link Settings → Displays shows carries the secret in the fragment
- * (`/display/<board>#cdd_…`): it's taken and dropped from the address bar at
+ * (`/display/<board>#cdc_…`, a claim code good once): it's taken and dropped from the address bar at
  * once (lib/router.ts → takeDisplaySecret), claimed, and never kept here.
  * A 401 from the hub means the display isn't signed in, or was revoked: the
  * page says so, calmly, and how to fix it.

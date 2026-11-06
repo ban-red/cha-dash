@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"dash.cha.sh/internal/audit"
+	"dash.cha.sh/internal/auth"
 )
 
 // Recorder appends changes made outside the action engine (users, settings,
@@ -61,6 +62,18 @@ func (c *Recorder) RefuseAnonymous(r *http.Request, ip, action, target string, p
 
 // KindAnonymous is the audit actor of a request with no identity.
 const KindAnonymous = "anonymous"
+
+// KindDisplay is the audit actor of a display (wave 33): ID and name are
+// the display's.
+const KindDisplay = "display"
+
+// ChangeByDisplay records a change a display made (claiming its link).
+func (c *Recorder) ChangeByDisplay(r *http.Request, id auth.Identity, action, target string, params any, tier Tier) {
+	if c == nil || c.Log == nil || id.Display == nil {
+		return
+	}
+	c.recordAs(r, audit.Actor{Kind: KindDisplay, ID: id.Display.ID, Name: id.Display.Name, Via: "display", IP: id.IP}, action, target, params, tier, nil)
+}
 
 func (c *Recorder) record(r *http.Request, action, target string, params any, tier Tier, refusal *audit.Error) {
 	a, _ := ActorFrom(r)

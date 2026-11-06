@@ -5,14 +5,16 @@ A display is a board on a wall tablet or a TV, with nobody at it. It shows one b
 ## Make a display
 
 1. In **Settings → Displays**, choose **New display**. Give it a name ("Hall tablet") and choose the board it shows. You can also set quiet hours (below).
-2. Cha Dash shows the display's link **once**: `https://<your hub>/display/<board>#cdd_…`. Open it on the device. Copy it now: you can't see it again, only make a new one.
-3. The device keeps a cookie for the display, and the secret leaves the address bar. The cookie lasts about 13 months, it's sent only to the display's own routes, and Cha Dash renews nothing for it.
+2. Cha Dash shows the display's link: `https://<your hub>/display/<board>#cdc_…`. Open it on the device within a day. The link works **once**: the first device to open it becomes the display, and nobody can use it after that.
+3. The device swaps the link for a secret of its own, kept in a cookie, and the link leaves the address bar. The cookie lasts about 13 months, it's sent only to the display's own routes, and Cha Dash renews nothing for it.
 
-Only admins and the owner can make displays. **Remove** in Settings → Displays signs the device out at once. Do it if a tablet goes missing.
+If the link expired, was opened on the wrong device, or the device lost its cookie, choose **New link** on the display in Settings → Displays. A new link signs out whichever device had the display.
+
+Only admins and the owner can make displays. **Remove** in Settings → Displays signs the device out at once. Do it if a tablet goes missing. Deleting a board removes its displays too.
 
 ## What a display can and can't do
 
-A display reads its one board and what household reads for it:
+A display reads one board's incidents and backups, and household's view of the rest:
 
 - the incidents and backup coverage that board shows, as household sees them (no incident notes, no security findings). A board with the **Incidents** widget, or one never saved, shows household's whole Inbox view;
 - the Home Graph and metrics as household sees them, which tiles need to draw: names, states and health, without IP or MAC addresses or chadash-node's details.
@@ -69,4 +71,4 @@ Plug the device in. A display draws little, but it never sleeps.
 
 ## If a display says it isn't signed in
 
-The display was removed, or its cookie was cleared. Make a new display for it in Settings → Displays and open the new link. Its old link no longer works.
+The display was removed, its board was deleted, someone made a new link for it, or its cookie was cleared. Choose **New link** on the display in Settings → Displays (or make a new display if it was removed) and open that link on the device.

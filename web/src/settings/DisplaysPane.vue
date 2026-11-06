@@ -21,7 +21,7 @@
 import SettingsHelp from './SettingsHelp.vue';
 import { computed, nextTick, onMounted, reactive, ref, useId } from 'vue';
 import Glyph from '../ui/marks/Glyph.vue';
-import { ago, absolute } from '../lib/format';
+import { ago, absolute, hhmm } from '../lib/format';
 import { api } from '../lib/api';
 import { hubWords } from '../lib/actions';
 import { useUi } from '../stores/ui';
@@ -54,6 +54,8 @@ export interface HubDisplay {
   created_by: string;
   last_seen_at: number | null;
   last_seen_ip: string | null;
+  /** When its unclaimed link stops working; null once a screen claimed it. */
+  link_expires_at?: number | null;
 }
 
 interface BoardRef {
@@ -159,6 +161,22 @@ async function copy(): Promise<void> {
   if (!fresh.value) return;
   copied.value = await copyText(fresh.value.link);
   if (!copied.value) ui.toast('Couldn’t copy. Select the link and copy it yourself.', 'error');
+}
+
+/** A new link for a display: shown once, like a new display's; the screen on the old link keeps working until it's claimed. */
+async function newLink(d: HubDisplay): Promise<void> {
+  busy.value = d.id;
+  rowError[d.id] = '';
+  try {
+    const res = await api<{ display: HubDisplay; secret: string }>(`/api/displays/${encodeURIComponent(d.id)}/link`, { method: 'POST' });
+    if (!res) return;
+    displays.value = displays.value.map((x) => (x.id === d.id ? { ...x, ...res.display } : x));
+    fresh.value = { display: res.display, link: `${location.origin}/display/${encodeURIComponent(res.display.board.id)}#${res.secret}` };
+  } catch (err) {
+    rowError[d.id] = hubWords(err, 'Couldn’t make a new link.');
+  } finally {
+    busy.value = '';
+  }
 }
 
 function done(): void {
@@ -276,7 +294,7 @@ onMounted(load);
     <div v-if="fresh" class="dpl-fresh st-note attn" role="region" :aria-labelledby="`${uid}-fresh-h`">
       <div class="dpl-fresh-body">
         <h4 :id="`${uid}-fresh-h`">Open this link on “{{ fresh.display.name }}”</h4>
-        <p>This is the only time Cha Dash shows it. The screen signs in when it opens the link. A lost link can’t be shown again: revoke the display and make a new one.</p>
+        <p>This is the only time Cha Dash shows it. It works once, within a day: the screen signs in when it opens the link, and then the link is used up. Lost it? Make a new link from the display’s row.</p>
         <div class="secret-row">
           <label :for="`${uid}-link`" class="sr">The display’s link</label>
           <input :id="`${uid}-link`" class="st-mono" type="text" readonly :value="fresh.link" spellcheck="false" autocomplete="off" @focus="($event.target as HTMLInputElement).select()" />
@@ -332,11 +350,13 @@ onMounted(load);
             <span class="m">
               made <span :title="absolute(d.created_at)">{{ ago(d.created_at, now) }}</span> by {{ d.created_by }} ·
               <template v-if="d.last_seen_at">last seen <span :title="absolute(d.last_seen_at)">{{ ago(d.last_seen_at, now) }}</span><template v-if="d.last_seen_ip"> from {{ d.last_seen_ip }}</template></template>
+              <template v-else-if="d.link_expires_at">link unused, works until <span :title="absolute(d.link_expires_at)">{{ hhmm(d.link_expires_at) }}</span></template>
               <template v-else>never opened</template>
             </span>
             <span v-if="rowError[d.id]" class="err" role="alert">{{ rowError[d.id] }}</span>
           </span>
           <span v-if="revoking !== d.id && editing !== d.id" class="end">
+            <UiButton variant="ghost" size="sm" :aria-label="`New link for ${d.name}`" :aria-busy="busy === d.id || undefined" @click="newLink(d)">New link</UiButton>
             <UiButton variant="ghost" size="sm" :id="`${uid}-eb-${d.id}`" :aria-label="`Edit ${d.name}`" @click="startEdit(d)">Edit</UiButton>
             <UiButton variant="ghost" size="sm" :id="`${uid}-rvb-${d.id}`" :aria-label="`Revoke ${d.name}`" @click="askRevoke(d)">Revoke</UiButton>
           </span>

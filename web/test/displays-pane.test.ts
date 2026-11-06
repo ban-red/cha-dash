@@ -16,7 +16,7 @@ import { fakeFetch, type Handler } from './fake-fetch';
 import { docs, withIncidents } from './fixtures';
 import { harness } from './harness';
 
-const SECRET = 'cdd_aaaaaaaaaaaaaaaaaaaaaaaaaa_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+const SECRET = 'cdc_aaaaaaaaaaaaaaaaaaaaaaaaaa_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const T = Date.parse('2026-10-03T14:00:00Z');
 
 const DISPLAYS = [
@@ -74,7 +74,7 @@ describe('Settings → Displays', () => {
     expect(rows[0]!.text()).toContain('from 192.0.2.40');
     expect(rows[1]!.text()).toContain('no quiet hours');
     expect(rows[1]!.text()).toContain('never opened');
-    expect(w.text()).not.toContain('cdd_');
+    expect(w.text()).not.toContain('cdc_');
     expect(await axeViolations()).toEqual([]);
   });
 
@@ -184,6 +184,25 @@ describe('Settings → Displays', () => {
     expect(f.last('DELETE', '/api/displays/dsp_hall')).toBeDefined();
     expect(w.findAll('.dpl-row')).toHaveLength(1);
     expect(h.ui.state.toasts.at(-1)?.text).toContain('Revoked “Hall tablet”');
+  });
+
+  it('makes a new link for a display, shown once, and says when an unused one lapses', async () => {
+    const f = hub({
+      'POST /api/displays/dsp_tv/link': { status: 200, body: { display: { ...DISPLAYS[1], link_expires_at: T + 86_400_000 }, secret: SECRET } },
+    });
+    const h = harness(docs(withIncidents));
+    const w = h.mountIn(DisplaysPane);
+    await settle();
+    await w.find('button[aria-label="New link for Kitchen TV"]').trigger('click');
+    await settle();
+    expect(f.last('POST', '/api/displays/dsp_tv/link')).toBeDefined();
+    expect(w.find<HTMLInputElement>('.dpl-fresh input').element.value).toBe(`${location.origin}/display/brd_media#${SECRET}`);
+    expect(w.find('.dpl-fresh').text()).toContain('works once, within a day');
+    expect(await axeViolations()).toEqual([]);
+    await button(w, 'Done').trigger('click');
+    await settle();
+    expect(w.text()).not.toContain(SECRET);
+    expect(w.text()).toContain('link unused, works until 14:00');
   });
 
   it('is admin and owner only', () => {

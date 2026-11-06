@@ -107,6 +107,8 @@ var provenElsewhere = map[string]string{
 	"POST /api/displays":                               "TestDisplays",
 	"PATCH /api/displays/{id}":                         "TestDisplays",
 	"DELETE /api/displays/{id}":                        "TestDisplays",
+	"POST /api/displays/{id}/link":                     "TestDisplays",
+	"POST /api/display/claim":                          "TestDisplays",
 	"POST /api/auth/passkeys/register/finish":          "auth.TestAuthEvents (the event) and TestAuthEventsAudited (its record)",
 	"PATCH /api/auth/passkeys/{id}":                    "auth.TestAuthEvents and TestAuthEventsAudited",
 	"DELETE /api/auth/passkeys/{id}":                   "auth.TestAuthEvents and TestAuthEventsAudited",

@@ -93,6 +93,8 @@ var Audited = map[string]string{
 	"POST /api/displays":                               "displays.create",
 	"PATCH /api/displays/{id}":                         "displays.update",
 	"DELETE /api/displays/{id}":                        "displays.revoke",
+	"POST /api/displays/{id}/link":                     "displays.link",
+	"POST /api/display/claim":                          "displays.claim",
 	"POST /api/approvals/{id}/approve":                 "approval.approve",
 	"POST /api/approvals/{id}/deny":                    "approval.deny",
 	"PUT /api/notify/digest":                           "settings.notify.digest.update",
@@ -114,7 +116,6 @@ var Audited = map[string]string{
 
 // AuditExempt maps each unsafe route that records nothing to why.
 var AuditExempt = map[string]string{
-	"POST /api/display/claim":                "A device presents its display's secret and gets the display cookie; nothing changes. Bad secrets are rate-limited.",
 	"POST /api/setup":                        "First run: creates the owner before anyone can read the log; the hub logs it.",
 	"POST /api/auth/login":                   "Signing in changes no setting; the log would fill with sign-ins. Failures are logged and rate-limited.",
 	"POST /api/auth/logout":                  "Ends the caller's own session (and closes its sockets); nothing else changes.",

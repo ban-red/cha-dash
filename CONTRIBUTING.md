@@ -186,8 +186,10 @@ The node image gets the same tags as the hub.
 **Attestations.** The build and the attestations run in a reusable workflow, so the attestations are signed with `release-build.yml`'s identity rather than `release.yml`'s, and the build runs in jobs the caller can't step into. That is SLSA Build Level 3. Both images, every binary, `install.sh` and `SHA256SUMS` are attested. The release notes show how to check them:
 
 ```sh
-gh attestation verify oci://ghcr.io/ban-red/chadash:0.5.0 --repo ban-red/cha-dash
-gh attestation verify chadash-0.5.0-linux-amd64 --repo ban-red/cha-dash
+gh attestation verify oci://ghcr.io/ban-red/chadash:0.5.0 --repo ban-red/cha-dash \
+  --signer-workflow ban-red/cha-dash/.github/workflows/release-build.yml --source-ref refs/tags/v0.5.0
+gh attestation verify chadash-0.5.0-linux-amd64 --repo ban-red/cha-dash \
+  --signer-workflow ban-red/cha-dash/.github/workflows/release-build.yml --source-ref refs/tags/v0.5.0
 ```
 
 cosign signing stays in `release.yml`, so the `cosign verify` identity in the notes, `install.sh` and the docs doesn't change.

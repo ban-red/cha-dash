@@ -48,7 +48,8 @@ type Service struct {
 //	POST   /api/displays           {name, board, quiet?} → 201 {"display", "secret"}: the secret, once (admin)
 //	PATCH  /api/displays/{id}      {name?, quiet? (null clears)} → 200 {"display"} (admin)
 //	DELETE /api/displays/{id}      → 204, revoked at once; its sockets close (admin)
-//	POST   /api/display/claim      {token} → 204 + the display cookie (the secret is the credential)
+//	POST   /api/displays/{id}/link → 200 {"display", "secret"}: a new link's claim code, once; the device on the old one keeps working until it's claimed (admin)
+//	POST   /api/display/claim      {token} → 204 + the display cookie: the claim code, once, for the device secret
 //	GET    /api/display            → 200 the display, its board, layout, icons and the hub's zone (display)
 //	GET    /api/display/ws         → the display's socket (display)
 //	GET    /api/display/icons/{id} → a tile's icon (display)
@@ -63,7 +64,12 @@ func (s *Service) Register(mux *http.ServeMux, session func(http.Handler) http.H
 	mux.Handle("POST /api/displays", session(http.HandlerFunc(s.create)))
 	mux.Handle("PATCH /api/displays/{id}", session(http.HandlerFunc(s.update)))
 	mux.Handle("DELETE /api/displays/{id}", session(http.HandlerFunc(s.revoke)))
-	mux.HandleFunc("POST /api/display/claim", s.Auth.HandleDisplayClaim)
+	mux.Handle("POST /api/displays/{id}/link", session(http.HandlerFunc(s.link)))
+	mux.HandleFunc("POST /api/display/claim", func(w http.ResponseWriter, r *http.Request) {
+		if id, ok := s.Auth.HandleDisplayClaim(w, r); ok {
+			s.Audit.ChangeByDisplay(r, id, "displays.claim", "display:"+id.Display.ID, nil, authz.T1)
+		}
+	})
 	mux.HandleFunc("GET /api/display", s.read)
 	socket := s.Socket
 	if socket == nil {
@@ -102,6 +108,9 @@ type View struct {
 	CreatedBy  string       `json:"created_by"`
 	LastSeenAt *int64       `json:"last_seen_at"`
 	LastSeenIP *string      `json:"last_seen_ip"`
+	// LinkExpiresAt is when its unclaimed link stops working; null once
+	// claimed.
+	LinkExpiresAt *int64 `json:"link_expires_at"`
 }
 
 func view(d auth.Display) View {
@@ -110,6 +119,10 @@ func view(d auth.Display) View {
 	if d.LastSeenAt != nil {
 		ms := d.LastSeenAt.UnixMilli()
 		v.LastSeenAt = &ms
+	}
+	if d.LinkExpiresAt != nil {
+		ms := d.LinkExpiresAt.UnixMilli()
+		v.LinkExpiresAt = &ms
 	}
 	if d.LastSeenIP != "" {
 		ip := d.LastSeenIP
@@ -227,6 +240,22 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Audit.Change(r, "displays.update", "display:"+d.ID, params, authz.T1, nil)
 	httpx.WriteJSON(w, http.StatusOK, map[string]View{"display": view(d)})
+}
+
+func (s *Service) link(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	d, code, err := s.Auth.NewDisplayLink(r.Context(), id)
+	switch {
+	case errors.Is(err, auth.ErrDisplayNotFound):
+		s.Audit.Refuse(r, "displays.link", "display:"+clip(id), nil, authz.T1, "not_found", msg.New("displays.not_found").Text())
+		httpx.Say(w, http.StatusNotFound, "not_found", msg.New("displays.not_found"))
+		return
+	case err != nil:
+		s.internal(w, "making a display's link failed", err)
+		return
+	}
+	s.Audit.Change(r, "displays.link", "display:"+d.ID, map[string]any{"name": d.Name}, authz.T1, nil)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"display": view(d), "secret": code})
 }
 
 func (s *Service) revoke(w http.ResponseWriter, r *http.Request) {
