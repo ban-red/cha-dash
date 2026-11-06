@@ -98,9 +98,6 @@ jobs:
         # A path under /root or /home passes on a laptop and fails here, where
         # it exists but can't be read (scripts/ci/test-paths.py).
         run: python3 scripts/ci/test-paths.py
-      - name: The Home Assistant integration's parser
-        # contrib/homeassistant: the summary parser, with the standard library only.
-        run: python3 -I -m unittest discover -s contrib/homeassistant/tests
       - name: go vet -tags engine
         # The engine tests compile here; they run in the Engine job.
         run: go vet -tags engine ./...

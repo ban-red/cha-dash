@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **The Home Assistant integration has a repository of its own,** [ban-red/ha-chadash](https://github.com/ban-red/ha-chadash), so HACS installs it and offers each new release: add it in HACS as a custom repository. A copy from `contrib/homeassistant` keeps working; replace it with the HACS install to get updates.
+
 ## [0.5.0] - 2026-11-06
 
 The first release of v0.5, Glance: Cha Dash goes on the wall. A display is a board for a wall tablet, a TV or an e-ink screen, with no menus and no sign-in. It stays dim while nothing is wrong, wakes when an incident needs you, and can't act. Every widget now has four levels of detail, from a desk down to e-ink and print. Stacks reach parity with a stack manager: stop, start, update, private registries and live logs. Eleven new sources join: TrueNAS, UPSes through NUT, UniFi, Tailscale, Cloudflare Tunnel, Technitium, and five backup tools. Home Assistant can read Cha Dash's health as entities. Specs move to the `chadash/v1beta1` format, and releases are built to SLSA Build Level 3.
