@@ -37,7 +37,7 @@ import WidgetHost from '../widgets/WidgetHost.vue';
 import Glyph from '../ui/marks/Glyph.vue';
 import UiButton from '../ui/Button.vue';
 import { ApiError, api } from '../lib/api';
-import { calm, changeKey, type QuietHours } from '../lib/display';
+import { calm, changeKey, tvZoom, type QuietHours } from '../lib/display';
 import { setDisplayTimeZone } from '../lib/format';
 import { takeDisplaySecret } from '../lib/router';
 import type { Level } from '../lib/level';
@@ -204,7 +204,15 @@ const style = computed<DisplayStyle>(() => info.value?.display.style ?? 'wall');
 const level = computed<Level>(() => (style.value === 'ink' ? 'ink' : 'simplified'));
 /** E-ink has no backlight and no burn-in: it's never dimmed, tinted or moved. */
 const shown$ = computed(() => (style.value === 'ink' ? { ...state.value, brightness: 'full' as const, tint: false, shift: { x: 0, y: 0 } } : state.value));
-const shift = computed(() => ({ transform: `translate(${shown$.value.shift.x}px, ${shown$.value.shift.y}px)` }));
+// A TV's zoom follows the width its browser reports (lib/display.ts).
+const width = ref(typeof window === 'undefined' ? 0 : window.innerWidth);
+const onResize = (): void => {
+  width.value = window.innerWidth;
+};
+const shift = computed(() => ({
+  transform: `translate(${shown$.value.shift.x}px, ${shown$.value.shift.y}px)`,
+  '--tv-zoom': String(tvZoom(width.value)),
+}));
 
 // ── TV: arrow keys move between tiles ──
 const content = ref<HTMLElement | null>(null);
@@ -248,11 +256,13 @@ let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
   timer = setInterval(() => live.tick(), tickMs);
   window.addEventListener('keydown', onKey);
+  window.addEventListener('resize', onResize);
   void start();
 });
 onBeforeUnmount(() => {
   clearInterval(timer);
   window.removeEventListener('keydown', onKey);
+  window.removeEventListener('resize', onResize);
   live.stop();
 });
 </script>
@@ -391,10 +401,11 @@ onBeforeUnmount(() => {
   color: var(--text-2);
   background: var(--bg);
 }
-/* TV: read from 3 m. The board is drawn larger, and the focused tile shows
-   what the simplified level leaves out, so nothing needs a hover. */
+/* TV: read from 3 m. The board is drawn larger, by the screen's width
+   (tvZoom), and the focused tile shows what the simplified level leaves
+   out, so nothing needs a hover. */
 .dsp[data-style='tv'] .dsp-content {
-  zoom: 1.5;
+  zoom: var(--tv-zoom, 1.5);
 }
 .dsp[data-style='tv'] .cell:focus {
   outline: none;

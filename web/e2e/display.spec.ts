@@ -94,3 +94,30 @@ test('a display shows its board with no chrome, and its credential opens nothing
   expect(errors).toEqual([]);
   await screen.close();
 });
+
+// A TV's board is drawn larger by the width its browser reports (plan 18,
+// "TV zoom from the screen"): 1.5x on a 1080p TV, 2.5x on a 4K one.
+test('a TV zooms by the screen it is on', async ({ page, browser }) => {
+  let boards = ((await (await page.request.get('/api/boards')).json()) as { boards: { id: string }[] }).boards;
+  if (!boards.length) {
+    await page.goto('/');
+    await expect(page.locator('.tile').first()).toBeVisible();
+    boards = ((await (await page.request.get('/api/boards')).json()) as { boards: { id: string }[] }).boards;
+  }
+  const board = boards[0]!;
+  const made = await page.request.post('/api/displays', { headers: json, data: { name: 'e2e living room TV', board: board.id, quiet: null, style: 'tv' } });
+  expect(made.status(), await made.text()).toBe(201);
+  const { display, secret } = (await made.json()) as { display: { id: string }; secret: string };
+
+  const screen = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: { width: 1920, height: 1080 } });
+  const tab = await screen.newPage();
+  await tab.goto(`/display/${board.id}#${secret}`);
+  await expect(tab.locator('main.dsp[data-style="tv"] .tile').first()).toBeVisible();
+  const zoom = () => tab.locator('.dsp-content').evaluate((el) => getComputedStyle(el).zoom);
+  expect(await zoom()).toBe('1.5');
+  await tab.setViewportSize({ width: 3840, height: 2160 });
+  await expect.poll(zoom).toBe('2.5');
+
+  expect((await page.request.delete(`/api/displays/${display.id}`)).status()).toBe(204);
+  await screen.close();
+});

@@ -4,7 +4,7 @@
  * case runs on a fixed clock; no timers.
  */
 import { describe, expect, it } from 'vitest';
-import { calm, changeKey, hubMinutes, inQuiet, isNight, shiftAt, staleWords, type CalmInput } from '../src/lib/display';
+import { calm, changeKey, hubMinutes, inQuiet, isNight, shiftAt, staleWords, tvZoom, type CalmInput } from '../src/lib/display';
 import type { GraphDoc, Incident } from '../src/model/types';
 
 const MIN = 60_000;
@@ -231,5 +231,21 @@ describe('what counts as a change', () => {
     expect(changeKey(graph, { now: '', incidents: { x: incident('x', { acknowledged: { by: 'sam', at: 't' } }) } })).not.toBe(k);
     expect(changeKey(graph, { now: '', incidents: { x: incident('x', { status: 'resolved' }) } })).not.toBe(k);
     expect(changeKey(undefined, undefined)).toBe('');
+  });
+});
+
+describe('TV zoom', () => {
+  it('follows the width the browser reports, over 1280 CSS pixels', () => {
+    expect(tvZoom(1920)).toBe(1.5); // a 1080p TV
+    expect(tvZoom(2560)).toBe(2);
+  });
+  it('is clamped between 1x and 2.5x', () => {
+    expect(tvZoom(3840)).toBe(2.5); // a 4K TV reporting its full width
+    expect(tvZoom(7680)).toBe(2.5);
+    expect(tvZoom(960)).toBe(1);
+  });
+  it('is 1.5x when the width is unknown', () => {
+    expect(tvZoom(0)).toBe(1.5);
+    expect(tvZoom(Number.NaN)).toBe(1.5);
   });
 });

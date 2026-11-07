@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A TV display's zoom follows its screen.** Every TV display used to be drawn at 1.5×. The zoom now follows the width the TV's browser reports, between 1× and 2.5×: 1.5× on a 1080p TV, 2.5× on a 4K one.
 - **Removing a stack keeps its `.env`.** Git doesn't hold a stack's env files, so restoring a removed stack used to bring back its compose file without them. Remove now moves `.env` and any `*.env` aside on the node for 30 days, and restoring the stack puts them back. They never leave the node.
 - **A stack update that rolls back leaves the compose file alone.** The rollback used to pin the file to the old digests, so the update check then said "pinned by digest" until someone deployed the file unpinned. Now the services go back to the images they ran without the file changing, and the next check asks about their tags again.
 - **A stack update that rolls back isn't offered again.** Update all already skipped an image a rollout had rolled back from; a stack's Update run on its own now records the same, for each container it tried to move, until the registry has a newer image or you choose Try again.

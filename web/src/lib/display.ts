@@ -142,6 +142,16 @@ export function shiftAt(now: number): { x: number; y: number } {
   return SPOTS[((step % SPOTS.length) + SPOTS.length) % SPOTS.length]!;
 }
 
+/**
+ * A TV's zoom: the width its browser reports over 1280 CSS pixels, between
+ * 1x and 2.5x. A 1080p TV whose browser reports 1920 gets 1.5x, a 4K one
+ * that reports 3840 gets 2.5x. An unknown width gets 1.5x.
+ */
+export function tvZoom(width: number): number {
+  if (!Number.isFinite(width) || width <= 0) return 1.5;
+  return Math.min(2.5, Math.max(1, width / 1280));
+}
+
 /** "Data from 12 minutes ago": plain words for the age of the data. */
 export function staleWords(ageMs: number): string {
   const m = Math.floor(ageMs / MIN);

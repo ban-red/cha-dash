@@ -352,6 +352,27 @@ describe('the display styles', () => {
     expect(w.find('main.dsp').attributes('data-style')).toBe('tv');
     w.unmount();
   });
+
+  it('a TV zooms by the width its browser reports, and follows a resize', async () => {
+    at('/display/brd_home');
+    hub({ 'GET /api/display': { status: 200, body: displayInfo({ display: { id: 'dsp_tv', name: 'Living room', quiet: null, style: 'tv' } }) } });
+    const before = window.innerWidth;
+    const resize = (width: number): void => {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+      window.dispatchEvent(new Event('resize'));
+    };
+    resize(1920);
+    const w = await mountDisplay();
+    connect();
+    await settle();
+    const zoom = (): string => w.find<HTMLElement>('.dsp-content').element.style.getPropertyValue('--tv-zoom');
+    expect(zoom()).toBe('1.5');
+    resize(3840);
+    await nextTick();
+    expect(zoom()).toBe('2.5');
+    w.unmount();
+    resize(before);
+  });
 });
 
 describe('nothing opens on a display', () => {
