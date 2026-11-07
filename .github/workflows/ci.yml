@@ -284,10 +284,19 @@ jobs:
   # browser (web/e2e): first run, the front page on desktop, a Pixel, an
   # iPhone and an iPad (WebKit), axe in every theme, the command bar, the
   # installable app offline, and the safety ladder on the action engine.
+  #
+  # The tests run in Playwright's own image, at the version web/package.json
+  # pins, so the browsers and their system libraries are already there:
+  # installing them with apt depended on Ubuntu's mirror, which once stalled
+  # the job past its timeout before a test ran. The build stays on the
+  # runner (the image has no unzip for setup-bun), and the runner's bun is
+  # mounted in. Renovate moves the image with @playwright/test.
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -304,11 +313,14 @@ jobs:
         run: |
           bun run build
           CGO_ENABLED=0 go build -tags webui -trimpath -o chadash ./cmd/chadash
-      - name: Install Chromium and WebKit for Playwright
-        working-directory: web
-        run: bunx playwright install --with-deps chromium webkit
-      - name: End-to-end tests
-        run: bun run e2e
+      - name: Pull Playwright's image
+        run: docker pull "$PLAYWRIGHT_IMAGE"
+      - name: End-to-end tests, in Playwright's image
+        run: |
+          docker run --rm --ipc=host --user "$(id -u):$(id -g)" \
+            -v "$PWD:$PWD" -w "$PWD" -v "$(command -v bun):/usr/local/bin/bun:ro" \
+            -e CI -e GITHUB_ACTIONS -e HOME=/tmp \
+            "$PLAYWRIGHT_IMAGE" bun run e2e
       - name: Keep the report and traces
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

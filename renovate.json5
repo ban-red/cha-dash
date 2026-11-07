@@ -20,6 +20,12 @@
   postUpdateOptions: ['gomodTidy'],
   packageRules: [
     {
+      // The End-to-end job's image carries the browsers @playwright/test
+      // drives, so the two move together.
+      matchDepNames: ['@playwright/test', 'mcr.microsoft.com/playwright'],
+      groupName: 'Playwright',
+    },
+    {
       // Our own modules, linked with replace directives (the spikes share
       // spikes/traefik's labkit). They aren't published, so a lookup fails.
       matchManagers: ['gomod'],
@@ -70,6 +76,14 @@
     },
   ],
   customManagers: [
+    {
+      customType: 'regex',
+      description: "Playwright's image for the End-to-end job (PLAYWRIGHT_IMAGE), pinned by digest",
+      managerFilePatterns: ['/^\\.github/workflows/ci\\.yml$/'],
+      matchStrings: ['PLAYWRIGHT_IMAGE: (?<depName>mcr\\.microsoft\\.com/playwright):(?<currentValue>v[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})'],
+      datasourceTemplate: 'docker',
+      versioningTemplate: 'regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-noble$',
+    },
     {
       customType: 'regex',
       description: 'Bun in CI (BUN_VERSION), kept in step with the oven/bun image',
