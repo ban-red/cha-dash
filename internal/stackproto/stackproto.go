@@ -203,6 +203,10 @@ type Summary struct {
 	Protected bool    `json:"protected"`
 	Drift     bool    `json:"drift"`
 	Head      *Commit `json:"head"`
+	// UpFrom is the compose file its containers were last brought up
+	// from, when that isn't this stack's own: another tool deployed it
+	// last, on this host (two writers). Empty when Cha Dash did.
+	UpFrom string `json:"up_from,omitempty"`
 }
 
 // Commit is one commit in a stack's history.
@@ -497,6 +501,10 @@ type LifecycleResult struct {
 	// deletes files outside the stacks root). Empty for a stack in the
 	// root, whose folder is deleted.
 	FilesKept string `json:"files_kept,omitempty"`
+	// EnvKept is stack.remove on a stack in the root: the env files (.env,
+	// *.env) git doesn't hold, moved aside on the node for 30 days so that
+	// restoring the stack puts them back.
+	EnvKept []string `json:"env_kept,omitempty"`
 }
 
 // ── stack.update.check and stack.update ─────────────────────────────────

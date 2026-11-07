@@ -85,7 +85,7 @@ func (m *Module) updateCheck(ctx context.Context, req stackproto.UpdateCheckRequ
 	for _, name := range sortedKeys(p.Services) {
 		svc := p.Services[name]
 		mv := stackproto.ImageMove{Service: name, Image: svc.Image, Current: digestPart(refs[name])}
-		c, running := runs[name]
+		_, running := runs[name]
 		switch {
 		case svc.Image == "":
 			mv.Reason = "It's built from the file, so no registry has it."
@@ -93,8 +93,6 @@ func (m *Module) updateCheck(ctx context.Context, req stackproto.UpdateCheckRequ
 			mv.Reason = "It's pinned by digest in the file, so there's no tag to move."
 		case !running:
 			mv.Reason = "It has no container, so nothing runs to compare with."
-		case held(c, svc):
-			mv.Reason = "It's held on the image it runs."
 		case mv.Current == "":
 			mv.Reason = "It was built or loaded on this host, so no registry has it."
 		default:

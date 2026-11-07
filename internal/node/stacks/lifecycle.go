@@ -342,6 +342,19 @@ func (m *Module) remove(ctx context.Context, req stackproto.RemoveRequest, em em
 				c.drops = append(c.drops, p)
 			}
 		}
+		head, err := m.headOf(s)
+		if err != nil {
+			return res, err
+		}
+		kept, err := m.keepEnv(s.name, s.dir, head)
+		if err != nil {
+			return res, fmt.Errorf("%s is down, but keeping its env files failed, so it wasn't removed: %w", s.name, err)
+		}
+		if len(kept) > 0 {
+			em.step("Keep " + strings.Join(kept, ", ") + " on this node for 30 days, for a restore")
+			res.EnvKept = kept
+		}
+		m.pruneRemoved()
 		em.step("Delete " + s.dir)
 		if err := os.RemoveAll(s.dir); err != nil {
 			return res, fmt.Errorf("%s is down, but deleting %s failed: %w", s.name, s.dir, err)

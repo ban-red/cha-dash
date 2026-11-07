@@ -209,7 +209,7 @@ func lifecycleSteps(r action.Request) []action.Step {
 		if ref.Location == stackproto.LocationExternal {
 			steps = append(steps, action.Step{Label: "Stop managing it; its files stay at " + ref.Path})
 		} else {
-			steps = append(steps, action.Step{Label: "Delete its folder from the stacks root, with its .env and anything else kept there, as a commit: its history keeps the file, not the .env"})
+			steps = append(steps, action.Step{Label: "Delete its folder from the stacks root, with anything else kept there, as a commit: its history keeps the file. Its .env files git doesn't hold are kept on the node for 30 days, and restoring the stack puts them back"})
 		}
 		return steps
 	}

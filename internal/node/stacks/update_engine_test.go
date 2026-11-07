@@ -150,7 +150,8 @@ func TestEngineStackUpdate(t *testing.T) {
 		t.Errorf("web after the update: %+v", mv)
 	}
 
-	// A broken image on the tag: rolled back to d2, pinned.
+	// A broken image on the tag: rolled back to d2, with the file as it was.
+	file, _ := os.ReadFile(filepath.Join(n.root, stack, "compose.yaml"))
 	e.Push(reg, web, testengine.NeverHealthy, "bad")
 	ids = engineIDs(t, e, stack)
 	res = n.update(stackproto.UpdateRequest{Name: stack})
@@ -162,6 +163,9 @@ func TestEngineStackUpdate(t *testing.T) {
 	}
 	if after := engineIDs(t, e, stack); after["db"] != ids["db"] {
 		t.Error("the rollback recreated db")
+	}
+	if now, _ := os.ReadFile(filepath.Join(n.root, stack, "compose.yaml")); string(now) != string(file) {
+		t.Errorf("the rollback edited the file:\n%s", now)
 	}
 
 	// Back to before the first update: d1.

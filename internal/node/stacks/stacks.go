@@ -507,14 +507,54 @@ func (m *Module) list(ctx context.Context, _ stackproto.ListRequest, _ emitter) 
 		return stackproto.ListResponse{}, err
 	}
 	out := stackproto.ListResponse{Root: m.root, Stacks: []stackproto.Summary{}}
+	files := m.projectFiles(ctx)
 	for _, s := range refs {
 		sum, err := m.summary(ctx, s)
 		if err != nil {
 			return out, err
 		}
+		sum.UpFrom = m.upFrom(s, files[s.name])
 		out.Stacks = append(out.Stacks, sum)
 	}
 	return out, nil
+}
+
+// projectFiles is each compose project's files, as its containers' labels
+// name them; empty when Docker can't say.
+func (m *Module) projectFiles(ctx context.Context) map[string][]string {
+	files := map[string][]string{}
+	if ps, err := m.docker.Projects(ctx); err == nil {
+		for _, p := range ps {
+			files[p.Name] = p.ConfigFiles
+		}
+	}
+	return files
+}
+
+// upFrom is the file a managed stack's containers were last brought up
+// from (Compose's config_files label), when it isn't the stack's own: some
+// other tool deployed it. A file the stack was moved from doesn't count,
+// since nothing recreates the containers on a move.
+func (m *Module) upFrom(s stackRef, files []string) string {
+	for _, f := range files {
+		if f == "" || f == s.path() {
+			continue
+		}
+		if hist, err := m.repo.history(s.name, s.tracked, 50); err == nil {
+			moved := false
+			for _, c := range hist {
+				if trailer(c.Message, trailerMovedFrom) == f {
+					moved = true
+					break
+				}
+			}
+			if moved {
+				continue
+			}
+		}
+		return f
+	}
+	return ""
 }
 
 func (m *Module) summary(ctx context.Context, s stackRef) (stackproto.Summary, error) {
@@ -714,6 +754,7 @@ func (m *Module) get(ctx context.Context, req stackproto.GetRequest, _ emitter) 
 	}
 	out.Summary = sum
 	if s.managed {
+		out.UpFrom = m.upFrom(s, m.projectFiles(ctx)[s.name])
 		out.Content, _, err = m.repo.file(nil, s.tracked)
 		if err != nil {
 			return out, err

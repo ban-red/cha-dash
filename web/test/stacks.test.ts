@@ -399,6 +399,9 @@ describe('Settings → Stacks: one stack', () => {
     expect(twoWriters('media', [{ manager: 'Dockhand', resource: 'a' }, { manager: 'Dockhand', resource: 'b' }])).toBe(
       'Dockhand also manages a stack named media: deploy it from one of them only.',
     );
+    expect(twoWriters('media', [{ manager: 'Dockge', file: '/opt/dockge/stacks/media/compose.yaml' }, { manager: 'Dockhand', resource: 'a' }])).toBe(
+      'Dockge and Dockhand also manage a stack named media: deploy it from one of them only. Its containers were last brought up from /opt/dockge/stacks/media/compose.yaml.',
+    );
   });
 
   it('offers the lifecycle for the stack’s state, and Remove takes its volumes only with the name typed again', async () => {

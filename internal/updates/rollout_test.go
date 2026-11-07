@@ -198,6 +198,40 @@ func TestPlanSnapshots(t *testing.T) {
 	}
 }
 
+// A stack update that rolls back on its own, outside a rollout, remembers
+// the digest of each of its containers that had an update waiting, as a
+// rollout's step does.
+func TestStackUpdateRollbackRejectsItsMembers(t *testing.T) {
+	e := newEnv(t)
+	e.container("sonarr", integration.UpdateAvailable, "sha256:s1")
+	e.container("radarr", integration.UpdateAvailable, "sha256:r1")
+	e.upsert(graph.Resource{ID: "docker:i_a/engine", Kind: "engine", Name: "pvedocker", Attrs: map[string]any{"node": "pvedocker"}})
+	e.upsert(graph.Resource{ID: "docker:i_a/stack/media", Kind: "stack", Name: "media"})
+	e.s.ownedStack = func(_ context.Context, node, project string) bool { return node == "pvedocker" && project == "media" }
+
+	e.s.TaskDone(action.TaskDone{Task: action.Task{Action: StackUpdate, Target: "stack:pvedocker/other", State: action.StateFailed,
+		Error: &action.Error{Code: "rolled_back", Message: "x"}}})
+	e.s.TaskDone(action.TaskDone{Task: action.Task{Action: StackUpdate, Target: "stack:pvedocker/media", State: action.StateFailed,
+		Error: &action.Error{Code: "rolled_back", Message: "web didn't come up healthy."}}})
+	deadline := time.Now().Add(5 * time.Second)
+	for e.list()["sonarr"].State != StateRolledBack || e.list()["radarr"].State != StateRolledBack {
+		if time.Now().After(deadline) {
+			t.Fatalf("a rolled-back stack update wasn't remembered: %+v", e.list())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if r := e.list()["sonarr"]; r.Rejected == nil || r.Rejected.Digest != "sha256:s1" || r.Rejected.Reason != "web didn't come up healthy." {
+		t.Fatalf("sonarr = %+v", r.Rejected)
+	}
+	var n int
+	if err := e.st.Reader().QueryRow(`SELECT COUNT(*) FROM update_rejections`).Scan(&n); err != nil || n != 2 {
+		t.Fatalf("rejections = %d %v: the other stack's rejected nothing", n, err)
+	}
+	if p := e.plan(); len(p.Steps) != 2 || p.Steps[0].State != StepSkipped || p.Steps[1].State != StepSkipped {
+		t.Fatalf("Update all skips them: %+v", p.Steps)
+	}
+}
+
 // fakeUpdates is the updates and snapshots a rollout runs, recorded.
 type fakeUpdates struct {
 	mu    sync.Mutex

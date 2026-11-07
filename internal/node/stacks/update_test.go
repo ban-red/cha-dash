@@ -151,7 +151,8 @@ func TestUpdate(t *testing.T) {
 }
 
 // A new image that fails the gate rolls the stack back to the digest it
-// ran, pinned, as a rollback commit after the update's.
+// ran, as a rollback commit after the update's. The file keeps its tag, so
+// the check asks about it again, and the next good push updates it.
 func TestUpdateRollsBack(t *testing.T) {
 	n := newTestNode(t)
 	n.deploy("media", twoServices, nil)
@@ -164,12 +165,27 @@ func TestUpdateRollsBack(t *testing.T) {
 	if got := n.docker.Running("media")["web"]; got != "nginx:1.27@"+digestPart(oldWeb) {
 		t.Errorf("after the rollback web runs %q", got)
 	}
-	if h := n.history("media"); !strings.HasPrefix(h[0], "rollback Roll back media") || !strings.Contains(h[0], "pinned web") || !strings.HasPrefix(h[1], "update Update media") {
+	if h := n.history("media"); !strings.HasPrefix(h[0], "rollback Roll back media") || !strings.Contains(h[0], "kept web on the image it ran") || !strings.HasPrefix(h[1], "update Update media") {
 		t.Errorf("history: %q", h)
 	}
 	disk, _ := os.ReadFile(filepath.Join(n.root, "media", "compose.yaml"))
-	if !strings.Contains(string(disk), "nginx:1.27@"+digestPart(oldWeb)) || !strings.Contains(string(disk), "postgres:17\n") {
-		t.Errorf("the file after the rollback pins web alone:\n%s", disk)
+	if string(disk) != twoServices {
+		t.Errorf("the file after the rollback is as it was:\n%s", disk)
+	}
+	if s := n.summaryOf("media"); s.Drift || s.Status != stackproto.StatusRunning {
+		t.Errorf("after the rollback: %+v", s)
+	}
+	if mv := n.check("media")["web"]; !mv.Moved || mv.Current != digestPart(oldWeb) {
+		t.Errorf("the check asks about web's tag again: %+v", mv)
+	}
+
+	// A good push: the next update moves web to it.
+	n.docker.Push("nginx:1.27")
+	if res := n.update(stackproto.UpdateRequest{Name: "media"}); res.Outcome != stackproto.OutcomeDeployed {
+		t.Fatalf("the next update: %+v", res)
+	}
+	if got := n.docker.Running("media")["web"]; got != "nginx:1.27" {
+		t.Errorf("after the good update web runs %q, want the tag", got)
 	}
 }
 

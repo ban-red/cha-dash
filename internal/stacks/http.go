@@ -179,7 +179,7 @@ func (s *Service) nodeView(ctx context.Context, n Node) NodeView {
 		v.Root = list.Root
 		for _, st := range list.Stacks {
 			_, has := drafts[st.Name]
-			v.Stacks = append(v.Stacks, StackView{Summary: st, Draft: has, AlsoManagedBy: s.alsoManagedBy(st.Name)})
+			v.Stacks = append(v.Stacks, StackView{Summary: st, Draft: has, AlsoManagedBy: s.alsoManagedBy(st.Name, st.UpFrom)})
 			delete(drafts, st.Name)
 		}
 		if det.Projects != nil {
@@ -195,7 +195,7 @@ func (s *Service) nodeView(ctx context.Context, n Node) NodeView {
 		if v.Root != "" {
 			sum.Path = strings.TrimSuffix(v.Root, "/") + "/" + name
 		}
-		v.Stacks = append(v.Stacks, StackView{Summary: sum, Draft: true, AlsoManagedBy: s.alsoManagedBy(name)})
+		v.Stacks = append(v.Stacks, StackView{Summary: sum, Draft: true, AlsoManagedBy: s.alsoManagedBy(name, "")})
 	}
 	slices.SortFunc(v.Stacks, func(a, b StackView) int { return strings.Compare(a.Name, b.Name) })
 	return v
@@ -265,7 +265,7 @@ func (s *Service) detail(ctx context.Context, node, name string) (*StackDetail, 
 		Node: node, Name: name, Path: st.Path, File: st.File, Location: st.Location, Managed: st.Managed, Exists: exists,
 		Protected: st.Protected, Drift: st.Drift, Status: st.Status, Content: st.Content, Env: st.Env, Meta: st.Meta,
 		Services: st.Containers, History: st.History, Head: st.Head, Draft: draft,
-		AlsoManagedBy: s.alsoManagedBy(name),
+		AlsoManagedBy: s.alsoManagedBy(name, st.UpFrom),
 	}
 	if st.ProtectedReason != "" {
 		d.ProtectedReason = &st.ProtectedReason

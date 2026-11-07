@@ -479,6 +479,7 @@ func (y *Syncer) Run(ctx context.Context) {
 	t := time.NewTicker(y.tick)
 	defer t.Stop()
 	y.poll(ctx)
+	nextWriters := y.s.now()
 	for {
 		select {
 		case <-ctx.Done():
@@ -489,6 +490,11 @@ func (y *Syncer) Run(ctx context.Context) {
 			return
 		case <-t.C:
 			y.poll(ctx)
+			// Two writers, every WritersEvery: a list call per node.
+			if now := y.s.now(); !now.Before(nextWriters) {
+				nextWriters = now.Add(WritersEvery)
+				y.wg.Go(func() { y.s.CheckWriters(ctx) })
+			}
 		}
 	}
 }

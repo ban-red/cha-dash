@@ -124,13 +124,15 @@ func (s *Service) pruneRejections(ctx context.Context, rows []Row) {
 	}
 }
 
-// rollbackActions are the container updates that roll back on their own
-// when the new image fails its health gate (Fail code "rolled_back").
-var rollbackActions = map[string]bool{"docker.container.update": true}
+// rollbackActions are the updates that roll back on their own when the
+// new image fails its health gate (Fail code "rolled_back"): a container's,
+// and an owned stack's, which covers each of its containers.
+var rollbackActions = map[string]bool{"docker.container.update": true, StackUpdate: true}
 
 // TaskDone is told about every task that ends (action.Options.OnTaskDone):
-// a container update that rolled back on its own remembers the digest it
-// rolled back from. A rollout's steps are nested and record their own. It
+// an update that rolled back on its own remembers the digest it rolled
+// back from, for a stack each of its containers' that had an update. A
+// rollout's steps record their own too; recording twice keeps one row. It
 // returns at once.
 func (s *Service) TaskDone(d action.TaskDone) {
 	t := d.Task
@@ -140,8 +142,31 @@ func (s *Service) TaskDone(d action.TaskDone) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if err := s.Reject(ctx, t.Target, "", t.Error.Message, ""); err != nil && !errors.Is(err, ErrNotFound) {
-			s.log.Warn("updates: remember a rolled-back digest", "target", t.Target, "err", err)
+		targets := []string{t.Target}
+		if t.Action == StackUpdate {
+			targets = s.stackMembers(ctx, t.Target)
+		}
+		for _, target := range targets {
+			if err := s.Reject(ctx, target, "", t.Error.Message, ""); err != nil && !errors.Is(err, ErrNotFound) {
+				s.log.Warn("updates: remember a rolled-back digest", "target", target, "err", err)
+			}
 		}
 	}()
+}
+
+// stackMembers are the containers whose update is stack's stack.update and
+// that had one waiting: what that update tried to move.
+func (s *Service) stackMembers(ctx context.Context, stack string) []string {
+	rows, err := s.List(ctx)
+	if err != nil {
+		s.log.Warn("updates: list a stack's containers", "stack", stack, "err", err)
+		return nil
+	}
+	var out []string
+	for _, r := range rows {
+		if r.Update != nil && r.Update.ID == StackUpdate && r.Update.Target == stack && r.State == integration.UpdateAvailable {
+			out = append(out, r.Resource)
+		}
+	}
+	return out
 }

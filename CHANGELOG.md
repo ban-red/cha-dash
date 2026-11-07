@@ -12,7 +12,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Removing a stack keeps its `.env`.** Git doesn't hold a stack's env files, so restoring a removed stack used to bring back its compose file without them. Remove now moves `.env` and any `*.env` aside on the node for 30 days, and restoring the stack puts them back. They never leave the node.
+- **A stack update that rolls back leaves the compose file alone.** The rollback used to pin the file to the old digests, so the update check then said "pinned by digest" until someone deployed the file unpinned. Now the services go back to the images they ran without the file changing, and the next check asks about their tags again.
+- **A stack update that rolls back isn't offered again.** Update all already skipped an image a rollout had rolled back from; a stack's Update run on its own now records the same, for each container it tried to move, until the registry has a newer image or you choose Try again.
 - **Compose's dry run no longer reads the host's Docker config.** A node run outside a container could have its dry run read `~/.docker` (or `DOCKER_CONFIG`). It now reads only the node's own logins, like every pull.
+- **Two managers of one stack show in the Inbox.** When Dockhand, Komodo or Arcane lists a stack Cha Dash manages, or another tool such as Dockge last brought its containers up from a file of its own on the same host, the Inbox now says so at attention, and the stack's page names the file. The Inbox item goes once only Cha Dash manages the stack.
 
 ### Changed
 

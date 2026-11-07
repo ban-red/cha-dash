@@ -1,7 +1,9 @@
 package stacks
 
 import (
+	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"dash.cha.sh/internal/graph"
@@ -62,5 +64,58 @@ func TestTwoWritersAreNamed(t *testing.T) {
 	})
 	if d := decode[StackDetail](t, h.do("GET", "/api/stacks/local/media", nil)); d.AlsoManagedBy == nil || len(d.AlsoManagedBy) != 0 {
 		t.Fatalf("alone = %#v", d.AlsoManagedBy)
+	}
+}
+
+// The Inbox has an item at attention for a managed stack with a second
+// manager: by name (a manager's spec), or by the file another tool last
+// brought it up from on its host, named first. It resolves once neither
+// holds, and stays while the node can't be reached.
+func TestTwoWritersInTheInbox(t *testing.T) {
+	h := newHub(t)
+	h.saveDraft("media", "services:\n  web:\n    image: nginx:1.27\n")
+	if _, task := h.run(ActionDeploy, Target("local", "media"), ""); task.State != "succeeded" {
+		t.Fatalf("deploy: %+v", task)
+	}
+	item := func() (incident, bool) {
+		raw := h.inbox.Item(incidentsColl, writersItemID("local", "media"))
+		var in incident
+		return in, raw != nil && json.Unmarshal(raw, &in) == nil
+	}
+	h.svc.CheckWriters(t.Context())
+	if _, ok := item(); ok {
+		t.Fatal("alone: no item")
+	}
+
+	// Dockge brought it up last, from its own folder; Dockhand lists it too.
+	h.docker.SetConfigFiles("media", "/opt/dockge/stacks/media/compose.yaml")
+	h.g.Update(func(tx *graph.Tx) error {
+		return tx.Upsert(graph.Resource{ID: "dockhand:i_dh/stack/media", Kind: "stack", Name: "media", Source: "integration:i_dh", Attrs: map[string]any{"type": "dockhand.stack", "project": "media"}})
+	})
+	h.svc.CheckWriters(t.Context())
+	in, ok := item()
+	if !ok || in.Status != "open" || in.Severity != "attention" || in.Scenario != writersScenario || in.Title != "Dockge and Dockhand also manage media" ||
+		!strings.Contains(in.Summary, "last brought up from /opt/dockge/stacks/media/compose.yaml") || in.Target != Target("local", "media") {
+		t.Fatalf("item = %+v", in)
+	}
+	d := decode[StackDetail](t, h.do("GET", "/api/stacks/local/media", nil))
+	if len(d.AlsoManagedBy) != 2 || d.AlsoManagedBy[0].Manager != "Dockge" || d.AlsoManagedBy[0].File != "/opt/dockge/stacks/media/compose.yaml" || d.AlsoManagedBy[1].Manager != "Dockhand" {
+		t.Fatalf("the page = %+v", d.AlsoManagedBy)
+	}
+
+	// The node is away: the item stays.
+	h.online = false
+	h.svc.CheckWriters(t.Context())
+	if in, _ := item(); in.Status != "open" {
+		t.Fatalf("offline = %+v", in)
+	}
+	h.online = true
+
+	// Dockhand stops listing it and Cha Dash deploys it again: resolved.
+	h.g.Update(func(tx *graph.Tx) error { tx.Remove("dockhand:i_dh/stack/media"); return nil })
+	h.docker.SetConfigFiles("media", h.root+"/media/compose.yaml")
+	h.svc.CheckWriters(t.Context())
+	if in, _ := item(); in.Status != "resolved" || in.ResolvedAt == nil {
+		t.Fatalf("resolved = %+v", in)
 	}
 }

@@ -91,6 +91,12 @@ func (m *Module) rollback(ctx context.Context, req stackproto.RollbackRequest, e
 		if a.s, target, err = m.removedAt(a.s, target); err != nil {
 			return stackproto.DeployResult{}, err
 		}
+		// Before the deploy, so Compose reads them.
+		if back, err := m.restoreEnv(a.s.name, a.s.dir); err != nil {
+			return stackproto.DeployResult{}, fmt.Errorf("put back %s's env files: %w", a.s.name, err)
+		} else if len(back) > 0 {
+			em.step("Put back " + strings.Join(back, ", ") + ", kept when " + a.s.name + " was removed")
+		}
 	}
 	old, ok, err := m.repo.file(target, a.s.tracked)
 	if err != nil {
@@ -312,9 +318,20 @@ func (m *Module) rollBack(ctx context.Context, a *attempt, reason string, res *s
 	if err != nil {
 		now = nil // pin every service, as if none matched
 	}
-	back, pinned := pinImages(a.prev, m.recreatedOnly(ctx, a, a.prev, now, a.prevRefs))
+	refs := m.recreatedOnly(ctx, a, a.prev, now, a.prevRefs)
+	var back string
+	var pinned []string
 	rbSubject := fmt.Sprintf("Roll back %s: %s", a.s.name, reason)
-	if len(pinned) > 0 {
+	if a.kind == stackproto.KindUpdate {
+		// An update didn't change the file, so its rollback doesn't either:
+		// the services go back to the digests they ran in memory, as a
+		// deploy's hold keeps them, and the file keeps its tags. The next
+		// update asks about those tags again.
+		back = a.prev
+		if len(refs) > 0 {
+			rbSubject += " (kept " + strings.Join(sortedKeys(refs), ", ") + " on the image it ran)"
+		}
+	} else if back, pinned = pinImages(a.prev, refs); len(pinned) > 0 {
 		rbSubject += " (pinned " + strings.Join(pinned, ", ") + ")"
 	}
 	rbCommit, err := m.writeAndCommit(a.s, back, rbSubject+by(a.by, a.via),
@@ -332,6 +349,14 @@ func (m *Module) rollBack(ctx context.Context, a *attempt, reason string, res *s
 	if refused, _, _ := m.guard.check(bp, a.s.dir); len(refused) > 0 {
 		res.Outcome, res.Reason = stackproto.OutcomeStuck, fmt.Sprintf("%s; and the node's policy refuses the previous file now: %s", reason, refused[0].Message)
 		return
+	}
+	if a.kind == stackproto.KindUpdate {
+		for name, ref := range refs {
+			if svc, ok := bp.Services[name]; ok {
+				svc.Image = heldRef(svc.Image, ref)
+				bp.Services[name] = svc
+			}
+		}
 	}
 	if keep != nil {
 		keep(bp)

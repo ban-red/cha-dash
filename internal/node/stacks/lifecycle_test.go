@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"dash.cha.sh/internal/node"
 	"dash.cha.sh/internal/stackproto"
@@ -152,6 +153,9 @@ func TestRemoveAndRestore(t *testing.T) {
 	if !slices.Equal(res.VolumesKept, []string{"media_data"}) || len(res.VolumesRemoved) != 0 || res.FilesKept != "" {
 		t.Errorf("volumes: %+v", res)
 	}
+	if !slices.Equal(res.EnvKept, []string{".env"}) {
+		t.Errorf("the .env is kept for a restore: %+v", res.EnvKept)
+	}
 	if _, err := os.Stat(filepath.Join(n.root, "media")); !os.IsNotExist(err) {
 		t.Errorf("the folder should go: %v", err)
 	}
@@ -195,6 +199,12 @@ func TestRemoveAndRestore(t *testing.T) {
 	if b, err := os.ReadFile(filepath.Join(n.root, "media", "compose.yaml")); err != nil || !strings.Contains(string(b), "# the media stack") {
 		t.Errorf("the file should be back: %v %s", err, b)
 	}
+	if b, err := os.ReadFile(filepath.Join(n.root, "media", ".env")); err != nil || string(b) != "A=1\n" {
+		t.Errorf("the .env should be back: %v %q", err, b)
+	}
+	if _, err := os.Stat(filepath.Join(n.root, removedDir)); !os.IsNotExist(err) {
+		t.Errorf("nothing is left aside after a restore: %v", err)
+	}
 	if s := n.summaryOf("media"); s.Status != stackproto.StatusRunning || s.Drift {
 		t.Errorf("restored: %+v", s)
 	}
@@ -219,6 +229,36 @@ func TestRemoveAndRestore(t *testing.T) {
 	}
 	if h := n.history("media"); !strings.HasPrefix(h[0], "rollback Restore media from ") {
 		t.Errorf("restore subject: %q", h[0])
+	}
+}
+
+// A removed stack's env files are kept 30 days on the node's clock, then
+// pruned by the next removal; a restore after that has the file and no
+// .env. Only env files are kept.
+func TestRemoveKeepsEnvFor30Days(t *testing.T) {
+	n := newTestNode(t)
+	n.deploy("media", v1, nil)
+	n.deploy("books", v1, nil)
+	for _, f := range []string{".env", "db.env", "notes.txt"} {
+		if err := os.WriteFile(filepath.Join(n.root, "media", f), []byte(f), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var res stackproto.LifecycleResult
+	n.must("stack.remove", stackproto.RemoveRequest{Name: "media"}, &res)
+	if !slices.Equal(res.EnvKept, []string{".env", "db.env"}) {
+		t.Fatalf("kept %v: env files only", res.EnvKept)
+	}
+
+	n.clock = n.clock.Add(31 * 24 * time.Hour)
+	n.must("stack.remove", stackproto.RemoveRequest{Name: "books"}, nil)
+	if _, err := os.Stat(filepath.Join(n.root, removedDir, "media")); !os.IsNotExist(err) {
+		t.Errorf("media's env files should be pruned after 30 days: %v", err)
+	}
+
+	n.must("stack.rollback", stackproto.RollbackRequest{Stack: "media", Commit: res.Commit.Commit}, nil)
+	if _, err := os.Stat(filepath.Join(n.root, "media", ".env")); !os.IsNotExist(err) {
+		t.Errorf("no .env after the prune: %v", err)
 	}
 }
 
@@ -404,5 +444,29 @@ func TestLifecyclePolicy(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(n.root, "media")); !os.IsNotExist(err) {
 		t.Error("the allowed remove should have removed it")
+	}
+}
+
+// A managed stack whose containers another tool brought up last, from its
+// own file on this host, says which file (two writers); Cha Dash's own
+// deploy clears it.
+func TestListSaysWhoBroughtItUp(t *testing.T) {
+	n := newTestNode(t)
+	n.deploy("media", v1, nil)
+	if s := n.summaryOf("media"); s.UpFrom != "" {
+		t.Fatalf("deployed by Cha Dash: %q", s.UpFrom)
+	}
+	n.docker.SetConfigFiles("media", "/opt/dockge/stacks/media/compose.yaml")
+	if s := n.summaryOf("media"); s.UpFrom != "/opt/dockge/stacks/media/compose.yaml" {
+		t.Fatalf("up from %q", s.UpFrom)
+	}
+	var got stackproto.Stack
+	n.must("stack.get", stackproto.GetRequest{Stack: "media"}, &got)
+	if got.UpFrom != "/opt/dockge/stacks/media/compose.yaml" {
+		t.Fatalf("stack.get's up from %q", got.UpFrom)
+	}
+	n.deploy("media", strings.Replace(v1, "interval: 3s", "interval: 4s", 1), nil)
+	if s := n.summaryOf("media"); s.UpFrom != "" {
+		t.Fatalf("after Cha Dash's deploy: %q", s.UpFrom)
 	}
 }
