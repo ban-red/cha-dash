@@ -26,6 +26,13 @@ jobs:
             package: ./internal/jsonpatch/
           - target: FuzzBuild           # pasted Homepage YAML
             package: ./internal/importer/homepage/
+          - target: FuzzFrame           # a node's frames before pairing
+            package: ./internal/nodeproto/
+          - target: FuzzBundle          # an imported backup's sealed secrets
+            package: ./internal/export/
+          - target: FuzzSpec            # installed specs and their templates
+            package: ./internal/spec/
+            minimize: 5s                # a parse takes milliseconds: keep minimizing short
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,7 +44,8 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           PACKAGE: ${{ matrix.package }}
-        run: go test -run '^$' -fuzz "^${TARGET}\$" -fuzztime 5m "$PACKAGE"
+          MINIMIZE: ${{ matrix.minimize || '60s' }}
+        run: go test -run '^$' -fuzz "^${TARGET}\$" -fuzztime 5m -fuzzminimizetime "$MINIMIZE" "$PACKAGE"
       - name: Keep the failing input
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

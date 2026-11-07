@@ -128,8 +128,14 @@ func (c *Channel) Recv(ctx context.Context, idle time.Duration) ([]byte, error) 
 		}
 		return nil, err
 	}
-	size := binary.BigEndian.Uint32(hdr[:])
-	if limit := c.MaxFrame(); int64(size) > int64(limit) {
+	return readBody(c.tc, binary.BigEndian.Uint32(hdr[:]), c.MaxFrame())
+}
+
+// readBody reads a frame's size bytes after its header, refusing a size
+// over limit before reading any. A peer's bytes, before pairing too
+// (FuzzFrame).
+func readBody(r io.Reader, size uint32, limit int) ([]byte, error) {
+	if int64(size) > int64(limit) {
 		return nil, fmt.Errorf("%w: the peer sent %d bytes, the limit is %d", ErrFrameTooLarge, size, limit)
 	}
 	// Grow with what arrives: a peer that declares 4 MiB and sends nothing
@@ -138,7 +144,7 @@ func (c *Channel) Recv(ctx context.Context, idle time.Duration) ([]byte, error) 
 	for len(buf) < int(size) {
 		n := min(int(size)-len(buf), readChunk)
 		buf = slices.Grow(buf, n)
-		if _, err := io.ReadFull(c.tc, buf[len(buf):len(buf)+n]); err != nil {
+		if _, err := io.ReadFull(r, buf[len(buf):len(buf)+n]); err != nil {
 			if errors.Is(err, io.EOF) {
 				err = io.ErrUnexpectedEOF
 			}
