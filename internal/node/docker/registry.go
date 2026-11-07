@@ -68,7 +68,7 @@ func (m *Module) pullError(ctx context.Context, ref string, err error) error {
 	}
 	domain := reference.Domain(n)
 	_, have := m.logins.For(domain)
-	le := registry.LoginErrorFor(err, domain, have)
+	le := m.logins.Describe(registry.LoginErrorFor(err, domain, have))
 	// Docker's containerd image store words a registry's 401 as "repository
 	// does not exist or may require 'docker login'", the same as a missing
 	// image on Docker Hub. image.check's own question to the registry tells

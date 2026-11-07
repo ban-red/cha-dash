@@ -4,14 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/cli/cli/command"
+	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/config/configfile"
 	clitypes "github.com/docker/cli/cli/config/types"
 	"github.com/docker/cli/cli/flags"
@@ -41,6 +44,9 @@ var _ Docker = (*SDK)(nil)
 // usual way when it's empty (DOCKER_HOST, or the default socket). The node
 // passes the host its Docker module uses, so both reach the same daemon.
 func NewSDK(host string) (*SDK, error) {
+	if err := privateConfigDir(); err != nil {
+		return nil, err
+	}
 	cli, err := command.NewDockerCli()
 	if err != nil {
 		return nil, err
@@ -54,6 +60,26 @@ func NewSDK(host string) (*SDK, error) {
 	}
 	return &SDK{cli: cli}, nil
 }
+
+// privateConfigDir points the Docker CLI's default config directory at an
+// empty one of the node's own, once. Compose's dry run builds a Docker CLI
+// of its own with the default config, which would otherwise be the host's
+// ~/.docker (or DOCKER_CONFIG's), logins and helpers included; the node's
+// logins reach Compose only through loginCli.
+func privateConfigDir() error {
+	configDirOnce.Do(func() {
+		var dir string
+		if dir, configDirErr = os.MkdirTemp("", "chadash-node-docker-config-"); configDirErr == nil {
+			config.SetDir(dir)
+		}
+	})
+	return configDirErr
+}
+
+var (
+	configDirOnce sync.Once
+	configDirErr  error
+)
 
 // service is a Compose service whose events go to progress. Each operation
 // gets its own, so concurrent stacks don't mix their progress.
@@ -113,7 +139,7 @@ func (d *SDK) loginError(p *types.Project, services []string, err error) error {
 		return err
 	}
 	_, have := d.Logins.For(domains[0])
-	return noderegistry.LoginErrorFor(err, domains[0], have)
+	return d.Logins.Describe(noderegistry.LoginErrorFor(err, domains[0], have))
 }
 
 // Projects implements Docker.

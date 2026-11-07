@@ -45,9 +45,16 @@ type LoginError struct {
 	// login'": a registry such as Docker Hub answers the same for an image
 	// that isn't there as for one behind a login.
 	Maybe bool
+	// Helper is the credential helper the node's Docker config keeps this
+	// registry's login in, when the node can't run it (Logins.Describe).
+	Helper string
 }
 
 func (e *LoginError) Error() string {
+	if e.Helper != "" && !e.Had && !e.Maybe {
+		return NeedsLogin(e.Registry) + " This node's Docker config keeps its login in the credential helper docker-credential-" + e.Helper +
+			", which isn't installed in the node: log in on the host with `docker --config <dir> login " + e.Registry + "` into a plain file, and mount that file instead."
+	}
 	switch {
 	case e.Maybe && e.Had:
 		return "Docker couldn't pull it from " + e.Registry + ": the image isn't there, or this node's login for it isn't enough."

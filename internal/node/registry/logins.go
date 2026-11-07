@@ -11,12 +11,14 @@
 package registry
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"sync"
@@ -71,7 +73,29 @@ type Logins struct {
 	size   int64
 	loaded bool
 	byHost map[string]Login
+	// A credential helper's logins, asked for by host when the file names
+	// one (credHelpers for that host, else credsStore) and kept a while.
+	store   string
+	helpers map[string]string // normalised host → helper name
+	asked   map[string]helped
+	now     func() time.Time
+	lookup  func(name string) (string, error)
+	get     func(ctx context.Context, program, server string) (Login, error)
 }
+
+// helped is a credential helper's answer for a host.
+type helped struct {
+	login Login
+	ok    bool
+	at    time.Time
+}
+
+// helperKeep is how long a helper's answer is used before it's asked again:
+// helpers such as ECR's hand out logins that expire.
+const helperKeep = 5 * time.Minute
+
+// helperTimeout bounds one call to a credential helper.
+const helperTimeout = 10 * time.Second
 
 // NewLogins reads logins from the Docker config file at path, for the
 // registries allowed lists (host or host:port). A missing file, or an
@@ -80,7 +104,7 @@ func NewLogins(path string, allowed []string, log *slog.Logger) *Logins {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	l := &Logins{path: path, log: log}
+	l := &Logins{path: path, log: log, now: time.Now, lookup: exec.LookPath, get: helperGet}
 	for _, a := range allowed {
 		if h := Host(a); h != "" && !slices.Contains(l.allowed, h) {
 			l.allowed = append(l.allowed, h)
@@ -103,8 +127,110 @@ func (l *Logins) For(domain string) (Login, bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.reload()
-	lg, ok := l.byHost[h]
-	return lg, ok
+	if lg, ok := l.byHost[h]; ok {
+		return lg, ok
+	}
+	return l.fromHelper(h)
+}
+
+// helperOf is the credential helper the file names for a host. l.mu is held.
+func (l *Logins) helperOf(h string) string {
+	if name := l.helpers[h]; name != "" {
+		return name
+	}
+	return l.store
+}
+
+// Missing is the credential helper the Docker config names for a registry
+// the policy allows, when the node can't run it (it isn't on its PATH), or
+// "". The node's image ships no helpers.
+func (l *Logins) Missing(domain string) string {
+	if l == nil {
+		return ""
+	}
+	h := Host(domain)
+	if !slices.Contains(l.allowed, h) {
+		return ""
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.reload()
+	if _, ok := l.byHost[h]; ok {
+		return ""
+	}
+	name := l.helperOf(h)
+	if name == "" {
+		return ""
+	}
+	if _, err := l.lookup(helperProgram(name)); err != nil {
+		return name
+	}
+	return ""
+}
+
+// Describe adds to a missing-login error the helper the node couldn't run.
+func (l *Logins) Describe(e *LoginError) *LoginError {
+	if e != nil && !e.Had {
+		e.Helper = l.Missing(e.Registry)
+	}
+	return e
+}
+
+// fromHelper asks the host's credential helper, if the file names one and
+// the node can run it. l.mu is held; a helper is asked at most every
+// helperKeep per host.
+func (l *Logins) fromHelper(h string) (Login, bool) {
+	name := l.helperOf(h)
+	if name == "" {
+		return Login{}, false
+	}
+	if a, ok := l.asked[h]; ok && l.now().Sub(a.at) < helperKeep {
+		return a.login, a.ok
+	}
+	program, err := l.lookup(helperProgram(name))
+	if err != nil {
+		return Login{}, false // Missing says so
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), helperTimeout)
+	defer cancel()
+	lg, err := l.get(ctx, program, ServerAddress(h))
+	a := helped{at: l.now()}
+	switch {
+	case err != nil:
+		// Never the helper's output: it could hold the secret.
+		l.log.Warn("registry logins: the credential helper didn't give a login", "helper", name, "registry", h)
+	case lg.Username == "<token>":
+		l.log.Warn("registry logins: the credential helper gave an identity token, which the node doesn't support", "helper", name, "registry", h)
+	case !lg.empty():
+		a.login, a.ok = lg, true
+	}
+	if l.asked == nil {
+		l.asked = map[string]helped{}
+	}
+	l.asked[h] = a
+	return a.login, a.ok
+}
+
+// helperProgram is a credential helper's program: docker-credential-<name>.
+func helperProgram(name string) string { return "docker-credential-" + name }
+
+// helperGet runs a credential helper's get: the server address on standard
+// input, a JSON {ServerURL, Username, Secret} on standard output.
+func helperGet(ctx context.Context, program, server string) (Login, error) {
+	cmd := exec.CommandContext(ctx, program, "get") //nolint:gosec // G204: the program is docker-credential-<name> from the node's own PATH, named by the mounted Docker config
+	cmd.Stdin = strings.NewReader(server)
+	out, err := cmd.Output()
+	if err != nil {
+		return Login{}, errors.New("the helper failed")
+	}
+	var c struct {
+		Username string `json:"Username"`
+		Secret   string `json:"Secret"`
+	}
+	if json.Unmarshal(out, &c) != nil {
+		return Login{}, errors.New("the helper's answer isn't JSON")
+	}
+	return Login{c.Username, c.Secret}, nil
 }
 
 // All is every login the node may use, by host.
@@ -119,6 +245,13 @@ func (l *Logins) All() map[string]Login {
 	for h, lg := range l.byHost {
 		if slices.Contains(l.allowed, h) {
 			out[h] = lg
+		}
+	}
+	for _, h := range l.allowed {
+		if _, ok := out[h]; !ok {
+			if lg, ok := l.fromHelper(h); ok {
+				out[h] = lg
+			}
 		}
 	}
 	return out
@@ -181,6 +314,7 @@ func (l *Logins) reload() {
 			l.log.Info("registry logins: the Docker config is gone; no logins are used", "path", l.path)
 		}
 		l.loaded, l.byHost, l.mod, l.size = true, nil, time.Time{}, 0
+		l.store, l.helpers, l.asked = "", nil, nil
 		return
 	}
 	if err != nil {
@@ -194,6 +328,7 @@ func (l *Logins) reload() {
 		return
 	}
 	l.loaded, l.mod, l.size, l.byHost = true, st.ModTime(), st.Size(), nil
+	l.store, l.helpers, l.asked = "", nil, nil
 	f, err := os.Open(l.path)
 	if err != nil {
 		l.log.Warn("registry logins: can't read the Docker config; no logins are used", "path", l.path, "err", err)
@@ -206,8 +341,14 @@ func (l *Logins) reload() {
 		l.log.Warn("registry logins: the Docker config isn't valid JSON; no logins are used", "path", l.path)
 		return
 	}
+	l.store, l.helpers, l.asked = cf.CredsStore, map[string]string{}, nil
+	for key, name := range cf.CredHelpers {
+		if h := Host(key); h != "" && name != "" {
+			l.helpers[h] = name
+		}
+	}
 	if cf.CredsStore != "" || len(cf.CredHelpers) > 0 {
-		l.log.Warn("registry logins: the Docker config uses a credential helper (credsStore or credHelpers), which the node doesn't support; the logins it holds aren't used. Log in on the host with a plain config file instead", "path", l.path)
+		l.log.Info("registry logins: the Docker config uses a credential helper; the node asks it for the registries images.registries lists, when it's on the node's PATH", "path", l.path)
 	}
 	byHost := map[string]Login{}
 	var skipped, unlisted []string

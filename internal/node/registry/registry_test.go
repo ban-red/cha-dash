@@ -36,9 +36,10 @@ func writeConfig(t *testing.T, path string, v any) {
 }
 
 // The logins are the config's, for the registries the policy lists; the
-// file is read again when it changes; a credential helper isn't supported
-// and says so once; a login never prints.
+// file is read again when it changes; a credential helper the node can't
+// run gives none; a login never prints.
 func TestLogins(t *testing.T) {
+	t.Setenv("PATH", t.TempDir()) // no credential helpers
 	path := filepath.Join(t.TempDir(), "docker-config.json")
 	var logs strings.Builder
 	log := slog.New(slog.NewTextHandler(&logs, nil))
@@ -87,13 +88,13 @@ func TestLogins(t *testing.T) {
 		}
 	}
 
-	// A credential helper: its logins aren't readable, so none is used.
+	// A credential helper the node can't run: none is used.
 	writeConfig(t, path, map[string]any{"credsStore": "desktop", "auths": map[string]any{"ghcr.io": map[string]string{}}})
 	if _, ok := l.For("ghcr.io"); ok {
 		t.Error("a credsStore entry gave a login")
 	}
 	if !strings.Contains(logs.String(), "credential helper") {
-		t.Errorf("the log should say a credential helper isn't supported: %s", logs.String())
+		t.Errorf("the log should mention the credential helper: %s", logs.String())
 	}
 	if strings.Contains(logs.String(), password) || strings.Contains(logs.String(), "hub-pw-fake") || strings.Contains(logs.String(), "other-pw-fake") {
 		t.Errorf("a log line carries a password: %s", logs.String())
@@ -292,5 +293,85 @@ func TestLoginErrorFor(t *testing.T) {
 	}
 	if got := LoginErrorFor(fmt.Errorf("unauthorized: authentication required"), "ghcr.io", false).Error(); got != NeedsLogin("ghcr.io") {
 		t.Errorf("a plain 401: %q", got)
+	}
+}
+
+// fakeHelper writes docker-credential-<name> into a directory put on PATH:
+// it answers ghcr.io's login, "<token>" for quay.io, fails otherwise, and
+// counts its calls in calls.
+func fakeHelper(t *testing.T, name string) (calls string) {
+	t.Helper()
+	dir := t.TempDir()
+	calls = filepath.Join(dir, "calls")
+	script := `#!/bin/sh
+read server
+echo "$server" >> ` + calls + `
+case "$server" in
+  ghcr.io) printf '{"ServerURL":"ghcr.io","Username":"` + user + `","Secret":"` + password + `"}' ;;
+  quay.io) printf '{"ServerURL":"quay.io","Username":"<token>","Secret":"fake-identity-token"}' ;;
+  *) echo "credentials not found in native keychain" >&2; exit 1 ;;
+esac
+`
+	if err := os.WriteFile(filepath.Join(dir, "docker-credential-"+name), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+"/bin:/usr/bin")
+	return calls
+}
+
+// A login in a credential helper: credHelpers for a host before
+// credsStore, asked only for the registries the policy lists, at most every
+// few minutes, and never logged. One the node can't run says which and
+// what to do instead.
+func TestLoginsFromCredentialHelper(t *testing.T) {
+	calls := fakeHelper(t, "fake")
+	path := filepath.Join(t.TempDir(), "docker-config.json")
+	var logs strings.Builder
+	l := NewLogins(path, []string{"ghcr.io", "quay.io", "registry.lab.example"}, slog.New(slog.NewTextHandler(&logs, nil)))
+	now := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+	l.now = func() time.Time { return now }
+	writeConfig(t, path, map[string]any{"credsStore": "fake", "credHelpers": map[string]string{"registry.lab.example": "absent"}, "auths": map[string]any{"ghcr.io": map[string]string{}}})
+
+	if lg, ok := l.For("ghcr.io"); !ok || lg.Username != user || lg.Password != password {
+		t.Fatalf("ghcr.io from the helper: %v", ok)
+	}
+	if _, ok := l.For("ghcr.io"); !ok {
+		t.Fatal("asked again")
+	}
+	if _, ok := l.For("other.registry.example"); ok {
+		t.Fatal("a registry the policy doesn't list")
+	}
+	if _, ok := l.For("quay.io"); ok {
+		t.Fatal("an identity token isn't a login")
+	}
+	if all := l.All(); len(all) != 1 || all["ghcr.io"].Username != user {
+		t.Fatalf("All = %v", len(all))
+	}
+	if b, _ := os.ReadFile(calls); string(b) != "ghcr.io\nquay.io\n" {
+		t.Fatalf("the helper was asked %q: once per host, never for an unlisted one", b)
+	}
+	now = now.Add(helperKeep + time.Second)
+	l.For("ghcr.io")
+	if b, _ := os.ReadFile(calls); strings.Count(string(b), "ghcr.io") != 2 {
+		t.Fatalf("after %v it's asked again: %q", helperKeep, b)
+	}
+
+	// registry.lab.example's helper isn't installed.
+	if _, ok := l.For("registry.lab.example"); ok {
+		t.Fatal("a missing helper gave a login")
+	}
+	if got := l.Missing("registry.lab.example"); got != "absent" {
+		t.Fatalf("Missing = %q", got)
+	}
+	if got := l.Missing("ghcr.io"); got != "" {
+		t.Fatalf("ghcr.io's helper runs: %q", got)
+	}
+	e := l.Describe(&LoginError{Registry: "registry.lab.example"})
+	if !strings.Contains(e.Error(), "registry.lab.example needs a login, and this node has none for it.") ||
+		!strings.Contains(e.Error(), "docker-credential-absent, which isn't installed in the node") || !strings.Contains(e.Error(), "docker --config <dir> login registry.lab.example") {
+		t.Fatalf("message: %s", e.Error())
+	}
+	if strings.Contains(logs.String(), password) || strings.Contains(logs.String(), "fake-identity-token") {
+		t.Fatalf("a secret in the log: %s", logs.String())
 	}
 }

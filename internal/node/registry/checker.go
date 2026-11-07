@@ -113,7 +113,7 @@ func (c *Checker) Ask(ctx context.Context, tagged reference.NamedTagged, fresh b
 		}
 	case errors.As(err, &le):
 		// A login won't appear by itself: kept as long as an answer.
-		a.Reason = le.Error()
+		a.Reason = c.Logins.Describe(le).Error()
 		a.Login = LoginNeeded
 		if le.Had {
 			a.Login = LoginUsed

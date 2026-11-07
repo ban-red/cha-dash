@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Registry logins from a credential helper.** A node whose mounted Docker config keeps logins in `credsStore` or `credHelpers` now asks that helper, `docker-credential-<name>`, when it's on the node's `PATH`, for the registries `images.registries` lists. When it isn't, the hub says which helper the node couldn't run and how to write a plain login file instead.
+
+### Fixed
+
+- **Compose's dry run no longer reads the host's Docker config.** A node run outside a container could have its dry run read `~/.docker` (or `DOCKER_CONFIG`). It now reads only the node's own logins, like every pull.
+
 ### Changed
 
 - **The Home Assistant integration has a repository of its own,** [ban-red/ha-chadash](https://github.com/ban-red/ha-chadash), so HACS installs it and offers each new release: add it in HACS as a custom repository. A copy from `contrib/homeassistant` keeps working; replace it with the HACS install to get updates.
