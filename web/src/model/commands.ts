@@ -12,7 +12,7 @@ import { THEMES, type ThemeId } from '../lib/theme';
 import { distinct, label, placeOf } from './graph';
 import { safeUrl, type Action, type GraphDoc, type InboxDoc, type Incident, type Tier } from './types';
 import type { Instance } from './integrations';
-import type { SettingsPane } from '../lib/router';
+import { navigate, printPath, type SettingsPane } from '../lib/router';
 import type { Permissions } from './roles';
 
 export type CommandGroup = 'Run' | 'Actions' | 'Inbox' | 'Boards' | 'Resources' | 'Integrations' | 'Settings' | 'Theme' | 'Account';
@@ -208,6 +208,10 @@ export function buildCommands(ctx: CommandContext): Command[] {
     },
     ...(d.openAtlas ? [{ id: 'atlas', group: 'Actions' as const, label: 'Open the Atlas', keywords: 'map graph topology what runs on what depends', run: () => d.openAtlas!() }] : []),
   ];
+  if (ctx.currentBoard) {
+    const board = ctx.currentBoard;
+    out.push({ id: 'print', group: 'Actions', label: 'Print this board', keywords: 'print paper pdf absolute times', run: () => navigate(printPath(board)) });
+  }
   if (d.addWidget && ctx.currentBoard) {
     out.push({ id: 'add-widget', group: 'Actions', label: 'Add widget', keywords: 'add new widget tile card catalog picker edit layout', run: d.addWidget });
   }

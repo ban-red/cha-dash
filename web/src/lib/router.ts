@@ -34,6 +34,7 @@
  * Settings is a layer over the front page, not a separate app, so the board,
  * the realtime socket and the Inbox stay put underneath it.
  *
+ *   /print/{board}                     the board at the ink level (absolute times), no chrome; prints, then goes back
  *   /display/{board}#cdc_…             a wall display (views/DisplayPage.vue): no session, no chrome.
  *                                      The secret in the fragment is claimed once, then dropped.
  */
@@ -65,7 +66,7 @@ export type SettingsPane =
 const PANES: readonly string[] = ['stacks', 'nodes', 'updates', 'backups', 'import', 'backup', 'history', 'timeline', 'users', 'audit', 'notifications', 'tokens', 'displays', 'security', 'general'];
 
 export type View =
-  | { name: 'front'; board?: string }
+  | { name: 'front'; board?: string; print?: true }
   | { name: 'display'; board: string }
   | { name: 'settings'; pane: SettingsPane; id?: string; add?: string };
 
@@ -87,6 +88,7 @@ export function resolve(r: Route): View {
     return { name: 'front' };
   }
   if (parts[0] === 'boards' && parts[1]) return { name: 'front', board: parts[1] };
+  if (parts[0] === 'print') return parts[1] ? { name: 'front', board: parts[1], print: true } : { name: 'front', print: true };
   if (parts[0] === 'display') return { name: 'display', board: parts[1] ?? '' };
   if (parts[0] !== 'settings') return { name: 'front' };
   const pane = (PANES.includes(parts[1] ?? '') ? parts[1] : 'integrations') as SettingsPane;
@@ -202,4 +204,9 @@ export function startRouter(): void {
 /** For tests: re-read the location. */
 export function syncRoute(): void {
   route.value = read();
+}
+
+/** A board's print page: /print/<board>. */
+export function printPath(board: string): string {
+  return `/print/${encodeURIComponent(board)}`;
 }

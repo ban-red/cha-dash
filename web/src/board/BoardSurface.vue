@@ -8,6 +8,7 @@
  */
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { findItem, type Board, type Breakpoint } from '@chadash/layout';
+import type { Level } from '../lib/level';
 import StaticBoard from './StaticBoard.vue';
 import SectionHeader from './SectionHeader.vue';
 import SectionMenu from './SectionMenu.vue';
@@ -25,7 +26,12 @@ const EditableBoard = defineAsyncComponent(() => import('./EditableBoard.vue'));
 const WidgetPicker = defineAsyncComponent(() => import('./WidgetPicker.vue'));
 const TileEditor = defineAsyncComponent(() => import('./TileEditor.vue'));
 
-const { board, breakpoint } = defineProps<{ board: Board; breakpoint?: Breakpoint | undefined }>();
+const { board, breakpoint, level } = defineProps<{
+  board: Board;
+  breakpoint?: Breakpoint | undefined;
+  /** A level of detail for every tile (lib/level.ts): the print page's ink. */
+  level?: Level | undefined;
+}>();
 // Edit mode lives in the UI store, so ⌘K → "Edit layout" can toggle it too.
 const ui = useUi();
 
@@ -107,7 +113,7 @@ watch(
         <UiButton variant="ghost" size="sm" :href="settingsPath('integrations', 'new')" @click.prevent="ui.openSettings('integrations', 'new')">Add one</UiButton>
       </span>
     </div>
-    <StaticBoard :board="board" :breakpoint="breakpoint">
+    <StaticBoard :board="board" :breakpoint="breakpoint" :level="level">
       <template #section="{ section }">
         <!-- Editors get an Add on hover or focus: it opens the picker on this section. -->
         <div v-if="ui.can.value.editBoards" class="sh-live">

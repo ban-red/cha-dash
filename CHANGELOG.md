@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Print a board with absolute times.** Print this board, in the Settings menu and the command bar, opens the board on its own at the e-ink level of detail, where every time is a clock time rather than "3 min ago", and calls the browser's print. Afterwards you're back on the board.
 - **Registry logins from a credential helper.** A node whose mounted Docker config keeps logins in `credsStore` or `credHelpers` now asks that helper, `docker-credential-<name>`, when it's on the node's `PATH`, for the registries `images.registries` lists. When it isn't, the hub says which helper the node couldn't run and how to write a plain login file instead.
 
 ### Fixed

@@ -265,6 +265,11 @@ const KEY: InjectionKey<BoardStore> = Symbol('board');
 export const provideBoard = (b: BoardStore) => provide(KEY, b);
 /** The board store, or undefined outside the app (a tile in a preview or a test). */
 export const useBoardIfAny = (): BoardStore | undefined => inject(KEY, undefined);
+/** The board store when there is one: undefined outside the front page. */
+export function boardIfAny(): BoardStore | undefined {
+  return inject(KEY, undefined);
+}
+
 export function useBoard(): BoardStore {
   const b = inject(KEY);
   if (!b) throw new Error('useBoard() outside the app');

@@ -4,7 +4,8 @@
  * and UI stores for everything below it, and owns what spans them:
  *
  * - the route (which board; Settings as a layer over the page; a
- *   notification's `?incident=` link opens the Inbox on it);
+ *   notification's `?incident=` link opens the Inbox on it; /print/<board>
+ *   shows the board alone at the ink level, prints it, then goes back);
  * - ⌘K / Ctrl K and / for the command bar;
  * - the hub's first-paint snapshot, inlined into index.html: the page and
  *   its board render from it at once, and the socket supersedes it;
@@ -19,7 +20,7 @@
  * The Inbox, the confirm dialogs (hold, typed), step-up, the command bar and
  * Settings load on first use, keeping the first paint small.
  */
-import { defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Briefing from '../components/Briefing.vue';
 import HubBanner from '../components/HubBanner.vue';
 import PeekBanner from '../components/PeekBanner.vue';
@@ -137,6 +138,27 @@ watch(
   },
 );
 
+// Print (/print/<board>): print CSS can't change text, so the board is
+// rendered at the ink level, where times are absolute, with none of the
+// page's chrome. It prints once the board has data, then goes back to it.
+const printing = computed(() => view.value.name === 'front' && view.value.print === true);
+let printed = false;
+watch(
+  () => [printing.value, board.board.value, live.graph.value] as const,
+  async ([on, b, g]) => {
+    if (!on || !b || !g || printed) return;
+    printed = true;
+    await nextTick();
+    requestAnimationFrame(() => window.print());
+  },
+  { immediate: true },
+);
+function afterPrint(): void {
+  if (!printing.value) return;
+  printed = false;
+  navigate(board.state.boardId ? `/boards/${encodeURIComponent(board.state.boardId)}` : '/', { replace: true });
+}
+
 // Back from an offline start: confirm the session with the hub.
 watch(
   () => live.conn.status,
@@ -194,6 +216,7 @@ onMounted(() => {
   const want = view.value.name === 'front' ? view.value.board : undefined;
   if (!seeded || (want !== undefined && want !== board.state.boardId)) void board.load(want);
   document.addEventListener('keydown', onKey);
+  window.addEventListener('afterprint', afterPrint);
   stopPersist = persistSnapshots(live, board, session);
   openFromLink();
   noteProviderReturn();
@@ -219,6 +242,7 @@ onBeforeUnmount(() => {
   live.stop();
   stopPersist?.();
   document.removeEventListener('keydown', onKey);
+  window.removeEventListener('afterprint', afterPrint);
 });
 
 // The demo flag comes from the hub once it's reachable again.
@@ -244,7 +268,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="screen">
+  <main v-if="printing" class="print-page" aria-label="Print">
+    <BoardSurface v-if="board.board.value" :board="board.board.value" breakpoint="desktop" level="ink" />
+  </main>
+  <div v-else class="screen">
     <div class="frame">
       <main class="page" aria-label="Front page" :inert="(view.name === 'settings' && ui.can.value.settings) || onboarding.open || undefined">
         <Briefing @sign-out="signOut" />
@@ -276,3 +303,11 @@ onBeforeUnmount(() => {
   <Toasts />
   <PageDrop v-if="ui.can.value.settings" />
 </template>
+
+<style scoped>
+/* /print/<board>: the board alone, at the ink level. */
+.print-page {
+  padding: var(--space-4);
+  background: var(--bg);
+}
+</style>

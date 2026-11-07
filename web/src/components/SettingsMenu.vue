@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
- * The masthead's settings menu: Theme, Add integration (admins), Settings and Sign out. Theme opens the
+ * The masthead's settings menu: Theme, Print this board, Add integration (admins), Settings and Sign out. Theme opens the
  * six built-in themes in the same popover, remembered on this device. Each
  * preview renders inside its own `data-theme`, so it shows that theme's real tokens.
  * The dropdown is a UiMenu.
  */
 import { computed, ref, useTemplateRef } from 'vue';
-import { navigate, settingsPath } from '../lib/router';
+import { navigate, printPath, settingsPath } from '../lib/router';
 import { currentTheme, setTheme, THEMES, type ThemeId } from '../lib/theme';
 import { permissions } from '../model/roles';
+import { boardIfAny } from '../stores/board';
 import { useSession } from '../stores/session';
 import UiMenu from '../ui/Menu.vue';
 
@@ -19,6 +20,9 @@ const canSettings = () => permissions(session.state.user?.role).settings;
 const settingsHref = () => settingsPath(permissions(session.state.user?.role).panes[0] ?? 'security');
 const canAdd = () => permissions(session.state.user?.role).integrations;
 const addHref = settingsPath('integrations', 'new');
+/** Print the board on screen (/print/<board>: absolute times, no chrome). */
+const board = boardIfAny();
+const printHref = computed(() => (board?.state.boardId ? printPath(board.state.boardId) : ''));
 const who = computed(() => session.state.user?.username ?? '—');
 const themeName = computed(() => THEMES.find((t) => t.id === currentTheme.value)?.name ?? '');
 
@@ -63,6 +67,9 @@ function onArrow(e: KeyboardEvent, i: number) {
               <span>Theme</span>
               <span class="menu-val">{{ themeName }}<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg></span>
             </button>
+            <a v-if="printHref" role="menuitem" class="menu-item" tabindex="-1" :href="printHref" @click.prevent="close(), navigate(printHref)">
+              <span>Print this board</span>
+            </a>
             <a v-if="canAdd()" role="menuitem" class="menu-item" tabindex="-1" :href="addHref" @click.prevent="close(), navigate(addHref)">
               <span>Add integration</span>
             </a>
