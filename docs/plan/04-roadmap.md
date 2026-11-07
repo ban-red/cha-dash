@@ -59,6 +59,8 @@ New open questions get a row here, and an ADR when they're settled. These four c
 | **v0.3** | Fleet | **Remote nodes on every Docker server**; stacks fleet-wide; **git sync and deploy webhooks**; OIDC; history, the Atlas, cause hints |
 | **v0.4** | Care | Update Center with safe rollouts, backup assurance, incident timeline |
 | **v0.5** | Glance | [15](15-v0.5.md): wall, kiosk and TV modes, every widget at four levels of detail, TrueNAS, Home Assistant both ways, network sources, spec `v1beta1` |
+| **v0.5.1** | Glance, finished | [18](18-v0.5.1.md): what 0.5 left open in stacks and displays, and the harness its checks still lacked |
+| **v0.6** | Toolkit | [19](19-v0.6.md): a shell in a container, images and volumes, Prometheus, Synology, feeds, display rotation, config in git; the last minor before 1.0 |
 | **v1.0** | Home | Public declarative integrations, TrueNAS, wall and TV modes, i18n, security review, stable config and API |
 | **Post-1.0** | Beyond | WASM plugins, multi-site. MCP with approvals shipped in v0.4 ([D1](09-roadmap-2026.md#7-decisions-this-needs)) |
 
