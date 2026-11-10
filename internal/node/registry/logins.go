@@ -217,7 +217,9 @@ func helperProgram(name string) string { return "docker-credential-" + name }
 // helperGet runs a credential helper's get: the server address on standard
 // input, a JSON {ServerURL, Username, Secret} on standard output.
 func helperGet(ctx context.Context, program, server string) (Login, error) {
-	cmd := exec.CommandContext(ctx, program, "get") //nolint:gosec // G204: the program is docker-credential-<name> from the node's own PATH, named by the mounted Docker config
+	// The program is docker-credential-<name> from the node's own PATH, named
+	// by the mounted Docker config.
+	cmd := exec.CommandContext(ctx, program, "get")
 	cmd.Stdin = strings.NewReader(server)
 	out, err := cmd.Output()
 	if err != nil {

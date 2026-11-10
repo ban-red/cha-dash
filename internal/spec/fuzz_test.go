@@ -35,7 +35,7 @@ func FuzzSpec(f *testing.F) {
 			if strings.Count(out, "/") != 3 {
 				t.Fatalf("value %q added a segment: %q", value, out)
 			}
-			for _, seg := range strings.Split(out, "/") {
+			for seg := range strings.SplitSeq(out, "/") {
 				if seg == ".." || seg == "." {
 					t.Fatalf("value %q made a %q segment: %q", value, seg, out)
 				}
