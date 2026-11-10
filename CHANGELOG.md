@@ -6,10 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-10
+
+A patch release that smooths the rough edges 0.5 left in stacks, for moving off another stack manager. Removing a stack keeps its `.env` for 30 days, and restoring it puts the file back. A stack update that rolls back leaves the compose file alone and isn't offered again. Registry logins can come from a credential helper. When Dockhand, Komodo, Arcane or Dockge also manages a stack, the Inbox says so. Printed boards show clock times, and a TV display's zoom follows its screen.
+
+**On upgrade,** update both images, the hub and every node. The node's fixes for removal, rollbacks and credential helpers run on the node. Nothing in the config or the database changes.
+
 ### Added
 
 - **Print a board with absolute times.** Print this board, in the Settings menu and the command bar, opens the board on its own at the e-ink level of detail, where every time is a clock time rather than "3 min ago", and calls the browser's print. Afterwards you're back on the board.
 - **Registry logins from a credential helper.** A node whose mounted Docker config keeps logins in `credsStore` or `credHelpers` now asks that helper, `docker-credential-<name>`, when it's on the node's `PATH`, for the registries `images.registries` lists. When it isn't, the hub says which helper the node couldn't run and how to write a plain login file instead.
+
+### Changed
+
+- **The deploy guide covers forward-auth in front of Cha Dash.** [Behind forward-auth](https://github.com/ban-red/cha-dash/blob/main/deploy/README.md#behind-forward-auth) lists the paths a middleware such as Authelia's must let through (nodes, deploy webhooks, wall displays, agents, the app's static files), with a Traefik router that does it, and where API tokens should connect instead.
+- **The Home Assistant integration has a repository of its own,** [ban-red/ha-chadash](https://github.com/ban-red/ha-chadash), so HACS installs it and offers each new release: add it in HACS as a custom repository. A copy from `contrib/homeassistant` keeps working; replace it with the HACS install to get updates.
 
 ### Fixed
 
@@ -19,10 +30,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A stack update that rolls back isn't offered again.** Update all already skipped an image a rollout had rolled back from; a stack's Update run on its own now records the same, for each container it tried to move, until the registry has a newer image or you choose Try again.
 - **Compose's dry run no longer reads the host's Docker config.** A node run outside a container could have its dry run read `~/.docker` (or `DOCKER_CONFIG`). It now reads only the node's own logins, like every pull.
 - **Two managers of one stack show in the Inbox.** When Dockhand, Komodo or Arcane lists a stack Cha Dash manages, or another tool such as Dockge last brought its containers up from a file of its own on the same host, the Inbox now says so at attention, and the stack's page names the file. The Inbox item goes once only Cha Dash manages the stack.
-
-### Changed
-
-- **The Home Assistant integration has a repository of its own,** [ban-red/ha-chadash](https://github.com/ban-red/ha-chadash), so HACS installs it and offers each new release: add it in HACS as a custom repository. A copy from `contrib/homeassistant` keeps working; replace it with the HACS install to get updates.
 
 ## [0.5.0] - 2026-11-06
 
@@ -533,7 +540,8 @@ The first beta of Cha Dash: a calm, live, read-only front page for your homelab.
 - **Ways to run it.** Docker Compose, with zero required settings and a hardened container (non-root, read-only filesystem, no capabilities) next to an optional read-only Docker socket proxy. Images for linux/amd64 and linux/arm64, plus linux/arm/v7 as best-effort, signed with cosign and carrying build provenance and an SBOM. A Community Applications template for Unraid. Static binaries for Linux, and macOS builds for development.
 - **Light to run.** One self-contained binary with the web app inside, and gzip compression for the app, the first paint and the API: the Demo Home's first page goes from 145 kB to 24 kB.
 
-[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ban-red/cha-dash/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/ban-red/cha-dash/releases/tag/v0.5.1
 [0.5.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.5.0
 [0.4.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ban-red/cha-dash/releases/tag/v0.3.0
