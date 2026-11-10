@@ -410,6 +410,43 @@ networks:
 
 Caddy gets the certificate and sets the forwarded headers on its own.
 
+### Behind forward-auth
+
+Cha Dash checks every request itself, so it doesn't need a forward-auth middleware such as Authelia's or authentik's in front of it. One adds single sign-on, not protection. If you add one anyway, some requests can't sign in at a login page, and the middleware must let them through:
+
+| Path | Who calls it | How Cha Dash checks it |
+|---|---|---|
+| `/node` | Nodes on other hosts, over a WebSocket | The node's key |
+| `/api/hooks/` | Deploy webhooks from your forge | The hook's signature |
+| `/display/`, `/api/display` | Wall displays | The display's own secret |
+| `/mcp` | AI agents | An agent token |
+| `/assets/`, `/icons/`, `/service-icons/`, `/manifest.webmanifest`, `/sw.js`, `/boot.js`, `/favicon.svg` | The browser, sometimes without cookies (the manifest, the service worker) | Public files, the same for everyone |
+
+**API tokens** (scripts, Home Assistant, Prometheus) authenticate with a `Bearer` header, which a middleware can't tell apart from an anonymous request. Point them at an address without the middleware: the hub's own port on your LAN, or a second host name.
+
+With Traefik, a second router for those paths, without the middleware, does it for any provider:
+
+```yaml
+# compose.override.yaml, beside the Traefik labels above
+services:
+  chadash:
+    labels:
+      traefik.http.routers.chadash.middlewares: authelia@docker
+      traefik.http.routers.chadash-open.rule: >-
+        Host(`dash.lab.example`) && (Path(`/node`) || Path(`/mcp`) || PathPrefix(`/api/hooks/`) ||
+        PathPrefix(`/display/`) || PathPrefix(`/api/display`) || PathPrefix(`/assets/`) ||
+        PathPrefix(`/icons/`) || PathPrefix(`/service-icons/`) ||
+        Path(`/manifest.webmanifest`, `/sw.js`, `/boot.js`, `/favicon.svg`))
+      traefik.http.routers.chadash-open.entrypoints: websecure
+      traefik.http.routers.chadash-open.tls.certresolver: letsencrypt
+      traefik.http.routers.chadash-open.priority: "100"
+      traefik.http.routers.chadash-open.service: chadash
+```
+
+A `bypass` rule in Authelia's `access_control` for the same paths works too.
+
+To have Cha Dash trust the user the middleware signed in, turn on forward-auth in Settings → Security → Sign-in and list the proxy in `CHADASH_TRUSTED_PROXIES`. Each person then links the name the proxy sends from their own settings. Without that, people sign in to the middleware and then to Cha Dash.
+
 ## Demo mode
 
 Demo mode runs the **Demo Home simulator**: a made-up homelab with five Proxmox endpoints, an Unraid NAS, Home Assistant, cameras and six scripted incidents. It reads nothing real and needs no Docker access, so the node stays off.
