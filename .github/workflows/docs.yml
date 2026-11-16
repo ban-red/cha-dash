@@ -22,7 +22,7 @@ concurrency:
 
 env:
   # Keep in step with ci.yml and the oven/bun image in the Dockerfile.
-  BUN_VERSION: "1.4.2"
+  BUN_VERSION: "1.4.4"
 
 defaults:
   run:
