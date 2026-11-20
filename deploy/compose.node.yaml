@@ -25,7 +25,7 @@ name: chadash-node
 
 services:
   chadash-node:
-    image: ${CHADASH_NODE_IMAGE:-ghcr.io/ban-red/chadash-node:latest}
+    image: ${CHADASH_NODE_IMAGE:-ghcr.io/ban-red/chadash-node:latest@sha256:e7052f57da4228febbfd544330f7cfbb770e6f695114f486ce3b6c3effd02073}
     restart: unless-stopped
     # As in compose.yaml: uid 0, the socket's owner, with every capability
     # dropped. Group 65532 lets it read and write its identity: the image's
